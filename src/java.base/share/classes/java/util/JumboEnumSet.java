@@ -25,6 +25,9 @@
 
 package java.util;
 
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Private implementation class for EnumSet, for "jumbo" enum types
  * (i.e., those with more than 64 elements).
@@ -33,6 +36,7 @@ package java.util;
  * @since 1.5
  * @serial exclude
  */
+@AnnotatedFor({"index"})
 class JumboEnumSet<E extends Enum<E>> extends EnumSet<E> {
     private static final long serialVersionUID = 334349849919042784L;
 
@@ -158,7 +162,7 @@ class JumboEnumSet<E extends Enum<E>> extends EnumSet<E> {
      *
      * @return the number of elements in this set
      */
-    public int size() {
+    public @NonNegative int size() {
         return size;
     }
 

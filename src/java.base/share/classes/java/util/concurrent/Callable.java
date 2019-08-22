@@ -35,6 +35,9 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 /**
  * A task that returns a result and may throw an exception.
  * Implementors define a single method with no arguments called
@@ -54,6 +57,8 @@ package java.util.concurrent;
  * @author Doug Lea
  * @param <V> the result type of method {@code call}
  */
+@CFComment({"nullness: Make upper bound explicit for clarity."})
+@AnnotatedFor({"nullness"})
 @FunctionalInterface
 public interface Callable<V> {
     /**

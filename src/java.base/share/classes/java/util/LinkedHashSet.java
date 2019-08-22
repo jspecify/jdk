@@ -25,6 +25,9 @@
 
 package java.util;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 /**
  * <p>Hash table and linked list implementation of the {@code Set} interface,
  * with predictable iteration order.  This implementation differs from
@@ -115,6 +118,8 @@ package java.util;
  * @since   1.4
  */
 
+@CFComment({"lock/nullness: This class permits null elements"})
+@AnnotatedFor({"lock", "nullness"})
 public class LinkedHashSet<E>
     extends HashSet<E>
     implements Set<E>, Cloneable, java.io.Serializable {

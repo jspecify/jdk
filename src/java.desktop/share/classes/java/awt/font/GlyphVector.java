@@ -29,6 +29,9 @@
 
 package java.awt.font;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.Graphics2D;
 import java.awt.Font;
 import java.awt.Polygon;        // remind - need a floating point version
@@ -106,7 +109,8 @@ import java.awt.font.GlyphJustificationInfo;
  * @author Charlton Innovations, Inc.
  */
 
-public abstract class GlyphVector implements Cloneable {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class GlyphVector implements Cloneable {
 
     //
     // methods associated with creation-time state

@@ -35,6 +35,9 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.concurrent.atomic.AtomicReference;
@@ -254,7 +257,8 @@ import java.util.concurrent.locks.LockSupport;
  * @since 1.7
  * @author Doug Lea
  */
-public class Phaser {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class Phaser {
     /*
      * This class implements an extension of X10 "clocks".  Thanks to
      * Vijay Saraswat for the idea, and to Vivek Sarkar for

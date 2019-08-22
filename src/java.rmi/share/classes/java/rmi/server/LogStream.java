@@ -24,6 +24,9 @@
  */
 package java.rmi.server;
 
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.*;
 import java.util.*;
 
@@ -35,6 +38,7 @@ import java.util.*;
  * @since   1.1
  * @deprecated no replacement
  */
+@AnnotatedFor({"signedness"})
 @Deprecated
 public class LogStream extends PrintStream {
 
@@ -212,7 +216,7 @@ public class LogStream extends PrintStream {
      * @deprecated no replacement
      */
     @Deprecated
-    public void write(byte b[], int off, int len)
+    public void write(@PolySigned byte b[], int off, int len)
     {
         if (len < 0)
             throw new ArrayIndexOutOfBoundsException(len);

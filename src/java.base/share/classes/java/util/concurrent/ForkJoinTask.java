@@ -35,6 +35,9 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.Serializable;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -203,7 +206,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * @since 1.7
  * @author Doug Lea
  */
-public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class ForkJoinTask<V> implements Future<V>, Serializable {
 
     /*
      * See the internal documentation of class ForkJoinPool for a

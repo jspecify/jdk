@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 
 /**
@@ -34,6 +38,7 @@ import java.io.IOException;
  *
  * @since 1.5
  */
+@AnnotatedFor({"lock", "nullness", "index"})
 public interface Readable {
 
     /**
@@ -49,5 +54,5 @@ public interface Readable {
      * @throws NullPointerException if cb is null
      * @throws java.nio.ReadOnlyBufferException if cb is a read only buffer
      */
-    public int read(java.nio.CharBuffer cb) throws IOException;
+    public @GTENegativeOne int read(@GuardSatisfied Readable this, java.nio.CharBuffer cb) throws IOException;
 }

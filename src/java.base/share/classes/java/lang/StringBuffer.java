@@ -25,6 +25,15 @@
 
 package java.lang;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Arrays;
 import jdk.internal.HotSpotIntrinsicCandidate;
 
@@ -103,6 +112,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @see     java.lang.String
  * @since   1.0
  */
+@AnnotatedFor({"lock", "nullness", "index"})
  public final class StringBuffer
     extends AbstractStringBuilder
     implements java.io.Serializable, Comparable<StringBuffer>, CharSequence
@@ -135,7 +145,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
      *             argument is less than {@code 0}.
      */
     @HotSpotIntrinsicCandidate
-    public StringBuffer(int capacity) {
+    public StringBuffer(@NonNegative int capacity) {
         super(capacity);
     }
 
@@ -199,13 +209,14 @@ import jdk.internal.HotSpotIntrinsicCandidate;
         return super.compareTo(another);
     }
 
+    @Pure
     @Override
-    public synchronized int length() {
+    public synchronized @NonNegative int length(@GuardSatisfied StringBuffer this) {
         return count;
     }
 
     @Override
-    public synchronized int capacity() {
+    public synchronized @NonNegative int capacity() {
         return super.capacity();
     }
 
@@ -228,7 +239,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
      * @see        #length()
      */
     @Override
-    public synchronized void setLength(int newLength) {
+    public synchronized void setLength(@NonNegative int newLength) {
         toStringCache = null;
         super.setLength(newLength);
     }
@@ -283,7 +294,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
      */
     @Override
     public synchronized void getChars(int srcBegin, int srcEnd, char[] dst,
-                                      int dstBegin)
+                                      @IndexOrHigh({"#3"}) int dstBegin)
     {
         super.getChars(srcBegin, srcEnd, dst, dstBegin);
     }
@@ -299,7 +310,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
     }
 
     @Override
-    public synchronized StringBuffer append(Object obj) {
+    public synchronized StringBuffer append(@Nullable Object obj) {
         toStringCache = null;
         super.append(String.valueOf(obj));
         return this;
@@ -307,7 +318,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
 
     @Override
     @HotSpotIntrinsicCandidate
-    public synchronized StringBuffer append(String str) {
+    public synchronized StringBuffer append(@Nullable String str) {
         toStringCache = null;
         super.append(str);
         return this;
@@ -337,7 +348,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
      * @return  a reference to this object.
      * @since 1.4
      */
-    public synchronized StringBuffer append(StringBuffer sb) {
+    public synchronized StringBuffer append(@Nullable StringBuffer sb) {
         toStringCache = null;
         super.append(sb);
         return this;
@@ -375,7 +386,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
      * @since 1.5
      */
     @Override
-    public synchronized StringBuffer append(CharSequence s) {
+    public synchronized StringBuffer append(@Nullable CharSequence s) {
         toStringCache = null;
         super.append(s);
         return this;
@@ -386,7 +397,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
      * @since      1.5
      */
     @Override
-    public synchronized StringBuffer append(CharSequence s, int start, int end)
+    public synchronized StringBuffer append(@Nullable CharSequence s, @IndexOrHigh({"#1"}) int start, @IndexOrHigh({"#1"}) int end)
     {
         toStringCache = null;
         super.append(s, start, end);
@@ -404,7 +415,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public synchronized StringBuffer append(char[] str, int offset, int len) {
+    public synchronized StringBuffer append(char[] str, @IndexOrHigh({"#1"}) int offset, @IndexOrHigh({"#1"}) int len) {
         toStringCache = null;
         super.append(str, offset, len);
         return this;
@@ -529,8 +540,8 @@ import jdk.internal.HotSpotIntrinsicCandidate;
      * @since      1.2
      */
     @Override
-    public synchronized StringBuffer insert(int index, char[] str, int offset,
-                                            int len)
+    public synchronized StringBuffer insert(int index, char[] str, @IndexOrHigh({"#2"}) int offset,
+                                            @IndexOrHigh({"#2"}) int len)
     {
         toStringCache = null;
         super.insert(index, str, offset, len);
@@ -541,7 +552,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public synchronized StringBuffer insert(int offset, Object obj) {
+    public synchronized StringBuffer insert(int offset, @Nullable Object obj) {
         toStringCache = null;
         super.insert(offset, String.valueOf(obj));
         return this;
@@ -551,7 +562,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public synchronized StringBuffer insert(int offset, String str) {
+    public synchronized StringBuffer insert(int offset, @Nullable String str) {
         toStringCache = null;
         super.insert(offset, str);
         return this;
@@ -572,7 +583,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
      * @since      1.5
      */
     @Override
-    public StringBuffer insert(int dstOffset, CharSequence s) {
+    public StringBuffer insert(int dstOffset, @Nullable CharSequence s) {
         // Note, synchronization achieved via invocations of other StringBuffer methods
         // after narrowing of s to specific type
         // Ditto for toStringCache clearing
@@ -585,8 +596,8 @@ import jdk.internal.HotSpotIntrinsicCandidate;
      * @since      1.5
      */
     @Override
-    public synchronized StringBuffer insert(int dstOffset, CharSequence s,
-            int start, int end)
+    public synchronized StringBuffer insert(int dstOffset, @Nullable CharSequence s,
+            @IndexOrHigh({"#2"}) int start, @IndexOrHigh({"#2"}) int end)
     {
         toStringCache = null;
         super.insert(dstOffset, s, start, end);
@@ -666,8 +677,9 @@ import jdk.internal.HotSpotIntrinsicCandidate;
     /**
      * @since      1.4
      */
+    @Pure
     @Override
-    public int indexOf(String str) {
+    public @GTENegativeOne int indexOf(@GuardSatisfied StringBuffer this, String str) {
         // Note, synchronization achieved via invocations of other StringBuffer methods
         return super.indexOf(str);
     }
@@ -675,16 +687,18 @@ import jdk.internal.HotSpotIntrinsicCandidate;
     /**
      * @since      1.4
      */
+    @Pure
     @Override
-    public synchronized int indexOf(String str, int fromIndex) {
+    public synchronized @GTENegativeOne int indexOf(@GuardSatisfied StringBuffer this, String str, int fromIndex) {
         return super.indexOf(str, fromIndex);
     }
 
     /**
      * @since      1.4
      */
+    @Pure
     @Override
-    public int lastIndexOf(String str) {
+    public @GTENegativeOne int lastIndexOf(@GuardSatisfied StringBuffer this, String str) {
         // Note, synchronization achieved via invocations of other StringBuffer methods
         return lastIndexOf(str, count);
     }
@@ -692,8 +706,9 @@ import jdk.internal.HotSpotIntrinsicCandidate;
     /**
      * @since      1.4
      */
+    @Pure
     @Override
-    public synchronized int lastIndexOf(String str, int fromIndex) {
+    public synchronized @GTENegativeOne int lastIndexOf(@GuardSatisfied StringBuffer this, String str, int fromIndex) {
         return super.lastIndexOf(str, fromIndex);
     }
 
@@ -707,9 +722,10 @@ import jdk.internal.HotSpotIntrinsicCandidate;
         return this;
     }
 
+    @SideEffectFree
     @Override
     @HotSpotIntrinsicCandidate
-    public synchronized String toString() {
+    public synchronized String toString(@GuardSatisfied StringBuffer this) {
         if (toStringCache == null) {
             return toStringCache =
                     isLatin1() ? StringLatin1.newString(value, 0, count)

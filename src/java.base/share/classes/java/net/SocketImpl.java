@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -42,7 +45,8 @@ import java.util.Set;
  * @author  unascribed
  * @since   1.0
  */
-public abstract class SocketImpl implements SocketOptions {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class SocketImpl implements SocketOptions {
     /**
      * The actual Socket object.
      */

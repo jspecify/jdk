@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.UnsupportedEncodingException;
 import java.io.CharArrayWriter;
 import java.nio.charset.Charset;
@@ -73,7 +76,8 @@ import sun.security.action.GetPropertyAction;
  * @author  Herb Jellinek
  * @since   1.0
  */
-public class URLEncoder {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class URLEncoder {
     static BitSet dontNeedEncoding;
     static final int caseDiff = ('a' - 'A');
     static String dfltEncName = null;

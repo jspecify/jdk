@@ -35,6 +35,9 @@
 
 package java.text;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import sun.text.bidi.BidiBase;
 
 /**
@@ -58,7 +61,8 @@ import sun.text.bidi.BidiBase;
  *
  * @since 1.4
  */
-public final class Bidi {
+@AnnotatedFor({"interning"})
+public final @UsesObjectEquals class Bidi {
 
     /** Constant indicating base direction is left-to-right. */
     public static final int DIRECTION_LEFT_TO_RIGHT = 0;

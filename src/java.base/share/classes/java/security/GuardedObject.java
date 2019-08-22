@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * A GuardedObject is an object that is used to protect access to
  * another object.
@@ -47,7 +50,8 @@ package java.security;
  * @since 1.2
  */
 
-public class GuardedObject implements java.io.Serializable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class GuardedObject implements java.io.Serializable {
 
     private static final long serialVersionUID = -5240450096227834308L;
 

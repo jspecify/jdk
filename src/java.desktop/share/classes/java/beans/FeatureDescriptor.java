@@ -25,6 +25,10 @@
 
 package java.beans;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
 import com.sun.beans.TypeResolver;
 
 import java.lang.ref.Reference;
@@ -50,10 +54,11 @@ import java.util.Map.Entry;
  * @since 1.1
  */
 
-public class FeatureDescriptor {
+@AnnotatedFor({"interning", "nullness"})
+public @UsesObjectEquals class FeatureDescriptor {
     private static final String TRANSIENT = "transient";
 
-    private Reference<? extends Class<?>> classRef;
+    private @Nullable Reference<? extends Class<?>> classRef;
 
     /**
      * Constructs a {@code FeatureDescriptor}.
@@ -205,7 +210,7 @@ public class FeatureDescriptor {
      * @return  The value of the attribute.  May be null if
      *     the attribute is unknown.
      */
-    public Object getValue(String attributeName) {
+    public @Nullable Object getValue(String attributeName) {
         return (this.table != null)
                 ? this.table.get(attributeName)
                 : null;
@@ -286,6 +291,7 @@ public class FeatureDescriptor {
      *
      * @return the initialized attribute table
      */
+    @EnsuresNonNull({"this.table"})
     private Hashtable<String, Object> getTable() {
         if (this.table == null) {
             this.table = new Hashtable<>();
@@ -300,7 +306,7 @@ public class FeatureDescriptor {
      *
      * @param annotation  the annotation of the element of the feature
      */
-    void setTransient(Transient annotation) {
+    void setTransient(@Nullable Transient annotation) {
         if ((annotation != null) && (null == getValue(TRANSIENT))) {
             setValue(TRANSIENT, annotation.value());
         }
@@ -325,7 +331,7 @@ public class FeatureDescriptor {
         this.classRef = getWeakReference(cls);
     }
 
-    Class<?> getClass0() {
+    @Nullable Class<?> getClass0() {
         return (this.classRef != null)
                 ? this.classRef.get()
                 : null;
@@ -338,7 +344,7 @@ public class FeatureDescriptor {
      *
      * @see SoftReference
      */
-    static <T> Reference<T> getSoftReference(T object) {
+    static <T> @Nullable Reference<T> getSoftReference(@Nullable T object) {
         return (object != null)
                 ? new SoftReference<>(object)
                 : null;
@@ -351,7 +357,7 @@ public class FeatureDescriptor {
      *
      * @see WeakReference
      */
-    static <T> Reference<T> getWeakReference(T object) {
+    static <T> @Nullable Reference<T> getWeakReference(@Nullable T object) {
         return (object != null)
                 ? new WeakReference<>(object)
                 : null;
@@ -367,7 +373,7 @@ public class FeatureDescriptor {
      * @see Method#getGenericReturnType
      * @see Method#getReturnType
      */
-    static Class<?> getReturnType(Class<?> base, Method method) {
+    static Class<?> getReturnType(@Nullable Class<?> base, Method method) {
         if (base == null) {
             base = method.getDeclaringClass();
         }
@@ -384,7 +390,7 @@ public class FeatureDescriptor {
      * @see Method#getGenericParameterTypes
      * @see Method#getParameterTypes
      */
-    static Class<?>[] getParameterTypes(Class<?> base, Method method) {
+    static Class<?>[] getParameterTypes(@Nullable Class<?> base, Method method) {
         if (base == null) {
             base = method.getDeclaringClass();
         }
@@ -394,10 +400,10 @@ public class FeatureDescriptor {
     private boolean expert;
     private boolean hidden;
     private boolean preferred;
-    private String shortDescription;
+    private @Nullable String shortDescription;
     private String name;
-    private String displayName;
-    private Hashtable<String, Object> table;
+    private @Nullable String displayName;
+    private @Nullable Hashtable<String, Object> table;
 
     /**
      * Returns a string representation of the object.
@@ -429,13 +435,13 @@ public class FeatureDescriptor {
     void appendTo(StringBuilder sb) {
     }
 
-    static void appendTo(StringBuilder sb, String name, Reference<?> reference) {
+    static void appendTo(StringBuilder sb, String name, @Nullable Reference<?> reference) {
         if (reference != null) {
             appendTo(sb, name, reference.get());
         }
     }
 
-    static void appendTo(StringBuilder sb, String name, Object value) {
+    static void appendTo(StringBuilder sb, String name, @Nullable Object value) {
         if (value != null) {
             sb.append("; ").append(name).append("=").append(value);
         }

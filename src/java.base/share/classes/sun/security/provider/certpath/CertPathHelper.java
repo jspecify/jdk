@@ -25,6 +25,9 @@
 
 package sun.security.provider.certpath;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Date;
 import java.util.Set;
 
@@ -43,7 +46,8 @@ import sun.security.x509.GeneralNameInterface;
  *
  * @author Andreas Sterbenz
  */
-public abstract class CertPathHelper {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class CertPathHelper {
 
     /**
      * Object used to tunnel the calls. Initialized by CertPathHelperImpl.

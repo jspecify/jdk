@@ -25,6 +25,12 @@
 
 package java.util.zip;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.EOFException;
@@ -42,6 +48,7 @@ import static java.util.zip.ZipUtils.*;
  * @author      David Connelly
  * @since 1.1
  */
+@AnnotatedFor({"index"})
 public
 class ZipInputStream extends InflaterInputStream implements ZipConstants {
     private ZipEntry entry;
@@ -179,7 +186,7 @@ class ZipInputStream extends InflaterInputStream implements ZipConstants {
      * @exception ZipException if a ZIP file error has occurred
      * @exception IOException if an I/O error has occurred
      */
-    public int read(byte[] b, int off, int len) throws IOException {
+    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(byte[] b, @IndexOrHigh({"#1"}) int off, @IndexOrHigh({"#1"}) int len) throws IOException {
         ensureOpen();
         if (off < 0 || len < 0 || off > b.length - len) {
             throw new IndexOutOfBoundsException();

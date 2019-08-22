@@ -25,6 +25,9 @@
 
 package java.awt.print;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.geom.Rectangle2D;
 
 /**
@@ -39,7 +42,8 @@ import java.awt.geom.Rectangle2D;
  * @see #setSize(double, double)
  * @see #setImageableArea(double, double, double, double)
  */
-public class Paper implements Cloneable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class Paper implements Cloneable {
 
  /* Private Class Variables */
 

@@ -25,6 +25,9 @@
 
 package java.awt.image;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.GraphicsEnvironment;
 import java.awt.color.ICC_Profile;
 import java.awt.geom.Rectangle2D;
@@ -57,7 +60,8 @@ import java.util.Arrays;
  * <p>
  * Note that the source and destination can be the same object.
  */
-public class BandCombineOp implements  RasterOp {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class BandCombineOp implements  RasterOp {
     float[][] matrix;
     int nrows = 0;
     int ncols = 0;

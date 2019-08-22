@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Thrown if an application tries to access or modify a specified
  * field of an object, and that object no longer has that field.
@@ -36,6 +40,7 @@ package java.lang;
  * @author  unascribed
  * @since   1.0
  */
+@AnnotatedFor({"nullness"})
 public
 class NoSuchFieldError extends IncompatibleClassChangeError {
     private static final long serialVersionUID = -3456430195886129035L;
@@ -43,6 +48,7 @@ class NoSuchFieldError extends IncompatibleClassChangeError {
     /**
      * Constructs a <code>NoSuchFieldError</code> with no detail message.
      */
+    @SideEffectFree
     public NoSuchFieldError() {
         super();
     }
@@ -53,7 +59,8 @@ class NoSuchFieldError extends IncompatibleClassChangeError {
      *
      * @param   s   the detail message.
      */
-    public NoSuchFieldError(String s) {
+    @SideEffectFree
+    public NoSuchFieldError(@Nullable String s) {
         super(s);
     }
 }

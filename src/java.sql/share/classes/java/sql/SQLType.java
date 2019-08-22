@@ -24,12 +24,15 @@
  */
 package java.sql;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * An object that is used to identify a generic SQL type, called a JDBC type or
  * a vendor specific data type.
  *
  * @since 1.8
  */
+@AnnotatedFor("nullness")
 public interface SQLType {
 
     /**

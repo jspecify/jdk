@@ -36,6 +36,15 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.AbstractQueue;
@@ -87,7 +96,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author Doug Lea and Bill Scherer and Michael Scott
  * @param <E> the type of elements held in this queue
  */
-public class SynchronousQueue<E> extends AbstractQueue<E>
+@AnnotatedFor({"nullness"})
+public class SynchronousQueue<E extends @NonNull Object> extends AbstractQueue<E>
     implements BlockingQueue<E>, java.io.Serializable {
     private static final long serialVersionUID = -3223113410248163686L;
 
@@ -313,7 +323,7 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
          * and CASes of head and to avoid surges of garbage when CASes
          * to push nodes fail due to contention.
          */
-        static SNode snode(SNode s, Object e, SNode next, int mode) {
+        static SNode snode(@Nullable SNode s, Object e, SNode next, int mode) {
             if (s == null) s = new SNode(e);
             s.mode = mode;
             s.next = next;
@@ -957,6 +967,7 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      *
      * @return {@code true}
      */
+    @Pure
     public boolean isEmpty() {
         return true;
     }
@@ -967,6 +978,7 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      *
      * @return zero
      */
+    @Pure
     public int size() {
         return 0;
     }
@@ -995,6 +1007,7 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      * @param o the element
      * @return {@code false}
      */
+    @Pure
     public boolean contains(Object o) {
         return false;
     }
@@ -1017,6 +1030,7 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      * @param c the collection
      * @return {@code false} unless given collection is empty
      */
+    @Pure
     public boolean containsAll(Collection<?> c) {
         return c.isEmpty();
     }
@@ -1060,6 +1074,7 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      *
      * @return an empty iterator
      */
+    @SideEffectFree
     public Iterator<E> iterator() {
         return Collections.emptyIterator();
     }
@@ -1071,6 +1086,7 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      * @return an empty spliterator
      * @since 1.8
      */
+    @SideEffectFree
     public Spliterator<E> spliterator() {
         return Spliterators.emptySpliterator();
     }
@@ -1079,7 +1095,8 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      * Returns a zero-length array.
      * @return a zero-length array
      */
-    public Object[] toArray() {
+    @SideEffectFree
+    public @PolyNull Object[] toArray(SynchronousQueue<@PolyNull E> this) {
         return new Object[0];
     }
 
@@ -1091,6 +1108,7 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      * @return the specified array
      * @throws NullPointerException if the specified array is null
      */
+    @SideEffectFree
     public <T> T[] toArray(T[] a) {
         if (a.length > 0)
             a[0] = null;

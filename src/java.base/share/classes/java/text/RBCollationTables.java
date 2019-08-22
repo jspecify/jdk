@@ -38,6 +38,9 @@
 
 package java.text;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Vector;
 import sun.text.UCompactIntArray;
 import sun.text.IntHashtable;
@@ -48,7 +51,8 @@ import sun.text.IntHashtable;
  * can share a single RBCollationTables object, easing memory requirements and
  * improving performance.
  */
-final class RBCollationTables {
+@AnnotatedFor({"interning"})
+final @UsesObjectEquals class RBCollationTables {
     //===========================================================================================
     //  The following diagram shows the data structure of the RBCollationTables object.
     //  Suppose we have the rule, where 'o-umlaut' is the unicode char 0x00F6.

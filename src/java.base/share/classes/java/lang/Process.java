@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 import java.io.*;
 import java.lang.ProcessBuilder.Redirect;
 import java.util.concurrent.CompletableFuture;
@@ -89,7 +93,8 @@ import java.util.stream.Stream;
  *
  * @since   1.0
  */
-public abstract class Process {
+@AnnotatedFor({"interning", "nullness"})
+public abstract @UsesObjectEquals class Process {
     /**
      * Default constructor for Process.
      */
@@ -112,6 +117,9 @@ public abstract class Process {
      * @return the output stream connected to the normal input of the
      *         process
      */
+    @CFComment({"nullness: These three methods return @NonNull values despite being documented as",
+    "possibly returning a \"null stream\".  A \"null stream\" is a non-null",
+    "Stream with particular behavior, not a @Nullable Stream reference."})
     public abstract OutputStream getOutputStream();
 
     /**

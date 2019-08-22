@@ -25,6 +25,9 @@
 
 package java.sql;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.math.BigDecimal;
 import java.util.Calendar;
 import java.io.Reader;
@@ -146,6 +149,7 @@ import java.io.InputStream;
  * @since 1.1
  */
 
+@AnnotatedFor("nullness")
 public interface ResultSet extends Wrapper, AutoCloseable {
 
     /**
@@ -235,7 +239,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    String getString(int columnIndex) throws SQLException;
+    @Nullable String getString(int columnIndex) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -360,7 +364,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      *             or {@code getBigDecimal(String columnLabel)}
      */
     @Deprecated(since="1.2")
-    BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException;
+    @Nullable BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -375,7 +379,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    byte[] getBytes(int columnIndex) throws SQLException;
+    byte @Nullable [] getBytes(int columnIndex) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -389,7 +393,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    java.sql.Date getDate(int columnIndex) throws SQLException;
+    java.sql.@Nullable Date getDate(int columnIndex) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -403,7 +407,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    java.sql.Time getTime(int columnIndex) throws SQLException;
+    java.sql.@Nullable Time getTime(int columnIndex) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -417,7 +421,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    java.sql.Timestamp getTimestamp(int columnIndex) throws SQLException;
+    java.sql.@Nullable Timestamp getTimestamp(int columnIndex) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -444,7 +448,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    java.io.InputStream getAsciiStream(int columnIndex) throws SQLException;
+    java.io.@Nullable InputStream getAsciiStream(int columnIndex) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -480,7 +484,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      *              <code>getUnicodeStream</code>
      */
     @Deprecated(since="1.2")
-    java.io.InputStream getUnicodeStream(int columnIndex) throws SQLException;
+    java.io.@Nullable InputStream getUnicodeStream(int columnIndex) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -505,7 +509,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    java.io.InputStream getBinaryStream(int columnIndex)
+    java.io.@Nullable InputStream getBinaryStream(int columnIndex)
         throws SQLException;
 
 
@@ -523,7 +527,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    String getString(String columnLabel) throws SQLException;
+    @Nullable String getString(String columnLabel) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -663,7 +667,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    byte[] getBytes(String columnLabel) throws SQLException;
+    byte @Nullable [] getBytes(String columnLabel) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -677,7 +681,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    java.sql.Date getDate(String columnLabel) throws SQLException;
+    java.sql.@Nullable Date getDate(String columnLabel) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -692,7 +696,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    java.sql.Time getTime(String columnLabel) throws SQLException;
+    java.sql.@Nullable Time getTime(String columnLabel) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -706,7 +710,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    java.sql.Timestamp getTimestamp(String columnLabel) throws SQLException;
+    java.sql.@Nullable Timestamp getTimestamp(String columnLabel) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -732,7 +736,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    java.io.InputStream getAsciiStream(String columnLabel) throws SQLException;
+    java.io.@Nullable InputStream getAsciiStream(String columnLabel) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -766,7 +770,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * @deprecated use <code>getCharacterStream</code> instead
      */
     @Deprecated(since="1.2")
-    java.io.InputStream getUnicodeStream(String columnLabel) throws SQLException;
+    java.io.@Nullable InputStream getUnicodeStream(String columnLabel) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -820,7 +824,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * @exception SQLException if a database access error occurs or this method is
      *            called on a closed result set
      */
-    SQLWarning getWarnings() throws SQLException;
+    @Nullable SQLWarning getWarnings() throws SQLException;
 
     /**
      * Clears all warnings reported on this <code>ResultSet</code> object.
@@ -905,7 +909,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    Object getObject(int columnIndex) throws SQLException;
+    @Nullable Object getObject(int columnIndex) throws SQLException;
 
     /**
      * <p>Gets the value of the designated column in the current row
@@ -935,7 +939,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    Object getObject(String columnLabel) throws SQLException;
+    @Nullable Object getObject(String columnLabel) throws SQLException;
 
     //----------------------------------------------------------------
 
@@ -971,7 +975,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      *            called on a closed result set
      * @since 1.2
      */
-    java.io.Reader getCharacterStream(int columnIndex) throws SQLException;
+    java.io.@Nullable Reader getCharacterStream(int columnIndex) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -987,7 +991,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      *            called on a closed result set
      * @since 1.2
      */
-    java.io.Reader getCharacterStream(String columnLabel) throws SQLException;
+    java.io.@Nullable Reader getCharacterStream(String columnLabel) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -1003,7 +1007,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      *            called on a closed result set
      * @since 1.2
      */
-    BigDecimal getBigDecimal(int columnIndex) throws SQLException;
+    @Nullable BigDecimal getBigDecimal(int columnIndex) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -1020,7 +1024,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * @since 1.2
      *
      */
-    BigDecimal getBigDecimal(String columnLabel) throws SQLException;
+    @Nullable BigDecimal getBigDecimal(String columnLabel) throws SQLException;
 
     //---------------------------------------------------------------------
     // Traversal/Positioning
@@ -2430,7 +2434,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * or this method is called on a closed result set
      * @since 1.2
      */
-    Statement getStatement() throws SQLException;
+    @Nullable Statement getStatement() throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -2454,7 +2458,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.2
      */
-    Object getObject(int columnIndex, java.util.Map<String,Class<?>> map)
+    @Nullable Object getObject(int columnIndex, java.util.Map<String,Class<?>> map)
         throws SQLException;
 
     /**
@@ -2636,7 +2640,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * or this method is called on a closed result set
      * @since 1.2
      */
-    java.sql.Date getDate(int columnIndex, Calendar cal) throws SQLException;
+    java.sql.@Nullable Date getDate(int columnIndex, Calendar cal) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -2657,7 +2661,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * or this method is called on a closed result set
      * @since 1.2
      */
-    java.sql.Date getDate(String columnLabel, Calendar cal) throws SQLException;
+    java.sql.@Nullable Date getDate(String columnLabel, Calendar cal) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -2678,7 +2682,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * or this method is called on a closed result set
      * @since 1.2
      */
-    java.sql.Time getTime(int columnIndex, Calendar cal) throws SQLException;
+    java.sql.@Nullable Time getTime(int columnIndex, Calendar cal) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -2699,7 +2703,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * or this method is called on a closed result set
      * @since 1.2
      */
-    java.sql.Time getTime(String columnLabel, Calendar cal) throws SQLException;
+    java.sql.@Nullable Time getTime(String columnLabel, Calendar cal) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -2720,7 +2724,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * or this method is called on a closed result set
      * @since 1.2
      */
-    java.sql.Timestamp getTimestamp(int columnIndex, Calendar cal)
+    java.sql.@Nullable Timestamp getTimestamp(int columnIndex, Calendar cal)
       throws SQLException;
 
     /**
@@ -2742,7 +2746,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * or this method is called on a closed result set
      * @since 1.2
      */
-    java.sql.Timestamp getTimestamp(String columnLabel, Calendar cal)
+    java.sql.@Nullable Timestamp getTimestamp(String columnLabel, Calendar cal)
       throws SQLException;
 
     //-------------------------- JDBC 3.0 ----------------------------------------
@@ -2779,7 +2783,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.4
      */
-    java.net.URL getURL(int columnIndex) throws SQLException;
+    java.net.@Nullable URL getURL(int columnIndex) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -2797,7 +2801,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.4
      */
-    java.net.URL getURL(String columnLabel) throws SQLException;
+    java.net.@Nullable URL getURL(String columnLabel) throws SQLException;
 
     /**
      * Updates the designated column with a <code>java.sql.Ref</code> value.
@@ -2968,7 +2972,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.6
      */
-    RowId getRowId(int columnIndex) throws SQLException;
+    @Nullable RowId getRowId(int columnIndex) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row of this
@@ -2985,7 +2989,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.6
      */
-    RowId getRowId(String columnLabel) throws SQLException;
+    @Nullable RowId getRowId(String columnLabel) throws SQLException;
 
     /**
      * Updates the designated column with a <code>RowId</code> value. The updater
@@ -3268,7 +3272,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.6
      */
-    String getNString(int columnIndex) throws SQLException;
+    @Nullable String getNString(int columnIndex) throws SQLException;
 
 
     /**
@@ -3289,7 +3293,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.6
      */
-    String getNString(String columnLabel) throws SQLException;
+    @Nullable String getNString(String columnLabel) throws SQLException;
 
 
     /**
@@ -3311,7 +3315,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.6
      */
-    java.io.Reader getNCharacterStream(int columnIndex) throws SQLException;
+    java.io.@Nullable Reader getNCharacterStream(int columnIndex) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -3332,7 +3336,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.6
      */
-    java.io.Reader getNCharacterStream(String columnLabel) throws SQLException;
+    java.io.@Nullable Reader getNCharacterStream(String columnLabel) throws SQLException;
 
     /**
      * Updates the designated column with a character stream value, which will have

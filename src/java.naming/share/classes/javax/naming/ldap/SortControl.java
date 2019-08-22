@@ -25,6 +25,9 @@
 
 package javax.naming.ldap;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import com.sun.jndi.ldap.Ber;
 import com.sun.jndi.ldap.BerEncoder;
@@ -106,13 +109,14 @@ import com.sun.jndi.ldap.BerEncoder;
  * @see SortResponseControl
  * @author Vincent Ryan
  */
+@AnnotatedFor({"interning"})
 final public class SortControl extends BasicControl {
 
     /**
      * The server-side sort control's assigned object identifier
      * is 1.2.840.113556.1.4.473.
      */
-    public static final String OID = "1.2.840.113556.1.4.473";
+    public static final @Interned String OID = "1.2.840.113556.1.4.473";
 
     private static final long serialVersionUID = -1965961680233330744L;
 

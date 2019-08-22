@@ -25,9 +25,12 @@
 
 package java.lang.ref;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Final references, used to implement finalization
  */
+@AnnotatedFor({"nullness"})
 class FinalReference<T> extends Reference<T> {
 
     public FinalReference(T referent, ReferenceQueue<? super T> q) {

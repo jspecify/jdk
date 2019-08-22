@@ -24,6 +24,9 @@
  */
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.image.ImageProducer;
 import java.awt.image.ImageObserver;
 import java.awt.image.ImageFilter;
@@ -43,7 +46,8 @@ import sun.awt.image.SurfaceManager;
  * @author      Arthur van Hoff
  * @since       1.0
  */
-public abstract class Image {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class Image {
 
     /**
      * convenience object; we can use this single static object for

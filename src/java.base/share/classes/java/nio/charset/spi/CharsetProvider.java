@@ -25,6 +25,9 @@
 
 package java.nio.charset.spi;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.nio.charset.Charset;
 import java.util.Iterator;
 
@@ -68,7 +71,8 @@ import java.util.Iterator;
  * @see java.nio.charset.Charset
  */
 
-public abstract class CharsetProvider {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class CharsetProvider {
 
     private static Void checkPermission() {
         SecurityManager sm = System.getSecurityManager();

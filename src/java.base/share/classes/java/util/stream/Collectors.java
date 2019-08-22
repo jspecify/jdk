@@ -24,6 +24,8 @@
  */
 package java.util.stream;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.AbstractMap;
 import java.util.AbstractSet;
 import java.util.ArrayList;
@@ -101,6 +103,7 @@ import java.util.function.ToLongFunction;
  *
  * @since 1.8
  */
+@AnnotatedFor({"lock", "nullness"})
 public final class Collectors {
 
     static final Set<Collector.Characteristics> CH_CONCURRENT_ID

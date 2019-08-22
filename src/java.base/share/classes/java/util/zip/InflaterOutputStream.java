@@ -25,6 +25,11 @@
 
 package java.util.zip;
 
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -41,6 +46,7 @@ import java.io.OutputStream;
  * @see DeflaterOutputStream
  */
 
+@AnnotatedFor({"index", "signedness"})
 public class InflaterOutputStream extends FilterOutputStream {
     /** Decompressor for this stream. */
     protected final Inflater inf;
@@ -100,7 +106,7 @@ public class InflaterOutputStream extends FilterOutputStream {
      * @throws IllegalArgumentException if {@code bufLen <= 0}
      * @throws NullPointerException if {@code out} or {@code infl} is null
      */
-    public InflaterOutputStream(OutputStream out, Inflater infl, int bufLen) {
+    public InflaterOutputStream(OutputStream out, Inflater infl, @Positive int bufLen) {
         super(out);
 
         // Sanity checks
@@ -218,7 +224,7 @@ public class InflaterOutputStream extends FilterOutputStream {
      * @throws NullPointerException if {@code b} is null
      * @throws ZipException if a compression (ZIP) format error occurs
      */
-    public void write(byte[] b, int off, int len) throws IOException {
+    public void write(@PolySigned byte[] b, @IndexOrHigh({"#1"}) int off, @IndexOrHigh({"#1"}) int len) throws IOException {
         // Sanity checks
         ensureOpen();
         if (b == null) {

@@ -25,9 +25,13 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import sun.util.logging.PlatformLogger;
 
-abstract class AttributeValue {
+@AnnotatedFor({"interning"})
+abstract @UsesObjectEquals class AttributeValue {
     private static final PlatformLogger log = PlatformLogger.getLogger("java.awt.AttributeValue");
     private final int value;
     private final String[] names;

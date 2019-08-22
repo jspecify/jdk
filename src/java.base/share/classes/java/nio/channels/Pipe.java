@@ -25,6 +25,9 @@
 
 package java.nio.channels;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.nio.channels.spi.*;
 
@@ -49,7 +52,8 @@ import java.nio.channels.spi.*;
  * @since 1.4
  */
 
-public abstract class Pipe {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class Pipe {
 
     /**
      * A channel representing the readable end of a {@link Pipe}.

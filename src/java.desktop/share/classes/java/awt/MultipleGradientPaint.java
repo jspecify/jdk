@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.geom.AffineTransform;
 import java.awt.image.ColorModel;
 import java.lang.ref.SoftReference;
@@ -39,7 +42,8 @@ import java.util.Arrays;
  * @author Nicholas Talian, Vincent Hardy, Jim Graham, Jerry Evans
  * @since 1.6
  */
-public abstract class MultipleGradientPaint implements Paint {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class MultipleGradientPaint implements Paint {
 
     /** The method to use when painting outside the gradient bounds.
      * @since 1.6

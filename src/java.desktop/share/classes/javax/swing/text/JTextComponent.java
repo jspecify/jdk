@@ -24,6 +24,10 @@
  */
 package javax.swing.text;
 
+import org.checkerframework.checker.guieffect.qual.SafeEffect;
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import com.sun.beans.util.Cache;
 
 import java.security.AccessController;
@@ -301,6 +305,7 @@ import sun.swing.SwingAccessor;
  * @see View
  * @see ViewFactory
  */
+@AnnotatedFor({"guieffect", "interning"})
 @JavaBean(defaultProperty = "UI")
 @SwingContainer(false)
 @SuppressWarnings("serial") // Same-version serialization only
@@ -1567,7 +1572,7 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
     /**
      * The bound property name for the focus accelerator.
      */
-    public static final String FOCUS_ACCELERATOR_KEY = "focusAcceleratorKey";
+    public static final @Interned String FOCUS_ACCELERATOR_KEY = "focusAcceleratorKey";
 
     /**
      * Sets the key accelerator that will cause the receiving text
@@ -1720,6 +1725,7 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * @see #getText
      * @see DefaultCaret
      */
+    @SafeEffect
     @BeanProperty(bound = false, description
             = "the text of this component")
     public void setText(String t) {
@@ -4467,7 +4473,7 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * <code>JTextComponent</code> instances unless they
      * have had a different keymap set.
      */
-    public static final String DEFAULT_KEYMAP = "default";
+    public static final @Interned String DEFAULT_KEYMAP = "default";
 
     /**
      * Event to use when firing a notification of change to caret

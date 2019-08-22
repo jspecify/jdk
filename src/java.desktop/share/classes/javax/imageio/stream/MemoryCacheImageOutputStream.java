@@ -25,6 +25,9 @@
 
 package javax.imageio.stream;
 
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.io.OutputStream;
 
@@ -39,6 +42,7 @@ import java.io.OutputStream;
  * yet flushed.
  *
  */
+@AnnotatedFor({"signedness"})
 public class MemoryCacheImageOutputStream extends ImageOutputStreamImpl {
 
     private OutputStream stream;
@@ -113,7 +117,7 @@ public class MemoryCacheImageOutputStream extends ImageOutputStreamImpl {
         ++streamPos;
     }
 
-    public void write(byte[] b, int off, int len) throws IOException {
+    public void write(@PolySigned byte[] b, int off, int len) throws IOException {
         flushBits(); // this will call checkClosed() for us
         cache.write(b, off, len, streamPos);
         streamPos += len;

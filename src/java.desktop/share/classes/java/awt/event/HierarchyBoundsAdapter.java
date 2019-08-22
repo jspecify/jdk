@@ -25,6 +25,9 @@
 
 package java.awt.event;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * An abstract adapter class for receiving ancestor moved and resized events.
  * The methods in this class are empty. This class exists as a
@@ -47,7 +50,8 @@ package java.awt.event;
  * @see         HierarchyEvent
  * @since       1.3
  */
-public abstract class HierarchyBoundsAdapter implements HierarchyBoundsListener
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class HierarchyBoundsAdapter implements HierarchyBoundsListener
 {
     /**
      * Called when an ancestor of the source is moved.

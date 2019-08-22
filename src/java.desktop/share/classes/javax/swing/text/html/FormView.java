@@ -24,6 +24,9 @@
  */
 package javax.swing.text.html;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.net.*;
 import java.io.*;
 import java.awt.*;
@@ -97,6 +100,7 @@ import javax.swing.text.*;
  * @author Timothy Prinzing
  * @author Sunita Mani
  */
+@AnnotatedFor({"interning"})
 public class FormView extends ComponentView implements ActionListener {
 
     /**
@@ -107,7 +111,7 @@ public class FormView extends ComponentView implements ActionListener {
      *             FormView.submitButtonText
      */
     @Deprecated
-    public static final String SUBMIT = new String("Submit Query");
+    public static final @Interned String SUBMIT = new String("Submit Query");
     /**
      * If a value attribute is not specified for a FORM input element
      * of type "reset", then this default string is used.
@@ -116,7 +120,7 @@ public class FormView extends ComponentView implements ActionListener {
      *             FormView.resetButtonText
      */
     @Deprecated
-    public static final String RESET = new String("Reset");
+    public static final @Interned String RESET = new String("Reset");
 
     /**
      * Document attribute name for storing POST data. JEditorPane.getPostData()

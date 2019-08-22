@@ -24,6 +24,8 @@
  */
 package java.util.function;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Represents a supplier of {@code long}-valued results.  This is the
  * {@code long}-producing primitive specialization of {@link Supplier}.
@@ -37,6 +39,7 @@ package java.util.function;
  * @see Supplier
  * @since 1.8
  */
+@AnnotatedFor({"lock", "nullness"})
 @FunctionalInterface
 public interface LongSupplier {
 

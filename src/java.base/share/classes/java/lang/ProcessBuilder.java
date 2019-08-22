@@ -25,6 +25,9 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -187,6 +190,7 @@ import sun.security.action.GetPropertyAction;
  * @since 1.5
  */
 
+@AnnotatedFor({"nullness"})
 public final class ProcessBuilder
 {
     private List<String> command;
@@ -398,7 +402,7 @@ public final class ProcessBuilder
      *
      * @return this process builder's working directory
      */
-    public File directory() {
+    public @Nullable File directory() {
         return directory;
     }
 
@@ -415,7 +419,7 @@ public final class ProcessBuilder
      * @param  directory the new working directory
      * @return this process builder
      */
-    public ProcessBuilder directory(File directory) {
+    public ProcessBuilder directory(@Nullable File directory) {
         this.directory = directory;
         return this;
     }

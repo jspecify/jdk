@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * The {@code Compiler} class is provided to support Java-to-native-code
  * compilers and related services. By design, the {@code Compiler} class does
@@ -40,8 +44,9 @@ package java.lang;
  * @author  Frank Yellin
  * @since   1.0
  */
+@AnnotatedFor({"interning", "nullness"})
 @Deprecated(since="9", forRemoval=true)
-public final class Compiler  {
+public final @UsesObjectEquals class Compiler  {
     private Compiler() {}               // don't make instances
 
     /**
@@ -89,7 +94,7 @@ public final class Compiler  {
      * @throws  NullPointerException
      *          If {@code any} is {@code null}
      */
-    public static Object command(Object any) {
+    public static @Nullable Object command(Object any) {
         return null;
     }
 

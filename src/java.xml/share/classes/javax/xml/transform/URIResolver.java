@@ -25,12 +25,17 @@
 
 package javax.xml.transform;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * <p>An object that implements this interface that can be called by the processor
  * to turn a URI used in document(), xsl:import, or xsl:include into a Source object.
  *
  * @since 1.4
  */
+@AnnotatedFor("nullness")
 public interface URIResolver {
 
     /**
@@ -47,6 +52,7 @@ public interface URIResolver {
      * @throws TransformerException if an error occurs when trying to
      * resolve the URI.
      */
-    public Source resolve(String href, String base)
+    @Pure
+    public @Nullable Source resolve(String href, @Nullable String base)
         throws TransformerException;
 }

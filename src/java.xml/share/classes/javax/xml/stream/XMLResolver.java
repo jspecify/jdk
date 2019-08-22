@@ -25,6 +25,10 @@
 
 package javax.xml.stream;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * This interface is used to resolve resources during an XML parse.  If an application wishes to
  * perform custom entity resolution it must register an instance of this interface with
@@ -34,6 +38,7 @@ package javax.xml.stream;
  * @author Copyright (c) 2009 by Oracle Corporation. All Rights Reserved.
  * @since 1.6
  */
+@AnnotatedFor("nullness")
 public interface XMLResolver {
 
   /**
@@ -49,9 +54,10 @@ public interface XMLResolver {
    * @return The resource requested or null.
    * @throws XMLStreamException if there was a failure attempting to resolve the resource.
    */
-  public Object resolveEntity(String publicID,
+  @Pure
+  public @Nullable Object resolveEntity(@Nullable String publicID,
                               String systemID,
-                              String baseURI,
-                              String namespace)
+                              @Nullable String baseURI,
+                              @Nullable String namespace)
     throws XMLStreamException;
 }

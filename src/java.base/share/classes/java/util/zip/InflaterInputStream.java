@@ -25,6 +25,12 @@
 
 package java.util.zip;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.FilterInputStream;
 import java.io.InputStream;
 import java.io.IOException;
@@ -39,6 +45,7 @@ import java.io.EOFException;
  * @author      David Connelly
  * @since 1.1
  */
+@AnnotatedFor({"nullness", "index"})
 public
 class InflaterInputStream extends FilterInputStream {
     /**
@@ -78,7 +85,7 @@ class InflaterInputStream extends FilterInputStream {
      * @param size the input buffer size
      * @exception IllegalArgumentException if {@code size <= 0}
      */
-    public InflaterInputStream(InputStream in, Inflater inf, int size) {
+    public InflaterInputStream(InputStream in, Inflater inf, @Positive int size) {
         super(in);
         if (in == null || inf == null) {
             throw new NullPointerException();
@@ -139,7 +146,7 @@ class InflaterInputStream extends FilterInputStream {
      * @exception ZipException if a ZIP format error has occurred
      * @exception IOException if an I/O error has occurred
      */
-    public int read(byte[] b, int off, int len) throws IOException {
+    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(byte[] b, @IndexOrHigh({"#1"}) int off, @IndexOrHigh({"#1"}) int len) throws IOException {
         ensureOpen();
         if (b == null) {
             throw new NullPointerException();

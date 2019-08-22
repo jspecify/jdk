@@ -40,6 +40,9 @@
 
 package java.awt.font;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.geom.Rectangle2D;
 
 /**
@@ -106,7 +109,8 @@ import java.awt.geom.Rectangle2D;
  * @see GlyphVector
  */
 
-public final class GlyphMetrics {
+@AnnotatedFor({"interning"})
+public final @UsesObjectEquals class GlyphMetrics {
     /**
      * Indicates whether the metrics are for a horizontal or vertical baseline.
      */

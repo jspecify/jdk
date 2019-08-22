@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.io.EOFException;
 import java.io.OutputStream;
@@ -53,6 +56,7 @@ import java.io.ByteArrayOutputStream;
  * @author Benjamin Renaud
  * @since 1.2
  */
+@AnnotatedFor({"signedness"})
 public class DigestOutputStream extends FilterOutputStream {
 
     private boolean on = true;
@@ -142,7 +146,7 @@ public class DigestOutputStream extends FilterOutputStream {
      *
      * @see MessageDigest#update(byte[], int, int)
      */
-    public void write(byte[] b, int off, int len) throws IOException {
+    public void write(@PolySigned byte[] b, int off, int len) throws IOException {
         out.write(b, off, len);
         if (on) {
             digest.update(b, off, len);

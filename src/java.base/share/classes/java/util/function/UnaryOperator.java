@@ -24,6 +24,8 @@
  */
 package java.util.function;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Represents an operation on a single operand that produces a result of the
  * same type as its operand.  This is a specialization of {@code Function} for
@@ -37,6 +39,7 @@ package java.util.function;
  * @see Function
  * @since 1.8
  */
+@AnnotatedFor({"lock", "nullness"})
 @FunctionalInterface
 public interface UnaryOperator<T> extends Function<T, T> {
 

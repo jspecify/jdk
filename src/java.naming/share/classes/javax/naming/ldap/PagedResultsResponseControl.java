@@ -25,6 +25,9 @@
 
 package javax.naming.ldap;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import com.sun.jndi.ldap.Ber;
 import com.sun.jndi.ldap.BerDecoder;
@@ -58,13 +61,14 @@ import com.sun.jndi.ldap.BerDecoder;
  * @see PagedResultsControl
  * @author Vincent Ryan
  */
+@AnnotatedFor({"interning"})
 final public class PagedResultsResponseControl extends BasicControl {
 
     /**
      * The paged-results response control's assigned object identifier
      * is 1.2.840.113556.1.4.319.
      */
-    public static final String OID = "1.2.840.113556.1.4.319";
+    public static final @Interned String OID = "1.2.840.113556.1.4.319";
 
     private static final long serialVersionUID = -8819778744844514666L;
 

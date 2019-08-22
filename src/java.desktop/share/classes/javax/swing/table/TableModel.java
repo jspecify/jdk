@@ -25,6 +25,9 @@
 
 package javax.swing.table;
 
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import javax.swing.*;
 import javax.swing.event.*;
 
@@ -47,6 +50,7 @@ import javax.swing.event.*;
  * @see JTable
  */
 
+@AnnotatedFor({"index"})
 public interface TableModel
 {
     /**
@@ -58,7 +62,7 @@ public interface TableModel
      * @return the number of rows in the model
      * @see #getColumnCount
      */
-    public int getRowCount();
+    public @NonNegative int getRowCount();
 
     /**
      * Returns the number of columns in the model. A
@@ -68,7 +72,7 @@ public interface TableModel
      * @return the number of columns in the model
      * @see #getRowCount
      */
-    public int getColumnCount();
+    public @NonNegative int getColumnCount();
 
     /**
      * Returns the name of the column at <code>columnIndex</code>.  This is used
@@ -78,7 +82,7 @@ public interface TableModel
      * @param   columnIndex     the index of the column
      * @return  the name of the column
      */
-    public String getColumnName(int columnIndex);
+    public String getColumnName(@NonNegative int columnIndex);
 
     /**
      * Returns the most specific superclass for all the cell values
@@ -88,7 +92,7 @@ public interface TableModel
      * @param columnIndex  the index of the column
      * @return the common ancestor class of the object values in the model.
      */
-    public Class<?> getColumnClass(int columnIndex);
+    public Class<?> getColumnClass(@NonNegative int columnIndex);
 
     /**
      * Returns true if the cell at <code>rowIndex</code> and
@@ -101,7 +105,7 @@ public interface TableModel
      * @return  true if the cell is editable
      * @see #setValueAt
      */
-    public boolean isCellEditable(int rowIndex, int columnIndex);
+    public boolean isCellEditable(@NonNegative int rowIndex, @NonNegative int columnIndex);
 
     /**
      * Returns the value for the cell at <code>columnIndex</code> and
@@ -111,7 +115,7 @@ public interface TableModel
      * @param   columnIndex     the column whose value is to be queried
      * @return  the value Object at the specified cell
      */
-    public Object getValueAt(int rowIndex, int columnIndex);
+    public Object getValueAt(@NonNegative int rowIndex, @NonNegative int columnIndex);
 
     /**
      * Sets the value in the cell at <code>columnIndex</code> and
@@ -123,7 +127,7 @@ public interface TableModel
      * @see #getValueAt
      * @see #isCellEditable
      */
-    public void setValueAt(Object aValue, int rowIndex, int columnIndex);
+    public void setValueAt(Object aValue, @NonNegative int rowIndex, @NonNegative int columnIndex);
 
     /**
      * Adds a listener to the list that is notified each time a change

@@ -25,6 +25,9 @@
 
 package java.nio.file;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.nio.file.attribute.*;
 import java.nio.file.spi.FileSystemProvider;
 import java.util.Set;
@@ -95,7 +98,8 @@ import java.io.IOException;
  * @since 1.7
  */
 
-public abstract class FileSystem
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class FileSystem
     implements Closeable
 {
     /**

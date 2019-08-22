@@ -24,6 +24,8 @@
  */
 package java.util;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
@@ -54,6 +56,7 @@ import java.util.stream.IntStream;
  *
  * @since 1.8
  */
+@AnnotatedFor({"lock", "nullness"})
 public final class OptionalInt {
     /**
      * Common instance for {@code empty()}.

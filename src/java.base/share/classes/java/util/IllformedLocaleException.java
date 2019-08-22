@@ -32,6 +32,8 @@
 
 package java.util;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Thrown by methods in {@link Locale} and {@link Locale.Builder} to
  * indicate that an argument is not a well-formed BCP 47 tag.
@@ -39,6 +41,7 @@ package java.util;
  * @see Locale
  * @since 1.7
  */
+@AnnotatedFor({"index"})
 public class IllformedLocaleException extends RuntimeException {
 
     private static final long serialVersionUID = -5245986824925681401L;

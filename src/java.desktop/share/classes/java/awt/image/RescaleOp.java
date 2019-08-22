@@ -25,6 +25,9 @@
 
 package java.awt.image;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.color.ColorSpace;
 import java.awt.geom.Rectangle2D;
 import java.awt.AlphaComposite;
@@ -82,7 +85,8 @@ import sun.awt.image.ImagingLib;
  * @see java.awt.RenderingHints#KEY_COLOR_RENDERING
  * @see java.awt.RenderingHints#KEY_DITHERING
  */
-public class RescaleOp implements BufferedImageOp, RasterOp {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class RescaleOp implements BufferedImageOp, RasterOp {
     float[] scaleFactors;
     float[] offsets;
     int length = 0;

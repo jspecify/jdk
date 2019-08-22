@@ -26,6 +26,9 @@
 
 package javax.management.remote;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import javax.management.Notification;
 import javax.management.ObjectName;
 
@@ -80,6 +83,7 @@ import javax.management.ObjectName;
  *
  * @since 1.5
  */
+@AnnotatedFor({"interning"})
 public class JMXConnectionNotification extends Notification {
 
     private static final long serialVersionUID = -2331308725952627538L;
@@ -87,17 +91,17 @@ public class JMXConnectionNotification extends Notification {
     /**
      * <p>Notification type string for a connection-opened notification.
      */
-    public static final String OPENED = "jmx.remote.connection.opened";
+    public static final @Interned String OPENED = "jmx.remote.connection.opened";
 
     /**
      * <p>Notification type string for a connection-closed notification.
      */
-    public static final String CLOSED = "jmx.remote.connection.closed";
+    public static final @Interned String CLOSED = "jmx.remote.connection.closed";
 
     /**
      * <p>Notification type string for a connection-failed notification.
      */
-    public static final String FAILED = "jmx.remote.connection.failed";
+    public static final @Interned String FAILED = "jmx.remote.connection.failed";
 
     /**
      * <p>Notification type string for a connection that has possibly

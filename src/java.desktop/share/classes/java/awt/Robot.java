@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.geom.AffineTransform;
@@ -69,7 +72,8 @@ import sun.java2d.SunGraphicsEnvironment;
  * @author      Robi Khan
  * @since       1.3
  */
-public class Robot {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class Robot {
     private static final int MAX_DELAY = 60000;
     private RobotPeer peer;
     private boolean isAutoWaitForIdle = false;

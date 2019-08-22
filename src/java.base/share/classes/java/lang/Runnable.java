@@ -25,6 +25,11 @@
 
 package java.lang;
 
+import org.checkerframework.checker.guieffect.qual.PolyUI;
+import org.checkerframework.checker.guieffect.qual.PolyUIEffect;
+import org.checkerframework.checker.guieffect.qual.PolyUIType;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * The <code>Runnable</code> interface should be implemented by any
  * class whose instances are intended to be executed by a thread. The
@@ -52,6 +57,8 @@ package java.lang;
  * @see     java.util.concurrent.Callable
  * @since   1.0
  */
+@AnnotatedFor({"guieffect", "nullness"})
+@PolyUIType
 @FunctionalInterface
 public interface Runnable {
     /**
@@ -65,5 +72,6 @@ public interface Runnable {
      *
      * @see     java.lang.Thread#run()
      */
-    public abstract void run();
+    @PolyUIEffect
+    public abstract void run(@PolyUI Runnable this);
 }

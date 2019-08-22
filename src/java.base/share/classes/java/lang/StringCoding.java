@@ -25,6 +25,9 @@
 
 package java.lang;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.UnsupportedEncodingException;
 import java.lang.ref.SoftReference;
 import java.nio.ByteBuffer;
@@ -58,7 +61,8 @@ import static java.lang.StringUTF16.putChar;
  * Utility class for string encoding and decoding.
  */
 
-class StringCoding {
+@AnnotatedFor({"index", "interning"})
+@UsesObjectEquals class StringCoding {
 
     private StringCoding() { }
 

@@ -24,6 +24,10 @@
  */
 
 package java.lang.management;
+
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import javax.management.openmbean.CompositeData;
 import sun.management.MemoryNotifInfoCompositeData;
 
@@ -104,7 +108,8 @@ import sun.management.MemoryNotifInfoCompositeData;
  * @since   1.5
  *
  */
-public class MemoryNotificationInfo {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class MemoryNotificationInfo {
     private final String poolName;
     private final MemoryUsage usage;
     private final long count;

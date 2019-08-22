@@ -25,6 +25,9 @@
 
 package javax.script;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.Reader;
 import java.util.Map;
 import java.util.Set;
@@ -48,31 +51,32 @@ import java.util.Set;
  * @since 1.6
  */
 
+@AnnotatedFor({"interning"})
 public interface ScriptEngine  {
 
     /**
      * Reserved key for a named value that passes
      * an array of positional arguments to a script.
      */
-    public static final String ARGV="javax.script.argv";
+    public static final @Interned String ARGV="javax.script.argv";
 
     /**
      * Reserved key for a named value that is
      * the name of the file being executed.
      */
-    public static final String FILENAME = "javax.script.filename";
+    public static final @Interned String FILENAME = "javax.script.filename";
 
     /**
      * Reserved key for a named value that is
      * the name of the <code>ScriptEngine</code> implementation.
      */
-    public static final String ENGINE = "javax.script.engine";
+    public static final @Interned String ENGINE = "javax.script.engine";
 
     /**
      * Reserved key for a named value that identifies
      * the version of the <code>ScriptEngine</code> implementation.
      */
-    public static final String ENGINE_VERSION = "javax.script.engine_version";
+    public static final @Interned String ENGINE_VERSION = "javax.script.engine_version";
 
     /**
      * Reserved key for a named value that identifies
@@ -80,19 +84,19 @@ public interface ScriptEngine  {
      * <code>ScriptEngineManager</code> to locate a <code>ScriptEngine</code>
      * with a given name in the <code>getEngineByName</code> method.
      */
-    public static final String NAME = "javax.script.name";
+    public static final @Interned String NAME = "javax.script.name";
 
     /**
      * Reserved key for a named value that is
      * the full name of Scripting Language supported by the implementation.
      */
-    public static final String LANGUAGE = "javax.script.language";
+    public static final @Interned String LANGUAGE = "javax.script.language";
 
     /**
      * Reserved key for the named value that identifies
      * the version of the scripting language supported by the implementation.
      */
-    public static final String LANGUAGE_VERSION ="javax.script.language_version";
+    public static final @Interned String LANGUAGE_VERSION ="javax.script.language_version";
 
 
     /**

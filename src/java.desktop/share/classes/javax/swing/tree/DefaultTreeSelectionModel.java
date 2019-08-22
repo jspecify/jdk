@@ -25,6 +25,9 @@
 
 package javax.swing.tree;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.beans.PropertyChangeListener;
 import java.io.*;
 import java.util.ArrayList;
@@ -61,11 +64,12 @@ import javax.swing.DefaultListSelectionModel;
  *
  * @author Scott Violet
  */
+@AnnotatedFor({"interning"})
 @SuppressWarnings("serial")
 public class DefaultTreeSelectionModel implements Cloneable, Serializable, TreeSelectionModel
 {
     /** Property name for selectionMode. */
-    public static final String          SELECTION_MODE_PROPERTY = "selectionMode";
+    public static final @Interned String          SELECTION_MODE_PROPERTY = "selectionMode";
 
     /** Used to messaged registered listeners. */
     protected SwingPropertyChangeSupport     changeSupport;

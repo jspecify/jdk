@@ -25,6 +25,13 @@
 
 package java.util;
 
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
+import org.checkerframework.checker.propkey.qual.PropertyKey;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -136,6 +143,7 @@ import jdk.internal.util.xml.PropertiesDefaultHandler;
  * @author  Xueming Shen
  * @since   1.0
  */
+@AnnotatedFor({"index", "lock", "nullness", "propkey"})
 public
 class Properties extends Hashtable<Object,Object> {
     /**
@@ -221,7 +229,7 @@ class Properties extends Hashtable<Object,Object> {
      * @see #getProperty
      * @since    1.2
      */
-    public synchronized Object setProperty(String key, String value) {
+    public synchronized @Nullable Object setProperty(@GuardSatisfied Properties this, @PropertyKey String key, String value) {
         return put(key, value);
     }
 
@@ -790,7 +798,7 @@ class Properties extends Hashtable<Object,Object> {
      *             {@code Strings}.
      */
     @Deprecated
-    public void save(OutputStream out, String comments)  {
+    public void save(OutputStream out, @Nullable String comments)  {
         try {
             store(out, comments);
         } catch (IOException e) {
@@ -844,7 +852,7 @@ class Properties extends Hashtable<Object,Object> {
      * @exception  NullPointerException  if {@code writer} is null.
      * @since 1.6
      */
-    public void store(Writer writer, String comments)
+    public void store(Writer writer, @Nullable String comments)
         throws IOException
     {
         store0((writer instanceof BufferedWriter)?(BufferedWriter)writer
@@ -891,7 +899,7 @@ class Properties extends Hashtable<Object,Object> {
      * @exception  NullPointerException  if {@code out} is null.
      * @since 1.2
      */
-    public void store(OutputStream out, String comments)
+    public void store(OutputStream out, @Nullable String comments)
         throws IOException
     {
         store0(new BufferedWriter(new OutputStreamWriter(out, "8859_1")),
@@ -983,7 +991,7 @@ class Properties extends Hashtable<Object,Object> {
      * @see    #loadFromXML(InputStream)
      * @since 1.5
      */
-    public void storeToXML(OutputStream os, String comment)
+    public void storeToXML(OutputStream os, @Nullable String comment)
         throws IOException
     {
         storeToXML(os, comment, "UTF-8");
@@ -1032,7 +1040,7 @@ class Properties extends Hashtable<Object,Object> {
      *         Encoding in Entities</a>
      * @since 1.5
      */
-    public void storeToXML(OutputStream os, String comment, String encoding)
+    public void storeToXML(OutputStream os, @Nullable String comment, String encoding)
         throws IOException {
         Objects.requireNonNull(os);
         Objects.requireNonNull(encoding);
@@ -1100,7 +1108,8 @@ class Properties extends Hashtable<Object,Object> {
      * @see     #setProperty
      * @see     #defaults
      */
-    public String getProperty(String key) {
+    @Pure
+    public @Nullable String getProperty(@GuardSatisfied Properties this, @PropertyKey String key) {
         Object oval = map.get(key);
         String sval = (oval instanceof String) ? (String)oval : null;
         Properties defaults;
@@ -1120,7 +1129,8 @@ class Properties extends Hashtable<Object,Object> {
      * @see     #setProperty
      * @see     #defaults
      */
-    public String getProperty(String key, String defaultValue) {
+    @Pure
+    public @PolyNull String getProperty(@GuardSatisfied Properties this, @PropertyKey String key, @PolyNull String defaultValue) {
         String val = getProperty(key);
         return (val == null) ? defaultValue : val;
     }

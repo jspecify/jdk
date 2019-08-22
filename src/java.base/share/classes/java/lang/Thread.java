@@ -25,6 +25,16 @@
 
 package java.lang;
 
+import org.checkerframework.checker.initialization.qual.UnknownInitialization;
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.lock.qual.EnsuresLockHeldIf;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.lock.qual.ReleasesNoLocks;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -139,8 +149,9 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @see     #stop()
  * @since   1.0
  */
+@AnnotatedFor({"interning", "lock", "nullness"})
 public
-class Thread implements Runnable {
+@UsesObjectEquals class Thread implements Runnable {
     /* Make sure registerNatives is the first thing <clinit> does. */
     private static native void registerNatives();
     static {
@@ -490,7 +501,7 @@ class Thread implements Runnable {
      *         is started. If {@code null}, this classes {@code run} method does
      *         nothing.
      */
-    public Thread(Runnable target) {
+    public Thread(@Nullable Runnable target) {
         this(null, target, "Thread-" + nextThreadNum(), 0);
     }
 
@@ -526,7 +537,7 @@ class Thread implements Runnable {
      *          if the current thread cannot create a thread in the specified
      *          thread group
      */
-    public Thread(ThreadGroup group, Runnable target) {
+    public Thread(@Nullable ThreadGroup group, @Nullable Runnable target) {
         this(group, target, "Thread-" + nextThreadNum(), 0);
     }
 
@@ -562,7 +573,7 @@ class Thread implements Runnable {
      *          if the current thread cannot create a thread in the specified
      *          thread group
      */
-    public Thread(ThreadGroup group, String name) {
+    public Thread(@Nullable ThreadGroup group, String name) {
         this(group, null, name, 0);
     }
 
@@ -578,7 +589,7 @@ class Thread implements Runnable {
      * @param  name
      *         the name of the new thread
      */
-    public Thread(Runnable target, String name) {
+    public Thread(@Nullable Runnable target, String name) {
         this(null, target, name, 0);
     }
 
@@ -626,7 +637,7 @@ class Thread implements Runnable {
      *          if the current thread cannot create a thread in the specified
      *          thread group or cannot override the context class loader methods.
      */
-    public Thread(ThreadGroup group, Runnable target, String name) {
+    public Thread(@Nullable ThreadGroup group, @Nullable Runnable target, String name) {
         this(group, target, name, 0);
     }
 
@@ -704,7 +715,7 @@ class Thread implements Runnable {
      *
      * @since 1.4
      */
-    public Thread(ThreadGroup group, Runnable target, String name,
+    public Thread(@Nullable ThreadGroup group, @Nullable Runnable target, String name,
                   long stackSize) {
         this(group, target, name, stackSize, null, true);
     }
@@ -1034,7 +1045,8 @@ class Thread implements Runnable {
      * @see     #interrupted()
      * @revised 6.0
      */
-    public boolean isInterrupted() {
+    @Pure
+    public boolean isInterrupted(@GuardSatisfied Thread this) {
         return isInterrupted(false);
     }
 
@@ -1053,7 +1065,8 @@ class Thread implements Runnable {
      * @return  {@code true} if this thread is alive;
      *          {@code false} otherwise.
      */
-    public final native boolean isAlive();
+    @Pure
+    public final native boolean isAlive(@GuardSatisfied Thread this);
 
     /**
      * Suspends this thread.
@@ -1134,7 +1147,7 @@ class Thread implements Runnable {
      * @see        #MIN_PRIORITY
      * @see        ThreadGroup#getMaxPriority()
      */
-    public final void setPriority(int newPriority) {
+    public final void setPriority(@UnknownInitialization(java.lang.Thread.class) Thread this, int newPriority) {
         ThreadGroup g;
         checkAccess();
         if (newPriority > MAX_PRIORITY || newPriority < MIN_PRIORITY) {
@@ -1200,7 +1213,7 @@ class Thread implements Runnable {
      *
      * @return  this thread's thread group.
      */
-    public final ThreadGroup getThreadGroup() {
+    public final @Nullable ThreadGroup getThreadGroup() {
         return group;
     }
 
@@ -1404,7 +1417,7 @@ class Thread implements Runnable {
      *          if {@link #checkAccess} determines that the current
      *          thread cannot modify this thread
      */
-    public final void setDaemon(boolean on) {
+    public final void setDaemon(@UnknownInitialization Thread this, boolean on) {
         checkAccess();
         if (isAlive()) {
             throw new IllegalThreadStateException();
@@ -1419,7 +1432,8 @@ class Thread implements Runnable {
      *          {@code false} otherwise.
      * @see     #setDaemon(boolean)
      */
-    public final boolean isDaemon() {
+    @Pure
+    public final boolean isDaemon(@GuardSatisfied Thread this) {
         return daemon;
     }
 
@@ -1448,7 +1462,9 @@ class Thread implements Runnable {
      *
      * @return  a string representation of this thread.
      */
-    public String toString() {
+    @Override
+    @SideEffectFree
+    public String toString(@GuardSatisfied Thread this) {
         ThreadGroup group = getThreadGroup();
         if (group != null) {
             return "Thread[" + getName() + "," + getPriority() + "," +
@@ -1483,7 +1499,7 @@ class Thread implements Runnable {
      * @since 1.2
      */
     @CallerSensitive
-    public ClassLoader getContextClassLoader() {
+    public @Nullable ClassLoader getContextClassLoader() {
         if (contextClassLoader == null)
             return null;
         SecurityManager sm = System.getSecurityManager();
@@ -1516,7 +1532,7 @@ class Thread implements Runnable {
      *
      * @since 1.2
      */
-    public void setContextClassLoader(ClassLoader cl) {
+    public void setContextClassLoader(@Nullable ClassLoader cl) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new RuntimePermission("setContextClassLoader"));
@@ -1540,6 +1556,8 @@ class Thread implements Runnable {
      *         the specified object.
      * @since 1.4
      */
+    @EnsuresLockHeldIf(expression={"#1"}, result=true)
+    @ReleasesNoLocks
     public static native boolean holdsLock(Object obj);
 
     private static final StackTraceElement[] EMPTY_STACK_TRACE
@@ -1936,7 +1954,7 @@ class Thread implements Runnable {
      * @see ThreadGroup#uncaughtException
      * @since 1.5
      */
-    public static void setDefaultUncaughtExceptionHandler(UncaughtExceptionHandler eh) {
+    public static void setDefaultUncaughtExceptionHandler(@Nullable UncaughtExceptionHandler eh) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(
@@ -1955,7 +1973,7 @@ class Thread implements Runnable {
      * @see #setDefaultUncaughtExceptionHandler
      * @return the default uncaught exception handler for all threads
      */
-    public static UncaughtExceptionHandler getDefaultUncaughtExceptionHandler(){
+    public static @Nullable UncaughtExceptionHandler getDefaultUncaughtExceptionHandler(){
         return defaultUncaughtExceptionHandler;
     }
 
@@ -1968,7 +1986,7 @@ class Thread implements Runnable {
      * @since 1.5
      * @return the uncaught exception handler for this thread
      */
-    public UncaughtExceptionHandler getUncaughtExceptionHandler() {
+    public @Nullable UncaughtExceptionHandler getUncaughtExceptionHandler() {
         return uncaughtExceptionHandler != null ?
             uncaughtExceptionHandler : group;
     }
@@ -1988,7 +2006,7 @@ class Thread implements Runnable {
      * @see ThreadGroup#uncaughtException
      * @since 1.5
      */
-    public void setUncaughtExceptionHandler(UncaughtExceptionHandler eh) {
+    public void setUncaughtExceptionHandler(@Nullable UncaughtExceptionHandler eh) {
         checkAccess();
         uncaughtExceptionHandler = eh;
     }

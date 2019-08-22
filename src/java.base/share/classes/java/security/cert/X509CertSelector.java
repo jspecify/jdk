@@ -25,6 +25,9 @@
 
 package java.security.cert;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.PublicKey;
@@ -83,7 +86,8 @@ import sun.security.x509.*;
  * @since       1.4
  * @author      Steve Hanna
  */
-public class X509CertSelector implements CertSelector {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class X509CertSelector implements CertSelector {
 
     private static final Debug debug = Debug.getInstance("certpath");
 

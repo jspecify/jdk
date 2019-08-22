@@ -40,6 +40,8 @@
 
 package sun.util.resources;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
@@ -67,6 +69,7 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  * @author Mark Davis
  */
 
+@AnnotatedFor({"index"})
 public class LocaleData {
     private static final ResourceBundle.Control defaultControl
         = ResourceBundle.Control.getControl(ResourceBundle.Control.FORMAT_DEFAULT);

@@ -25,6 +25,8 @@
 
 package java.io;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.nio.charset.Charset;
 
 /**
@@ -51,6 +53,7 @@ import java.nio.charset.Charset;
  * @since       1.1
  */
 
+@AnnotatedFor({"nullness"})
 public class FileWriter extends OutputStreamWriter {
 
     /**

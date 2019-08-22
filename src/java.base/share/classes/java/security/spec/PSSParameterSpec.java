@@ -25,6 +25,9 @@
 
 package java.security.spec;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Objects;
 import java.security.spec.MGF1ParameterSpec;
 
@@ -82,7 +85,8 @@ import java.security.spec.MGF1ParameterSpec;
  * @since 1.4
  */
 
-public class PSSParameterSpec implements AlgorithmParameterSpec {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class PSSParameterSpec implements AlgorithmParameterSpec {
 
     private final String mdName;
 

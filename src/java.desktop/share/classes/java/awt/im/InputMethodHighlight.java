@@ -25,6 +25,9 @@
 
 package java.awt.im;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.font.TextAttribute;
 import java.util.Map;
 
@@ -66,7 +69,8 @@ import java.util.Map;
 * @since 1.2
 */
 
-public class InputMethodHighlight {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class InputMethodHighlight {
 
     /**
      * Constant for the raw text state.

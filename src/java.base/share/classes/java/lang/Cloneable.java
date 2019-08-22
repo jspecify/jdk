@@ -25,6 +25,8 @@
 
 package java.lang;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * A class implements the <code>Cloneable</code> interface to
  * indicate to the {@link java.lang.Object#clone()} method that it
@@ -50,5 +52,6 @@ package java.lang;
  * @see     java.lang.Object#clone()
  * @since   1.0
  */
+@AnnotatedFor({"nullness"})
 public interface Cloneable {
 }

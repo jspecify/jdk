@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.Graphics2D;
 import java.awt.font.FontRenderContext;
 import java.awt.font.LineMetrics;
@@ -96,7 +99,8 @@ import java.text.CharacterIterator;
  * @see         java.awt.Font
  * @since       1.0
  */
-public abstract class FontMetrics implements java.io.Serializable {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class FontMetrics implements java.io.Serializable {
 
     static {
         /* ensure that the necessary native libraries are loaded */

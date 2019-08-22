@@ -24,6 +24,8 @@
  */
 package java.util.function;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Represents an operation upon two {@code long}-valued operands and producing a
  * {@code long}-valued result.   This is the primitive type specialization of
@@ -36,6 +38,7 @@ package java.util.function;
  * @see LongUnaryOperator
  * @since 1.8
  */
+@AnnotatedFor({"lock", "nullness"})
 @FunctionalInterface
 public interface LongBinaryOperator {
 

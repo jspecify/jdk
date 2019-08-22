@@ -38,6 +38,8 @@
 
 package java.text;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -105,6 +107,7 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * @author       Chen-Lieh Huang
  * @since 1.1
  */
+@AnnotatedFor({"index"})
 public class DateFormatSymbols implements Serializable, Cloneable {
 
     /**

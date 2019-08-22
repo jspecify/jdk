@@ -25,6 +25,9 @@
 
 package javax.imageio.stream;
 
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.ArrayList;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -54,6 +57,7 @@ import java.io.IOException;
  * A {@code MemoryCache} may be reused after a call
  * to {@code reset()}.
  */
+@AnnotatedFor({"signedness"})
 class MemoryCache {
 
     private static final int BUFFER_LENGTH = 8192;
@@ -213,7 +217,7 @@ class MemoryCache {
      * or if {@code off+len > b.length}.
      * @throws IOException if there is an I/O error while writing to the cache
      */
-    public void write(byte[] b, int off, int len, long pos)
+    public void write(@PolySigned byte[] b, int off, int len, long pos)
         throws IOException {
         if (b == null) {
             throw new NullPointerException("b == null!");

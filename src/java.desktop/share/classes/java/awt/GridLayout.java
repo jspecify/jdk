@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * The {@code GridLayout} class is a layout manager that
  * lays out a container's components in a rectangular grid.
@@ -91,7 +94,8 @@ package java.awt;
  * @author  Arthur van Hoff
  * @since   1.0
  */
-public class GridLayout implements LayoutManager, java.io.Serializable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class GridLayout implements LayoutManager, java.io.Serializable {
     /*
      * serialVersionUID
      */

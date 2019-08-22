@@ -25,6 +25,16 @@
 
 package java.lang;
 
+import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 import java.io.PrintStream;
 import java.util.Arrays;
 import jdk.internal.misc.VM;
@@ -53,8 +63,9 @@ import jdk.internal.misc.VM;
  * and working off of that snapshot, rather than holding the thread group locked
  * while we work on the children.
  */
+@AnnotatedFor({"index", "interning", "lock", "nullable"})
 public
-class ThreadGroup implements Thread.UncaughtExceptionHandler {
+@UsesObjectEquals class ThreadGroup implements Thread.UncaughtExceptionHandler {
     private final ThreadGroup parent;
     String name;
     int maxPriority;
@@ -62,10 +73,10 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
     boolean daemon;
 
     int nUnstartedThreads = 0;
-    int nthreads;
+    @LTEqLengthOf({"threads"}) @NonNegative int nthreads;
     Thread threads[];
 
-    int ngroups;
+    @LTEqLengthOf({"groups"}) @NonNegative int ngroups;
     ThreadGroup groups[];
 
     /**
@@ -91,7 +102,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @see     java.lang.ThreadGroup#checkAccess()
      * @since   1.0
      */
-    public ThreadGroup(String name) {
+    public ThreadGroup(@Nullable String name) {
         this(Thread.currentThread().getThreadGroup(), name);
     }
 
@@ -112,7 +123,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @see     java.lang.ThreadGroup#checkAccess()
      * @since   1.0
      */
-    public ThreadGroup(ThreadGroup parent, String name) {
+    public ThreadGroup(ThreadGroup parent, @Nullable String name) {
         this(checkParentAccess(parent), parent, name);
     }
 
@@ -140,7 +151,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @return  the name of this thread group.
      * @since   1.0
      */
-    public final String getName() {
+    public final @Nullable String getName() {
         return name;
     }
 
@@ -160,7 +171,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @see        java.lang.RuntimePermission
      * @since   1.0
      */
-    public final ThreadGroup getParent() {
+    public final @Nullable ThreadGroup getParent() {
         if (parent != null)
             parent.checkAccess();
         return parent;
@@ -189,7 +200,8 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      *          {@code false} otherwise.
      * @since   1.0
      */
-    public final boolean isDaemon() {
+    @Pure
+    public final boolean isDaemon(@GuardSatisfied ThreadGroup this) {
         return daemon;
     }
 
@@ -199,7 +211,8 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @return  true if this object is destroyed
      * @since   1.1
      */
-    public synchronized boolean isDestroyed() {
+    @Pure
+    public synchronized boolean isDestroyed(@GuardSatisfied ThreadGroup this) {
         return destroyed;
     }
 
@@ -254,6 +267,9 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @see        java.lang.ThreadGroup#checkAccess()
      * @since      1.0
      */
+    @CFComment({"index: groupSnapshot.length = ngroupsSnapshot by #0.1",
+                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    @SuppressWarnings("index:array.access.unsafe.high")
     public final void setMaxPriority(int pri) {
         int ngroupsSnapshot;
         ThreadGroup[] groupsSnapshot;
@@ -265,13 +281,13 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
             maxPriority = (parent != null) ? Math.min(pri, parent.maxPriority) : pri;
             ngroupsSnapshot = ngroups;
             if (groups != null) {
-                groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot);
+                groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot); // #0.1
             } else {
                 groupsSnapshot = null;
             }
         }
         for (int i = 0 ; i < ngroupsSnapshot ; i++) {
-            groupsSnapshot[i].setMaxPriority(pri);
+            groupsSnapshot[i].setMaxPriority(pri); // #1
         }
     }
 
@@ -331,7 +347,10 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      *
      * @since   1.0
      */
-    public int activeCount() {
+    @CFComment({"index: groupSnapshot.length = ngroupsSnapshot by #0.1",
+                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    @SuppressWarnings("index:array.access.unsafe.high")
+    public @NonNegative int activeCount() {
         int result;
         // Snapshot sub-group data so we don't hold this lock
         // while our children are computing.
@@ -344,13 +363,13 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
             result = nthreads;
             ngroupsSnapshot = ngroups;
             if (groups != null) {
-                groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot);
+                groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot); // #0.1
             } else {
                 groupsSnapshot = null;
             }
         }
         for (int i = 0 ; i < ngroupsSnapshot ; i++) {
-            result += groupsSnapshot[i].activeCount();
+            result += groupsSnapshot[i].activeCount(); // #1
         }
         return result;
     }
@@ -377,7 +396,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      *
      * @since   1.0
      */
-    public int enumerate(Thread list[]) {
+    public @NonNegative int enumerate(Thread list[]) {
         checkAccess();
         return enumerate(list, 0, true);
     }
@@ -415,12 +434,17 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      *
      * @since   1.0
      */
-    public int enumerate(Thread list[], boolean recurse) {
+    public @NonNegative int enumerate(Thread list[], boolean recurse) {
         checkAccess();
         return enumerate(list, 0, recurse);
     }
 
-    private int enumerate(Thread list[], int n, boolean recurse) {
+    @CFComment({"index:", 
+    "#1: To enter this loop, nt has to be positive, i.c, list.length - n is @Positive, and n is @NonNegative, hence if this loop is entered, n is @LTLengthOf(\"list\")",
+    "#2: groupSnapshot.length = ngroupsSnapshot by #0.1, for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"
+    })
+    @SuppressWarnings({"index:array.access.unsafe.high","index:array.access.unsafe.high.range"})
+    private @NonNegative int enumerate(Thread list[], @NonNegative int n, boolean recurse) {
         int ngroupsSnapshot = 0;
         ThreadGroup[] groupsSnapshot = null;
         synchronized (this) {
@@ -439,7 +463,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
             if (recurse) {
                 ngroupsSnapshot = ngroups;
                 if (groups != null) {
-                    groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot);
+                    groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot); // #0.1
                 } else {
                     groupsSnapshot = null;
                 }
@@ -447,7 +471,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
         }
         if (recurse) {
             for (int i = 0 ; i < ngroupsSnapshot ; i++) {
-                n = groupsSnapshot[i].enumerate(list, n, true);
+                n = groupsSnapshot[i].enumerate(list, n, true); // #1
             }
         }
         return n;
@@ -468,7 +492,10 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      *
      * @since   1.0
      */
-    public int activeGroupCount() {
+    @CFComment({"index: groupSnapshot.length = ngroupsSnapshot by #0.1", 
+                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    @SuppressWarnings("index:array.access.unsafe.high")
+    public @NonNegative int activeGroupCount() {
         int ngroupsSnapshot;
         ThreadGroup[] groupsSnapshot;
         synchronized (this) {
@@ -477,14 +504,14 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
             }
             ngroupsSnapshot = ngroups;
             if (groups != null) {
-                groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot);
+                groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot); // #0.1
             } else {
                 groupsSnapshot = null;
             }
         }
         int n = ngroupsSnapshot;
         for (int i = 0 ; i < ngroupsSnapshot ; i++) {
-            n += groupsSnapshot[i].activeGroupCount();
+            n += groupsSnapshot[i].activeGroupCount(); // #1
         }
         return n;
     }
@@ -511,7 +538,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      *
      * @since   1.0
      */
-    public int enumerate(ThreadGroup list[]) {
+    public @NonNegative int enumerate(ThreadGroup list[]) {
         checkAccess();
         return enumerate(list, 0, true);
     }
@@ -549,12 +576,15 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      *
      * @since   1.0
      */
-    public int enumerate(ThreadGroup list[], boolean recurse) {
+    public @NonNegative int enumerate(ThreadGroup list[], boolean recurse) {
         checkAccess();
         return enumerate(list, 0, recurse);
     }
 
-    private int enumerate(ThreadGroup list[], int n, boolean recurse) {
+    @CFComment({"index: groupSnapshot.length = ngroupsSnapshot by #0.1",
+                "for the else case ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    @SuppressWarnings("index:array.access.unsafe.high")
+    private @NonNegative int enumerate(ThreadGroup list[], @NonNegative int n, boolean recurse) {
         int ngroupsSnapshot = 0;
         ThreadGroup[] groupsSnapshot = null;
         synchronized (this) {
@@ -572,7 +602,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
             if (recurse) {
                 ngroupsSnapshot = ngroups;
                 if (groups != null) {
-                    groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot);
+                    groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot); // #0.1
                 } else {
                     groupsSnapshot = null;
                 }
@@ -580,7 +610,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
         }
         if (recurse) {
             for (int i = 0 ; i < ngroupsSnapshot ; i++) {
-                n = groupsSnapshot[i].enumerate(list, n, true);
+                n = groupsSnapshot[i].enumerate(list, n, true); // #2
             }
         }
         return n;
@@ -628,6 +658,9 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @see        java.lang.ThreadGroup#checkAccess()
      * @since      1.2
      */
+    @CFComment({" groupSnapshot.length = ngroupsSnapshot by #0.1",
+                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    @SuppressWarnings("index:array.access.unsafe.high")
     public final void interrupt() {
         int ngroupsSnapshot;
         ThreadGroup[] groupsSnapshot;
@@ -681,7 +714,9 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * if (and only if) the current thread is found to be in this thread
      * group or one of its subgroups.
      */
-    @SuppressWarnings("deprecation")
+    @CFComment({"index: groupSnapshot.length = ngroupsSnapshot by #0.1",
+                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    @SuppressWarnings({"deprecation", "index:array.access.unsafe.high"})
     private boolean stopOrSuspend(boolean suspend) {
         boolean suicide = false;
         Thread us = Thread.currentThread();
@@ -700,11 +735,11 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
 
             ngroupsSnapshot = ngroups;
             if (groups != null) {
-                groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot);
+                groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot); // #0.1
             }
         }
         for (int i = 0 ; i < ngroupsSnapshot ; i++)
-            suicide = groupsSnapshot[i].stopOrSuspend(suspend) || suicide;
+            suicide = groupsSnapshot[i].stopOrSuspend(suspend) || suicide; // #1
 
         return suicide;
     }
@@ -730,8 +765,10 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      *       both of which have been deprecated, as they are inherently
      *       deadlock-prone.  See {@link Thread#suspend} for details.
      */
+    @CFComment({"index:  // groupSnapshot.length = ngroupsSnapshot by #0.1",
+                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
     @Deprecated(since="1.2")
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "index:array.access.unsafe.high"})
     public final void resume() {
         int ngroupsSnapshot;
         ThreadGroup[] groupsSnapshot;
@@ -742,13 +779,13 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
             }
             ngroupsSnapshot = ngroups;
             if (groups != null) {
-                groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot);
+                groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot); // #0.1
             } else {
                 groupsSnapshot = null;
             }
         }
         for (int i = 0 ; i < ngroupsSnapshot ; i++) {
-            groupsSnapshot[i].resume();
+            groupsSnapshot[i].resume(); // #1
         }
     }
 
@@ -767,6 +804,9 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @see        java.lang.ThreadGroup#checkAccess()
      * @since      1.0
      */
+    @CFComment({"index: groupSnapshot.length = ngroupsSnapshot by #0.1",
+                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    @SuppressWarnings("index:array.access.unsafe.high")
     public final void destroy() {
         int ngroupsSnapshot;
         ThreadGroup[] groupsSnapshot;
@@ -777,7 +817,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
             }
             ngroupsSnapshot = ngroups;
             if (groups != null) {
-                groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot);
+                groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot); // #0.1
             } else {
                 groupsSnapshot = null;
             }
@@ -790,7 +830,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
             }
         }
         for (int i = 0 ; i < ngroupsSnapshot ; i += 1) {
-            groupsSnapshot[i].destroy();
+            groupsSnapshot[i].destroy(); // #1
         }
         if (parent != null) {
             parent.remove(this);
@@ -802,6 +842,8 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @param g the specified Thread group to be added
      * @throws  IllegalThreadStateException If the Thread group has been destroyed.
      */
+    @CFComment({"index: #1: If ngroups = groups.length, length of group is doubled"})
+    @SuppressWarnings({"index:array.access.unsafe.high", "index:compound.assignment.type.incompatible"})
     private final void add(ThreadGroup g){
         synchronized (this) {
             if (destroyed) {
@@ -812,11 +854,11 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
             } else if (ngroups == groups.length) {
                 groups = Arrays.copyOf(groups, ngroups * 2);
             }
-            groups[ngroups] = g;
+            groups[ngroups] = g; // #1
 
             // This is done last so it doesn't matter in case the
             // thread is killed
-            ngroups++;
+            ngroups++; // #1
         }
     }
 
@@ -825,6 +867,8 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @param g the Thread group to be removed
      * @return if this Thread has already been destroyed.
      */
+    @CFComment({"index: #1: ngroups - i <= groups.length - i"})
+    @SuppressWarnings("index:argument.type.incompatible")
     private void remove(ThreadGroup g) {
         synchronized (this) {
             if (destroyed) {
@@ -833,7 +877,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
             for (int i = 0 ; i < ngroups ; i++) {
                 if (groups[i] == g) {
                     ngroups -= 1;
-                    System.arraycopy(groups, i + 1, groups, i, ngroups - i);
+                    System.arraycopy(groups, i + 1, groups, i, ngroups - i); // #1
                     // Zap dangling reference to the dead group so that
                     // the garbage collector will collect it.
                     groups[ngroups] = null;
@@ -881,6 +925,8 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @throws IllegalThreadStateException
      *          if the Thread group has been destroyed
      */
+    @CFComment({"index: #1: If nthreads = threads.length, length of threads is doubled"})
+    @SuppressWarnings({"index:array.access.unsafe.high", "index:compound.assignment.type.incompatible"})
     void add(Thread t) {
         synchronized (this) {
             if (destroyed) {
@@ -891,7 +937,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
             } else if (nthreads == threads.length) {
                 threads = Arrays.copyOf(threads, nthreads * 2);
             }
-            threads[nthreads] = t;
+            threads[nthreads] = t; // #1
 
             // This is done last so it doesn't matter in case the
             // thread is killed
@@ -957,6 +1003,8 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @param  t
      *         the Thread to be removed
      */
+    @CFComment({"index: #1: --nthreads - i < threads.length - i, also, --nthreads - i is @NonNegative as --nthreads >= i"})
+    @SuppressWarnings("index:argument.type.incompatible")
     private void remove(Thread t) {
         synchronized (this) {
             if (destroyed) {
@@ -964,7 +1012,7 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
             }
             for (int i = 0 ; i < nthreads ; i++) {
                 if (threads[i] == t) {
-                    System.arraycopy(threads, i + 1, threads, i, --nthreads - i);
+                    System.arraycopy(threads, i + 1, threads, i, --nthreads - i); // #1
                     // Zap dangling reference to the dead thread so that
                     // the garbage collector will collect it.
                     threads[nthreads] = null;
@@ -980,6 +1028,9 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      *
      * @since   1.0
      */
+    @CFComment({"index: groupSnapshot.length = ngroupsSnapshot by #0.1",
+                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    @SuppressWarnings("index:array.access.unsafe.high")
     public void list() {
         list(System.out, 0);
     }
@@ -1000,13 +1051,13 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
             }
             ngroupsSnapshot = ngroups;
             if (groups != null) {
-                groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot);
+                groupsSnapshot = Arrays.copyOf(groups, ngroupsSnapshot); // #0.1
             } else {
                 groupsSnapshot = null;
             }
         }
         for (int i = 0 ; i < ngroupsSnapshot ; i++) {
-            groupsSnapshot[i].list(out, indent);
+            groupsSnapshot[i].list(out, indent); // #1
         }
     }
 
@@ -1082,7 +1133,8 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @return  a string representation of this thread group.
      * @since   1.0
      */
-    public String toString() {
+    @SideEffectFree
+    public String toString(@GuardSatisfied ThreadGroup this) {
         return getClass().getName() + "[name=" + getName() + ",maxpri=" + maxPriority + "]";
     }
 }

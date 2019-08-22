@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Thrown to indicate that an assertion has failed.
  *
@@ -40,12 +44,14 @@ package java.lang;
  *
  * @since   1.4
  */
+@AnnotatedFor({"nullness"})
 public class AssertionError extends Error {
     private static final long serialVersionUID = -5013299493970297370L;
 
     /**
      * Constructs an AssertionError with no detail message.
      */
+    @SideEffectFree
     public AssertionError() {
     }
 
@@ -54,7 +60,8 @@ public class AssertionError extends Error {
      * even if it is a null reference.  The public constructors will
      * never call this constructor with a null argument.
      */
-    private AssertionError(String detailMessage) {
+    @SideEffectFree
+    private AssertionError(@Nullable String detailMessage) {
         super(detailMessage);
     }
 
@@ -70,7 +77,8 @@ public class AssertionError extends Error {
      * @param detailMessage value to be used in constructing detail message
      * @see   Throwable#getCause()
      */
-    public AssertionError(Object detailMessage) {
+    @SideEffectFree
+    public AssertionError(@Nullable Object detailMessage) {
         this(String.valueOf(detailMessage));
         if (detailMessage instanceof Throwable)
             initCause((Throwable) detailMessage);
@@ -84,6 +92,7 @@ public class AssertionError extends Error {
      *
      * @param detailMessage value to be used in constructing detail message
      */
+    @SideEffectFree
     public AssertionError(boolean detailMessage) {
         this(String.valueOf(detailMessage));
     }
@@ -96,6 +105,7 @@ public class AssertionError extends Error {
      *
      * @param detailMessage value to be used in constructing detail message
      */
+    @SideEffectFree
     public AssertionError(char detailMessage) {
         this(String.valueOf(detailMessage));
     }
@@ -108,6 +118,7 @@ public class AssertionError extends Error {
      *
      * @param detailMessage value to be used in constructing detail message
      */
+    @SideEffectFree
     public AssertionError(int detailMessage) {
         this(String.valueOf(detailMessage));
     }
@@ -120,6 +131,7 @@ public class AssertionError extends Error {
      *
      * @param detailMessage value to be used in constructing detail message
      */
+    @SideEffectFree
     public AssertionError(long detailMessage) {
         this(String.valueOf(detailMessage));
     }
@@ -132,6 +144,7 @@ public class AssertionError extends Error {
      *
      * @param detailMessage value to be used in constructing detail message
      */
+    @SideEffectFree
     public AssertionError(float detailMessage) {
         this(String.valueOf(detailMessage));
     }
@@ -144,6 +157,7 @@ public class AssertionError extends Error {
      *
      * @param detailMessage value to be used in constructing detail message
      */
+    @SideEffectFree
     public AssertionError(double detailMessage) {
         this(String.valueOf(detailMessage));
     }

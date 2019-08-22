@@ -25,6 +25,9 @@
 
 package javax.accessibility;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * The {@code AccessibleAction} interface should be supported by any object that
  * can perform one or more actions. This interface provides the standard
@@ -45,6 +48,7 @@ package javax.accessibility;
  * @see AccessibleContext
  * @see AccessibleContext#getAccessibleAction
  */
+@AnnotatedFor({"interning"})
 public interface AccessibleAction {
 
     /**
@@ -78,7 +82,7 @@ public interface AccessibleAction {
      *
      * @since 1.6
      */
-    public static final String CLICK = new String("click");
+    public static final @Interned String CLICK = new String("click");
 
     /**
      * An action which causes a popup to become visible if it is hidden and
@@ -86,7 +90,7 @@ public interface AccessibleAction {
      *
      * @since 1.6
      */
-    public static final String TOGGLE_POPUP = new String("toggle popup");
+    public static final @Interned String TOGGLE_POPUP = new String("toggle popup");
 
     /**
      * Returns the number of accessible actions available in this object If

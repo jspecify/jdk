@@ -24,6 +24,9 @@
  */
 package javax.swing.plaf.synth;
 
+import org.checkerframework.checker.regex.qual.Regex;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import javax.swing.*;
 import javax.swing.plaf.FontUIResource;
 import java.awt.Font;
@@ -40,6 +43,7 @@ import sun.swing.BakedArrayList;
  *
  * @author Scott Violet
  */
+@AnnotatedFor({"regex"})
 class DefaultSynthStyleFactory extends SynthStyleFactory {
     /**
      * Used to indicate the lookup should be done based on Component name.
@@ -78,7 +82,7 @@ class DefaultSynthStyleFactory extends SynthStyleFactory {
     }
 
     public synchronized void addStyle(DefaultSynthStyle style,
-                         String path, int type) throws PatternSyntaxException {
+                         @Regex String path, int type) throws PatternSyntaxException {
         if (path == null) {
             // Make an empty path match all.
             path = ".*";

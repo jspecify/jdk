@@ -25,6 +25,11 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import jdk.internal.math.FloatingDecimal;
 import jdk.internal.HotSpotIntrinsicCandidate;
 
@@ -45,6 +50,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @author  Joseph D. Darcy
  * @since 1.0
  */
+@AnnotatedFor({"nullness"})
 public final class Float extends Number implements Comparable<Float> {
     /**
      * A constant holding the positive infinity of type
@@ -201,6 +207,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @param   f   the float to be converted.
      * @return a string representation of the argument.
      */
+    @SideEffectFree
     public static String toString(float f) {
         return FloatingDecimal.toJavaFormatString(f);
     }
@@ -283,6 +290,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @since 1.5
      * @author Joseph D. Darcy
      */
+    @SideEffectFree
     public static String toHexString(float f) {
         if (Math.abs(f) < Float.MIN_NORMAL
             &&  f != 0.0f ) {// float subnormal
@@ -415,6 +423,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @throws  NumberFormatException  if the string does not contain a
      *          parsable number.
      */
+    @SideEffectFree
     public static Float valueOf(String s) throws NumberFormatException {
         return new Float(parseFloat(s));
     }
@@ -432,6 +441,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @return a {@code Float} instance representing {@code f}.
      * @since  1.5
      */
+    @SideEffectFree
     @HotSpotIntrinsicCandidate
     public static Float valueOf(float f) {
         return new Float(f);
@@ -451,6 +461,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @see    java.lang.Float#valueOf(String)
      * @since 1.2
      */
+    @Pure
     public static float parseFloat(String s) throws NumberFormatException {
         return FloatingDecimal.parseFloat(s);
     }
@@ -463,6 +474,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @return  {@code true} if the argument is NaN;
      *          {@code false} otherwise.
      */
+    @Pure
     public static boolean isNaN(float v) {
         return (v != v);
     }
@@ -475,6 +487,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @return  {@code true} if the argument is positive infinity or
      *          negative infinity; {@code false} otherwise.
      */
+    @Pure
     public static boolean isInfinite(float v) {
         return (v == POSITIVE_INFINITY) || (v == NEGATIVE_INFINITY);
     }
@@ -561,6 +574,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @return  {@code true} if the value represented by this object is
      *          NaN; {@code false} otherwise.
      */
+    @Pure
     public boolean isNaN() {
         return isNaN(value);
     }
@@ -573,6 +587,7 @@ public final class Float extends Number implements Comparable<Float> {
      *          positive infinity or negative infinity;
      *          {@code false} otherwise.
      */
+    @Pure
     public boolean isInfinite() {
         return isInfinite(value);
     }
@@ -586,6 +601,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @return  a {@code String} representation of this object.
      * @see java.lang.Float#toString(float)
      */
+    @SideEffectFree
     public String toString() {
         return Float.toString(value);
     }
@@ -598,6 +614,7 @@ public final class Float extends Number implements Comparable<Float> {
      *          converted to type {@code byte}
      * @jls 5.1.3 Narrowing Primitive Conversions
      */
+    @Pure
     public byte byteValue() {
         return (byte)value;
     }
@@ -611,6 +628,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @jls 5.1.3 Narrowing Primitive Conversions
      * @since 1.1
      */
+    @Pure
     public short shortValue() {
         return (short)value;
     }
@@ -623,6 +641,7 @@ public final class Float extends Number implements Comparable<Float> {
      *          converted to type {@code int}
      * @jls 5.1.3 Narrowing Primitive Conversions
      */
+    @Pure
     public int intValue() {
         return (int)value;
     }
@@ -635,6 +654,7 @@ public final class Float extends Number implements Comparable<Float> {
      *          converted to type {@code long}
      * @jls 5.1.3 Narrowing Primitive Conversions
      */
+    @Pure
     public long longValue() {
         return (long)value;
     }
@@ -644,6 +664,7 @@ public final class Float extends Number implements Comparable<Float> {
      *
      * @return the {@code float} value represented by this object
      */
+    @Pure
     @HotSpotIntrinsicCandidate
     public float floatValue() {
         return value;
@@ -657,6 +678,7 @@ public final class Float extends Number implements Comparable<Float> {
      *         object converted to type {@code double}
      * @jls 5.1.2 Widening Primitive Conversions
      */
+    @Pure
     public double doubleValue() {
         return (double)value;
     }
@@ -670,6 +692,7 @@ public final class Float extends Number implements Comparable<Float> {
      *
      * @return a hash code value for this object.
      */
+    @Pure
     @Override
     public int hashCode() {
         return Float.hashCode(value);
@@ -727,7 +750,8 @@ public final class Float extends Number implements Comparable<Float> {
      *          {@code false} otherwise.
      * @see java.lang.Float#floatToIntBits(float)
      */
-    public boolean equals(Object obj) {
+    @Pure
+    public boolean equals(@Nullable Object obj) {
         return (obj instanceof Float)
                && (floatToIntBits(((Float)obj).value) == floatToIntBits(value));
     }
@@ -763,6 +787,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @param   value   a floating-point number.
      * @return the bits that represent the floating-point number.
      */
+    @Pure
     @HotSpotIntrinsicCandidate
     public static int floatToIntBits(float value) {
         if (!isNaN(value)) {
@@ -903,6 +928,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @since   1.2
      * @see Comparable#compareTo(Object)
      */
+    @Pure
     public int compareTo(Float anotherFloat) {
         return Float.compare(value, anotherFloat.value);
     }
@@ -925,6 +951,7 @@ public final class Float extends Number implements Comparable<Float> {
      *          {@code f2}.
      * @since 1.4
      */
+    @Pure
     public static int compare(float f1, float f2) {
         if (f1 < f2)
             return -1;           // Neither val is NaN, thisVal is smaller

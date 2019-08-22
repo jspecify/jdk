@@ -24,6 +24,10 @@
  */
 package java.util.stream;
 
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Arrays;
 import java.util.DoubleSummaryStatistics;
 import java.util.Objects;
@@ -69,6 +73,7 @@ import java.util.function.Supplier;
  * @see Stream
  * @see <a href="package-summary.html">java.util.stream</a>
  */
+@AnnotatedFor({"lock", "nullness"})
 public interface DoubleStream extends BaseStream<Double, DoubleStream> {
 
     /**
@@ -452,6 +457,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      *
      * @return an array containing the elements of this stream
      */
+    @SideEffectFree
     double[] toArray();
 
     /**
@@ -893,9 +899,11 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
     @Override
     DoubleStream parallel();
 
+    @SideEffectFree
     @Override
     PrimitiveIterator.OfDouble iterator();
 
+    @SideEffectFree
     @Override
     Spliterator.OfDouble spliterator();
 
@@ -1163,7 +1171,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
          * @throws IllegalStateException if the builder has already transitioned
          * to the built state
          */
-        default Builder add(double t) {
+        default Builder add(DoubleStream.@GuardSatisfied Builder this, double t) {
             accept(t);
             return this;
         }

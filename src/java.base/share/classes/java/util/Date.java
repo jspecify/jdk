@@ -25,6 +25,12 @@
 
 package java.util;
 
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.text.DateFormat;
 import java.time.LocalDate;
 import java.io.IOException;
@@ -130,6 +136,7 @@ import sun.util.calendar.ZoneInfo;
  * @see     java.util.TimeZone
  * @since   1.0
  */
+@AnnotatedFor({"lock", "nullness", "index"})
 public class Date
     implements java.io.Serializable, Cloneable, Comparable<Date>
 {
@@ -277,7 +284,8 @@ public class Date
     /**
      * Return a copy of this object.
      */
-    public Object clone() {
+    @SideEffectFree
+    public Object clone(@GuardSatisfied Date this) {
         Date d = null;
         try {
             d = (Date)super.clone();
@@ -646,7 +654,7 @@ public class Date
      * replaced by {@code Calendar.get(Calendar.YEAR) - 1900}.
      */
     @Deprecated
-    public int getYear() {
+    public int getYear(@GuardSatisfied Date this) {
         return normalize().getYear() - 1900;
     }
 
@@ -666,7 +674,7 @@ public class Date
      * replaced by {@code Calendar.set(Calendar.YEAR, year + 1900)}.
      */
     @Deprecated
-    public void setYear(int year) {
+    public void setYear(@GuardSatisfied Date this, int year) {
         getCalendarDate().setNormalizedYear(year + 1900);
     }
 
@@ -682,7 +690,7 @@ public class Date
      * replaced by {@code Calendar.get(Calendar.MONTH)}.
      */
     @Deprecated
-    public int getMonth() {
+    public int getMonth(@GuardSatisfied Date this) {
         return normalize().getMonth() - 1; // adjust 1-based to 0-based
     }
 
@@ -701,7 +709,7 @@ public class Date
      * replaced by {@code Calendar.set(Calendar.MONTH, int month)}.
      */
     @Deprecated
-    public void setMonth(int month) {
+    public void setMonth(@GuardSatisfied Date this, int month) {
         int y = 0;
         if (month >= 12) {
             y = month / 12;
@@ -730,7 +738,7 @@ public class Date
      * replaced by {@code Calendar.get(Calendar.DAY_OF_MONTH)}.
      */
     @Deprecated
-    public int getDate() {
+    public int getDate(@GuardSatisfied Date this) {
         return normalize().getDayOfMonth();
     }
 
@@ -750,7 +758,7 @@ public class Date
      * replaced by {@code Calendar.set(Calendar.DAY_OF_MONTH, int date)}.
      */
     @Deprecated
-    public void setDate(int date) {
+    public void setDate(@GuardSatisfied Date this, int date) {
         getCalendarDate().setDayOfMonth(date);
     }
 
@@ -769,7 +777,7 @@ public class Date
      * replaced by {@code Calendar.get(Calendar.DAY_OF_WEEK)}.
      */
     @Deprecated
-    public int getDay() {
+    public int getDay(@GuardSatisfied Date this) {
         return normalize().getDayOfWeek() - BaseCalendar.SUNDAY;
     }
 
@@ -786,7 +794,7 @@ public class Date
      * replaced by {@code Calendar.get(Calendar.HOUR_OF_DAY)}.
      */
     @Deprecated
-    public int getHours() {
+    public int getHours(@GuardSatisfied Date this) {
         return normalize().getHours();
     }
 
@@ -803,7 +811,7 @@ public class Date
      * replaced by {@code Calendar.set(Calendar.HOUR_OF_DAY, int hours)}.
      */
     @Deprecated
-    public void setHours(int hours) {
+    public void setHours(@GuardSatisfied Date this, int hours) {
         getCalendarDate().setHours(hours);
     }
 
@@ -818,7 +826,7 @@ public class Date
      * replaced by {@code Calendar.get(Calendar.MINUTE)}.
      */
     @Deprecated
-    public int getMinutes() {
+    public int getMinutes(@GuardSatisfied Date this) {
         return normalize().getMinutes();
     }
 
@@ -835,7 +843,7 @@ public class Date
      * replaced by {@code Calendar.set(Calendar.MINUTE, int minutes)}.
      */
     @Deprecated
-    public void setMinutes(int minutes) {
+    public void setMinutes(@GuardSatisfied Date this, int minutes) {
         getCalendarDate().setMinutes(minutes);
     }
 
@@ -851,7 +859,7 @@ public class Date
      * replaced by {@code Calendar.get(Calendar.SECOND)}.
      */
     @Deprecated
-    public int getSeconds() {
+    public int getSeconds(@GuardSatisfied Date this) {
         return normalize().getSeconds();
     }
 
@@ -868,7 +876,7 @@ public class Date
      * replaced by {@code Calendar.set(Calendar.SECOND, int seconds)}.
      */
     @Deprecated
-    public void setSeconds(int seconds) {
+    public void setSeconds(@GuardSatisfied Date this, int seconds) {
         getCalendarDate().setSeconds(seconds);
     }
 
@@ -879,7 +887,7 @@ public class Date
      * @return  the number of milliseconds since January 1, 1970, 00:00:00 GMT
      *          represented by this date.
      */
-    public long getTime() {
+    public long getTime(@GuardSatisfied Date this) {
         return getTimeImpl();
     }
 
@@ -896,7 +904,7 @@ public class Date
      *
      * @param   time   the number of milliseconds.
      */
-    public void setTime(long time) {
+    public void setTime(@GuardSatisfied Date this, long time) {
         fastTime = time;
         cdate = null;
     }
@@ -911,7 +919,7 @@ public class Date
      *          {@code false} otherwise.
      * @exception NullPointerException if {@code when} is null.
      */
-    public boolean before(Date when) {
+    public boolean before(@GuardSatisfied Date this, Date when) {
         return getMillisOf(this) < getMillisOf(when);
     }
 
@@ -925,7 +933,7 @@ public class Date
      *          {@code false} otherwise.
      * @exception NullPointerException if {@code when} is null.
      */
-    public boolean after(Date when) {
+    public boolean after(@GuardSatisfied Date this, Date when) {
         return getMillisOf(this) > getMillisOf(when);
     }
 
@@ -944,7 +952,8 @@ public class Date
      *          {@code false} otherwise.
      * @see     java.util.Date#getTime()
      */
-    public boolean equals(Object obj) {
+    @Pure
+    public boolean equals(@GuardSatisfied Date this, @GuardSatisfied @Nullable Object obj) {
         return obj instanceof Date && getTime() == ((Date) obj).getTime();
     }
 
@@ -974,7 +983,8 @@ public class Date
      * @since   1.2
      * @exception NullPointerException if {@code anotherDate} is null.
      */
-    public int compareTo(Date anotherDate) {
+    @Pure
+    public int compareTo(@GuardSatisfied Date this, @GuardSatisfied Date anotherDate) {
         long thisTime = getMillisOf(this);
         long anotherTime = getMillisOf(anotherDate);
         return (thisTime<anotherTime ? -1 : (thisTime==anotherTime ? 0 : 1));
@@ -991,7 +1001,8 @@ public class Date
      *
      * @return  a hash code value for this object.
      */
-    public int hashCode() {
+    @Pure
+    public int hashCode(@GuardSatisfied Date this) {
         long ht = this.getTime();
         return (int) ht ^ (int) (ht >> 32);
     }
@@ -1026,7 +1037,8 @@ public class Date
      * @see     java.util.Date#toLocaleString()
      * @see     java.util.Date#toGMTString()
      */
-    public String toString() {
+    @SideEffectFree
+    public String toString(@GuardSatisfied Date this) {
         // "EEE MMM dd HH:mm:ss zzz yyyy";
         BaseCalendar.Date date = normalize();
         StringBuilder sb = new StringBuilder(28);
@@ -1166,7 +1178,7 @@ public class Date
      * Calendar.get(Calendar.DST_OFFSET)) / (60 * 1000)}.
      */
     @Deprecated
-    public int getTimezoneOffset() {
+    public int getTimezoneOffset(@GuardSatisfied Date this) {
         int zoneOffset;
         if (cdate == null) {
             TimeZone tz = TimeZone.getDefaultRef();

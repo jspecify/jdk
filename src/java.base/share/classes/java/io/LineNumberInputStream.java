@@ -25,6 +25,13 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * This class is an input stream filter that provides the added
  * functionality of keeping track of the current line number.
@@ -46,6 +53,7 @@ package java.io;
  *             character streams is via the new character-stream classes, which
  *             include a class for counting line numbers.
  */
+@AnnotatedFor({"index"})
 @Deprecated
 public
 class LineNumberInputStream extends FilterInputStream {
@@ -127,7 +135,7 @@ class LineNumberInputStream extends FilterInputStream {
      * @exception  IOException  if an I/O error occurs.
      * @see        java.io.LineNumberInputStream#read()
      */
-    public int read(byte b[], int off, int len) throws IOException {
+    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
         if (b == null) {
             throw new NullPointerException();
         } else if ((off < 0) || (off > b.length) || (len < 0) ||
@@ -176,7 +184,7 @@ class LineNumberInputStream extends FilterInputStream {
      * @exception  IOException  if an I/O error occurs.
      * @see        java.io.FilterInputStream#in
      */
-    public long skip(long n) throws IOException {
+    public @NonNegative long skip(long n) throws IOException {
         int chunk = 2048;
         long remaining = n;
         byte data[];
@@ -204,7 +212,7 @@ class LineNumberInputStream extends FilterInputStream {
      * @param      lineNumber   the new line number.
      * @see #getLineNumber
      */
-    public void setLineNumber(int lineNumber) {
+    public void setLineNumber(@NonNegative int lineNumber) {
         this.lineNumber = lineNumber;
     }
 
@@ -214,7 +222,7 @@ class LineNumberInputStream extends FilterInputStream {
      * @return     the current line number.
      * @see #setLineNumber
      */
-    public int getLineNumber() {
+    public @NonNegative int getLineNumber() {
         return lineNumber;
     }
 
@@ -237,7 +245,7 @@ class LineNumberInputStream extends FilterInputStream {
      * @exception  IOException  if an I/O error occurs.
      * @see        java.io.FilterInputStream#in
      */
-    public int available() throws IOException {
+    public @NonNegative int available() throws IOException {
         return (pushBack == -1) ? super.available()/2 : super.available()/2 + 1;
     }
 
@@ -256,7 +264,7 @@ class LineNumberInputStream extends FilterInputStream {
      * @see     java.io.FilterInputStream#in
      * @see     java.io.LineNumberInputStream#reset()
      */
-    public void mark(int readlimit) {
+    public void mark(@NonNegative int readlimit) {
         markLineNumber = lineNumber;
         markPushBack   = pushBack;
         in.mark(readlimit);

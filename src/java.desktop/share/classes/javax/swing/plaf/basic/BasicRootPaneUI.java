@@ -25,6 +25,9 @@
 
 package javax.swing.plaf.basic;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.event.ActionEvent;
 import java.awt.KeyboardFocusManager;
 import java.awt.Component;
@@ -44,6 +47,7 @@ import sun.swing.UIAction;
  * @author Scott Violet
  * @since 1.3
  */
+@AnnotatedFor({"interning"})
 public class BasicRootPaneUI extends RootPaneUI implements
                   PropertyChangeListener {
     private static RootPaneUI rootPaneUI = new BasicRootPaneUI();
@@ -216,9 +220,9 @@ public class BasicRootPaneUI extends RootPaneUI implements
 
 
     static class Actions extends UIAction {
-        public static final String PRESS = "press";
-        public static final String RELEASE = "release";
-        public static final String POST_POPUP = "postPopup";
+        public static final @Interned String PRESS = "press";
+        public static final @Interned String RELEASE = "release";
+        public static final @Interned String POST_POPUP = "postPopup";
 
         Actions(String name) {
             super(name);

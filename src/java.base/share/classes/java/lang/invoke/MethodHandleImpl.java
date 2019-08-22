@@ -25,6 +25,9 @@
 
 package java.lang.invoke;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import jdk.internal.misc.JavaLangInvokeAccess;
 import jdk.internal.misc.SharedSecrets;
 import jdk.internal.org.objectweb.asm.AnnotationVisitor;
@@ -57,7 +60,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
  * Trusted implementation code for MethodHandle.
  * @author jrose
  */
-/*non-public*/ abstract class MethodHandleImpl {
+/*non-public*/@AnnotatedFor({"interning"}) abstract @UsesObjectEquals class MethodHandleImpl {
 
     /// Factory methods to create method handles:
 

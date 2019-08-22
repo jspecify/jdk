@@ -24,6 +24,9 @@
  */
 package javax.swing;
 
+import org.checkerframework.checker.regex.qual.Regex;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.ArrayList;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -94,6 +97,7 @@ import java.util.regex.PatternSyntaxException;
  * @see javax.swing.table.TableRowSorter
  * @since 1.6
  */
+@AnnotatedFor({"regex"})
 public abstract class RowFilter<M,I> {
     /**
      * Enumeration of the possible comparison values supported by
@@ -173,7 +177,7 @@ public abstract class RowFilter<M,I> {
      *         not a valid regular expression.
      * @see java.util.regex.Pattern
      */
-    public static <M,I> RowFilter<M,I> regexFilter(String regex,
+    public static <M,I> RowFilter<M,I> regexFilter(@Regex String regex,
                                                        int... indices) {
         return new RegexFilter<M, I>(Pattern.compile(regex), indices);
     }

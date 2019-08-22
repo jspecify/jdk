@@ -35,6 +35,9 @@
 
 package java.util.concurrent.atomic;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.security.AccessController;
@@ -88,7 +91,8 @@ import java.lang.invoke.VarHandle;
  * @param <T> The type of the object holding the updatable field
  * @param <V> The type of the field
  */
-public abstract class AtomicReferenceFieldUpdater<T,V> {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class AtomicReferenceFieldUpdater<T,V> {
 
     /**
      * Creates and returns an updater for objects with the given field.

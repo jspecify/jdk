@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.*;
 
 /**
@@ -39,7 +42,8 @@ import java.util.*;
  * @since 1.1
  */
 
-public final class KeyPair implements java.io.Serializable {
+@AnnotatedFor({"interning"})
+public final @UsesObjectEquals class KeyPair implements java.io.Serializable {
 
     private static final long serialVersionUID = -7565189502268009837L;
 

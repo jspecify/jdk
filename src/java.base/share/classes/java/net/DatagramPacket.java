@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * This class represents a datagram packet.
  * <p>
@@ -39,8 +42,9 @@ package java.net;
  * @author  Benjamin Renaud
  * @since   1.0
  */
+@AnnotatedFor({"interning"})
 public final
-class DatagramPacket {
+@UsesObjectEquals class DatagramPacket {
 
     /**
      * Perform class initialization

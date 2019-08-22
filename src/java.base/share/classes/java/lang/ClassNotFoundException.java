@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Thrown when an application tries to load in a class through its
  * string name using:
@@ -50,6 +54,7 @@ package java.lang;
  * @see     java.lang.ClassLoader#loadClass(java.lang.String, boolean)
  * @since   1.0
  */
+@AnnotatedFor({"nullness"})
 public class ClassNotFoundException extends ReflectiveOperationException {
     /**
      * use serialVersionUID from JDK 1.1.X for interoperability
@@ -68,6 +73,7 @@ public class ClassNotFoundException extends ReflectiveOperationException {
     /**
      * Constructs a <code>ClassNotFoundException</code> with no detail message.
      */
+    @SideEffectFree
     public ClassNotFoundException() {
         super((Throwable)null);  // Disallow initCause
     }
@@ -78,7 +84,8 @@ public class ClassNotFoundException extends ReflectiveOperationException {
      *
      * @param   s   the detail message.
      */
-    public ClassNotFoundException(String s) {
+    @SideEffectFree
+    public ClassNotFoundException(@Nullable String s) {
         super(s, null);  //  Disallow initCause
     }
 
@@ -91,7 +98,8 @@ public class ClassNotFoundException extends ReflectiveOperationException {
      * @param ex the exception that was raised while loading the class
      * @since 1.2
      */
-    public ClassNotFoundException(String s, Throwable ex) {
+    @SideEffectFree
+    public ClassNotFoundException(@Nullable String s, @Nullable Throwable ex) {
         super(s, null);  //  Disallow initCause
         this.ex = ex;
     }

@@ -24,6 +24,9 @@
  */
 package java.util.function;
 
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Represents a supplier of {@code int}-valued results.  This is the
  * {@code int}-producing primitive specialization of {@link Supplier}.
@@ -37,6 +40,7 @@ package java.util.function;
  * @see Supplier
  * @since 1.8
  */
+@AnnotatedFor({"lock", "nullness"})
 @FunctionalInterface
 public interface IntSupplier {
 
@@ -45,5 +49,5 @@ public interface IntSupplier {
      *
      * @return a result
      */
-    int getAsInt();
+    int getAsInt(@GuardSatisfied IntSupplier this);
 }

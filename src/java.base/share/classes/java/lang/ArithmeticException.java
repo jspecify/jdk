@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Thrown when an exceptional arithmetic condition has occurred. For
  * example, an integer "divide by zero" throws an
@@ -38,6 +42,7 @@ package java.lang;
  * @author  unascribed
  * @since   1.0
  */
+@AnnotatedFor({"nullness"})
 public class ArithmeticException extends RuntimeException {
     private static final long serialVersionUID = 2256477558314496007L;
 
@@ -45,6 +50,7 @@ public class ArithmeticException extends RuntimeException {
      * Constructs an {@code ArithmeticException} with no detail
      * message.
      */
+    @SideEffectFree
     public ArithmeticException() {
         super();
     }
@@ -55,7 +61,8 @@ public class ArithmeticException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    public ArithmeticException(String s) {
+    @SideEffectFree
+    public ArithmeticException(@Nullable String s) {
         super(s);
     }
 }

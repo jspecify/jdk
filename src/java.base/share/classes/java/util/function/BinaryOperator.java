@@ -24,6 +24,8 @@
  */
 package java.util.function;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Objects;
 import java.util.Comparator;
 
@@ -42,6 +44,7 @@ import java.util.Comparator;
  * @see UnaryOperator
  * @since 1.8
  */
+@AnnotatedFor({"lock", "nullness"})
 @FunctionalInterface
 public interface BinaryOperator<T> extends BiFunction<T,T,T> {
     /**

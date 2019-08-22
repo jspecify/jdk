@@ -25,13 +25,18 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.annotation.Native;
 
 /**
  * Package-private abstract class for the local filesystem abstraction.
  */
 
-abstract class FileSystem {
+@AnnotatedFor({"index", "interning"})
+abstract @UsesObjectEquals class FileSystem {
 
     /* -- Normalization and construction -- */
 
@@ -55,7 +60,7 @@ abstract class FileSystem {
      * Compute the length of this pathname string's prefix.  The pathname
      * string must be in normal form.
      */
-    public abstract int prefixLength(String path);
+    public abstract @IndexOrHigh({"#1"}) int prefixLength(String path);
 
     /**
      * Resolve the child pathname string against the parent.

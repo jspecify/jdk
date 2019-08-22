@@ -25,6 +25,9 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Thrown to indicate that the application has attempted to convert
  * a string to one of the numeric types, but that the string does not
@@ -34,6 +37,7 @@ package java.lang;
  * @see     java.lang.Integer#parseInt(String)
  * @since   1.0
  */
+@AnnotatedFor({"nullness"})
 public
 class NumberFormatException extends IllegalArgumentException {
     static final long serialVersionUID = -2848938806368998894L;
@@ -51,7 +55,7 @@ class NumberFormatException extends IllegalArgumentException {
      *
      * @param   s   the detail message.
      */
-    public NumberFormatException (String s) {
+    public NumberFormatException (@Nullable String s) {
         super (s);
     }
 

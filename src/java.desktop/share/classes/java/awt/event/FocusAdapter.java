@@ -25,6 +25,9 @@
 
 package java.awt.event;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * An abstract adapter class for receiving keyboard focus events.
  * The methods in this class are empty. This class exists as
@@ -49,7 +52,8 @@ package java.awt.event;
  * @author Carl Quinn
  * @since 1.1
  */
-public abstract class FocusAdapter implements FocusListener {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class FocusAdapter implements FocusListener {
     /**
      * Invoked when a component gains the keyboard focus.
      */

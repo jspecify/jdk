@@ -37,6 +37,9 @@
 
 package java.text;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import sun.text.normalizer.NormalizerBase;
 
 /**
@@ -105,7 +108,8 @@ import sun.text.normalizer.NormalizerBase;
  *
  * @since 1.6
  */
-public final class Normalizer {
+@AnnotatedFor({"interning"})
+public final @UsesObjectEquals class Normalizer {
 
    private Normalizer() {};
 

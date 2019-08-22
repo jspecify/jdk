@@ -25,12 +25,16 @@
 
 package java.util.zip;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /*
  * This class defines the constants that are used by the classes
  * which manipulate Zip64 files.
  */
 
-class ZipConstants64 {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class ZipConstants64 {
 
     /*
      * ZIP64 constants

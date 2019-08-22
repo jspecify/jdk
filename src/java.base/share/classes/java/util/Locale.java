@@ -40,6 +40,14 @@
 
 package java.util;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -482,6 +490,7 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * @author Mark Davis
  * @since 1.1
  */
+@AnnotatedFor({"index", "interning", "lock", "nullness"})
 public final class Locale implements Cloneable, Serializable {
 
     private static final  Cache LOCALECACHE = new Cache();
@@ -677,7 +686,7 @@ public final class Locale implements Cloneable, Serializable {
     /**
      * Private constructor used by getInstance method
      */
-    private Locale(BaseLocale baseLocale, LocaleExtensions extensions) {
+    private Locale(BaseLocale baseLocale, @Nullable LocaleExtensions extensions) {
         this.baseLocale = baseLocale;
         this.localeExtensions = extensions;
     }
@@ -794,7 +803,7 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     static Locale getInstance(String language, String script, String country,
-                                      String variant, LocaleExtensions extensions) {
+                                      String variant, @Nullable LocaleExtensions extensions) {
         if (language== null || script == null || country == null || variant == null) {
             throw new NullPointerException();
         }
@@ -807,7 +816,7 @@ public final class Locale implements Cloneable, Serializable {
         return getInstance(baseloc, extensions);
     }
 
-    static Locale getInstance(BaseLocale baseloc, LocaleExtensions extensions) {
+    static Locale getInstance(BaseLocale baseloc, @Nullable LocaleExtensions extensions) {
         if (extensions == null) {
             return LOCALECACHE.get(baseloc);
         } else {
@@ -833,10 +842,10 @@ public final class Locale implements Cloneable, Serializable {
 
     private static final class LocaleKey {
         private final BaseLocale base;
-        private final LocaleExtensions exts;
+        private final @Nullable LocaleExtensions exts;
         private final int hash;
 
-        private LocaleKey(BaseLocale baseLocale, LocaleExtensions extensions) {
+        private LocaleKey(BaseLocale baseLocale, @Nullable LocaleExtensions extensions) {
             base = baseLocale;
             exts = extensions;
 
@@ -1206,7 +1215,7 @@ public final class Locale implements Cloneable, Serializable {
      * @return The country/region code, or the empty string if none is defined.
      * @see #getDisplayCountry
      */
-    public String getCountry() {
+    public @Interned String getCountry() {
         return baseLocale.getRegion();
     }
 
@@ -1216,7 +1225,7 @@ public final class Locale implements Cloneable, Serializable {
      * @return The variant code, or the empty string if none is defined.
      * @see #getDisplayVariant
      */
-    public String getVariant() {
+    public @Interned String getVariant() {
         return baseLocale.getVariant();
     }
 
@@ -1348,7 +1357,7 @@ public final class Locale implements Cloneable, Serializable {
      * @return locale extensions of this Locale,
      *         or {@code null} if no extensions are defined
      */
-     LocaleExtensions getLocaleExtensions() {
+     @Nullable LocaleExtensions getLocaleExtensions() {
          return localeExtensions;
      }
 
@@ -1394,6 +1403,7 @@ public final class Locale implements Cloneable, Serializable {
      * @see #getDisplayName
      * @see #toLanguageTag
      */
+    @SideEffectFree
     @Override
     public final String toString() {
         boolean l = (baseLocale.getLanguage().length() != 0);
@@ -2080,8 +2090,9 @@ public final class Locale implements Cloneable, Serializable {
     /**
      * Overrides Cloneable.
      */
+    @SideEffectFree
     @Override
-    public Object clone()
+    public Object clone(@GuardSatisfied Locale this)
     {
         try {
             Locale that = (Locale)super.clone();
@@ -2096,6 +2107,7 @@ public final class Locale implements Cloneable, Serializable {
      * Since Locales are often used in hashtables, caches the value
      * for speed.
      */
+    @Pure
     @Override
     public int hashCode() {
         int hc = hashCodeValue;
@@ -2118,8 +2130,9 @@ public final class Locale implements Cloneable, Serializable {
      *
      * @return true if this Locale is equal to the specified object.
      */
+    @Pure
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
         if (this == obj)                      // quick check
             return true;
         if (!(obj instanceof Locale))
@@ -2145,8 +2158,8 @@ public final class Locale implements Cloneable, Serializable {
     private transient volatile int hashCodeValue;
 
     private static volatile Locale defaultLocale = initDefault();
-    private static volatile Locale defaultDisplayLocale;
-    private static volatile Locale defaultFormatLocale;
+    private static volatile @MonotonicNonNull Locale defaultDisplayLocale;
+    private static volatile @MonotonicNonNull Locale defaultFormatLocale;
 
     private transient volatile String languageTag;
 
@@ -2337,9 +2350,9 @@ public final class Locale implements Cloneable, Serializable {
                 baseLocale.getRegion(), baseLocale.getVariant(), localeExtensions);
     }
 
-    private static volatile String[] isoLanguages;
+    private static volatile String @MonotonicNonNull [] isoLanguages;
 
-    private static volatile String[] isoCountries;
+    private static volatile String @MonotonicNonNull [] isoCountries;
 
     private static String convertOldISOCodes(String language) {
         // we accept both the old and the new ISO codes for the languages whose ISO
@@ -2529,7 +2542,7 @@ public final class Locale implements Cloneable, Serializable {
          * any ill-formed fields.
          * @throws NullPointerException if <code>locale</code> is null.
          */
-        public Builder setLocale(Locale locale) {
+        public Builder setLocale(Locale.@GuardSatisfied Builder this, Locale locale) {
             try {
                 localeBuilder.setLocale(locale.baseLocale, locale.localeExtensions);
             } catch (LocaleSyntaxException e) {
@@ -2555,7 +2568,7 @@ public final class Locale implements Cloneable, Serializable {
          * @throws IllformedLocaleException if <code>languageTag</code> is ill-formed
          * @see Locale#forLanguageTag(String)
          */
-        public Builder setLanguageTag(String languageTag) {
+        public Builder setLanguageTag(Locale.@GuardSatisfied Builder this, @Nullable String languageTag) {
             ParseStatus sts = new ParseStatus();
             LanguageTag tag = LanguageTag.parse(languageTag, sts);
             if (sts.isError()) {
@@ -2578,7 +2591,7 @@ public final class Locale implements Cloneable, Serializable {
          * @return This builder.
          * @throws IllformedLocaleException if <code>language</code> is ill-formed
          */
-        public Builder setLanguage(String language) {
+        public Builder setLanguage(Locale.@GuardSatisfied Builder this, @Nullable String language) {
             try {
                 localeBuilder.setLanguage(language);
             } catch (LocaleSyntaxException e) {
@@ -2599,7 +2612,7 @@ public final class Locale implements Cloneable, Serializable {
          * @return This builder.
          * @throws IllformedLocaleException if <code>script</code> is ill-formed
          */
-        public Builder setScript(String script) {
+        public Builder setScript(Locale.@GuardSatisfied Builder this, @Nullable String script) {
             try {
                 localeBuilder.setScript(script);
             } catch (LocaleSyntaxException e) {
@@ -2624,7 +2637,7 @@ public final class Locale implements Cloneable, Serializable {
          * @return This builder.
          * @throws IllformedLocaleException if <code>region</code> is ill-formed
          */
-        public Builder setRegion(String region) {
+        public Builder setRegion(Locale.@GuardSatisfied Builder this, @Nullable String region) {
             try {
                 localeBuilder.setRegion(region);
             } catch (LocaleSyntaxException e) {
@@ -2651,7 +2664,7 @@ public final class Locale implements Cloneable, Serializable {
          * @return This builder.
          * @throws IllformedLocaleException if <code>variant</code> is ill-formed
          */
-        public Builder setVariant(String variant) {
+        public Builder setVariant(Locale.@GuardSatisfied Builder this, @Nullable String variant) {
             try {
                 localeBuilder.setVariant(variant);
             } catch (LocaleSyntaxException e) {
@@ -2683,7 +2696,7 @@ public final class Locale implements Cloneable, Serializable {
          * or <code>value</code> is ill-formed
          * @see #setUnicodeLocaleKeyword(String, String)
          */
-        public Builder setExtension(char key, String value) {
+        public Builder setExtension(Locale.@GuardSatisfied Builder this, char key, @Nullable String value) {
             try {
                 localeBuilder.setExtension(key, value);
             } catch (LocaleSyntaxException e) {
@@ -2713,7 +2726,7 @@ public final class Locale implements Cloneable, Serializable {
          * @throws NullPointerException if <code>key</code> is null
          * @see #setExtension(char, String)
          */
-        public Builder setUnicodeLocaleKeyword(String key, String type) {
+        public Builder setUnicodeLocaleKeyword(Locale.@GuardSatisfied Builder this, String key, @Nullable String type) {
             try {
                 localeBuilder.setUnicodeLocaleKeyword(key, type);
             } catch (LocaleSyntaxException e) {
@@ -2734,7 +2747,7 @@ public final class Locale implements Cloneable, Serializable {
          * @throws IllformedLocaleException if <code>attribute</code> is ill-formed
          * @see #setExtension(char, String)
          */
-        public Builder addUnicodeLocaleAttribute(String attribute) {
+        public Builder addUnicodeLocaleAttribute(Locale.@GuardSatisfied Builder this, String attribute) {
             try {
                 localeBuilder.addUnicodeLocaleAttribute(attribute);
             } catch (LocaleSyntaxException e) {
@@ -2757,7 +2770,7 @@ public final class Locale implements Cloneable, Serializable {
          * @throws IllformedLocaleException if <code>attribute</code> is ill-formed
          * @see #setExtension(char, String)
          */
-        public Builder removeUnicodeLocaleAttribute(String attribute) {
+        public Builder removeUnicodeLocaleAttribute(Locale.@GuardSatisfied Builder this, String attribute) {
             Objects.requireNonNull(attribute);
             try {
                 localeBuilder.removeUnicodeLocaleAttribute(attribute);
@@ -2772,7 +2785,7 @@ public final class Locale implements Cloneable, Serializable {
          *
          * @return This builder.
          */
-        public Builder clear() {
+        public Builder clear(Locale.@GuardSatisfied Builder this) {
             localeBuilder.clear();
             return this;
         }
@@ -2784,7 +2797,7 @@ public final class Locale implements Cloneable, Serializable {
          * @return This builder.
          * @see #setExtension(char, String)
          */
-        public Builder clearExtensions() {
+        public Builder clearExtensions(Locale.@GuardSatisfied Builder this) {
             localeBuilder.clearExtensions();
             return this;
         }
@@ -3282,8 +3295,9 @@ public final class Locale implements Cloneable, Serializable {
          *     {@code weight} are the same as the {@code obj}'s; {@code false}
          *     otherwise.
          */
+        @Pure
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(@Nullable Object obj) {
             if (this == obj) {
                 return true;
             }
@@ -3445,7 +3459,7 @@ public final class Locale implements Cloneable, Serializable {
      *
      * @since 1.8
      */
-    public static Locale lookup(List<LanguageRange> priorityList,
+    public static @Nullable Locale lookup(List<LanguageRange> priorityList,
                                 Collection<Locale> locales) {
         return LocaleMatcher.lookup(priorityList, locales);
     }
@@ -3467,7 +3481,7 @@ public final class Locale implements Cloneable, Serializable {
      *
      * @since 1.8
      */
-    public static String lookupTag(List<LanguageRange> priorityList,
+    public static @Nullable String lookupTag(List<LanguageRange> priorityList,
                                    Collection<String> tags) {
         return LocaleMatcher.lookupTag(priorityList, tags);
     }

@@ -25,6 +25,9 @@
 
 package javax.swing.plaf.metal;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -50,6 +53,7 @@ import static sun.swing.SwingUtilities2.drawVLine;
  * @author Tom Santos
  * @author Steve Wilson
  */
+@AnnotatedFor({"interning"})
 public class MetalScrollBarUI extends BasicScrollBarUI
 {
     private static Color shadowColor;
@@ -82,7 +86,7 @@ public class MetalScrollBarUI extends BasicScrollBarUI
     /**
      * The property {@code JScrollBar.isFreeStanding}.
      */
-    public static final String FREE_STANDING_PROP = "JScrollBar.isFreeStanding";
+    public static final @Interned String FREE_STANDING_PROP = "JScrollBar.isFreeStanding";
 
     /**
      * The value of the property {@code JScrollBar.isFreeStanding}.

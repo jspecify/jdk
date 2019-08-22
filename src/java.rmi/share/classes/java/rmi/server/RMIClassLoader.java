@@ -25,6 +25,9 @@
 
 package java.rmi.server;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.AccessController;
@@ -107,7 +110,8 @@ import java.util.ServiceLoader;
  * @see         RMIClassLoaderSpi
  * @since       1.1
  */
-public class RMIClassLoader {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class RMIClassLoader {
 
     /** "default" provider instance */
     private static final RMIClassLoaderSpi defaultProvider =

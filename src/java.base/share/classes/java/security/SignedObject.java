@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.*;
 
 /**
@@ -116,7 +119,8 @@ import java.io.*;
  * @since 1.2
  */
 
-public final class SignedObject implements Serializable {
+@AnnotatedFor({"interning"})
+public final @UsesObjectEquals class SignedObject implements Serializable {
 
     private static final long serialVersionUID = 720502720485447167L;
 

@@ -25,6 +25,15 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 /**
  * This class is the superclass of all classes that filter output
  * streams. These streams sit on top of an already existing output
@@ -41,6 +50,8 @@ package java.io;
  * @author  Jonathan Payne
  * @since   1.0
  */
+@CFComment({"lock: Note that the @GuardSatisfied is for locks that are external to the implementation class."})
+@AnnotatedFor({"lock", "nullness", "index", "signedness"})
 public class FilterOutputStream extends OutputStream {
     /**
      * The underlying output stream to be filtered.
@@ -66,7 +77,7 @@ public class FilterOutputStream extends OutputStream {
      *                <code>null</code> if this instance is to be
      *                created without an underlying stream.
      */
-    public FilterOutputStream(OutputStream out) {
+    public FilterOutputStream(@Nullable OutputStream out) {
         this.out = out;
     }
 
@@ -83,7 +94,7 @@ public class FilterOutputStream extends OutputStream {
      * @exception  IOException  if an I/O error occurs.
      */
     @Override
-    public void write(int b) throws IOException {
+    public void write(@GuardSatisfied FilterOutputStream this, int b) throws IOException {
         out.write(b);
     }
 
@@ -104,7 +115,7 @@ public class FilterOutputStream extends OutputStream {
      * @see        java.io.FilterOutputStream#write(byte[], int, int)
      */
     @Override
-    public void write(byte b[]) throws IOException {
+    public void write(@GuardSatisfied FilterOutputStream this, @PolySigned byte b[]) throws IOException {
         write(b, 0, b.length);
     }
 
@@ -129,7 +140,7 @@ public class FilterOutputStream extends OutputStream {
      * @see        java.io.FilterOutputStream#write(int)
      */
     @Override
-    public void write(byte b[], int off, int len) throws IOException {
+    public void write(@GuardSatisfied FilterOutputStream this, @PolySigned byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
         if ((off | len | (b.length - (len + off)) | (off + len)) < 0)
             throw new IndexOutOfBoundsException();
 
@@ -149,7 +160,7 @@ public class FilterOutputStream extends OutputStream {
      * @see        java.io.FilterOutputStream#out
      */
     @Override
-    public void flush() throws IOException {
+    public void flush(@GuardSatisfied FilterOutputStream this) throws IOException {
         out.flush();
     }
 
@@ -166,7 +177,7 @@ public class FilterOutputStream extends OutputStream {
      * @see        java.io.FilterOutputStream#out
      */
     @Override
-    public void close() throws IOException {
+    public void close(@GuardSatisfied FilterOutputStream this) throws IOException {
         if (closed) {
             return;
         }

@@ -26,6 +26,8 @@
 
 package java.util.logging;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.*;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -56,6 +58,7 @@ import jdk.internal.logger.SurrogateLogger;
  * @see java.util.Formatter
  */
 
+@AnnotatedFor({"index"})
 public class SimpleFormatter extends Formatter {
 
     // format string for printing the log record

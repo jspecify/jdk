@@ -25,6 +25,8 @@
 
 package java.util;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Marker interface used by {@code List} implementations to indicate that
  * they support fast (generally constant time) random access.  The primary
@@ -64,5 +66,6 @@ package java.util;
  *
  * @since 1.4
  */
+@AnnotatedFor({"lock", "nullness"})
 public interface RandomAccess {
 }

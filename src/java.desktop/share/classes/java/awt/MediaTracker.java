@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.Component;
 import java.awt.Image;
 import java.awt.image.ImageObserver;
@@ -166,7 +169,8 @@ import sun.awt.image.MultiResolutionToolkitImage;
  * @author      Jim Graham
  * @since       1.0
  */
-public class MediaTracker implements java.io.Serializable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class MediaTracker implements java.io.Serializable {
 
     /**
      * A given {@code Component} that will be

@@ -25,6 +25,9 @@
 
 package java.nio.file.spi;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.nio.file.Path;
 import java.io.IOException;
 
@@ -47,7 +50,8 @@ import java.io.IOException;
  * @since 1.7
  */
 
-public abstract class FileTypeDetector {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class FileTypeDetector {
 
     private static Void checkPermission() {
         SecurityManager sm = System.getSecurityManager();

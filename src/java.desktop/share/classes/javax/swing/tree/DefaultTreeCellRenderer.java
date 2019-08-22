@@ -25,6 +25,9 @@
 
 package javax.swing.tree;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -127,6 +130,7 @@ import sun.swing.SwingUtilities2;
  * @author Ray Ryan
  * @author Scott Violet
  */
+@AnnotatedFor({"interning"})
 @SuppressWarnings("serial") // Same-version serialization only
 public class DefaultTreeCellRenderer extends JLabel implements TreeCellRenderer
 {
@@ -688,7 +692,7 @@ public class DefaultTreeCellRenderer extends JLabel implements TreeCellRenderer
     * See the <a href="#override">Implementation Note</a>
     * for more information.
     */
-    protected void firePropertyChange(String propertyName, Object oldValue, Object newValue) {
+    protected void firePropertyChange(@Interned String propertyName, Object oldValue, Object newValue) {
         // Strings get interned...
         if (propertyName == "text"
             || ((SwingUtilities2.isScaleChanged(propertyName, oldValue, newValue)

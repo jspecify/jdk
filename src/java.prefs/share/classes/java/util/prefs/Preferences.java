@@ -25,6 +25,9 @@
 
 package java.util.prefs;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -221,7 +224,8 @@ import java.lang.Double;
  * @author  Josh Bloch
  * @since   1.4
  */
-public abstract class Preferences {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class Preferences {
 
     private static final PreferencesFactory factory = factory();
 

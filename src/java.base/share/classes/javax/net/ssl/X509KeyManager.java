@@ -25,6 +25,8 @@
 
 package javax.net.ssl;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import java.security.PrivateKey;
 import java.security.Principal;
 import java.security.cert.X509Certificate;
@@ -62,7 +64,7 @@ public interface X509KeyManager extends KeyManager {
      * @return an array of the matching alias names, or null if there
      *          were no matches.
      */
-    public String[] getClientAliases(String keyType, Principal[] issuers);
+    public String @Nullable [] getClientAliases(String keyType, Principal @Nullable [] issuers);
 
     /**
      * Choose an alias to authenticate the client side of a secure
@@ -80,8 +82,8 @@ public interface X509KeyManager extends KeyManager {
      * @return the alias name for the desired key, or null if there
      *          are no matches.
      */
-    public String chooseClientAlias(String[] keyType, Principal[] issuers,
-        Socket socket);
+    public @Nullable String chooseClientAlias(String[] keyType, Principal @Nullable [] issuers,
+        @Nullable Socket socket);
 
     /**
      * Get the matching aliases for authenticating the server side of a secure
@@ -94,7 +96,7 @@ public interface X509KeyManager extends KeyManager {
      * @return an array of the matching alias names, or null
      *          if there were no matches.
      */
-    public String[] getServerAliases(String keyType, Principal[] issuers);
+    public String @Nullable [] getServerAliases(String keyType, Principal @Nullable [] issuers);
 
     /**
      * Choose an alias to authenticate the server side of a secure
@@ -111,8 +113,8 @@ public interface X509KeyManager extends KeyManager {
      * @return the alias name for the desired key, or null if there
      *          are no matches.
      */
-    public String chooseServerAlias(String keyType, Principal[] issuers,
-        Socket socket);
+    public @Nullable String chooseServerAlias(String keyType, Principal @Nullable [] issuers,
+        @Nullable Socket socket);
 
     /**
      * Returns the certificate chain associated with the given alias.
@@ -122,7 +124,7 @@ public interface X509KeyManager extends KeyManager {
      *          and the root certificate authority last), or null
      *          if the alias can't be found.
      */
-    public X509Certificate[] getCertificateChain(String alias);
+    public X509Certificate @Nullable [] getCertificateChain(String alias);
 
     /**
      * Returns the key associated with the given alias.
@@ -130,5 +132,5 @@ public interface X509KeyManager extends KeyManager {
      * @param alias the alias name
      * @return the requested key, or null if the alias can't be found.
      */
-    public PrivateKey getPrivateKey(String alias);
+    public @Nullable PrivateKey getPrivateKey(String alias);
 }

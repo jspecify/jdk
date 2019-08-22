@@ -24,6 +24,9 @@
  */
 package java.beans;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import com.sun.beans.finder.PersistenceDelegateFinder;
 
 import java.util.HashMap;
@@ -45,7 +48,8 @@ import java.util.Map;
  * @author Philip Milne
  */
 
-public class Encoder {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class Encoder {
     private final PersistenceDelegateFinder finder = new PersistenceDelegateFinder();
     private Map<Object, Expression> bindings = new IdentityHashMap<>();
     private ExceptionListener exceptionListener;

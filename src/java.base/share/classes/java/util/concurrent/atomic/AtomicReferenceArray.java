@@ -35,6 +35,9 @@
 
 package java.util.concurrent.atomic;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.lang.reflect.Array;
@@ -51,7 +54,8 @@ import java.util.function.UnaryOperator;
  * @author Doug Lea
  * @param <E> The base class of elements held in this array
  */
-public class AtomicReferenceArray<E> implements java.io.Serializable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class AtomicReferenceArray<E> implements java.io.Serializable {
     private static final long serialVersionUID = -6209656149925076980L;
     private static final VarHandle AA
         = MethodHandles.arrayElementVarHandle(Object[].class);

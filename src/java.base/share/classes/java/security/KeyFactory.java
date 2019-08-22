@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.*;
 
 import java.security.Provider.Service;
@@ -93,7 +96,8 @@ import sun.security.jca.GetInstance.Instance;
  * @since 1.2
  */
 
-public class KeyFactory {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class KeyFactory {
 
     private static final Debug debug =
                         Debug.getInstance("jca", "KeyFactory");

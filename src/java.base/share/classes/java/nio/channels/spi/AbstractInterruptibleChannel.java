@@ -28,6 +28,9 @@
 
 package java.nio.channels.spi;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.nio.channels.*;
 import jdk.internal.misc.SharedSecrets;
@@ -81,7 +84,8 @@ import sun.nio.ch.Interruptible;
  * @since 1.4
  */
 
-public abstract class AbstractInterruptibleChannel
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class AbstractInterruptibleChannel
     implements Channel, InterruptibleChannel
 {
 

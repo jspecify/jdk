@@ -25,6 +25,14 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 
 /**
  * A character-stream reader that allows characters to be pushed back into the
@@ -34,6 +42,7 @@ package java.io;
  * @since       1.1
  */
 
+@AnnotatedFor({"nullness", "index"})
 public class PushbackReader extends FilterReader {
 
     /** Pushback buffer */
@@ -49,7 +58,7 @@ public class PushbackReader extends FilterReader {
      * @param   size The size of the pushback buffer
      * @exception IllegalArgumentException if {@code size <= 0}
      */
-    public PushbackReader(Reader in, int size) {
+    public PushbackReader(Reader in, @Positive int size) {
         super(in);
         if (size <= 0) {
             throw new IllegalArgumentException("size <= 0");
@@ -104,7 +113,7 @@ public class PushbackReader extends FilterReader {
      * @exception  IOException  If an I/O error occurs
      * @exception  IndexOutOfBoundsException {@inheritDoc}
      */
-    public int read(char cbuf[], int off, int len) throws IOException {
+    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(char cbuf[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
         synchronized (lock) {
             ensureOpen();
             try {
@@ -172,7 +181,7 @@ public class PushbackReader extends FilterReader {
      * @exception  IOException  If there is insufficient room in the pushback
      *                          buffer, or if some other I/O error occurs
      */
-    public void unread(char cbuf[], int off, int len) throws IOException {
+    public void unread(char cbuf[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
         synchronized (lock) {
             ensureOpen();
             if (len > pos)
@@ -215,7 +224,7 @@ public class PushbackReader extends FilterReader {
      *
      * @exception  IOException  Always, since mark is not supported
      */
-    public void mark(int readAheadLimit) throws IOException {
+    public void mark(@NonNegative int readAheadLimit) throws IOException {
         throw new IOException("mark/reset not supported");
     }
 
@@ -264,7 +273,7 @@ public class PushbackReader extends FilterReader {
      * @exception  IllegalArgumentException  If <code>n</code> is negative.
      * @exception  IOException  If an I/O error occurs
      */
-    public long skip(long n) throws IOException {
+    public @NonNegative long skip(@NonNegative long n) throws IOException {
         if (n < 0L)
             throw new IllegalArgumentException("skip value is negative");
         synchronized (lock) {

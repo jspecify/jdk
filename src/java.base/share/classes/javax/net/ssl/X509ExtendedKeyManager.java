@@ -25,6 +25,10 @@
 
 package javax.net.ssl;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.security.Principal;
 
 /**
@@ -37,11 +41,13 @@ import java.security.Principal;
  * @since 1.5
  * @author Brad R. Wetmore
  */
+@AnnotatedFor("nullness")
 public abstract class X509ExtendedKeyManager implements X509KeyManager {
 
     /**
      * Constructor used by subclasses only.
      */
+    @SideEffectFree
     protected X509ExtendedKeyManager() {
     }
 
@@ -64,8 +70,8 @@ public abstract class X509ExtendedKeyManager implements X509KeyManager {
      * @return the alias name for the desired key, or null if there
      *          are no matches.
      */
-    public String chooseEngineClientAlias(String[] keyType,
-            Principal[] issuers, SSLEngine engine) {
+    public @Nullable String chooseEngineClientAlias(String[] keyType,
+            Principal @Nullable [] issuers, @Nullable SSLEngine engine) {
         return null;
     }
 
@@ -87,8 +93,8 @@ public abstract class X509ExtendedKeyManager implements X509KeyManager {
      * @return the alias name for the desired key, or null if there
      *          are no matches.
      */
-    public String chooseEngineServerAlias(String keyType,
-            Principal[] issuers, SSLEngine engine) {
+    public @Nullable String chooseEngineServerAlias(String keyType,
+            Principal @Nullable [] issuers, @Nullable SSLEngine engine) {
         return null;
     }
 

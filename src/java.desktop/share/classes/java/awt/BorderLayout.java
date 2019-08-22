@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Hashtable;
 
 /**
@@ -121,6 +124,7 @@ import java.util.Hashtable;
  * @see         java.awt.ComponentOrientation
  * @since       1.0
  */
+@AnnotatedFor({"interning"})
 public class BorderLayout implements LayoutManager2,
                                      java.io.Serializable {
     /**
@@ -241,27 +245,27 @@ public class BorderLayout implements LayoutManager2,
     /**
      * The north layout constraint (top of container).
      */
-    public static final String NORTH  = "North";
+    public static final @Interned String NORTH  = "North";
 
     /**
      * The south layout constraint (bottom of container).
      */
-    public static final String SOUTH  = "South";
+    public static final @Interned String SOUTH  = "South";
 
     /**
      * The east layout constraint (right side of container).
      */
-    public static final String EAST   = "East";
+    public static final @Interned String EAST   = "East";
 
     /**
      * The west layout constraint (left side of container).
      */
-    public static final String WEST   = "West";
+    public static final @Interned String WEST   = "West";
 
     /**
      * The center layout constraint (middle of container).
      */
-    public static final String CENTER = "Center";
+    public static final @Interned String CENTER = "Center";
 
     /**
      * Synonym for PAGE_START.  Exists for compatibility with previous
@@ -270,7 +274,7 @@ public class BorderLayout implements LayoutManager2,
      * @see #PAGE_START
      * @since 1.2
      */
-    public static final String BEFORE_FIRST_LINE = "First";
+    public static final @Interned String BEFORE_FIRST_LINE = "First";
 
     /**
      * Synonym for PAGE_END.  Exists for compatibility with previous
@@ -279,7 +283,7 @@ public class BorderLayout implements LayoutManager2,
      * @see #PAGE_END
      * @since 1.2
      */
-    public static final String AFTER_LAST_LINE = "Last";
+    public static final @Interned String AFTER_LAST_LINE = "Last";
 
     /**
      * Synonym for LINE_START.  Exists for compatibility with previous
@@ -288,7 +292,7 @@ public class BorderLayout implements LayoutManager2,
      * @see #LINE_START
      * @since 1.2
      */
-    public static final String BEFORE_LINE_BEGINS = "Before";
+    public static final @Interned String BEFORE_LINE_BEGINS = "Before";
 
     /**
      * Synonym for LINE_END.  Exists for compatibility with previous
@@ -297,7 +301,7 @@ public class BorderLayout implements LayoutManager2,
      * @see #LINE_END
      * @since 1.2
      */
-    public static final String AFTER_LINE_ENDS = "After";
+    public static final @Interned String AFTER_LINE_ENDS = "After";
 
     /**
      * The component comes before the first line of the layout's content.

@@ -25,6 +25,9 @@
 
 package java.util;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * FormattableFlags are passed to the {@link Formattable#formatTo
  * Formattable.formatTo()} method and modify the output format for {@linkplain
@@ -33,7 +36,8 @@ package java.util;
  *
  * @since  1.5
  */
-public class FormattableFlags {
+@AnnotatedFor({"interning", "lock", "nullness"})
+public @UsesObjectEquals class FormattableFlags {
 
     // Explicit instantiation of this class is prohibited.
     private FormattableFlags() {}

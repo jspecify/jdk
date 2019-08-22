@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.AffineTransform;
@@ -57,7 +60,8 @@ import java.beans.ConstructorProperties;
  * @version 10 Feb 1997
  */
 
-public class GradientPaint implements Paint {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class GradientPaint implements Paint {
     Point2D.Float p1;
     Point2D.Float p2;
     Color color1;

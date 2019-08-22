@@ -51,4 +51,7 @@
  * @since 1.2
  * @serial exclude
  */
+@UIPackage
 package javax.swing.text;
+
+import org.checkerframework.checker.guieffect.qual.UIPackage;

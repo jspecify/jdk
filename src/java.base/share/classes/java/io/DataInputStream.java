@@ -25,6 +25,15 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * A data input stream lets an application read primitive Java data
  * types from an underlying input stream in a machine-independent
@@ -39,6 +48,7 @@ package java.io;
  * @see     java.io.DataOutputStream
  * @since   1.0
  */
+@AnnotatedFor({"nullness", "index", "signedness"})
 public
 class DataInputStream extends FilterInputStream implements DataInput {
 
@@ -96,7 +106,7 @@ class DataInputStream extends FilterInputStream implements DataInput {
      * @see        java.io.FilterInputStream#in
      * @see        java.io.InputStream#read(byte[], int, int)
      */
-    public final int read(byte b[]) throws IOException {
+    public final @GTENegativeOne @LTEqLengthOf({"#1"}) int read(@PolySigned byte b @Nullable []) throws IOException {
         return in.read(b, 0, b.length);
     }
 
@@ -145,7 +155,7 @@ class DataInputStream extends FilterInputStream implements DataInput {
      * @see        java.io.FilterInputStream#in
      * @see        java.io.InputStream#read(byte[], int, int)
      */
-    public final int read(byte b[], int off, int len) throws IOException {
+    public final @GTENegativeOne @LTEqLengthOf({"#1"}) int read(@PolySigned byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
         return in.read(b, off, len);
     }
 
@@ -166,7 +176,7 @@ class DataInputStream extends FilterInputStream implements DataInput {
      *          another I/O error occurs.
      * @see     java.io.FilterInputStream#in
      */
-    public final void readFully(byte b[]) throws IOException {
+    public final void readFully(@PolySigned byte b[]) throws IOException {
         readFully(b, 0, b.length);
     }
 
@@ -192,7 +202,7 @@ class DataInputStream extends FilterInputStream implements DataInput {
      *             another I/O error occurs.
      * @see        java.io.FilterInputStream#in
      */
-    public final void readFully(byte b[], int off, int len) throws IOException {
+    public final void readFully(@PolySigned byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
         if (len < 0)
             throw new IndexOutOfBoundsException();
         int n = 0;
@@ -218,7 +228,7 @@ class DataInputStream extends FilterInputStream implements DataInput {
      *             the contained input stream does not support
      *             reading after close, or another I/O error occurs.
      */
-    public final int skipBytes(int n) throws IOException {
+    public final @NonNegative int skipBytes(int n) throws IOException {
         int total = 0;
         int cur = 0;
 
@@ -289,7 +299,7 @@ class DataInputStream extends FilterInputStream implements DataInput {
      *             another I/O error occurs.
      * @see         java.io.FilterInputStream#in
      */
-    public final int readUnsignedByte() throws IOException {
+    public final @NonNegative int readUnsignedByte() throws IOException {
         int ch = in.read();
         if (ch < 0)
             throw new EOFException();
@@ -338,7 +348,7 @@ class DataInputStream extends FilterInputStream implements DataInput {
      *             another I/O error occurs.
      * @see        java.io.FilterInputStream#in
      */
-    public final int readUnsignedShort() throws IOException {
+    public final @NonNegative int readUnsignedShort() throws IOException {
         int ch1 = in.read();
         int ch2 = in.read();
         if ((ch1 | ch2) < 0)
@@ -503,7 +513,7 @@ class DataInputStream extends FilterInputStream implements DataInput {
      * @see        java.io.FilterInputStream#in
      */
     @Deprecated
-    public final String readLine() throws IOException {
+    public final @Nullable String readLine() throws IOException {
         char buf[] = lineBuffer;
 
         if (buf == null) {

@@ -24,6 +24,9 @@
  */
 package javax.swing;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.*;
 import java.beans.JavaBean;
 import java.beans.BeanProperty;
@@ -185,6 +188,7 @@ import sun.reflect.misc.ReflectUtil;
  * @author  Timothy Prinzing
  * @since 1.2
  */
+@AnnotatedFor({"interning"})
 @JavaBean(defaultProperty = "UIClassID", description = "A text component to edit various types of content.")
 @SwingContainer(false)
 @SuppressWarnings("serial") // Same-version serialization only
@@ -1573,7 +1577,7 @@ public class JEditorPane extends JTextComponent {
      *
      * @since 1.5
      */
-    public static final String W3C_LENGTH_UNITS = "JEditorPane.w3cLengthUnits";
+    public static final @Interned String W3C_LENGTH_UNITS = "JEditorPane.w3cLengthUnits";
 
     /**
      * Key for a client property used to indicate whether
@@ -1587,7 +1591,7 @@ public class JEditorPane extends JTextComponent {
      *
      * @since 1.5
      */
-    public static final String HONOR_DISPLAY_PROPERTIES = "JEditorPane.honorDisplayProperties";
+    public static final @Interned String HONOR_DISPLAY_PROPERTIES = "JEditorPane.honorDisplayProperties";
 
     static final Map<String, String> defaultEditorKitMap = new HashMap<String, String>(0);
 

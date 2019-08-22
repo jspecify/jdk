@@ -25,12 +25,16 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Capabilities and properties of images.
  * @author Michael Martak
  * @since 1.4
  */
-public class ImageCapabilities implements Cloneable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class ImageCapabilities implements Cloneable {
 
     private boolean accelerated = false;
 

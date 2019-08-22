@@ -25,6 +25,9 @@
 
 package java.nio.channels.spi;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.net.ProtocolFamily;
 import java.nio.channels.*;
@@ -66,7 +69,8 @@ import sun.security.action.GetPropertyAction;
  * @since 1.4
  */
 
-public abstract class SelectorProvider {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class SelectorProvider {
 
     private static final Object lock = new Object();
     private static SelectorProvider provider = null;

@@ -26,6 +26,9 @@
 
 package java.sql;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Comprehensive information about the database as a whole.
  * <P>
@@ -70,6 +73,7 @@ package java.sql;
  *
  * @since 1.1
  */
+@AnnotatedFor("nullness")
 public interface DatabaseMetaData extends Wrapper {
 
     //----------------------------------------------------------------------
@@ -101,7 +105,7 @@ public interface DatabaseMetaData extends Wrapper {
      *          generated
      * @exception SQLException if a database access error occurs
      */
-    String getURL() throws SQLException;
+    @Nullable String getURL() throws SQLException;
 
     /**
      * Retrieves the user name as known to this database.
@@ -1254,8 +1258,8 @@ public interface DatabaseMetaData extends Wrapper {
      * @exception SQLException if a database access error occurs
      * @see #getSearchStringEscape
      */
-    ResultSet getProcedures(String catalog, String schemaPattern,
-                            String procedureNamePattern) throws SQLException;
+    ResultSet getProcedures(@Nullable String catalog, @Nullable String schemaPattern,
+                            @Nullable String procedureNamePattern) throws SQLException;
 
     /**
      * Indicates that it is not known whether the procedure returns
@@ -1377,10 +1381,10 @@ public interface DatabaseMetaData extends Wrapper {
      * @exception SQLException if a database access error occurs
      * @see #getSearchStringEscape
      */
-    ResultSet getProcedureColumns(String catalog,
-                                  String schemaPattern,
-                                  String procedureNamePattern,
-                                  String columnNamePattern) throws SQLException;
+    ResultSet getProcedureColumns(@Nullable String catalog,
+                                  @Nullable String schemaPattern,
+                                  @Nullable String procedureNamePattern,
+                                  @Nullable String columnNamePattern) throws SQLException;
 
     /**
      * Indicates that type of the column is unknown.
@@ -1519,8 +1523,8 @@ public interface DatabaseMetaData extends Wrapper {
      * @exception SQLException if a database access error occurs
      * @see #getSearchStringEscape
      */
-    ResultSet getTables(String catalog, String schemaPattern,
-                        String tableNamePattern, String types[]) throws SQLException;
+    ResultSet getTables(@Nullable String catalog, @Nullable String schemaPattern,
+                        @Nullable String tableNamePattern, String types @Nullable []) throws SQLException;
 
     /**
      * Retrieves the schema names available in this database.  The results
@@ -1662,8 +1666,8 @@ public interface DatabaseMetaData extends Wrapper {
      * @exception SQLException if a database access error occurs
      * @see #getSearchStringEscape
      */
-    ResultSet getColumns(String catalog, String schemaPattern,
-                         String tableNamePattern, String columnNamePattern)
+    ResultSet getColumns(@Nullable String catalog, @Nullable String schemaPattern,
+                         @Nullable String tableNamePattern, @Nullable String columnNamePattern)
         throws SQLException;
 
     /**
@@ -1732,8 +1736,8 @@ public interface DatabaseMetaData extends Wrapper {
      * @exception SQLException if a database access error occurs
      * @see #getSearchStringEscape
      */
-    ResultSet getColumnPrivileges(String catalog, String schema,
-                                  String table, String columnNamePattern) throws SQLException;
+    ResultSet getColumnPrivileges(@Nullable String catalog, @Nullable String schema,
+                                  String table, @Nullable String columnNamePattern) throws SQLException;
 
     /**
      * Retrieves a description of the access rights for each table available
@@ -1775,8 +1779,8 @@ public interface DatabaseMetaData extends Wrapper {
      * @exception SQLException if a database access error occurs
      * @see #getSearchStringEscape
      */
-    ResultSet getTablePrivileges(String catalog, String schemaPattern,
-                                 String tableNamePattern) throws SQLException;
+    ResultSet getTablePrivileges(@Nullable String catalog, @Nullable String schemaPattern,
+                                 @Nullable String tableNamePattern) throws SQLException;
 
     /**
      * Retrieves a description of a table's optimal set of columns that
@@ -1829,7 +1833,7 @@ public interface DatabaseMetaData extends Wrapper {
      * @return <code>ResultSet</code> - each row is a column description
      * @exception SQLException if a database access error occurs
      */
-    ResultSet getBestRowIdentifier(String catalog, String schema,
+    ResultSet getBestRowIdentifier(@Nullable String catalog, @Nullable String schema,
                                    String table, int scope, boolean nullable) throws SQLException;
 
     /**
@@ -1940,7 +1944,7 @@ public interface DatabaseMetaData extends Wrapper {
      *         column description
      * @exception SQLException if a database access error occurs
      */
-    ResultSet getVersionColumns(String catalog, String schema,
+    ResultSet getVersionColumns(@Nullable String catalog, @Nullable String schema,
                                 String table) throws SQLException;
 
     /**
@@ -2002,7 +2006,7 @@ public interface DatabaseMetaData extends Wrapper {
      * @return <code>ResultSet</code> - each row is a primary key column description
      * @exception SQLException if a database access error occurs
      */
-    ResultSet getPrimaryKeys(String catalog, String schema,
+    ResultSet getPrimaryKeys(@Nullable String catalog, @Nullable String schema,
                              String table) throws SQLException;
 
     /**
@@ -2080,7 +2084,7 @@ public interface DatabaseMetaData extends Wrapper {
      * @exception SQLException if a database access error occurs
      * @see #getExportedKeys
      */
-    ResultSet getImportedKeys(String catalog, String schema,
+    ResultSet getImportedKeys(@Nullable String catalog, @Nullable String schema,
                               String table) throws SQLException;
 
     /**
@@ -2264,7 +2268,7 @@ public interface DatabaseMetaData extends Wrapper {
      * @exception SQLException if a database access error occurs
      * @see #getImportedKeys
      */
-    ResultSet getExportedKeys(String catalog, String schema,
+    ResultSet getExportedKeys(@Nullable String catalog, @Nullable String schema,
                               String table) throws SQLException;
 
     /**
@@ -2351,8 +2355,8 @@ public interface DatabaseMetaData extends Wrapper {
      * @see #getImportedKeys
      */
     ResultSet getCrossReference(
-                                String parentCatalog, String parentSchema, String parentTable,
-                                String foreignCatalog, String foreignSchema, String foreignTable
+                                @Nullable String parentCatalog, @Nullable String parentSchema, String parentTable,
+                                @Nullable String foreignCatalog, @Nullable String foreignSchema, String foreignTable
                                 ) throws SQLException;
 
     /**
@@ -2550,7 +2554,7 @@ public interface DatabaseMetaData extends Wrapper {
      * @return <code>ResultSet</code> - each row is an index column description
      * @exception SQLException if a database access error occurs
      */
-    ResultSet getIndexInfo(String catalog, String schema, String table,
+    ResultSet getIndexInfo(@Nullable String catalog, @Nullable String schema, String table,
                            boolean unique, boolean approximate)
         throws SQLException;
 
@@ -2815,8 +2819,8 @@ public interface DatabaseMetaData extends Wrapper {
      * @see #getSearchStringEscape
      * @since 1.2
      */
-    ResultSet getUDTs(String catalog, String schemaPattern,
-                      String typeNamePattern, int[] types)
+    ResultSet getUDTs(@Nullable String catalog, @Nullable String schemaPattern,
+                      @Nullable String typeNamePattern, int @Nullable [] types)
         throws SQLException;
 
     /**
@@ -2919,8 +2923,8 @@ public interface DatabaseMetaData extends Wrapper {
      * @see #getSearchStringEscape
      * @since 1.4
      */
-    ResultSet getSuperTypes(String catalog, String schemaPattern,
-                            String typeNamePattern) throws SQLException;
+    ResultSet getSuperTypes(@Nullable String catalog, @Nullable String schemaPattern,
+                            @Nullable String typeNamePattern) throws SQLException;
 
     /**
      * Retrieves a description of the table hierarchies defined in a particular
@@ -2956,8 +2960,8 @@ public interface DatabaseMetaData extends Wrapper {
      * @see #getSearchStringEscape
      * @since 1.4
      */
-    ResultSet getSuperTables(String catalog, String schemaPattern,
-                             String tableNamePattern) throws SQLException;
+    ResultSet getSuperTables(@Nullable String catalog, @Nullable String schemaPattern,
+                             @Nullable String tableNamePattern) throws SQLException;
 
     /**
      * Indicates that <code>NULL</code> values might not be allowed.
@@ -3065,8 +3069,8 @@ public interface DatabaseMetaData extends Wrapper {
      * @see #getSearchStringEscape
      * @since 1.4
      */
-    ResultSet getAttributes(String catalog, String schemaPattern,
-                            String typeNamePattern, String attributeNamePattern)
+    ResultSet getAttributes(@Nullable String catalog, @Nullable String schemaPattern,
+                            @Nullable String typeNamePattern, @Nullable String attributeNamePattern)
         throws SQLException;
 
     /**
@@ -3232,7 +3236,7 @@ public interface DatabaseMetaData extends Wrapper {
      * @see #getSearchStringEscape
      * @since 1.6
      */
-    ResultSet getSchemas(String catalog, String schemaPattern) throws SQLException;
+    ResultSet getSchemas(@Nullable String catalog, String schemaPattern) throws SQLException;
 
     /**
      * Retrieves whether this database supports invoking user-defined or vendor functions
@@ -3329,8 +3333,8 @@ public interface DatabaseMetaData extends Wrapper {
      * @see #getSearchStringEscape
      * @since 1.6
      */
-    ResultSet getFunctions(String catalog, String schemaPattern,
-                            String functionNamePattern) throws SQLException;
+    ResultSet getFunctions(@Nullable String catalog, @Nullable String schemaPattern,
+                            @Nullable String functionNamePattern) throws SQLException;
     /**
      * Retrieves a description of the given catalog's system or user
      * function parameters and return type.
@@ -3425,10 +3429,10 @@ public interface DatabaseMetaData extends Wrapper {
      * @see #getSearchStringEscape
      * @since 1.6
      */
-    ResultSet getFunctionColumns(String catalog,
-                                  String schemaPattern,
-                                  String functionNamePattern,
-                                  String columnNamePattern) throws SQLException;
+    ResultSet getFunctionColumns(@Nullable String catalog,
+                                  @Nullable String schemaPattern,
+                                  @Nullable String functionNamePattern,
+                                  @Nullable String columnNamePattern) throws SQLException;
 
 
     /**
@@ -3625,8 +3629,8 @@ public interface DatabaseMetaData extends Wrapper {
      * @see PseudoColumnUsage
      * @since 1.7
      */
-    ResultSet getPseudoColumns(String catalog, String schemaPattern,
-                         String tableNamePattern, String columnNamePattern)
+    ResultSet getPseudoColumns(@Nullable String catalog, @Nullable String schemaPattern,
+                         @Nullable String tableNamePattern, @Nullable String columnNamePattern)
         throws SQLException;
 
     /**

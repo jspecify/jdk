@@ -25,6 +25,9 @@
 
 package java.security.cert;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.security.PublicKey;
 
@@ -60,7 +63,8 @@ import sun.security.x509.X500Name;
  * @since       1.4
  * @author      Sean Mullan
  */
-public class TrustAnchor {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class TrustAnchor {
 
     private final PublicKey pubKey;
     private final String caName;

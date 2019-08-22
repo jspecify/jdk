@@ -25,6 +25,10 @@
 
 package javax.swing.table;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import javax.swing.*;
 import javax.swing.event.*;
 import java.io.Serializable;
@@ -57,6 +61,7 @@ import java.util.EventListener;
  * @author Alan Chung
  * @author Philip Milne
  */
+@AnnotatedFor({"index"})
 @SuppressWarnings("serial") // Same-version serialization only
 public abstract class AbstractTableModel implements TableModel, Serializable
 {
@@ -79,7 +84,7 @@ public abstract class AbstractTableModel implements TableModel, Serializable
      * @param column  the column being queried
      * @return a string containing the default name of <code>column</code>
      */
-    public String getColumnName(int column) {
+    public String getColumnName(@NonNegative int column) {
         String result = "";
         for (; column >= 0; column = column / 26 - 1) {
             result = (char)((char)(column%26)+'A') + result;
@@ -97,7 +102,7 @@ public abstract class AbstractTableModel implements TableModel, Serializable
      * @param columnName string containing name of column to be located
      * @return the column with <code>columnName</code>, or -1 if not found
      */
-    public int findColumn(String columnName) {
+    public @GTENegativeOne int findColumn(String columnName) {
         for (int i = 0; i < getColumnCount(); i++) {
             if (columnName.equals(getColumnName(i))) {
                 return i;
@@ -112,7 +117,7 @@ public abstract class AbstractTableModel implements TableModel, Serializable
      *  @param columnIndex  the column being queried
      *  @return the Object.class
      */
-    public Class<?> getColumnClass(int columnIndex) {
+    public Class<?> getColumnClass(@NonNegative int columnIndex) {
         return Object.class;
     }
 
@@ -123,7 +128,7 @@ public abstract class AbstractTableModel implements TableModel, Serializable
      *  @param  columnIndex the column being queried
      *  @return false
      */
-    public boolean isCellEditable(int rowIndex, int columnIndex) {
+    public boolean isCellEditable(@NonNegative int rowIndex, @NonNegative int columnIndex) {
         return false;
     }
 
@@ -135,7 +140,7 @@ public abstract class AbstractTableModel implements TableModel, Serializable
      *  @param  rowIndex   row of cell
      *  @param  columnIndex  column of cell
      */
-    public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
+    public void setValueAt(Object aValue, @NonNegative int rowIndex, @NonNegative int columnIndex) {
     }
 
 
@@ -228,7 +233,7 @@ public abstract class AbstractTableModel implements TableModel, Serializable
      * @see EventListenerList
      *
      */
-    public void fireTableRowsInserted(int firstRow, int lastRow) {
+    public void fireTableRowsInserted(@NonNegative int firstRow, @NonNegative int lastRow) {
         fireTableChanged(new TableModelEvent(this, firstRow, lastRow,
                              TableModelEvent.ALL_COLUMNS, TableModelEvent.INSERT));
     }
@@ -243,7 +248,7 @@ public abstract class AbstractTableModel implements TableModel, Serializable
      * @see TableModelEvent
      * @see EventListenerList
      */
-    public void fireTableRowsUpdated(int firstRow, int lastRow) {
+    public void fireTableRowsUpdated(@NonNegative int firstRow, @NonNegative int lastRow) {
         fireTableChanged(new TableModelEvent(this, firstRow, lastRow,
                              TableModelEvent.ALL_COLUMNS, TableModelEvent.UPDATE));
     }
@@ -258,7 +263,7 @@ public abstract class AbstractTableModel implements TableModel, Serializable
      * @see TableModelEvent
      * @see EventListenerList
      */
-    public void fireTableRowsDeleted(int firstRow, int lastRow) {
+    public void fireTableRowsDeleted(@NonNegative int firstRow, @NonNegative int lastRow) {
         fireTableChanged(new TableModelEvent(this, firstRow, lastRow,
                              TableModelEvent.ALL_COLUMNS, TableModelEvent.DELETE));
     }
@@ -272,7 +277,7 @@ public abstract class AbstractTableModel implements TableModel, Serializable
      * @see TableModelEvent
      * @see EventListenerList
      */
-    public void fireTableCellUpdated(int row, int column) {
+    public void fireTableCellUpdated(@NonNegative int row, @NonNegative int column) {
         fireTableChanged(new TableModelEvent(this, row, row, column));
     }
 

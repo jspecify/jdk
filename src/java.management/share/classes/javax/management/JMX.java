@@ -25,6 +25,9 @@
 
 package javax.management;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import com.sun.jmx.mbeanserver.Introspector;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Modifier;
@@ -36,6 +39,7 @@ import sun.reflect.misc.ReflectUtil;
  *
  * @since 1.6
  */
+@AnnotatedFor({"interning"})
 public class JMX {
     /* Code within this package can prove that by providing this instance of
      * this class.
@@ -48,55 +52,55 @@ public class JMX {
      * The name of the <a href="Descriptor.html#defaultValue">{@code
      * defaultValue}</a> field.
      */
-    public static final String DEFAULT_VALUE_FIELD = "defaultValue";
+    public static final @Interned String DEFAULT_VALUE_FIELD = "defaultValue";
 
     /**
      * The name of the <a href="Descriptor.html#immutableInfo">{@code
      * immutableInfo}</a> field.
      */
-    public static final String IMMUTABLE_INFO_FIELD = "immutableInfo";
+    public static final @Interned String IMMUTABLE_INFO_FIELD = "immutableInfo";
 
     /**
      * The name of the <a href="Descriptor.html#interfaceClassName">{@code
      * interfaceClassName}</a> field.
      */
-    public static final String INTERFACE_CLASS_NAME_FIELD = "interfaceClassName";
+    public static final @Interned String INTERFACE_CLASS_NAME_FIELD = "interfaceClassName";
 
     /**
      * The name of the <a href="Descriptor.html#legalValues">{@code
      * legalValues}</a> field.
      */
-    public static final String LEGAL_VALUES_FIELD = "legalValues";
+    public static final @Interned String LEGAL_VALUES_FIELD = "legalValues";
 
     /**
      * The name of the <a href="Descriptor.html#maxValue">{@code
      * maxValue}</a> field.
      */
-    public static final String MAX_VALUE_FIELD = "maxValue";
+    public static final @Interned String MAX_VALUE_FIELD = "maxValue";
 
     /**
      * The name of the <a href="Descriptor.html#minValue">{@code
      * minValue}</a> field.
      */
-    public static final String MIN_VALUE_FIELD = "minValue";
+    public static final @Interned String MIN_VALUE_FIELD = "minValue";
 
     /**
      * The name of the <a href="Descriptor.html#mxbean">{@code
      * mxbean}</a> field.
      */
-    public static final String MXBEAN_FIELD = "mxbean";
+    public static final @Interned String MXBEAN_FIELD = "mxbean";
 
     /**
      * The name of the <a href="Descriptor.html#openType">{@code
      * openType}</a> field.
      */
-    public static final String OPEN_TYPE_FIELD = "openType";
+    public static final @Interned String OPEN_TYPE_FIELD = "openType";
 
     /**
      * The name of the <a href="Descriptor.html#originalType">{@code
      * originalType}</a> field.
      */
-    public static final String ORIGINAL_TYPE_FIELD = "originalType";
+    public static final @Interned String ORIGINAL_TYPE_FIELD = "originalType";
 
     /**
      * <p>Make a proxy for a Standard MBean in a local or remote

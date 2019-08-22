@@ -25,6 +25,8 @@
 
 package java.io;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Instances of classes that implement this interface are used to
  * filter filenames. These instances are used to filter directory
@@ -39,6 +41,7 @@ package java.io;
  * @see     java.io.File#list(java.io.FilenameFilter)
  * @since   1.0
  */
+@AnnotatedFor({"nullness"})
 @FunctionalInterface
 public interface FilenameFilter {
     /**

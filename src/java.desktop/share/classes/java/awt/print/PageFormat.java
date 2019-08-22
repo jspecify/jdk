@@ -25,6 +25,9 @@
 
 package java.awt.print;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -35,7 +38,8 @@ import java.lang.annotation.Native;
  * The {@code PageFormat} class describes the size and
  * orientation of a page to be printed.
  */
-public class PageFormat implements Cloneable
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class PageFormat implements Cloneable
 {
 
  /* Class Constants */

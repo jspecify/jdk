@@ -25,6 +25,10 @@
 
 package java.util.jar;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import jdk.internal.misc.SharedSecrets;
 import jdk.internal.misc.JavaUtilZipFileAccess;
 import sun.security.action.GetPropertyAction;
@@ -145,6 +149,7 @@ import java.util.zip.ZipFile;
  * @see     java.util.jar.JarEntry
  * @since   1.2
  */
+@AnnotatedFor({"nullness"})
 public
 class JarFile extends ZipFile {
     private final static Runtime.Version BASE_VERSION;
@@ -211,7 +216,7 @@ class JarFile extends ZipFile {
     /**
      * The JAR manifest file name.
      */
-    public static final String MANIFEST_NAME = META_INF + "MANIFEST.MF";
+    public static final @Interned String MANIFEST_NAME = META_INF + "MANIFEST.MF";
 
     /**
      * Returns the version that represents the unversioned configuration of a
@@ -402,11 +407,11 @@ class JarFile extends ZipFile {
      *         may be thrown if the jar file has been closed
      * @throws IOException  if an I/O error has occurred
      */
-    public Manifest getManifest() throws IOException {
+    public @Nullable Manifest getManifest() throws IOException {
         return getManifestFromReference();
     }
 
-    private Manifest getManifestFromReference() throws IOException {
+    private @Nullable Manifest getManifestFromReference() throws IOException {
         Manifest man = manRef != null ? manRef.get() : null;
 
         if (man == null) {
@@ -464,7 +469,7 @@ class JarFile extends ZipFile {
      * This implementation invokes {@link JarFile#getEntry(String)}.
      * </div>
      */
-    public JarEntry getJarEntry(String name) {
+    public @Nullable JarEntry getJarEntry(String name) {
         return (JarEntry)getEntry(name);
     }
 
@@ -502,7 +507,7 @@ class JarFile extends ZipFile {
      * invokes {@code super.getEntry(name)} to obtain all versioned entries.
      * </div>
      */
-    public ZipEntry getEntry(String name) {
+    public @Nullable ZipEntry getEntry(String name) {
         JarFileEntry je = getEntry0(name);
         if (isMultiRelease()) {
             return getVersionedEntry(name, je);
@@ -632,7 +637,7 @@ class JarFile extends ZipFile {
         }
 
         @Override
-        public Attributes getAttributes() throws IOException {
+        public @Nullable Attributes getAttributes() throws IOException {
             Manifest man = JarFile.this.getManifest();
             if (man != null) {
                 return man.getAttributes(super.getName());
@@ -642,7 +647,7 @@ class JarFile extends ZipFile {
         }
 
         @Override
-        public Certificate[] getCertificates() {
+        public Certificate @Nullable [] getCertificates() {
             try {
                 maybeInstantiateVerifier();
             } catch (IOException e) {
@@ -655,7 +660,7 @@ class JarFile extends ZipFile {
         }
 
         @Override
-        public CodeSigner[] getCodeSigners() {
+        public CodeSigner @Nullable [] getCodeSigners() {
             try {
                 maybeInstantiateVerifier();
             } catch (IOException e) {
@@ -1149,7 +1154,7 @@ class JarFile extends ZipFile {
         };
     }
 
-    CodeSource[] getCodeSources(URL url) {
+    CodeSource @Nullable [] getCodeSources(URL url) {
         ensureInitialization();
         if (jv != null) {
             return jv.getCodeSources(this, url);

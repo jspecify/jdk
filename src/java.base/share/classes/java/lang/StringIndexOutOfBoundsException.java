@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Thrown by {@code String} methods to indicate that an index is either negative
  * or greater than the size of the string.  For some methods such as the
@@ -34,6 +38,7 @@ package java.lang;
  * @see java.lang.String#charAt(int)
  * @since 1.0
  */
+@AnnotatedFor({"nullness"})
 public class StringIndexOutOfBoundsException extends IndexOutOfBoundsException {
     private static final long serialVersionUID = -6762910422159637258L;
 
@@ -41,6 +46,7 @@ public class StringIndexOutOfBoundsException extends IndexOutOfBoundsException {
      * Constructs a {@code StringIndexOutOfBoundsException} with no detail
      * message.
      */
+    @SideEffectFree
     public StringIndexOutOfBoundsException() {
         super();
     }
@@ -51,7 +57,8 @@ public class StringIndexOutOfBoundsException extends IndexOutOfBoundsException {
      *
      * @param s the detail message.
      */
-    public StringIndexOutOfBoundsException(String s) {
+    @SideEffectFree
+    public StringIndexOutOfBoundsException(@Nullable String s) {
         super(s);
     }
 
@@ -64,6 +71,7 @@ public class StringIndexOutOfBoundsException extends IndexOutOfBoundsException {
      *
      * @param index the illegal index.
      */
+    @SideEffectFree
     public StringIndexOutOfBoundsException(int index) {
         super("String index out of range: " + index);
     }

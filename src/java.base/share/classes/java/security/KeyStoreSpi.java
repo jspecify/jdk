@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.*;
 import java.util.*;
 
@@ -51,7 +54,8 @@ import javax.security.auth.callback.*;
  * @since 1.2
  */
 
-public abstract class KeyStoreSpi {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class KeyStoreSpi {
 
     /**
      * Returns the key associated with the given alias, using the given

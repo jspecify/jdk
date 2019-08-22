@@ -25,6 +25,11 @@
 
 package java.util;
 
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -85,6 +90,7 @@ import sun.security.util.SecurityConstants;
  * @serial exclude
  */
 
+@AnnotatedFor({"lock", "nullness", "index"})
 public final class PropertyPermission extends BasicPermission {
 
     /**
@@ -153,7 +159,7 @@ public final class PropertyPermission extends BasicPermission {
      * @throws IllegalArgumentException if <code>name</code> is empty or if
      * <code>actions</code> is invalid.
      */
-    public PropertyPermission(String name, String actions) {
+    public PropertyPermission(String name, @Nullable String actions) {
         super(name,actions);
         init(getMask(actions));
     }
@@ -206,8 +212,9 @@ public final class PropertyPermission extends BasicPermission {
      * @return true if obj is a PropertyPermission, and has the same name and
      * actions as this PropertyPermission object.
      */
+    @Pure
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@GuardSatisfied PropertyPermission this, @GuardSatisfied @Nullable Object obj) {
         if (obj == this)
             return true;
 
@@ -228,8 +235,9 @@ public final class PropertyPermission extends BasicPermission {
      *
      * @return a hash code value for this object.
      */
+    @Pure
     @Override
-    public int hashCode() {
+    public int hashCode(@GuardSatisfied PropertyPermission this) {
         return this.getName().hashCode();
     }
 

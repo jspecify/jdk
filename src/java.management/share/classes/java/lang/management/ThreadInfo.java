@@ -25,6 +25,9 @@
 
 package java.lang.management;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import javax.management.openmbean.ArrayType;
 import javax.management.openmbean.CompositeData;
 import sun.management.ManagementFactoryHelper;
@@ -92,7 +95,8 @@ import static java.lang.Thread.State.*;
  * @since   1.5
  */
 
-public class ThreadInfo {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class ThreadInfo {
     private String       threadName;
     private long         threadId;
     private long         blockedTime;

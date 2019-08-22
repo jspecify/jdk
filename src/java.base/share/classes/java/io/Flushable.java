@@ -25,6 +25,8 @@
 
 package java.io;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 
 /**
@@ -34,6 +36,7 @@ import java.io.IOException;
  *
  * @since 1.5
  */
+@AnnotatedFor({"nullness"})
 public interface Flushable {
 
     /**

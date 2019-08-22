@@ -25,6 +25,9 @@
 
 package java.sql;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -79,7 +82,8 @@ import jdk.internal.reflect.Reflection;
  * @see Connection
  * @since 1.1
  */
-public class DriverManager {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class DriverManager {
 
 
     // List of registered JDBC drivers

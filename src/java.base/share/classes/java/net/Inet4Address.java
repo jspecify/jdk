@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.ObjectStreamException;
 
 /**
@@ -82,8 +85,9 @@ import java.io.ObjectStreamException;
  * @since 1.4
  */
 
+@AnnotatedFor({"interning"})
 public final
-class Inet4Address extends InetAddress {
+@UsesObjectEquals class Inet4Address extends InetAddress {
     static final int INADDRSZ = 4;
 
     /** use serialVersionUID from InetAddress, but Inet4Address instance

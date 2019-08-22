@@ -35,6 +35,14 @@
 
 package java.util;
 
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 /**
  * A linear collection that supports element insertion and removal at
  * both ends.  The name <i>deque</i> is short for "double ended queue"
@@ -201,6 +209,8 @@ package java.util;
  * @since  1.6
  * @param <E> the type of elements held in this deque
  */
+@CFComment({"lock/nullness: Subclasses of this interface/class may opt to prohibit null elements"})
+@AnnotatedFor({"lock", "nullness", "index"})
 public interface Deque<E> extends Queue<E> {
     /**
      * Inserts the specified element at the front of this deque if it is
@@ -219,7 +229,7 @@ public interface Deque<E> extends Queue<E> {
      * @throws IllegalArgumentException if some property of the specified
      *         element prevents it from being added to this deque
      */
-    void addFirst(E e);
+    void addFirst(@GuardSatisfied Deque<E> this, E e);
 
     /**
      * Inserts the specified element at the end of this deque if it is
@@ -240,7 +250,7 @@ public interface Deque<E> extends Queue<E> {
      * @throws IllegalArgumentException if some property of the specified
      *         element prevents it from being added to this deque
      */
-    void addLast(E e);
+    void addLast(@GuardSatisfied Deque<E> this, E e);
 
     /**
      * Inserts the specified element at the front of this deque unless it would
@@ -286,7 +296,7 @@ public interface Deque<E> extends Queue<E> {
      * @return the head of this deque
      * @throws NoSuchElementException if this deque is empty
      */
-    E removeFirst();
+    E removeFirst(@GuardSatisfied Deque<E> this);
 
     /**
      * Retrieves and removes the last element of this deque.  This method
@@ -296,7 +306,7 @@ public interface Deque<E> extends Queue<E> {
      * @return the tail of this deque
      * @throws NoSuchElementException if this deque is empty
      */
-    E removeLast();
+    E removeLast(@GuardSatisfied Deque<E> this);
 
     /**
      * Retrieves and removes the first element of this deque,
@@ -304,7 +314,7 @@ public interface Deque<E> extends Queue<E> {
      *
      * @return the head of this deque, or {@code null} if this deque is empty
      */
-    E pollFirst();
+    @Nullable E pollFirst(@GuardSatisfied Deque<E> this);
 
     /**
      * Retrieves and removes the last element of this deque,
@@ -312,7 +322,7 @@ public interface Deque<E> extends Queue<E> {
      *
      * @return the tail of this deque, or {@code null} if this deque is empty
      */
-    E pollLast();
+    @Nullable E pollLast(@GuardSatisfied Deque<E> this);
 
     /**
      * Retrieves, but does not remove, the first element of this deque.
@@ -323,7 +333,7 @@ public interface Deque<E> extends Queue<E> {
      * @return the head of this deque
      * @throws NoSuchElementException if this deque is empty
      */
-    E getFirst();
+    E getFirst(@GuardSatisfied Deque<E> this);
 
     /**
      * Retrieves, but does not remove, the last element of this deque.
@@ -333,7 +343,7 @@ public interface Deque<E> extends Queue<E> {
      * @return the tail of this deque
      * @throws NoSuchElementException if this deque is empty
      */
-    E getLast();
+    E getLast(@GuardSatisfied Deque<E> this);
 
     /**
      * Retrieves, but does not remove, the first element of this deque,
@@ -341,7 +351,7 @@ public interface Deque<E> extends Queue<E> {
      *
      * @return the head of this deque, or {@code null} if this deque is empty
      */
-    E peekFirst();
+    @Nullable E peekFirst();
 
     /**
      * Retrieves, but does not remove, the last element of this deque,
@@ -349,7 +359,7 @@ public interface Deque<E> extends Queue<E> {
      *
      * @return the tail of this deque, or {@code null} if this deque is empty
      */
-    E peekLast();
+    @Nullable E peekLast();
 
     /**
      * Removes the first occurrence of the specified element from this deque.
@@ -368,7 +378,7 @@ public interface Deque<E> extends Queue<E> {
      *         deque does not permit null elements
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean removeFirstOccurrence(Object o);
+    boolean removeFirstOccurrence(@GuardSatisfied Deque<E> this, Object o);
 
     /**
      * Removes the last occurrence of the specified element from this deque.
@@ -387,7 +397,7 @@ public interface Deque<E> extends Queue<E> {
      *         deque does not permit null elements
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean removeLastOccurrence(Object o);
+    boolean removeLastOccurrence(@GuardSatisfied Deque<E> this, Object o);
 
     // *** Queue methods ***
 
@@ -413,7 +423,7 @@ public interface Deque<E> extends Queue<E> {
      * @throws IllegalArgumentException if some property of the specified
      *         element prevents it from being added to this deque
      */
-    boolean add(E e);
+    boolean add(@GuardSatisfied Deque<E> this, E e);
 
     /**
      * Inserts the specified element into the queue represented by this deque
@@ -449,7 +459,7 @@ public interface Deque<E> extends Queue<E> {
      * @return the head of the queue represented by this deque
      * @throws NoSuchElementException if this deque is empty
      */
-    E remove();
+    E remove(@GuardSatisfied Deque<E> this);
 
     /**
      * Retrieves and removes the head of the queue represented by this deque
@@ -461,7 +471,7 @@ public interface Deque<E> extends Queue<E> {
      * @return the first element of this deque, or {@code null} if
      *         this deque is empty
      */
-    E poll();
+    @Nullable E poll(@GuardSatisfied Deque<E> this);
 
     /**
      * Retrieves, but does not remove, the head of the queue represented by
@@ -486,7 +496,7 @@ public interface Deque<E> extends Queue<E> {
      * @return the head of the queue represented by this deque, or
      *         {@code null} if this deque is empty
      */
-    E peek();
+    @Nullable E peek();
 
     /**
      * Adds all of the elements in the specified collection at the end
@@ -534,7 +544,7 @@ public interface Deque<E> extends Queue<E> {
      * @throws IllegalArgumentException if some property of the specified
      *         element prevents it from being added to this deque
      */
-    void push(E e);
+    void push(@GuardSatisfied Deque<E> this, E e);
 
     /**
      * Pops an element from the stack represented by this deque.  In other
@@ -546,7 +556,7 @@ public interface Deque<E> extends Queue<E> {
      *         of the stack represented by this deque)
      * @throws NoSuchElementException if this deque is empty
      */
-    E pop();
+    E pop(@GuardSatisfied Deque<E> this);
 
 
     // *** Collection methods ***
@@ -570,7 +580,7 @@ public interface Deque<E> extends Queue<E> {
      *         deque does not permit null elements
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean remove(Object o);
+    boolean remove(@GuardSatisfied Deque<E> this, @Nullable Object o);
 
     /**
      * Returns {@code true} if this deque contains the specified element.
@@ -586,14 +596,16 @@ public interface Deque<E> extends Queue<E> {
      *         deque does not permit null elements
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean contains(Object o);
+    @Pure
+    boolean contains(@GuardSatisfied Deque<E> this, @Nullable Object o);
 
     /**
      * Returns the number of elements in this deque.
      *
      * @return the number of elements in this deque
      */
-    int size();
+    @NonNegative @Pure
+    int size(@GuardSatisfied Deque<E> this);
 
     /**
      * Returns an iterator over the elements in this deque in proper sequence.
@@ -601,6 +613,7 @@ public interface Deque<E> extends Queue<E> {
      *
      * @return an iterator over the elements in this deque in proper sequence
      */
+    @SideEffectFree
     Iterator<E> iterator();
 
     /**

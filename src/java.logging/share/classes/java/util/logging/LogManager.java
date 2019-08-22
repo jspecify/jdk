@@ -25,6 +25,10 @@
 
 package java.util.logging;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.signature.qual.BinaryName;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.*;
 import java.util.*;
 import java.security.*;
@@ -152,7 +156,8 @@ import static jdk.internal.logger.DefaultLoggerFinder.isSystem;
  * @since 1.4
 */
 
-public class LogManager {
+@AnnotatedFor({"index", "interning", "signature"})
+public @UsesObjectEquals class LogManager {
     // The global LogManager object
     private static final LogManager manager;
 
@@ -224,7 +229,7 @@ public class LogManager {
             @Override
             public LogManager run() {
                 LogManager mgr = null;
-                String cname = null;
+                @BinaryName String cname = null;
                 try {
                     cname = System.getProperty("java.util.logging.manager");
                     if (cname != null) {
@@ -1348,7 +1353,7 @@ public class LogManager {
         checkPermission();
 
         // if a configuration class is specified, load it and use it.
-        String cname = System.getProperty("java.util.logging.config.class");
+        @BinaryName String cname = System.getProperty("java.util.logging.config.class");
         if (cname != null) {
             try {
                 // Instantiate the named class.  It is its constructor's
@@ -1589,7 +1594,8 @@ public class LogManager {
                 }
 
                 // Instantiate new configuration objects.
-                String names[] = parseClassNames("config");
+                @SuppressWarnings("signature")
+                @BinaryName String names[] = parseClassNames("config");
 
                 for (String word : names) {
                     try {
@@ -2344,6 +2350,7 @@ public class LogManager {
     // We return an instance of the class named by the "name"
     // property. If the property is not defined or has problems
     // we return the defaultValue.
+    @SuppressWarnings("signature")
     Filter getFilterProperty(String name, Filter defaultValue) {
         String val = getProperty(name);
         try {
@@ -2370,7 +2377,7 @@ public class LogManager {
         String val = getProperty(name);
         try {
             if (val != null) {
-                @SuppressWarnings("deprecation")
+                @SuppressWarnings({"deprecation", "signature"})
                 Object o = ClassLoader.getSystemClassLoader().loadClass(val).newInstance();
                 return (Formatter) o;
             }

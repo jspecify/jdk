@@ -25,6 +25,9 @@
 
 package javax.swing.undo;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Hashtable;
 
 
@@ -35,10 +38,11 @@ import java.util.Hashtable;
  * @see StateEdit
  */
 
+@AnnotatedFor({"interning"})
 public interface StateEditable {
 
     /** Resource ID for this class. */
-    public static final String RCSID = "$Id: StateEditable.java,v 1.2 1997/09/08 19:39:08 marklin Exp $";
+    public static final @Interned String RCSID = "$Id: StateEditable.java,v 1.2 1997/09/08 19:39:08 marklin Exp $";
 
     /**
      * Upon receiving this message the receiver should place any relevant

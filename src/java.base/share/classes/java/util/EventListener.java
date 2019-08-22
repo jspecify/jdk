@@ -25,9 +25,12 @@
 
 package java.util;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * A tagging interface that all event listener interfaces must extend.
  * @since 1.1
  */
+@AnnotatedFor({"lock", "nullness"})
 public interface EventListener {
 }

@@ -25,6 +25,9 @@
 
 package java.lang;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.WeakHashMap;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,7 +44,8 @@ import static java.lang.ClassValue.ClassValueMap.probeBackupLocations;
  * @author John Rose, JSR 292 EG
  * @since 1.7
  */
-public abstract class ClassValue<T> {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class ClassValue<T> {
     /**
      * Sole constructor.  (For invocation by subclass constructors, typically
      * implicit.)

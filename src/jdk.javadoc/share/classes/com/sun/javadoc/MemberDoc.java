@@ -25,6 +25,8 @@
 
 package com.sun.javadoc;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Represents a member of a java class: field, constructor, or method.
  * This is an abstract class dealing with information common to
@@ -43,6 +45,7 @@ package com.sun.javadoc;
  *   in the package {@code jdk.javadoc.doclet}.
  *   For more information, see the <i>Migration Guide</i> in the documentation for that package.
  */
+@AnnotatedFor({"lock"})
 @Deprecated(since="9", forRemoval=true)
 @SuppressWarnings("removal")
 public interface MemberDoc extends ProgramElementDoc {

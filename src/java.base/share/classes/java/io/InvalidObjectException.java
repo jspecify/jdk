@@ -25,6 +25,9 @@
 
 package java.io;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Indicates that one or more deserialized objects failed validation
  * tests.  The argument should provide the reason for the failure.
@@ -35,6 +38,7 @@ package java.io;
  * @author  unascribed
  * @since   1.1
  */
+@AnnotatedFor({"nullness"})
 public class InvalidObjectException extends ObjectStreamException {
 
     private static final long serialVersionUID = 3233174318281839583L;
@@ -45,7 +49,7 @@ public class InvalidObjectException extends ObjectStreamException {
      *
      * @see ObjectInputValidation
      */
-    public  InvalidObjectException(String reason) {
+    public  InvalidObjectException(@Nullable String reason) {
         super(reason);
     }
 }

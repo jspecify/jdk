@@ -25,6 +25,22 @@
 
 package java.lang;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.checkerframework.checker.signature.qual.ClassGetName;
+import org.checkerframework.checker.signature.qual.ClassGetSimpleName;
+import org.checkerframework.checker.signature.qual.DotSeparatedIdentifiers;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+import org.checkerframework.framework.qual.Covariant;
+
 import java.lang.annotation.Annotation;
 import java.lang.module.ModuleReader;
 import java.lang.ref.SoftReference;
@@ -150,7 +166,18 @@ import sun.reflect.misc.ReflectUtil;
  * @see     java.lang.ClassLoader#defineClass(byte[], int, int)
  * @since   1.0
  */
-public final class Class<T> implements java.io.Serializable,
+@CFComment({"interning: All instances of Class are interned.",
+            "lock: public boolean isTypeAnnotationPresent(@GuardSatisfied Class<T> this,@GuardSatisfied Class<T><? extends java.lang.annotation.Annotation> annotationClass) { throw new RuntimeException(\"skeleton method\"); }",
+            "public <M extends java.lang.annotation.Annotation> M getTypeAnnotation(Class<M> annotationClass) { throw new RuntimeException(\"skeleton method\"); }",
+            "public java.lang.annotation.Annotation[] getTypeAnnotations() { throw new RuntimeException(\"skeleton method\"); }",
+            "public java.lang.annotation.Annotation[] getDeclaredTypeAnnotations() { throw new RuntimeException(\"skeleton method\"); }",
+            "nullness: The type argument to Class is meaningless.",
+            "Class<@NonNull String> and Class<@Nullable String> have the same",
+            "meaning, but are unrelated by the Java type hierarchy.",
+            "@Covariant makes Class<@NonNull String> a subtype of Class<@Nullable String>."})
+@AnnotatedFor({"index", "interning", "lock", "nullness", "signature"})
+@Covariant({0})
+public final @Interned class Class<@UnknownKeyFor T> implements java.io.Serializable,
                               GenericDeclaration,
                               Type,
                               AnnotatedElement {
@@ -187,7 +214,8 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @return a string representation of this class object.
      */
-    public String toString() {
+    @SideEffectFree
+    public String toString(@GuardSatisfied Class<T> this) {
         return (isInterface() ? "interface " : (isPrimitive() ? "" : "class "))
             + getName();
     }
@@ -309,7 +337,7 @@ public final class Class<T> implements java.io.Serializable,
      * @exception ClassNotFoundException if the class cannot be located
      */
     @CallerSensitive
-    public static Class<?> forName(String className)
+    public static Class<?> forName(@ClassGetName String className)
                 throws ClassNotFoundException {
         Class<?> caller = Reflection.getCallerClass();
         return forName0(className, true, ClassLoader.getClassLoader(caller), caller);
@@ -377,8 +405,8 @@ public final class Class<T> implements java.io.Serializable,
      * @since     1.2
      */
     @CallerSensitive
-    public static Class<?> forName(String name, boolean initialize,
-                                   ClassLoader loader)
+    public static Class<?> forName(@ClassGetName String name, boolean initialize,
+                                   @Nullable ClassLoader loader)
         throws ClassNotFoundException
     {
         Class<?> caller = null;
@@ -532,7 +560,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     @Deprecated(since="9")
-    public T newInstance()
+    public @NonNull T newInstance()
         throws InstantiationException, IllegalAccessException
     {
         SecurityManager sm = System.getSecurityManager();
@@ -622,8 +650,10 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since 1.1
      */
+    @EnsuresNonNullIf(expression={"#1"}, result=true)
+    @Pure
     @HotSpotIntrinsicCandidate
-    public native boolean isInstance(Object obj);
+    public native boolean isInstance(@GuardSatisfied Class<T> this, @Nullable Object obj);
 
 
     /**
@@ -650,8 +680,9 @@ public final class Class<T> implements java.io.Serializable,
      *            null.
      * @since 1.1
      */
+    @Pure
     @HotSpotIntrinsicCandidate
-    public native boolean isAssignableFrom(Class<?> cls);
+    public native boolean isAssignableFrom(@GuardSatisfied Class<T> this, Class<?> cls);
 
 
     /**
@@ -661,8 +692,9 @@ public final class Class<T> implements java.io.Serializable,
      * @return  {@code true} if this object represents an interface;
      *          {@code false} otherwise.
      */
+    @Pure
     @HotSpotIntrinsicCandidate
-    public native boolean isInterface();
+    public native boolean isInterface(@GuardSatisfied Class<T> this);
 
 
     /**
@@ -672,8 +704,10 @@ public final class Class<T> implements java.io.Serializable,
      *          {@code false} otherwise.
      * @since   1.1
      */
+    @EnsuresNonNullIf(expression={"getComponentType()"}, result=true)
+    @Pure
     @HotSpotIntrinsicCandidate
-    public native boolean isArray();
+    public native boolean isArray(@GuardSatisfied Class<T> this);
 
 
     /**
@@ -704,8 +738,9 @@ public final class Class<T> implements java.io.Serializable,
      * @see     java.lang.Void#TYPE
      * @since 1.1
      */
+    @Pure
     @HotSpotIntrinsicCandidate
-    public native boolean isPrimitive();
+    public native boolean isPrimitive(@GuardSatisfied Class<T> this);
 
     /**
      * Returns true if this {@code Class} object represents an annotation
@@ -716,7 +751,8 @@ public final class Class<T> implements java.io.Serializable,
      *      type; {@code false} otherwise
      * @since 1.5
      */
-    public boolean isAnnotation() {
+    @Pure
+    public boolean isAnnotation(@GuardSatisfied Class<T> this) {
         return (getModifiers() & ANNOTATION) != 0;
     }
 
@@ -728,7 +764,8 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 13.1 The Form of a Binary
      * @since 1.5
      */
-    public boolean isSynthetic() {
+    @Pure
+    public boolean isSynthetic(@GuardSatisfied Class<T> this) {
         return (getModifiers() & SYNTHETIC) != 0;
     }
 
@@ -788,7 +825,9 @@ public final class Class<T> implements java.io.Serializable,
      * @return  the name of the class or interface
      *          represented by this object.
      */
-    public String getName() {
+    @CFComment("interning: In the Oracle JDK, the result of getName is interned")
+    @Pure
+    public @ClassGetName @Interned String getName() {
         String name = this.name;
         if (name == null)
             this.name = name = getName0();
@@ -796,7 +835,7 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     // cache the name to reduce the number of calls into the VM
-    private transient String name;
+    private transient @ClassGetName String name;
     private native String getName0();
 
     /**
@@ -822,7 +861,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public ClassLoader getClassLoader() {
+    public @Nullable ClassLoader getClassLoader() {
         ClassLoader cl = getClassLoader0();
         if (cl == null)
             return null;
@@ -901,8 +940,9 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @return the direct superclass of the class represented by this object
      */
+    @Pure
     @HotSpotIntrinsicCandidate
-    public native Class<? super T> getSuperclass();
+    public native @Nullable Class<? super T> getSuperclass(@GuardSatisfied Class<T> this);
 
 
     /**
@@ -934,7 +974,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return the direct superclass of the class represented by this object
      * @since 1.5
      */
-    public Type getGenericSuperclass() {
+    public @Nullable Type getGenericSuperclass() {
         ClassRepository info = getGenericInfo();
         if (info == null) {
             return getSuperclass();
@@ -960,7 +1000,8 @@ public final class Class<T> implements java.io.Serializable,
      * @revised 9
      * @spec JPMS
      */
-    public Package getPackage() {
+    @Pure
+    public @Nullable Package getPackage(@GuardSatisfied Class<T> this) {
         if (isPrimitive() || isArray()) {
             return null;
         }
@@ -996,7 +1037,7 @@ public final class Class<T> implements java.io.Serializable,
      * @spec JPMS
      * @jls 6.7  Fully Qualified Names
      */
-    public String getPackageName() {
+    public @DotSeparatedIdentifiers String getPackageName() {
         String pn = this.packageName;
         if (pn == null) {
             Class<?> c = this;
@@ -1062,7 +1103,8 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @return an array of interfaces directly implemented by this class
      */
-    public Class<?>[] getInterfaces() {
+    @SideEffectFree
+    public Class<?>[] getInterfaces(@GuardSatisfied Class<T> this) {
         // defensively copy before handing over to user code
         return getInterfaces(true);
     }
@@ -1149,7 +1191,8 @@ public final class Class<T> implements java.io.Serializable,
      * @see     java.lang.reflect.Array
      * @since 1.1
      */
-    public Class<?> getComponentType() {
+    @Pure
+    public @Nullable Class<?> getComponentType(@GuardSatisfied Class<T> this) {
         // Only return for array types. Storage may be reused for Class for instance types.
         if (isArray()) {
             return componentType;
@@ -1188,8 +1231,9 @@ public final class Class<T> implements java.io.Serializable,
      * @see     java.lang.reflect.Modifier
      * @since 1.1
      */
+    @Pure
     @HotSpotIntrinsicCandidate
-    public native int getModifiers();
+    public native int getModifiers(@GuardSatisfied Class<T> this);
 
 
     /**
@@ -1200,7 +1244,7 @@ public final class Class<T> implements java.io.Serializable,
      *          a primitive type or void.
      * @since   1.1
      */
-    public native Object[] getSigners();
+    public native Object @Nullable [] getSigners();
 
 
     /**
@@ -1246,7 +1290,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      */
     @CallerSensitive
-    public Method getEnclosingMethod() throws SecurityException {
+    public @Nullable Method getEnclosingMethod() throws SecurityException {
         EnclosingMethodInfo enclosingInfo = getEnclosingMethodInfo();
 
         if (enclosingInfo == null)
@@ -1403,7 +1447,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      */
     @CallerSensitive
-    public Constructor<?> getEnclosingConstructor() throws SecurityException {
+    public @Nullable Constructor<?> getEnclosingConstructor() throws SecurityException {
         EnclosingMethodInfo enclosingInfo = getEnclosingMethodInfo();
 
         if (enclosingInfo == null)
@@ -1468,7 +1512,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.1
      */
     @CallerSensitive
-    public Class<?> getDeclaringClass() throws SecurityException {
+    public @Nullable Class<?> getDeclaringClass() throws SecurityException {
         final Class<?> candidate = getDeclaringClass0();
 
         if (candidate != null) {
@@ -1497,8 +1541,9 @@ public final class Class<T> implements java.io.Serializable,
      *             denies access to the package of the enclosing class
      * @since 1.5
      */
+    @Pure
     @CallerSensitive
-    public Class<?> getEnclosingClass() throws SecurityException {
+    public @Nullable Class<?> getEnclosingClass() throws SecurityException {
         // There are five kinds of classes (or interfaces):
         // a) Top level classes
         // b) Nested classes (static member classes)
@@ -1547,7 +1592,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return the simple name of the underlying class
      * @since 1.5
      */
-    public String getSimpleName() {
+    public @ClassGetSimpleName String getSimpleName() {
         ReflectionData<T> rd = reflectionData();
         String simpleName = rd.simpleName;
         if (simpleName == null) {
@@ -1604,7 +1649,7 @@ public final class Class<T> implements java.io.Serializable,
      * {@code null} otherwise.
      * @since 1.5
      */
-    public String getCanonicalName() {
+    public @Nullable @ClassGetSimpleName String getCanonicalName() {
         ReflectionData<T> rd = reflectionData();
         String canonicalName = rd.canonicalName;
         if (canonicalName == null) {
@@ -1641,7 +1686,8 @@ public final class Class<T> implements java.io.Serializable,
      * @return {@code true} if and only if this class is an anonymous class.
      * @since 1.5
      */
-    public boolean isAnonymousClass() {
+    @Pure
+    public boolean isAnonymousClass(@GuardSatisfied Class<T> this) {
         return !isArray() && isLocalOrAnonymousClass() &&
                 getSimpleBinaryName0() == null;
     }
@@ -1653,7 +1699,8 @@ public final class Class<T> implements java.io.Serializable,
      * @return {@code true} if and only if this class is a local class.
      * @since 1.5
      */
-    public boolean isLocalClass() {
+    @Pure
+    public boolean isLocalClass(@GuardSatisfied Class<T> this) {
         return isLocalOrAnonymousClass() &&
                 (isArray() || getSimpleBinaryName0() != null);
     }
@@ -1665,7 +1712,8 @@ public final class Class<T> implements java.io.Serializable,
      * @return {@code true} if and only if this class is a member class.
      * @since 1.5
      */
-    public boolean isMemberClass() {
+    @Pure
+    public boolean isMemberClass(@GuardSatisfied Class<T> this) {
         return !isLocalOrAnonymousClass() && getDeclaringClass0() != null;
     }
 
@@ -2096,8 +2144,9 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 8.4 Method Declarations
      * @since 1.1
      */
+    @Pure
     @CallerSensitive
-    public Method getMethod(String name, Class<?>... parameterTypes)
+    public Method getMethod(String name, Class<?> @Nullable ... parameterTypes)
         throws NoSuchMethodException, SecurityException {
         Objects.requireNonNull(name);
         SecurityManager sm = System.getSecurityManager();
@@ -2140,6 +2189,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since 1.1
      */
+    @Pure
     @CallerSensitive
     public Constructor<T> getConstructor(Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException
@@ -2611,7 +2661,7 @@ public final class Class<T> implements java.io.Serializable,
      * @spec JPMS
      */
     @CallerSensitive
-    public InputStream getResourceAsStream(String name) {
+    public @Nullable InputStream getResourceAsStream(String name) {
         name = resolveName(name);
 
         Module thisModule = getModule();
@@ -2708,7 +2758,7 @@ public final class Class<T> implements java.io.Serializable,
      * @spec JPMS
      */
     @CallerSensitive
-    public URL getResource(String name) {
+    public @Nullable URL getResource(String name) {
         name = resolveName(name);
 
         Module thisModule = getModule();
@@ -3497,7 +3547,8 @@ public final class Class<T> implements java.io.Serializable,
      *     source code
      * @since 1.5
      */
-    public boolean isEnum() {
+    @Pure
+    public boolean isEnum(@GuardSatisfied Class<T> this) {
         // An enum must both directly extend java.lang.Enum and have
         // the ENUM bit set; classes for specialized enum constants
         // don't do the former.
@@ -3526,7 +3577,7 @@ public final class Class<T> implements java.io.Serializable,
      *     represent an enum type
      * @since 1.5
      */
-    public T[] getEnumConstants() {
+    public @NonNull T @Nullable [] getEnumConstants() {
         T[] values = getEnumConstantsShared();
         return (values != null) ? values.clone() : null;
     }
@@ -3570,7 +3621,7 @@ public final class Class<T> implements java.io.Serializable,
      * efficiently.  Note that the map is returned by this method is
      * created lazily on first use.  Typically it won't ever get created.
      */
-    Map<String, T> enumConstantDirectory() {
+    Map<String, @NonNull T> enumConstantDirectory() {
         Map<String, T> directory = enumConstantDirectory;
         if (directory == null) {
             T[] universe = getEnumConstantsShared();
@@ -3601,7 +3652,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @SuppressWarnings("unchecked")
     @HotSpotIntrinsicCandidate
-    public T cast(Object obj) {
+    public @PolyNull T cast(@PolyNull Object obj) {
         if (obj != null && !isInstance(obj))
             throw new ClassCastException(cannotCastMsg(obj));
         return (T) obj;
@@ -3646,7 +3697,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      */
     @SuppressWarnings("unchecked")
-    public <A extends Annotation> A getAnnotation(Class<A> annotationClass) {
+    public <A extends Annotation> @Nullable A getAnnotation(Class<A> annotationClass) {
         Objects.requireNonNull(annotationClass);
 
         return (A) annotationData().annotations.get(annotationClass);
@@ -3657,8 +3708,9 @@ public final class Class<T> implements java.io.Serializable,
      * @throws NullPointerException {@inheritDoc}
      * @since 1.5
      */
+    @Pure
     @Override
-    public boolean isAnnotationPresent(Class<? extends Annotation> annotationClass) {
+    public boolean isAnnotationPresent(@GuardSatisfied Class<T> this, @GuardSatisfied Class<? extends Annotation> annotationClass) {
         return GenericDeclaration.super.isAnnotationPresent(annotationClass);
     }
 

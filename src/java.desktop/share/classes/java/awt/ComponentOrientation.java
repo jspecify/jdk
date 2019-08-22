@@ -36,6 +36,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Locale;
 import java.util.ResourceBundle;
 
@@ -88,7 +91,8 @@ import java.util.ResourceBundle;
   * This is unsafe, since more constants may be added in the future and
   * since it is not guaranteed that orientation objects will be unique.
   */
-public final class ComponentOrientation implements java.io.Serializable
+@AnnotatedFor({"interning"})
+public final @UsesObjectEquals class ComponentOrientation implements java.io.Serializable
 {
     /*
      * serialVersionUID

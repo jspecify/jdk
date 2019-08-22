@@ -25,6 +25,10 @@
 
 package javax.net.ssl;
 
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.security.*;
 import java.util.Objects;
 
@@ -53,6 +57,7 @@ import sun.security.jca.GetInstance;
  *
  * @since 1.4
  */
+@AnnotatedFor("nullness")
 public class SSLContext {
     private final Provider provider;
 
@@ -74,7 +79,7 @@ public class SSLContext {
         this.protocol = protocol;
     }
 
-    private static SSLContext defaultContext;
+    private static @MonotonicNonNull SSLContext defaultContext;
 
     /**
      * Returns the default SSL context.
@@ -291,8 +296,8 @@ public class SSLContext {
      * @param random the source of randomness for this generator or null
      * @throws KeyManagementException if this operation fails
      */
-    public final void init(KeyManager[] km, TrustManager[] tm,
-                                SecureRandom random)
+    public final void init(KeyManager @Nullable [] km, TrustManager @Nullable [] tm,
+                                @Nullable SecureRandom random)
         throws KeyManagementException {
         contextSpi.engineInit(km, tm, random);
     }
@@ -401,7 +406,7 @@ public class SSLContext {
      *
      * @return server session context bound to this SSL context
      */
-    public final SSLSessionContext getServerSessionContext() {
+    public final @Nullable SSLSessionContext getServerSessionContext() {
         return contextSpi.engineGetServerSessionContext();
     }
 
@@ -418,7 +423,7 @@ public class SSLContext {
      *
      * @return client session context bound to this SSL context
      */
-    public final SSLSessionContext getClientSessionContext() {
+    public final @Nullable SSLSessionContext getClientSessionContext() {
         return contextSpi.engineGetClientSessionContext();
     }
 

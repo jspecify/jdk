@@ -25,6 +25,13 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * ObjectOutput extends the DataOutput interface to include writing of objects.
  * DataOutput includes methods for output of primitive types, ObjectOutput
@@ -36,6 +43,7 @@ package java.io;
  * @see java.io.ObjectInputStream
  * @since   1.1
  */
+@AnnotatedFor({"nullness", "index", "signedness"})
 public interface ObjectOutput extends DataOutput, AutoCloseable {
     /**
      * Write an object to the underlying storage or stream.  The
@@ -45,7 +53,7 @@ public interface ObjectOutput extends DataOutput, AutoCloseable {
      * @param obj the object to be written
      * @exception IOException Any of the usual Input/Output related exceptions.
      */
-    public void writeObject(Object obj)
+    public void writeObject(@Nullable Object obj)
       throws IOException;
 
     /**
@@ -54,7 +62,7 @@ public interface ObjectOutput extends DataOutput, AutoCloseable {
      * @param b the byte
      * @exception IOException If an I/O error has occurred.
      */
-    public void write(int b) throws IOException;
+    public void write(@PolySigned int b) throws IOException;
 
     /**
      * Writes an array of bytes. This method will block until the bytes
@@ -62,7 +70,7 @@ public interface ObjectOutput extends DataOutput, AutoCloseable {
      * @param b the data to be written
      * @exception IOException If an I/O error has occurred.
      */
-    public void write(byte b[]) throws IOException;
+    public void write(@PolySigned byte b[]) throws IOException;
 
     /**
      * Writes a sub array of bytes.
@@ -71,7 +79,7 @@ public interface ObjectOutput extends DataOutput, AutoCloseable {
      * @param len       the number of bytes that are written
      * @exception IOException If an I/O error has occurred.
      */
-    public void write(byte b[], int off, int len) throws IOException;
+    public void write(@PolySigned byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException;
 
     /**
      * Flushes the stream. This will write any buffered

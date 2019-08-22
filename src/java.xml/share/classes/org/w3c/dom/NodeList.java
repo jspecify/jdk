@@ -41,6 +41,10 @@
 
 package org.w3c.dom;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * The <code>NodeList</code> interface provides the abstraction of an ordered
  * collection of nodes, without defining or constraining how this collection
@@ -49,6 +53,7 @@ package org.w3c.dom;
  * index, starting from 0.
  * <p>See also the <a href='http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407'>Document Object Model (DOM) Level 3 Core Specification</a>.
  */
+@AnnotatedFor("nullness")
 public interface NodeList {
     /**
      * Returns the <code>index</code>th item in the collection. If
@@ -59,12 +64,14 @@ public interface NodeList {
      *   <code>NodeList</code>, or <code>null</code> if that is not a valid
      *   index.
      */
-    public Node item(int index);
+    @Pure
+    public @Nullable Node item(int index);
 
     /**
      * The number of nodes in the list. The range of valid child node indices
      * is 0 to <code>length-1</code> inclusive.
      */
+    @Pure
     public int getLength();
 
 }

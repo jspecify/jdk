@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import sun.net.www.protocol.http.AuthenticatorKeys;
 
 /**
@@ -58,8 +61,9 @@ import sun.net.www.protocol.http.AuthenticatorKeys;
 
 // There are no abstract methods, but to be useful the user must
 // subclass.
+@AnnotatedFor({"interning"})
 public abstract
-class Authenticator {
+@UsesObjectEquals class Authenticator {
 
     // The system-wide authenticator object.  See setDefault().
     private static volatile Authenticator theAuthenticator;

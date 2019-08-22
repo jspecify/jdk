@@ -24,6 +24,10 @@
  */
 
 package java.lang.management;
+
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.FilePermission;
 import java.io.IOException;
 import javax.management.DynamicMBean;
@@ -246,7 +250,8 @@ import sun.management.spi.PlatformMBeanProvider.PlatformComponent;
  * @author  Mandy Chung
  * @since   1.5
  */
-public class ManagementFactory {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class ManagementFactory {
     // A class with only static fields and methods.
     private ManagementFactory() {};
 

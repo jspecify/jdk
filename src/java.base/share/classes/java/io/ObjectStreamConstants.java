@@ -25,12 +25,15 @@
 
 package java.io;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Constants written into the Object Serialization Stream.
  *
  * @author  unascribed
  * @since 1.1
  */
+@AnnotatedFor({"nullness"})
 public interface ObjectStreamConstants {
 
     /**

@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.util.Set;
@@ -35,7 +38,8 @@ import java.util.Set;
  * @since  1.1
  */
 
-public abstract class DatagramSocketImpl implements SocketOptions {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class DatagramSocketImpl implements SocketOptions {
 
     /**
      * The local port number.

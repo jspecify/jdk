@@ -24,6 +24,10 @@
  */
 package java.util.stream;
 
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Arrays;
 import java.util.LongSummaryStatistics;
 import java.util.Objects;
@@ -70,6 +74,7 @@ import java.util.function.Supplier;
  * @see Stream
  * @see <a href="package-summary.html">java.util.stream</a>
  */
+@AnnotatedFor({"lock", "nullness"})
 public interface LongStream extends BaseStream<Long, LongStream> {
 
     /**
@@ -450,6 +455,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      *
      * @return an array containing the elements of this stream
      */
+    @SideEffectFree
     long[] toArray();
 
     /**
@@ -824,9 +830,11 @@ public interface LongStream extends BaseStream<Long, LongStream> {
     @Override
     LongStream parallel();
 
+    @SideEffectFree
     @Override
     PrimitiveIterator.OfLong iterator();
 
+    @SideEffectFree
     @Override
     Spliterator.OfLong spliterator();
 
@@ -1160,7 +1168,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
          * @throws IllegalStateException if the builder has already transitioned
          * to the built state
          */
-        default Builder add(long t) {
+        default Builder add(LongStream.@GuardSatisfied Builder this, long t) {
             accept(t);
             return this;
         }

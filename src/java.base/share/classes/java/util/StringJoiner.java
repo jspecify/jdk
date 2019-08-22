@@ -24,6 +24,9 @@
  */
 package java.util;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * {@code StringJoiner} is used to construct a sequence of characters separated
  * by a delimiter and optionally starting with a supplied prefix
@@ -62,6 +65,7 @@ package java.util;
  * @see java.util.stream.Collectors#joining(CharSequence, CharSequence, CharSequence)
  * @since  1.8
 */
+@AnnotatedFor({"nullness"})
 public final class StringJoiner {
     private final String prefix;
     private final String delimiter;
@@ -195,7 +199,7 @@ public final class StringJoiner {
      * @param  newElement The element to add
      * @return a reference to this {@code StringJoiner}
      */
-    public StringJoiner add(CharSequence newElement) {
+    public StringJoiner add(@Nullable CharSequence newElement) {
         final String elt = String.valueOf(newElement);
         if (elts == null) {
             elts = new String[8];

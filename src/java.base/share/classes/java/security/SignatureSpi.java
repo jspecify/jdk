@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.*;
 import java.io.*;
@@ -50,7 +53,8 @@ import sun.security.jca.JCAUtil;
  * @see Signature
  */
 
-public abstract class SignatureSpi {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class SignatureSpi {
 
     /**
      * Application-specified source of randomness.

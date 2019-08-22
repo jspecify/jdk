@@ -35,6 +35,9 @@
 
 package java.util.concurrent.locks;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * A synchronizer that may be exclusively owned by a thread.  This
  * class provides a basis for creating locks and related synchronizers
@@ -47,7 +50,8 @@ package java.util.concurrent.locks;
  * @since 1.6
  * @author Doug Lea
  */
-public abstract class AbstractOwnableSynchronizer
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class AbstractOwnableSynchronizer
     implements java.io.Serializable {
 
     /** Use serial ID even though all fields transient. */

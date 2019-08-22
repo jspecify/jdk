@@ -24,6 +24,9 @@
  */
 package java.beans;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.Serializable;
 import java.io.ObjectStreamField;
 import java.io.ObjectOutputStream;
@@ -79,7 +82,8 @@ import java.util.Map.Entry;
  * @see PropertyChangeSupport
  * @since 1.1
  */
-public class VetoableChangeSupport implements Serializable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class VetoableChangeSupport implements Serializable {
     private VetoableChangeListenerMap map = new VetoableChangeListenerMap();
 
     /**

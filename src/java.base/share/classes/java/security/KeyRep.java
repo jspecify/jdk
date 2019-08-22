@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.*;
 import java.util.Locale;
 
@@ -55,7 +58,8 @@ import javax.crypto.spec.SecretKeySpec;
  * @since 1.5
  */
 
-public class KeyRep implements Serializable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class KeyRep implements Serializable {
 
     private static final long serialVersionUID = -4757683898830641853L;
 

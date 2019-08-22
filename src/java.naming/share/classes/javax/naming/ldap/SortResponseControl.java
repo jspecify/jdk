@@ -25,6 +25,9 @@
 
 package javax.naming.ldap;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import javax.naming.*;
 import javax.naming.directory.*;
@@ -77,13 +80,14 @@ import com.sun.jndi.ldap.LdapCtx;
  * @see SortControl
  * @author Vincent Ryan
  */
+@AnnotatedFor({"interning"})
 final public class SortResponseControl extends BasicControl {
 
     /**
      * The server-side sort response control's assigned object identifier
      * is 1.2.840.113556.1.4.474.
      */
-    public static final String OID = "1.2.840.113556.1.4.474";
+    public static final @Interned String OID = "1.2.840.113556.1.4.474";
 
     private static final long serialVersionUID = 5142939176006310877L;
 

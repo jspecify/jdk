@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Hashtable;
 import java.util.Vector;
 import java.util.Enumeration;
@@ -56,7 +59,8 @@ import java.io.IOException;
  * @since       1.0
  */
 
-public class CardLayout implements LayoutManager2,
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class CardLayout implements LayoutManager2,
                                    Serializable {
 
     private static final long serialVersionUID = -4328196481005934313L;

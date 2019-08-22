@@ -25,6 +25,11 @@
 
 package java.awt;
 
+import org.checkerframework.checker.guieffect.qual.SafeEffect;
+import org.checkerframework.checker.guieffect.qual.UIType;
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.applet.Applet;
 import java.awt.dnd.DropTarget;
 import java.awt.event.ActionEvent;
@@ -213,7 +218,8 @@ import static sun.java2d.pipe.hw.ExtendedBufferCapabilities.VSyncType.VSYNC_ON;
  * @author      Arthur van Hoff
  * @author      Sami Shaio
  */
-public abstract class Component implements ImageObserver, MenuContainer,
+@AnnotatedFor({"guieffect", "interning"})
+public abstract @UsesObjectEquals @UIType class Component implements ImageObserver, MenuContainer,
                                            Serializable
 {
 
@@ -3390,6 +3396,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
      * @see       #update(Graphics)
      * @since     1.0
      */
+    @SafeEffect
     public void repaint() {
         repaint(0, 0, 0, width, height);
     }
@@ -3409,6 +3416,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
      * @see #update(Graphics)
      * @since 1.0
      */
+    @SafeEffect
     public void repaint(long tm) {
         repaint(tm, 0, 0, width, height);
     }
@@ -3433,6 +3441,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
      * @see       #update(Graphics)
      * @since     1.0
      */
+    @SafeEffect
     public void repaint(int x, int y, int width, int height) {
         repaint(0, x, y, width, height);
     }
@@ -3459,6 +3468,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
      * @see       #update(Graphics)
      * @since     1.0
      */
+    @SafeEffect
     public void repaint(long tm, int x, int y, int width, int height) {
         if (this.peer instanceof LightweightPeer) {
             // Needs to be translated to parent coordinates since

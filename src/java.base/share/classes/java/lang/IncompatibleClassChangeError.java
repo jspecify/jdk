@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Thrown when an incompatible class change has occurred to some class
  * definition. The definition of some class, on which the currently
@@ -33,6 +37,7 @@ package java.lang;
  * @author  unascribed
  * @since   1.0
  */
+@AnnotatedFor({"nullness"})
 public
 class IncompatibleClassChangeError extends LinkageError {
     private static final long serialVersionUID = -4914975503642802119L;
@@ -41,6 +46,7 @@ class IncompatibleClassChangeError extends LinkageError {
      * Constructs an <code>IncompatibleClassChangeError</code> with no
      * detail message.
      */
+    @SideEffectFree
     public IncompatibleClassChangeError () {
         super();
     }
@@ -51,7 +57,8 @@ class IncompatibleClassChangeError extends LinkageError {
      *
      * @param   s   the detail message.
      */
-    public IncompatibleClassChangeError(String s) {
+    @SideEffectFree
+    public IncompatibleClassChangeError(@Nullable String s) {
         super(s);
     }
 }

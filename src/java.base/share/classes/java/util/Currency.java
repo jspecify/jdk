@@ -25,6 +25,11 @@
 
 package java.util;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.File;
@@ -111,7 +116,8 @@ import sun.util.logging.PlatformLogger;
  * @see java.math.BigDecimal
  * @since 1.4
  */
-public final class Currency implements Serializable {
+@AnnotatedFor({"interning", "lock", "nullness"})
+public final @UsesObjectEquals class Currency implements Serializable {
 
     private static final long serialVersionUID = -158308464356906721L;
 
@@ -494,7 +500,7 @@ public final class Currency implements Serializable {
      *
      * @return the ISO 4217 currency code of this currency.
      */
-    public String getCurrencyCode() {
+    public String getCurrencyCode(@GuardSatisfied Currency this) {
         return currencyCode;
     }
 
@@ -518,7 +524,7 @@ public final class Currency implements Serializable {
      * @return the symbol of this currency for the default
      *     {@link Locale.Category#DISPLAY DISPLAY} locale
      */
-    public String getSymbol() {
+    public String getSymbol(@GuardSatisfied Currency this) {
         return getSymbol(Locale.getDefault(Locale.Category.DISPLAY));
     }
 
@@ -538,7 +544,7 @@ public final class Currency implements Serializable {
      * @return the symbol of this currency for the specified locale
      * @exception NullPointerException if <code>locale</code> is null
      */
-    public String getSymbol(Locale locale) {
+    public String getSymbol(@GuardSatisfied Currency this, Locale locale) {
         LocaleServiceProviderPool pool =
             LocaleServiceProviderPool.getPool(CurrencyNameProvider.class);
         locale = CalendarDataUtility.findRegionOverride(locale);
@@ -564,7 +570,7 @@ public final class Currency implements Serializable {
      *
      * @return the default number of fraction digits used with this currency
     */
-    public int getDefaultFractionDigits() {
+    public int getDefaultFractionDigits(@GuardSatisfied Currency this) {
         return defaultFractionDigits;
     }
 
@@ -653,8 +659,9 @@ public final class Currency implements Serializable {
      *
      * @return the ISO 4217 currency code of this currency
      */
+    @SideEffectFree
     @Override
-    public String toString() {
+    public String toString(@GuardSatisfied Currency this) {
         return currencyCode;
     }
 

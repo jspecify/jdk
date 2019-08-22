@@ -25,6 +25,8 @@
 
 package com.sun.javadoc;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Represents a field in a java class.
  *
@@ -38,6 +40,7 @@ package com.sun.javadoc;
  *   in the package {@code jdk.javadoc.doclet}.
  *   For more information, see the <i>Migration Guide</i> in the documentation for that package.
  */
+@AnnotatedFor({"lock"})
 @Deprecated(since="9", forRemoval=true)
 @SuppressWarnings("removal")
 public interface FieldDoc extends MemberDoc {

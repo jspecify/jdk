@@ -26,6 +26,10 @@
 
 package javax.naming.directory;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Hashtable;
 import java.util.Enumeration;
 
@@ -68,12 +72,14 @@ import javax.naming.NamingEnumeration;
   * @since 1.3
   */
 
+@AnnotatedFor("nullness")
 public interface Attributes extends Cloneable, java.io.Serializable {
     /**
       * Determines whether the attribute set ignores the case of
       * attribute identifiers when retrieving or adding attributes.
       * @return true if case is ignored; false otherwise.
       */
+    @Pure
     boolean isCaseIgnored();
 
     /**
@@ -81,6 +87,7 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       *
       * @return The nonnegative number of attributes in this attribute set.
       */
+    @Pure
     int size();
 
     /**
@@ -95,6 +102,7 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       * @see #put
       * @see #remove
       */
+    @Nullable @Pure
     Attribute get(String attrID);
 
     /**
@@ -107,6 +115,7 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       *         If attribute set has zero attributes, an empty enumeration
       *         is returned.
       */
+    @Pure
     NamingEnumeration<? extends Attribute> getAll();
 
     /**
@@ -121,6 +130,7 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       *         If attribute set has zero attributes, an empty enumeration
       *         is returned.
       */
+    @Pure
     NamingEnumeration<String> getIDs();
 
     /**
@@ -136,7 +146,7 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       *         null if no such attribute existed.
       * @see #remove
       */
-    Attribute put(String attrID, Object val);
+    @Nullable Attribute put(String attrID, @Nullable Object val);
 
     /**
       * Adds a new attribute to the attribute set.
@@ -150,7 +160,7 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       *         null if no such attribute existed.
       * @see #remove
       */
-    Attribute put(Attribute attr);
+    @Nullable Attribute put(Attribute attr);
 
     /**
       * Removes the attribute with the attribute id 'attrID' from
@@ -164,7 +174,7 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       *         in the attribute set;
       *         null if no such attribute existed.
       */
-    Attribute remove(String attrID);
+    @Nullable Attribute remove(String attrID);
 
     /**
       * Makes a copy of the attribute set.

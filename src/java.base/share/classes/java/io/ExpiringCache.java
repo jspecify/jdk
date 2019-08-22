@@ -28,12 +28,16 @@
 
 package java.io;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Iterator;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.Set;
 
-class ExpiringCache {
+@AnnotatedFor({"index", "interning"})
+@UsesObjectEquals class ExpiringCache {
     private long millisUntilExpiration;
     private Map<String,Entry> map;
     // Clear out old entries every few queries

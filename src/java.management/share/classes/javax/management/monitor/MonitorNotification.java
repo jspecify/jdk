@@ -30,6 +30,9 @@ package javax.management.monitor;
 //
 import javax.management.ObjectName;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Provides definitions of the notifications sent by monitor MBeans.
  * <P>
@@ -70,6 +73,7 @@ import javax.management.ObjectName;
  *
  * @since 1.5
  */
+@AnnotatedFor({"interning"})
 public class MonitorNotification extends javax.management.Notification {
 
 
@@ -84,70 +88,70 @@ public class MonitorNotification extends javax.management.Notification {
      * This notification is fired by all kinds of monitors.
      * <BR>The value of this notification type is <CODE>jmx.monitor.error.mbean</CODE>.
      */
-    public static final String OBSERVED_OBJECT_ERROR = "jmx.monitor.error.mbean";
+    public static final @Interned String OBSERVED_OBJECT_ERROR = "jmx.monitor.error.mbean";
 
     /**
      * Notification type denoting that the observed attribute is not contained in the observed object.
      * This notification is fired by all kinds of monitors.
      * <BR>The value of this notification type is <CODE>jmx.monitor.error.attribute</CODE>.
      */
-    public static final String OBSERVED_ATTRIBUTE_ERROR = "jmx.monitor.error.attribute";
+    public static final @Interned String OBSERVED_ATTRIBUTE_ERROR = "jmx.monitor.error.attribute";
 
     /**
      * Notification type denoting that the type of the observed attribute is not correct.
      * This notification is fired by all kinds of monitors.
      * <BR>The value of this notification type is <CODE>jmx.monitor.error.type</CODE>.
      */
-    public static final String OBSERVED_ATTRIBUTE_TYPE_ERROR = "jmx.monitor.error.type";
+    public static final @Interned String OBSERVED_ATTRIBUTE_TYPE_ERROR = "jmx.monitor.error.type";
 
     /**
      * Notification type denoting that the type of the thresholds, offset or modulus is not correct.
      * This notification is fired by counter and gauge monitors.
      * <BR>The value of this notification type is <CODE>jmx.monitor.error.threshold</CODE>.
      */
-    public static final String THRESHOLD_ERROR = "jmx.monitor.error.threshold";
+    public static final @Interned String THRESHOLD_ERROR = "jmx.monitor.error.threshold";
 
     /**
      * Notification type denoting that a non-predefined error type has occurred when trying to get the value of the observed attribute.
      * This notification is fired by all kinds of monitors.
      * <BR>The value of this notification type is <CODE>jmx.monitor.error.runtime</CODE>.
      */
-    public static final String RUNTIME_ERROR = "jmx.monitor.error.runtime";
+    public static final @Interned String RUNTIME_ERROR = "jmx.monitor.error.runtime";
 
     /**
      * Notification type denoting that the observed attribute has reached the threshold value.
      * This notification is only fired by counter monitors.
      * <BR>The value of this notification type is <CODE>jmx.monitor.counter.threshold</CODE>.
      */
-    public static final String THRESHOLD_VALUE_EXCEEDED = "jmx.monitor.counter.threshold";
+    public static final @Interned String THRESHOLD_VALUE_EXCEEDED = "jmx.monitor.counter.threshold";
 
     /**
      * Notification type denoting that the observed attribute has exceeded the threshold high value.
      * This notification is only fired by gauge monitors.
      * <BR>The value of this notification type is <CODE>jmx.monitor.gauge.high</CODE>.
      */
-    public static final String THRESHOLD_HIGH_VALUE_EXCEEDED = "jmx.monitor.gauge.high";
+    public static final @Interned String THRESHOLD_HIGH_VALUE_EXCEEDED = "jmx.monitor.gauge.high";
 
     /**
      * Notification type denoting that the observed attribute has exceeded the threshold low value.
      * This notification is only fired by gauge monitors.
      * <BR>The value of this notification type is <CODE>jmx.monitor.gauge.low</CODE>.
      */
-    public static final String THRESHOLD_LOW_VALUE_EXCEEDED = "jmx.monitor.gauge.low";
+    public static final @Interned String THRESHOLD_LOW_VALUE_EXCEEDED = "jmx.monitor.gauge.low";
 
     /**
      * Notification type denoting that the observed attribute has matched the "string to compare" value.
      * This notification is only fired by string monitors.
      * <BR>The value of this notification type is <CODE>jmx.monitor.string.matches</CODE>.
      */
-    public static final String STRING_TO_COMPARE_VALUE_MATCHED = "jmx.monitor.string.matches";
+    public static final @Interned String STRING_TO_COMPARE_VALUE_MATCHED = "jmx.monitor.string.matches";
 
     /**
      * Notification type denoting that the observed attribute has differed from the "string to compare" value.
      * This notification is only fired by string monitors.
      * <BR>The value of this notification type is <CODE>jmx.monitor.string.differs</CODE>.
      */
-    public static final String STRING_TO_COMPARE_VALUE_DIFFERED = "jmx.monitor.string.differs";
+    public static final @Interned String STRING_TO_COMPARE_VALUE_DIFFERED = "jmx.monitor.string.differs";
 
 
     /*

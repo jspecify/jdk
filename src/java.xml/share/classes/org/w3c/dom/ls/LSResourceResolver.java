@@ -41,6 +41,10 @@
 
 package org.w3c.dom.ls;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  *  <code>LSResourceResolver</code> provides a way for applications to
  * redirect references to external resources.
@@ -66,6 +70,7 @@ and Save Specification</a>.
  *
  * @since 1.5
  */
+@AnnotatedFor({"nullness"})
 public interface LSResourceResolver {
     /**
      *  Allow the application to resolve external resources.
@@ -103,10 +108,11 @@ public interface LSResourceResolver {
      *   source, or <code>null</code> to request that the parser open a
      *   regular URI connection to the resource.
      */
-    public LSInput resolveResource(String type,
-                                   String namespaceURI,
-                                   String publicId,
-                                   String systemId,
-                                   String baseURI);
+    @Pure
+    public @Nullable LSInput resolveResource(String type,
+                                   @Nullable String namespaceURI,
+                                   @Nullable String publicId,
+                                   @Nullable String systemId,
+                                   @Nullable String baseURI);
 
 }

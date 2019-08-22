@@ -22,6 +22,9 @@
  */
 package com.sun.org.apache.xml.internal.security.utils;
 
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.ByteArrayOutputStream;
 
 import com.sun.org.apache.xml.internal.security.algorithms.MessageDigestAlgorithm;
@@ -29,6 +32,7 @@ import com.sun.org.apache.xml.internal.security.algorithms.MessageDigestAlgorith
 /**
  *
  */
+@AnnotatedFor({"signedness"})
 public class DigesterOutputStream extends ByteArrayOutputStream {
     private static final com.sun.org.slf4j.internal.Logger LOG =
         com.sun.org.slf4j.internal.LoggerFactory.getLogger(DigesterOutputStream.class);
@@ -43,7 +47,7 @@ public class DigesterOutputStream extends ByteArrayOutputStream {
     }
 
     /** {@inheritDoc} */
-    public void write(byte[] arg0) {
+    public void write(@PolySigned byte[] arg0) {
         write(arg0, 0, arg0.length);
     }
 
@@ -53,7 +57,7 @@ public class DigesterOutputStream extends ByteArrayOutputStream {
     }
 
     /** {@inheritDoc} */
-    public void write(byte[] arg0, int arg1, int arg2) {
+    public void write(@PolySigned byte[] arg0, int arg1, int arg2) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Pre-digested input:");
             StringBuilder sb = new StringBuilder(arg2);

@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.File;
@@ -49,7 +52,8 @@ import sun.net.www.ParseUtil;
  * @see     java.net.URL#URL(java.lang.String, java.lang.String, int, java.lang.String)
  * @since   1.0
  */
-public abstract class URLStreamHandler {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class URLStreamHandler {
     /**
      * Opens a connection to the object referenced by the
      * {@code URL} argument.

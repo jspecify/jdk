@@ -25,6 +25,10 @@
 
 package java.util.zip;
 
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.FilterOutputStream;
 import java.io.OutputStream;
 import java.io.IOException;
@@ -38,6 +42,7 @@ import java.io.IOException;
  * @author      David Connelly
  * @since 1.1
  */
+@AnnotatedFor({"index", "signedness"})
 public
 class CheckedOutputStream extends FilterOutputStream {
     private Checksum cksum;
@@ -70,7 +75,7 @@ class CheckedOutputStream extends FilterOutputStream {
      * @param len the number of bytes to be written
      * @exception IOException if an I/O error has occurred
      */
-    public void write(byte[] b, int off, int len) throws IOException {
+    public void write(@PolySigned byte[] b, @IndexOrHigh({"#1"}) int off, @IndexOrHigh({"#1"}) int len) throws IOException {
         out.write(b, off, len);
         cksum.update(b, off, len);
     }

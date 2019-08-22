@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Signals that an unexpected exception has occurred in a static initializer.
  * An <code>ExceptionInInitializerError</code> is thrown to indicate that an
@@ -41,6 +45,7 @@ package java.lang;
  * @author  Frank Yellin
  * @since   1.1
  */
+@AnnotatedFor({"nullness"})
 public class ExceptionInInitializerError extends LinkageError {
     /**
      * Use serialVersionUID from JDK 1.1.X for interoperability
@@ -63,6 +68,7 @@ public class ExceptionInInitializerError extends LinkageError {
      * throwable object.
      * A detail message is a String that describes this particular exception.
      */
+    @SideEffectFree
     public ExceptionInInitializerError() {
         initCause(null);  // Disallow subsequent initCause
     }
@@ -75,7 +81,8 @@ public class ExceptionInInitializerError extends LinkageError {
      *
      * @param thrown The exception thrown
      */
-    public ExceptionInInitializerError(Throwable thrown) {
+    @SideEffectFree
+    public ExceptionInInitializerError(@Nullable Throwable thrown) {
         initCause(null);  // Disallow subsequent initCause
         this.exception = thrown;
     }
@@ -90,7 +97,8 @@ public class ExceptionInInitializerError extends LinkageError {
      *
      * @param s the detail message
      */
-    public ExceptionInInitializerError(String s) {
+    @SideEffectFree
+    public ExceptionInInitializerError(@Nullable String s) {
         super(s);
         initCause(null);  // Disallow subsequent initCause
     }
@@ -108,7 +116,7 @@ public class ExceptionInInitializerError extends LinkageError {
      *         if this <code>ExceptionInInitializerError</code> has no saved
      *         throwable object.
      */
-    public Throwable getException() {
+    public @Nullable Throwable getException() {
         return exception;
     }
 
@@ -120,7 +128,7 @@ public class ExceptionInInitializerError extends LinkageError {
      *          cause is nonexistent or unknown.
      * @since   1.4
      */
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return exception;
     }
 }

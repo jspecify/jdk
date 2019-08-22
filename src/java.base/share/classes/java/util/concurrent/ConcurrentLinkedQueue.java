@@ -35,6 +35,14 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.AbstractQueue;
@@ -106,7 +114,8 @@ import java.util.function.Predicate;
  * @author Doug Lea
  * @param <E> the type of elements held in this queue
  */
-public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
+@AnnotatedFor({"nullness"})
+public class ConcurrentLinkedQueue<E extends @NonNull Object> extends AbstractQueue<E>
         implements Queue<E>, java.io.Serializable {
     private static final long serialVersionUID = 196745693267521676L;
 
@@ -183,7 +192,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
 
     static final class Node<E> {
         volatile E item;
-        volatile Node<E> next;
+        volatile @Nullable Node<E> next;
 
         /**
          * Constructs a node holding item.  Uses relaxed write because
@@ -380,7 +389,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
         }
     }
 
-    public E poll() {
+    public @Nullable E poll() {
         restartFromHead: for (;;) {
             for (Node<E> h = head, p = h, q;; p = q) {
                 final E item;
@@ -401,7 +410,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
         }
     }
 
-    public E peek() {
+    public @Nullable E peek() {
         restartFromHead: for (;;) {
             for (Node<E> h = head, p = h, q;; p = q) {
                 final E item;
@@ -424,7 +433,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      * and the need to add a retry loop to deal with the possibility
      * of losing a race to a concurrent poll().
      */
-    Node<E> first() {
+    @Nullable Node<E> first() {
         restartFromHead: for (;;) {
             for (Node<E> h = head, p = h, q;; p = q) {
                 boolean hasItem = (p.item != null);
@@ -443,6 +452,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      *
      * @return {@code true} if this queue contains no elements
      */
+    @Pure
     public boolean isEmpty() {
         return first() == null;
     }
@@ -463,6 +473,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      *
      * @return the number of elements in this queue
      */
+    @Pure
     public int size() {
         restartFromHead: for (;;) {
             int count = 0;
@@ -485,6 +496,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      * @param o object to be checked for containment in this queue
      * @return {@code true} if this queue contains the specified element
      */
+    @Pure
     public boolean contains(Object o) {
         if (o == null) return false;
         restartFromHead: for (;;) {
@@ -518,7 +530,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      * @param o element to be removed from this queue, if present
      * @return {@code true} if this queue changed as a result of the call
      */
-    public boolean remove(Object o) {
+    public boolean remove(@Nullable Object o) {
         if (o == null) return false;
         restartFromHead: for (;;) {
             for (Node<E> p = head, pred = null; p != null; ) {
@@ -671,7 +683,8 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      *
      * @return an array containing all of the elements in this queue
      */
-    public Object[] toArray() {
+    @SideEffectFree
+    public @PolyNull Object[] toArray(ConcurrentLinkedQueue<@PolyNull E> this) {
         return toArrayInternal(null);
     }
 
@@ -710,6 +723,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      *         this queue
      * @throws NullPointerException if the specified array is null
      */
+    @SideEffectFree
     @SuppressWarnings("unchecked")
     public <T> T[] toArray(T[] a) {
         Objects.requireNonNull(a);
@@ -725,6 +739,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      *
      * @return an iterator over the elements in this queue in proper sequence
      */
+    @SideEffectFree
     public Iterator<E> iterator() {
         return new Itr();
     }
@@ -733,7 +748,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
         /**
          * Next node to return item for.
          */
-        private Node<E> nextNode;
+        private @Nullable Node<E> nextNode;
 
         /**
          * nextItem holds on to item fields because once we claim
@@ -951,6 +966,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      * @return a {@code Spliterator} over the elements in this queue
      * @since 1.8
      */
+    @SideEffectFree
     @Override
     public Spliterator<E> spliterator() {
         return new CLQSpliterator();

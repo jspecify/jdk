@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.*;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.InvalidParameterSpecException;
@@ -73,7 +76,8 @@ import java.util.Objects;
  * @since 1.2
  */
 
-public class AlgorithmParameters {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class AlgorithmParameters {
 
     // The provider
     private Provider provider;

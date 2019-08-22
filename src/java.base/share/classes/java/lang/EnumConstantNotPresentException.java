@@ -25,6 +25,9 @@
 
 package java.lang;
 
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Thrown when an application tries to access an enum constant by name
  * and the enum type contains no constant with the specified name.
@@ -36,6 +39,7 @@ package java.lang;
  * @see     java.lang.reflect.AnnotatedElement
  * @since   1.5
  */
+@AnnotatedFor({"nullness"})
 @SuppressWarnings("rawtypes") /* rawtypes are part of the public api */
 public class EnumConstantNotPresentException extends RuntimeException {
     private static final long serialVersionUID = -6046998521960521108L;
@@ -57,6 +61,7 @@ public class EnumConstantNotPresentException extends RuntimeException {
      * @param enumType the type of the missing enum constant
      * @param constantName the name of the missing enum constant
      */
+    @SideEffectFree
     public EnumConstantNotPresentException(Class<? extends Enum> enumType,
                                            String constantName) {
         super(enumType.getName() + "." + constantName);

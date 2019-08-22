@@ -25,6 +25,9 @@
 
 package javax.naming.ldap;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import javax.naming.*;
 import javax.naming.directory.*;
 
@@ -87,6 +90,7 @@ import java.util.Hashtable;
   * @since 1.3
   */
 
+@AnnotatedFor("nullness")
 public class InitialLdapContext extends InitialDirContext implements LdapContext {
     private static final String
         BIND_CONTROLS_PROPERTY = "java.naming.ldap.control.connect";
@@ -130,8 +134,8 @@ public class InitialLdapContext extends InitialDirContext implements LdapContext
      * @see LdapContext#reconnect
      */
     @SuppressWarnings("unchecked")
-    public InitialLdapContext(Hashtable<?,?> environment,
-                              Control[] connCtls)
+    public InitialLdapContext(@Nullable Hashtable<?,?> environment,
+                              Control @Nullable [] connCtls)
             throws NamingException {
         super(true); // don't initialize yet
 
@@ -179,34 +183,34 @@ public class InitialLdapContext extends InitialDirContext implements LdapContext
 // LdapContext methods
 // Most Javadoc is deferred to the LdapContext interface.
 
-    public ExtendedResponse extendedOperation(ExtendedRequest request)
+    public @Nullable ExtendedResponse extendedOperation(ExtendedRequest request)
             throws NamingException {
         return getDefaultLdapInitCtx().extendedOperation(request);
     }
 
-    public LdapContext newInstance(Control[] reqCtls)
+    public LdapContext newInstance(Control @Nullable [] reqCtls)
         throws NamingException {
             return getDefaultLdapInitCtx().newInstance(reqCtls);
     }
 
-    public void reconnect(Control[] connCtls) throws NamingException {
+    public void reconnect(Control @Nullable [] connCtls) throws NamingException {
         getDefaultLdapInitCtx().reconnect(connCtls);
     }
 
-    public Control[] getConnectControls() throws NamingException {
+    public Control @Nullable [] getConnectControls() throws NamingException {
         return getDefaultLdapInitCtx().getConnectControls();
     }
 
-    public void setRequestControls(Control[] requestControls)
+    public void setRequestControls(Control @Nullable [] requestControls)
         throws NamingException {
             getDefaultLdapInitCtx().setRequestControls(requestControls);
     }
 
-    public Control[] getRequestControls() throws NamingException {
+    public Control @Nullable [] getRequestControls() throws NamingException {
         return getDefaultLdapInitCtx().getRequestControls();
     }
 
-    public Control[] getResponseControls() throws NamingException {
+    public Control @Nullable [] getResponseControls() throws NamingException {
         return getDefaultLdapInitCtx().getResponseControls();
     }
 }

@@ -25,6 +25,8 @@
 
 package java.lang;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.annotation.*;
 import static java.lang.annotation.ElementType.*;
 
@@ -77,6 +79,7 @@ import static java.lang.annotation.ElementType.*;
  * @since 1.5
  * @jls 9.6.4.6 @Deprecated
  */
+@AnnotatedFor({"nullness"})
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(value={CONSTRUCTOR, FIELD, LOCAL_VARIABLE, METHOD, PACKAGE, MODULE, PARAMETER, TYPE})

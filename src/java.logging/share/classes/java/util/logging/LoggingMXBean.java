@@ -25,6 +25,9 @@
 
 package java.util.logging;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 
 /**
  * The management interface for the logging facility.
@@ -51,8 +54,9 @@ package java.util.logging;
  *
  * @see java.lang.management.PlatformLoggingMXBean
  */
+@AnnotatedFor({"interning"})
 @Deprecated(since="9")
-public interface LoggingMXBean {
+public @UsesObjectEquals interface LoggingMXBean {
 
     /**
      * Returns the list of currently registered logger names. This method

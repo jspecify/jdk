@@ -25,6 +25,9 @@
 
 package java.lang.ref;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.function.Consumer;
 import jdk.internal.misc.VM;
 
@@ -36,7 +39,9 @@ import jdk.internal.misc.VM;
  * @since    1.2
  */
 
-public class ReferenceQueue<T> {
+@AnnotatedFor({"interning", "nullness"})
+@SuppressWarnings({"rawtypes"})
+public @UsesObjectEquals class ReferenceQueue<T> {
 
     /**
      * Constructs a new reference-object queue.
@@ -57,6 +62,7 @@ public class ReferenceQueue<T> {
     private volatile Reference<? extends T> head;
     private long queueLength = 0;
 
+    @SuppressWarnings({"unchecked"})
     boolean enqueue(Reference<? extends T> r) { /* Called only by Reference class */
         synchronized (lock) {
             // Check that since getting the lock this reference hasn't already been
@@ -82,6 +88,7 @@ public class ReferenceQueue<T> {
         }
     }
 
+    @SuppressWarnings({"unchecked"})
     private Reference<? extends T> reallyPoll() {       /* Must hold lock */
         Reference<? extends T> r = head;
         if (r != null) {

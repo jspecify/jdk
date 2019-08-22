@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Thrown to indicate that the code has attempted to cast an object
  * to a subclass of which it is not an instance. For example, the
@@ -37,6 +41,7 @@ package java.lang;
  * @author  unascribed
  * @since   1.0
  */
+@AnnotatedFor({"nullness"})
 public
 class ClassCastException extends RuntimeException {
     private static final long serialVersionUID = -9223365651070458532L;
@@ -44,6 +49,7 @@ class ClassCastException extends RuntimeException {
     /**
      * Constructs a <code>ClassCastException</code> with no detail message.
      */
+    @SideEffectFree
     public ClassCastException() {
         super();
     }
@@ -54,7 +60,8 @@ class ClassCastException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    public ClassCastException(String s) {
+    @SideEffectFree
+    public ClassCastException(@Nullable String s) {
         super(s);
     }
 }

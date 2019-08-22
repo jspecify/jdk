@@ -25,6 +25,9 @@
 
 package javax.naming.ldap;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Requests that referral and other special LDAP objects be manipulated
  * as normal LDAP objects. It enables the requestor to interrogate or
@@ -39,13 +42,14 @@ package javax.naming.ldap;
  * @since 1.5
  * @author Vincent Ryan
  */
+@AnnotatedFor({"interning"})
 final public class ManageReferralControl extends BasicControl {
 
     /**
      * The ManageReferral control's assigned object identifier
      * is 2.16.840.1.113730.3.4.2.
      */
-    public static final String OID = "2.16.840.1.113730.3.4.2";
+    public static final @Interned String OID = "2.16.840.1.113730.3.4.2";
 
     private static final long serialVersionUID = 3017756160149982566L;
 

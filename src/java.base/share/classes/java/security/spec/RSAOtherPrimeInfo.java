@@ -25,6 +25,9 @@
 
 package java.security.spec;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.math.BigInteger;
 
 /**
@@ -51,7 +54,8 @@ import java.math.BigInteger;
  * @since 1.4
  */
 
-public class RSAOtherPrimeInfo {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class RSAOtherPrimeInfo {
 
     private BigInteger prime;
     private BigInteger primeExponent;

@@ -24,6 +24,8 @@
  */
 package java.util.stream;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Objects;
@@ -194,6 +196,7 @@ import java.util.function.Supplier;
  * @param <R> the result type of the reduction operation
  * @since 1.8
  */
+@AnnotatedFor({"lock", "nullness"})
 public interface Collector<T, A, R> {
     /**
      * A function that creates and returns a new mutable result container.

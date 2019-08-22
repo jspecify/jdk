@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import jdk.internal.misc.JavaNetSocketAccess;
 import jdk.internal.misc.SharedSecrets;
 
@@ -55,8 +58,9 @@ import java.util.Collections;
  * @see     java.nio.channels.ServerSocketChannel
  * @since   1.0
  */
+@AnnotatedFor({"interning"})
 public
-class ServerSocket implements java.io.Closeable {
+@UsesObjectEquals class ServerSocket implements java.io.Closeable {
     /**
      * Various states of this socket.
      */

@@ -26,6 +26,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.image.BufferedImage;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -53,7 +56,8 @@ import sun.security.action.GetPropertyAction;
  * @see GraphicsConfiguration
  */
 
-public abstract class GraphicsEnvironment {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class GraphicsEnvironment {
 
     /**
      * The headless state of the Toolkit and GraphicsEnvironment

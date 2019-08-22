@@ -25,6 +25,10 @@
 
 package java.util.zip;
 
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.OutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -43,6 +47,7 @@ import sun.security.action.GetPropertyAction;
  * @author      David Connelly
  * @since 1.1
  */
+@AnnotatedFor({"index", "signedness"})
 public
 class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
 
@@ -313,7 +318,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
      * @exception ZipException if a ZIP file error has occurred
      * @exception IOException if an I/O error has occurred
      */
-    public synchronized void write(byte[] b, int off, int len)
+    public synchronized void write(@PolySigned byte[] b, @IndexOrHigh({"#1"}) int off, @IndexOrHigh({"#1"}) int len)
         throws IOException
     {
         ensureOpen();
@@ -755,7 +760,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     /*
      * Writes a 8-bit byte to the output stream.
      */
-    private void writeByte(int v) throws IOException {
+    private void writeByte(@PolySigned int v) throws IOException {
         OutputStream out = this.out;
         out.write(v & 0xff);
         written += 1;
@@ -764,7 +769,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     /*
      * Writes a 16-bit short to the output stream in little-endian byte order.
      */
-    private void writeShort(int v) throws IOException {
+    private void writeShort(@PolySigned int v) throws IOException {
         OutputStream out = this.out;
         out.write((v >>> 0) & 0xff);
         out.write((v >>> 8) & 0xff);
@@ -774,7 +779,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     /*
      * Writes a 32-bit int to the output stream in little-endian byte order.
      */
-    private void writeInt(long v) throws IOException {
+    private void writeInt(@PolySigned long v) throws IOException {
         OutputStream out = this.out;
         out.write((int)((v >>>  0) & 0xff));
         out.write((int)((v >>>  8) & 0xff));
@@ -786,7 +791,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     /*
      * Writes a 64-bit int to the output stream in little-endian byte order.
      */
-    private void writeLong(long v) throws IOException {
+    private void writeLong(@PolySigned long v) throws IOException {
         OutputStream out = this.out;
         out.write((int)((v >>>  0) & 0xff));
         out.write((int)((v >>>  8) & 0xff));
@@ -802,7 +807,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     /*
      * Writes an array of bytes to the output stream.
      */
-    private void writeBytes(byte[] b, int off, int len) throws IOException {
+    private void writeBytes(@PolySigned byte[] b, int off, int len) throws IOException {
         super.out.write(b, off, len);
         written += len;
     }

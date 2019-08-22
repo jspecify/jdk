@@ -25,6 +25,9 @@
 
 package java.nio.file;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.nio.file.attribute.BasicFileAttributes;
 import java.io.IOException;
 import java.util.Objects;
@@ -40,7 +43,8 @@ import java.util.Objects;
  * @since 1.7
  */
 
-public class SimpleFileVisitor<T> implements FileVisitor<T> {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class SimpleFileVisitor<T> implements FileVisitor<T> {
     /**
      * Initializes a new instance of this class.
      */

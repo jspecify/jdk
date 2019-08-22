@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.image.ColorModel;
 
 import sun.awt.AppContext;
@@ -73,7 +76,8 @@ import sun.awt.SunToolkit;
  * @see GraphicsEnvironment
  * @see GraphicsConfiguration
  */
-public abstract class GraphicsDevice {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class GraphicsDevice {
 
     private Window fullScreenWindow;
     private AppContext fullScreenAppContext; // tracks which AppContext

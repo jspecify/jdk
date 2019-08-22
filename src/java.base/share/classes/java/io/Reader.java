@@ -25,6 +25,15 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.nio.CharBuffer;
 import java.util.Objects;
@@ -51,7 +60,8 @@ import java.util.Objects;
  * @since       1.1
  */
 
-public abstract class Reader implements Readable, Closeable {
+@AnnotatedFor({"index", "interning", "lock", "nullness"})
+public abstract @UsesObjectEquals class Reader implements Readable, Closeable {
 
     private static final int TRANSFER_BUFFER_SIZE = 8192;
 
@@ -183,7 +193,7 @@ public abstract class Reader implements Readable, Closeable {
      * @throws java.nio.ReadOnlyBufferException if target is a read only buffer
      * @since 1.5
      */
-    public int read(java.nio.CharBuffer target) throws IOException {
+    public @GTENegativeOne int read(@GuardSatisfied Reader this, java.nio.CharBuffer target) throws IOException {
         int len = target.remaining();
         char[] cbuf = new char[len];
         int n = read(cbuf, 0, len);
@@ -205,7 +215,7 @@ public abstract class Reader implements Readable, Closeable {
      *
      * @exception  IOException  If an I/O error occurs
      */
-    public int read() throws IOException {
+    public @GTENegativeOne int read(@GuardSatisfied Reader this) throws IOException {
         char cb[] = new char[1];
         if (read(cb, 0, 1) == -1)
             return -1;
@@ -225,7 +235,7 @@ public abstract class Reader implements Readable, Closeable {
      *
      * @exception   IOException  If an I/O error occurs
      */
-    public int read(char cbuf[]) throws IOException {
+    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(@GuardSatisfied Reader this, char cbuf[]) throws IOException {
         return read(cbuf, 0, cbuf.length);
     }
 
@@ -246,7 +256,7 @@ public abstract class Reader implements Readable, Closeable {
      *             If {@code off} is negative, or {@code len} is negative,
      *             or {@code len} is greater than {@code cbuf.length - off}
      */
-    public abstract int read(char cbuf[], int off, int len) throws IOException;
+    public abstract @GTENegativeOne @LTEqLengthOf({"#1"}) int read(@GuardSatisfied Reader this, char cbuf[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException;
 
     /** Maximum skip-buffer size */
     private static final int maxSkipBufferSize = 8192;
@@ -265,7 +275,7 @@ public abstract class Reader implements Readable, Closeable {
      * @exception  IllegalArgumentException  If <code>n</code> is negative.
      * @exception  IOException  If an I/O error occurs
      */
-    public long skip(long n) throws IOException {
+    public @NonNegative long skip(@GuardSatisfied Reader this, @NonNegative long n) throws IOException {
         if (n < 0L)
             throw new IllegalArgumentException("skip value is negative");
         int nn = (int) Math.min(n, maxSkipBufferSize);
@@ -320,7 +330,7 @@ public abstract class Reader implements Readable, Closeable {
      * @exception  IOException  If the stream does not support mark(),
      *                          or if some other I/O error occurs
      */
-    public void mark(int readAheadLimit) throws IOException {
+    public void mark(@GuardSatisfied Reader this, @NonNegative int readAheadLimit) throws IOException {
         throw new IOException("mark() not supported");
     }
 
@@ -337,7 +347,7 @@ public abstract class Reader implements Readable, Closeable {
      *                          or if the stream does not support reset(),
      *                          or if some other I/O error occurs
      */
-    public void reset() throws IOException {
+    public void reset(@GuardSatisfied Reader this) throws IOException {
         throw new IOException("reset() not supported");
     }
 
@@ -349,7 +359,7 @@ public abstract class Reader implements Readable, Closeable {
      *
      * @exception  IOException  If an I/O error occurs
      */
-     public abstract void close() throws IOException;
+     public abstract void close(@GuardSatisfied Reader this) throws IOException;
 
     /**
      * Reads all characters from this reader and writes the characters to the

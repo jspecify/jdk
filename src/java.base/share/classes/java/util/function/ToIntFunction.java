@@ -24,6 +24,8 @@
  */
 package java.util.function;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Represents a function that produces an int-valued result.  This is the
  * {@code int}-producing primitive specialization for {@link Function}.
@@ -36,6 +38,7 @@ package java.util.function;
  * @see Function
  * @since 1.8
  */
+@AnnotatedFor({"lock", "nullness"})
 @FunctionalInterface
 public interface ToIntFunction<T> {
 

@@ -25,7 +25,11 @@
 
 package java.util;
 
-class LocaleISOData {
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
+@AnnotatedFor({"interning"})
+@UsesObjectEquals class LocaleISOData {
     /**
      * The 2- and 3-letter ISO 639 language codes.
      */

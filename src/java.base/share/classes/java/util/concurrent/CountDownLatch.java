@@ -35,6 +35,9 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
 /**
@@ -154,7 +157,8 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
  * @since 1.5
  * @author Doug Lea
  */
-public class CountDownLatch {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class CountDownLatch {
     /**
      * Synchronization control For CountDownLatch.
      * Uses AQS state to represent count.

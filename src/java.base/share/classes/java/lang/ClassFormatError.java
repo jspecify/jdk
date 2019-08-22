@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Thrown when the Java Virtual Machine attempts to read a class
  * file and determines that the file is malformed or otherwise cannot
@@ -33,6 +37,7 @@ package java.lang;
  * @author  unascribed
  * @since   1.0
  */
+@AnnotatedFor({"nullness"})
 public
 class ClassFormatError extends LinkageError {
     private static final long serialVersionUID = -8420114879011949195L;
@@ -40,6 +45,7 @@ class ClassFormatError extends LinkageError {
     /**
      * Constructs a <code>ClassFormatError</code> with no detail message.
      */
+    @SideEffectFree
     public ClassFormatError() {
         super();
     }
@@ -50,7 +56,8 @@ class ClassFormatError extends LinkageError {
      *
      * @param   s   the detail message.
      */
-    public ClassFormatError(String s) {
+    @SideEffectFree
+    public ClassFormatError(@Nullable String s) {
         super(s);
     }
 }

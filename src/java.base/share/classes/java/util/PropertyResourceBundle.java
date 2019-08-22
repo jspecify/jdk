@@ -39,6 +39,8 @@
 
 package java.util;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -136,6 +138,7 @@ import sun.util.ResourceBundleEnumeration;
  * @see Properties
  * @since 1.1
  */
+@AnnotatedFor({"lock"})
 public class PropertyResourceBundle extends ResourceBundle {
 
     // Check whether the strict encoding is specified.

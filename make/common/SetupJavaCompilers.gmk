@@ -35,17 +35,21 @@ DISABLE_WARNINGS ?= -Xlint:all,-deprecation,-removal,-unchecked,-rawtypes,-cast,
 
 # If warnings needs to be non-fatal for testing purposes use a command like:
 # make JAVAC_WARNINGS="-Xlint:all -Xmaxwarns 10000"
-JAVAC_WARNINGS ?= -Xlint:all -Werror
+# (Checker Framework Comment: Temporarily removed -Werror.)
+# JAVAC_WARNINGS ?= -Xlint:all -Werror
+JAVAC_WARNINGS ?= -Xlint:all
 
 # The BOOT_JAVAC setup uses the boot jdk compiler to compile the tools
 # and the interim javac, to be run by the boot jdk.
+# (Checker Framework Comment: Temporarily removed -Werror.)
+#       -Xlint:all$(COMMA)-deprecation$(COMMA)-options -Werror, BACKSLASH
 $(eval $(call SetupJavaCompiler,BOOT_JAVAC, \
     JAVAC := $(JAVAC), \
     FLAGS := \
         $(JAVA_TOOL_FLAGS_SMALL) \
         $(BOOT_JDK_SOURCETARGET) \
         -XDignore.symbol.file=true -g \
-        -Xlint:all$(COMMA)-deprecation$(COMMA)-options -Werror, \
+        -Xlint:all$(COMMA)-deprecation$(COMMA)-options, \
     DISABLE_SJAVAC := true, \
 ))
 

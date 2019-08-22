@@ -830,6 +830,8 @@ java/awt/im/memoryleak/InputContextMemoryLeakTest.java 8023814 linux-all,solaris
 
 tools/pack200/CommandLineTests.java                             8059906 generic-all
 
+tools/pack200/Pack200Test.java                                  8152622 generic-all
+
 ############################################################################
 
 # jdk_jdi

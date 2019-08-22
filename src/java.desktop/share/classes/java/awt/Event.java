@@ -24,6 +24,9 @@
  */
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.event.KeyEvent;
 
 /**
@@ -61,7 +64,8 @@ import java.awt.event.KeyEvent;
  * @since      1.0
  */
 @Deprecated(since = "9")
-public class Event implements java.io.Serializable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class Event implements java.io.Serializable {
     private transient long data;
 
     /* Modifier constants */

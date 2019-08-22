@@ -40,6 +40,9 @@
 
 package java.awt.font;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /*
  * one info for each side of each glyph
  * separate infos for grow and shrink case
@@ -47,7 +50,8 @@ package java.awt.font;
  * separate, probably the newJustify code from TextLayout belongs here as well.
  */
 
-class TextJustifier {
+@AnnotatedFor({"interning"})
+@UsesObjectEquals class TextJustifier {
     private GlyphJustificationInfo[] info;
     private int start;
     private int limit;

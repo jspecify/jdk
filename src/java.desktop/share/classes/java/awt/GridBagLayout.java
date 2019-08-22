@@ -24,6 +24,9 @@
  */
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Hashtable;
 import java.util.Arrays;
 
@@ -367,7 +370,8 @@ import java.util.Arrays;
  * @see       java.awt.ComponentOrientation
  * @since 1.0
  */
-public class GridBagLayout implements LayoutManager2,
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class GridBagLayout implements LayoutManager2,
 java.io.Serializable {
 
     static final int EMPIRICMULTIPLIER = 2;

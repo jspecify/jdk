@@ -25,6 +25,8 @@
 
 package java.lang.ref;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 
 /**
  * Weak reference objects, which do not prevent their referents from being
@@ -45,6 +47,7 @@ package java.lang.ref;
  * @since    1.2
  */
 
+@AnnotatedFor({"nullness"})
 public class WeakReference<T> extends Reference<T> {
 
     /**

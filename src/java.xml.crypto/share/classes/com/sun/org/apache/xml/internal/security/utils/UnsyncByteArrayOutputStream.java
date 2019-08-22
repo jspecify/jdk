@@ -22,6 +22,9 @@
  */
 package com.sun.org.apache.xml.internal.security.utils;
 
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.io.OutputStream;
 
@@ -29,6 +32,7 @@ import java.io.OutputStream;
  * A simple Unsynced ByteArrayOutputStream
  *
  */
+@AnnotatedFor({"signedness"})
 public class UnsyncByteArrayOutputStream extends OutputStream  {
 
     // Maximum array size. Using same value as ArrayList in OpenJDK.
@@ -44,7 +48,7 @@ public class UnsyncByteArrayOutputStream extends OutputStream  {
         buf = new byte[INITIAL_SIZE];
     }
 
-    public void write(byte[] arg0) {
+    public void write(@PolySigned byte[] arg0) {
         if ((VM_ARRAY_INDEX_MAX_VALUE - pos) < arg0.length) {
             throw new OutOfMemoryError();
         }
@@ -56,7 +60,7 @@ public class UnsyncByteArrayOutputStream extends OutputStream  {
         pos = newPos;
     }
 
-    public void write(byte[] arg0, int arg1, int arg2) {
+    public void write(@PolySigned byte[] arg0, int arg1, int arg2) {
         if ((VM_ARRAY_INDEX_MAX_VALUE - pos) < arg2) {
             throw new OutOfMemoryError();
         }

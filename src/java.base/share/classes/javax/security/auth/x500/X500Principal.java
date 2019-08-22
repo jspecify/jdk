@@ -25,6 +25,9 @@
 
 package javax.security.auth.x500;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.*;
 import java.security.Principal;
 import java.util.Collections;
@@ -61,6 +64,7 @@ import sun.security.util.*;
  * @see java.security.cert.X509Certificate
  * @since 1.4
  */
+@AnnotatedFor({"interning"})
 public final class X500Principal implements Principal, java.io.Serializable {
 
     private static final long serialVersionUID = -500463348111345721L;
@@ -68,15 +72,15 @@ public final class X500Principal implements Principal, java.io.Serializable {
     /**
      * RFC 1779 String format of Distinguished Names.
      */
-    public static final String RFC1779 = "RFC1779";
+    public static final @Interned String RFC1779 = "RFC1779";
     /**
      * RFC 2253 String format of Distinguished Names.
      */
-    public static final String RFC2253 = "RFC2253";
+    public static final @Interned String RFC2253 = "RFC2253";
     /**
      * Canonical String format of Distinguished Names.
      */
-    public static final String CANONICAL = "CANONICAL";
+    public static final @Interned String CANONICAL = "CANONICAL";
 
     /**
      * The X500Name representing this principal.

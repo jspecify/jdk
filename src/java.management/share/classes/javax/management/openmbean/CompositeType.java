@@ -26,9 +26,15 @@
 
 package javax.management.openmbean;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 
 // java import
 //
+import org.checkerframework.checker.nullness.qual.EnsuresKeyForIf;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.Collections;
@@ -45,6 +51,7 @@ import java.util.Iterator;
  *
  * @since 1.5
  */
+@AnnotatedFor("nullness")
 public class CompositeType extends OpenType<CompositeData> {
 
     /* Serial version */
@@ -62,9 +69,9 @@ public class CompositeType extends OpenType<CompositeData> {
 
     /* As this instance is immutable, following three values need only
      * be calculated once.  */
-    private transient Integer myHashCode = null;
-    private transient String  myToString = null;
-    private transient Set<String> myNamesSet = null;
+    private transient @MonotonicNonNull Integer myHashCode = null;
+    private transient @MonotonicNonNull String  myToString = null;
+    private transient @MonotonicNonNull Set<String> myNamesSet = null;
 
 
     /* *** Constructor *** */
@@ -187,7 +194,8 @@ public class CompositeType extends OpenType<CompositeData> {
      *
      * @return true if an item of this name is present.
      */
-    public boolean containsKey(String itemName) {
+    @EnsuresKeyForIf(expression={"#1"}, result=true, map={"this"})
+    public boolean containsKey(@Nullable String itemName) {
 
         if (itemName == null) {
             return false;
@@ -204,7 +212,7 @@ public class CompositeType extends OpenType<CompositeData> {
      *
      * @return the description.
      */
-    public String getDescription(String itemName) {
+    public @Nullable String getDescription(@Nullable String itemName) {
 
         if (itemName == null) {
             return null;
@@ -221,7 +229,7 @@ public class CompositeType extends OpenType<CompositeData> {
      *
      * @return the type.
      */
-    public OpenType<?> getType(String itemName) {
+    public @Nullable OpenType<?> getType(@Nullable String itemName) {
 
         if (itemName == null) {
             return null;
@@ -298,7 +306,7 @@ public class CompositeType extends OpenType<CompositeData> {
      * @return <code>true</code> if <var>obj</var> is a value for this
      * composite type, <code>false</code> otherwise.
      */
-    public boolean isValue(Object obj) {
+    public boolean isValue(@Nullable Object obj) {
 
         // if obj is null or not CompositeData, return false
         //
@@ -362,7 +370,7 @@ public class CompositeType extends OpenType<CompositeData> {
      *
      * @return  <code>true</code> if the specified object is equal to this <code>CompositeType</code> instance.
      */
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
 
         // if obj is null, return false
         //

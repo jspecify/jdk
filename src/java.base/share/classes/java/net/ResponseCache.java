@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.List;
@@ -58,7 +61,8 @@ import sun.security.util.SecurityConstants;
  * @author Yingxian Wang
  * @since 1.5
  */
-public abstract class ResponseCache {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class ResponseCache {
 
     /**
      * The system wide cache that provides access to a url

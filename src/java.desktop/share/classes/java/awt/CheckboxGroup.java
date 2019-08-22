@@ -24,6 +24,9 @@
  */
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * The {@code CheckboxGroup} class is used to group together
  * a set of {@code Checkbox} buttons.
@@ -54,7 +57,8 @@ package java.awt;
  * @see         java.awt.Checkbox
  * @since       1.0
  */
-public class CheckboxGroup implements java.io.Serializable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class CheckboxGroup implements java.io.Serializable {
     /**
      * The current choice.
      * @serial

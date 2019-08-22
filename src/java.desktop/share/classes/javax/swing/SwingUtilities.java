@@ -24,6 +24,11 @@
  */
 package javax.swing;
 
+import org.checkerframework.checker.guieffect.qual.SafeEffect;
+import org.checkerframework.checker.guieffect.qual.UI;
+import org.checkerframework.checker.guieffect.qual.UIType;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import sun.reflect.misc.ReflectUtil;
 import sun.swing.SwingUtilities2;
 import sun.swing.UIAction;
@@ -53,6 +58,8 @@ import sun.awt.AWTAccessor.MouseEventAccessor;
  * @author unknown
  * @since 1.2
  */
+@AnnotatedFor({"guieffect"})
+@UIType
 public class SwingUtilities implements SwingConstants
 {
     // These states are system-wide, rather than AppContext wide.
@@ -1417,7 +1424,8 @@ public class SwingUtilities implements SwingConstants
      * @param doRun the instance of {@code Runnable}
      * @see #invokeAndWait
      */
-    public static void invokeLater(Runnable doRun) {
+    @SafeEffect
+    public static void invokeLater(@UI Runnable doRun) {
         EventQueue.invokeLater(doRun);
     }
 
@@ -1474,7 +1482,8 @@ public class SwingUtilities implements SwingConstants
      *
      * @see #invokeLater
      */
-    public static void invokeAndWait(final Runnable doRun)
+    @SafeEffect
+    public static void invokeAndWait(final @UI Runnable doRun)
         throws InterruptedException, InvocationTargetException
     {
         EventQueue.invokeAndWait(doRun);

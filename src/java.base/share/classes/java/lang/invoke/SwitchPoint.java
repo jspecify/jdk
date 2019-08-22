@@ -25,6 +25,9 @@
 
 package java.lang.invoke;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * <p>
  * A {@code SwitchPoint} is an object which can publish state transitions to other threads.
@@ -110,7 +113,8 @@ package java.lang.invoke;
  * @author Remi Forax, JSR 292 EG
  * @since 1.7
  */
-public class SwitchPoint {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class SwitchPoint {
     private static final MethodHandle
         K_true  = MethodHandles.constant(boolean.class, true),
         K_false = MethodHandles.constant(boolean.class, false);

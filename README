@@ -1,3 +1,84 @@
+Typetools fork of the JDK
+=========================
+
+This fork of the JDK contains type annotations for pluggable type-checking.
+
+This fork is not up to date with respect to `openjdk/jdk` (the current OpenJDK version).
+This fork contains all commits through the release of JDK 11:
+https://github.com/typetools/jdk/commit/da75f3c4ad5bdf25167a3ed80e51f567ab3dbd01
+with commit message:
+8209806: API docs should be updated to refer to javase11
+[TODO: How did I determine that was the right commit to use?]
+
+This fork is an ancestor of JDK release forks such as jdk11u.  This fork
+does not compile, because the commit of `openjdk/jdk` on which it is based
+no longer compiles, due to changes to tools such as compilers.
+Repositories such as jdk11u and jdk12u have been updated and do compile.
+
+This fork's annotations are pulled into those repositories, in order to
+build an annotated JDK.  We do not write annotations in (say) jdk11u,
+because it has diverged so far from other repositories that merging it into
+jdk12u would be more painful than merging jdk into both jdk11u and jdk12u.
+
+
+Pull request merge conflicts
+----------------------------
+
+If a pull request is failing with a merge conflict in `jdk11u`, do the
+following in a clone of the branch of `jdk` whose pull request is failing.
+
+```
+BRANCH=`git rev-parse --abbrev-ref HEAD`
+URL=`git config --get remote.origin.url`
+SLUG=${URL#*:}
+ORG=${SLUG%/*}
+JDK11DIR=../jdk11u-fork-$ORG-branch-$BRANCH
+JDK11URL=`echo "$URL" | sed 's/jdk/jdk11u/'`
+if [ -d $JDK11DIR ] ; then
+  (cd $JDK11DIR && git pull)
+else
+  git clone $JDK11URL $JDK11DIR && (cd $JDK11DIR && (git checkout $BRANCH || git checkout -b $BRANCH))
+fi
+cd $JDK11DIR
+git pull $URL $BRANCH
+```
+
+Manual step: resolve conflicts and complete the merge.
+
+```
+git push --set-upstream origin $BRANCH
+```
+
+Manual step: restart the pull request CI job.
+
+After the pull request is merged to https://github.com/typetools/jdk,
+follow the instructions at https://github.com/typetools/jdk11u to update
+jdk11u, taking guidance from the merge done in the fork of jdk11u to
+resolve conflicts.  Then, discard the branch in the fork of jdk11u.
+
+
+Qualifier definitions
+---------------------
+
+The java.base module contains a copy of the Checker Framework qualifiers.
+To update that copy:
+
+VER=2.10.0
+cd src/java.base/share/classes
+rm -rf org/checkerframework
+wget https://repo1.maven.org/maven2/org/checkerframework/checker-qual/$VER/checker-qual-$VER-sources.jar
+unzip checker-qual-$VER-sources.jar -x 'META-INF*'
+jar tf checker-qual-$VER-sources.jar  | grep '\.java$' | sed 's/\/[^/]*\.java/;/' | sed 's/\//./g' | sed 's/^/    exports /' | sort | uniq
+rm -f checker-qual-$VER-sources.jar
+
+Copy the exports lines to src/java.base/share/classes/module-info.java
+
+
+Upstream README follows
+-----------------------
+
+The remainder of this file is the README from `openjdk/jdk`.
+
 
 Welcome to the JDK!
 ===================

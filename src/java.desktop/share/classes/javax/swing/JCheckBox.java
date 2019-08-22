@@ -24,6 +24,9 @@
  */
 package javax.swing;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.beans.JavaBean;
 import java.beans.BeanProperty;
 
@@ -70,13 +73,14 @@ import java.io.IOException;
  * @author Jeff Dinkins
  * @since 1.2
  */
+@AnnotatedFor({"interning"})
 @JavaBean(description = "A component which can be selected or deselected.")
 @SwingContainer(false)
 @SuppressWarnings("serial") // Same-version serialization only
 public class JCheckBox extends JToggleButton implements Accessible {
 
     /** Identifies a change to the flat property. */
-    public static final String BORDER_PAINTED_FLAT_CHANGED_PROPERTY = "borderPaintedFlat";
+    public static final @Interned String BORDER_PAINTED_FLAT_CHANGED_PROPERTY = "borderPaintedFlat";
 
     private boolean flat = false;
 

@@ -41,6 +41,11 @@
 
 package org.w3c.dom;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * The <code>Text</code> interface inherits from <code>CharacterData</code>
  * and represents the textual content (termed <a href='http://www.w3.org/TR/2004/REC-xml-20040204#syntax'>character data</a> in XML) of an <code>Element</code> or <code>Attr</code>. If there is no
@@ -66,6 +71,7 @@ package org.w3c.dom;
  * an attribute.
  * <p>See also the <a href='http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407'>Document Object Model (DOM) Level 3 Core Specification</a>.
  */
+@AnnotatedFor("nullness")
 public interface Text extends CharacterData {
     /**
      * Breaks this node into two nodes at the specified <code>offset</code>,
@@ -95,6 +101,7 @@ public interface Text extends CharacterData {
      * <code>Document.normalizeDocument()</code>.
      * @since 1.5, DOM Level 3
      */
+    @Pure
     public boolean isElementContentWhitespace();
 
     /**
@@ -123,6 +130,7 @@ public interface Text extends CharacterData {
      *
      * @since 1.5, DOM Level 3
      */
+    @SideEffectFree
     public String getWholeText();
 
     /**
@@ -181,7 +189,7 @@ public interface Text extends CharacterData {
      *   nodes being replaced is readonly.
      * @since 1.5, DOM Level 3
      */
-    public Text replaceWholeText(String content)
+    public @Nullable Text replaceWholeText(String content)
                                  throws DOMException;
 
 }

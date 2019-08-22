@@ -25,6 +25,9 @@
 
 package java.util.prefs;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.*;
 import java.io.*;
 import javax.xml.parsers.*;
@@ -42,7 +45,8 @@ import org.w3c.dom.*;
  * @see     Preferences
  * @since   1.4
  */
-class XmlSupport {
+@AnnotatedFor({"interning"})
+@UsesObjectEquals class XmlSupport {
     // The required DTD URI for exported preferences
     private static final String PREFS_DTD_URI =
         "http://java.sun.com/dtd/preferences.dtd";

@@ -25,9 +25,13 @@
 
 package java.lang.invoke;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * This is a place-holder class.  Some HotSpot implementations need to see it.
  */
-final class InvokeDynamic {
+@AnnotatedFor({"interning"})
+final @UsesObjectEquals class InvokeDynamic {
     private InvokeDynamic() { throw new InternalError(); }  // do not instantiate
 }

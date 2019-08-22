@@ -25,6 +25,8 @@
 
 package java.io;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 
 /**
  * A filter for abstract pathnames.
@@ -35,6 +37,7 @@ package java.io;
  *
  * @since 1.2
  */
+@AnnotatedFor({"nullness"})
 @FunctionalInterface
 public interface FileFilter {
 

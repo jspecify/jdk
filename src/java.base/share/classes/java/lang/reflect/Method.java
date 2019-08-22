@@ -25,6 +25,14 @@
 
 package java.lang.reflect;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 import jdk.internal.HotSpotIntrinsicCandidate;
 import jdk.internal.misc.SharedSecrets;
 import jdk.internal.reflect.CallerSensitive;
@@ -65,6 +73,8 @@ import java.util.StringJoiner;
  * @author Nakul Saraiya
  * @since 1.1
  */
+@AnnotatedFor({"interning", "lock", "nullness"})
+@SuppressWarnings({"rawtypes"})
 public final class Method extends Executable {
     private Class<?>            clazz;
     private int                 slot;
@@ -227,7 +237,7 @@ public final class Method extends Executable {
      * object, as a {@code String}.
      */
     @Override
-    public String getName() {
+    public @Interned String getName() {
         return name;
     }
 
@@ -259,6 +269,7 @@ public final class Method extends Executable {
      *
      * @return the return type for the method this object represents
      */
+    @CFComment("lock/nullness: never returns null; returns Void instead")
     public Class<?> getReturnType() {
         return returnType;
     }
@@ -287,6 +298,7 @@ public final class Method extends Executable {
      *     type that cannot be instantiated for any reason
      * @since 1.5
      */
+    @CFComment("lock/nullness: never returns null; returns Void instead")
     public Type getGenericReturnType() {
       if (getGenericSignature() != null) {
         return getGenericInfo().getReturnType();
@@ -356,7 +368,8 @@ public final class Method extends Executable {
      * they were declared by the same class and have the same name
      * and formal parameter types and return type.
      */
-    public boolean equals(Object obj) {
+    @Pure
+    public boolean equals(@GuardSatisfied Method this, @GuardSatisfied @Nullable Object obj) {
         if (obj != null && obj instanceof Method) {
             Method other = (Method)obj;
             if ((getDeclaringClass() == other.getDeclaringClass())
@@ -374,7 +387,8 @@ public final class Method extends Executable {
      * as the exclusive-or of the hashcodes for the underlying
      * method's declaring class name and the method's name.
      */
-    public int hashCode() {
+    @Pure
+    public int hashCode(@GuardSatisfied Method this) {
         return getDeclaringClass().getName().hashCode() ^ getName().hashCode();
     }
 
@@ -406,7 +420,8 @@ public final class Method extends Executable {
      * @jls 9.4   Method Declarations
      * @jls 9.6.1 Annotation Type Elements
      */
-    public String toString() {
+    @SideEffectFree
+    public String toString(@GuardSatisfied Method this) {
         return sharedToString(Modifier.methodModifiers(),
                               isDefault(),
                               parameterTypes,
@@ -546,10 +561,15 @@ public final class Method extends Executable {
      * @exception ExceptionInInitializerError if the initialization
      * provoked by this method fails.
      */
+    @CFComment({"lock/nullness: The method being invoked might be one that requires non-null",
+    "arguments, or might be one that permits null.  We don't know which.",
+    "Therefore, the Nullness Checker should conservatively issue a",
+    "warning whenever null is passed, in order to give a guarantee that",
+    "no nullness-related exception will be thrown by the invoked method."})
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
     @HotSpotIntrinsicCandidate
-    public Object invoke(Object obj, Object... args)
+    public @Nullable Object invoke(Object obj, Object... args)
         throws IllegalAccessException, IllegalArgumentException,
            InvocationTargetException
     {
@@ -574,7 +594,8 @@ public final class Method extends Executable {
      * method as defined by the Java Language Specification.
      * @since 1.5
      */
-    public boolean isBridge() {
+    @Pure
+    public boolean isBridge(@GuardSatisfied Method this) {
         return (getModifiers() & Modifier.BRIDGE) != 0;
     }
 
@@ -582,8 +603,9 @@ public final class Method extends Executable {
      * {@inheritDoc}
      * @since 1.5
      */
+    @Pure
     @Override
-    public boolean isVarArgs() {
+    public boolean isVarArgs(@GuardSatisfied Method this) {
         return super.isVarArgs();
     }
 
@@ -592,8 +614,9 @@ public final class Method extends Executable {
      * @jls 13.1 The Form of a Binary
      * @since 1.5
      */
+    @Pure
     @Override
-    public boolean isSynthetic() {
+    public boolean isSynthetic(@GuardSatisfied Method this) {
         return super.isSynthetic();
     }
 
@@ -666,7 +689,7 @@ public final class Method extends Executable {
      *     default class value.
      * @since  1.5
      */
-    public Object getDefaultValue() {
+    public @Nullable Object getDefaultValue() {
         if  (annotationDefault == null)
             return null;
         Class<?> memberType = AnnotationType.invocationHandlerReturnType(
@@ -691,7 +714,7 @@ public final class Method extends Executable {
      * @throws NullPointerException  {@inheritDoc}
      * @since 1.5
      */
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+    public <T extends @Nullable Annotation> @Nullable T getAnnotation(Class<T> annotationClass) {
         return super.getAnnotation(annotationClass);
     }
 

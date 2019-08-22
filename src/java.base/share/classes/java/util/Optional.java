@@ -24,6 +24,9 @@
  */
 package java.util;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -57,6 +60,18 @@ import java.util.stream.Stream;
  * @param <T> the type of value
  * @since 1.8
  */
+@CFComment({"nullness :",
+"The @NonNull annotation on the class makes the type \"@Nullable Optional<T>\" illegal and enforces",
+"\"Rule #1: Never, ever, use null for an Optional variable or return value.\" from",
+"https://stuartmarks.files.wordpress.com/2016/09/optionalmotherofallbikesheds3.pdf, which is",
+"generally accepted practice.  If you wish to permit the type \"@Nullable Optional\", you may do so",
+"by writing a stub file that overrides this class in the annotated JDK.",
+"The type argument to Optional is meaningless.",
+"Optional<@NonNull String> and Optional<@Nullable String> have the same",
+"meaning, but are unrelated by the Java type hierarchy.",
+"@Covariant makes Optional<@NonNull String> a subtype of Optional<@Nullable String>."
+})
+@AnnotatedFor({"lock", "nullness"})
 public final class Optional<T> {
     /**
      * Common instance for {@code empty()}.

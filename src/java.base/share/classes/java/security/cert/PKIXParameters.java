@@ -25,6 +25,9 @@
 
 package java.security.cert;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -83,7 +86,8 @@ import java.util.Set;
  * @author      Sean Mullan
  * @author      Yassir Elley
  */
-public class PKIXParameters implements CertPathParameters {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class PKIXParameters implements CertPathParameters {
 
     private Set<TrustAnchor> unmodTrustAnchors;
     private Date date;

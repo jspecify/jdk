@@ -25,6 +25,9 @@
 
 package java.awt.geom;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.Shape;
 import java.awt.Rectangle;
 import java.io.Serializable;
@@ -42,7 +45,8 @@ import sun.awt.geom.Curve;
  * @author      Jim Graham
  * @since 1.2
  */
-public abstract class QuadCurve2D implements Shape, Cloneable {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class QuadCurve2D implements Shape, Cloneable {
 
     /**
      * A quadratic parametric curve segment specified with

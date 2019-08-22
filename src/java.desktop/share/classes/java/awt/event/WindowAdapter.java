@@ -25,6 +25,9 @@
 
 package java.awt.event;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * An abstract adapter class for receiving window events.
  * The methods in this class are empty. This class exists as
@@ -52,7 +55,8 @@ package java.awt.event;
  * @author David Mendenhall
  * @since 1.1
  */
-public abstract class WindowAdapter
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class WindowAdapter
     implements WindowListener, WindowStateListener, WindowFocusListener
 {
     /**

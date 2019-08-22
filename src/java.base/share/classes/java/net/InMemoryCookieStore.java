@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.net.URI;
 import java.net.CookieStore;
 import java.net.HttpCookie;
@@ -43,7 +46,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author Edward Wang
  * @since 1.6
  */
-class InMemoryCookieStore implements CookieStore {
+@AnnotatedFor({"interning"})
+@UsesObjectEquals class InMemoryCookieStore implements CookieStore {
     // the in-memory representation of cookies
     private List<HttpCookie> cookieJar = null;
 

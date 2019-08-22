@@ -25,6 +25,9 @@
 
 package java.awt.image;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Hashtable;
 import java.awt.image.ImageProducer;
 import java.awt.image.ImageConsumer;
@@ -71,7 +74,8 @@ import java.awt.Image;
  *
  * @author      Jim Graham
  */
-public class PixelGrabber implements ImageConsumer {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class PixelGrabber implements ImageConsumer {
     ImageProducer producer;
 
     int dstX;

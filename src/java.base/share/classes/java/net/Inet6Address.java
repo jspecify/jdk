@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -172,8 +175,9 @@ import java.util.Arrays;
  * @since 1.4
  */
 
+@AnnotatedFor({"interning"})
 public final
-class Inet6Address extends InetAddress {
+@UsesObjectEquals class Inet6Address extends InetAddress {
     static final int INADDRSZ = 16;
 
     /*

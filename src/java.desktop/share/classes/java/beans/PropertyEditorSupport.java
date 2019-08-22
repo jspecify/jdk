@@ -25,6 +25,9 @@
 
 package java.beans;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.beans.*;
 
 /**
@@ -35,7 +38,8 @@ import java.beans.*;
  * @since 1.1
  */
 
-public class PropertyEditorSupport implements PropertyEditor {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class PropertyEditorSupport implements PropertyEditor {
 
     /**
      * Constructs a {@code PropertyEditorSupport} object.

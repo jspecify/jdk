@@ -25,6 +25,9 @@
 
 package java.rmi.server;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.*;
 import java.net.*;
 
@@ -74,7 +77,8 @@ import java.net.*;
  * @author  Peter Jones
  * @since   1.1
  */
-public abstract class RMISocketFactory
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class RMISocketFactory
         implements RMIClientSocketFactory, RMIServerSocketFactory
 {
 

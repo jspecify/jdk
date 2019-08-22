@@ -25,6 +25,9 @@
 
 package java.lang.reflect;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.security.AccessController;
 import java.util.StringJoiner;
 import jdk.internal.reflect.LangReflectAccess;
@@ -45,7 +48,8 @@ import jdk.internal.reflect.ReflectionFactory;
  * @author Kenneth Russell
  * @since 1.1
  */
-public class Modifier {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class Modifier {
 
     /*
      * Bootstrapping protocol between java.lang and java.lang.reflect

@@ -25,6 +25,14 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.nio.channels.FileChannel;
 import sun.nio.ch.FileChannelImpl;
 
@@ -61,6 +69,7 @@ import sun.nio.ch.FileChannelImpl;
  * @see     java.nio.file.Files#newInputStream
  * @since   1.0
  */
+@AnnotatedFor({"nullness","index"})
 public
 class FileInputStream extends InputStream
 {
@@ -227,7 +236,7 @@ class FileInputStream extends InputStream
      *             file is reached.
      * @exception  IOException  if an I/O error occurs.
      */
-    public int read() throws IOException {
+    public @GTENegativeOne int read() throws IOException {
         return read0();
     }
 
@@ -253,7 +262,7 @@ class FileInputStream extends InputStream
      *             the file has been reached.
      * @exception  IOException  if an I/O error occurs.
      */
-    public int read(byte b[]) throws IOException {
+    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(byte b[]) throws IOException {
         return readBytes(b, 0, b.length);
     }
 
@@ -275,7 +284,7 @@ class FileInputStream extends InputStream
      * <code>b.length - off</code>
      * @exception  IOException  if an I/O error occurs.
      */
-    public int read(byte b[], int off, int len) throws IOException {
+    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
         return readBytes(b, off, len);
     }
 
@@ -303,7 +312,7 @@ class FileInputStream extends InputStream
      * @exception  IOException  if n is negative, if the stream does not
      *             support seek, or if an I/O error occurs.
      */
-    public long skip(long n) throws IOException {
+    public @NonNegative long skip(long n) throws IOException {
         return skip0(n);
     }
 
@@ -326,7 +335,7 @@ class FileInputStream extends InputStream
      * @exception  IOException  if this file input stream has been closed by calling
      *             {@code close} or an I/O error occurs.
      */
-    public int available() throws IOException {
+    public @NonNegative int available() throws IOException {
         return available0();
     }
 

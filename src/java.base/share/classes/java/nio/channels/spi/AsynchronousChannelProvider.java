@@ -25,6 +25,9 @@
 
 package java.nio.channels.spi;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.nio.channels.*;
 import java.io.IOException;
 import java.util.Iterator;
@@ -50,7 +53,8 @@ import java.security.PrivilegedAction;
  * @since 1.7
  */
 
-public abstract class AsynchronousChannelProvider {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class AsynchronousChannelProvider {
     private static Void checkPermission() {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null)

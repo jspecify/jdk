@@ -107,4 +107,7 @@
  *
  * @since 1.2
  */
+@UIPackage
 package java.awt.dnd;
+
+import org.checkerframework.checker.guieffect.qual.UIPackage;

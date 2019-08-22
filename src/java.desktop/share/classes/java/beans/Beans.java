@@ -25,6 +25,9 @@
 
 package java.beans;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import com.sun.beans.finder.ClassFinder;
 
 import java.applet.Applet;
@@ -57,7 +60,8 @@ import java.util.Vector;
  * @since 1.1
  */
 
-public class Beans {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class Beans {
 
     /**
      * <p>

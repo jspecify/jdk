@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
@@ -38,7 +41,8 @@ import sun.awt.image.SunWritableRaster;
 import sun.awt.image.IntegerInterleavedRaster;
 import sun.awt.image.ByteInterleavedRaster;
 
-abstract class TexturePaintContext implements PaintContext {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class TexturePaintContext implements PaintContext {
     public static ColorModel xrgbmodel =
         new DirectColorModel(24, 0xff0000, 0xff00, 0xff);
     public static ColorModel argbmodel = ColorModel.getRGBdefault();

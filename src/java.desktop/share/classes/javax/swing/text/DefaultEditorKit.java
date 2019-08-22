@@ -24,6 +24,9 @@
  */
 package javax.swing.text;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import sun.awt.SunToolkit;
 
 import java.io.*;
@@ -70,6 +73,7 @@ import javax.swing.UIManager;
  *
  * @author  Timothy Prinzing
  */
+@AnnotatedFor({"interning"})
 @SuppressWarnings("serial") // Same-version serialization only
 public class DefaultEditorKit extends EditorKit {
 
@@ -371,7 +375,7 @@ public class DefaultEditorKit extends EditorKit {
      * When reading a document if a CRLF is encountered a property
      * with this name is added and the value will be "\r\n".
      */
-    public static final String EndOfLineStringProperty = "__EndOfLine__";
+    public static final @Interned String EndOfLineStringProperty = "__EndOfLine__";
 
     // --- names of well-known actions ---------------------------
 
@@ -381,7 +385,7 @@ public class DefaultEditorKit extends EditorKit {
      * the new content is added.
      * @see #getActions
      */
-    public static final String insertContentAction = "insert-content";
+    public static final @Interned String insertContentAction = "insert-content";
 
     /**
      * Name of the action to place a line/paragraph break into
@@ -389,7 +393,7 @@ public class DefaultEditorKit extends EditorKit {
      * the break is added.
      * @see #getActions
      */
-    public static final String insertBreakAction = "insert-break";
+    public static final @Interned String insertBreakAction = "insert-break";
 
     /**
      * Name of the action to place a tab character into
@@ -397,21 +401,21 @@ public class DefaultEditorKit extends EditorKit {
      * the tab is added.
      * @see #getActions
      */
-    public static final String insertTabAction = "insert-tab";
+    public static final @Interned String insertTabAction = "insert-tab";
 
     /**
      * Name of the action to delete the character of content that
      * precedes the current caret position.
      * @see #getActions
      */
-    public static final String deletePrevCharAction = "delete-previous";
+    public static final @Interned String deletePrevCharAction = "delete-previous";
 
     /**
      * Name of the action to delete the character of content that
      * follows the current caret position.
      * @see #getActions
      */
-    public static final String deleteNextCharAction = "delete-next";
+    public static final @Interned String deleteNextCharAction = "delete-next";
 
     /**
      * Name of the action to delete the word that
@@ -420,7 +424,7 @@ public class DefaultEditorKit extends EditorKit {
      * @see JTextComponent#getSelectionStart
      * @since 1.6
      */
-    public static final String deleteNextWordAction = "delete-next-word";
+    public static final @Interned String deleteNextWordAction = "delete-next-word";
 
     /**
      * Name of the action to delete the word that
@@ -429,21 +433,21 @@ public class DefaultEditorKit extends EditorKit {
      * @see JTextComponent#getSelectionStart
      * @since 1.6
      */
-    public static final String deletePrevWordAction = "delete-previous-word";
+    public static final @Interned String deletePrevWordAction = "delete-previous-word";
 
     /**
      * Name of the action to set the editor into read-only
      * mode.
      * @see #getActions
      */
-    public static final String readOnlyAction = "set-read-only";
+    public static final @Interned String readOnlyAction = "set-read-only";
 
     /**
      * Name of the action to set the editor into writeable
      * mode.
      * @see #getActions
      */
-    public static final String writableAction = "set-writable";
+    public static final @Interned String writableAction = "set-writable";
 
     /**
      * Name of the action to cut the selected region
@@ -451,7 +455,7 @@ public class DefaultEditorKit extends EditorKit {
      * @see JTextComponent#cut
      * @see #getActions
      */
-    public static final String cutAction = "cut-to-clipboard";
+    public static final @Interned String cutAction = "cut-to-clipboard";
 
     /**
      * Name of the action to copy the selected region
@@ -459,7 +463,7 @@ public class DefaultEditorKit extends EditorKit {
      * @see JTextComponent#copy
      * @see #getActions
      */
-    public static final String copyAction = "copy-to-clipboard";
+    public static final @Interned String copyAction = "copy-to-clipboard";
 
     /**
      * Name of the action to paste the contents of the
@@ -468,25 +472,25 @@ public class DefaultEditorKit extends EditorKit {
      * @see JTextComponent#paste
      * @see #getActions
      */
-    public static final String pasteAction = "paste-from-clipboard";
+    public static final @Interned String pasteAction = "paste-from-clipboard";
 
     /**
      * Name of the action to create a beep.
      * @see #getActions
      */
-    public static final String beepAction = "beep";
+    public static final @Interned String beepAction = "beep";
 
     /**
      * Name of the action to page up vertically.
      * @see #getActions
      */
-    public static final String pageUpAction = "page-up";
+    public static final @Interned String pageUpAction = "page-up";
 
     /**
      * Name of the action to page down vertically.
      * @see #getActions
      */
-    public static final String pageDownAction = "page-down";
+    public static final @Interned String pageDownAction = "page-down";
 
     /**
      * Name of the action to page up vertically, and move the
@@ -521,220 +525,220 @@ public class DefaultEditorKit extends EditorKit {
      * logically forward one position.
      * @see #getActions
      */
-    public static final String forwardAction = "caret-forward";
+    public static final @Interned String forwardAction = "caret-forward";
 
     /**
      * Name of the Action for moving the caret
      * logically backward one position.
      * @see #getActions
      */
-    public static final String backwardAction = "caret-backward";
+    public static final @Interned String backwardAction = "caret-backward";
 
     /**
      * Name of the Action for extending the selection
      * by moving the caret logically forward one position.
      * @see #getActions
      */
-    public static final String selectionForwardAction = "selection-forward";
+    public static final @Interned String selectionForwardAction = "selection-forward";
 
     /**
      * Name of the Action for extending the selection
      * by moving the caret logically backward one position.
      * @see #getActions
      */
-    public static final String selectionBackwardAction = "selection-backward";
+    public static final @Interned String selectionBackwardAction = "selection-backward";
 
     /**
      * Name of the Action for moving the caret
      * logically upward one position.
      * @see #getActions
      */
-    public static final String upAction = "caret-up";
+    public static final @Interned String upAction = "caret-up";
 
     /**
      * Name of the Action for moving the caret
      * logically downward one position.
      * @see #getActions
      */
-    public static final String downAction = "caret-down";
+    public static final @Interned String downAction = "caret-down";
 
     /**
      * Name of the Action for moving the caret
      * logically upward one position, extending the selection.
      * @see #getActions
      */
-    public static final String selectionUpAction = "selection-up";
+    public static final @Interned String selectionUpAction = "selection-up";
 
     /**
      * Name of the Action for moving the caret
      * logically downward one position, extending the selection.
      * @see #getActions
      */
-    public static final String selectionDownAction = "selection-down";
+    public static final @Interned String selectionDownAction = "selection-down";
 
     /**
      * Name of the <code>Action</code> for moving the caret
      * to the beginning of a word.
      * @see #getActions
      */
-    public static final String beginWordAction = "caret-begin-word";
+    public static final @Interned String beginWordAction = "caret-begin-word";
 
     /**
      * Name of the Action for moving the caret
      * to the end of a word.
      * @see #getActions
      */
-    public static final String endWordAction = "caret-end-word";
+    public static final @Interned String endWordAction = "caret-end-word";
 
     /**
      * Name of the <code>Action</code> for moving the caret
      * to the beginning of a word, extending the selection.
      * @see #getActions
      */
-    public static final String selectionBeginWordAction = "selection-begin-word";
+    public static final @Interned String selectionBeginWordAction = "selection-begin-word";
 
     /**
      * Name of the Action for moving the caret
      * to the end of a word, extending the selection.
      * @see #getActions
      */
-    public static final String selectionEndWordAction = "selection-end-word";
+    public static final @Interned String selectionEndWordAction = "selection-end-word";
 
     /**
      * Name of the <code>Action</code> for moving the caret to the
      * beginning of the previous word.
      * @see #getActions
      */
-    public static final String previousWordAction = "caret-previous-word";
+    public static final @Interned String previousWordAction = "caret-previous-word";
 
     /**
      * Name of the <code>Action</code> for moving the caret to the
      * beginning of the next word.
      * @see #getActions
      */
-    public static final String nextWordAction = "caret-next-word";
+    public static final @Interned String nextWordAction = "caret-next-word";
 
     /**
      * Name of the <code>Action</code> for moving the selection to the
      * beginning of the previous word, extending the selection.
      * @see #getActions
      */
-    public static final String selectionPreviousWordAction = "selection-previous-word";
+    public static final @Interned String selectionPreviousWordAction = "selection-previous-word";
 
     /**
      * Name of the <code>Action</code> for moving the selection to the
      * beginning of the next word, extending the selection.
      * @see #getActions
      */
-    public static final String selectionNextWordAction = "selection-next-word";
+    public static final @Interned String selectionNextWordAction = "selection-next-word";
 
     /**
      * Name of the <code>Action</code> for moving the caret
      * to the beginning of a line.
      * @see #getActions
      */
-    public static final String beginLineAction = "caret-begin-line";
+    public static final @Interned String beginLineAction = "caret-begin-line";
 
     /**
      * Name of the <code>Action</code> for moving the caret
      * to the end of a line.
      * @see #getActions
      */
-    public static final String endLineAction = "caret-end-line";
+    public static final @Interned String endLineAction = "caret-end-line";
 
     /**
      * Name of the <code>Action</code> for moving the caret
      * to the beginning of a line, extending the selection.
      * @see #getActions
      */
-    public static final String selectionBeginLineAction = "selection-begin-line";
+    public static final @Interned String selectionBeginLineAction = "selection-begin-line";
 
     /**
      * Name of the <code>Action</code> for moving the caret
      * to the end of a line, extending the selection.
      * @see #getActions
      */
-    public static final String selectionEndLineAction = "selection-end-line";
+    public static final @Interned String selectionEndLineAction = "selection-end-line";
 
     /**
      * Name of the <code>Action</code> for moving the caret
      * to the beginning of a paragraph.
      * @see #getActions
      */
-    public static final String beginParagraphAction = "caret-begin-paragraph";
+    public static final @Interned String beginParagraphAction = "caret-begin-paragraph";
 
     /**
      * Name of the <code>Action</code> for moving the caret
      * to the end of a paragraph.
      * @see #getActions
      */
-    public static final String endParagraphAction = "caret-end-paragraph";
+    public static final @Interned String endParagraphAction = "caret-end-paragraph";
 
     /**
      * Name of the <code>Action</code> for moving the caret
      * to the beginning of a paragraph, extending the selection.
      * @see #getActions
      */
-    public static final String selectionBeginParagraphAction = "selection-begin-paragraph";
+    public static final @Interned String selectionBeginParagraphAction = "selection-begin-paragraph";
 
     /**
      * Name of the <code>Action</code> for moving the caret
      * to the end of a paragraph, extending the selection.
      * @see #getActions
      */
-    public static final String selectionEndParagraphAction = "selection-end-paragraph";
+    public static final @Interned String selectionEndParagraphAction = "selection-end-paragraph";
 
     /**
      * Name of the <code>Action</code> for moving the caret
      * to the beginning of the document.
      * @see #getActions
      */
-    public static final String beginAction = "caret-begin";
+    public static final @Interned String beginAction = "caret-begin";
 
     /**
      * Name of the <code>Action</code> for moving the caret
      * to the end of the document.
      * @see #getActions
      */
-    public static final String endAction = "caret-end";
+    public static final @Interned String endAction = "caret-end";
 
     /**
      * Name of the <code>Action</code> for moving the caret
      * to the beginning of the document.
      * @see #getActions
      */
-    public static final String selectionBeginAction = "selection-begin";
+    public static final @Interned String selectionBeginAction = "selection-begin";
 
     /**
      * Name of the Action for moving the caret
      * to the end of the document.
      * @see #getActions
      */
-    public static final String selectionEndAction = "selection-end";
+    public static final @Interned String selectionEndAction = "selection-end";
 
     /**
      * Name of the Action for selecting a word around the caret.
      * @see #getActions
      */
-    public static final String selectWordAction = "select-word";
+    public static final @Interned String selectWordAction = "select-word";
 
     /**
      * Name of the Action for selecting a line around the caret.
      * @see #getActions
      */
-    public static final String selectLineAction = "select-line";
+    public static final @Interned String selectLineAction = "select-line";
 
     /**
      * Name of the Action for selecting a paragraph around the caret.
      * @see #getActions
      */
-    public static final String selectParagraphAction = "select-paragraph";
+    public static final @Interned String selectParagraphAction = "select-paragraph";
 
     /**
      * Name of the Action for selecting the entire document
      * @see #getActions
      */
-    public static final String selectAllAction = "select-all";
+    public static final @Interned String selectAllAction = "select-all";
 
     /**
      * Name of the Action for removing selection
@@ -755,7 +759,7 @@ public class DefaultEditorKit extends EditorKit {
      * is no keymap entry.
      * @see #getActions
      */
-    public static final String defaultKeyTypedAction = "default-typed";
+    public static final @Interned String defaultKeyTypedAction = "default-typed";
 
     // --- Action implementations ---------------------------------
 

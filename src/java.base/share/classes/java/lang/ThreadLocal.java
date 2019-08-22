@@ -24,7 +24,15 @@
  */
 
 package java.lang;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 import jdk.internal.misc.TerminatingThreadLocal;
+
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.lang.ref.*;
 import java.util.Objects;
@@ -73,7 +81,14 @@ import java.util.function.Supplier;
  * @author  Josh Bloch and Doug Lea
  * @since   1.2
  */
-public class ThreadLocal<T> {
+@CFComment({"nullness: It is permitted to write a subclass that extends ThreadLocal<@NonNull MyType>",
+            "but in such a case:",
+            "* the subclass must override initialValue to return a non-null value",
+            "* the subclass needs to suppress a warning:",
+            "@SuppressWarnings(\"nullness:type.argument.type.incompatible\") // initialValue returns non-null"
+        })
+@AnnotatedFor({"interning", "nullness"})
+public @UsesObjectEquals class ThreadLocal<@Nullable T> {
     /**
      * ThreadLocals rely on per-thread linear-probe hash maps attached
      * to each thread (Thread.threadLocals and

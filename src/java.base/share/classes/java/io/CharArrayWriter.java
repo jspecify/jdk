@@ -25,6 +25,15 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Arrays;
 
 /**
@@ -39,6 +48,7 @@ import java.util.Arrays;
  * @author      Herb Jellinek
  * @since       1.1
  */
+@AnnotatedFor({"lock", "nullness", "index"})
 public
 class CharArrayWriter extends Writer {
     /**
@@ -64,7 +74,7 @@ class CharArrayWriter extends Writer {
      * @param initialSize  an int specifying the initial buffer size.
      * @exception IllegalArgumentException if initialSize is negative
      */
-    public CharArrayWriter(int initialSize) {
+    public CharArrayWriter(@NonNegative int initialSize) {
         if (initialSize < 0) {
             throw new IllegalArgumentException("Negative initial size: "
                                                + initialSize);
@@ -97,7 +107,7 @@ class CharArrayWriter extends Writer {
      *          or {@code off + len} is negative or greater than the length
      *          of the given array
      */
-    public void write(char c[], int off, int len) {
+    public void write(char c[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) {
         if ((off < 0) || (off > c.length) || (len < 0) ||
             ((off + len) > c.length) || ((off + len) < 0)) {
             throw new IndexOutOfBoundsException();
@@ -125,7 +135,7 @@ class CharArrayWriter extends Writer {
      *          or {@code off + len} is negative or greater than the length
      *          of the given string
      */
-    public void write(String str, int off, int len) {
+    public void write(String str, @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) {
         synchronized (lock) {
             int newcount = count + len;
             if (newcount > buf.length) {
@@ -172,7 +182,7 @@ class CharArrayWriter extends Writer {
      *
      * @since  1.5
      */
-    public CharArrayWriter append(CharSequence csq) {
+    public CharArrayWriter append(@Nullable CharSequence csq) {
         String s = String.valueOf(csq);
         write(s, 0, s.length());
         return this;
@@ -211,7 +221,7 @@ class CharArrayWriter extends Writer {
      *
      * @since  1.5
      */
-    public CharArrayWriter append(CharSequence csq, int start, int end) {
+    public CharArrayWriter append(@Nullable CharSequence csq, @IndexOrHigh({"#1"}) int start, @IndexOrHigh({"#1"}) int end) {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }
@@ -261,7 +271,8 @@ class CharArrayWriter extends Writer {
      *
      * @return an int representing the current size of the buffer.
      */
-    public int size() {
+    @Pure
+    public @NonNegative int size(@GuardSatisfied CharArrayWriter this) {
         return count;
     }
 
@@ -269,7 +280,8 @@ class CharArrayWriter extends Writer {
      * Converts input data to a string.
      * @return the string.
      */
-    public String toString() {
+    @SideEffectFree
+    public String toString(@GuardSatisfied CharArrayWriter this) {
         synchronized (lock) {
             return new String(buf, 0, count);
         }

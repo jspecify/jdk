@@ -25,6 +25,10 @@
 
 package javax.xml.parsers;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -60,6 +64,7 @@ import org.xml.sax.SAXException;
  * @since 1.4
  */
 
+@AnnotatedFor("nullness")
 public abstract class DocumentBuilder {
 
 
@@ -84,6 +89,8 @@ public abstract class DocumentBuilder {
      *
      * @since 1.5
      */
+    @CFComment({"nullness: this.getClass().getPackage() is non-null as this class is in the `parsers` package"})
+    @SuppressWarnings({"nullness"})
     public void reset() {
 
         // implementors should override this method
@@ -258,7 +265,7 @@ public abstract class DocumentBuilder {
      *           present in the XML document to be parsed.
      */
 
-    public abstract void setEntityResolver(EntityResolver er);
+    public abstract void setEntityResolver(@Nullable EntityResolver er);
 
     /**
      * Specify the {@link ErrorHandler} to be used by the parser.
@@ -269,7 +276,7 @@ public abstract class DocumentBuilder {
      * @param eh The <code>ErrorHandler</code> to be used by the parser.
      */
 
-    public abstract void setErrorHandler(ErrorHandler eh);
+    public abstract void setErrorHandler(@Nullable ErrorHandler eh);
 
     /**
      * Obtain a new instance of a DOM {@link Document} object
@@ -311,7 +318,9 @@ public abstract class DocumentBuilder {
      *
      * @since 1.5
      */
-    public Schema getSchema() {
+    @CFComment("nullness: this.getClass().getPackage() is non-null as this class is in the `parsers` package")
+    @SuppressWarnings({"nullness"})
+    public @Nullable Schema getSchema() {
         throw new UnsupportedOperationException(
             "This parser does not support specification \""
             + this.getClass().getPackage().getSpecificationTitle()
@@ -337,6 +346,8 @@ public abstract class DocumentBuilder {
      *
      * @see DocumentBuilderFactory#setXIncludeAware(boolean)
      */
+    @CFComment("nullness: this.getClass().getPackage() is non-null as this class is in the `parsers` package")
+    @SuppressWarnings({"nullness"})
     public boolean isXIncludeAware() {
         throw new UnsupportedOperationException(
             "This parser does not support specification \""

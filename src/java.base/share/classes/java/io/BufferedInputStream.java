@@ -25,6 +25,14 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import jdk.internal.misc.Unsafe;
 
 /**
@@ -48,6 +56,7 @@ import jdk.internal.misc.Unsafe;
  * @author  Arthur van Hoff
  * @since   1.0
  */
+@AnnotatedFor({"nullness", "index"})
 public
 class BufferedInputStream extends FilterInputStream {
 
@@ -201,7 +210,7 @@ class BufferedInputStream extends FilterInputStream {
      * @param   size   the buffer size.
      * @exception IllegalArgumentException if {@code size <= 0}.
      */
-    public BufferedInputStream(InputStream in, int size) {
+    public BufferedInputStream(InputStream in, @Positive int size) {
         super(in);
         if (size <= 0) {
             throw new IllegalArgumentException("Buffer size <= 0");
@@ -266,7 +275,7 @@ class BufferedInputStream extends FilterInputStream {
      *                          or an I/O error occurs.
      * @see        java.io.FilterInputStream#in
      */
-    public synchronized int read() throws IOException {
+    public synchronized @GTENegativeOne int read() throws IOException {
         if (pos >= count) {
             fill();
             if (pos >= count)
@@ -336,7 +345,7 @@ class BufferedInputStream extends FilterInputStream {
      *                          invoking its {@link #close()} method,
      *                          or an I/O error occurs.
      */
-    public synchronized int read(byte b[], int off, int len)
+    public synchronized @GTENegativeOne @LTEqLengthOf({"#1"}) int read(byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len)
         throws IOException
     {
         getBufIfOpen(); // Check for closed stream
@@ -370,7 +379,7 @@ class BufferedInputStream extends FilterInputStream {
      *                      {@code in.skip(n)} throws an IOException,
      *                      or an I/O error occurs.
      */
-    public synchronized long skip(long n) throws IOException {
+    public synchronized @NonNegative long skip(long n) throws IOException {
         getBufIfOpen(); // Check for closed stream
         if (n <= 0) {
             return 0;
@@ -411,7 +420,7 @@ class BufferedInputStream extends FilterInputStream {
      *                          invoking its {@link #close()} method,
      *                          or an I/O error occurs.
      */
-    public synchronized int available() throws IOException {
+    public synchronized @NonNegative int available() throws IOException {
         int n = count - pos;
         int avail = getInIfOpen().available();
         return n > (Integer.MAX_VALUE - avail)

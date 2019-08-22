@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.font.FontRenderContext;
 import java.awt.font.GlyphVector;
 import java.awt.font.LineMetrics;
@@ -230,6 +233,7 @@ import static sun.font.EAttribute.*;
  * especially important are called out as having 'baseline-relative
  * coordinates.'
  */
+@AnnotatedFor({"interning"})
 public class Font implements java.io.Serializable
 {
     private static class FontAccessImpl extends FontAccess {
@@ -281,7 +285,7 @@ public class Font implements java.io.Serializable
      * to provide compile-time verification of the name.
      * @since 1.6
      */
-    public static final String DIALOG = "Dialog";
+    public static final @Interned String DIALOG = "Dialog";
 
     /**
      * A String constant for the canonical family name of the
@@ -289,7 +293,7 @@ public class Font implements java.io.Serializable
      * to provide compile-time verification of the name.
      * @since 1.6
      */
-    public static final String DIALOG_INPUT = "DialogInput";
+    public static final @Interned String DIALOG_INPUT = "DialogInput";
 
     /**
      * A String constant for the canonical family name of the
@@ -297,7 +301,7 @@ public class Font implements java.io.Serializable
      * to provide compile-time verification of the name.
      * @since 1.6
      */
-    public static final String SANS_SERIF = "SansSerif";
+    public static final @Interned String SANS_SERIF = "SansSerif";
 
     /**
      * A String constant for the canonical family name of the
@@ -305,7 +309,7 @@ public class Font implements java.io.Serializable
      * to provide compile-time verification of the name.
      * @since 1.6
      */
-    public static final String SERIF = "Serif";
+    public static final @Interned String SERIF = "Serif";
 
     /**
      * A String constant for the canonical family name of the
@@ -313,7 +317,7 @@ public class Font implements java.io.Serializable
      * to provide compile-time verification of the name.
      * @since 1.6
      */
-    public static final String MONOSPACED = "Monospaced";
+    public static final @Interned String MONOSPACED = "Monospaced";
 
     /*
      * Constants to be used for styles. Can be combined to mix

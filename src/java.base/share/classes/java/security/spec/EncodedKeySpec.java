@@ -25,6 +25,9 @@
 
 package java.security.spec;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * This class represents a public or private key in encoded format.
  *
@@ -40,7 +43,8 @@ package java.security.spec;
  * @since 1.2
  */
 
-public abstract class EncodedKeySpec implements KeySpec {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class EncodedKeySpec implements KeySpec {
 
     private byte[] encodedKey;
     private String algorithmName;

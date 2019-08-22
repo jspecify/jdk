@@ -25,6 +25,11 @@
 
 package java.lang;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.TerminatesExecution;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.*;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -53,7 +58,8 @@ import jdk.internal.reflect.Reflection;
  * @since   1.0
  */
 
-public class Runtime {
+@AnnotatedFor({"interning", "nullness"})
+public @UsesObjectEquals class Runtime {
     private static final Runtime currentRuntime = new Runtime();
 
     private static Version version;
@@ -107,6 +113,7 @@ public class Runtime {
      * @see #removeShutdownHook
      * @see #halt(int)
      */
+    @TerminatesExecution
     public void exit(int status) {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
@@ -349,7 +356,7 @@ public class Runtime {
      * @see     #exec(String[], String[], File)
      * @see     ProcessBuilder
      */
-    public Process exec(String command, String[] envp) throws IOException {
+    public Process exec(String command, String @Nullable [] envp) throws IOException {
         return exec(command, envp, null);
     }
 
@@ -403,7 +410,7 @@ public class Runtime {
      * @see     ProcessBuilder
      * @since 1.3
      */
-    public Process exec(String command, String[] envp, File dir)
+    public Process exec(String command, String @Nullable [] envp, @Nullable File dir)
         throws IOException {
         if (command.length() == 0)
             throw new IllegalArgumentException("Empty command");
@@ -489,7 +496,7 @@ public class Runtime {
      *
      * @see     ProcessBuilder
      */
-    public Process exec(String[] cmdarray, String[] envp) throws IOException {
+    public Process exec(String[] cmdarray, String @Nullable [] envp) throws IOException {
         return exec(cmdarray, envp, null);
     }
 
@@ -583,7 +590,7 @@ public class Runtime {
      * @see     ProcessBuilder
      * @since 1.3
      */
-    public Process exec(String[] cmdarray, String[] envp, File dir)
+    public Process exec(String[] cmdarray, String @Nullable [] envp, @Nullable File dir)
         throws IOException {
         return new ProcessBuilder(cmdarray)
             .environment(envp)

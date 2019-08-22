@@ -25,6 +25,9 @@
 
 package javax.net.ssl;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.security.Security;
 import java.security.*;
 import java.util.Objects;
@@ -52,6 +55,7 @@ import sun.security.jca.GetInstance;
  * @since 1.4
  * @see TrustManager
  */
+@AnnotatedFor("nullness")
 public class TrustManagerFactory {
     // The provider
     private Provider provider;
@@ -274,7 +278,7 @@ public class TrustManagerFactory {
      * @param ks the key store, or null
      * @throws KeyStoreException if this operation fails
      */
-    public final void init(KeyStore ks) throws KeyStoreException {
+    public final void init(@Nullable KeyStore ks) throws KeyStoreException {
         factorySpi.engineInit(ks);
     }
 

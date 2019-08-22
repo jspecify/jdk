@@ -24,6 +24,9 @@
  */
 package java.lang;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.*;
 
 /*
@@ -34,7 +37,8 @@ import java.util.*;
  * @see java.lang.Runtime#removeShutdownHook
  */
 
-class ApplicationShutdownHooks {
+@AnnotatedFor({"interning"})
+@UsesObjectEquals class ApplicationShutdownHooks {
     /* The set of registered hooks */
     private static IdentityHashMap<Thread, Thread> hooks;
     static {

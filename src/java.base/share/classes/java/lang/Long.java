@@ -25,6 +25,24 @@
 
 package java.lang;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.index.qual.PolyIndex;
+import org.checkerframework.checker.index.qual.PolyIndex;
+import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.checker.signedness.qual.SignedPositive;
+import org.checkerframework.checker.signedness.qual.SignednessGlb;
+import org.checkerframework.checker.signedness.qual.UnknownSignedness;
+import org.checkerframework.checker.signedness.qual.Unsigned;
+import org.checkerframework.common.value.qual.IntVal;
+import org.checkerframework.common.value.qual.IntVal;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.annotation.Native;
 import java.math.*;
 import java.util.Objects;
@@ -56,6 +74,7 @@ import static java.lang.String.UTF16;
  * @author  Joseph D. Darcy
  * @since   1.0
  */
+@AnnotatedFor({"nullness", "index", "signedness"})
 public final class Long extends Number implements Comparable<Long> {
     /**
      * A constant holding the minimum value a {@code long} can
@@ -67,7 +86,7 @@ public final class Long extends Number implements Comparable<Long> {
      * A constant holding the maximum value a {@code long} can
      * have, 2<sup>63</sup>-1.
      */
-    @Native public static final long MAX_VALUE = 0x7fffffffffffffffL;
+    @Native public static final @SignedPositive long MAX_VALUE = 0x7fffffffffffffffL;
 
     /**
      * The {@code Class} instance representing the primitive type
@@ -122,7 +141,8 @@ public final class Long extends Number implements Comparable<Long> {
      * @see     java.lang.Character#MAX_RADIX
      * @see     java.lang.Character#MIN_RADIX
      */
-    public static String toString(long i, int radix) {
+    @SideEffectFree
+    public static String toString(long i, @Positive int radix) {
         if (radix < Character.MIN_RADIX || radix > Character.MAX_RADIX)
             radix = 10;
         if (radix == 10)
@@ -195,7 +215,7 @@ public final class Long extends Number implements Comparable<Long> {
      * @see     #toString(long, int)
      * @since 1.8
      */
-    public static String toUnsignedString(long i, int radix) {
+    public static String toUnsignedString(@Unsigned long i, @Positive int radix) {
         if (i >= 0)
             return toString(i, radix);
         else {
@@ -238,7 +258,7 @@ public final class Long extends Number implements Comparable<Long> {
      * Return a BigInteger equal to the unsigned value of the
      * argument.
      */
-    private static BigInteger toUnsignedBigInteger(long i) {
+    private static BigInteger toUnsignedBigInteger(@Unsigned long i) {
         if (i >= 0L)
             return BigInteger.valueOf(i);
         else {
@@ -294,7 +314,8 @@ public final class Long extends Number implements Comparable<Long> {
      * @see #toUnsignedString(long, int)
      * @since   1.0.2
      */
-    public static String toHexString(long i) {
+    @SideEffectFree
+    public static String toHexString(@Unsigned long i) {
         return toUnsignedString0(i, 4);
     }
 
@@ -333,7 +354,8 @@ public final class Long extends Number implements Comparable<Long> {
      * @see #toUnsignedString(long, int)
      * @since   1.0.2
      */
-    public static String toOctalString(long i) {
+    @SideEffectFree
+    public static String toOctalString(@Unsigned long i) {
         return toUnsignedString0(i, 3);
     }
 
@@ -366,7 +388,8 @@ public final class Long extends Number implements Comparable<Long> {
      * @see #toUnsignedString(long, int)
      * @since   1.0.2
      */
-    public static String toBinaryString(long i) {
+    @SideEffectFree
+    public static String toBinaryString(@Unsigned long i) {
         return toUnsignedString0(i, 1);
     }
 
@@ -375,7 +398,7 @@ public final class Long extends Number implements Comparable<Long> {
      * @param val the value to format
      * @param shift the log2 of the base to format in (4 for hex, 3 for octal, 1 for binary)
      */
-    static String toUnsignedString0(long val, int shift) {
+    static String toUnsignedString0(@Unsigned long val, @IntVal({1, 2, 3, 4, 5}) int shift) {
         // assert shift > 0 && shift <=5 : "Illegal shift value";
         int mag = Long.SIZE - Long.numberOfLeadingZeros(val);
         int chars = Math.max(((mag + (shift - 1)) / shift), 1);
@@ -494,7 +517,7 @@ public final class Long extends Number implements Comparable<Long> {
      * @see     #toUnsignedString(long, int)
      * @since 1.8
      */
-    public static String toUnsignedString(long i) {
+    public static String toUnsignedString(@Unsigned long i) {
         return toUnsignedString(i, 10);
     }
 
@@ -648,7 +671,8 @@ public final class Long extends Number implements Comparable<Long> {
      * @throws     NumberFormatException  if the string does not contain a
      *             parsable {@code long}.
      */
-    public static long parseLong(String s, int radix)
+    @Pure
+    public static long parseLong(String s, @Positive int radix)
               throws NumberFormatException
     {
         if (s == null) {
@@ -860,7 +884,7 @@ public final class Long extends Number implements Comparable<Long> {
      *             does not contain a parsable {@code long}.
      * @since 1.8
      */
-    public static long parseUnsignedLong(String s, int radix)
+    public static @Unsigned long parseUnsignedLong(String s, @Positive int radix)
                 throws NumberFormatException {
         if (s == null)  {
             throw new NumberFormatException("null");
@@ -1083,7 +1107,7 @@ public final class Long extends Number implements Comparable<Long> {
      *            parsable unsigned integer.
      * @since 1.8
      */
-    public static long parseUnsignedLong(String s) throws NumberFormatException {
+    public static @Unsigned long parseUnsignedLong(String s) throws NumberFormatException {
         return parseUnsignedLong(s, 10);
     }
 
@@ -1113,7 +1137,8 @@ public final class Long extends Number implements Comparable<Long> {
      * @throws     NumberFormatException  If the {@code String} does not
      *             contain a parsable {@code long}.
      */
-    public static Long valueOf(String s, int radix) throws NumberFormatException {
+    @SideEffectFree
+    public static Long valueOf(String s, @Positive int radix) throws NumberFormatException {
         return Long.valueOf(parseLong(s, radix));
     }
 
@@ -1171,6 +1196,7 @@ public final class Long extends Number implements Comparable<Long> {
      * @return a {@code Long} instance representing {@code l}.
      * @since  1.5
      */
+    @SideEffectFree
     @HotSpotIntrinsicCandidate
     public static Long valueOf(long l) {
         final int offset = 128;
@@ -1223,6 +1249,7 @@ public final class Long extends Number implements Comparable<Long> {
      * @see java.lang.Long#parseLong(String, int)
      * @since 1.2
      */
+    @SideEffectFree
     public static Long decode(String nm) throws NumberFormatException {
         int radix = 10;
         int index = 0;
@@ -1289,8 +1316,9 @@ public final class Long extends Number implements Comparable<Long> {
      * {@link #valueOf(long)} is generally a better choice, as it is
      * likely to yield significantly better space and time performance.
      */
+    @SideEffectFree
     @Deprecated(since="9")
-    public Long(long value) {
+    public @PolyIndex Long(@PolyIndex long value) {
         this.value = value;
     }
 
@@ -1312,6 +1340,7 @@ public final class Long extends Number implements Comparable<Long> {
      * {@code long} primitive, or use {@link #valueOf(String)}
      * to convert a string to a {@code Long} object.
      */
+    @SideEffectFree
     @Deprecated(since="9")
     public Long(String s) throws NumberFormatException {
         this.value = parseLong(s, 10);
@@ -1322,7 +1351,8 @@ public final class Long extends Number implements Comparable<Long> {
      * a narrowing primitive conversion.
      * @jls 5.1.3 Narrowing Primitive Conversions
      */
-    public byte byteValue() {
+    @Pure
+    public @PolyIndex byte byteValue(@PolyIndex Long this) {
         return (byte)value;
     }
 
@@ -1331,7 +1361,8 @@ public final class Long extends Number implements Comparable<Long> {
      * a narrowing primitive conversion.
      * @jls 5.1.3 Narrowing Primitive Conversions
      */
-    public short shortValue() {
+    @Pure
+    public @PolyIndex short shortValue(@PolyIndex Long this) {
         return (short)value;
     }
 
@@ -1340,7 +1371,8 @@ public final class Long extends Number implements Comparable<Long> {
      * a narrowing primitive conversion.
      * @jls 5.1.3 Narrowing Primitive Conversions
      */
-    public int intValue() {
+    @Pure
+    public @PolyIndex int intValue(@PolyIndex Long this) {
         return (int)value;
     }
 
@@ -1348,8 +1380,9 @@ public final class Long extends Number implements Comparable<Long> {
      * Returns the value of this {@code Long} as a
      * {@code long} value.
      */
+    @Pure
     @HotSpotIntrinsicCandidate
-    public long longValue() {
+    public @PolyIndex long longValue(@PolyIndex Long this) {
         return value;
     }
 
@@ -1358,6 +1391,7 @@ public final class Long extends Number implements Comparable<Long> {
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversions
      */
+    @Pure
     public float floatValue() {
         return (float)value;
     }
@@ -1367,6 +1401,7 @@ public final class Long extends Number implements Comparable<Long> {
      * after a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversions
      */
+    @Pure
     public double doubleValue() {
         return (double)value;
     }
@@ -1381,6 +1416,7 @@ public final class Long extends Number implements Comparable<Long> {
      * @return  a string representation of the value of this object in
      *          base&nbsp;10.
      */
+    @SideEffectFree
     public String toString() {
         return toString(value);
     }
@@ -1397,6 +1433,7 @@ public final class Long extends Number implements Comparable<Long> {
      *
      * @return  a hash code value for this object.
      */
+    @Pure
     @Override
     public int hashCode() {
         return Long.hashCode(value);
@@ -1424,7 +1461,8 @@ public final class Long extends Number implements Comparable<Long> {
      * @return  {@code true} if the objects are the same;
      *          {@code false} otherwise.
      */
-    public boolean equals(Object obj) {
+    @Pure
+    public boolean equals(@Nullable Object obj) {
         if (obj instanceof Long) {
             return value == ((Long)obj).longValue();
         }
@@ -1461,7 +1499,8 @@ public final class Long extends Number implements Comparable<Long> {
      * @see     java.lang.System#getProperty(java.lang.String)
      * @see     java.lang.System#getProperty(java.lang.String, java.lang.String)
      */
-    public static Long getLong(String nm) {
+    @SideEffectFree
+    public static @Nullable Long getLong(@Nullable String nm) {
         return getLong(nm, null);
     }
 
@@ -1506,7 +1545,8 @@ public final class Long extends Number implements Comparable<Long> {
      * @see     java.lang.System#getProperty(java.lang.String)
      * @see     java.lang.System#getProperty(java.lang.String, java.lang.String)
      */
-    public static Long getLong(String nm, long val) {
+    @SideEffectFree
+    public static Long getLong(@Nullable String nm, long val) {
         Long result = Long.getLong(nm, null);
         return (result == null) ? Long.valueOf(val) : result;
     }
@@ -1555,7 +1595,8 @@ public final class Long extends Number implements Comparable<Long> {
      * @see     System#getProperty(java.lang.String)
      * @see     System#getProperty(java.lang.String, java.lang.String)
      */
-    public static Long getLong(String nm, Long val) {
+    @SideEffectFree
+    public static @PolyNull Long getLong(@Nullable String nm, @PolyNull Long val) {
         String v = null;
         try {
             v = System.getProperty(nm);
@@ -1583,6 +1624,7 @@ public final class Long extends Number implements Comparable<Long> {
      *           comparison).
      * @since   1.2
      */
+    @Pure
     public int compareTo(Long anotherLong) {
         return compare(this.value, anotherLong.value);
     }
@@ -1617,7 +1659,7 @@ public final class Long extends Number implements Comparable<Long> {
      *         unsigned values
      * @since 1.8
      */
-    public static int compareUnsigned(long x, long y) {
+    public static int compareUnsigned(@Unsigned long x, @Unsigned long y) {
         return compare(x + MIN_VALUE, y + MIN_VALUE);
     }
 
@@ -1640,7 +1682,7 @@ public final class Long extends Number implements Comparable<Long> {
      * @see #remainderUnsigned
      * @since 1.8
      */
-    public static long divideUnsigned(long dividend, long divisor) {
+    public static @Unsigned long divideUnsigned(@Unsigned long dividend, @Unsigned long divisor) {
         if (divisor < 0L) { // signed comparison
             // Answer must be 0 or 1 depending on relative magnitude
             // of dividend and divisor.
@@ -1673,7 +1715,7 @@ public final class Long extends Number implements Comparable<Long> {
      * @see #divideUnsigned
      * @since 1.8
      */
-    public static long remainderUnsigned(long dividend, long divisor) {
+    public static @Unsigned long remainderUnsigned(@Unsigned long dividend, @Unsigned long divisor) {
         if (dividend > 0 && divisor > 0) { // signed comparisons
             return dividend % divisor;
         } else {
@@ -1693,7 +1735,7 @@ public final class Long extends Number implements Comparable<Long> {
      *
      * @since 1.5
      */
-    @Native public static final int SIZE = 64;
+    @Native public static final @SignedPositive int SIZE = 64;
 
     /**
      * The number of bytes used to represent a {@code long} value in two's
@@ -1701,7 +1743,7 @@ public final class Long extends Number implements Comparable<Long> {
      *
      * @since 1.8
      */
-    public static final int BYTES = SIZE / Byte.SIZE;
+    public static final @SignedPositive int BYTES = SIZE / Byte.SIZE;
 
     /**
      * Returns a {@code long} value with at most a single one-bit, in the
@@ -1716,7 +1758,8 @@ public final class Long extends Number implements Comparable<Long> {
      *     the specified value is itself equal to zero.
      * @since 1.5
      */
-    public static long highestOneBit(long i) {
+    @Pure
+    public static long highestOneBit(@UnknownSignedness long i) {
         return i & (MIN_VALUE >>> numberOfLeadingZeros(i));
     }
 
@@ -1733,7 +1776,8 @@ public final class Long extends Number implements Comparable<Long> {
      *     the specified value is itself equal to zero.
      * @since 1.5
      */
-    public static long lowestOneBit(long i) {
+    @Pure
+    public static long lowestOneBit(@UnknownSignedness long i) {
         // HD, Section 2-1
         return i & -i;
     }
@@ -1759,8 +1803,9 @@ public final class Long extends Number implements Comparable<Long> {
      *     is equal to zero.
      * @since 1.5
      */
+    @Pure
     @HotSpotIntrinsicCandidate
-    public static int numberOfLeadingZeros(long i) {
+    public static @NonNegative int numberOfLeadingZeros(@UnknownSignedness long i) {
         int x = (int)(i >>> 32);
         return x == 0 ? 32 + Integer.numberOfLeadingZeros((int)i)
                 : Integer.numberOfLeadingZeros(x);
@@ -1780,8 +1825,9 @@ public final class Long extends Number implements Comparable<Long> {
      *     to zero.
      * @since 1.5
      */
+    @Pure
     @HotSpotIntrinsicCandidate
-    public static int numberOfTrailingZeros(long i) {
+    public static @NonNegative int numberOfTrailingZeros(@UnknownSignedness long i) {
         // HD, Figure 5-14
         int x, y;
         if (i == 0) return 64;
@@ -1804,8 +1850,9 @@ public final class Long extends Number implements Comparable<Long> {
      *     representation of the specified {@code long} value.
      * @since 1.5
      */
+     @Pure
      @HotSpotIntrinsicCandidate
-     public static int bitCount(long i) {
+     public static @NonNegative int bitCount(@UnknownSignedness long i) {
         // HD, Figure 5-2
         i = i - ((i >>> 1) & 0x5555555555555555L);
         i = (i & 0x3333333333333333L) + ((i >>> 2) & 0x3333333333333333L);
@@ -1836,7 +1883,8 @@ public final class Long extends Number implements Comparable<Long> {
      *     specified number of bits.
      * @since 1.5
      */
-    public static long rotateLeft(long i, int distance) {
+    @Pure
+    public static @PolySigned long rotateLeft(@PolySigned long i, int distance) {
         return (i << distance) | (i >>> -distance);
     }
 
@@ -1860,7 +1908,8 @@ public final class Long extends Number implements Comparable<Long> {
      *     specified number of bits.
      * @since 1.5
      */
-    public static long rotateRight(long i, int distance) {
+    @Pure
+    public static @PolySigned long rotateRight(@PolySigned long i, int distance) {
         return (i >>> distance) | (i << -distance);
     }
 
@@ -1874,7 +1923,8 @@ public final class Long extends Number implements Comparable<Long> {
      *     specified {@code long} value.
      * @since 1.5
      */
-    public static long reverse(long i) {
+    @Pure
+    public static @SignednessGlb long reverse(@PolySigned long i) {
         // HD, Figure 7-1
         i = (i & 0x5555555555555555L) << 1 | (i >>> 1) & 0x5555555555555555L;
         i = (i & 0x3333333333333333L) << 2 | (i >>> 2) & 0x3333333333333333L;
@@ -1892,7 +1942,8 @@ public final class Long extends Number implements Comparable<Long> {
      * @return the signum function of the specified {@code long} value.
      * @since 1.5
      */
-    public static int signum(long i) {
+    @Pure
+    public static @GTENegativeOne int signum(long i) {
         // HD, Section 2-7
         return (int) ((i >> 63) | (-i >>> 63));
     }
@@ -1906,8 +1957,9 @@ public final class Long extends Number implements Comparable<Long> {
      *     {@code long} value.
      * @since 1.5
      */
+    @Pure
     @HotSpotIntrinsicCandidate
-    public static long reverseBytes(long i) {
+    public static @SignednessGlb long reverseBytes(@PolySigned long i) {
         i = (i & 0x00ff00ff00ff00ffL) << 8 | (i >>> 8) & 0x00ff00ff00ff00ffL;
         return (i << 48) | ((i & 0xffff0000L) << 16) |
             ((i >>> 16) & 0xffff0000L) | (i >>> 48);

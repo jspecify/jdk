@@ -35,6 +35,9 @@
 
 package java.util.concurrent.atomic;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.function.LongBinaryOperator;
@@ -47,7 +50,8 @@ import java.util.function.LongUnaryOperator;
  * @since 1.5
  * @author Doug Lea
  */
-public class AtomicLongArray implements java.io.Serializable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class AtomicLongArray implements java.io.Serializable {
     private static final long serialVersionUID = -2308431214976778248L;
     private static final VarHandle AA
         = MethodHandles.arrayElementVarHandle(long[].class);

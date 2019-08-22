@@ -25,6 +25,13 @@
 
 package java.io;
 
+import org.checkerframework.checker.formatter.qual.FormatMethod;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Objects;
 import java.util.Formatter;
 import java.util.Locale;
@@ -58,6 +65,7 @@ import java.nio.charset.UnsupportedCharsetException;
  * @since       1.1
  */
 
+@AnnotatedFor({"formatter", "index", "nullness"})
 public class PrintWriter extends Writer {
 
     /**
@@ -500,7 +508,7 @@ public class PrintWriter extends Writer {
      *          cause the corresponding method of the underlying {@code Writer}
      *          to throw an {@code IndexOutOfBoundsException}
      */
-    public void write(char buf[], int off, int len) {
+    public void write(char buf[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) {
         try {
             synchronized (lock) {
                 ensureOpen();
@@ -535,7 +543,7 @@ public class PrintWriter extends Writer {
      *          cause the corresponding method of the underlying {@code Writer}
      *          to throw an {@code IndexOutOfBoundsException}
      */
-    public void write(String s, int off, int len) {
+    public void write(String s, @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) {
         try {
             synchronized (lock) {
                 ensureOpen();
@@ -682,7 +690,7 @@ public class PrintWriter extends Writer {
      *
      * @param      s   The {@code String} to be printed
      */
-    public void print(String s) {
+    public void print(@Nullable String s) {
         write(String.valueOf(s));
     }
 
@@ -696,7 +704,7 @@ public class PrintWriter extends Writer {
      * @param      obj   The {@code Object} to be printed
      * @see        java.lang.Object#toString()
      */
-    public void print(Object obj) {
+    public void print(@Nullable Object obj) {
         write(String.valueOf(obj));
     }
 
@@ -817,7 +825,7 @@ public class PrintWriter extends Writer {
      *
      * @param x the {@code String} value to be printed
      */
-    public void println(String x) {
+    public void println(@Nullable String x) {
         synchronized (lock) {
             print(x);
             println();
@@ -833,7 +841,7 @@ public class PrintWriter extends Writer {
      *
      * @param x  The {@code Object} to be printed.
      */
-    public void println(Object x) {
+    public void println(@Nullable Object x) {
         String s = String.valueOf(x);
         synchronized (lock) {
             print(s);
@@ -885,7 +893,8 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    public PrintWriter printf(String format, Object ... args) {
+    @FormatMethod
+    public PrintWriter printf(String format, @Nullable Object ... args) {
         return format(format, args);
     }
 
@@ -938,7 +947,8 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    public PrintWriter printf(Locale l, String format, Object ... args) {
+    @FormatMethod
+    public PrintWriter printf(@Nullable Locale l, String format, @Nullable Object ... args) {
         return format(l, format, args);
     }
 
@@ -982,7 +992,8 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    public PrintWriter format(String format, Object ... args) {
+    @FormatMethod
+    public PrintWriter format(String format, @Nullable Object ... args) {
         try {
             synchronized (lock) {
                 ensureOpen();
@@ -1042,7 +1053,8 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    public PrintWriter format(Locale l, String format, Object ... args) {
+    @FormatMethod
+    public PrintWriter format(@Nullable Locale l, String format, @Nullable Object ... args) {
         try {
             synchronized (lock) {
                 ensureOpen();
@@ -1085,7 +1097,7 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    public PrintWriter append(CharSequence csq) {
+    public PrintWriter append(@Nullable CharSequence csq) {
         write(String.valueOf(csq));
         return this;
     }
@@ -1124,7 +1136,7 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    public PrintWriter append(CharSequence csq, int start, int end) {
+    public PrintWriter append(@Nullable CharSequence csq, @IndexOrHigh({"#1"}) int start, @IndexOrHigh({"#1"}) int end) {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }

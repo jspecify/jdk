@@ -24,6 +24,9 @@
  */
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.awt.image.*;
 import java.net.URL;
@@ -104,7 +107,8 @@ import sun.awt.image.SunWritableRaster;
  * @author Oleg Semenov
  * @since 1.6
  */
-public final class SplashScreen {
+@AnnotatedFor({"interning"})
+public final @UsesObjectEquals class SplashScreen {
 
     SplashScreen(long ptr) { // non-public constructor
         splashPtr = ptr;

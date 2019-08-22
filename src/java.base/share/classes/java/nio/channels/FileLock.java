@@ -25,6 +25,9 @@
 
 package java.nio.channels;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.util.Objects;
 
@@ -117,7 +120,8 @@ import java.util.Objects;
  * @since 1.4
  */
 
-public abstract class FileLock implements AutoCloseable {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class FileLock implements AutoCloseable {
 
     private final Channel channel;
     private final long position;

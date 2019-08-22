@@ -26,6 +26,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Enumeration;
 import java.util.WeakHashMap;
 import java.util.Objects;
@@ -85,7 +88,8 @@ import sun.security.util.SecurityConstants;
  * @see java.security.Security security properties
  */
 
-public abstract class Policy {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class Policy {
 
     /**
      * A read-only empty PermissionCollection instance.

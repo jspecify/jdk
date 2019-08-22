@@ -25,6 +25,8 @@
 
 package sun.nio.ch;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -49,6 +51,7 @@ import jdk.internal.misc.SharedSecrets;
 import jdk.internal.ref.Cleaner;
 import jdk.internal.ref.CleanerFactory;
 
+@AnnotatedFor({"index"})
 public class FileChannelImpl
     extends FileChannel
 {

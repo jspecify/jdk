@@ -29,6 +29,9 @@
  */
 package java.awt.font;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.Font;
 import java.awt.Toolkit;
 import java.awt.im.InputMethodHighlight;
@@ -49,7 +52,8 @@ import sun.font.FontResolver;
  * Currently, this class is optimized for a small number of intervals
  * (preferably 1).
  */
-final class StyledParagraph {
+@AnnotatedFor({"interning"})
+final @UsesObjectEquals class StyledParagraph {
 
     // the length of the paragraph
     private int length;

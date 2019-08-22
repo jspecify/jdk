@@ -25,6 +25,8 @@
 
 package javax.xml.parsers;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Indicates a serious configuration error.
  *
@@ -32,6 +34,7 @@ package javax.xml.parsers;
  * @since 1.4
  */
 
+@AnnotatedFor("nullness")
 public class ParserConfigurationException extends Exception {
     private static final long serialVersionUID = -3688849216575373917L;
     /**

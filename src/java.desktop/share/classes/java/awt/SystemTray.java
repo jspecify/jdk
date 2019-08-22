@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.event.ActionListener;
 import java.awt.peer.SystemTrayPeer;
 import java.beans.PropertyChangeListener;
@@ -122,7 +125,8 @@ import sun.awt.SunToolkit;
  * @author Sharon Zakhour
  * @author Anton Tarasov
  */
-public class SystemTray {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class SystemTray {
     private static SystemTray systemTray;
     private int currentIconID = 0; // each TrayIcon added gets a unique ID
 

@@ -25,6 +25,9 @@
 
 package java.security.cert;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 
 import sun.security.util.HexDumpEncoder;
@@ -82,7 +85,8 @@ import sun.security.util.DerValue;
  * @author      Sean Mullan
  * @since       1.4
  */
-public class PolicyQualifierInfo {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class PolicyQualifierInfo {
 
     private byte [] mEncoded;
     private String mId;

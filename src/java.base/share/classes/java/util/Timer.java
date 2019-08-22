@@ -24,6 +24,11 @@
  */
 
 package java.util;
+
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.interning.qual.*;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -86,7 +91,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @since   1.3
  */
 
-public class Timer {
+@AnnotatedFor({"index", "interning", "lock", "nullness"})
+public @UsesObjectEquals class Timer {
     /**
      * The timer task queue.  This data structure is shared with the timer
      * thread.  The timer produces tasks, via its various schedule calls,
@@ -454,7 +460,7 @@ public class Timer {
      * @return the number of tasks removed from the queue.
      * @since 1.5
      */
-     public int purge() {
+     public @NonNegative int purge() {
          int result = 0;
 
          synchronized(queue) {

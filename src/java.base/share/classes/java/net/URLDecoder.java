@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
@@ -79,7 +82,8 @@ import java.util.Objects;
  * @since   1.2
  */
 
-public class URLDecoder {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class URLDecoder {
 
     // The platform default encoding
     static String dfltEncName = URLEncoder.dfltEncName;

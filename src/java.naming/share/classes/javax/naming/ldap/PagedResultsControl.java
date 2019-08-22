@@ -25,6 +25,9 @@
 
 package javax.naming.ldap;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import com.sun.jndi.ldap.Ber;
 import com.sun.jndi.ldap.BerEncoder;
@@ -110,13 +113,14 @@ import com.sun.jndi.ldap.BerEncoder;
  * @see PagedResultsResponseControl
  * @author Vincent Ryan
  */
+@AnnotatedFor({"interning"})
 final public class PagedResultsControl extends BasicControl {
 
     /**
      * The paged-results control's assigned object identifier
      * is 1.2.840.113556.1.4.319.
      */
-    public static final String OID = "1.2.840.113556.1.4.319";
+    public static final @Interned String OID = "1.2.840.113556.1.4.319";
 
     private static final byte[] EMPTY_COOKIE = new byte[0];
 

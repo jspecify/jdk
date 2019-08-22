@@ -25,6 +25,9 @@
 
 package javax.swing.table;
 
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.Component;
 import javax.swing.*;
 
@@ -35,6 +38,7 @@ import javax.swing.*;
  * @author Alan Chung
  */
 
+@AnnotatedFor({"index"})
 public interface TableCellRenderer {
 
     /**
@@ -93,5 +97,5 @@ public interface TableCellRenderer {
      */
     Component getTableCellRendererComponent(JTable table, Object value,
                                             boolean isSelected, boolean hasFocus,
-                                            int row, int column);
+                                            @NonNegative int row, @NonNegative int column);
 }

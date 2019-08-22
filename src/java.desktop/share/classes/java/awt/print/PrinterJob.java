@@ -25,6 +25,9 @@
 
 package java.awt.print;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.AWTError;
 import java.awt.HeadlessException;
 
@@ -46,7 +49,8 @@ import javax.print.attribute.standard.OrientationRequested;
  * optionally to invoke a print dialog with the user, and then to print
  * the pages of the job.
  */
-public abstract class PrinterJob {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class PrinterJob {
 
  /* Public Class Methods */
 

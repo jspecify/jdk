@@ -25,6 +25,12 @@
 
 package java.util;
 
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 /**
  * This class provides a skeletal implementation of the {@code Set}
  * interface to minimize the effort required to implement this
@@ -55,6 +61,8 @@ package java.util;
  * @since 1.2
  */
 
+@CFComment("lock/nullness: Subclasses of this interface/class may opt to prohibit null elements")
+@AnnotatedFor({"lock", "nullness"})
 public abstract class AbstractSet<E> extends AbstractCollection<E> implements Set<E> {
     /**
      * Sole constructor.  (For invocation by subclass constructors, typically
@@ -82,7 +90,8 @@ public abstract class AbstractSet<E> extends AbstractCollection<E> implements Se
      * @param o object to be compared for equality with this set
      * @return {@code true} if the specified object is equal to this set
      */
-    public boolean equals(Object o) {
+    @Pure
+    public boolean equals(@GuardSatisfied AbstractSet<E> this, @GuardSatisfied @Nullable Object o) {
         if (o == this)
             return true;
 
@@ -115,7 +124,8 @@ public abstract class AbstractSet<E> extends AbstractCollection<E> implements Se
      * @see Object#equals(Object)
      * @see Set#equals(Object)
      */
-    public int hashCode() {
+    @Pure
+    public int hashCode(@GuardSatisfied AbstractSet<E> this) {
         int h = 0;
         Iterator<E> i = iterator();
         while (i.hasNext()) {
@@ -163,7 +173,7 @@ public abstract class AbstractSet<E> extends AbstractCollection<E> implements Se
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    public boolean removeAll(Collection<?> c) {
+    public boolean removeAll(@GuardSatisfied AbstractSet<E> this, Collection<?> c) {
         Objects.requireNonNull(c);
         boolean modified = false;
 

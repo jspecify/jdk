@@ -25,6 +25,9 @@
 
 package java.awt.event;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * An abstract adapter class for receiving container events.
  * The methods in this class are empty. This class exists as
@@ -49,7 +52,8 @@ package java.awt.event;
  * @author Amy Fowler
  * @since 1.1
  */
-public abstract class ContainerAdapter implements ContainerListener {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class ContainerAdapter implements ContainerListener {
     /**
      * Invoked when a component has been added to the container.
      */

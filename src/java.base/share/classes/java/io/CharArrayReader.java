@@ -25,6 +25,13 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * This class implements a character buffer that can be used as a
  * character-input stream.
@@ -32,6 +39,7 @@ package java.io;
  * @author      Herb Jellinek
  * @since       1.1
  */
+@AnnotatedFor({"nullness", "index"})
 public class CharArrayReader extends Reader {
     /** The character buffer. */
     protected char buf[];
@@ -75,7 +83,7 @@ public class CharArrayReader extends Reader {
      * @param offset    Offset of the first char to read
      * @param length    Number of chars to read
      */
-    public CharArrayReader(char buf[], int offset, int length) {
+    public CharArrayReader(char buf[], @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int length) {
         if ((offset < 0) || (offset > buf.length) || (length < 0) ||
             ((offset + length) < 0)) {
             throw new IllegalArgumentException();
@@ -97,7 +105,7 @@ public class CharArrayReader extends Reader {
      *
      * @exception   IOException  If an I/O error occurs
      */
-    public int read() throws IOException {
+    public @GTENegativeOne int read() throws IOException {
         synchronized (lock) {
             ensureOpen();
             if (pos >= count)
@@ -118,7 +126,7 @@ public class CharArrayReader extends Reader {
      * @exception   IOException  If an I/O error occurs
      * @exception   IndexOutOfBoundsException {@inheritDoc}
      */
-    public int read(char b[], int off, int len) throws IOException {
+    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(char b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
         synchronized (lock) {
             ensureOpen();
             if ((off < 0) || (off > b.length) || (len < 0) ||
@@ -157,7 +165,7 @@ public class CharArrayReader extends Reader {
      * @return       The number of characters actually skipped
      * @exception  IOException If the stream is closed, or an I/O error occurs
      */
-    public long skip(long n) throws IOException {
+    public @NonNegative long skip(long n) throws IOException {
         synchronized (lock) {
             ensureOpen();
 
@@ -205,7 +213,7 @@ public class CharArrayReader extends Reader {
      *
      * @exception  IOException  If an I/O error occurs
      */
-    public void mark(int readAheadLimit) throws IOException {
+    public void mark(@NonNegative int readAheadLimit) throws IOException {
         synchronized (lock) {
             ensureOpen();
             markedPos = pos;

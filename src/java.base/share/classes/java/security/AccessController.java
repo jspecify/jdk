@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import sun.security.util.Debug;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
@@ -262,7 +265,8 @@ import jdk.internal.reflect.Reflection;
  * @since 1.2
  */
 
-public final class AccessController {
+@AnnotatedFor({"interning"})
+public final @UsesObjectEquals class AccessController {
 
     /**
      * Don't allow anyone to instantiate an AccessController

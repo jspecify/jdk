@@ -25,6 +25,8 @@
 
 package java.util.zip;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.file.attribute.FileTime;
@@ -42,6 +44,7 @@ import static java.util.zip.ZipConstants.ENDHDR;
 import jdk.internal.misc.Unsafe;
 import sun.nio.ch.DirectBuffer;
 
+@AnnotatedFor({"signedness"})
 class ZipUtils {
 
     // used to adjust values between Windows and java epoch

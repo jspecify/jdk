@@ -25,6 +25,9 @@
 
 package java.lang;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * A collection of assertion status directives (such as "enable assertions
  * in package p" or "disable assertions in class c").  This class is used by
@@ -35,6 +38,7 @@ package java.lang;
  * @since  1.4
  * @author Josh Bloch
  */
+@AnnotatedFor({"interning", "nullness"})
 class AssertionStatusDirectives {
     /**
      * The classes for which assertions are to be enabled or disabled.

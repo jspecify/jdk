@@ -25,6 +25,13 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * The class implements a buffered output stream. By setting up such
  * an output stream, an application can write bytes to the underlying
@@ -34,6 +41,7 @@ package java.io;
  * @author  Arthur van Hoff
  * @since   1.0
  */
+@AnnotatedFor({"nullness", "index", "signedness"})
 public class BufferedOutputStream extends FilterOutputStream {
     /**
      * The internal buffer where data is stored.
@@ -67,7 +75,7 @@ public class BufferedOutputStream extends FilterOutputStream {
      * @param   size   the buffer size.
      * @exception IllegalArgumentException if size &lt;= 0.
      */
-    public BufferedOutputStream(OutputStream out, int size) {
+    public BufferedOutputStream(OutputStream out, @Positive int size) {
         super(out);
         if (size <= 0) {
             throw new IllegalArgumentException("Buffer size <= 0");
@@ -90,7 +98,7 @@ public class BufferedOutputStream extends FilterOutputStream {
      * @exception  IOException  if an I/O error occurs.
      */
     @Override
-    public synchronized void write(int b) throws IOException {
+    public synchronized void write(@PolySigned int b) throws IOException {
         if (count >= buf.length) {
             flushBuffer();
         }
@@ -114,7 +122,7 @@ public class BufferedOutputStream extends FilterOutputStream {
      * @exception  IOException  if an I/O error occurs.
      */
     @Override
-    public synchronized void write(byte b[], int off, int len) throws IOException {
+    public synchronized void write(@PolySigned byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
         if (len >= buf.length) {
             /* If the request length exceeds the size of the output buffer,
                flush the output buffer and then write the data directly.

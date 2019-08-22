@@ -24,6 +24,9 @@
  */
 package java.beans;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import com.sun.beans.decoder.DocumentHandler;
 
 import java.io.Closeable;
@@ -63,7 +66,8 @@ import org.xml.sax.helpers.DefaultHandler;
  *
  * @author Philip Milne
  */
-public class XMLDecoder implements AutoCloseable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class XMLDecoder implements AutoCloseable {
     private final AccessControlContext acc = AccessController.getContext();
     private final DocumentHandler handler = new DocumentHandler();
     private final InputSource input;

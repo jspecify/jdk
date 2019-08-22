@@ -24,6 +24,9 @@
  */
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.beans.ConstructorProperties;
 import java.io.InputStream;
 import java.security.AccessController;
@@ -42,7 +45,8 @@ import sun.util.logging.PlatformLogger;
  * @see Component#setCursor
  * @author      Amy Fowler
  */
-public class Cursor implements java.io.Serializable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class Cursor implements java.io.Serializable {
 
     /**
      * The default cursor type (gets set if no cursor is defined).

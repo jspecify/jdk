@@ -24,6 +24,9 @@
  */
 package javax.swing;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.text.*;
@@ -69,6 +72,7 @@ import javax.swing.text.*;
  * @author Jeff Dinkins
  * @since 1.2
  */
+@AnnotatedFor({"interning"})
 @JavaBean(defaultProperty = "UI")
 @SuppressWarnings("serial") // Same-version serialization only
 public abstract class AbstractButton extends JComponent implements ItemSelectable, SwingConstants {
@@ -78,82 +82,82 @@ public abstract class AbstractButton extends JComponent implements ItemSelectabl
     // *********************************
 
     /** Identifies a change in the button model. */
-    public static final String MODEL_CHANGED_PROPERTY = "model";
+    public static final @Interned String MODEL_CHANGED_PROPERTY = "model";
     /** Identifies a change in the button's text. */
-    public static final String TEXT_CHANGED_PROPERTY = "text";
+    public static final @Interned String TEXT_CHANGED_PROPERTY = "text";
     /** Identifies a change to the button's mnemonic. */
-    public static final String MNEMONIC_CHANGED_PROPERTY = "mnemonic";
+    public static final @Interned String MNEMONIC_CHANGED_PROPERTY = "mnemonic";
 
     // Text positioning and alignment
     /** Identifies a change in the button's margins. */
-    public static final String MARGIN_CHANGED_PROPERTY = "margin";
+    public static final @Interned String MARGIN_CHANGED_PROPERTY = "margin";
     /** Identifies a change in the button's vertical alignment. */
-    public static final String VERTICAL_ALIGNMENT_CHANGED_PROPERTY = "verticalAlignment";
+    public static final @Interned String VERTICAL_ALIGNMENT_CHANGED_PROPERTY = "verticalAlignment";
     /** Identifies a change in the button's horizontal alignment. */
-    public static final String HORIZONTAL_ALIGNMENT_CHANGED_PROPERTY = "horizontalAlignment";
+    public static final @Interned String HORIZONTAL_ALIGNMENT_CHANGED_PROPERTY = "horizontalAlignment";
 
     /** Identifies a change in the button's vertical text position. */
-    public static final String VERTICAL_TEXT_POSITION_CHANGED_PROPERTY = "verticalTextPosition";
+    public static final @Interned String VERTICAL_TEXT_POSITION_CHANGED_PROPERTY = "verticalTextPosition";
     /** Identifies a change in the button's horizontal text position. */
-    public static final String HORIZONTAL_TEXT_POSITION_CHANGED_PROPERTY = "horizontalTextPosition";
+    public static final @Interned String HORIZONTAL_TEXT_POSITION_CHANGED_PROPERTY = "horizontalTextPosition";
 
     // Paint options
     /**
      * Identifies a change to having the border drawn,
      * or having it not drawn.
      */
-    public static final String BORDER_PAINTED_CHANGED_PROPERTY = "borderPainted";
+    public static final @Interned String BORDER_PAINTED_CHANGED_PROPERTY = "borderPainted";
     /**
      * Identifies a change to having the border highlighted when focused,
      * or not.
      */
-    public static final String FOCUS_PAINTED_CHANGED_PROPERTY = "focusPainted";
+    public static final @Interned String FOCUS_PAINTED_CHANGED_PROPERTY = "focusPainted";
     /**
      * Identifies a change from rollover enabled to disabled or back
      * to enabled.
      */
-    public static final String ROLLOVER_ENABLED_CHANGED_PROPERTY = "rolloverEnabled";
+    public static final @Interned String ROLLOVER_ENABLED_CHANGED_PROPERTY = "rolloverEnabled";
     /**
      * Identifies a change to having the button paint the content area.
      */
-    public static final String CONTENT_AREA_FILLED_CHANGED_PROPERTY = "contentAreaFilled";
+    public static final @Interned String CONTENT_AREA_FILLED_CHANGED_PROPERTY = "contentAreaFilled";
 
     // Icons
     /** Identifies a change to the icon that represents the button. */
-    public static final String ICON_CHANGED_PROPERTY = "icon";
+    public static final @Interned String ICON_CHANGED_PROPERTY = "icon";
 
     /**
      * Identifies a change to the icon used when the button has been
      * pressed.
      */
-    public static final String PRESSED_ICON_CHANGED_PROPERTY = "pressedIcon";
+    public static final @Interned String PRESSED_ICON_CHANGED_PROPERTY = "pressedIcon";
     /**
      * Identifies a change to the icon used when the button has
      * been selected.
      */
-    public static final String SELECTED_ICON_CHANGED_PROPERTY = "selectedIcon";
+    public static final @Interned String SELECTED_ICON_CHANGED_PROPERTY = "selectedIcon";
 
     /**
      * Identifies a change to the icon used when the cursor is over
      * the button.
      */
-    public static final String ROLLOVER_ICON_CHANGED_PROPERTY = "rolloverIcon";
+    public static final @Interned String ROLLOVER_ICON_CHANGED_PROPERTY = "rolloverIcon";
     /**
      * Identifies a change to the icon used when the cursor is
      * over the button and it has been selected.
      */
-    public static final String ROLLOVER_SELECTED_ICON_CHANGED_PROPERTY = "rolloverSelectedIcon";
+    public static final @Interned String ROLLOVER_SELECTED_ICON_CHANGED_PROPERTY = "rolloverSelectedIcon";
 
     /**
      * Identifies a change to the icon used when the button has
      * been disabled.
      */
-    public static final String DISABLED_ICON_CHANGED_PROPERTY = "disabledIcon";
+    public static final @Interned String DISABLED_ICON_CHANGED_PROPERTY = "disabledIcon";
     /**
      * Identifies a change to the icon used when the button has been
      * disabled and selected.
      */
-    public static final String DISABLED_SELECTED_ICON_CHANGED_PROPERTY = "disabledSelectedIcon";
+    public static final @Interned String DISABLED_SELECTED_ICON_CHANGED_PROPERTY = "disabledSelectedIcon";
 
 
     /** The data model that determines the button's state. */

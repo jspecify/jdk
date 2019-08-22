@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Thrown when the "verifier" detects that a class file,
  * though well formed, contains some sort of internal inconsistency
@@ -33,6 +37,7 @@ package java.lang;
  * @author  unascribed
  * @since   1.0
  */
+@AnnotatedFor({"nullness"})
 public
 class VerifyError extends LinkageError {
     private static final long serialVersionUID = 7001962396098498785L;
@@ -40,6 +45,7 @@ class VerifyError extends LinkageError {
     /**
      * Constructs an <code>VerifyError</code> with no detail message.
      */
+    @SideEffectFree
     public VerifyError() {
         super();
     }
@@ -49,7 +55,8 @@ class VerifyError extends LinkageError {
      *
      * @param   s   the detail message.
      */
-    public VerifyError(String s) {
+    @SideEffectFree
+    public VerifyError(@Nullable String s) {
         super(s);
     }
 }

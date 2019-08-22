@@ -25,6 +25,9 @@
 
 package java.lang.ref;
 
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
  * Soft reference objects, which are cleared at the discretion of the garbage
@@ -61,6 +64,7 @@ package java.lang.ref;
  * @since    1.2
  */
 
+@AnnotatedFor({"lock", "nullness"})
 public class SoftReference<T> extends Reference<T> {
 
     /**
@@ -108,7 +112,8 @@ public class SoftReference<T> extends Reference<T> {
      * @return   The object to which this reference refers, or
      *           {@code null} if this reference object has been cleared
      */
-    public T get() {
+    @SideEffectFree
+    public T get(@GuardSatisfied SoftReference<T> this) {
         T o = super.get();
         if (o != null && this.timestamp != clock)
             this.timestamp = clock;

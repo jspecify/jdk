@@ -27,6 +27,9 @@
  */
 package javax.xml.crypto.dsig.spec;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import javax.xml.crypto.dsig.CanonicalizationMethod;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -57,6 +60,7 @@ import java.util.List;
  * @since 1.6
  * @see CanonicalizationMethod
  */
+@AnnotatedFor({"interning"})
 public final class ExcC14NParameterSpec implements C14NMethodParameterSpec {
 
     private final List<String> prefixList;
@@ -64,7 +68,7 @@ public final class ExcC14NParameterSpec implements C14NMethodParameterSpec {
     /**
      * Indicates the default namespace ("#default").
      */
-    public static final String DEFAULT = "#default";
+    public static final @Interned String DEFAULT = "#default";
 
     /**
      * Creates a <code>ExcC14NParameterSpec</code> with an empty prefix

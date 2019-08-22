@@ -25,6 +25,9 @@
 
 package javax.management.relation;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import javax.management.Notification;
 import javax.management.ObjectName;
 
@@ -58,6 +61,7 @@ import static com.sun.jmx.mbeanserver.Util.cast;
  *
  * @since 1.5
  */
+@AnnotatedFor({"interning"})
 @SuppressWarnings("serial")  // serialVersionUID not constant
 public class RelationNotification extends Notification {
 
@@ -144,27 +148,27 @@ public class RelationNotification extends Notification {
     /**
      * Type for the creation of an internal relation.
      */
-    public static final String RELATION_BASIC_CREATION = "jmx.relation.creation.basic";
+    public static final @Interned String RELATION_BASIC_CREATION = "jmx.relation.creation.basic";
     /**
      * Type for the relation MBean added into the Relation Service.
      */
-    public static final String RELATION_MBEAN_CREATION = "jmx.relation.creation.mbean";
+    public static final @Interned String RELATION_MBEAN_CREATION = "jmx.relation.creation.mbean";
     /**
      * Type for an update of an internal relation.
      */
-    public static final String RELATION_BASIC_UPDATE = "jmx.relation.update.basic";
+    public static final @Interned String RELATION_BASIC_UPDATE = "jmx.relation.update.basic";
     /**
      * Type for the update of a relation MBean.
      */
-    public static final String RELATION_MBEAN_UPDATE = "jmx.relation.update.mbean";
+    public static final @Interned String RELATION_MBEAN_UPDATE = "jmx.relation.update.mbean";
     /**
      * Type for the removal from the Relation Service of an internal relation.
      */
-    public static final String RELATION_BASIC_REMOVAL = "jmx.relation.removal.basic";
+    public static final @Interned String RELATION_BASIC_REMOVAL = "jmx.relation.removal.basic";
     /**
      * Type for the removal from the Relation Service of a relation MBean.
      */
-    public static final String RELATION_MBEAN_REMOVAL = "jmx.relation.removal.mbean";
+    public static final @Interned String RELATION_MBEAN_REMOVAL = "jmx.relation.removal.mbean";
 
     //
     // Private members

@@ -25,6 +25,11 @@
 
 package java.util;
 
+import org.checkerframework.checker.index.qual.IndexFor;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * This class implements the Dual-Pivot Quicksort algorithm by
  * Vladimir Yaroslavskiy, Jon Bentley, and Josh Bloch. The algorithm
@@ -44,7 +49,8 @@ package java.util;
  * @version 2011.02.11 m765.827.12i:5\7pm
  * @since 1.7
  */
-final class DualPivotQuicksort {
+@AnnotatedFor({"index", "interning"})
+final @UsesObjectEquals class DualPivotQuicksort {
 
     /**
      * Prevents instantiation.
@@ -99,7 +105,7 @@ final class DualPivotQuicksort {
      * @param workBase origin of usable space in work array
      * @param workLen usable size of work array
      */
-    static void sort(int[] a, int left, int right,
+    static void sort(int[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right,
                      int[] work, int workBase, int workLen) {
         // Use Quicksort on small arrays
         if (right - left < QUICKSORT_THRESHOLD) {
@@ -224,7 +230,7 @@ final class DualPivotQuicksort {
      * @param right the index of the last element, inclusive, to be sorted
      * @param leftmost indicates if this part is the leftmost in the range
      */
-    private static void sort(int[] a, int left, int right, boolean leftmost) {
+    private static void sort(int[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right, boolean leftmost) {
         int length = right - left + 1;
 
         // Use insertion sort on tiny arrays
@@ -565,7 +571,7 @@ final class DualPivotQuicksort {
      * @param workBase origin of usable space in work array
      * @param workLen usable size of work array
      */
-    static void sort(long[] a, int left, int right,
+    static void sort(long[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right,
                      long[] work, int workBase, int workLen) {
         // Use Quicksort on small arrays
         if (right - left < QUICKSORT_THRESHOLD) {
@@ -690,7 +696,7 @@ final class DualPivotQuicksort {
      * @param right the index of the last element, inclusive, to be sorted
      * @param leftmost indicates if this part is the leftmost in the range
      */
-    private static void sort(long[] a, int left, int right, boolean leftmost) {
+    private static void sort(long[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right, boolean leftmost) {
         int length = right - left + 1;
 
         // Use insertion sort on tiny arrays
@@ -1031,7 +1037,7 @@ final class DualPivotQuicksort {
      * @param workBase origin of usable space in work array
      * @param workLen usable size of work array
      */
-    static void sort(short[] a, int left, int right,
+    static void sort(short[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right,
                      short[] work, int workBase, int workLen) {
         // Use counting sort on large arrays
         if (right - left > COUNTING_SORT_THRESHOLD_FOR_SHORT_OR_CHAR) {
@@ -1067,7 +1073,7 @@ final class DualPivotQuicksort {
      * @param workBase origin of usable space in work array
      * @param workLen usable size of work array
      */
-    private static void doSort(short[] a, int left, int right,
+    private static void doSort(short[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right,
                                short[] work, int workBase, int workLen) {
         // Use Quicksort on small arrays
         if (right - left < QUICKSORT_THRESHOLD) {
@@ -1192,7 +1198,7 @@ final class DualPivotQuicksort {
      * @param right the index of the last element, inclusive, to be sorted
      * @param leftmost indicates if this part is the leftmost in the range
      */
-    private static void sort(short[] a, int left, int right, boolean leftmost) {
+    private static void sort(short[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right, boolean leftmost) {
         int length = right - left + 1;
 
         // Use insertion sort on tiny arrays
@@ -1533,7 +1539,7 @@ final class DualPivotQuicksort {
      * @param workBase origin of usable space in work array
      * @param workLen usable size of work array
      */
-    static void sort(char[] a, int left, int right,
+    static void sort(char[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right,
                      char[] work, int workBase, int workLen) {
         // Use counting sort on large arrays
         if (right - left > COUNTING_SORT_THRESHOLD_FOR_SHORT_OR_CHAR) {
@@ -1569,7 +1575,7 @@ final class DualPivotQuicksort {
      * @param workBase origin of usable space in work array
      * @param workLen usable size of work array
      */
-    private static void doSort(char[] a, int left, int right,
+    private static void doSort(char[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right,
                                char[] work, int workBase, int workLen) {
         // Use Quicksort on small arrays
         if (right - left < QUICKSORT_THRESHOLD) {
@@ -1694,7 +1700,7 @@ final class DualPivotQuicksort {
      * @param right the index of the last element, inclusive, to be sorted
      * @param leftmost indicates if this part is the leftmost in the range
      */
-    private static void sort(char[] a, int left, int right, boolean leftmost) {
+    private static void sort(char[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right, boolean leftmost) {
         int length = right - left + 1;
 
         // Use insertion sort on tiny arrays
@@ -2034,7 +2040,7 @@ final class DualPivotQuicksort {
      * @param left the index of the first element, inclusive, to be sorted
      * @param right the index of the last element, inclusive, to be sorted
      */
-    static void sort(byte[] a, int left, int right) {
+    static void sort(byte[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right) {
         // Use counting sort on large arrays
         if (right - left > COUNTING_SORT_THRESHOLD_FOR_BYTE) {
             int[] count = new int[NUM_BYTE_VALUES];
@@ -2076,7 +2082,7 @@ final class DualPivotQuicksort {
      * @param workBase origin of usable space in work array
      * @param workLen usable size of work array
      */
-    static void sort(float[] a, int left, int right,
+    static void sort(float[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right,
                      float[] work, int workBase, int workLen) {
         /*
          * Phase 1: Move NaNs to the end of the array.
@@ -2167,7 +2173,7 @@ final class DualPivotQuicksort {
      * @param workBase origin of usable space in work array
      * @param workLen usable size of work array
      */
-    private static void doSort(float[] a, int left, int right,
+    private static void doSort(float[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right,
                                float[] work, int workBase, int workLen) {
         // Use Quicksort on small arrays
         if (right - left < QUICKSORT_THRESHOLD) {
@@ -2292,7 +2298,7 @@ final class DualPivotQuicksort {
      * @param right the index of the last element, inclusive, to be sorted
      * @param leftmost indicates if this part is the leftmost in the range
      */
-    private static void sort(float[] a, int left, int right, boolean leftmost) {
+    private static void sort(float[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right, boolean leftmost) {
         int length = right - left + 1;
 
         // Use insertion sort on tiny arrays
@@ -2633,7 +2639,7 @@ final class DualPivotQuicksort {
      * @param workBase origin of usable space in work array
      * @param workLen usable size of work array
      */
-    static void sort(double[] a, int left, int right,
+    static void sort(double[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right,
                      double[] work, int workBase, int workLen) {
         /*
          * Phase 1: Move NaNs to the end of the array.
@@ -2724,7 +2730,7 @@ final class DualPivotQuicksort {
      * @param workBase origin of usable space in work array
      * @param workLen usable size of work array
      */
-    private static void doSort(double[] a, int left, int right,
+    private static void doSort(double[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right,
                                double[] work, int workBase, int workLen) {
         // Use Quicksort on small arrays
         if (right - left < QUICKSORT_THRESHOLD) {
@@ -2849,7 +2855,7 @@ final class DualPivotQuicksort {
      * @param right the index of the last element, inclusive, to be sorted
      * @param leftmost indicates if this part is the leftmost in the range
      */
-    private static void sort(double[] a, int left, int right, boolean leftmost) {
+    private static void sort(double[] a, @IndexOrHigh({"#1"}) int left, @IndexFor({"#1"}) int right, boolean leftmost) {
         int length = right - left + 1;
 
         // Use insertion sort on tiny arrays

@@ -25,6 +25,12 @@
 
 package java.io;
 
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.signature.qual.BinaryName;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
@@ -78,6 +84,7 @@ import static java.io.ObjectStreamField.*;
  *     Object Serialization Specification, Section 4, Class Descriptors</a>
  * @since   1.1
  */
+@AnnotatedFor({"index", "lock", "nullness", "signature"})
 public class ObjectStreamClass implements Serializable {
 
     /** serialPersistentFields value indicating no serializable fields */
@@ -221,7 +228,7 @@ public class ObjectStreamClass implements Serializable {
      * @param   cl class for which to get the descriptor
      * @return  the class descriptor for the specified class
      */
-    public static ObjectStreamClass lookup(Class<?> cl) {
+    public static @Nullable ObjectStreamClass lookup(Class<?> cl) {
         return lookup(cl, false);
     }
 
@@ -244,7 +251,7 @@ public class ObjectStreamClass implements Serializable {
      *
      * @return a string representing the name of the class
      */
-    public String getName() {
+    public @BinaryName String getName() {
         return name;
     }
 
@@ -277,7 +284,7 @@ public class ObjectStreamClass implements Serializable {
      * @return  the <code>Class</code> instance that this descriptor represents
      */
     @CallerSensitive
-    public Class<?> forClass() {
+    public @Nullable Class<?> forClass() {
         if (cl == null) {
             return null;
         }
@@ -310,14 +317,15 @@ public class ObjectStreamClass implements Serializable {
      * @return  The ObjectStreamField object of the named field or null if
      *          there is no such named field.
      */
-    public ObjectStreamField getField(String name) {
+    public @Nullable ObjectStreamField getField(String name) {
         return getField(name, null);
     }
 
     /**
      * Return a string describing this ObjectStreamClass.
      */
-    public String toString() {
+    @SideEffectFree
+    public String toString(@GuardSatisfied ObjectStreamClass this) {
         return name + ": static final long serialVersionUID = " +
             getSerialVersionUID() + "L;";
     }

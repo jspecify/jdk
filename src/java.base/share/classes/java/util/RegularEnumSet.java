@@ -25,6 +25,9 @@
 
 package java.util;
 
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Private implementation class for EnumSet, for "regular sized" enum types
  * (i.e., those with 64 or fewer enum constants).
@@ -33,6 +36,7 @@ package java.util;
  * @since 1.5
  * @serial exclude
  */
+@AnnotatedFor({"index"})
 class RegularEnumSet<E extends Enum<E>> extends EnumSet<E> {
     private static final long serialVersionUID = 3411599620347842686L;
     /**
@@ -118,7 +122,7 @@ class RegularEnumSet<E extends Enum<E>> extends EnumSet<E> {
      *
      * @return the number of elements in this set
      */
-    public int size() {
+    public @NonNegative int size() {
         return Long.bitCount(elements);
     }
 

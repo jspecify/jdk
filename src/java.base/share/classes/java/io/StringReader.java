@@ -25,6 +25,13 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 
 /**
  * A character stream whose source is a string.
@@ -33,6 +40,7 @@ package java.io;
  * @since       1.1
  */
 
+@AnnotatedFor({"nullness", "index"})
 public class StringReader extends Reader {
 
     private String str;
@@ -86,7 +94,7 @@ public class StringReader extends Reader {
      * @exception  IOException  If an I/O error occurs
      * @exception  IndexOutOfBoundsException {@inheritDoc}
      */
-    public int read(char cbuf[], int off, int len) throws IOException {
+    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(char cbuf[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
         synchronized (lock) {
             ensureOpen();
             if ((off < 0) || (off > cbuf.length) || (len < 0) ||
@@ -120,7 +128,7 @@ public class StringReader extends Reader {
      *
      * @exception  IOException  If an I/O error occurs
      */
-    public long skip(long ns) throws IOException {
+    public @NonNegative long skip(long ns) throws IOException {
         synchronized (lock) {
             ensureOpen();
             if (next >= length)
@@ -167,7 +175,7 @@ public class StringReader extends Reader {
      * @exception  IllegalArgumentException  If {@code readAheadLimit < 0}
      * @exception  IOException  If an I/O error occurs
      */
-    public void mark(int readAheadLimit) throws IOException {
+    public void mark(@NonNegative int readAheadLimit) throws IOException {
         if (readAheadLimit < 0){
             throw new IllegalArgumentException("Read-ahead limit < 0");
         }

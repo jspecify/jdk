@@ -35,6 +35,9 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Collection;
 import java.util.List;
 
@@ -135,6 +138,7 @@ import java.util.List;
  * @since 1.5
  * @author Doug Lea
  */
+@AnnotatedFor({"nullness"})
 public interface ExecutorService extends Executor {
 
     /**
@@ -262,7 +266,7 @@ public interface ExecutorService extends Executor {
      *         scheduled for execution
      * @throws NullPointerException if the task is null
      */
-    Future<?> submit(Runnable task);
+    Future<@Nullable ?> submit(Runnable task);
 
     /**
      * Executes the given tasks, returning a list of Futures holding

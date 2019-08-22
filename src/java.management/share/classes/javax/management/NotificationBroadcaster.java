@@ -26,6 +26,9 @@
 
 package javax.management;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.concurrent.CopyOnWriteArrayList;  // for Javadoc
 
 /**
@@ -70,6 +73,7 @@ import java.util.concurrent.CopyOnWriteArrayList;  // for Javadoc
  *
  * @since 1.5
  */
+@AnnotatedFor("nullness")
 public interface NotificationBroadcaster {
 
     /**
@@ -89,8 +93,8 @@ public interface NotificationBroadcaster {
      * @see #removeNotificationListener
      */
     public void addNotificationListener(NotificationListener listener,
-                                        NotificationFilter filter,
-                                        Object handback)
+                                        @Nullable NotificationFilter filter,
+                                        @Nullable Object handback)
             throws java.lang.IllegalArgumentException;
 
     /**

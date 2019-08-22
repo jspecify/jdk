@@ -25,6 +25,9 @@
 
 package java.security.cert;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.security.InvalidAlgorithmParameterException;
 
 /**
@@ -53,7 +56,8 @@ import java.security.InvalidAlgorithmParameterException;
  * @since       1.4
  * @author      Yassir Elley
  */
-public abstract class CertPathValidatorSpi {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class CertPathValidatorSpi {
 
     /**
      * The default constructor.

@@ -25,6 +25,14 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 
 /**
  * Piped character-input streams.
@@ -33,6 +41,7 @@ package java.io;
  * @since       1.1
  */
 
+@AnnotatedFor({"nullness", "index"})
 public class PipedReader extends Reader {
     boolean closedByWriter = false;
     boolean closedByReader = false;
@@ -94,7 +103,7 @@ public class PipedReader extends Reader {
      * @exception  IllegalArgumentException if {@code pipeSize <= 0}.
      * @since      1.6
      */
-    public PipedReader(PipedWriter src, int pipeSize) throws IOException {
+    public PipedReader(PipedWriter src, @Positive int pipeSize) throws IOException {
         initPipe(pipeSize);
         connect(src);
     }
@@ -123,7 +132,7 @@ public class PipedReader extends Reader {
      * @exception  IllegalArgumentException if {@code pipeSize <= 0}.
      * @since      1.6
      */
-    public PipedReader(int pipeSize) {
+    public PipedReader(@Positive int pipeSize) {
         initPipe(pipeSize);
     }
 
@@ -230,7 +239,7 @@ public class PipedReader extends Reader {
      *          {@link #connect(java.io.PipedWriter) unconnected}, closed,
      *          or an I/O error occurs.
      */
-    public synchronized int read()  throws IOException {
+    public synchronized @GTENegativeOne int read()  throws IOException {
         if (!connected) {
             throw new IOException("Pipe not connected");
         } else if (closedByReader) {
@@ -288,7 +297,7 @@ public class PipedReader extends Reader {
      *                  or an I/O error occurs.
      * @exception  IndexOutOfBoundsException {@inheritDoc}
      */
-    public synchronized int read(char cbuf[], int off, int len)  throws IOException {
+    public synchronized @GTENegativeOne @LTEqLengthOf({"#1"}) int read(char cbuf[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len)  throws IOException {
         if (!connected) {
             throw new IOException("Pipe not connected");
         } else if (closedByReader) {

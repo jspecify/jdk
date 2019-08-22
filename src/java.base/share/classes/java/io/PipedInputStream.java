@@ -25,6 +25,14 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * A piped input stream should be connected
  * to a piped output stream; the piped  input
@@ -47,6 +55,7 @@ package java.io;
  * @see     java.io.PipedOutputStream
  * @since   1.0
  */
+@AnnotatedFor({"index"})
 public class PipedInputStream extends InputStream {
     boolean closedByWriter;
     volatile boolean closedByReader;
@@ -120,7 +129,7 @@ public class PipedInputStream extends InputStream {
      * @exception  IllegalArgumentException if {@code pipeSize <= 0}.
      * @since      1.6
      */
-    public PipedInputStream(PipedOutputStream src, int pipeSize)
+    public PipedInputStream(PipedOutputStream src, @Positive int pipeSize)
             throws IOException {
          initPipe(pipeSize);
          connect(src);
@@ -150,7 +159,7 @@ public class PipedInputStream extends InputStream {
      * @exception  IllegalArgumentException if {@code pipeSize <= 0}.
      * @since      1.6
      */
-    public PipedInputStream(int pipeSize) {
+    public PipedInputStream(@Positive int pipeSize) {
         initPipe(pipeSize);
     }
 
@@ -300,7 +309,7 @@ public class PipedInputStream extends InputStream {
      *           <a href="#BROKEN"> <code>broken</code></a>, closed,
      *           or if an I/O error occurs.
      */
-    public synchronized int read()  throws IOException {
+    public synchronized @GTENegativeOne int read()  throws IOException {
         if (!connected) {
             throw new IOException("Pipe not connected");
         } else if (closedByReader) {
@@ -364,7 +373,7 @@ public class PipedInputStream extends InputStream {
      *           {@link #connect(java.io.PipedOutputStream) unconnected},
      *           closed, or if an I/O error occurs.
      */
-    public synchronized int read(byte b[], int off, int len)  throws IOException {
+    public synchronized @GTENegativeOne @LTEqLengthOf({"#1"}) int read(byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len)  throws IOException {
         if (b == null) {
             throw new NullPointerException();
         } else if (off < 0 || len < 0 || len > b.length - off) {
@@ -423,7 +432,7 @@ public class PipedInputStream extends InputStream {
      * @exception  IOException  if an I/O error occurs.
      * @since   1.0.2
      */
-    public synchronized int available() throws IOException {
+    public synchronized @NonNegative int available() throws IOException {
         if(in < 0)
             return 0;
         else if(in == out)

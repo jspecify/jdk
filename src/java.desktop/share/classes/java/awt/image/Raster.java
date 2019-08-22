@@ -35,6 +35,10 @@
 
 
 package java.awt.image;
+
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.Rectangle;
 import java.awt.Point;
 
@@ -123,7 +127,8 @@ import sun.awt.image.SunWritableRaster;
  * @see java.awt.image.SinglePixelPackedSampleModel
  * @see java.awt.image.MultiPixelPackedSampleModel
  */
-public class Raster {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class Raster {
 
     /**
      * The SampleModel that describes how pixels from this Raster

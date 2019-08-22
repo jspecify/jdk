@@ -25,6 +25,10 @@
 
 package java.lang.reflect;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * InvocationTargetException is a checked exception that wraps
  * an exception thrown by an invoked method or constructor.
@@ -40,6 +44,7 @@ package java.lang.reflect;
  * @see Constructor
  * @since 1.1
  */
+@AnnotatedFor({"nullness"})
 public class InvocationTargetException extends ReflectiveOperationException {
     /**
      * Use serialVersionUID from JDK 1.1.X for interoperability
@@ -69,7 +74,8 @@ public class InvocationTargetException extends ReflectiveOperationException {
      *
      * @param target the target exception
      */
-    public InvocationTargetException(Throwable target) {
+    @SideEffectFree
+    public InvocationTargetException(@Nullable Throwable target) {
         super((Throwable)null);  // Disallow initCause
         this.target = target;
     }
@@ -81,7 +87,8 @@ public class InvocationTargetException extends ReflectiveOperationException {
      * @param target the target exception
      * @param s      the detail message
      */
-    public InvocationTargetException(Throwable target, String s) {
+    @SideEffectFree
+    public InvocationTargetException(@Nullable Throwable target, @Nullable String s) {
         super(s, null);  // Disallow initCause
         this.target = target;
     }
@@ -95,7 +102,7 @@ public class InvocationTargetException extends ReflectiveOperationException {
      *
      * @return the thrown target exception (cause of this exception).
      */
-    public Throwable getTargetException() {
+    public @Nullable Throwable getTargetException() {
         return target;
     }
 
@@ -106,7 +113,7 @@ public class InvocationTargetException extends ReflectiveOperationException {
      * @return  the cause of this exception.
      * @since   1.4
      */
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return target;
     }
 }

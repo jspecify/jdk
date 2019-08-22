@@ -21,10 +21,14 @@
 
 package com.sun.org.apache.xml.internal.security.utils;
 
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
+@AnnotatedFor({"signedness"})
 public class UnsyncBufferedOutputStream extends FilterOutputStream {
 
     protected byte[] buffer;
@@ -50,7 +54,7 @@ public class UnsyncBufferedOutputStream extends FilterOutputStream {
     }
 
     @Override
-    public void write(byte[] bytes, int offset, int length) throws IOException {
+    public void write(@PolySigned byte[] bytes, int offset, int length) throws IOException {
         if (length >= buffer.length) {
             flushInternal();
             out.write(bytes, offset, length);

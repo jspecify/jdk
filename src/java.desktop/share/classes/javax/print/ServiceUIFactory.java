@@ -25,6 +25,9 @@
 
 package javax.print;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Services may optionally provide UIs which allow different styles of
  * interaction in different roles. One role may be end-user browsing and setting
@@ -54,31 +57,32 @@ package javax.print;
  *  }
  * </pre>
  */
+@AnnotatedFor({"interning"})
 public abstract class ServiceUIFactory {
 
     /**
      * Denotes a UI implemented as a Swing component. The value of the string is
      * the fully qualified classname : "javax.swing.JComponent".
      */
-    public static final String JCOMPONENT_UI = "javax.swing.JComponent";
+    public static final @Interned String JCOMPONENT_UI = "javax.swing.JComponent";
 
     /**
      * Denotes a UI implemented as an AWT panel. The value of the string is the
      * fully qualified classname : "java.awt.Panel"
      */
-    public static final String PANEL_UI = "java.awt.Panel";
+    public static final @Interned String PANEL_UI = "java.awt.Panel";
 
     /**
      * Denotes a UI implemented as an AWT dialog. The value of the string is the
      * fully qualified classname : "java.awt.Dialog"
      */
-    public static final String DIALOG_UI = "java.awt.Dialog";
+    public static final @Interned String DIALOG_UI = "java.awt.Dialog";
 
     /**
      * Denotes a UI implemented as a Swing dialog. The value of the string is
      * the fully qualified classname : "javax.swing.JDialog"
      */
-    public static final String JDIALOG_UI = "javax.swing.JDialog";
+    public static final @Interned String JDIALOG_UI = "javax.swing.JDialog";
 
     /**
      * Denotes a UI which performs an informative "About" role.

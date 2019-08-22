@@ -25,11 +25,15 @@
 
 package java.io;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Utility methods for packing/unpacking primitive values in/out of byte arrays
  * using big-endian byte ordering.
  */
-class Bits {
+@AnnotatedFor({"index", "interning"})
+@UsesObjectEquals class Bits {
 
     /*
      * Methods for unpacking primitive values from byte arrays starting at

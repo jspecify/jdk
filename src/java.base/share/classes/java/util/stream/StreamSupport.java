@@ -24,6 +24,8 @@
  */
 package java.util.stream;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Objects;
 import java.util.Spliterator;
 import java.util.function.Supplier;
@@ -37,6 +39,7 @@ import java.util.function.Supplier;
  *
  * @since 1.8
  */
+@AnnotatedFor({"nullness"})
 public final class StreamSupport {
 
     // Suppresses default constructor, ensuring non-instantiability.

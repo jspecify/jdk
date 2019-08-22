@@ -25,6 +25,9 @@
 
 package java.nio.channels;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
@@ -99,7 +102,8 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * @see Selector
  */
 
-public abstract class SelectionKey {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class SelectionKey {
 
     /**
      * Constructs an instance of this class.

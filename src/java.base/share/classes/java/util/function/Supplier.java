@@ -24,6 +24,9 @@
  */
 package java.util.function;
 
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Represents a supplier of results.
  *
@@ -37,6 +40,7 @@ package java.util.function;
  *
  * @since 1.8
  */
+@AnnotatedFor({"lock", "nullness"})
 @FunctionalInterface
 public interface Supplier<T> {
 
@@ -45,5 +49,5 @@ public interface Supplier<T> {
      *
      * @return a result
      */
-    T get();
+    T get(@GuardSatisfied Supplier<T> this);
 }

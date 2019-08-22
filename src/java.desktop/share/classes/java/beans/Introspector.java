@@ -24,6 +24,9 @@
  */
 package java.beans;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import com.sun.beans.TypeResolver;
 import com.sun.beans.WeakCache;
 import com.sun.beans.finder.ClassFinder;
@@ -96,7 +99,8 @@ import sun.reflect.misc.ReflectUtil;
  * @since 1.1
  */
 
-public class Introspector {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class Introspector {
 
     // Flags that can be used to control getBeanInfo:
     /**

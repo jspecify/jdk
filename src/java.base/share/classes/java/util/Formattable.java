@@ -25,6 +25,8 @@
 
 package java.util;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 
 /**
@@ -116,6 +118,7 @@ import java.io.IOException;
  *
  * @since  1.5
  */
+@AnnotatedFor({"lock", "nullness"})
 public interface Formattable {
 
     /**

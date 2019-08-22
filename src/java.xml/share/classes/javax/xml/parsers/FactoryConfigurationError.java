@@ -25,6 +25,9 @@
 
 package javax.xml.parsers;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Thrown when a problem with configuration with the Parser Factories
  * exists. This error will typically be thrown when the class of a
@@ -35,13 +38,14 @@ package javax.xml.parsers;
  * @since 1.4
  */
 
+@AnnotatedFor("nullness")
 public class FactoryConfigurationError extends Error {
     private static final long serialVersionUID = -827108682472263355L;
 
     /**
      *<code>Exception</code> that represents the error.
      */
-    private Exception exception;
+    private @Nullable Exception exception;
 
     /**
      * Create a new <code>FactoryConfigurationError</code> with no
@@ -104,7 +108,7 @@ public class FactoryConfigurationError extends Error {
      * @return The error message.
      */
 
-    public String getMessage () {
+    public @Nullable String getMessage () {
         String message = super.getMessage ();
 
         if (message == null && exception != null) {
@@ -121,7 +125,7 @@ public class FactoryConfigurationError extends Error {
      * @return The encapsulated exception, or null if there is none.
      */
 
-    public Exception getException () {
+    public @Nullable Exception getException () {
         return exception;
     }
 
@@ -129,7 +133,7 @@ public class FactoryConfigurationError extends Error {
      * use the exception chaining mechanism of JDK1.4
     */
     @Override
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return exception;
     }
 }

@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
@@ -48,7 +51,8 @@ import java.awt.image.ColorModel;
  * @version 1.48, 06/05/07
  */
 
-public class TexturePaint implements Paint {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class TexturePaint implements Paint {
 
     BufferedImage bufImg;
     double tx;

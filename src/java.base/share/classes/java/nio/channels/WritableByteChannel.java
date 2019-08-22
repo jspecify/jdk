@@ -25,6 +25,8 @@
 
 package java.nio.channels;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -45,6 +47,7 @@ import java.nio.ByteBuffer;
  * @since 1.4
  */
 
+@AnnotatedFor({"index"})
 public interface WritableByteChannel
     extends Channel
 {

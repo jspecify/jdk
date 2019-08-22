@@ -24,6 +24,14 @@
  */
 
 package java.util.logging;
+
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -71,7 +79,8 @@ import static jdk.internal.logger.SurrogateLogger.isFilteredFrame;
  * @since 1.4
  */
 
-public class LogRecord implements java.io.Serializable {
+@AnnotatedFor({"index", "interning", "nullness"})
+public @UsesObjectEquals class LogRecord implements java.io.Serializable {
     private static final AtomicLong globalSequenceNumber
         = new AtomicLong(0);
 
@@ -88,7 +97,7 @@ public class LogRecord implements java.io.Serializable {
     private static final AtomicInteger nextThreadId
         = new AtomicInteger(MIN_SEQUENTIAL_THREAD_ID);
 
-    private static final ThreadLocal<Integer> threadIds = new ThreadLocal<>();
+    private static final ThreadLocal<@Nullable Integer> threadIds = new ThreadLocal<>();
 
     /**
      * Logging message level
@@ -103,17 +112,17 @@ public class LogRecord implements java.io.Serializable {
     /**
      * Class that issued logging call
      */
-    private String sourceClassName;
+    private @Nullable String sourceClassName;
 
     /**
      * Method that issued logging call
      */
-    private String sourceMethodName;
+    private @Nullable String sourceMethodName;
 
     /**
      * Non-localized raw message text
      */
-    private String message;
+    private @Nullable String message;
 
     /**
      * Thread ID for thread that issued logging call.
@@ -123,17 +132,17 @@ public class LogRecord implements java.io.Serializable {
     /**
      * The Throwable (if any) associated with log message
      */
-    private Throwable thrown;
+    private @Nullable Throwable thrown;
 
     /**
      * Name of the source Logger.
      */
-    private String loggerName;
+    private @Nullable String loggerName;
 
     /**
      * Resource bundle name to localized log message.
      */
-    private String resourceBundleName;
+    private @Nullable String resourceBundleName;
 
     /**
      * Event time.
@@ -180,13 +189,13 @@ public class LogRecord implements java.io.Serializable {
         };
 
     private transient boolean needToInferCaller;
-    private transient Object parameters[];
-    private transient ResourceBundle resourceBundle;
+    private transient @Nullable Object parameters @Nullable [];
+    private transient @Nullable ResourceBundle resourceBundle;
 
     /**
      * Returns the default value for a new LogRecord's threadID.
      */
-    private int defaultThreadID() {
+    private int defaultThreadID(@UnderInitialization LogRecord this) {
         long tid = Thread.currentThread().getId();
         if (tid < MIN_SEQUENTIAL_THREAD_ID) {
             return (int) tid;
@@ -220,7 +229,7 @@ public class LogRecord implements java.io.Serializable {
      * @param msg  the raw non-localized logging message (may be null)
      * @see java.time.Clock#systemUTC()
      */
-    public LogRecord(Level level, String msg) {
+    public LogRecord(Level level, @Nullable String msg) {
         this.level = Objects.requireNonNull(level);
         message = msg;
         // Assign a thread ID and a unique sequence number.
@@ -235,7 +244,7 @@ public class LogRecord implements java.io.Serializable {
      *
      * @return source logger name (may be null)
      */
-    public String getLoggerName() {
+    public @Nullable String getLoggerName() {
         return loggerName;
     }
 
@@ -244,7 +253,7 @@ public class LogRecord implements java.io.Serializable {
      *
      * @param name   the source logger name (may be null)
      */
-    public void setLoggerName(String name) {
+    public void setLoggerName(@Nullable String name) {
         loggerName = name;
     }
 
@@ -257,7 +266,7 @@ public class LogRecord implements java.io.Serializable {
      * ResourceBundle is available.
      * @return the localization resource bundle
      */
-    public ResourceBundle getResourceBundle() {
+    public @Nullable ResourceBundle getResourceBundle() {
         return resourceBundle;
     }
 
@@ -266,7 +275,7 @@ public class LogRecord implements java.io.Serializable {
      *
      * @param bundle  localization bundle (may be null)
      */
-    public void setResourceBundle(ResourceBundle bundle) {
+    public void setResourceBundle(@Nullable ResourceBundle bundle) {
         resourceBundle = bundle;
     }
 
@@ -278,7 +287,7 @@ public class LogRecord implements java.io.Serializable {
      * The result may be null if the message is not localizable.
      * @return the localization resource bundle name
      */
-    public String getResourceBundleName() {
+    public @Nullable String getResourceBundleName() {
         return resourceBundleName;
     }
 
@@ -287,7 +296,7 @@ public class LogRecord implements java.io.Serializable {
      *
      * @param name  localization bundle name (may be null)
      */
-    public void setResourceBundleName(String name) {
+    public void setResourceBundleName(@Nullable String name) {
         resourceBundleName = name;
     }
 
@@ -347,7 +356,7 @@ public class LogRecord implements java.io.Serializable {
      *
      * @return the source class name
      */
-    public String getSourceClassName() {
+    public @Nullable String getSourceClassName() {
         if (needToInferCaller) {
             inferCaller();
         }
@@ -359,7 +368,7 @@ public class LogRecord implements java.io.Serializable {
      *
      * @param sourceClassName the source class name (may be null)
      */
-    public void setSourceClassName(String sourceClassName) {
+    public void setSourceClassName(@Nullable String sourceClassName) {
         this.sourceClassName = sourceClassName;
         needToInferCaller = false;
     }
@@ -378,7 +387,7 @@ public class LogRecord implements java.io.Serializable {
      *
      * @return the source method name
      */
-    public String getSourceMethodName() {
+    public @Nullable String getSourceMethodName() {
         if (needToInferCaller) {
             inferCaller();
         }
@@ -390,7 +399,7 @@ public class LogRecord implements java.io.Serializable {
      *
      * @param sourceMethodName the source method name (may be null)
      */
-    public void setSourceMethodName(String sourceMethodName) {
+    public void setSourceMethodName(@Nullable String sourceMethodName) {
         this.sourceMethodName = sourceMethodName;
         needToInferCaller = false;
     }
@@ -409,7 +418,7 @@ public class LogRecord implements java.io.Serializable {
      *
      * @return the raw message string
      */
-    public String getMessage() {
+    public @Nullable String getMessage() {
         return message;
     }
 
@@ -418,7 +427,7 @@ public class LogRecord implements java.io.Serializable {
      *
      * @param message the raw message string (may be null)
      */
-    public void setMessage(String message) {
+    public void setMessage(@Nullable String message) {
         this.message = message;
     }
 
@@ -428,7 +437,7 @@ public class LogRecord implements java.io.Serializable {
      * @return the log message parameters.  May be null if
      *                  there are no parameters.
      */
-    public Object[] getParameters() {
+    public @Nullable Object @Nullable [] getParameters() {
         return parameters;
     }
 
@@ -437,7 +446,7 @@ public class LogRecord implements java.io.Serializable {
      *
      * @param parameters the log message parameters. (may be null)
      */
-    public void setParameters(Object parameters[]) {
+    public void setParameters(@Nullable Object parameters @Nullable []) {
         this.parameters = parameters;
     }
 
@@ -539,7 +548,7 @@ public class LogRecord implements java.io.Serializable {
      *
      * @return a throwable
      */
-    public Throwable getThrown() {
+    public @Nullable Throwable getThrown() {
         return thrown;
     }
 
@@ -548,7 +557,7 @@ public class LogRecord implements java.io.Serializable {
      *
      * @param thrown  a throwable (may be null)
      */
-    public void setThrown(Throwable thrown) {
+    public void setThrown(@Nullable Throwable thrown) {
         this.thrown = thrown;
     }
 
@@ -564,6 +573,8 @@ public class LogRecord implements java.io.Serializable {
      * a null String is written.  Otherwise the output of Object.toString()
      * is written.
      */
+    @CFComment({"nullness: out.writeInt and out.writeObject do not affect parameters field. http://tinyurl.com/cfissue/984"})
+    @SuppressWarnings({"dereference.of.nullable"})
     private void writeObject(ObjectOutputStream out) throws IOException {
         // We have to write serialized fields first.
         ObjectOutputStream.PutField pf = out.putFields();
@@ -594,6 +605,8 @@ public class LogRecord implements java.io.Serializable {
         }
     }
 
+    @CFComment({"nullness: in.readObject does not affect parameters field. http://tinyurl.com/cfissue/984"})
+    @SuppressWarnings({"dereference.of.nullable"})
     private void readObject(ObjectInputStream in)
                         throws IOException, ClassNotFoundException {
         // We have to read serialized fields first.

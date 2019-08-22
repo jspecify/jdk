@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Subclasses of {@code LinkageError} indicate that a class has
  * some dependency on another class; however, the latter class has
@@ -34,6 +38,7 @@ package java.lang;
  * @author  Frank Yellin
  * @since   1.0
  */
+@AnnotatedFor("nullness")
 public
 class LinkageError extends Error {
     private static final long serialVersionUID = 3579600108157160122L;
@@ -41,6 +46,7 @@ class LinkageError extends Error {
     /**
      * Constructs a {@code LinkageError} with no detail message.
      */
+    @SideEffectFree
     public LinkageError() {
         super();
     }
@@ -51,7 +57,8 @@ class LinkageError extends Error {
      *
      * @param   s   the detail message.
      */
-    public LinkageError(String s) {
+    @SideEffectFree
+    public LinkageError(@Nullable String s) {
         super(s);
     }
 

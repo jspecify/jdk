@@ -25,6 +25,9 @@
 
 package sun.awt.im;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.AWTEvent;
 import java.awt.AWTKeyStroke;
 import java.awt.Component;
@@ -65,7 +68,8 @@ import sun.awt.SunToolkit;
  * @author JavaSoft Asia/Pacific
  */
 
-public class InputContext extends java.awt.im.InputContext
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class InputContext extends java.awt.im.InputContext
                           implements ComponentListener, WindowListener {
     private static final PlatformLogger log = PlatformLogger.getLogger("sun.awt.im.InputContext");
     // The current input method is represented by two objects:

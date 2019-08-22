@@ -25,6 +25,13 @@
 
 package java.io;
 
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Arrays;
 
 /**
@@ -62,7 +69,8 @@ import java.util.Arrays;
  * @since   1.0
  */
 
-public class StreamTokenizer {
+@AnnotatedFor({"index", "interning", "lock", "nullness"})
+public @UsesObjectEquals class StreamTokenizer {
 
     /* Only one of these will be non-null */
     private Reader reader = null;
@@ -170,7 +178,7 @@ public class StreamTokenizer {
      * @see     java.io.StreamTokenizer#TT_WORD
      * @see     java.io.StreamTokenizer#ttype
      */
-    public String sval;
+    public @Nullable String sval;
 
     /**
      * If the current token is a number, this field contains the value
@@ -772,7 +780,7 @@ public class StreamTokenizer {
      *
      * @return  the current line number of this stream tokenizer.
      */
-    public int lineno() {
+    public @NonNegative int lineno() {
         return LINENO;
     }
 
@@ -790,7 +798,8 @@ public class StreamTokenizer {
      * @see     java.io.StreamTokenizer#sval
      * @see     java.io.StreamTokenizer#ttype
      */
-    public String toString() {
+    @SideEffectFree
+    public String toString(@GuardSatisfied StreamTokenizer this) {
         String ret;
         switch (ttype) {
           case TT_EOF:

@@ -25,6 +25,15 @@
 
 package java.util.regex;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.regex.qual.PolyRegex;
+import org.checkerframework.checker.regex.qual.Regex;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.Locale;
@@ -773,7 +782,8 @@ import java.util.stream.StreamSupport;
  * @spec        JSR-51
  */
 
-public final class Pattern
+@AnnotatedFor({"index", "interning", "lock", "nullness", "regex"})
+public final @UsesObjectEquals class Pattern
     implements java.io.Serializable
 {
 
@@ -1064,7 +1074,9 @@ public final class Pattern
      * @throws  PatternSyntaxException
      *          If the expression's syntax is invalid
      */
-    public static Pattern compile(String regex) {
+    @CFComment({"lock/nullness: pure wrt equals(@GuardSatisfied Pattern this) but not =="})
+    @Pure
+    public static @Regex Pattern compile(@Regex String regex) {
         return new Pattern(regex, 0);
     }
 
@@ -1090,7 +1102,9 @@ public final class Pattern
      * @throws  PatternSyntaxException
      *          If the expression's syntax is invalid
      */
-    public static Pattern compile(String regex, int flags) {
+    @CFComment({"lock/nullness: pure wrt equals(@GuardSatisfied Pattern this) but not =="})
+    @Pure
+    public static Pattern compile(@Regex String regex, int flags) {
         return new Pattern(regex, flags);
     }
 
@@ -1111,7 +1125,8 @@ public final class Pattern
      * @return  The string representation of this pattern
      * @since 1.5
      */
-    public String toString() {
+    @SideEffectFree
+    public String toString(@GuardSatisfied Pattern this) {
         return pattern;
     }
 
@@ -1123,7 +1138,7 @@ public final class Pattern
      *
      * @return  A new matcher for this pattern
      */
-    public Matcher matcher(CharSequence input) {
+    public @PolyRegex Matcher matcher(@PolyRegex Pattern this, CharSequence input) {
         if (!compiled) {
             synchronized(this) {
                 if (!compiled)
@@ -1169,7 +1184,7 @@ public final class Pattern
      * @throws  PatternSyntaxException
      *          If the expression's syntax is invalid
      */
-    public static boolean matches(String regex, CharSequence input) {
+    public static boolean matches(@Regex String regex, CharSequence input) {
         Pattern p = Pattern.compile(regex);
         Matcher m = p.matcher(input);
         return m.matches();
@@ -1348,7 +1363,9 @@ public final class Pattern
      * @return  A literal string replacement
      * @since 1.5
      */
-    public static String quote(String s) {
+    @CFComment({"nullness: pure wrt equals() but not =="})
+    @Pure
+    public static @Regex String quote(String s) {
         int slashEIndex = s.indexOf("\\E");
         if (slashEIndex == -1)
             return "\\Q" + s + "\\E";

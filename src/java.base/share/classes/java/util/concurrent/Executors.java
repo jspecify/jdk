@@ -35,6 +35,9 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import static java.lang.ref.Reference.reachabilityFence;
 import java.security.AccessControlContext;
 import java.security.AccessControlException;
@@ -71,7 +74,8 @@ import sun.security.util.SecurityConstants;
  * @since 1.5
  * @author Doug Lea
  */
-public class Executors {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class Executors {
 
     /**
      * Creates a thread pool that reuses a fixed number of threads

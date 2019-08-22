@@ -25,6 +25,19 @@
 
 package java.util;
 
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexFor;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.lock.qual.ReleasesNoLocks;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 import java.util.function.UnaryOperator;
 
 /**
@@ -135,6 +148,8 @@ import java.util.function.UnaryOperator;
  * @since 1.2
  */
 
+@CFComment({"lock/nullness: Subclasses of this interface/class may opt to prohibit null elements"})
+@AnnotatedFor({"lock", "nullness", "index"})
 public interface List<E> extends Collection<E> {
     // Query Operations
 
@@ -145,14 +160,16 @@ public interface List<E> extends Collection<E> {
      *
      * @return the number of elements in this list
      */
-    int size();
+    @NonNegative @Pure
+    int size(@GuardSatisfied List<E> this);
 
     /**
      * Returns {@code true} if this list contains no elements.
      *
      * @return {@code true} if this list contains no elements
      */
-    boolean isEmpty();
+    @Pure
+    boolean isEmpty(@GuardSatisfied List<E> this);
 
     /**
      * Returns {@code true} if this list contains the specified element.
@@ -169,13 +186,15 @@ public interface List<E> extends Collection<E> {
      *         list does not permit null elements
      * (<a href="Collection.html#optional-restrictions">optional</a>)
      */
-    boolean contains(Object o);
+    @Pure
+    boolean contains(@GuardSatisfied List<E> this, @Nullable Object o);
 
     /**
      * Returns an iterator over the elements in this list in proper sequence.
      *
      * @return an iterator over the elements in this list in proper sequence
      */
+    @SideEffectFree
     Iterator<E> iterator();
 
     /**
@@ -194,7 +213,8 @@ public interface List<E> extends Collection<E> {
      *         sequence
      * @see Arrays#asList(Object[])
      */
-    Object[] toArray();
+    @SideEffectFree
+    @PolyNull Object[] toArray(List<@PolyNull E> this);
 
     /**
      * Returns an array containing all of the elements in this list in
@@ -235,7 +255,8 @@ public interface List<E> extends Collection<E> {
      *         this list
      * @throws NullPointerException if the specified array is null
      */
-    <T> T[] toArray(T[] a);
+    @SideEffectFree
+    <T> @Nullable T @PolyNull [] toArray(T @PolyNull [] a);
 
 
     // Modification Operations
@@ -262,7 +283,8 @@ public interface List<E> extends Collection<E> {
      * @throws IllegalArgumentException if some property of this element
      *         prevents it from being added to this list
      */
-    boolean add(E e);
+    @ReleasesNoLocks
+    boolean add(@GuardSatisfied List<E> this, E e);
 
     /**
      * Removes the first occurrence of the specified element from this list,
@@ -285,7 +307,7 @@ public interface List<E> extends Collection<E> {
      * @throws UnsupportedOperationException if the {@code remove} operation
      *         is not supported by this list
      */
-    boolean remove(Object o);
+    boolean remove(@GuardSatisfied List<E> this, @Nullable Object o);
 
 
     // Bulk Modification Operations
@@ -308,7 +330,8 @@ public interface List<E> extends Collection<E> {
      *         or if the specified collection is null
      * @see #contains(Object)
      */
-    boolean containsAll(Collection<?> c);
+    @Pure
+    boolean containsAll(@GuardSatisfied List<E> this, Collection<?> c);
 
     /**
      * Appends all of the elements in the specified collection to the end of
@@ -331,7 +354,7 @@ public interface List<E> extends Collection<E> {
      *         specified collection prevents it from being added to this list
      * @see #add(Object)
      */
-    boolean addAll(Collection<? extends E> c);
+    boolean addAll(@GuardSatisfied List<E> this, Collection<? extends E> c);
 
     /**
      * Inserts all of the elements in the specified collection into this
@@ -360,7 +383,7 @@ public interface List<E> extends Collection<E> {
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index > size()})
      */
-    boolean addAll(int index, Collection<? extends E> c);
+    boolean addAll(@GuardSatisfied List<E> this, @IndexOrHigh({"this"}) int index, Collection<? extends E> c);
 
     /**
      * Removes from this list all of its elements that are contained in the
@@ -380,7 +403,7 @@ public interface List<E> extends Collection<E> {
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    boolean removeAll(Collection<?> c);
+    boolean removeAll(@GuardSatisfied List<E> this, Collection<?> c);
 
     /**
      * Retains only the elements in this list that are contained in the
@@ -402,7 +425,7 @@ public interface List<E> extends Collection<E> {
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    boolean retainAll(Collection<?> c);
+    boolean retainAll(@GuardSatisfied List<E> this, Collection<?> c);
 
     /**
      * Replaces each element of this list with the result of applying the
@@ -518,7 +541,7 @@ public interface List<E> extends Collection<E> {
      * @throws UnsupportedOperationException if the {@code clear} operation
      *         is not supported by this list
      */
-    void clear();
+    void clear(@GuardSatisfied List<E> this);
 
 
     // Comparison and hashing
@@ -537,7 +560,8 @@ public interface List<E> extends Collection<E> {
      * @param o the object to be compared for equality with this list
      * @return {@code true} if the specified object is equal to this list
      */
-    boolean equals(Object o);
+    @Pure
+    boolean equals(@GuardSatisfied List<E> this, @Nullable Object o);
 
     /**
      * Returns the hash code value for this list.  The hash code of a list
@@ -556,7 +580,8 @@ public interface List<E> extends Collection<E> {
      * @see Object#equals(Object)
      * @see #equals(Object)
      */
-    int hashCode();
+    @Pure
+    int hashCode(@GuardSatisfied List<E> this);
 
 
     // Positional Access Operations
@@ -569,7 +594,8 @@ public interface List<E> extends Collection<E> {
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index >= size()})
      */
-    E get(int index);
+    @Pure
+    E get(@GuardSatisfied List<E> this, @IndexFor({"this"}) int index);
 
     /**
      * Replaces the element at the specified position in this list with the
@@ -589,7 +615,7 @@ public interface List<E> extends Collection<E> {
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index >= size()})
      */
-    E set(int index, E element);
+    E set(@GuardSatisfied List<E> this, @IndexFor({"this"}) int index, E element);
 
     /**
      * Inserts the specified element at the specified position in this list
@@ -610,7 +636,8 @@ public interface List<E> extends Collection<E> {
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index > size()})
      */
-    void add(int index, E element);
+    @ReleasesNoLocks
+    void add(@GuardSatisfied List<E> this, @IndexOrHigh({"this"}) int index, E element);
 
     /**
      * Removes the element at the specified position in this list (optional
@@ -625,7 +652,8 @@ public interface List<E> extends Collection<E> {
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index >= size()})
      */
-    E remove(int index);
+    @ReleasesNoLocks
+    E remove(@GuardSatisfied List<E> this, @IndexFor({"this"}) int index);
 
 
     // Search Operations
@@ -647,7 +675,8 @@ public interface List<E> extends Collection<E> {
      *         list does not permit null elements
      *         (<a href="Collection.html#optional-restrictions">optional</a>)
      */
-    int indexOf(Object o);
+    @GTENegativeOne @Pure
+    int indexOf(@GuardSatisfied List<E> this, @Nullable Object o);
 
     /**
      * Returns the index of the last occurrence of the specified element
@@ -666,7 +695,8 @@ public interface List<E> extends Collection<E> {
      *         list does not permit null elements
      *         (<a href="Collection.html#optional-restrictions">optional</a>)
      */
-    int lastIndexOf(Object o);
+    @GTENegativeOne @Pure
+    int lastIndexOf(@GuardSatisfied List<E> this, @Nullable Object o);
 
 
     // List Iterators
@@ -695,7 +725,7 @@ public interface List<E> extends Collection<E> {
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index > size()})
      */
-    ListIterator<E> listIterator(int index);
+    ListIterator<E> listIterator(@IndexOrHigh({"this"}) int index);
 
     // View
 
@@ -733,7 +763,8 @@ public interface List<E> extends Collection<E> {
      *         ({@code fromIndex < 0 || toIndex > size ||
      *         fromIndex > toIndex})
      */
-    List<E> subList(int fromIndex, int toIndex);
+    @SideEffectFree
+    List<E> subList(@GuardSatisfied List<E> this, @IndexOrHigh({"this"}) int fromIndex, @IndexOrHigh({"this"}) int toIndex);
 
     /**
      * Creates a {@link Spliterator} over the elements in this list.
@@ -768,6 +799,7 @@ public interface List<E> extends Collection<E> {
      * @return a {@code Spliterator} over the elements in this list
      * @since 1.8
      */
+    @SideEffectFree
     @Override
     default Spliterator<E> spliterator() {
         if (this instanceof RandomAccess) {

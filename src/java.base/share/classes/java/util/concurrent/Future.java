@@ -35,6 +35,9 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * A {@code Future} represents the result of an asynchronous
  * computation.  Methods are provided to check if the computation is
@@ -85,6 +88,7 @@ package java.util.concurrent;
  * @author Doug Lea
  * @param <V> The result type returned by this Future's {@code get} method
  */
+@AnnotatedFor({"nullness"})
 public interface Future<V> {
 
     /**
@@ -116,6 +120,7 @@ public interface Future<V> {
      *
      * @return {@code true} if this task was cancelled before it completed
      */
+    @Pure
     boolean isCancelled();
 
     /**
@@ -127,6 +132,7 @@ public interface Future<V> {
      *
      * @return {@code true} if this task completed
      */
+    @Pure
     boolean isDone();
 
     /**

@@ -25,6 +25,9 @@
 
 package java.lang.reflect;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import jdk.internal.reflect.MethodAccessor;
 import jdk.internal.reflect.ConstructorAccessor;
 
@@ -32,7 +35,8 @@ import jdk.internal.reflect.ConstructorAccessor;
     sun.reflect.LangReflectAccess interface, allowing the java.lang
     package to instantiate objects in this package. */
 
-class ReflectAccess implements jdk.internal.reflect.LangReflectAccess {
+@AnnotatedFor({"interning"})
+@UsesObjectEquals class ReflectAccess implements jdk.internal.reflect.LangReflectAccess {
     public Field newField(Class<?> declaringClass,
                           String name,
                           Class<?> type,

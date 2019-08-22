@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -45,7 +48,8 @@ import sun.util.logging.PlatformLogger;
  *
  * @since 1.7
  */
-class WaitDispatchSupport implements SecondaryLoop {
+@AnnotatedFor({"interning"})
+@UsesObjectEquals class WaitDispatchSupport implements SecondaryLoop {
 
     private static final PlatformLogger log =
         PlatformLogger.getLogger("java.awt.event.WaitDispatchSupport");

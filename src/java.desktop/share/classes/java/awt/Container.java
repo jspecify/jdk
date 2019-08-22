@@ -25,6 +25,10 @@
 
 package java.awt;
 
+import org.checkerframework.checker.guieffect.qual.SafeEffect;
+import org.checkerframework.checker.guieffect.qual.UIType;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.dnd.DropTarget;
 
 import java.awt.event.*;
@@ -92,7 +96,8 @@ import sun.security.action.GetBooleanAction;
  * @see       LayoutManager
  * @since     1.0
  */
-public class Container extends Component {
+@AnnotatedFor({"guieffect"})
+public @UIType class Container extends Component {
 
     private static final PlatformLogger log = PlatformLogger.getLogger("java.awt.Container");
     private static final PlatformLogger eventLog = PlatformLogger.getLogger("java.awt.event.Container");
@@ -1604,6 +1609,7 @@ public class Container extends Component {
      * @see #layout
      * @see LayoutManager2
      */
+    @SafeEffect
     @Override
     public void invalidate() {
         LayoutManager layoutMgr = this.layoutMgr;

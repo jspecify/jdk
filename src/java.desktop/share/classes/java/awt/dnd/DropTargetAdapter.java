@@ -25,6 +25,9 @@
 
 package java.awt.dnd;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * An abstract adapter class for receiving drop target events. The methods in
  * this class are empty. This class exists only as a convenience for creating
@@ -70,7 +73,8 @@ package java.awt.dnd;
  * @author David Mendenhall
  * @since 1.4
  */
-public abstract class DropTargetAdapter implements DropTargetListener {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class DropTargetAdapter implements DropTargetListener {
 
     /**
      * Called while a drag operation is ongoing, when the mouse pointer enters

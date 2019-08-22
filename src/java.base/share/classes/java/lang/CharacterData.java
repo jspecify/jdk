@@ -25,7 +25,11 @@
 
 package java.lang;
 
-abstract class CharacterData {
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
+@AnnotatedFor({"index", "interning"})
+abstract @UsesObjectEquals class CharacterData {
     abstract int getProperties(int ch);
     abstract int getType(int ch);
     abstract boolean isWhitespace(int ch);

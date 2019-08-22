@@ -25,6 +25,8 @@
 
 package java.io;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -45,6 +47,7 @@ import jdk.internal.ref.PhantomCleanable;
  * @author  Pavani Diwanji
  * @since   1.0
  */
+@AnnotatedFor({"nullness", "index"})
 public final class FileDescriptor {
 
     private int fd;

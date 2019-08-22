@@ -35,6 +35,12 @@
 
 package java.util.concurrent.locks;
 
+import org.checkerframework.checker.lock.qual.EnsuresLockHeld;
+import org.checkerframework.checker.lock.qual.EnsuresLockHeldIf;
+import org.checkerframework.checker.lock.qual.MayReleaseLocks;
+import org.checkerframework.checker.lock.qual.ReleasesNoLocks;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -166,6 +172,7 @@ import java.util.concurrent.TimeUnit;
  * @since 1.5
  * @author Doug Lea
  */
+@AnnotatedFor({"lock"})
 public interface Lock {
 
     /**
@@ -183,6 +190,8 @@ public interface Lock {
      * circumstances and the exception type must be documented by that
      * {@code Lock} implementation.
      */
+    @EnsuresLockHeld({"this"})
+    @ReleasesNoLocks
     void lock();
 
     /**
@@ -231,6 +240,8 @@ public interface Lock {
      *         interrupted while acquiring the lock (and interruption
      *         of lock acquisition is supported)
      */
+    @EnsuresLockHeld({"this"})
+    @ReleasesNoLocks
     void lockInterruptibly() throws InterruptedException;
 
     /**
@@ -260,6 +271,8 @@ public interface Lock {
      * @return {@code true} if the lock was acquired and
      *         {@code false} otherwise
      */
+    @EnsuresLockHeldIf(expression={"this"}, result=true)
+    @ReleasesNoLocks
     boolean tryLock();
 
     /**
@@ -320,6 +333,8 @@ public interface Lock {
      *         while acquiring the lock (and interruption of lock
      *         acquisition is supported)
      */
+    @EnsuresLockHeldIf(expression={"this"}, result=true)
+    @ReleasesNoLocks
     boolean tryLock(long time, TimeUnit unit) throws InterruptedException;
 
     /**
@@ -334,6 +349,7 @@ public interface Lock {
      * Any restrictions and the exception
      * type must be documented by that {@code Lock} implementation.
      */
+    @MayReleaseLocks
     void unlock();
 
     /**

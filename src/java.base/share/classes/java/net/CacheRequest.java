@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.OutputStream;
 import java.io.IOException;
 
@@ -41,7 +44,8 @@ import java.io.IOException;
  * @author Yingxian Wang
  * @since 1.5
  */
-public abstract class CacheRequest {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class CacheRequest {
 
     /**
      * Returns an OutputStream to which the response body can be

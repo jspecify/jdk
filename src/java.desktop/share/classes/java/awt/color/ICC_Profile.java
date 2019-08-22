@@ -36,6 +36,9 @@
 
 package java.awt.color;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import sun.java2d.cmm.PCMM;
 import sun.java2d.cmm.CMSManager;
 import sun.java2d.cmm.Profile;
@@ -92,7 +95,8 @@ import java.security.PrivilegedAction;
  */
 
 
-public class ICC_Profile implements Serializable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class ICC_Profile implements Serializable {
 
     private static final long serialVersionUID = -3938515861990936766L;
 

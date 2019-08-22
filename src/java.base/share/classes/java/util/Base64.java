@@ -25,6 +25,9 @@
 
 package java.util;
 
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.FilterOutputStream;
 import java.io.InputStream;
 import java.io.IOException;
@@ -75,6 +78,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @since   1.8
  */
 
+@AnnotatedFor({"signedness"})
 public class Base64 {
 
     private Base64() {}
@@ -314,7 +318,7 @@ public class Base64 {
          * @return  A String containing the resulting Base64 encoded characters
          */
         @SuppressWarnings("deprecation")
-        public String encodeToString(byte[] src) {
+        public String encodeToString(@PolySigned byte[] src) {
             byte[] encoded = encode(src);
             return new String(encoded, 0, 0, encoded.length);
         }
@@ -554,7 +558,7 @@ public class Base64 {
          * @throws  IllegalArgumentException
          *          if {@code src} is not in valid Base64 scheme
          */
-        public byte[] decode(String src) {
+        public @PolySigned byte[] decode(String src) {
             return decode(src.getBytes(StandardCharsets.ISO_8859_1));
         }
 

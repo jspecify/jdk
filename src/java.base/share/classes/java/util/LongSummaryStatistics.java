@@ -24,6 +24,8 @@
  */
 package java.util;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.function.IntConsumer;
 import java.util.function.LongConsumer;
 import java.util.stream.Collector;
@@ -63,6 +65,7 @@ import java.util.stream.Collector;
  * <p>This implementation does not check for overflow of the sum.
  * @since 1.8
  */
+@AnnotatedFor({"lock", "nullness"})
 public class LongSummaryStatistics implements LongConsumer, IntConsumer {
     private long count;
     private long sum;

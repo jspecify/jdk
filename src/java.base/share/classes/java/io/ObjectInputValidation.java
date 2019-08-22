@@ -25,6 +25,8 @@
 
 package java.io;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Callback interface to allow validation of objects within a graph.
  * Allows an object to be called when a complete graph of objects has
@@ -35,6 +37,7 @@ package java.io;
  * @see     ObjectInputStream#registerValidation(java.io.ObjectInputValidation, int)
  * @since   1.1
  */
+@AnnotatedFor({"nullness"})
 public interface ObjectInputValidation {
     /**
      * Validates the object.

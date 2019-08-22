@@ -25,6 +25,9 @@
 
 package java.security.spec;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.math.BigInteger;
 import java.security.spec.AlgorithmParameterSpec;
 
@@ -39,7 +42,8 @@ import java.security.spec.AlgorithmParameterSpec;
  * @since 1.3
  */
 
-public class RSAKeyGenParameterSpec implements AlgorithmParameterSpec {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class RSAKeyGenParameterSpec implements AlgorithmParameterSpec {
 
     private int keysize;
     private BigInteger publicExponent;

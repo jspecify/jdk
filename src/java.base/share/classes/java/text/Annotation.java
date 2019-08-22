@@ -25,6 +25,9 @@
 
 package java.text;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
 * An Annotation object is used as a wrapper for a text attribute value if
 * the attribute has annotation characteristics. These characteristics are:
@@ -54,7 +57,8 @@ package java.text;
 * @since 1.2
 */
 
-public class Annotation {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class Annotation {
 
     /**
      * Constructs an annotation record with the given value, which

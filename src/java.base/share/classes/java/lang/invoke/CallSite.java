@@ -25,6 +25,9 @@
 
 package java.lang.invoke;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import static java.lang.invoke.MethodHandleStatics.*;
 import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
 
@@ -84,8 +87,9 @@ private static CallSite bootstrapDynamic(MethodHandles.Lookup caller, String nam
  * @author John Rose, JSR 292 EG
  * @since 1.7
  */
+@AnnotatedFor({"interning"})
 abstract
-public class CallSite {
+public @UsesObjectEquals class CallSite {
 
     // The actual payload of this call site:
     /*package-private*/

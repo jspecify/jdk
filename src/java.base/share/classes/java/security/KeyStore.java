@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.*;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
@@ -191,7 +194,8 @@ import sun.security.util.Debug;
  * @since 1.2
  */
 
-public class KeyStore {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class KeyStore {
 
     private static final Debug kdebug = Debug.getInstance("keystore");
     private static final Debug pdebug =

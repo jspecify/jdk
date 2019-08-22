@@ -25,6 +25,9 @@
 
 package java.awt.event;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * An abstract adapter class for receiving mouse motion events.
  * The methods in this class are empty. This class exists as
@@ -53,7 +56,8 @@ package java.awt.event;
  *
  * @since 1.1
  */
-public abstract class MouseMotionAdapter implements MouseMotionListener {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class MouseMotionAdapter implements MouseMotionListener {
     /**
      * Invoked when a mouse button is pressed on a component and then
      * dragged.  Mouse drag events will continue to be delivered to

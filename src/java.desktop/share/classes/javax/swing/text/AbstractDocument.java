@@ -24,6 +24,9 @@
  */
 package javax.swing.text;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.*;
 import java.io.*;
 import java.awt.font.TextAttribute;
@@ -97,6 +100,7 @@ import sun.swing.text.UndoableEditLockSupport;
  *
  * @author  Timothy Prinzing
  */
+@AnnotatedFor({"interning"})
 @SuppressWarnings("serial") // Same-version serialization only
 public abstract class AbstractDocument implements Document, Serializable {
 
@@ -1546,28 +1550,28 @@ public abstract class AbstractDocument implements Document, Serializable {
     /**
      * Name of elements used to represent paragraphs
      */
-    public static final String ParagraphElementName = "paragraph";
+    public static final @Interned String ParagraphElementName = "paragraph";
 
     /**
      * Name of elements used to represent content
      */
-    public static final String ContentElementName = "content";
+    public static final @Interned String ContentElementName = "content";
 
     /**
      * Name of elements used to hold sections (lines/paragraphs).
      */
-    public static final String SectionElementName = "section";
+    public static final @Interned String SectionElementName = "section";
 
     /**
      * Name of elements used to hold a unidirectional run
      */
-    public static final String BidiElementName = "bidi level";
+    public static final @Interned String BidiElementName = "bidi level";
 
     /**
      * Name of the attribute used to specify element
      * names.
      */
-    public static final String ElementNameAttribute = "$ename";
+    public static final @Interned String ElementNameAttribute = "$ename";
 
     /**
      * Document property that indicates whether internationalization

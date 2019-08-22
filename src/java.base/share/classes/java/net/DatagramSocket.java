@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.nio.channels.DatagramChannel;
 import java.security.AccessController;
@@ -65,8 +68,9 @@ import java.util.Collections;
  * @see     java.nio.channels.DatagramChannel
  * @since 1.0
  */
+@AnnotatedFor({"interning"})
 public
-class DatagramSocket implements java.io.Closeable {
+@UsesObjectEquals class DatagramSocket implements java.io.Closeable {
     /**
      * Various states of this socket.
      */

@@ -25,6 +25,9 @@
 
 package java.awt.image;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.BufferCapabilities;
 import java.awt.Graphics;
 import java.awt.Image;
@@ -132,7 +135,8 @@ import java.awt.Image;
  * @author Michael Martak
  * @since 1.4
  */
-public abstract class BufferStrategy {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class BufferStrategy {
 
     /**
      * Returns the {@code BufferCapabilities} for this

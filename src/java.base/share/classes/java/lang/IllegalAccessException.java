@@ -25,6 +25,10 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * An IllegalAccessException is thrown when an application tries
  * to reflectively create an instance (other than an array),
@@ -56,6 +60,7 @@ package java.lang;
  * @see     java.lang.reflect.Constructor#newInstance(Object[])
  * @since   1.0
  */
+@AnnotatedFor({"nullness"})
 public class IllegalAccessException extends ReflectiveOperationException {
     private static final long serialVersionUID = 6616958222490762034L;
 
@@ -63,6 +68,7 @@ public class IllegalAccessException extends ReflectiveOperationException {
      * Constructs an <code>IllegalAccessException</code> without a
      * detail message.
      */
+    @SideEffectFree
     public IllegalAccessException() {
         super();
     }
@@ -72,7 +78,8 @@ public class IllegalAccessException extends ReflectiveOperationException {
      *
      * @param   s   the detail message.
      */
-    public IllegalAccessException(String s) {
+    @SideEffectFree
+    public IllegalAccessException(@Nullable String s) {
         super(s);
     }
 }

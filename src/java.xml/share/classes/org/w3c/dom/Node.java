@@ -41,6 +41,10 @@
 
 package org.w3c.dom;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * The <code>Node</code> interface is the primary datatype for the entire
  * Document Object Model. It represents a single node in the document tree.
@@ -167,6 +171,7 @@ package org.w3c.dom;
  * </table>
  * <p>See also the <a href='http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407'>Document Object Model (DOM) Level 3 Core Specification</a>.
  */
+@AnnotatedFor("nullness")
 public interface Node {
     // NodeType
     /**
@@ -221,6 +226,7 @@ public interface Node {
     /**
      * The name of this node, depending on its type; see the table above.
      */
+    @Pure
     public String getNodeName();
 
     /**
@@ -232,7 +238,8 @@ public interface Node {
      *   fit in a <code>DOMString</code> variable on the implementation
      *   platform.
      */
-    public String getNodeValue()
+    @Pure
+    public @Nullable String getNodeValue()
                               throws DOMException;
     /**
      * The value of this node, depending on its type; see the table above.
@@ -248,6 +255,7 @@ public interface Node {
     /**
      * A code representing the type of the underlying object, as defined above.
      */
+    @Pure
     public short getNodeType();
 
     /**
@@ -258,44 +266,51 @@ public interface Node {
      * tree, or if it has been removed from the tree, this is
      * <code>null</code>.
      */
-    public Node getParentNode();
+    @Pure
+    public @Nullable Node getParentNode();
 
     /**
      * A <code>NodeList</code> that contains all children of this node. If
      * there are no children, this is a <code>NodeList</code> containing no
      * nodes.
      */
+    @Pure
     public NodeList getChildNodes();
 
     /**
      * The first child of this node. If there is no such node, this returns
      * <code>null</code>.
      */
-    public Node getFirstChild();
+    @Pure
+    public @Nullable Node getFirstChild();
 
     /**
      * The last child of this node. If there is no such node, this returns
      * <code>null</code>.
      */
-    public Node getLastChild();
+    @Pure
+    public @Nullable Node getLastChild();
 
     /**
      * The node immediately preceding this node. If there is no such node,
      * this returns <code>null</code>.
      */
-    public Node getPreviousSibling();
+    @Pure
+    public @Nullable Node getPreviousSibling();
 
     /**
      * The node immediately following this node. If there is no such node,
      * this returns <code>null</code>.
      */
-    public Node getNextSibling();
+    @Pure
+    public @Nullable Node getNextSibling();
 
     /**
      * A <code>NamedNodeMap</code> containing the attributes of this node (if
      * it is an <code>Element</code>) or <code>null</code> otherwise.
      */
-    public NamedNodeMap getAttributes();
+    @Pure
+    public @Nullable NamedNodeMap getAttributes();
 
     /**
      * The <code>Document</code> object associated with this node. This is
@@ -306,7 +321,8 @@ public interface Node {
      *
      * @since 1.4, DOM Level 2
      */
-    public Document getOwnerDocument();
+    @Pure
+    public @Nullable Document getOwnerDocument();
 
     /**
      * Inserts the node <code>newChild</code> before the existing child node
@@ -343,7 +359,7 @@ public interface Node {
      * @since 1.4, DOM Level 3
      */
     public Node insertBefore(Node newChild,
-                             Node refChild)
+                             @Nullable Node refChild)
                              throws DOMException;
 
     /**
@@ -437,6 +453,7 @@ public interface Node {
      * @return Returns <code>true</code> if this node has any children,
      *   <code>false</code> otherwise.
      */
+    @Pure
     public boolean hasChildNodes();
 
     /**
@@ -510,8 +527,9 @@ public interface Node {
      *
      * @since 1.4, DOM Level 2
      */
+    @Pure
     public boolean isSupported(String feature,
-                               String version);
+                               @Nullable String version);
 
     /**
      * The namespace URI of this node, or <code>null</code> if it is
@@ -530,7 +548,8 @@ public interface Node {
      *
      * @since 1.4, DOM Level 2
      */
-    public String getNamespaceURI();
+    @Pure
+    public @Nullable String getNamespaceURI();
 
     /**
      * The namespace prefix of this node, or <code>null</code> if it is
@@ -554,7 +573,8 @@ public interface Node {
      *
      * @since 1.4, DOM Level 2
      */
-    public String getPrefix();
+    @Pure
+    public @Nullable String getPrefix();
     /**
      * The namespace prefix of this node, or <code>null</code> if it is
      * unspecified. When it is defined to be <code>null</code>, setting it
@@ -591,7 +611,7 @@ public interface Node {
      *
      * @since 1.4, DOM Level 2
      */
-    public void setPrefix(String prefix)
+    public void setPrefix(@Nullable String prefix)
                                throws DOMException;
 
     /**
@@ -603,7 +623,8 @@ public interface Node {
      *
      * @since 1.4, DOM Level 2
      */
-    public String getLocalName();
+    @Pure
+    public @Nullable String getLocalName();
 
     /**
      * Returns whether this node (if it is an element) has any attributes.
@@ -612,6 +633,7 @@ public interface Node {
      *
      * @since 1.4, DOM Level 2
      */
+    @Pure
     public boolean hasAttributes();
 
     /**
@@ -626,7 +648,8 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    public String getBaseURI();
+    @Pure
+    public @Nullable String getBaseURI();
 
     // DocumentPosition
     /**
@@ -673,6 +696,7 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
+    @Pure
     public short compareDocumentPosition(Node other)
                                          throws DOMException;
 
@@ -729,7 +753,8 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    public String getTextContent()
+    @Pure
+    public @Nullable String getTextContent()
                                          throws DOMException;
     /**
      * This attribute returns the text content of this node and its
@@ -800,6 +825,7 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
+    @Pure
     public boolean isSameNode(Node other);
 
     /**
@@ -815,7 +841,8 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    public String lookupPrefix(String namespaceURI);
+    @Pure
+    public @Nullable String lookupPrefix(@Nullable String namespaceURI);
 
     /**
      *  This method checks if the specified <code>namespaceURI</code> is the
@@ -827,7 +854,8 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    public boolean isDefaultNamespace(String namespaceURI);
+    @Pure
+    public boolean isDefaultNamespace(@Nullable String namespaceURI);
 
     /**
      * Look up the namespace URI associated to the given prefix, starting from
@@ -841,7 +869,8 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    public String lookupNamespaceURI(String prefix);
+    @Pure
+    public @Nullable String lookupNamespaceURI(@Nullable String prefix);
 
     /**
      * Tests whether two nodes are equal.
@@ -907,6 +936,7 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
+    @Pure
     public boolean isEqualNode(Node arg);
 
     /**
@@ -932,8 +962,9 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    public Object getFeature(String feature,
-                             String version);
+    @Pure
+    public @Nullable Object getFeature(String feature,
+                             @Nullable String version);
 
     /**
      * Associate an object to a key on this node. The object can later be
@@ -949,9 +980,9 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    public Object setUserData(String key,
-                              Object data,
-                              UserDataHandler handler);
+    public @Nullable Object setUserData(String key,
+                              @Nullable Object data,
+                              @Nullable UserDataHandler handler);
 
     /**
      * Retrieves the object associated to a key on a this node. The object
@@ -963,6 +994,7 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    public Object getUserData(String key);
+    @Pure
+    public @Nullable Object getUserData(String key);
 
 }

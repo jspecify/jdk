@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.security.spec.AlgorithmParameterSpec;
 
 /**
@@ -56,7 +59,8 @@ import java.security.spec.AlgorithmParameterSpec;
  * @see java.security.spec.AlgorithmParameterSpec
  */
 
-public abstract class KeyPairGeneratorSpi {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class KeyPairGeneratorSpi {
 
     /**
      * Initializes the key pair generator for a certain keysize, using

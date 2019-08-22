@@ -36,6 +36,9 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.concurrent.locks.LockSupport;
@@ -103,7 +106,8 @@ import java.util.concurrent.locks.LockSupport;
  * @author Doug Lea and Bill Scherer and Michael Scott
  * @param <V> The type of objects that may be exchanged
  */
-public class Exchanger<V> {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class Exchanger<V> {
 
     /*
      * Overview: The core algorithm is, for an exchange "slot",

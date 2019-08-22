@@ -25,12 +25,16 @@
 
 package java.lang.ref;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.security.PrivilegedAction;
 import java.security.AccessController;
 import jdk.internal.misc.JavaLangAccess;
 import jdk.internal.misc.SharedSecrets;
 import jdk.internal.misc.VM;
 
+@AnnotatedFor({"nullness"})
+@SuppressWarnings({"rawtypes"})
 final class Finalizer extends FinalReference<Object> { /* Package-private; must be in
                                                           same package as the Reference
                                                           class */
@@ -45,6 +49,7 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
 
     private Finalizer next, prev;
 
+    @SuppressWarnings({"unchecked"})
     private Finalizer(Object finalizee) {
         super(finalizee, queue);
         // push onto unfinalized

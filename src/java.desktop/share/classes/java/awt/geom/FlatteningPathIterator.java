@@ -25,6 +25,9 @@
 
 package java.awt.geom;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.*;
 
 /**
@@ -35,7 +38,8 @@ import java.util.*;
  *
  * @author Jim Graham
  */
-public class FlatteningPathIterator implements PathIterator {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class FlatteningPathIterator implements PathIterator {
     static final int GROW_SIZE = 24;    // Multiple of cubic & quad curve size
 
     PathIterator src;                   // The source iterator

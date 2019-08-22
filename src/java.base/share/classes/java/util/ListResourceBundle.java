@@ -40,6 +40,9 @@
 
 package java.util;
 
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
 import sun.util.ResourceBundleEnumeration;
 
 /**
@@ -115,6 +118,7 @@ import sun.util.ResourceBundleEnumeration;
  * @see PropertyResourceBundle
  * @since 1.1
  */
+@AnnotatedFor({"lock", "nullness", "index"})
 public abstract class ListResourceBundle extends ResourceBundle {
     /**
      * Sole constructor.  (For invocation by subclass constructors, typically
@@ -124,7 +128,7 @@ public abstract class ListResourceBundle extends ResourceBundle {
     }
 
     // Implements java.util.ResourceBundle.handleGetObject; inherits javadoc specification.
-    public final Object handleGetObject(String key) {
+    public final @Nullable Object handleGetObject(@Nullable String key) {
         // lazily load the lookup hashtable.
         if (lookup == null) {
             loadLookup();
@@ -143,7 +147,7 @@ public abstract class ListResourceBundle extends ResourceBundle {
      *         this <code>ResourceBundle</code> and its parent bundles.
      * @see #keySet()
      */
-    public Enumeration<String> getKeys() {
+    public Enumeration<String> getKeys(@GuardSatisfied ListResourceBundle this) {
         // lazily load the lookup hashtable.
         if (lookup == null) {
             loadLookup();

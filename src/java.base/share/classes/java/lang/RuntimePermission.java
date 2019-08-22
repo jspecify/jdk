@@ -25,6 +25,9 @@
 
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.security.*;
 import java.lang.module.ModuleFinder;
 
@@ -398,6 +401,7 @@ import java.lang.module.ModuleFinder;
  * @since 1.2
  */
 
+@AnnotatedFor({"nullnes"})
 public final class RuntimePermission extends BasicPermission {
 
     private static final long serialVersionUID = 7399184964622342223L;
@@ -432,7 +436,7 @@ public final class RuntimePermission extends BasicPermission {
      * @throws IllegalArgumentException if <code>name</code> is empty.
      */
 
-    public RuntimePermission(String name, String actions)
+    public RuntimePermission(String name, @Nullable String actions)
     {
         super(name, actions);
     }

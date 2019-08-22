@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * This class defines the <i>Service Provider Interface</i> (<b>SPI</b>)
  * for the {@link SecureRandom} class.
@@ -82,7 +85,8 @@ package java.security;
  * @since 1.2
  */
 
-public abstract class SecureRandomSpi implements java.io.Serializable {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class SecureRandomSpi implements java.io.Serializable {
 
     private static final long serialVersionUID = -2991854161009191830L;
 

@@ -25,6 +25,16 @@
 
 package java.io;
 
+import org.checkerframework.checker.formatter.qual.FormatMethod;
+import org.checkerframework.checker.index.qual.GTENegativeOne;
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.checker.index.qual.LTLengthOf;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.*;
 import java.nio.charset.Charset;
 import jdk.internal.misc.JavaIOAccess;
@@ -91,7 +101,8 @@ import sun.nio.cs.StreamEncoder;
  * @since   1.6
  */
 
-public final class Console implements Flushable
+@AnnotatedFor({"formatter", "index", "interning", "nullness"})
+public final @UsesObjectEquals class Console implements Flushable
 {
    /**
     * Retrieves the unique {@link java.io.PrintWriter PrintWriter} object
@@ -168,7 +179,8 @@ public final class Console implements Flushable
     *
     * @return  This console
     */
-    public Console format(String fmt, Object ...args) {
+    @FormatMethod
+    public Console format(String fmt, @Nullable Object ...args) {
         formatter.format(fmt, args).flush();
         return this;
     }
@@ -208,7 +220,8 @@ public final class Console implements Flushable
     *
     * @return  This console
     */
-    public Console printf(String format, Object ... args) {
+    @FormatMethod
+    public Console printf(String format, @Nullable Object ... args) {
         return format(format, args);
     }
 
@@ -243,7 +256,7 @@ public final class Console implements Flushable
     *          including any line-termination characters, or {@code null}
     *          if an end of stream has been reached.
     */
-    public String readLine(String fmt, Object ... args) {
+    public @Nullable String readLine(String fmt, @Nullable Object ... args) {
         String line = null;
         synchronized (writeLock) {
             synchronized(readLock) {
@@ -271,7 +284,7 @@ public final class Console implements Flushable
     *          including any line-termination characters, or {@code null}
     *          if an end of stream has been reached.
     */
-    public String readLine() {
+    public @Nullable String readLine() {
         return readLine("");
     }
 
@@ -307,7 +320,7 @@ public final class Console implements Flushable
     *          from the console, not including any line-termination characters,
     *          or {@code null} if an end of stream has been reached.
     */
-    public char[] readPassword(String fmt, Object ... args) {
+    public char @Nullable [] readPassword(String fmt, @Nullable Object ... args) {
         char[] passwd = null;
         synchronized (writeLock) {
             synchronized(readLock) {
@@ -378,7 +391,7 @@ public final class Console implements Flushable
     *          from the console, not including any line-termination characters,
     *          or {@code null} if an end of stream has been reached.
     */
-    public char[] readPassword() {
+    public char @Nullable [] readPassword() {
         return readPassword("");
     }
 
@@ -456,7 +469,7 @@ public final class Console implements Flushable
             return in.ready();
         }
 
-        public int read(char cbuf[], int offset, int length)
+        public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(char cbuf[], @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int length)
             throws IOException
         {
             int off = offset;

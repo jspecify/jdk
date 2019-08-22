@@ -25,6 +25,9 @@
 
 package java.awt.dnd;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.annotation.Native;
 
 /**
@@ -32,7 +35,8 @@ import java.lang.annotation.Native;
  * the type of action(s) to be performed by a Drag and Drop operation.
  * @since 1.2
  */
-public final class DnDConstants {
+@AnnotatedFor({"interning"})
+public final @UsesObjectEquals class DnDConstants {
 
     private DnDConstants() {} // define null private constructor.
 

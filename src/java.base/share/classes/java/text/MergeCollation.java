@@ -38,6 +38,9 @@
 
 package java.text;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.ArrayList;
 
 /**
@@ -60,7 +63,8 @@ import java.util.ArrayList;
  * @author             Mark Davis, Helena Shih
  */
 
-final class MergeCollation {
+@AnnotatedFor({"interning"})
+final @UsesObjectEquals class MergeCollation {
 
     /**
      * Creates from a pattern

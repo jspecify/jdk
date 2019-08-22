@@ -25,6 +25,19 @@
 
 package java.util;
 
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.lock.qual.ReleasesNoLocks;
+import org.checkerframework.checker.nullness.qual.EnsuresKeyFor;
+import org.checkerframework.checker.nullness.qual.EnsuresKeyForIf;
+import org.checkerframework.checker.nullness.qual.KeyFor;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+import org.checkerframework.framework.qual.Covariant;
+
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -156,7 +169,10 @@ import java.io.Serializable;
  * @see Set
  * @since 1.2
  */
-public interface Map<K, V> {
+@CFComment({"lock/nullness: Subclasses of this interface/class may opt to prohibit null elements"})
+@AnnotatedFor({"lock", "nullness", "index"})
+@Covariant({0})
+public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
     // Query Operations
 
     /**
@@ -166,14 +182,16 @@ public interface Map<K, V> {
      *
      * @return the number of key-value mappings in this map
      */
-    int size();
+    @NonNegative @Pure
+    int size(@GuardSatisfied Map<K, V> this);
 
     /**
      * Returns {@code true} if this map contains no key-value mappings.
      *
      * @return {@code true} if this map contains no key-value mappings
      */
-    boolean isEmpty();
+    @Pure
+    boolean isEmpty(@GuardSatisfied Map<K, V> this);
 
     /**
      * Returns {@code true} if this map contains a mapping for the specified
@@ -192,7 +210,9 @@ public interface Map<K, V> {
      *         does not permit null keys
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean containsKey(Object key);
+    @EnsuresKeyForIf(expression={"#1"}, result=true, map={"this"})
+    @Pure
+    boolean containsKey(@GuardSatisfied Map<K, V> this, @GuardSatisfied @Nullable Object key);
 
     /**
      * Returns {@code true} if this map maps one or more keys to the
@@ -212,7 +232,8 @@ public interface Map<K, V> {
      *         map does not permit null values
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean containsValue(Object value);
+    @Pure
+    boolean containsValue(@GuardSatisfied Map<K, V> this, @GuardSatisfied @Nullable Object value);
 
     /**
      * Returns the value to which the specified key is mapped,
@@ -240,7 +261,14 @@ public interface Map<K, V> {
      *         does not permit null keys
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    V get(Object key);
+    @CFComment({"lock: The parameter is not nullable, because implementations of Map.get and",
+    "Map.put are specifically permitted to throw NullPointerException if",
+    "any of the arguments is a null).  And some implementations do not",
+    "permit nulls (sorted queues PriorityQueue, Hashtable, most concurrent",
+    "collections).  Some other implementation do accept nulls and are so",
+    "annotatied (see ArrayList, LinkedList, HashMap)."})
+    @Pure
+    @Nullable V get(@GuardSatisfied Map<K, V> this, @GuardSatisfied @Nullable Object key);
 
     // Modification Operations
 
@@ -268,7 +296,9 @@ public interface Map<K, V> {
      * @throws IllegalArgumentException if some property of the specified key
      *         or value prevents it from being stored in this map
      */
-    V put(K key, V value);
+    @ReleasesNoLocks
+    @EnsuresKeyFor(value={"#1"}, map={"this"})
+    @Nullable V put(@GuardSatisfied Map<K, V> this, K key, V value);
 
     /**
      * Removes the mapping for a key from this map if it is present
@@ -300,7 +330,7 @@ public interface Map<K, V> {
      *         map does not permit null keys
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    V remove(Object key);
+    @Nullable V remove(@GuardSatisfied Map<K, V> this, @Nullable Object key);
 
 
     // Bulk Operations
@@ -324,7 +354,7 @@ public interface Map<K, V> {
      * @throws IllegalArgumentException if some property of a key or value in
      *         the specified map prevents it from being stored in this map
      */
-    void putAll(Map<? extends K, ? extends V> m);
+    void putAll(@GuardSatisfied Map<K, V> this, Map<? extends K, ? extends V> m);
 
     /**
      * Removes all of the mappings from this map (optional operation).
@@ -333,7 +363,7 @@ public interface Map<K, V> {
      * @throws UnsupportedOperationException if the {@code clear} operation
      *         is not supported by this map
      */
-    void clear();
+    void clear(@GuardSatisfied Map<K, V> this);
 
 
     // Views
@@ -353,7 +383,8 @@ public interface Map<K, V> {
      *
      * @return a set view of the keys contained in this map
      */
-    Set<K> keySet();
+    @SideEffectFree
+    Set<@KeyFor({"this"}) K> keySet(@GuardSatisfied Map<K, V> this);
 
     /**
      * Returns a {@link Collection} view of the values contained in this map.
@@ -370,7 +401,8 @@ public interface Map<K, V> {
      *
      * @return a collection view of the values contained in this map
      */
-    Collection<V> values();
+    @SideEffectFree
+    Collection<V> values(@GuardSatisfied Map<K, V> this);
 
     /**
      * Returns a {@link Set} view of the mappings contained in this map.
@@ -388,7 +420,8 @@ public interface Map<K, V> {
      *
      * @return a set view of the mappings contained in this map
      */
-    Set<Map.Entry<K, V>> entrySet();
+    @SideEffectFree
+    Set<Map.Entry<@KeyFor({"this"}) K, V>> entrySet(@GuardSatisfied Map<K, V> this);
 
     /**
      * A map entry (key-value pair).  The {@code Map.entrySet} method returns
@@ -403,7 +436,8 @@ public interface Map<K, V> {
      * @see Map#entrySet()
      * @since 1.2
      */
-    interface Entry<K, V> {
+    @Covariant({0})
+    interface Entry<K extends @Nullable Object, V extends @Nullable Object> {
         /**
          * Returns the key corresponding to this entry.
          *
@@ -412,7 +446,8 @@ public interface Map<K, V> {
          *         required to, throw this exception if the entry has been
          *         removed from the backing map.
          */
-        K getKey();
+        @Pure
+        K getKey(Map.@GuardSatisfied Entry<K, V> this);
 
         /**
          * Returns the value corresponding to this entry.  If the mapping
@@ -424,7 +459,8 @@ public interface Map<K, V> {
          *         required to, throw this exception if the entry has been
          *         removed from the backing map.
          */
-        V getValue();
+        @Pure
+        V getValue(Map.@GuardSatisfied Entry<K, V> this);
 
         /**
          * Replaces the value corresponding to this entry with the specified
@@ -446,7 +482,7 @@ public interface Map<K, V> {
          *         required to, throw this exception if the entry has been
          *         removed from the backing map.
          */
-        V setValue(V value);
+        V setValue(Map.@GuardSatisfied Entry<K, V> this, V value);
 
         /**
          * Compares the specified object with this entry for equality.
@@ -466,7 +502,8 @@ public interface Map<K, V> {
          * @return {@code true} if the specified object is equal to this map
          *         entry
          */
-        boolean equals(Object o);
+        @Pure
+        boolean equals(Map.@GuardSatisfied Entry<K, V> this, @GuardSatisfied @Nullable Object o);
 
         /**
          * Returns the hash code value for this map entry.  The hash code
@@ -484,7 +521,8 @@ public interface Map<K, V> {
          * @see Object#equals(Object)
          * @see #equals(Object)
          */
-        int hashCode();
+        @Pure
+        int hashCode(Map.@GuardSatisfied Entry<K, V> this);
 
         /**
          * Returns a comparator that compares {@link Map.Entry} in natural order on key.
@@ -573,7 +611,7 @@ public interface Map<K, V> {
      * @param o object to be compared for equality with this map
      * @return {@code true} if the specified object is equal to this map
      */
-    boolean equals(Object o);
+    boolean equals(@GuardSatisfied Map<K, V> this, @GuardSatisfied Object o);
 
     /**
      * Returns the hash code value for this map.  The hash code of a map is
@@ -588,7 +626,7 @@ public interface Map<K, V> {
      * @see Object#equals(Object)
      * @see #equals(Object)
      */
-    int hashCode();
+    int hashCode(@GuardSatisfied Map<K, V> this);
 
     // Defaultable methods
 
@@ -769,6 +807,7 @@ public interface Map<K, V> {
      *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      * @since 1.8
      */
+    @EnsuresKeyFor(value={"#1"}, map={"this"})
     default V putIfAbsent(K key, V value) {
         V v = get(key);
         if (v == null) {
@@ -995,7 +1034,7 @@ public interface Map<K, V> {
      * @since 1.8
      */
     default V computeIfAbsent(K key,
-            Function<? super K, ? extends V> mappingFunction) {
+            Function<? super K, ? extends @Nullable V> mappingFunction) {
         Objects.requireNonNull(mappingFunction);
         V v;
         if ((v = get(key)) == null) {
@@ -1072,7 +1111,7 @@ public interface Map<K, V> {
      * @since 1.8
      */
     default V computeIfPresent(K key,
-            BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+            BiFunction<? super K, ? super V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         V oldValue;
         if ((oldValue = get(key)) != null) {
@@ -1164,7 +1203,7 @@ public interface Map<K, V> {
      * @since 1.8
      */
     default V compute(K key,
-            BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+            BiFunction<? super K, ? super @Nullable V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         V oldValue = get(key);
 
@@ -1262,7 +1301,7 @@ public interface Map<K, V> {
      * @since 1.8
      */
     default V merge(K key, V value,
-            BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+            BiFunction<? super V, ? super V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         Objects.requireNonNull(value);
         V oldValue = get(key);

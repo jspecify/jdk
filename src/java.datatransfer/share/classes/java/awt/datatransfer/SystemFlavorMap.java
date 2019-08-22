@@ -25,6 +25,9 @@
 
 package java.awt.datatransfer;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,7 +57,8 @@ import sun.datatransfer.DesktopDatatransferService;
  *
  * @since 1.2
  */
-public final class SystemFlavorMap implements FlavorMap, FlavorTable {
+@AnnotatedFor({"interning"})
+public final @UsesObjectEquals class SystemFlavorMap implements FlavorMap, FlavorTable {
 
     /**
      * Constant prefix used to tag Java types converted to native platform type.

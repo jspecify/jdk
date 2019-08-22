@@ -25,6 +25,10 @@
 
 package java.lang.management;
 
+import org.checkerframework.checker.signature.qual.BinaryName;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 import javax.management.openmbean.CompositeData;
 import sun.management.MonitorInfoCompositeData;
 
@@ -40,6 +44,7 @@ import sun.management.MonitorInfoCompositeData;
  * @author  Mandy Chung
  * @since   1.6
  */
+@AnnotatedFor({"signature"})
 public class MonitorInfo extends LockInfo {
 
     private int    stackDepth;
@@ -59,7 +64,7 @@ public class MonitorInfo extends LockInfo {
      *    or {@code stackDepth} &lt; 0 but {@code stackFrame} is not
      *       {@code null}.
      */
-    public MonitorInfo(String className,
+    public MonitorInfo(@BinaryName String className,
                        int identityHashCode,
                        int stackDepth,
                        StackTraceElement stackFrame) {
@@ -147,7 +152,11 @@ public class MonitorInfo extends LockInfo {
             return ((MonitorInfoCompositeData) cd).getMonitorInfo();
         } else {
             MonitorInfoCompositeData.validateCompositeData(cd);
-            String className = MonitorInfoCompositeData.getClassName(cd);
+            @CFComment(
+                "signature: potential bug.  The documentation of MonitorInfoCompositeData.getClassName does not state that it returns a @FullyQualifiedName"
+            )
+            @SuppressWarnings("signature")
+            @BinaryName String className = MonitorInfoCompositeData.getClassName(cd);
             int identityHashCode = MonitorInfoCompositeData.getIdentityHashCode(cd);
             int stackDepth = MonitorInfoCompositeData.getLockedStackDepth(cd);
             StackTraceElement stackFrame = MonitorInfoCompositeData.getLockedStackFrame(cd);

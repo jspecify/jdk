@@ -38,6 +38,10 @@
 
 package java.text;
 
+import org.checkerframework.checker.i18nformatter.qual.I18nFormatFor;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.InvalidObjectException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -347,6 +351,7 @@ import java.util.Locale;
  * @since 1.1
  */
 
+@AnnotatedFor({"i18nformatter", "nullness"})
 public class MessageFormat extends Format {
 
     private static final long serialVersionUID = 6479157306784022952L;
@@ -728,7 +733,7 @@ public class MessageFormat extends Format {
      * @return the formats used for the arguments within the pattern
      * @since 1.4
      */
-    public Format[] getFormatsByArgumentIndex() {
+    public @Nullable Format[] getFormatsByArgumentIndex() {
         int maximumArgumentNumber = -1;
         for (int i = 0; i <= maxOffset; i++) {
             if (argumentNumbers[i] > maximumArgumentNumber) {
@@ -833,8 +838,8 @@ public class MessageFormat extends Format {
      *            expected by the format element(s) that use it.
      * @exception NullPointerException if {@code result} is {@code null}
      */
-    public final StringBuffer format(Object[] arguments, StringBuffer result,
-                                     FieldPosition pos)
+    public final StringBuffer format(@Nullable Object @Nullable [] arguments, StringBuffer result,
+                                     @Nullable FieldPosition pos)
     {
         return subformat(arguments, result, pos, null);
     }
@@ -855,7 +860,7 @@ public class MessageFormat extends Format {
      *            that use it.
      * @exception NullPointerException if {@code pattern} is {@code null}
      */
-    public static String format(String pattern, Object ... arguments) {
+    public static String format(@I18nFormatFor("#2") String pattern, @Nullable Object ... arguments) {
         MessageFormat temp = new MessageFormat(pattern);
         return temp.format(arguments);
     }
@@ -970,7 +975,7 @@ public class MessageFormat extends Format {
      * @exception NullPointerException if {@code pos} is {@code null}
      *            for a non-null {@code source} string.
      */
-    public Object[] parse(String source, ParsePosition pos) {
+    public Object[] parse(@Nullable String source, ParsePosition pos) {
         if (source == null) {
             Object[] empty = {};
             return empty;
@@ -1092,7 +1097,7 @@ public class MessageFormat extends Format {
      *         error, returns null.
      * @throws NullPointerException if {@code pos} is null.
      */
-    public Object parseObject(String source, ParsePosition pos) {
+    public @Nullable Object parseObject(String source, ParsePosition pos) {
         return parse(source, pos);
     }
 
@@ -1254,7 +1259,7 @@ public class MessageFormat extends Format {
      *            <code>arguments</code> array is not of the type
      *            expected by the format element(s) that use it.
      */
-    private StringBuffer subformat(Object[] arguments, StringBuffer result,
+    private StringBuffer subformat(@Nullable Object @Nullable [] arguments, StringBuffer result,
                                    FieldPosition fp, List<AttributedCharacterIterator> characterIterators) {
         // note: this implementation assumes a fast substring & index.
         // if this is not true, would be better to append chars one by one.

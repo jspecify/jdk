@@ -26,6 +26,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * This class defines the <i>Service Provider Interface</i> (<b>SPI</b>)
  * for the {@code Policy} class.
@@ -42,7 +45,8 @@ package java.security;
  * @since 1.6
  */
 
-public abstract class PolicySpi {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class PolicySpi {
 
     /**
      * Check whether the policy has granted a Permission to a ProtectionDomain.

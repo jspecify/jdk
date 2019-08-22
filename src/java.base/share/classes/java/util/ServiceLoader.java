@@ -25,6 +25,12 @@
 
 package java.util;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -387,7 +393,8 @@ import jdk.internal.reflect.Reflection;
  * @spec JPMS
  */
 
-public final class ServiceLoader<S>
+@AnnotatedFor({"interning", "lock", "nullness"})
+public final @UsesObjectEquals class ServiceLoader<S>
     implements Iterable<S>
 {
     // The class or interface representing the service being loaded
@@ -1352,6 +1359,7 @@ public final class ServiceLoader<S>
      * @revised 9
      * @spec JPMS
      */
+    @SideEffectFree
     public Iterator<S> iterator() {
 
         // create lookup iterator if needed
@@ -1641,7 +1649,7 @@ public final class ServiceLoader<S>
      */
     @CallerSensitive
     public static <S> ServiceLoader<S> load(Class<S> service,
-                                            ClassLoader loader)
+                                            @Nullable ClassLoader loader)
     {
         return new ServiceLoader<>(Reflection.getCallerClass(), service, loader);
     }
@@ -1841,7 +1849,8 @@ public final class ServiceLoader<S>
      *
      * @return  A descriptive string
      */
-    public String toString() {
+    @SideEffectFree
+    public String toString(@GuardSatisfied ServiceLoader<S> this) {
         return "java.util.ServiceLoader[" + service.getName() + "]";
     }
 

@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * This interface defines a factory for {@code URL} stream
  * protocol handlers.
@@ -37,6 +40,7 @@ package java.net;
  * @see     java.net.URLStreamHandler
  * @since   1.0
  */
+@AnnotatedFor("nullness")
 public interface URLStreamHandlerFactory {
     /**
      * Creates a new {@code URLStreamHandler} instance with the specified
@@ -49,5 +53,5 @@ public interface URLStreamHandlerFactory {
      *          protocol
      * @see     java.net.URLStreamHandler
      */
-    URLStreamHandler createURLStreamHandler(String protocol);
+    @Nullable URLStreamHandler createURLStreamHandler(String protocol);
 }

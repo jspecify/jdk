@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.io.*;
@@ -49,7 +52,8 @@ import sun.security.jca.*;
  * @since 1.1
  */
 
-public final class Security {
+@AnnotatedFor({"interning"})
+public final @UsesObjectEquals class Security {
 
     /* Are we debugging? -- for developers */
     private static final Debug sdebug =

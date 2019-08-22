@@ -35,6 +35,9 @@ import java.util.Enumeration;
 import java.util.Set;
 import java.util.StringTokenizer;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /** A Permission to perform actions related to MBeanServers.
     The <em>name</em> of the permission specifies the operation requested
     or granted by the permission.  For a granted permission, it can be
@@ -66,6 +69,7 @@ import java.util.StringTokenizer;
  *
  * @since 1.5
  */
+@AnnotatedFor({"interning"})
 public class MBeanServerPermission extends BasicPermission {
     private static final long serialVersionUID = -5661980843569388590L;
 
@@ -180,7 +184,7 @@ public class MBeanServerPermission extends BasicPermission {
         return mask;
     }
 
-    static String getCanonicalName(int mask) {
+    static @Interned String getCanonicalName(int mask) {
         if (mask == ALL_MASK)
             return "*";
 

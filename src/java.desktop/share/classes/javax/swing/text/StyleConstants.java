@@ -24,6 +24,9 @@
  */
 package javax.swing.text;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Toolkit;
@@ -45,17 +48,18 @@ import javax.swing.Icon;
  *
  * @author  Timothy Prinzing
  */
+@AnnotatedFor({"interning"})
 public class StyleConstants {
 
     /**
      * Name of elements used to represent components.
      */
-    public static final String ComponentElementName = "component";
+    public static final @Interned String ComponentElementName = "component";
 
     /**
      * Name of elements used to represent icons.
      */
-    public static final String IconElementName = "icon";
+    public static final @Interned String IconElementName = "icon";
 
     /**
      * Attribute name used to name the collection of

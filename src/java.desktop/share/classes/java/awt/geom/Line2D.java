@@ -25,6 +25,9 @@
 
 package java.awt.geom;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.Shape;
 import java.awt.Rectangle;
 import java.io.Serializable;
@@ -41,7 +44,8 @@ import java.io.Serializable;
  * @author      Jim Graham
  * @since 1.2
  */
-public abstract class Line2D implements Shape, Cloneable {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class Line2D implements Shape, Cloneable {
 
     /**
      * A line segment specified with float coordinates.

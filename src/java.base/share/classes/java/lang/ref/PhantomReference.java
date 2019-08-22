@@ -25,6 +25,9 @@
 
 package java.lang.ref;
 
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
  * Phantom reference objects, which are enqueued after the collector
@@ -47,6 +50,7 @@ package java.lang.ref;
  * @since    1.2
  */
 
+@AnnotatedFor({"lock", "nullness"})
 public class PhantomReference<T> extends Reference<T> {
 
     /**
@@ -56,7 +60,8 @@ public class PhantomReference<T> extends Reference<T> {
      *
      * @return {@code null}
      */
-    public T get() {
+    @SideEffectFree
+    public T get(@GuardSatisfied PhantomReference<T> this) {
         return null;
     }
 

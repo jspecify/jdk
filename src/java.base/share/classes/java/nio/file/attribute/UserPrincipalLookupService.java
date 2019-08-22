@@ -25,6 +25,9 @@
 
 package java.nio.file.attribute;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 
 /**
@@ -50,7 +53,8 @@ import java.io.IOException;
  * @see java.nio.file.FileSystem#getUserPrincipalLookupService
  */
 
-public abstract class UserPrincipalLookupService {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class UserPrincipalLookupService {
 
     /**
      * Initializes a new instance of this class.

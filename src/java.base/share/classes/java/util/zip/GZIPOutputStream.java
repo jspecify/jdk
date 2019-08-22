@@ -25,6 +25,11 @@
 
 package java.util.zip;
 
+import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.OutputStream;
 import java.io.IOException;
 
@@ -35,6 +40,7 @@ import java.io.IOException;
  * @since 1.1
  *
  */
+@AnnotatedFor({"index", "signedness"})
 public
 class GZIPOutputStream extends DeflaterOutputStream {
     /**
@@ -64,7 +70,7 @@ class GZIPOutputStream extends DeflaterOutputStream {
      * @exception IOException If an I/O error has occurred.
      * @exception IllegalArgumentException if {@code size <= 0}
      */
-    public GZIPOutputStream(OutputStream out, int size) throws IOException {
+    public GZIPOutputStream(OutputStream out, @Positive int size) throws IOException {
         this(out, size, false);
     }
 
@@ -85,7 +91,7 @@ class GZIPOutputStream extends DeflaterOutputStream {
      *
      * @since 1.7
      */
-    public GZIPOutputStream(OutputStream out, int size, boolean syncFlush)
+    public GZIPOutputStream(OutputStream out, @Positive int size, boolean syncFlush)
         throws IOException
     {
         super(out, new Deflater(Deflater.DEFAULT_COMPRESSION, true),
@@ -140,7 +146,7 @@ class GZIPOutputStream extends DeflaterOutputStream {
      * @param len the length of the data
      * @exception IOException If an I/O error has occurred.
      */
-    public synchronized void write(byte[] buf, int off, int len)
+    public synchronized void write(@PolySigned byte[] buf, @IndexOrHigh({"#1"}) int off, @IndexOrHigh({"#1"}) int len)
         throws IOException
     {
         super.write(buf, off, len);

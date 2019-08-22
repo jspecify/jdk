@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 
 /**
  * The class PasswordAuthentication is a data holder that is used by
@@ -37,7 +40,8 @@ package java.net;
  * @since   1.2
  */
 
-public final class PasswordAuthentication {
+@AnnotatedFor({"interning"})
+public final @UsesObjectEquals class PasswordAuthentication {
 
     private String userName;
     private char[] password;

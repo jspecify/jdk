@@ -24,6 +24,8 @@
  */
 package java.util;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
@@ -293,6 +295,7 @@ import java.util.function.LongConsumer;
  * @see Collection
  * @since 1.8
  */
+@AnnotatedFor({"lock", "nullness"})
 public interface Spliterator<T> {
     /**
      * If a remaining element exists, performs the given action on it,

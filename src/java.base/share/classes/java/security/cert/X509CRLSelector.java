@@ -25,6 +25,9 @@
 
 package java.security.cert;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.*;
@@ -70,7 +73,8 @@ import sun.security.x509.X500Name;
  * @since       1.4
  * @author      Steve Hanna
  */
-public class X509CRLSelector implements CRLSelector {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class X509CRLSelector implements CRLSelector {
 
     static {
         CertPathHelperImpl.initialize();

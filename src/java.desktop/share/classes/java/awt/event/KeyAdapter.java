@@ -25,6 +25,9 @@
 
 package java.awt.event;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * An abstract adapter class for receiving keyboard events.
  * The methods in this class are empty. This class exists as
@@ -50,7 +53,8 @@ package java.awt.event;
  *
  * @since 1.1
  */
-public abstract class KeyAdapter implements KeyListener {
+@AnnotatedFor({"interning"})
+public abstract @UsesObjectEquals class KeyAdapter implements KeyListener {
     /**
      * Invoked when a key has been typed.
      * This event occurs when a key press is followed by a key release.

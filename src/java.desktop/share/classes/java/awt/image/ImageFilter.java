@@ -25,6 +25,9 @@
 
 package java.awt.image;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Hashtable;
 
 /**
@@ -42,7 +45,8 @@ import java.util.Hashtable;
  *
  * @author      Jim Graham
  */
-public class ImageFilter implements ImageConsumer, Cloneable {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class ImageFilter implements ImageConsumer, Cloneable {
     /**
      * The consumer of the particular image data stream for which this
      * instance of the ImageFilter is filtering data.  It is not

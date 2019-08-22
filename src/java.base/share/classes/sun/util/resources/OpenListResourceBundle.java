@@ -40,6 +40,8 @@
 
 package sun.util.resources;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,6 +60,7 @@ import sun.util.ResourceBundleEnumeration;
  * adds a method createMap which allows subclasses to
  * use specialized Map implementations.
  */
+@AnnotatedFor({"index"})
 public abstract class OpenListResourceBundle extends ResourceBundle {
     /**
      * Sole constructor.  (For invocation by subclass constructors, typically

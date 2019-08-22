@@ -25,6 +25,9 @@
 
 package java.nio;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import jdk.internal.misc.Unsafe;
 
 /**
@@ -35,7 +38,8 @@ import jdk.internal.misc.Unsafe;
  * @since 1.4
  */
 
-public final class ByteOrder {
+@AnnotatedFor({"interning"})
+public final @UsesObjectEquals class ByteOrder {
 
     private String name;
 

@@ -25,6 +25,9 @@
 
 package java.awt.datatransfer;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -47,7 +50,8 @@ import sun.datatransfer.DataFlavorUtil;
  * @see java.awt.Toolkit#getSystemSelection
  * @since 1.1
  */
-public class Clipboard {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class Clipboard {
 
     String name;
 

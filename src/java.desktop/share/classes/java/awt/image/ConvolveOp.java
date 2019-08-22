@@ -25,6 +25,9 @@
 
 package java.awt.image;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.awt.color.ICC_Profile;
 import java.awt.geom.Rectangle2D;
 import java.awt.Rectangle;
@@ -66,7 +69,8 @@ import sun.awt.image.ImagingLib;
  * @see java.awt.RenderingHints#KEY_COLOR_RENDERING
  * @see java.awt.RenderingHints#KEY_DITHERING
  */
-public class ConvolveOp implements BufferedImageOp, RasterOp {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class ConvolveOp implements BufferedImageOp, RasterOp {
     Kernel kernel;
     int edgeHint;
     RenderingHints hints;

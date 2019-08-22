@@ -25,8 +25,12 @@
 
 package javax.management;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 
 // java import
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import java.util.Set;
 import java.io.ObjectInputStream;
 
@@ -257,6 +261,7 @@ import javax.management.loading.ClassLoaderRepository;
  * MBeanPermission#MBeanPermission(String,String,ObjectName,String)
  * MBeanPermission(null, null, name, "isRegistered")}.</p>
  */
+@AnnotatedFor("nullness")
 public interface MBeanServer extends MBeanServerConnection {
 
     /**
@@ -268,7 +273,7 @@ public interface MBeanServer extends MBeanServerConnection {
      * @throws RuntimeMBeanException {@inheritDoc}
      * @throws RuntimeErrorException {@inheritDoc}
      */
-    public ObjectInstance createMBean(String className, ObjectName name)
+    public ObjectInstance createMBean(String className, @Nullable ObjectName name)
             throws ReflectionException, InstanceAlreadyExistsException,
                    MBeanRegistrationException, MBeanException,
                    NotCompliantMBeanException;
@@ -282,7 +287,7 @@ public interface MBeanServer extends MBeanServerConnection {
      * @throws RuntimeMBeanException {@inheritDoc}
      * @throws RuntimeErrorException {@inheritDoc}
      */
-    public ObjectInstance createMBean(String className, ObjectName name,
+    public ObjectInstance createMBean(String className, @Nullable ObjectName name,
                                       ObjectName loaderName)
             throws ReflectionException, InstanceAlreadyExistsException,
                    MBeanRegistrationException, MBeanException,
@@ -297,8 +302,8 @@ public interface MBeanServer extends MBeanServerConnection {
      * @throws RuntimeMBeanException {@inheritDoc}
      * @throws RuntimeErrorException {@inheritDoc}
      */
-    public ObjectInstance createMBean(String className, ObjectName name,
-                                      Object params[], String signature[])
+    public ObjectInstance createMBean(String className, @Nullable ObjectName name,
+                                      Object params @Nullable [], String signature @Nullable [])
             throws ReflectionException, InstanceAlreadyExistsException,
                    MBeanRegistrationException, MBeanException,
                    NotCompliantMBeanException;
@@ -312,9 +317,9 @@ public interface MBeanServer extends MBeanServerConnection {
      * @throws RuntimeMBeanException {@inheritDoc}
      * @throws RuntimeErrorException {@inheritDoc}
      */
-    public ObjectInstance createMBean(String className, ObjectName name,
-                                      ObjectName loaderName, Object params[],
-                                      String signature[])
+    public ObjectInstance createMBean(String className, @Nullable ObjectName name,
+                                      ObjectName loaderName, Object params @Nullable [],
+                                      String signature @Nullable [])
             throws ReflectionException, InstanceAlreadyExistsException,
                    MBeanRegistrationException, MBeanException,
                    NotCompliantMBeanException, InstanceNotFoundException;
@@ -370,7 +375,7 @@ public interface MBeanServer extends MBeanServerConnection {
      * passed in parameter is null or no object name is specified.
      * @see javax.management.MBeanRegistration
      */
-    public ObjectInstance registerMBean(Object object, ObjectName name)
+    public ObjectInstance registerMBean(Object object, @Nullable ObjectName name)
             throws InstanceAlreadyExistsException, MBeanRegistrationException,
                    NotCompliantMBeanException;
 
@@ -384,24 +389,24 @@ public interface MBeanServer extends MBeanServerConnection {
      * @throws RuntimeMBeanException {@inheritDoc}
      * @throws RuntimeErrorException {@inheritDoc}
      */
-    public void unregisterMBean(ObjectName name)
+    public void unregisterMBean(@Nullable ObjectName name)
             throws InstanceNotFoundException, MBeanRegistrationException;
 
     // doc comment inherited from MBeanServerConnection
-    public ObjectInstance getObjectInstance(ObjectName name)
+    public ObjectInstance getObjectInstance(@Nullable ObjectName name)
             throws InstanceNotFoundException;
 
     /**
      * {@inheritDoc}
       * @throws RuntimeOperationsException {@inheritDoc}
      */
-    public Set<ObjectInstance> queryMBeans(ObjectName name, QueryExp query);
+    public Set<ObjectInstance> queryMBeans(@Nullable ObjectName name, @Nullable QueryExp query);
 
     /**
      * {@inheritDoc}
       * @throws RuntimeOperationsException {@inheritDoc}
     */
-    public Set<ObjectName> queryNames(ObjectName name, QueryExp query);
+    public Set<ObjectName> queryNames(@Nullable ObjectName name, @Nullable QueryExp query);
 
     // doc comment inherited from MBeanServerConnection
     /**
@@ -451,8 +456,8 @@ public interface MBeanServer extends MBeanServerConnection {
         throws InstanceNotFoundException, ReflectionException;
 
     // doc comment inherited from MBeanServerConnection
-    public Object invoke(ObjectName name, String operationName,
-                         Object params[], String signature[])
+    public Object invoke(@Nullable ObjectName name, String operationName,
+                         Object params @Nullable [], String signature @Nullable [])
             throws InstanceNotFoundException, MBeanException,
                    ReflectionException;
 
@@ -469,9 +474,9 @@ public interface MBeanServer extends MBeanServerConnection {
      * is a reference to an MBean object, the MBean server will replace it
      * by that MBean's ObjectName.  Otherwise the source is unchanged.
      */
-    public void addNotificationListener(ObjectName name,
+    public void addNotificationListener(@Nullable ObjectName name,
                                         NotificationListener listener,
-                                        NotificationFilter filter,
+                                        @Nullable NotificationFilter filter,
                                         Object handback)
             throws InstanceNotFoundException;
 
@@ -479,44 +484,44 @@ public interface MBeanServer extends MBeanServerConnection {
      * {@inheritDoc}
      * @throws RuntimeOperationsException {@inheritDoc}
      */
-    public void addNotificationListener(ObjectName name,
+    public void addNotificationListener(@Nullable ObjectName name,
                                         ObjectName listener,
-                                        NotificationFilter filter,
+                                        @Nullable NotificationFilter filter,
                                         Object handback)
             throws InstanceNotFoundException;
 
     // doc comment inherited from MBeanServerConnection
-    public void removeNotificationListener(ObjectName name,
+    public void removeNotificationListener(@Nullable ObjectName name,
                                            ObjectName listener)
         throws InstanceNotFoundException, ListenerNotFoundException;
 
     // doc comment inherited from MBeanServerConnection
-    public void removeNotificationListener(ObjectName name,
+    public void removeNotificationListener(@Nullable ObjectName name,
                                            ObjectName listener,
-                                           NotificationFilter filter,
-                                           Object handback)
+                                           @Nullable NotificationFilter filter,
+                                           @Nullable Object handback)
             throws InstanceNotFoundException, ListenerNotFoundException;
 
     // doc comment inherited from MBeanServerConnection
-    public void removeNotificationListener(ObjectName name,
-                                           NotificationListener listener)
+    public void removeNotificationListener(@Nullable ObjectName name,
+                                           @Nullable NotificationListener listener)
             throws InstanceNotFoundException, ListenerNotFoundException;
 
     // doc comment inherited from MBeanServerConnection
-    public void removeNotificationListener(ObjectName name,
+    public void removeNotificationListener(@Nullable ObjectName name,
                                            NotificationListener listener,
-                                           NotificationFilter filter,
-                                           Object handback)
+                                           @Nullable NotificationFilter filter,
+                                           @Nullable Object handback)
             throws InstanceNotFoundException, ListenerNotFoundException;
 
     // doc comment inherited from MBeanServerConnection
-    public MBeanInfo getMBeanInfo(ObjectName name)
+    public MBeanInfo getMBeanInfo(@Nullable ObjectName name)
             throws InstanceNotFoundException, IntrospectionException,
                    ReflectionException;
 
 
     // doc comment inherited from MBeanServerConnection
-    public boolean isInstanceOf(ObjectName name, String className)
+    public boolean isInstanceOf(@Nullable ObjectName name, String className)
             throws InstanceNotFoundException;
 
     /**
@@ -580,7 +585,7 @@ public interface MBeanServer extends MBeanServerConnection {
      * <CODE>java.lang.IllegalArgumentException</CODE>: The className
      * passed in parameter is null.
      */
-    public Object instantiate(String className, ObjectName loaderName)
+    public Object instantiate(String className, @Nullable ObjectName loaderName)
             throws ReflectionException, MBeanException,
                    InstanceNotFoundException;
 
@@ -611,8 +616,8 @@ public interface MBeanServer extends MBeanServerConnection {
      * <CODE>java.lang.IllegalArgumentException</CODE>: The className
      * passed in parameter is null.
      */
-    public Object instantiate(String className, Object params[],
-                              String signature[])
+    public Object instantiate(String className, Object params @Nullable [],
+                              String signature @Nullable [])
             throws ReflectionException, MBeanException;
 
     /**
@@ -642,8 +647,8 @@ public interface MBeanServer extends MBeanServerConnection {
      * <CODE>java.lang.IllegalArgumentException</CODE>: The className
      * passed in parameter is null.
      */
-    public Object instantiate(String className, ObjectName loaderName,
-                              Object params[], String signature[])
+    public Object instantiate(String className, @Nullable ObjectName loaderName,
+                              Object params @Nullable [], String signature @Nullable [])
             throws ReflectionException, MBeanException,
                    InstanceNotFoundException;
 
@@ -668,7 +673,7 @@ public interface MBeanServer extends MBeanServerConnection {
      * obtain the appropriate class loader for deserialization.
      */
     @Deprecated(since="1.5")
-    default public ObjectInputStream deserialize(ObjectName name, byte[] data)
+    default public ObjectInputStream deserialize(@Nullable ObjectName name, byte[] data)
             throws InstanceNotFoundException, OperationsException {
         throw new UnsupportedOperationException("Not supported.");
     }
@@ -734,7 +739,7 @@ public interface MBeanServer extends MBeanServerConnection {
      */
     @Deprecated(since="1.5")
     default public ObjectInputStream deserialize(String className,
-                                         ObjectName loaderName,
+                                         @Nullable ObjectName loaderName,
                                          byte[] data)
             throws InstanceNotFoundException, OperationsException,
                    ReflectionException {
@@ -794,7 +799,7 @@ public interface MBeanServer extends MBeanServerConnection {
      *    not found.
      *
      */
-    public ClassLoader getClassLoader(ObjectName loaderName)
+    public ClassLoader getClassLoader(@Nullable ObjectName loaderName)
         throws InstanceNotFoundException;
 
     /**

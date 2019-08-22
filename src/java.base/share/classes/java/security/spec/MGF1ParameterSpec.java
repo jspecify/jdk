@@ -25,6 +25,9 @@
 
 package java.security.spec;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.security.spec.AlgorithmParameterSpec;
 
 /**
@@ -64,7 +67,8 @@ import java.security.spec.AlgorithmParameterSpec;
  *
  * @since 1.5
  */
-public class MGF1ParameterSpec implements AlgorithmParameterSpec {
+@AnnotatedFor({"interning"})
+public @UsesObjectEquals class MGF1ParameterSpec implements AlgorithmParameterSpec {
 
     /**
      * The MGF1ParameterSpec which uses "SHA-1" message digest

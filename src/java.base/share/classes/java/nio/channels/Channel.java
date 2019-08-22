@@ -25,6 +25,8 @@
 
 package java.nio.channels;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.io.Closeable;
 
@@ -53,6 +55,7 @@ import java.io.Closeable;
  * @since 1.4
  */
 
+@AnnotatedFor({"index"})
 public interface Channel extends Closeable {
 
     /**

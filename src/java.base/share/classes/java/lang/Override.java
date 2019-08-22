@@ -25,6 +25,8 @@
 
 package java.lang;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.annotation.*;
 
 /**
@@ -48,6 +50,7 @@ import java.lang.annotation.*;
  * @jls 9.6.4.4 @Override
  * @since 1.5
  */
+@AnnotatedFor({"nullness"})
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.SOURCE)
 public @interface Override {

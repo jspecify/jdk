@@ -24,6 +24,8 @@
  */
 package java.util;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.util.function.LongConsumer;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
@@ -54,6 +56,7 @@ import java.util.stream.LongStream;
  *
  * @since 1.8
  */
+@AnnotatedFor({"lock", "nullness"})
 public final class OptionalLong {
     /**
      * Common instance for {@code empty()}.
