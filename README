@@ -74,6 +74,22 @@ rm -f checker-qual-$VER-sources.jar
 Copy the exports lines to src/java.base/share/classes/module-info.java
 
 
+The typetools/jdk11u repository
+-------------------------------
+
+The typetools/jdk11u repository is a merge of `openjdk/jdk11u` and `typetools/jdk`.
+That is, it is a fork of `openjdk/jdk11u`, with Checker Framework type annotations.
+
+**Do not edit that repository.**
+Make changes here, in the `typetools/jdk` repository.
+
+To update jdk11u from its upstreams:
+```
+git pull https://github.com/openjdk/jdk11u.git
+git pull https://github.com/typetools/jdk.git
+```
+
+
 Upstream README follows
 -----------------------
 
