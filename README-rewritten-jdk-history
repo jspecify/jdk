@@ -1,0 +1,65 @@
+Sometimes openjdk/jdk and openjdk/jdk11u have their history rewritten incompatibly. :-(
+
+
+Here is how Mike dealt with that problem the last time it happened.
+
+# Do this:
+
+cd $t/libraries
+mv jdk-fork-openjdk jdk-fork-openjdk-BEFORE-JDK-FORCE-PUSH
+git clone git@github.com:openjdk/jdk.git jdk-fork-openjdk
+cd jdk-fork-openjdk
+# May need to update the commit number; see the README file
+git checkout da75f3c4ad5bdf25167a3ed80e51f567ab3dbd01
+
+cd $t/libraries
+mv jdk-fork-typetools-branch-master jdk-fork-typetools-branch-master-BEFORE-JDK-FORCE-PUSH
+# Browse to https://github.com/typetools/jdk/settings and delete the repository
+# Browse to https://github.com/openjdk/jdk and fork the repository to typetools
+cd $t/libraries
+git clone git@github.com:typetools/jdk.git jdk-fork-typetools-branch-master
+cd jdk-fork-typetools-branch-master
+git reset --hard da75f3c4ad5bdf25167a3ed80e51f567ab3dbd01
+git push -f
+cd $t/libraries
+rsync -a --exclude '.git' jdk-fork-typetools-branch-master-BEFORE-JDK-FORCE-PUSH/ jdk-fork-typetools-branch-master/
+(cd jdk-fork-typetools-branch-master && git add . && git commit -m "Pluggable type-checking annotations" && git push)
+
+cd $t/libraries
+rm -rf jdk11u-fork-openjdk
+cd /scratch/mernst/clones/types/libraries
+git clone git@github.com:openjdk/jdk11u.git jdk11u-fork-openjdk
+
+cd $t/libraries
+mv jdk11u-fork-typetools jdk-fork-typetools-BEFORE-JDK-FORCE-PUSH
+# Browse to https://github.com/typetools/jdk11u/settings and delete the repository
+# Browse to https://github.com/openjdk/jdk11u and fork the repository to typetools
+cd $t/libraries
+git clone git@github.com:typetools/jdk11u.git jdk11u-fork-typetools-branch-master
+# Update it from its upstreams in the usual way.
+
+cd $t/libraries
+mv jdk-fork-mernst jdk-fork-mernst-BEFORE-JDK-FORCE-PUSH
+# Browse to https://github.com/mernst/jdk/settings and delete the repository
+# Browse to https://github.com/typetools/jdk and fork the repository to mernst
+cd $t/libraries
+git clone git@github.com:mernst/jdk.git jdk-fork-mernst
+
+cd $t/libraries
+mv jdk11u-fork-mernst jdk11u-fork-mernst-BEFORE-JDK-FORCE-PUSH
+# Browse to https://github.com/mernst/jdk11u/settings and delete the repository
+# Browse to https://github.com/typetools/jdk11u and fork the repository to mernst
+cd $t/libraries
+git clone git@github.com:mernst/jdk11u.git jdk11u-fork-mernst
+
+
+Browse to each of these URLs:
+https://dev.azure.com/mernst22/jdk/_build
+https://dev.azure.com/mernst22/jdk11u/_build
+https://dev.azure.com/typetools/jdk/_build
+https://dev.azure.com/typetools/jdk11u/_build
+At each URL:
+ * Queue the project in hopes that will start automatic building for each commit.
+ * If the above doesn't work, change the instructions to the below:
+ * Delete and re-create the pipeline, because of apparent caching problems when checking out the projects.
+
