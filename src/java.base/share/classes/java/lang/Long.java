@@ -426,7 +426,7 @@ public final class Long extends Number implements Comparable<Long> {
      */
 
     /** byte[]/LATIN1 version    */
-    static void formatUnsignedLong0(long val, int shift, byte[] buf, int offset, int len) {
+    static void formatUnsignedLong0(long val, @IntVal({1, 2, 3, 4, 5}) int shift, byte[] buf, int offset, int len) {
         int charPos = offset + len;
         int radix = 1 << shift;
         int mask = radix - 1;
@@ -437,7 +437,7 @@ public final class Long extends Number implements Comparable<Long> {
     }
 
     /** byte[]/UTF16 version    */
-    private static void formatUnsignedLong0UTF16(long val, int shift, byte[] buf, int offset, int len) {
+    private static void formatUnsignedLong0UTF16(long val, @IntVal({1, 2, 3, 4, 5}) int shift, byte[] buf, int offset, int len) {
         int charPos = offset + len;
         int radix = 1 << shift;
         int mask = radix - 1;

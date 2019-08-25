@@ -34,6 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -686,6 +687,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      *
      * @return the table
      */
+    @SuppressWarnings("cast.unsafe") // https://github.com/typetools/checker-framework/issues/2731
     final Node<K,V>[] resize() {
         Node<K,V>[] oldTab = table;
         int oldCap = (oldTab == null) ? 0 : oldTab.length;

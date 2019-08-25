@@ -31,6 +31,7 @@ import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.common.value.qual.IntRange;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -371,7 +372,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
     private @Positive int radix = 10;
 
     // The default radix for this scanner
-    private int defaultRadix = 10;
+    private @IntRange(from = 2, to = 36) int defaultRadix = 10;
 
     // The locale used by this scanner
     private Locale locale = null;
@@ -1358,7 +1359,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @return this scanner
      * @throws IllegalArgumentException if radix is out of range
      */
-    public Scanner useRadix(@Positive int radix) {
+    public Scanner useRadix(@IntRange(from = 2, to = 36) int radix) {
         if ((radix < Character.MIN_RADIX) || (radix > Character.MAX_RADIX))
             throw new IllegalArgumentException("radix:"+radix);
 
@@ -2611,7 +2612,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public boolean hasNextBigInteger(@GuardSatisfied Scanner this, @Positive int radix) {
+    public boolean hasNextBigInteger(@GuardSatisfied Scanner this, @IntRange(from = 2, to = 36) int radix) {
         setRadix(radix);
         boolean result = hasNext(integerPattern());
         if (result) { // Cache it
@@ -2673,7 +2674,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public BigInteger nextBigInteger(@GuardSatisfied Scanner this, @Positive int radix) {
+    public BigInteger nextBigInteger(@GuardSatisfied Scanner this, @IntRange(from = 2, to = 36) int radix) {
         // Check cached result
         if ((typeCache != null) && (typeCache instanceof BigInteger)
             && this.radix == radix) {

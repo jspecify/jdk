@@ -33,6 +33,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 import java.io.OutputStream;
 import java.io.IOException;
 
+import org.checkerframework.framework.qual.CFComment;
+
 /**
  * This class implements a stream filter for writing compressed data in
  * the GZIP file format.
@@ -185,6 +187,8 @@ class GZIPOutputStream extends DeflaterOutputStream {
     /*
      * Writes GZIP member header.
      */
+    @SuppressWarnings("cast.unsafe")
+    @CFComment("index: https://github.com/typetools/checker-framework/issues/2731")
     private void writeHeader() throws IOException {
         out.write(new byte[] {
                       (byte) GZIP_MAGIC,        // Magic number (short)

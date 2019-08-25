@@ -33,9 +33,11 @@ import org.checkerframework.checker.nullness.qual.EnsuresKeyForIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.common.value.qual.MinLen;
+import org.checkerframework.common.value.qual.ArrayLen;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -4865,14 +4867,14 @@ public class Collections {
      * @return an immutable list containing only the specified object.
      * @since 1.3
      */
-    public static <T> @MinLen(1) List<T> singletonList(T o) {
+    public static <T> @ArrayLen(1) List<T> singletonList(T o) {
         return new SingletonList<>(o);
     }
 
     /**
      * @serial include
      */
-    private static class SingletonList<E>
+    private static @ArrayLen(1) class SingletonList<E>
         extends AbstractList<E>
         implements RandomAccess, Serializable {
 
@@ -4880,6 +4882,8 @@ public class Collections {
 
         private final E element;
 
+        @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
+        @CFComment("index: every SingletonList is @ArrayLen(1)")
         SingletonList(E obj)                {element = obj;}
 
         @SideEffectFree

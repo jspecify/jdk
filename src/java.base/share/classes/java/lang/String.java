@@ -48,6 +48,7 @@ import org.checkerframework.common.value.qual.MinLen;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
 import org.checkerframework.framework.qual.PolyAll;
 
 import java.io.ObjectStreamField;
@@ -708,6 +709,8 @@ public final class String
      *
      * @since 1.6
      */
+    @SuppressWarnings("contracts.conditional.postcondition.not.satisfied")
+    @CFComment("index: The postcondition is EnsuresMinLenIf.  It's true because: values.length != 0 => this is @MinLen(1), as values.length is @LengthOf(this).")
     @Pure
     public boolean isEmpty() {
         return value.length == 0;
@@ -2345,7 +2348,7 @@ public final class String
      * @spec JSR-51
      */
     @SideEffectFree
-    public String @MinLen(1) [] split(@Regex String regex, int limit) {
+    public String[] split(@Regex String regex, int limit) {
         /* fastpath if the regex is a
          (1)one-char String and this character is not one of the
             RegEx's meta characters ".$|()[{^?*+\\", or
@@ -2444,7 +2447,7 @@ public final class String
      * @spec JSR-51
      */
     @SideEffectFree
-    public String @MinLen(1) [] split(@Regex String regex) {
+    public String[] split(@Regex String regex) {
         return split(regex, 0);
     }
 
