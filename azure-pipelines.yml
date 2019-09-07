@@ -47,9 +47,9 @@ jobs:
   - bash: |
       set -ex
       eval `/tmp/plume-scripts/ci-info typetools`
-      REPO=`/tmp/plume-scripts/git-find-fork ${CI_ORGANIZATION} typetools jdk11u`
-      BRANCH=`/tmp/plume-scripts/git-find-branch ${REPO} ${CI_BRANCH}`
-      cd .. && git clone --depth 99 -q ${REPO} --branch ${BRANCH}
+      REPO_URL=`/tmp/plume-scripts/git-find-fork ${CI_ORGANIZATION} typetools jdk11u`
+      BRANCH=`/tmp/plume-scripts/git-find-branch ${REPO_URL} ${CI_BRANCH}`
+      cd .. && git clone --depth 99 -q ${REPO_URL} --branch ${BRANCH}
     displayName: clone
   - bash: |
       set -ex
