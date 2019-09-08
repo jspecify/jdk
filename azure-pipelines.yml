@@ -46,10 +46,7 @@ jobs:
   # If the depth is too small, the merge will fail.
   - bash: |
       set -ex
-      eval `/tmp/plume-scripts/ci-info typetools`
-      REPO_URL=`/tmp/plume-scripts/git-find-fork ${CI_ORGANIZATION} typetools jdk11u`
-      BRANCH=`/tmp/plume-scripts/git-find-branch ${REPO_URL} ${CI_BRANCH}`
-      cd .. && git clone --depth 99 -q ${REPO_URL} --branch ${BRANCH}
+      /tmp/plume-scripts/git-clone-related typetools jdk11u ../jdk11u -q --depth 99
     displayName: clone
   - bash: |
       set -ex
