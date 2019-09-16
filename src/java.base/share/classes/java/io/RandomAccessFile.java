@@ -536,7 +536,7 @@ public @UsesObjectEquals class RandomAccessFile implements DataOutput, DataInput
         write0(b);
     }
 
-    private native void write0(int b) throws IOException;
+    private native void write0(@PolySigned int b) throws IOException;
 
     /**
      * Writes a sub array as a sequence of bytes.

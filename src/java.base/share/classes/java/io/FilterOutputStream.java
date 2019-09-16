@@ -94,7 +94,7 @@ public class FilterOutputStream extends OutputStream {
      * @exception  IOException  if an I/O error occurs.
      */
     @Override
-    public void write(@GuardSatisfied FilterOutputStream this, int b) throws IOException {
+    public void write(@GuardSatisfied FilterOutputStream this, @PolySigned int b) throws IOException {
         out.write(b);
     }
 
