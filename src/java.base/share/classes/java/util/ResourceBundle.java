@@ -40,6 +40,7 @@
 
 package java.util;
 
+import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.i18n.qual.LocalizableKey;
 import org.checkerframework.checker.i18n.qual.Localized;
 import org.checkerframework.checker.i18nformatter.qual.I18nMakeFormat;
@@ -3307,7 +3308,7 @@ public abstract class ResourceBundle {
          *        if <code>baseName</code> or <code>locale</code> is
          *        <code>null</code>
          */
-        public long getTimeToLive(String baseName, Locale locale) {
+        public @NonNegative long getTimeToLive(String baseName, Locale locale) {
             if (baseName == null || locale == null) {
                 throw new NullPointerException();
             }

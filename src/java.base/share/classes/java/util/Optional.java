@@ -24,8 +24,15 @@
  */
 package java.util;
 
+import org.checkerframework.checker.nullness.qual.PolyNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.Covariant;
 import org.checkerframework.framework.qual.CFComment;
+
+import org.checkerframework.checker.optional.qual.Present;
+import org.checkerframework.framework.qual.EnsuresQualifierIf;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -71,8 +78,9 @@ import java.util.stream.Stream;
 "meaning, but are unrelated by the Java type hierarchy.",
 "@Covariant makes Optional<@NonNull String> a subtype of Optional<@Nullable String>."
 })
-@AnnotatedFor({"lock", "nullness"})
-public final class Optional<T> {
+@AnnotatedFor({"lock", "nullness", "optional"})
+@Covariant(0)
+public final @NonNull class Optional<T> {
     /**
      * Common instance for {@code empty()}.
      */
@@ -81,7 +89,7 @@ public final class Optional<T> {
     /**
      * If non-null, the value; if null, indicates no value is present
      */
-    private final T value;
+    private final @Nullable T value;
 
     /**
      * Constructs an empty instance.
@@ -118,7 +126,7 @@ public final class Optional<T> {
      * @param value the non-{@code null} value to describe
      * @throws NullPointerException if value is {@code null}
      */
-    private Optional(T value) {
+    private Optional(@NonNull T value) {
         this.value = Objects.requireNonNull(value);
     }
 
@@ -131,7 +139,7 @@ public final class Optional<T> {
      * @return an {@code Optional} with the value present
      * @throws NullPointerException if value is {@code null}
      */
-    public static <T> Optional<T> of(T value) {
+    public static <T> @Present Optional<T> of(@NonNull T value) {
         return new Optional<>(value);
     }
 
@@ -144,7 +152,7 @@ public final class Optional<T> {
      * @return an {@code Optional} with a present value if the specified value
      *         is non-{@code null}, otherwise an empty {@code Optional}
      */
-    public static <T> Optional<T> ofNullable(T value) {
+    public static <T> Optional<T> ofNullable(@Nullable T value) {
         return value == null ? empty() : of(value);
     }
 
@@ -158,7 +166,7 @@ public final class Optional<T> {
      * @return the non-{@code null} value described by this {@code Optional}
      * @throws NoSuchElementException if no value is present
      */
-    public T get() {
+    public @NonNull T get(@Present Optional<T> this) {
         if (value == null) {
             throw new NoSuchElementException("No value present");
         }
@@ -170,6 +178,7 @@ public final class Optional<T> {
      *
      * @return {@code true} if a value is present, otherwise {@code false}
      */
+    @EnsuresQualifierIf(result = true, expression = "this", qualifier = Present.class)
     public boolean isPresent() {
         return value != null;
     }
@@ -272,7 +281,7 @@ public final class Optional<T> {
      *         present, otherwise an empty {@code Optional}
      * @throws NullPointerException if the mapping function is {@code null}
      */
-    public <U> Optional<U> map(Function<? super T, ? extends U> mapper) {
+    public <U> Optional<U> map(Function<? super T, ? extends @Nullable U> mapper) {
         Objects.requireNonNull(mapper);
         if (!isPresent()) {
             return empty();
@@ -366,7 +375,7 @@ public final class Optional<T> {
      *        May be {@code null}.
      * @return the value, if present, otherwise {@code other}
      */
-    public T orElse(T other) {
+    public @PolyNull T orElse(@PolyNull T other) {
         return value != null ? value : other;
     }
 
@@ -380,7 +389,7 @@ public final class Optional<T> {
      * @throws NullPointerException if no value is present and the supplying
      *         function is {@code null}
      */
-    public T orElseGet(Supplier<? extends T> supplier) {
+    public @PolyNull T orElseGet(Supplier<? extends @PolyNull T> supplier) {
         return value != null ? value : supplier.get();
     }
 
@@ -416,7 +425,7 @@ public final class Optional<T> {
      * @throws NullPointerException if no value is present and the exception
      *          supplying function is {@code null}
      */
-    public <X extends Throwable> T orElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
+    public <X extends Throwable> T orElseThrow(@Present Optional<T> this, Supplier<? extends X> exceptionSupplier) throws X {
         if (value != null) {
             return value;
         } else {

@@ -26,6 +26,7 @@
 package java.util;
 
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.checker.propkey.qual.PropertyKey;
@@ -1347,7 +1348,7 @@ class Properties extends Hashtable<Object,Object> {
     }
 
     @Override
-    public Set<Object> keySet() {
+    public Set<@KeyFor("this") Object> keySet() {
         return Collections.synchronizedSet(map.keySet(), this);
     }
 
@@ -1357,7 +1358,7 @@ class Properties extends Hashtable<Object,Object> {
     }
 
     @Override
-    public Set<Map.Entry<Object, Object>> entrySet() {
+    public Set<Map.Entry<@KeyFor("this") Object, Object>> entrySet() {
         return Collections.synchronizedSet(new EntrySet(map.entrySet()), this);
     }
 
