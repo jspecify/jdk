@@ -597,6 +597,15 @@ $(eval $(call SetupJavaCompilation, $(MODULE), \
     HEADERS := $(SUPPORT_OUTPUTDIR)/headers, \
     CREATE_API_DIGEST := true, \
     ADD_JAVAC_FLAGS := \
+        -J--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED \
+        -J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED \
+        -J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED \
+        -J--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED \
+        -J--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED \
+        -J--add-opens=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED \
+        -J--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED \
+        -J--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED \
+        -J--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED \
         $($(MODULE)_ADD_JAVAC_FLAGS) \
         --module-source-path $(MODULESOURCEPATH) \
         --module-path $(MODULEPATH) \
