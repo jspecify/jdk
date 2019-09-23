@@ -39,11 +39,6 @@ import org.checkerframework.framework.qual.CFComment;
 @AnnotatedFor("fenum")
 public interface SwingConstants {
 
-        @CFComment({"fenum: WMD adds this new constant to use instead of literally using -1"})
-        @SwingCompassDirection
-        @SwingHorizontalOrientation
-        @SwingVerticalOrientation
-        public static final int NOTSET = -1;
         /**
          * The central position in an area. Used for
          * both compass-direction constants (NORTH, etc.)
