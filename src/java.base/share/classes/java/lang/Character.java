@@ -135,7 +135,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  */
 @AnnotatedFor({"index", "interning", "nullness"})
 public final
-@Interned class Character implements java.io.Serializable, Comparable<Character> {
+class Character implements java.io.Serializable, Comparable<Character> {
     /**
      * The minimum radix available for conversion to and from strings.
      * The constant value of this field is the smallest value permitted
@@ -686,7 +686,7 @@ public final
      *
      * @since 1.2
      */
-    public static final class UnicodeBlock extends Subset {
+    public static final @Interned class UnicodeBlock extends Subset {
         /**
          * 638  - the expected number of entities
          * 0.75 - the default load factor of HashMap
