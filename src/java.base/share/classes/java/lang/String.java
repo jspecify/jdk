@@ -49,7 +49,6 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.CFComment;
-import org.checkerframework.framework.qual.PolyAll;
 
 import java.io.ObjectStreamField;
 import java.io.UnsupportedEncodingException;
@@ -3232,7 +3231,7 @@ public final class String
      * @jls 3.10.5 String Literals
      */
     @Pure
-    public native @Interned @PolyAll @SameLen({"this"}) String intern(@PolyAll String this);
+    public native @Interned @SameLen({"this"}) String intern(String this);
 
     /**
      * Returns a string whose value is the concatenation of this
