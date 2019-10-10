@@ -3231,7 +3231,7 @@ public final class String
      * @jls 3.10.5 String Literals
      */
     @Pure
-    public native @Interned @SameLen({"this"}) @PolySignature String intern(@PolySignature String this);
+    public native @Interned @SameLen({"this"}) @PolySignature @PolyRegex String intern(@PolySignature @PolyRegex String this);
 
     /**
      * Returns a string whose value is the concatenation of this
