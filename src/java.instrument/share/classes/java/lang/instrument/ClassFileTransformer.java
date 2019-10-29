@@ -201,7 +201,7 @@ public interface ClassFileTransformer {
      */
     default byte @Nullable []
     transform(  @Nullable ClassLoader         loader,
-                String              className,
+                @InternalForm String              className,
                 @Nullable Class<?>            classBeingRedefined,
                 ProtectionDomain    protectionDomain,
                 byte[]              classfileBuffer)
