@@ -30,7 +30,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.CFComment;
-import org.checkerframework.framework.qual.PolyAll;
 
 import java.util.*;
 
@@ -145,5 +144,5 @@ public interface Comparable<T extends @NonNull Object> {
      */
     @CFComment("nullness: arguments may NOT be null")
     @Pure
-    public int compareTo(@GuardSatisfied Comparable<T> this, @NonNull @PolyAll T o);
+    public int compareTo(@GuardSatisfied Comparable<T> this, @NonNull T o);
 }
