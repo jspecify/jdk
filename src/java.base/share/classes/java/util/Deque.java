@@ -604,8 +604,8 @@ public interface Deque<E> extends Queue<E> {
      *
      * @return the number of elements in this deque
      */
-    @NonNegative @Pure
-    int size(@GuardSatisfied Deque<E> this);
+    @Pure
+    @NonNegative int size(@GuardSatisfied Deque<E> this);
 
     /**
      * Returns an iterator over the elements in this deque in proper sequence.

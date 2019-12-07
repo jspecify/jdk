@@ -239,8 +239,8 @@ public interface Collection<E> extends Iterable<E> {
      *
      * @return the number of elements in this collection
      */
-    @NonNegative @Pure
-    int size(@GuardSatisfied Collection<E> this);
+    @Pure
+    @NonNegative int size(@GuardSatisfied Collection<E> this);
 
     /**
      * Returns {@code true} if this collection contains no elements.

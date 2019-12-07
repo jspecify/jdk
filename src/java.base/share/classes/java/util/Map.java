@@ -182,8 +182,8 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @return the number of key-value mappings in this map
      */
-    @NonNegative @Pure
-    int size(@GuardSatisfied Map<K, V> this);
+    @Pure
+    @NonNegative int size(@GuardSatisfied Map<K, V> this);
 
     /**
      * Returns {@code true} if this map contains no key-value mappings.

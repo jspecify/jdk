@@ -131,8 +131,8 @@ public interface Set<E> extends Collection<E> {
      *
      * @return the number of elements in this set (its cardinality)
      */
-    @NonNegative @Pure
-    int size(@GuardSatisfied Set<E> this);
+    @Pure
+    @NonNegative int size(@GuardSatisfied Set<E> this);
 
     /**
      * Returns {@code true} if this set contains no elements.

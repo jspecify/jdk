@@ -160,8 +160,8 @@ public interface List<E> extends Collection<E> {
      *
      * @return the number of elements in this list
      */
-    @NonNegative @Pure
-    int size(@GuardSatisfied List<E> this);
+    @Pure
+    @NonNegative int size(@GuardSatisfied List<E> this);
 
     /**
      * Returns {@code true} if this list contains no elements.
