@@ -25,6 +25,9 @@
 
 package java.util;
 
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -333,6 +336,7 @@ class ImmutableCollections {
             return root.get(offset + index);
         }
 
+        @Pure
         public int size() {
             return size;
         }
@@ -378,6 +382,7 @@ class ImmutableCollections {
         }
 
         @Override
+        @Pure
         public int size() {
             return e1 != null ? 2 : 1;
         }
@@ -425,12 +430,14 @@ class ImmutableCollections {
             elements = tmp;
         }
 
+        @Pure
         @Override
         public boolean isEmpty() {
             return size() == 0;
         }
 
         @Override
+        @Pure
         public int size() {
             return elements.length;
         }
@@ -506,6 +513,7 @@ class ImmutableCollections {
         }
 
         @Override
+        @Pure
         public int size() {
             return (e1 == null) ? 1 : 2;
         }
@@ -592,6 +600,7 @@ class ImmutableCollections {
         }
 
         @Override
+        @Pure
         public int size() {
             return size;
         }
@@ -733,16 +742,19 @@ class ImmutableCollections {
         }
 
         @Override
+        @SideEffectFree
         public Set<Map.Entry<K,V>> entrySet() {
             return Set.of(new KeyValueHolder<>(k0, v0));
         }
 
         @Override
+        @Pure
         public boolean containsKey(Object o) {
             return o.equals(k0); // implicit nullcheck of o
         }
 
         @Override
+        @Pure
         public boolean containsValue(Object o) {
             return o.equals(v0); // implicit nullcheck of o
         }
@@ -807,12 +819,14 @@ class ImmutableCollections {
         }
 
         @Override
+        @Pure
         public boolean containsKey(Object o) {
             Objects.requireNonNull(o);
             return size > 0 && probe(o) >= 0;
         }
 
         @Override
+        @Pure
         public boolean containsValue(Object o) {
             Objects.requireNonNull(o);
             for (int i = 1; i < table.length; i += 2) {
@@ -852,6 +866,7 @@ class ImmutableCollections {
         }
 
         @Override
+        @Pure
         public int size() {
             return size;
         }
@@ -904,9 +919,11 @@ class ImmutableCollections {
         }
 
         @Override
+        @SideEffectFree
         public Set<Map.Entry<K,V>> entrySet() {
             return new AbstractSet<>() {
                 @Override
+                @Pure
                 public int size() {
                     return MapN.this.size;
                 }

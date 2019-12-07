@@ -24,9 +24,10 @@
  */
 package java.util;
 
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.Covariant;
 import org.checkerframework.framework.qual.CFComment;
@@ -190,6 +191,7 @@ public final @NonNull class Optional<T> {
      * @return  {@code true} if a value is not present, otherwise {@code false}
      * @since   11
      */
+    @Pure
     public boolean isEmpty() {
         return value == null;
     }

@@ -35,6 +35,8 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.dataflow.qual.Pure;
+
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -1064,6 +1066,7 @@ public class ScheduledThreadPoolExecutor
             }
         }
 
+        @Pure
         public int size() {
             final ReentrantLock lock = this.lock;
             lock.lock();
@@ -1074,6 +1077,7 @@ public class ScheduledThreadPoolExecutor
             }
         }
 
+        @Pure
         public boolean isEmpty() {
             return size() == 0;
         }

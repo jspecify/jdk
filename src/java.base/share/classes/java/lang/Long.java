@@ -171,6 +171,7 @@ public final class Long extends Number implements Comparable<Long> {
         return toStringUTF16(i, radix);
     }
 
+    @SideEffectFree
     private static String toStringUTF16(long i, int radix) {
         byte[] buf = new byte[65 * 2];
         int charPos = 64;
@@ -490,6 +491,7 @@ public final class Long extends Number implements Comparable<Long> {
      * @param   i   a {@code long} to be converted.
      * @return  a string representation of the argument in base&nbsp;10.
      */
+    @SideEffectFree
     public static String toString(long i) {
         int size = stringSize(i);
         if (COMPACT_STRINGS) {
@@ -754,6 +756,7 @@ public final class Long extends Number implements Comparable<Long> {
      *             {@link java.lang.Character#MAX_RADIX}.
      * @since  9
      */
+    @Pure
     public static long parseLong(CharSequence s, int beginIndex, int endIndex, int radix)
                 throws NumberFormatException {
         s = Objects.requireNonNull(s);
@@ -837,6 +840,7 @@ public final class Long extends Number implements Comparable<Long> {
      * @throws     NumberFormatException  if the string does not contain a
      *             parsable {@code long}.
      */
+    @Pure
     public static long parseLong(String s) throws NumberFormatException {
         return parseLong(s, 10);
     }
@@ -1164,6 +1168,7 @@ public final class Long extends Number implements Comparable<Long> {
      * @throws     NumberFormatException  If the string cannot be parsed
      *             as a {@code long}.
      */
+    @SideEffectFree
     public static Long valueOf(String s) throws NumberFormatException
     {
         return Long.valueOf(parseLong(s, 10));

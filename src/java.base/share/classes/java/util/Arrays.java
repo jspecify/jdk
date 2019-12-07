@@ -4346,6 +4346,7 @@ public class Arrays {
         }
 
         @Override
+        @Pure
         public @NonNegative int size() {
             return a.length;
         }

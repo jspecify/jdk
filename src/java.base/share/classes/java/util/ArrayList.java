@@ -1203,6 +1203,7 @@ public class ArrayList<E> extends AbstractList<E>
             return root.elementData(offset + index);
         }
 
+        @Pure
         public @NonNegative int size() {
             checkForComodification();
             return size;

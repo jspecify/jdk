@@ -805,6 +805,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements L
             return root.get(offset + index);
         }
 
+        @Pure
         public int size() {
             checkForComodification();
             return size;

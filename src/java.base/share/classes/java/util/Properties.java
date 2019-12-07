@@ -31,6 +31,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.checker.propkey.qual.PropertyKey;
 import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.io.IOException;
@@ -1281,11 +1282,13 @@ class Properties extends Hashtable<Object,Object> {
     // Hashtable methods overridden and delegated to a ConcurrentHashMap instance
 
     @Override
+    @Pure
     public int size() {
         return map.size();
     }
 
     @Override
+    @Pure
     public boolean isEmpty() {
         return map.isEmpty();
     }
@@ -1308,11 +1311,13 @@ class Properties extends Hashtable<Object,Object> {
     }
 
     @Override
+    @Pure
     public boolean containsValue(Object value) {
         return map.containsValue(value);
     }
 
     @Override
+    @Pure
     public boolean containsKey(Object key) {
         return map.containsKey(key);
     }
@@ -1358,6 +1363,7 @@ class Properties extends Hashtable<Object,Object> {
     }
 
     @Override
+    @SideEffectFree
     public Set<Map.Entry<@KeyFor("this") Object, Object>> entrySet() {
         return Collections.synchronizedSet(new EntrySet(map.entrySet()), this);
     }

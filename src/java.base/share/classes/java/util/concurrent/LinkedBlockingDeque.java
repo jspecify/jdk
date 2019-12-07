@@ -35,6 +35,8 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.dataflow.qual.Pure;
+
 import java.util.AbstractQueue;
 import java.util.Collection;
 import java.util.Iterator;
@@ -792,6 +794,7 @@ public class LinkedBlockingDeque<E>
      *
      * @return the number of elements in this deque
      */
+    @Pure
     public int size() {
         final ReentrantLock lock = this.lock;
         lock.lock();

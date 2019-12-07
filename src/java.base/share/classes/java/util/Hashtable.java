@@ -692,6 +692,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
         public Iterator<K> iterator() {
             return getIterator(KEYS);
         }
+        @Pure
         public @NonNegative int size() {
             return count;
         }
@@ -781,6 +782,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
             return false;
         }
 
+        @Pure
         public @NonNegative int size() {
             return count;
         }
@@ -818,6 +820,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
         public Iterator<V> iterator() {
             return getIterator(VALUES);
         }
+        @Pure
         public @NonNegative int size() {
             return count;
         }

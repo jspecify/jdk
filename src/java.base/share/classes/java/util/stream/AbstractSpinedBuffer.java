@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -23,6 +24,8 @@
  * questions.
  */
 package java.util.stream;
+
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * Base class for a data structure for gathering elements into a buffer and then
@@ -97,6 +100,7 @@ abstract class AbstractSpinedBuffer {
     /**
      * Is the buffer currently empty?
      */
+    @Pure
     public boolean isEmpty() {
         return (spineIndex == 0) && (elementIndex == 0);
     }

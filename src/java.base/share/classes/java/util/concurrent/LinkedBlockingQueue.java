@@ -35,6 +35,8 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.dataflow.qual.Pure;
+
 import java.util.AbstractQueue;
 import java.util.Collection;
 import java.util.Iterator;
@@ -293,6 +295,7 @@ public class LinkedBlockingQueue<E> extends AbstractQueue<E>
      *
      * @return the number of elements in this queue
      */
+    @Pure
     public int size() {
         return count.get();
     }

@@ -47,7 +47,7 @@ jobs:
   - bash: |
       set -ex
       /tmp/plume-scripts/git-clone-related typetools jdk11u ../jdk11u -q --depth 99
-    displayName: clone
+    displayName: clone-related-jdk11u
   - bash: |
       set -ex
       git config --global user.email "you@example.com"

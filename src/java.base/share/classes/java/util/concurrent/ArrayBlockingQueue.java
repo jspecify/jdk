@@ -35,6 +35,8 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.dataflow.qual.Pure;
+
 import java.lang.ref.WeakReference;
 import java.util.AbstractQueue;
 import java.util.Arrays;
@@ -454,6 +456,7 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>
      *
      * @return the number of elements in this queue
      */
+    @Pure
     public int size() {
         final ReentrantLock lock = this.lock;
         lock.lock();

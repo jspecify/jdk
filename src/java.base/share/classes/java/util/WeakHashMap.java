@@ -900,6 +900,7 @@ public class WeakHashMap<K,V>
             return new KeyIterator();
         }
 
+        @Pure
         public @NonNegative int size() {
             return WeakHashMap.this.size();
         }
@@ -956,6 +957,7 @@ public class WeakHashMap<K,V>
             return new ValueIterator();
         }
 
+        @Pure
         public @NonNegative int size() {
             return WeakHashMap.this.size();
         }
@@ -1012,6 +1014,7 @@ public class WeakHashMap<K,V>
             return removeMapping(o);
         }
 
+        @Pure
         public @NonNegative int size() {
             return WeakHashMap.this.size();
         }

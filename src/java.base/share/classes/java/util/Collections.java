@@ -1046,7 +1046,9 @@ public class Collections {
             this.c = c;
         }
 
+        @Pure
         public @NonNegative int size()                          {return c.size();}
+        @Pure
         public boolean isEmpty()                   {return c.isEmpty();}
         public boolean contains(Object o)          {return c.contains(o);}
         @SideEffectFree
@@ -1466,10 +1468,14 @@ public class Collections {
             this.m = m;
         }
 
+        @Pure
         public @NonNegative int size()                        {return m.size();}
+        @Pure
         public boolean isEmpty()                 {return m.isEmpty();}
+        @Pure
         @EnsuresKeyForIf(expression={"#1"}, result=true, map={"this"})
         public boolean containsKey(Object key)   {return m.containsKey(key);}
+        @Pure
         public boolean containsValue(Object val) {return m.containsValue(val);}
         public V get(Object key)                 {return m.get(key);}
 
@@ -1497,6 +1503,7 @@ public class Collections {
             return keySet;
         }
 
+        @SideEffectFree
         public Set<Map.Entry<K,V>> entrySet() {
             if (entrySet==null)
                 entrySet = new UnmodifiableEntrySet<>(m.entrySet());
@@ -1822,10 +1829,13 @@ public class Collections {
 
         UnmodifiableSortedMap(SortedMap<K, ? extends V> m) {super(m); sm = m; }
         public Comparator<? super K> comparator()   { return sm.comparator(); }
+        @SideEffectFree
         public SortedMap<K,V> subMap(K fromKey, K toKey)
              { return new UnmodifiableSortedMap<>(sm.subMap(fromKey, toKey)); }
+        @SideEffectFree
         public SortedMap<K,V> headMap(K toKey)
                      { return new UnmodifiableSortedMap<>(sm.headMap(toKey)); }
+        @SideEffectFree
         public SortedMap<K,V> tailMap(K fromKey)
                    { return new UnmodifiableSortedMap<>(sm.tailMap(fromKey)); }
         public K firstKey()                           { return sm.firstKey(); }
@@ -1877,6 +1887,7 @@ public class Collections {
             EmptyNavigableMap()                       { super(new TreeMap<>()); }
 
             @Override
+            @SideEffectFree
             public NavigableSet<K> navigableKeySet()
                                                 { return emptyNavigableSet(); }
 
@@ -1955,20 +1966,26 @@ public class Collections {
                                  { throw new UnsupportedOperationException(); }
         public Entry<K, V> pollLastEntry()
                                  { throw new UnsupportedOperationException(); }
+        @SideEffectFree
         public NavigableMap<K, V> descendingMap()
                        { return unmodifiableNavigableMap(nm.descendingMap()); }
+        @SideEffectFree
         public NavigableSet<K> navigableKeySet()
                      { return unmodifiableNavigableSet(nm.navigableKeySet()); }
+        @SideEffectFree
         public NavigableSet<K> descendingKeySet()
                     { return unmodifiableNavigableSet(nm.descendingKeySet()); }
 
+        @SideEffectFree
         public NavigableMap<K, V> subMap(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive) {
             return unmodifiableNavigableMap(
                 nm.subMap(fromKey, fromInclusive, toKey, toInclusive));
         }
 
+        @SideEffectFree
         public NavigableMap<K, V> headMap(K toKey, boolean inclusive)
              { return unmodifiableNavigableMap(nm.headMap(toKey, inclusive)); }
+        @SideEffectFree
         public NavigableMap<K, V> tailMap(K fromKey, boolean inclusive)
            { return unmodifiableNavigableMap(nm.tailMap(fromKey, inclusive)); }
     }
@@ -2035,9 +2052,11 @@ public class Collections {
             this.mutex = Objects.requireNonNull(mutex);
         }
 
+        @Pure
         public @NonNegative int size() {
             synchronized (mutex) {return c.size();}
         }
+        @Pure
         public boolean isEmpty() {
             synchronized (mutex) {return c.isEmpty();}
         }
@@ -2604,16 +2623,20 @@ public class Collections {
             this.mutex = mutex;
         }
 
+        @Pure
         public @NonNegative int size() {
             synchronized (mutex) {return m.size();}
         }
+        @Pure
         public boolean isEmpty() {
             synchronized (mutex) {return m.isEmpty();}
         }
+        @Pure
         @EnsuresKeyForIf(expression={"#1"}, result=true, map={"this"})
         public boolean containsKey(Object key) {
             synchronized (mutex) {return m.containsKey(key);}
         }
+        @Pure
         public boolean containsValue(Object value) {
             synchronized (mutex) {return m.containsValue(value);}
         }
@@ -2647,6 +2670,7 @@ public class Collections {
             }
         }
 
+        @SideEffectFree
         public Set<Map.Entry<K,V>> entrySet() {
             synchronized (mutex) {
                 if (entrySet==null)
@@ -2804,17 +2828,20 @@ public class Collections {
             synchronized (mutex) {return sm.comparator();}
         }
 
+        @SideEffectFree
         public SortedMap<K,V> subMap(K fromKey, K toKey) {
             synchronized (mutex) {
                 return new SynchronizedSortedMap<>(
                     sm.subMap(fromKey, toKey), mutex);
             }
         }
+        @SideEffectFree
         public SortedMap<K,V> headMap(K toKey) {
             synchronized (mutex) {
                 return new SynchronizedSortedMap<>(sm.headMap(toKey), mutex);
             }
         }
+        @SideEffectFree
         public SortedMap<K,V> tailMap(K fromKey) {
             synchronized (mutex) {
                return new SynchronizedSortedMap<>(sm.tailMap(fromKey),mutex);
@@ -2927,6 +2954,7 @@ public class Collections {
         public Entry<K, V> pollLastEntry()
                         { synchronized (mutex) { return nm.pollLastEntry(); } }
 
+        @SideEffectFree
         public NavigableMap<K, V> descendingMap() {
             synchronized (mutex) {
                 return
@@ -2938,12 +2966,14 @@ public class Collections {
             return navigableKeySet();
         }
 
+        @SideEffectFree
         public NavigableSet<K> navigableKeySet() {
             synchronized (mutex) {
                 return new SynchronizedNavigableSet<>(nm.navigableKeySet(), mutex);
             }
         }
 
+        @SideEffectFree
         public NavigableSet<K> descendingKeySet() {
             synchronized (mutex) {
                 return new SynchronizedNavigableSet<>(nm.descendingKeySet(), mutex);
@@ -2951,23 +2981,27 @@ public class Collections {
         }
 
 
+        @SideEffectFree
         public SortedMap<K,V> subMap(K fromKey, K toKey) {
             synchronized (mutex) {
                 return new SynchronizedNavigableMap<>(
                     nm.subMap(fromKey, true, toKey, false), mutex);
             }
         }
+        @SideEffectFree
         public SortedMap<K,V> headMap(K toKey) {
             synchronized (mutex) {
                 return new SynchronizedNavigableMap<>(nm.headMap(toKey, false), mutex);
             }
         }
+        @SideEffectFree
         public SortedMap<K,V> tailMap(K fromKey) {
             synchronized (mutex) {
         return new SynchronizedNavigableMap<>(nm.tailMap(fromKey, true),mutex);
             }
         }
 
+        @SideEffectFree
         public NavigableMap<K, V> subMap(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive) {
             synchronized (mutex) {
                 return new SynchronizedNavigableMap<>(
@@ -2975,6 +3009,7 @@ public class Collections {
             }
         }
 
+        @SideEffectFree
         public NavigableMap<K, V> headMap(K toKey, boolean inclusive) {
             synchronized (mutex) {
                 return new SynchronizedNavigableMap<>(
@@ -2982,6 +3017,7 @@ public class Collections {
             }
         }
 
+        @SideEffectFree
         public NavigableMap<K, V> tailMap(K fromKey, boolean inclusive) {
             synchronized (mutex) {
                 return new SynchronizedNavigableMap<>(
@@ -3089,7 +3125,9 @@ public class Collections {
             this.type = Objects.requireNonNull(type, "type");
         }
 
+        @Pure
         public @NonNegative int size()                          { return c.size(); }
+        @Pure
         public boolean isEmpty()                   { return c.isEmpty(); }
         public boolean contains(Object o)          { return c.contains(o); }
         @SideEffectFree
@@ -3653,10 +3691,14 @@ public class Collections {
             this.valueType = Objects.requireNonNull(valueType);
         }
 
+        @Pure
         public @NonNegative int size()                      { return m.size(); }
+        @Pure
         public boolean isEmpty()               { return m.isEmpty(); }
+        @Pure
         @EnsuresKeyForIf(expression={"#1"}, result=true, map={"this"})
         public boolean containsKey(Object key) { return m.containsKey(key); }
+        @Pure
         public boolean containsValue(Object v) { return m.containsValue(v); }
         public V get(Object key)               { return m.get(key); }
         public V remove(Object key)            { return m.remove(key); }
@@ -3696,6 +3738,7 @@ public class Collections {
 
         private transient Set<Map.Entry<K,V>> entrySet;
 
+        @SideEffectFree
         public Set<Map.Entry<K,V>> entrySet() {
             if (entrySet==null)
                 entrySet = new CheckedEntrySet<>(m.entrySet(), valueType);
@@ -3788,7 +3831,9 @@ public class Collections {
                 this.valueType = valueType;
             }
 
+            @Pure
             public int size()        { return s.size(); }
+            @Pure
             public boolean isEmpty() { return s.isEmpty(); }
             public String toString() { return s.toString(); }
             public int hashCode()    { return s.hashCode(); }
@@ -4029,13 +4074,16 @@ public class Collections {
         public K firstKey()                       { return sm.firstKey(); }
         public K lastKey()                        { return sm.lastKey(); }
 
+        @SideEffectFree
         public SortedMap<K,V> subMap(K fromKey, K toKey) {
             return checkedSortedMap(sm.subMap(fromKey, toKey),
                                     keyType, valueType);
         }
+        @SideEffectFree
         public SortedMap<K,V> headMap(K toKey) {
             return checkedSortedMap(sm.headMap(toKey), keyType, valueType);
         }
+        @SideEffectFree
         public SortedMap<K,V> tailMap(K fromKey) {
             return checkedSortedMap(sm.tailMap(fromKey), keyType, valueType);
         }
@@ -4167,6 +4215,7 @@ public class Collections {
                 : new CheckedMap.CheckedEntrySet.CheckedEntry<>(entry, valueType);
         }
 
+        @SideEffectFree
         public NavigableMap<K, V> descendingMap() {
             return checkedNavigableMap(nm.descendingMap(), keyType, valueType);
         }
@@ -4175,38 +4224,46 @@ public class Collections {
             return navigableKeySet();
         }
 
+        @SideEffectFree
         public NavigableSet<K> navigableKeySet() {
             return checkedNavigableSet(nm.navigableKeySet(), keyType);
         }
 
+        @SideEffectFree
         public NavigableSet<K> descendingKeySet() {
             return checkedNavigableSet(nm.descendingKeySet(), keyType);
         }
 
         @Override
+        @SideEffectFree
         public NavigableMap<K,V> subMap(K fromKey, K toKey) {
             return checkedNavigableMap(nm.subMap(fromKey, true, toKey, false),
                                     keyType, valueType);
         }
 
         @Override
+        @SideEffectFree
         public NavigableMap<K,V> headMap(K toKey) {
             return checkedNavigableMap(nm.headMap(toKey, false), keyType, valueType);
         }
 
         @Override
+        @SideEffectFree
         public NavigableMap<K,V> tailMap(K fromKey) {
             return checkedNavigableMap(nm.tailMap(fromKey, true), keyType, valueType);
         }
 
+        @SideEffectFree
         public NavigableMap<K, V> subMap(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive) {
             return checkedNavigableMap(nm.subMap(fromKey, fromInclusive, toKey, toInclusive), keyType, valueType);
         }
 
+        @SideEffectFree
         public NavigableMap<K, V> headMap(K toKey, boolean inclusive) {
             return checkedNavigableMap(nm.headMap(toKey, inclusive), keyType, valueType);
         }
 
+        @SideEffectFree
         public NavigableMap<K, V> tailMap(K fromKey, boolean inclusive) {
             return checkedNavigableMap(nm.tailMap(fromKey, inclusive), keyType, valueType);
         }
@@ -4372,7 +4429,9 @@ public class Collections {
         @SideEffectFree
         public Iterator<E> iterator() { return emptyIterator(); }
 
+        @Pure
         public @NonNegative int size() {return 0;}
+        @Pure
         public boolean isEmpty() {return true;}
         public void clear() {}
 
@@ -4505,7 +4564,9 @@ public class Collections {
             return emptyListIterator();
         }
 
+        @Pure
         public @NonNegative int size() {return 0;}
+        @Pure
         public boolean isEmpty() {return true;}
         public void clear() {}
 
@@ -4644,15 +4705,20 @@ public class Collections {
     {
         private static final long serialVersionUID = 6428348081105594320L;
 
+        @Pure
         public @NonNegative int size()                          {return 0;}
+        @Pure
         public boolean isEmpty()                   {return true;}
         public void clear()                        {}
+        @Pure
         @EnsuresKeyForIf(expression={"#1"}, result=true, map={"this"})
         public boolean containsKey(Object key)     {return false;}
+        @Pure
         public boolean containsValue(Object value) {return false;}
         public V get(Object key)                   {return null;}
         public Set<K> keySet()                     {return emptySet();}
         public Collection<V> values()              {return emptySet();}
+        @SideEffectFree
         public Set<Map.Entry<K,V>> entrySet()      {return emptySet();}
 
         public boolean equals(Object o) {
@@ -4834,6 +4900,7 @@ public class Collections {
             return singletonIterator(element);
         }
 
+        @Pure
         public @NonNegative int size() {return 1;}
 
         public boolean contains(Object o) {return eq(o, element);}
@@ -4891,6 +4958,7 @@ public class Collections {
             return singletonIterator(element);
         }
 
+        @Pure
         public @NonNegative int size()                   {return 1;}
 
         public boolean contains(Object obj) {return eq(obj, element);}
@@ -4960,10 +5028,14 @@ public class Collections {
             v = value;
         }
 
+        @Pure
         public @NonNegative int size()                                           {return 1;}
+        @Pure
         public boolean isEmpty()                                {return false;}
+        @Pure
         @EnsuresKeyForIf(expression={"#1"}, result=true, map={"this"})
         public boolean containsKey(Object key)             {return eq(key, k);}
+        @Pure
         public boolean containsValue(Object value)       {return eq(value, v);}
         public V get(Object key)              {return (eq(key, k) ? v : null);}
 
@@ -4977,6 +5049,7 @@ public class Collections {
             return keySet;
         }
 
+        @SideEffectFree
         public Set<Map.Entry<K,V>> entrySet() {
             if (entrySet==null)
                 entrySet = Collections.<Map.Entry<K,V>>singleton(
@@ -5100,6 +5173,7 @@ public class Collections {
             element = e;
         }
 
+        @Pure
         public @NonNegative int size() {
             return n;
         }
@@ -5564,7 +5638,9 @@ public class Collections {
         }
 
         public void clear()               {        m.clear(); }
+        @Pure
         public @NonNegative int size()                 { return m.size(); }
+        @Pure
         public boolean isEmpty()          { return m.isEmpty(); }
         public boolean contains(Object o) { return m.containsKey(o); }
         public boolean remove(Object o)   { return m.remove(o) != null; }
@@ -5648,7 +5724,9 @@ public class Collections {
         public E peek()                             { return q.peekFirst(); }
         public E element()                          { return q.getFirst(); }
         public void clear()                         {        q.clear(); }
+        @Pure
         public @NonNegative int size()                           { return q.size(); }
+        @Pure
         public boolean isEmpty()                    { return q.isEmpty(); }
         public boolean contains(Object o)           { return q.contains(o); }
         public boolean remove(Object o)             { return q.remove(o); }

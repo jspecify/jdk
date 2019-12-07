@@ -35,6 +35,8 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.dataflow.qual.Pure;
+
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.AbstractQueue;
@@ -1446,6 +1448,7 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
      *
      * @return {@code true} if this queue contains no elements
      */
+    @Pure
     public boolean isEmpty() {
         return firstDataNode() == null;
     }
@@ -1479,6 +1482,7 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
      *
      * @return the number of elements in this queue
      */
+    @Pure
     public int size() {
         return countOfMode(true);
     }

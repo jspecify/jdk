@@ -35,6 +35,8 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.dataflow.qual.Pure;
+
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.AbstractQueue;
@@ -588,6 +590,7 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
         return comparator;
     }
 
+    @Pure
     public int size() {
         final ReentrantLock lock = this.lock;
         lock.lock();

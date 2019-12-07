@@ -27,6 +27,7 @@ package java.util;
 
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.interning.qual.*;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.util.Date;
@@ -593,6 +594,7 @@ class TaskQueue {
     /**
      * Returns the number of tasks currently on the queue.
      */
+    @Pure
     int size() {
         return size;
     }
@@ -659,6 +661,7 @@ class TaskQueue {
     /**
      * Returns true if the priority queue contains no elements.
      */
+    @Pure
     boolean isEmpty() {
         return size==0;
     }

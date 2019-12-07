@@ -24,6 +24,7 @@
  */
 package java.util;
 
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.util.function.LongConsumer;
@@ -149,6 +150,7 @@ public final class OptionalLong {
      * @return  {@code true} if a value is not present, otherwise {@code false}
      * @since   11
      */
+    @Pure
     public boolean isEmpty() {
         return !isPresent;
     }

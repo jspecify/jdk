@@ -26,6 +26,7 @@
 package java.util;
 
 import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
@@ -122,6 +123,7 @@ class RegularEnumSet<E extends Enum<E>> extends EnumSet<E> {
      *
      * @return the number of elements in this set
      */
+    @Pure
     public @NonNegative int size() {
         return Long.bitCount(elements);
     }
@@ -131,6 +133,7 @@ class RegularEnumSet<E extends Enum<E>> extends EnumSet<E> {
      *
      * @return {@code true} if this set contains no elements
      */
+    @Pure
     public boolean isEmpty() {
         return elements == 0;
     }

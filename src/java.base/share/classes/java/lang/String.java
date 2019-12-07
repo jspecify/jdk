@@ -1029,6 +1029,7 @@ public final class String
      *
      * @since      1.1
      */
+    @SideEffectFree
     public @PolySigned byte[] getBytes() {
         return StringCoding.encode(coder(), value);
     }
@@ -2610,6 +2611,7 @@ public final class String
      * @return  the {@code String}, converted to lowercase.
      * @see     java.lang.String#toLowerCase(Locale)
      */
+    @SideEffectFree
     public String toLowerCase() {
         return toLowerCase(Locale.getDefault());
     }
@@ -2692,6 +2694,7 @@ public final class String
      * @return  the {@code String}, converted to uppercase.
      * @see     java.lang.String#toUpperCase(Locale)
      */
+    @SideEffectFree
     public String toUpperCase() {
         return toUpperCase(Locale.getDefault());
     }

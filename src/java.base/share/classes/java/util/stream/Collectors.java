@@ -24,6 +24,8 @@
  */
 package java.util.stream;
 
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.util.AbstractMap;
@@ -1902,6 +1904,7 @@ public final class Collectors {
         }
 
         @Override
+        @SideEffectFree
         public Set<Map.Entry<Boolean, T>> entrySet() {
             return new AbstractSet<>() {
                 @Override
@@ -1912,6 +1915,7 @@ public final class Collectors {
                 }
 
                 @Override
+                @Pure
                 public int size() {
                     return 2;
                 }
