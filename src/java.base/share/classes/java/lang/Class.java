@@ -650,8 +650,8 @@ public final @Interned class Class<@UnknownKeyFor T> implements java.io.Serializ
      *
      * @since 1.1
      */
-    @EnsuresNonNullIf(expression={"#1"}, result=true)
     @Pure
+    @EnsuresNonNullIf(expression={"#1"}, result=true)
     @HotSpotIntrinsicCandidate
     public native boolean isInstance(@GuardSatisfied Class<T> this, @Nullable Object obj);
 
