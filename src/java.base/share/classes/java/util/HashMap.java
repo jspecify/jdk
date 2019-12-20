@@ -147,7 +147,7 @@ import jdk.internal.misc.SharedSecrets;
  * @since   1.2
  */
 @AnnotatedFor({"lock", "nullness", "index"})
-public class HashMap<K extends @Nullable Object,V extends @Nullable Object> extends AbstractMap<K,V>
+public class HashMap<K,V> extends AbstractMap<K,V>
     implements Map<K,V>, Cloneable, Serializable {
 
     private static final long serialVersionUID = 362498820763181265L;
