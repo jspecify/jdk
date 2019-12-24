@@ -41,6 +41,10 @@ SLUG=${URL#*:}
 ORG=${SLUG%/*}
 JDK11DIR=../jdk11u-fork-$ORG-branch-$BRANCH
 JDK11URL=`echo "$URL" | sed 's/jdk/jdk11u/'`
+echo BRANCH=$BRANCH
+echo URL=$URL
+echo JDK11DIR=$JDK11DIR
+echo JDK11URL=$JDK11URL
 if [ -d $JDK11DIR ] ; then
   (cd $JDK11DIR && git pull)
 else
