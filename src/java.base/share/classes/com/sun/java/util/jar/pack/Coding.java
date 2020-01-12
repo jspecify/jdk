@@ -25,6 +25,12 @@
 
 package com.sun.java.util.jar.pack;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -385,7 +391,9 @@ class Coding implements Comparable<Coding>, CodingMethod, Histogram.BitMetric {
         }
     }
 
-    public boolean equals(Object x) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object x) {
         if (!(x instanceof Coding))  return false;
         Coding that = (Coding) x;
         if (this.B != that.B)  return false;

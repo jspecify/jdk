@@ -24,15 +24,16 @@
  */
 package java.util;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.Covariant;
-import org.checkerframework.framework.qual.CFComment;
-
 import org.checkerframework.checker.optional.qual.Present;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+import org.checkerframework.framework.qual.Covariant;
 import org.checkerframework.framework.qual.EnsuresQualifierIf;
 
 import java.util.function.Consumer;
@@ -449,7 +450,9 @@ public final @NonNull class Optional<T> {
      *         otherwise {@code false}
      */
     @Override
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;
         }

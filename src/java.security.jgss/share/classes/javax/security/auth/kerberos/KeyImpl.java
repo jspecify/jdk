@@ -25,6 +25,12 @@
 
 package javax.security.auth.kerberos;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.*;
 import java.util.Arrays;
 import javax.crypto.SecretKey;
@@ -230,7 +236,9 @@ class KeyImpl implements SecretKey, Destroyable, Serializable {
         return 37 * result + keyType;
     }
 
-    public boolean equals(Object other) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object other) {
 
         if (other == this)
             return true;

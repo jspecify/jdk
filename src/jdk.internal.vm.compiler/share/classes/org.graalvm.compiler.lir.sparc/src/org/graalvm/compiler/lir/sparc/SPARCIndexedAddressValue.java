@@ -24,6 +24,12 @@
 
 package org.graalvm.compiler.lir.sparc;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import static org.graalvm.compiler.lir.LIRInstruction.OperandFlag.REG;
 import static jdk.vm.ci.code.ValueUtil.asRegister;
 import static jdk.vm.ci.code.ValueUtil.isLegal;
@@ -97,7 +103,9 @@ public final class SPARCIndexedAddressValue extends SPARCAddressValue {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (obj instanceof SPARCIndexedAddressValue) {
             SPARCIndexedAddressValue addr = (SPARCIndexedAddressValue) obj;
             return getValueKind().equals(addr.getValueKind()) && base.equals(addr.base) && index.equals(addr.index);

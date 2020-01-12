@@ -29,6 +29,12 @@
 
 package java.math;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import static java.math.BigInteger.LONG_MASK;
 import java.util.Arrays;
 
@@ -3046,7 +3052,9 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      * @see    #hashCode
      */
     @Override
-    public boolean equals(Object x) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object x) {
         if (!(x instanceof BigDecimal))
             return false;
         BigDecimal xDec = (BigDecimal) x;

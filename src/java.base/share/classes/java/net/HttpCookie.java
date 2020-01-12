@@ -25,6 +25,12 @@
 
 package java.net;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.util.List;
 import java.util.StringTokenizer;
 import java.util.NoSuchElementException;
@@ -706,7 +712,9 @@ public final class HttpCookie implements Cloneable {
      *          otherwise, {@code false}
      */
     @Override
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (obj == this)
             return true;
         if (!(obj instanceof HttpCookie))

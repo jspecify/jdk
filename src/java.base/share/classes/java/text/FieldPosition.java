@@ -38,6 +38,12 @@
 
 package java.text;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 /**
  * <code>FieldPosition</code> is a simple class used by <code>Format</code>
  * and its subclasses to identify fields in formatted output. Fields can
@@ -218,7 +224,9 @@ public class FieldPosition {
     /**
      * Overrides equals
      */
-    public boolean equals(Object obj)
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj)
     {
         if (obj == null) return false;
         if (!(obj instanceof FieldPosition))

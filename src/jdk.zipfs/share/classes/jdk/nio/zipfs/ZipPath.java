@@ -25,6 +25,12 @@
 
 package jdk.nio.zipfs;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.*;
 import java.net.URI;
 import java.nio.channels.*;
@@ -612,7 +618,9 @@ final class ZipPath implements Path {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         return obj != null &&
                obj instanceof ZipPath &&
                this.zfs == ((ZipPath)obj).zfs &&

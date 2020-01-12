@@ -24,6 +24,12 @@
  */
 package java.beans;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.lang.ref.Reference;
 import java.lang.reflect.Method;
 import java.util.Map.Entry;
@@ -400,7 +406,9 @@ public class IndexedPropertyDescriptor extends PropertyDescriptor {
      *
      * @since 1.4
      */
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         // Note: This would be identical to PropertyDescriptor but they don't
         // share the same fields.
         if (this == obj) {

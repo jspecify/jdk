@@ -25,6 +25,11 @@
 
 package javax.security.auth.x500;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -468,7 +473,9 @@ public final class X500Principal implements Principal, java.io.Serializable {
      * @return {@code true} if the specified {@code Object} is equal
      *          to this {@code X500Principal}, {@code false} otherwise
      */
-    public boolean equals(Object o) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object o) {
         if (this == o) {
             return true;
         }

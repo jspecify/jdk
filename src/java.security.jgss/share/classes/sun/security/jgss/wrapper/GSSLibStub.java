@@ -25,6 +25,12 @@
 
 package sun.security.jgss.wrapper;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.util.Hashtable;
 import org.ietf.jgss.Oid;
 import org.ietf.jgss.GSSName;
@@ -110,7 +116,9 @@ class GSSLibStub {
         this.mech = mech;
         this.pMech = getMechPtr(mech.getDER());
     }
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (obj == this) return true;
         if (!(obj instanceof GSSLibStub)) {
             return false;

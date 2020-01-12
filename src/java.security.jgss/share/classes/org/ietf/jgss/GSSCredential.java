@@ -25,6 +25,12 @@
 
 package org.ietf.jgss;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 /**
  * This interface encapsulates the GSS-API credentials for an entity.  A
  * credential contains all the necessary cryptographic information to
@@ -358,7 +364,9 @@ public interface GSSCredential extends Cloneable{
      * entity; {@code false} otherwise.
      * @param another another GSSCredential for comparison to this one
      */
-    public boolean equals(Object another);
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object another);
 
     /**
      * Returns a hashcode value for this GSSCredential.

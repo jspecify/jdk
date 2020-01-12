@@ -25,6 +25,12 @@
 
 package com.sun.tools.jdi;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.util.Collection;
 
 import com.sun.jdi.Mirror;
@@ -48,7 +54,9 @@ abstract class MirrorImpl extends Object implements Mirror {
         return vm;
     }
 
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if ((obj != null) && (obj instanceof Mirror)) {
             Mirror other = (Mirror)obj;
             return vm.equals(other.virtualMachine());

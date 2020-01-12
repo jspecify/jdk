@@ -25,6 +25,12 @@
 
 package javax.imageio;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.awt.Point;
 import java.awt.Transparency;
 import java.awt.image.BandedSampleModel;
@@ -1094,7 +1100,9 @@ public class ImageTypeSpecifier {
      * @return {@code true} if the given object is an equivalent
      * {@code ImageTypeSpecifier}.
      */
-    public boolean equals(Object o) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object o) {
         if ((o == null) || !(o instanceof ImageTypeSpecifier)) {
             return false;
         }

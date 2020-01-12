@@ -25,6 +25,12 @@
 
 package java.sql;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -724,7 +730,9 @@ class DriverInfo {
     }
 
     @Override
-    public boolean equals(Object other) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object other) {
         return (other instanceof DriverInfo)
                 && this.driver == ((DriverInfo) other).driver;
     }

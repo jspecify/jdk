@@ -25,6 +25,12 @@
 
 package sun.security.x509;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.IOException;
 import java.io.OutputStream;
 
@@ -244,7 +250,9 @@ public class X509CertInfo implements CertAttrSet<String> {
      * @param other the object being compared with this one
      * @return true iff the certificates are equivalent
      */
-    public boolean equals(Object other) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object other) {
         if (other instanceof X509CertInfo) {
             return equals((X509CertInfo) other);
         } else {

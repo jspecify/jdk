@@ -25,6 +25,12 @@
 
 package javax.sql.rowset.serial;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.sql.*;
 import java.io.*;
 import java.lang.reflect.*;
@@ -505,7 +511,9 @@ public class SerialBlob implements Blob, Serializable, Cloneable {
      *          equivalent to this SerialBlob, {@code false} otherwise
      *
      */
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;
         }

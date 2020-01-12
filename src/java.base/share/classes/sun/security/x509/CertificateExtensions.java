@@ -25,6 +25,12 @@
 
 package sun.security.x509;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Constructor;
@@ -299,7 +305,9 @@ public class CertificateExtensions implements CertAttrSet<Extension> {
      * @return true iff all the entries match that of the Other,
      * false otherwise.
      */
-    public boolean equals(Object other) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object other) {
         if (this == other)
             return true;
         if (!(other instanceof CertificateExtensions))

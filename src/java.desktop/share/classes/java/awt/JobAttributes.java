@@ -25,6 +25,12 @@
 
 package java.awt;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 /**
  * A set of attributes which control a print job.
  * <p>
@@ -948,7 +954,9 @@ public final class JobAttributes implements Cloneable {
      * @return  whether obj is equal to this JobAttribute according to the
      *          above criteria.
      */
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof JobAttributes)) {
             return false;
         }

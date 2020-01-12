@@ -25,6 +25,12 @@
 
 package com.sun.jndi.ldap;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.util.Arrays;  // JDK1.2
 import java.io.OutputStream;
 import javax.naming.ldap.Control;
@@ -68,7 +74,9 @@ class SimpleClientId extends ClientId {
             ^ pwdHashCode;
     }
 
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (obj == null || !(obj instanceof SimpleClientId)) {
             return false;
         }

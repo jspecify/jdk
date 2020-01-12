@@ -25,6 +25,12 @@
 
 package javax.naming;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 /**
   * This class represents the address of a communications end-point.
   * It consists of a type that describes the communication mechanism
@@ -103,7 +109,9 @@ public abstract class RefAddr implements java.io.Serializable {
       * @see #getContent
       * @see #getType
       */
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if ((obj != null) && (obj instanceof RefAddr)) {
             RefAddr target = (RefAddr)obj;
             if (addrType.compareTo(target.addrType) == 0) {

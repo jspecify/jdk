@@ -25,6 +25,12 @@
 
 package com.sun.tools.jdi;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import com.sun.jdi.ClassNotLoadedException;
 import com.sun.jdi.Field;
 import com.sun.jdi.Type;
@@ -40,7 +46,9 @@ public class FieldImpl extends TypeComponentImpl
               genericSignature, modifiers);
     }
 
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if ((obj != null) && (obj instanceof FieldImpl)) {
             FieldImpl other = (FieldImpl)obj;
             return (declaringType().equals(other.declaringType())) &&

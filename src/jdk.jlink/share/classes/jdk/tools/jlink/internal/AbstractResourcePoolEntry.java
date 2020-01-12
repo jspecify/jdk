@@ -25,6 +25,12 @@
 
 package jdk.tools.jlink.internal;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.util.Objects;
 import jdk.tools.jlink.plugin.ResourcePoolEntry;
 
@@ -80,7 +86,9 @@ abstract class AbstractResourcePoolEntry implements ResourcePoolEntry {
     }
 
     @Override
-    public boolean equals(Object other) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object other) {
         if (!(other instanceof AbstractResourcePoolEntry)) {
             return false;
         }

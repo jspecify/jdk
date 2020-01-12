@@ -25,6 +25,12 @@
 
 package javax.naming;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 /**
   * This class represents the binary form of the address of
   * a communications end-point.
@@ -120,7 +126,9 @@ public class BinaryRefAddr extends RefAddr {
       * @param obj      The possibly null object to check.
       * @return true if the object is equal; false otherwise.
       */
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if ((obj != null) && (obj instanceof BinaryRefAddr)) {
             BinaryRefAddr target = (BinaryRefAddr)obj;
             if (addrType.compareTo(target.addrType) == 0) {

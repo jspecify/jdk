@@ -25,6 +25,12 @@
 
 package javax.swing.tree;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.*;
 import java.beans.ConstructorProperties;
 
@@ -247,7 +253,9 @@ public class TreePath implements Serializable {
      *
      * @param o the object to compare
      */
-    public boolean equals(Object o) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object o) {
         if(o == this)
             return true;
         if(o instanceof TreePath) {

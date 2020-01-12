@@ -40,6 +40,12 @@
 
 package sun.text;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.text.BreakIterator;
@@ -497,7 +503,9 @@ public class RuleBasedBreakIterator extends BreakIterator {
      * rules, and iterate over the same text.
      */
     @Override
-    public boolean equals(Object that) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object that) {
         try {
             if (that == null) {
                 return false;

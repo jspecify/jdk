@@ -22,6 +22,12 @@
  */
 package jdk.vm.ci.code;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -92,7 +98,9 @@ public final class RegisterArray implements Iterable<Register> {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (obj instanceof RegisterArray) {
             return Arrays.equals(registers, ((RegisterArray) obj).registers);
         }

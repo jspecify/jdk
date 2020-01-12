@@ -26,6 +26,12 @@
 
 package javax.naming.directory;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.util.Hashtable;
 import java.util.Enumeration;
 import java.util.Locale;
@@ -224,7 +230,9 @@ public class BasicAttributes implements Attributes {
      * @return true If obj is equal to this BasicAttributes.
      * @see #hashCode
      */
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if ((obj != null) && (obj instanceof Attributes)) {
             Attributes target = (Attributes)obj;
 

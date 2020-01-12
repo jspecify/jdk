@@ -26,6 +26,12 @@
 
 package javax.management.remote;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 
 import com.sun.jmx.remote.util.ClassLogger;
 import com.sun.jmx.remote.util.EnvHelp;
@@ -678,7 +684,9 @@ public class JMXServiceURL implements Serializable {
      * @return <code>true</code> if this object is the same as the
      * <code>obj</code> argument; <code>false</code> otherwise.
      */
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof JMXServiceURL))
             return false;
         JMXServiceURL u = (JMXServiceURL) obj;

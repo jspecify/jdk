@@ -25,6 +25,12 @@
 
 package java.net;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -1475,7 +1481,9 @@ public final class URI
      * @return  {@code true} if, and only if, the given object is a URI that
      *          is identical to this URI
      */
-    public boolean equals(Object ob) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object ob) {
         if (ob == this)
             return true;
         if (!(ob instanceof URI))

@@ -40,6 +40,12 @@
 
 package java.awt.font;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.awt.geom.AffineTransform;
 import java.io.Serializable;
 import java.io.ObjectStreamException;
@@ -140,7 +146,9 @@ public final class TransformAttribute implements Serializable {
      * transform.
      * @since 1.6
      */
-    public boolean equals(Object rhs) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object rhs) {
         if (rhs != null) {
             try {
                 TransformAttribute that = (TransformAttribute)rhs;

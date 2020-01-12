@@ -25,6 +25,12 @@
 
 package java.rmi.activation;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -170,7 +176,9 @@ public class ActivationID implements Serializable {
      * @see             java.util.Hashtable
      * @since 1.2
      */
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (obj instanceof ActivationID) {
             ActivationID id = (ActivationID) obj;
             return (uid.equals(id.uid) && activator.equals(id.activator));

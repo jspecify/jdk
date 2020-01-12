@@ -22,6 +22,12 @@
  */
 package jdk.vm.ci.meta;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 /**
  * This object holds probability information for a set of items that were profiled at a specific
  * BCI. The precision of the supplied values may vary, but a runtime that provides this information
@@ -135,7 +141,9 @@ public abstract class AbstractJavaProfile<T extends AbstractProfiledItem<U>, U> 
     }
 
     @Override
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (obj == this) {
             return true;
         }

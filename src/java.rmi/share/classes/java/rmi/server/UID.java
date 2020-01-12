@@ -24,6 +24,12 @@
  */
 package java.rmi.server;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -191,7 +197,9 @@ public final class UID implements Serializable {
      * @return  <code>true</code> if the given object is equivalent to
      * this one, and <code>false</code> otherwise
      */
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (obj instanceof UID) {
             UID uid = (UID) obj;
             return (unique == uid.unique &&

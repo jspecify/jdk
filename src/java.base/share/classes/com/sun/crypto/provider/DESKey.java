@@ -25,6 +25,12 @@
 
 package com.sun.crypto.provider;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.lang.ref.Reference;
 import java.security.MessageDigest;
 import java.security.KeyRep;
@@ -115,7 +121,9 @@ final class DESKey implements SecretKey {
         return(retval ^= "des".hashCode());
     }
 
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (this == obj)
             return true;
 

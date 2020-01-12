@@ -25,6 +25,12 @@
 
 package javax.management;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 
 // java import
 import java.io.Serializable;
@@ -97,7 +103,9 @@ public class Attribute implements Serializable   {
      */
 
 
-    public boolean equals(Object object)  {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object object)  {
         if (!(object instanceof Attribute)) {
             return false;
         }

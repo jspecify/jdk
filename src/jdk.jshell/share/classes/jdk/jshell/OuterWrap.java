@@ -25,6 +25,12 @@
 
 package jdk.jshell;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.util.Locale;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
@@ -105,7 +111,9 @@ class OuterWrap implements GeneralWrap {
     }
 
     @Override
-    public boolean equals(Object o) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object o) {
         return (o instanceof OuterWrap)
                 ? className().equals(((OuterWrap) o).className())
                 : false;

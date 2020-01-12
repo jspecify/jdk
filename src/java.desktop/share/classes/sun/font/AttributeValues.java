@@ -36,6 +36,12 @@
 
 package sun.font;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import static sun.font.EAttribute.*;
 import static java.lang.Math.*;
 
@@ -436,7 +442,9 @@ public final class AttributeValues implements Cloneable {
         return defined << 8 ^ nondefault;
     }
 
-    public boolean equals(Object rhs) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object rhs) {
         try {
             return equals((AttributeValues)rhs);
         }

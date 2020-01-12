@@ -24,6 +24,12 @@
 
 package org.graalvm.compiler.code;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import static jdk.vm.ci.meta.MetaUtil.identityHashCodeString;
 
 import org.graalvm.compiler.graph.NodeSourcePosition;
@@ -70,7 +76,9 @@ public final class SourceMapping {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (obj instanceof SourceMapping) {
             SourceMapping other = (SourceMapping) obj;
             return other.startOffset == startOffset && other.endOffset == endOffset && other.sourcePosition.equals(sourcePosition);

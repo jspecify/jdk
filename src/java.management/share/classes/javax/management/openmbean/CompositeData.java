@@ -26,6 +26,12 @@
 
 package javax.management.openmbean;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 
 // java import
 //
@@ -141,7 +147,9 @@ public interface CompositeData {
      * @return  {@code true} if the specified object is equal to this
      * {@code CompositeData} instance.
      */
-    public boolean equals(Object obj) ;
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) ;
 
     /**
      * Returns the hash code value for this {@code CompositeData} instance.

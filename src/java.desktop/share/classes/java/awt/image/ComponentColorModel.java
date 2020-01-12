@@ -25,6 +25,12 @@
 
 package java.awt.image;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.awt.color.ColorSpace;
 import java.awt.color.ICC_ColorSpace;
 import java.util.Arrays;
@@ -2938,7 +2944,9 @@ public class ComponentColorModel extends ColorModel {
      * {@code ComponentColorModel}; {@code false} otherwise.
      */
     @Override
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof ComponentColorModel)) {
             return false;
         }

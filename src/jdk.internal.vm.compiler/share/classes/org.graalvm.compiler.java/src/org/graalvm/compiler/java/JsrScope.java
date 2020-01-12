@@ -24,6 +24,12 @@
 
 package org.graalvm.compiler.java;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 public class JsrScope {
 
     public static final JsrScope EMPTY_SCOPE = new JsrScope();
@@ -67,7 +73,9 @@ public class JsrScope {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;
         }

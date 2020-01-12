@@ -25,6 +25,12 @@
 
 package com.sun.tools.jdi;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import com.sun.jdi.BooleanValue;
 import com.sun.jdi.Type;
 import com.sun.jdi.VirtualMachine;
@@ -39,7 +45,9 @@ public class BooleanValueImpl extends PrimitiveValueImpl
         value = aValue;
     }
 
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if ((obj != null) && (obj instanceof BooleanValue)) {
             return (value == ((BooleanValue)obj).value()) &&
                    super.equals(obj);

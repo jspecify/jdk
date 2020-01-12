@@ -25,6 +25,12 @@
 
 package javax.management;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import com.sun.jmx.mbeanserver.Util;
 import java.io.InvalidObjectException;
 import java.lang.reflect.Array;
@@ -368,7 +374,9 @@ public class ImmutableDescriptor implements Descriptor {
     // Note: this Javadoc is copied from javax.management.Descriptor
     //       due to 6369229.
     @Override
-    public boolean equals(Object o) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;
         if (!(o instanceof Descriptor))

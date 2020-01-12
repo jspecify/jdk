@@ -25,6 +25,12 @@
 
 package javax.print.attribute.standard;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.util.Locale;
 
 import javax.print.attribute.Attribute;
@@ -89,7 +95,9 @@ public final class JobOriginatingUserName extends TextSyntax
      * @return {@code true} if {@code object} is equivalent to this job
      *         originating user name attribute, {@code false} otherwise
      */
-    public boolean equals(Object object) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object object) {
         return (super.equals (object) &&
                 object instanceof JobOriginatingUserName);
     }

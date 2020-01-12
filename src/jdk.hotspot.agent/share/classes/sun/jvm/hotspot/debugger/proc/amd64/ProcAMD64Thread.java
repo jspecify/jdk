@@ -24,6 +24,12 @@
 
 package sun.jvm.hotspot.debugger.proc.amd64;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.debugger.amd64.*;
 import sun.jvm.hotspot.debugger.proc.*;
@@ -72,7 +78,9 @@ public class ProcAMD64Thread implements ThreadProxy {
         return "t@" + id;
     }
 
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if ((obj == null) || !(obj instanceof ProcAMD64Thread)) {
             return false;
         }

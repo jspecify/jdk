@@ -22,6 +22,12 @@
  */
 package jdk.vm.ci.code;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import jdk.vm.ci.meta.ValueKind;
 
 /**
@@ -179,7 +185,9 @@ public final class Register implements Comparable<Register> {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (obj instanceof Register) {
             Register other = (Register) obj;
             if (number == other.number) {

@@ -29,6 +29,12 @@
 
 package java.math;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -3752,7 +3758,9 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
      * @return {@code true} if and only if the specified Object is a
      *         BigInteger whose value is numerically equal to this BigInteger.
      */
-    public boolean equals(Object x) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object x) {
         // This test is just an optimization, which may or may not help
         if (x == this)
             return true;

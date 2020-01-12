@@ -22,6 +22,12 @@
  */
 package jdk.vm.ci.hotspot;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import static jdk.vm.ci.hotspot.HotSpotResolvedObjectTypeImpl.fromObjectClass;
 
 import java.lang.invoke.CallSite;
@@ -208,7 +214,9 @@ class HotSpotObjectConstantImpl implements HotSpotObjectConstant {
     }
 
     @Override
-    public boolean equals(Object o) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object o) {
         if (o == this) {
             return true;
         } else if (o instanceof HotSpotObjectConstantImpl) {

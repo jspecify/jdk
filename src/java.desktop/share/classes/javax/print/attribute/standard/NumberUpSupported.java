@@ -25,6 +25,12 @@
 
 package javax.print.attribute.standard;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import javax.print.attribute.Attribute;
 import javax.print.attribute.SetOfIntegerSyntax;
 import javax.print.attribute.SupportedValuesAttribute;
@@ -133,7 +139,9 @@ public final class NumberUpSupported    extends SetOfIntegerSyntax
      * @return {@code true} if {@code object} is equivalent to this number up
      *         supported attribute, {@code false} otherwise
      */
-    public boolean equals(Object object) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object object) {
         return (super.equals (object) &&
                 object instanceof NumberUpSupported);
     }

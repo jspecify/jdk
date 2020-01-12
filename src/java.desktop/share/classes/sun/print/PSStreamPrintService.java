@@ -25,6 +25,12 @@
 
 package sun.print;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.OutputStream;
 import java.util.Iterator;
 import java.util.Locale;
@@ -498,7 +504,9 @@ public class PSStreamPrintService extends StreamPrintService
     /* Stream services have an output stream which cannot be shared,
      * so two services are equal only if they are the same object.
      */
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         return (obj == this ||
                  (obj instanceof PSStreamPrintService &&
                  ((PSStreamPrintService)obj).getName().equals(getName())));

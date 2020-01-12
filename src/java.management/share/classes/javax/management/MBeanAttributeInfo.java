@@ -25,6 +25,12 @@
 
 package javax.management;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.lang.reflect.Method;
 import java.security.AccessController;
 
@@ -280,7 +286,9 @@ public class MBeanAttributeInfo extends MBeanFeatureInfo implements Cloneable {
      * #isWritable()}, and {@link #isIs()} values are equal (not
      * necessarily identical) to those of this MBeanAttributeInfo.
      */
-    public boolean equals(Object o) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;
         if (!(o instanceof MBeanAttributeInfo))

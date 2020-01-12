@@ -25,6 +25,12 @@
 
 package com.sun.tools.sjavac.pubapi;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.Serializable;
 
 import javax.lang.model.type.TypeKind;
@@ -41,7 +47,9 @@ public class ArrayTypeDesc extends TypeDesc implements Serializable {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (!super.equals(obj))
             return false;
         return compTypeDesc.equals(((ArrayTypeDesc) obj).compTypeDesc);

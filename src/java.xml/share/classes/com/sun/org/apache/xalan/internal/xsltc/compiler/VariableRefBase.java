@@ -21,6 +21,12 @@
 
 package com.sun.org.apache.xalan.internal.xsltc.compiler;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import com.sun.org.apache.xalan.internal.xsltc.compiler.util.Type;
 import com.sun.org.apache.xalan.internal.xsltc.compiler.util.TypeCheckError;
 import java.util.Objects;
@@ -97,7 +103,9 @@ class VariableRefBase extends Expression {
      * same variable.
      */
     @Override
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         return obj == this || (obj instanceof VariableRefBase)
             && (_variable == ((VariableRefBase) obj)._variable);
     }

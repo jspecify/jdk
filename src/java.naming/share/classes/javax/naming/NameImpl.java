@@ -25,6 +25,12 @@
 
 package javax.naming;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.util.Locale;
 import java.util.Vector;
 import java.util.Enumeration;
@@ -472,7 +478,9 @@ class NameImpl {
         return (answer.toString());
     }
 
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if ((obj != null) && (obj instanceof NameImpl)) {
             NameImpl target = (NameImpl)obj;
             if (target.size() ==  this.size()) {

@@ -25,6 +25,12 @@
 
 package com.sun.tools.sjavac.comp;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.*;
 import java.net.URI;
 import java.nio.file.NoSuchFileException;
@@ -55,7 +61,9 @@ public class SmartFileObject implements JavaFileObject {
     }
 
     @Override
-    public boolean equals(Object other) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object other) {
         return file.equals(other);
     }
 

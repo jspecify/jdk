@@ -25,6 +25,12 @@
 
 package javax.print.attribute;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 /**
  * Interface {@code AttributeSet} specifies the interface for a set of printing
  * attributes. A printing attribute is an object whose class implements
@@ -249,7 +255,9 @@ public interface AttributeSet {
      * @return {@code true} if the specified object is equal to this attribute
      *         set
      */
-    public boolean equals(Object object);
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object object);
 
     /**
      * Returns the hash code value for this attribute set. The hash code of an

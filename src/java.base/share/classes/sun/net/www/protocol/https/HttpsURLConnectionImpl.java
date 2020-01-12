@@ -35,6 +35,12 @@
 package sun.net.www.protocol.https;
 // package com.sun.net.ssl.internal.www.protocol.https;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.net.URL;
 import java.net.Proxy;
 import java.net.ProtocolException;
@@ -492,7 +498,9 @@ public class HttpsURLConnectionImpl
         delegate.dispose();
     }
 
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         return this == obj || ((obj instanceof HttpsURLConnectionImpl) &&
             delegate.equals(((HttpsURLConnectionImpl)obj).delegate));
     }

@@ -24,6 +24,12 @@
  */
 package sun.management.jdp;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -233,7 +239,9 @@ public final class JdpJmxPacket
      * @return either packet equals or not
      */
     @Override
-    public boolean equals(Object o) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object o) {
 
         if (o == null || ! (o instanceof JdpJmxPacket) ){
             return false;

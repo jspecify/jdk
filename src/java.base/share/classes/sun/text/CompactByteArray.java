@@ -38,6 +38,11 @@
 
 package sun.text;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 
 /**
  * class CompactATypeArray : use only on primitive data types
@@ -279,7 +284,9 @@ public final class CompactByteArray implements Cloneable {
      * @return true if the current compact array object is the same
      * as the compact array object obj; false otherwise.
      */
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (obj == null) return false;
         if (this == obj)                      // quick check
             return true;

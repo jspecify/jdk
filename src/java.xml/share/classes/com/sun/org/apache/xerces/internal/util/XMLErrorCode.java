@@ -21,6 +21,12 @@
 
 package com.sun.org.apache.xerces.internal.util;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 /**
  * <p>A structure that represents an error code, characterized by
  * a domain and a message key.</p>
@@ -67,7 +73,9 @@ final class XMLErrorCode {
      *
      * @param obj the object with which to compare.
      */
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof XMLErrorCode))
             return false;
         XMLErrorCode err = (XMLErrorCode) obj;

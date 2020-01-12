@@ -25,6 +25,12 @@
 
 package javax.naming.ldap;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import javax.naming.Name;
 import javax.naming.InvalidNameException;
 
@@ -649,7 +655,9 @@ public class LdapName implements Name {
      *                  false otherwise.
      * @see #hashCode
      */
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         // check possible shortcuts
         if (obj == this) {
             return true;

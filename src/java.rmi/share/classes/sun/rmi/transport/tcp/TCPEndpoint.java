@@ -24,6 +24,12 @@
  */
 package sun.rmi.transport.tcp;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -484,7 +490,9 @@ public class TCPEndpoint implements Endpoint {
         return port;
     }
 
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if ((obj != null) && (obj instanceof TCPEndpoint)) {
             TCPEndpoint ep = (TCPEndpoint) obj;
             if (port != ep.port || !host.equals(ep.host))

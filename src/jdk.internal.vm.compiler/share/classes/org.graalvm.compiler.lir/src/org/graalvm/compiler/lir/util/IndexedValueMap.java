@@ -24,6 +24,12 @@
 
 package org.graalvm.compiler.lir.util;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.util.EnumSet;
 import java.util.Objects;
 
@@ -105,7 +111,9 @@ public final class IndexedValueMap {
     }
 
     @Override
-    public boolean equals(Object other) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object other) {
         if (other instanceof IndexedValueMap) {
             IndexedValueMap that = (IndexedValueMap) other;
             int limit = Math.min(values.length, that.values.length);

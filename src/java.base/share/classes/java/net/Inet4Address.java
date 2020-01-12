@@ -25,6 +25,12 @@
 
 package java.net;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -346,7 +352,9 @@ public final
      *          {@code false} otherwise.
      * @see     java.net.InetAddress#getAddress()
      */
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         return (obj != null) && (obj instanceof Inet4Address) &&
             (((InetAddress)obj).holder().getAddress() == holder().getAddress());
     }

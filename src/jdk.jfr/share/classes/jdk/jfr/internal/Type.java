@@ -25,6 +25,12 @@
 
 package jdk.jfr.internal;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -256,7 +262,9 @@ public class Type implements Comparable<Type> {
     }
 
     @Override
-    public boolean equals(Object object) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object object) {
         if (object instanceof Type) {
             Type that = (Type) object;
             return that.id == this.id;

@@ -25,6 +25,12 @@
 
 package javax.management;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import com.sun.jmx.mbeanserver.GetPropertyAction;
 import com.sun.jmx.mbeanserver.Util;
 import java.io.IOException;
@@ -1832,7 +1838,9 @@ public class ObjectName implements Comparable<ObjectName>, QueryExp {
      * canonical form is equal to that of this ObjectName.
      */
     @Override
-    public boolean equals(Object object)  {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object object)  {
 
         // same object case
         if (this == object) return true;

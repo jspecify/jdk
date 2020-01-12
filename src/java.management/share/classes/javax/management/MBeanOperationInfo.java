@@ -25,6 +25,12 @@
 
 package javax.management;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import com.sun.jmx.mbeanserver.Introspector;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -293,7 +299,9 @@ public class MBeanOperationInfo extends MBeanFeatureInfo implements Cloneable {
      * are equal if their elements are pairwise equal.
      */
     @Override
-    public boolean equals(Object o) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;
         if (!(o instanceof MBeanOperationInfo))

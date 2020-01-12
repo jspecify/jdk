@@ -24,6 +24,12 @@
 
 package org.graalvm.compiler.code;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import static jdk.vm.ci.meta.MetaUtil.identityHashCodeString;
 
 import java.nio.ByteBuffer;
@@ -245,7 +251,9 @@ public final class DataSection implements Iterable<Data> {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;
         }

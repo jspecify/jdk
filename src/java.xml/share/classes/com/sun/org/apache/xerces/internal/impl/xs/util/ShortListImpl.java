@@ -20,6 +20,12 @@
 
 package com.sun.org.apache.xerces.internal.impl.xs.util;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import com.sun.org.apache.xerces.internal.xs.ShortList;
 import com.sun.org.apache.xerces.internal.xs.XSException;
 import java.util.AbstractList;
@@ -88,7 +94,9 @@ public final class ShortListImpl extends AbstractList<Short> implements ShortLis
         return fArray[index];
     }
 
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (obj == null || !(obj instanceof ShortList)) {
             return false;
         }

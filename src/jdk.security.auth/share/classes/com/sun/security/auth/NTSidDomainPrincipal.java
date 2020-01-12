@@ -25,6 +25,12 @@
 
 package com.sun.security.auth;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 /**
  * This class extends {@code NTSid}
  * and represents a Windows NT user's domain SID.
@@ -86,7 +92,9 @@ public class NTSidDomainPrincipal extends NTSid {
      * @return true if the specified Object is equal to this
      *          {@code NTSidDomainPrincipal}.
      */
-    public boolean equals(Object o) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object o) {
             if (o == null)
                 return false;
 

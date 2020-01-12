@@ -21,6 +21,12 @@
 
 package com.sun.org.apache.xerces.internal.impl.dtd.models;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 
 /**
  * This class is a very simple bitset class. The DFA content model code needs
@@ -281,7 +287,9 @@ public class CMStateSet
     int         fBits2;
     byte[]      fByteArray;
     /* Optimization(Jan, 2001) */
-    public boolean equals(Object o) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object o) {
         if (!(o instanceof CMStateSet)) return false;
         return isSameSet((CMStateSet)o);
     }

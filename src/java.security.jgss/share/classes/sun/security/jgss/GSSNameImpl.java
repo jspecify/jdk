@@ -25,6 +25,12 @@
 
 package sun.security.jgss;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import org.ietf.jgss.*;
 import sun.security.jgss.spi.*;
 import java.util.Set;
@@ -361,7 +367,9 @@ public class GSSNameImpl implements GSSName {
         return 1;
     }
 
-    public boolean equals(Object another) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object another) {
 
         try {
             // XXX This can lead to an infinite loop. Extract info

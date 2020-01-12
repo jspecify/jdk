@@ -24,6 +24,12 @@
 
 package org.graalvm.compiler.graph;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import static org.graalvm.compiler.graph.NodeSourcePosition.Marker.None;
 import static org.graalvm.compiler.graph.NodeSourcePosition.Marker.Placeholder;
 import static org.graalvm.compiler.graph.NodeSourcePosition.Marker.Substitution;
@@ -136,7 +142,9 @@ public class NodeSourcePosition extends BytecodePosition {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    @Pure
+    @EnsuresNonNullIf(expression="#1", result=true)
+    public boolean equals(@Nullable Object obj) {
         if (obj == this) {
             return true;
         }
