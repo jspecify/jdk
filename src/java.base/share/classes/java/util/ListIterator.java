@@ -28,6 +28,7 @@ package java.util;
 import org.checkerframework.checker.index.qual.GTENegativeOne;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
@@ -75,6 +76,7 @@ public interface ListIterator<E> extends Iterator<E> {
      * @return {@code true} if the list iterator has more elements when
      *         traversing the list in the forward direction
      */
+    @Pure
     boolean hasNext();
 
     /**
@@ -98,6 +100,7 @@ public interface ListIterator<E> extends Iterator<E> {
      * @return {@code true} if the list iterator has more elements when
      *         traversing the list in the reverse direction
      */
+    @Pure
     boolean hasPrevious();
 
     /**
@@ -123,6 +126,7 @@ public interface ListIterator<E> extends Iterator<E> {
      *         subsequent call to {@code next}, or list size if the list
      *         iterator is at the end of the list
      */
+    @Pure
     @NonNegative int nextIndex();
 
     /**
@@ -134,6 +138,7 @@ public interface ListIterator<E> extends Iterator<E> {
      *         subsequent call to {@code previous}, or -1 if the list
      *         iterator is at the beginning of the list
      */
+    @Pure
     @GTENegativeOne int previousIndex();
 
 

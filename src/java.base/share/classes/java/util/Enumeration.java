@@ -25,6 +25,7 @@
 
 package java.util;
 
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
@@ -72,6 +73,7 @@ public interface Enumeration<E> {
      *           contains at least one more element to provide;
      *          {@code false} otherwise.
      */
+    @Pure
     boolean hasMoreElements();
 
     /**

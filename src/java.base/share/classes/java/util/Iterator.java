@@ -26,6 +26,7 @@
 package java.util;
 
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.CFComment;
 import org.checkerframework.framework.qual.Covariant;
@@ -73,6 +74,7 @@ public interface Iterator<E> {
      *
      * @return {@code true} if the iteration has more elements
      */
+    @Pure
     boolean hasNext(@GuardSatisfied Iterator<E> this);
 
     /**
