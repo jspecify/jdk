@@ -226,7 +226,7 @@ public interface SortedMap<K,V> extends Map<K,V> {
      * @throws NoSuchElementException if this map is empty
      */
     @SideEffectFree
-    K firstKey(@GuardSatisfied SortedMap<K, V> this);
+    @KeyFor("this") K firstKey(@GuardSatisfied SortedMap<K, V> this);
 
     /**
      * Returns the last (highest) key currently in this map.
@@ -235,7 +235,7 @@ public interface SortedMap<K,V> extends Map<K,V> {
      * @throws NoSuchElementException if this map is empty
      */
     @SideEffectFree
-    K lastKey(@GuardSatisfied SortedMap<K, V> this);
+    @KeyFor("this") K lastKey(@GuardSatisfied SortedMap<K, V> this);
 
     /**
      * Returns a {@link Set} view of the keys contained in this map.
