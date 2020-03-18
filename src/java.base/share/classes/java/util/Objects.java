@@ -235,7 +235,7 @@ public final @UsesObjectEquals class Objects {
      * @throws NullPointerException if {@code obj} is {@code null}
      */
     @CFComment({"lock: TODO: treat like other nullness assertion methods in the Checker Framework."})
-    public static <T extends @NonNull Object> T requireNonNull(T obj) {
+    public static <T> @NonNull T requireNonNull(@NonNull T obj) {
         if (obj == null)
             throw new NullPointerException();
         return obj;
@@ -261,7 +261,7 @@ public final @UsesObjectEquals class Objects {
      * @throws NullPointerException if {@code obj} is {@code null}
      */
     @SideEffectFree
-    public static <T extends @NonNull Object> T requireNonNull(@GuardSatisfied T obj, @Nullable String message) {
+    public static <T> @NonNull T requireNonNull(@GuardSatisfied @NonNull T obj, @Nullable String message) {
         if (obj == null)
             throw new NullPointerException(message);
         return obj;
@@ -321,7 +321,7 @@ public final @UsesObjectEquals class Objects {
      *        {@code defaultObj} is {@code null}
      * @since 9
      */
-    public static <T extends @NonNull Object> T requireNonNullElse(T obj, T defaultObj) {
+    public static <T> @NonNull T requireNonNullElse(@Nullable T obj, @NonNull T defaultObj) {
         return (obj != null) ? obj : requireNonNull(defaultObj, "defaultObj");
     }
 
@@ -340,7 +340,7 @@ public final @UsesObjectEquals class Objects {
      *        the {@code supplier.get()} value is {@code null}
      * @since 9
      */
-    public static <T extends @NonNull Object> T requireNonNullElseGet(T obj, Supplier<? extends T> supplier) {
+    public static <T extends @NonNull Object> T requireNonNullElseGet(@Nullable T obj, Supplier<? extends T> supplier) {
         return (obj != null) ? obj
                 : requireNonNull(requireNonNull(supplier, "supplier").get(), "supplier.get()");
     }
@@ -367,7 +367,7 @@ public final @UsesObjectEquals class Objects {
      */
     @CFComment({"nullness: TODO: treat like other nullness assertion methods in the Checker Framework."})
     @Pure
-    public static <T extends @NonNull Object> T requireNonNull(@GuardSatisfied T obj, @GuardSatisfied Supplier<String> messageSupplier) {
+    public static <T> T requireNonNull(@GuardSatisfied @NonNull T obj, @GuardSatisfied Supplier<String> messageSupplier) {
         if (obj == null)
             throw new NullPointerException(messageSupplier == null ?
                                            null : messageSupplier.get());
