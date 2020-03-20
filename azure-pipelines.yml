@@ -37,22 +37,22 @@ jobs:
     displayName: show environment
   - bash: |
       set -ex
-      if [ -d /tmp/plume-scripts ]; \
-        then git -C /tmp/plume-scripts pull -q > /dev/null 2>&1 ; \
-        else git -C /tmp clone --depth 1 -q https://github.com/plume-lib/plume-scripts.git ; \
+      if [ -d /tmp/$USER/plume-scripts ]; \
+        then git -C /tmp/$USER/plume-scripts pull -q > /dev/null 2>&1 ; \
+        else mkdir -p /tmp/$USER && git -C /tmp/$USER clone --depth 1 -q https://github.com/plume-lib/plume-scripts.git ; \
       fi
     displayName: plume-scripts
   # This creates ../jdk11u .
   # If the depth is too small, the merge will fail.
   - bash: |
       set -ex
-      /tmp/plume-scripts/git-clone-related typetools jdk11u ../jdk11u -q --depth 99
+      /tmp/$USER/plume-scripts/git-clone-related typetools jdk11u ../jdk11u -q --depth 99
     displayName: clone-related-jdk11u
   - bash: |
       set -ex
       git config --global user.email "you@example.com"
       git config --global user.name "Your Name"
-      eval `/tmp/plume-scripts/ci-info typetools`
+      eval `/tmp/$USER/plume-scripts/ci-info typetools`
       cd ../jdk11u && git pull https://github.com/${CI_ORGANIZATION}/jdk ${CI_BRANCH} || (echo "Merge failed; see 'Pull request merge conflicts' at https://github.com/typetools/jdk/blob/master/README" && false)
     displayName: git merge
   - bash: cd ../jdk11u && export JT_HOME=/jtreg && bash ./configure --with-jtreg --disable-warnings-as-errors
