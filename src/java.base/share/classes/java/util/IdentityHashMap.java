@@ -30,6 +30,7 @@ import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.nullness.qual.EnsuresKeyFor;
 import org.checkerframework.checker.nullness.qual.EnsuresKeyForIf;
 import org.checkerframework.checker.nullness.qual.KeyFor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -337,7 +338,7 @@ public class IdentityHashMap<K,V>
      */
     @Pure
     @SuppressWarnings("unchecked")
-    public V get(@GuardSatisfied IdentityHashMap<K, V> this, @GuardSatisfied Object key) {
+    public @Nullable V get(@GuardSatisfied IdentityHashMap<K, V> this, @GuardSatisfied Object key) {
         Object k = maskNull(key);
         Object[] tab = table;
         int len = tab.length;
@@ -436,7 +437,7 @@ public class IdentityHashMap<K,V>
      * @see     #containsKey(Object)
      */
     @EnsuresKeyFor(value={"#1"}, map={"this"})
-    public V put(@GuardSatisfied IdentityHashMap<K, V> this, K key, V value) {
+    public @Nullable V put(@GuardSatisfied IdentityHashMap<K, V> this, K key, V value) {
         final Object k = maskNull(key);
 
         retryAfterResize: for (;;) {
@@ -535,7 +536,7 @@ public class IdentityHashMap<K,V>
      *         (A {@code null} return can also indicate that the map
      *         previously associated {@code null} with {@code key}.)
      */
-    public V remove(@GuardSatisfied IdentityHashMap<K, V> this, Object key) {
+    public @Nullable V remove(@GuardSatisfied IdentityHashMap<K, V> this, Object key) {
         Object k = maskNull(key);
         Object[] tab = table;
         int len = tab.length;
