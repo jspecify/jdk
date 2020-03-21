@@ -658,7 +658,7 @@ public class IdentityHashMap<K,V>
      * @see Object#equals(Object)
      */
     @Pure
-    public boolean equals(@GuardSatisfied IdentityHashMap<K, V> this, @GuardSatisfied Object o) {
+    public boolean equals(@GuardSatisfied @Nullable IdentityHashMap<K, V> this, @GuardSatisfied Object o) {
         if (o == this) {
             return true;
         } else if (o instanceof IdentityHashMap) {
@@ -905,7 +905,7 @@ public class IdentityHashMap<K,V>
                 return oldValue;
             }
 
-            public boolean equals(Object o) {
+            public boolean equals(@Nullable Object o) {
                 if (index < 0)
                     return super.equals(o);
 
@@ -1042,8 +1042,8 @@ public class IdentityHashMap<K,V>
         public Object[] toArray() {
             return toArray(new Object[0]);
         }
-        @SideEffectFree
         @SuppressWarnings("unchecked")
+        @SideEffectFree
         public <T> T[] toArray(T[] a) {
             int expectedModCount = modCount;
             int size = size();
@@ -1136,8 +1136,8 @@ public class IdentityHashMap<K,V>
         public Object[] toArray() {
             return toArray(new Object[0]);
         }
-        @SideEffectFree
         @SuppressWarnings("unchecked")
+        @SideEffectFree
         public <T> T[] toArray(T[] a) {
             int expectedModCount = modCount;
             int size = size();
@@ -1264,8 +1264,8 @@ public class IdentityHashMap<K,V>
             return toArray(new Object[0]);
         }
 
-        @SideEffectFree
         @SuppressWarnings("unchecked")
+        @SideEffectFree
         public <T> T[] toArray(T[] a) {
             int expectedModCount = modCount;
             int size = size();
