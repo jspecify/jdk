@@ -15,8 +15,8 @@ There are two annotated versions of the JDK:
  * A JDK 8 version, in directory `checker/jdk/` of repository
    https://github.com/typetools/checker-framework/ .
 Whenever you make a change to one, you *must* make the corresponding change
-to the other.  Please push changes to a branch of your fork of `jdk` *before*
-you make your a pull request for the branch of your fork of `checker-framework`.
+to the other.  Please make the `jdk` pull request first, and refer to its
+URL in your `checker-framework` pull request.
 
 This fork is not up to date with respect to `openjdk/jdk` (the current OpenJDK version).
 This fork contains all commits through the release of JDK 11:
