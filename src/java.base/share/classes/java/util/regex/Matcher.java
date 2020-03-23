@@ -693,7 +693,7 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      *          with the given name
      * @since 1.7
      */
-    public String group(String name) {
+    public @Nullable String group(String name) {
         int group = getMatchedGroupIndex(name);
         if ((groups[group*2] == -1) || (groups[group*2+1] == -1))
             return null;
