@@ -148,7 +148,7 @@ public class TreeSet<E> extends AbstractSet<E>
      *        If {@code null}, the {@linkplain Comparable natural
      *        ordering} of the elements will be used.
      */
-    public TreeSet(Comparator<? super E> comparator) {
+    public TreeSet(@Nullable Comparator<? super E> comparator) {
         this(new TreeMap<>(comparator));
     }
 
@@ -405,8 +405,8 @@ public class TreeSet<E> extends AbstractSet<E>
         return tailSet(fromElement, true);
     }
 
-    @SideEffectFree
-    public Comparator<? super E> comparator(@GuardSatisfied TreeSet<E> this) {
+    @Pure
+    public @Nullable Comparator<? super E> comparator(@GuardSatisfied TreeSet<E> this) {
         return m.comparator();
     }
 

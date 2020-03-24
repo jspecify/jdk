@@ -26,6 +26,7 @@
 package java.lang.reflect;
 
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 
@@ -95,5 +96,5 @@ public interface ParameterizedType extends Type {
      *     for any reason
      * @since 1.5
      */
-    Type getOwnerType();
+    @Nullable Type getOwnerType();
 }

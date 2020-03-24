@@ -27,6 +27,8 @@ package java.util;
 
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.nullness.qual.KeyFor;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.CFComment;
@@ -128,8 +130,8 @@ public interface SortedMap<K,V> extends Map<K,V> {
      *         or {@code null} if this map uses the natural ordering
      *         of its keys
      */
-    @SideEffectFree
-    Comparator<? super K> comparator(@GuardSatisfied SortedMap<K, V> this);
+    @Pure
+    @Nullable Comparator<? super K> comparator(@GuardSatisfied SortedMap<K, V> this);
 
     /**
      * Returns a view of the portion of this map whose keys range from

@@ -24,6 +24,8 @@
  */
 package java.util;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.util.function.Consumer;
@@ -370,7 +372,7 @@ public interface Spliterator<T> {
      * @return a {@code Spliterator} covering some portion of the
      * elements, or {@code null} if this spliterator cannot be split
      */
-    Spliterator<T> trySplit();
+    @Nullable Spliterator<T> trySplit();
 
     /**
      * Returns an estimate of the number of elements that would be
@@ -464,7 +466,8 @@ public interface Spliterator<T> {
      * @throws IllegalStateException if the spliterator does not report
      *         a characteristic of {@code SORTED}.
      */
-    default Comparator<? super T> getComparator() {
+    @Pure
+    default @Nullable Comparator<? super T> getComparator() {
         throw new IllegalStateException();
     }
 
@@ -608,7 +611,7 @@ public interface Spliterator<T> {
     public interface OfPrimitive<T, T_CONS, T_SPLITR extends Spliterator.OfPrimitive<T, T_CONS, T_SPLITR>>
             extends Spliterator<T> {
         @Override
-        T_SPLITR trySplit();
+        @Nullable T_SPLITR trySplit();
 
         /**
          * If a remaining element exists, performs the given action on it,
@@ -653,7 +656,7 @@ public interface Spliterator<T> {
     public interface OfInt extends OfPrimitive<Integer, IntConsumer, OfInt> {
 
         @Override
-        OfInt trySplit();
+        @Nullable OfInt trySplit();
 
         @Override
         boolean tryAdvance(IntConsumer action);
@@ -717,7 +720,7 @@ public interface Spliterator<T> {
     public interface OfLong extends OfPrimitive<Long, LongConsumer, OfLong> {
 
         @Override
-        OfLong trySplit();
+        @Nullable OfLong trySplit();
 
         @Override
         boolean tryAdvance(LongConsumer action);
@@ -781,7 +784,7 @@ public interface Spliterator<T> {
     public interface OfDouble extends OfPrimitive<Double, DoubleConsumer, OfDouble> {
 
         @Override
-        OfDouble trySplit();
+        @Nullable OfDouble trySplit();
 
         @Override
         boolean tryAdvance(DoubleConsumer action);

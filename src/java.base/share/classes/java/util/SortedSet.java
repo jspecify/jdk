@@ -26,6 +26,8 @@
 package java.util;
 
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.CFComment;
@@ -122,8 +124,8 @@ public interface SortedSet<E> extends Set<E> {
      *         or {@code null} if this set uses the natural ordering
      *         of its elements
      */
-    @SideEffectFree
-    Comparator<? super E> comparator(@GuardSatisfied SortedSet<E> this);
+    @Pure
+    @Nullable Comparator<? super E> comparator(@GuardSatisfied SortedSet<E> this);
 
     /**
      * Returns a view of the portion of this set whose elements range

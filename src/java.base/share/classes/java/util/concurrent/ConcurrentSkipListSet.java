@@ -399,7 +399,8 @@ public class ConcurrentSkipListSet<E extends @NonNull Object>
 
     /* ---------------- SortedSet operations -------------- */
 
-    public Comparator<? super E> comparator() {
+    @Pure
+    public @Nullable Comparator<? super E> comparator() {
         return m.comparator();
     }
 

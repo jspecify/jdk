@@ -27,6 +27,7 @@ package java.util;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -235,6 +236,7 @@ public final @UsesObjectEquals class Objects {
      * @throws NullPointerException if {@code obj} is {@code null}
      */
     @CFComment({"lock: TODO: treat like other nullness assertion methods in the Checker Framework."})
+    @EnsuresNonNull("#1")
     public static <T> @NonNull T requireNonNull(@NonNull T obj) {
         if (obj == null)
             throw new NullPointerException();
@@ -260,6 +262,7 @@ public final @UsesObjectEquals class Objects {
      * @return {@code obj} if not {@code null}
      * @throws NullPointerException if {@code obj} is {@code null}
      */
+    @EnsuresNonNull("#1")
     @SideEffectFree
     public static <T> @NonNull T requireNonNull(@GuardSatisfied @NonNull T obj, @Nullable String message) {
         if (obj == null)
@@ -365,7 +368,7 @@ public final @UsesObjectEquals class Objects {
      * @throws NullPointerException if {@code obj} is {@code null}
      * @since 1.8
      */
-    @CFComment({"nullness: TODO: treat like other nullness assertion methods in the Checker Framework."})
+    @EnsuresNonNull("#1")
     @Pure
     public static <T> @NonNull T requireNonNull(@GuardSatisfied @NonNull T obj, @GuardSatisfied Supplier<String> messageSupplier) {
         if (obj == null)

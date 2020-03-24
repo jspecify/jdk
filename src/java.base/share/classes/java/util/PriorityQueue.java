@@ -777,8 +777,8 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
      *         {@code null} if this queue is sorted according to the
      *         natural ordering of its elements
      */
-    @SideEffectFree
-    public Comparator<? super E> comparator(@GuardSatisfied PriorityQueue<E> this) {
+    @Pure
+    public @Nullable Comparator<? super E> comparator(@GuardSatisfied PriorityQueue<E> this) {
         return comparator;
     }
 

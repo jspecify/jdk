@@ -26,6 +26,7 @@
 package java.lang.ref;
 
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -61,7 +62,7 @@ public class PhantomReference<T> extends Reference<T> {
      * @return {@code null}
      */
     @SideEffectFree
-    public T get(@GuardSatisfied PhantomReference<T> this) {
+    public @Nullable T get(@GuardSatisfied PhantomReference<T> this) {
         return null;
     }
 
@@ -78,7 +79,7 @@ public class PhantomReference<T> extends Reference<T> {
      * @param q the queue with which the reference is to be registered,
      *          or {@code null} if registration is not required
      */
-    public PhantomReference(T referent, ReferenceQueue<? super T> q) {
+    public PhantomReference(@Nullable T referent, ReferenceQueue<? super T> q) {
         super(referent, q);
     }
 

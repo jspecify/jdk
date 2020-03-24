@@ -339,7 +339,7 @@ public final class URL implements java.io.Serializable {
      * @see        java.net.URLStreamHandlerFactory#createURLStreamHandler(
      *                  java.lang.String)
      */
-    public URL(String protocol, String host, int port, String file)
+    public URL(String protocol, @Nullable String host, int port, String file)
         throws MalformedURLException
     {
         this(protocol, host, port, file, null);
@@ -363,7 +363,7 @@ public final class URL implements java.io.Serializable {
      * @see        java.net.URL#URL(java.lang.String, java.lang.String,
      *                  int, java.lang.String)
      */
-    public URL(String protocol, String host, String file)
+    public URL(String protocol, @Nullable String host, String file)
             throws MalformedURLException {
         this(protocol, host, -1, file);
     }
@@ -408,7 +408,7 @@ public final class URL implements java.io.Serializable {
      * @see        SecurityManager#checkPermission
      * @see        java.net.NetPermission
      */
-    public URL(String protocol, String host, int port, String file,
+    public URL(String protocol, @Nullable String host, int port, String file,
                @Nullable URLStreamHandler handler) throws MalformedURLException {
         if (handler != null) {
             SecurityManager sm = System.getSecurityManager();
