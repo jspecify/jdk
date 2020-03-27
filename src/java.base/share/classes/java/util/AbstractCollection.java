@@ -116,7 +116,7 @@ public abstract class AbstractCollection<E> implements Collection<E> {
      */
     @Override
     @Pure
-    public boolean contains(@GuardSatisfied AbstractCollection<E> this, @GuardSatisfied @Nullable Object o) {
+    public boolean contains(@GuardSatisfied AbstractCollection<E> this, @GuardSatisfied Object o) {
         Iterator<E> it = iterator();
         if (o==null) {
             while (it.hasNext())
@@ -309,7 +309,7 @@ public abstract class AbstractCollection<E> implements Collection<E> {
      * @throws NullPointerException          {@inheritDoc}
      */
     @Override
-    public boolean remove(@GuardSatisfied AbstractCollection<E> this, @Nullable Object o) {
+    public boolean remove(@GuardSatisfied AbstractCollection<E> this, Object o) {
         Iterator<E> it = iterator();
         if (o==null) {
             while (it.hasNext()) {

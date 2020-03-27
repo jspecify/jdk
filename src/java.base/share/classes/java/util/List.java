@@ -187,7 +187,7 @@ public interface List<E> extends Collection<E> {
      * (<a href="Collection.html#optional-restrictions">optional</a>)
      */
     @Pure
-    boolean contains(@GuardSatisfied List<E> this, @Nullable Object o);
+    boolean contains(@GuardSatisfied List<E> this, Object o);
 
     /**
      * Returns an iterator over the elements in this list in proper sequence.
@@ -307,7 +307,7 @@ public interface List<E> extends Collection<E> {
      * @throws UnsupportedOperationException if the {@code remove} operation
      *         is not supported by this list
      */
-    boolean remove(@GuardSatisfied List<E> this, @Nullable Object o);
+    boolean remove(@GuardSatisfied List<E> this, Object o);
 
 
     // Bulk Modification Operations
@@ -676,7 +676,7 @@ public interface List<E> extends Collection<E> {
      *         (<a href="Collection.html#optional-restrictions">optional</a>)
      */
     @GTENegativeOne @Pure
-    int indexOf(@GuardSatisfied List<E> this, @Nullable Object o);
+    int indexOf(@GuardSatisfied List<E> this, Object o);
 
     /**
      * Returns the index of the last occurrence of the specified element
@@ -696,7 +696,7 @@ public interface List<E> extends Collection<E> {
      *         (<a href="Collection.html#optional-restrictions">optional</a>)
      */
     @GTENegativeOne @Pure
-    int lastIndexOf(@GuardSatisfied List<E> this, @Nullable Object o);
+    int lastIndexOf(@GuardSatisfied List<E> this, Object o);
 
 
     // List Iterators

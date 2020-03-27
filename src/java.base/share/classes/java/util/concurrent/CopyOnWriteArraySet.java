@@ -162,7 +162,7 @@ public class CopyOnWriteArraySet<E> extends AbstractSet<E>
      * @param o element whose presence in this set is to be tested
      * @return {@code true} if this set contains the specified element
      */
-    public boolean contains(Object o) {
+    public boolean contains(@Nullable Object o) {
         return al.contains(o);
     }
 
@@ -250,7 +250,7 @@ public class CopyOnWriteArraySet<E> extends AbstractSet<E>
      * @param o object to be removed from this set, if present
      * @return {@code true} if this set contained the specified element
      */
-    public boolean remove(Object o) {
+    public boolean remove(@Nullable Object o) {
         return al.remove(o);
     }
 
@@ -356,7 +356,7 @@ public class CopyOnWriteArraySet<E> extends AbstractSet<E>
      *         or if the specified collection is null
      * @see #remove(Object)
      */
-    public boolean removeAll(Collection<?> c) {
+    public boolean removeAll(Collection<? extends @NonNull Object> c) {
         return al.removeAll(c);
     }
 
@@ -379,7 +379,7 @@ public class CopyOnWriteArraySet<E> extends AbstractSet<E>
      *         or if the specified collection is null
      * @see #remove(Object)
      */
-    public boolean retainAll(Collection<?> c) {
+    public boolean retainAll(Collection<? extends @NonNull Object> c) {
         return al.retainAll(c);
     }
 

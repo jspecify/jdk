@@ -335,7 +335,7 @@ public class ArrayList<E> extends AbstractList<E>
         return indexOfRange(o, 0, size);
     }
 
-    int indexOfRange(Object o, int start, int end) {
+    int indexOfRange(@Nullable Object o, int start, int end) {
         Object[] es = elementData;
         if (o == null) {
             for (int i = start; i < end; i++) {
@@ -365,7 +365,7 @@ public class ArrayList<E> extends AbstractList<E>
         return lastIndexOfRange(o, 0, size);
     }
 
-    int lastIndexOfRange(Object o, int start, int end) {
+    int lastIndexOfRange(@Nullable Object o, int start, int end) {
         Object[] es = elementData;
         if (o == null) {
             for (int i = end - 1; i >= start; i--) {
@@ -1297,7 +1297,7 @@ public class ArrayList<E> extends AbstractList<E>
             return a;
         }
 
-        public boolean equals(Object o) {
+        public boolean equals(@Nullable Object o) {
             if (o == this) {
                 return true;
             }
@@ -1317,19 +1317,19 @@ public class ArrayList<E> extends AbstractList<E>
             return hash;
         }
 
-        public int indexOf(Object o) {
+        public int indexOf(@Nullable Object o) {
             int index = root.indexOfRange(o, offset, offset + size);
             checkForComodification();
             return index >= 0 ? index - offset : -1;
         }
 
-        public int lastIndexOf(Object o) {
+        public int lastIndexOf(@Nullable Object o) {
             int index = root.lastIndexOfRange(o, offset, offset + size);
             checkForComodification();
             return index >= 0 ? index - offset : -1;
         }
 
-        public boolean contains(Object o) {
+        public boolean contains(@Nullable Object o) {
             return indexOf(o) >= 0;
         }
 

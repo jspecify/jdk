@@ -580,7 +580,7 @@ public interface Deque<E> extends Queue<E> {
      *         deque does not permit null elements
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean remove(@GuardSatisfied Deque<E> this, @Nullable Object o);
+    boolean remove(@GuardSatisfied Deque<E> this, Object o);
 
     /**
      * Returns {@code true} if this deque contains the specified element.
@@ -597,7 +597,7 @@ public interface Deque<E> extends Queue<E> {
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
     @Pure
-    boolean contains(@GuardSatisfied Deque<E> this, @Nullable Object o);
+    boolean contains(@GuardSatisfied Deque<E> this, Object o);
 
     /**
      * Returns the number of elements in this deque.

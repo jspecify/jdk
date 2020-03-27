@@ -268,7 +268,7 @@ public interface Collection<E> extends Iterable<E> {
      */
     @CFComment({"lock: not true, because map could contain nulls:  AssertParametersNonNull(\"get(#1)\")"})
     @Pure
-    boolean contains(@GuardSatisfied Collection<E> this, @GuardSatisfied @Nullable Object o);
+    boolean contains(@GuardSatisfied Collection<E> this, @GuardSatisfied Object o);
 
     /**
      * Returns an iterator over the elements in this collection.  There are no
@@ -460,7 +460,7 @@ public interface Collection<E> extends Iterable<E> {
      * @throws UnsupportedOperationException if the {@code remove} operation
      *         is not supported by this collection
      */
-    boolean remove(@GuardSatisfied Collection<E> this, @Nullable Object o);
+    boolean remove(@GuardSatisfied Collection<E> this, Object o);
 
 
     // Bulk Operations

@@ -458,7 +458,7 @@ public class LinkedHashMap<K,V>
     /**
      * {@inheritDoc}
      */
-    public V getOrDefault(Object key, V defaultValue) {
+    public V getOrDefault(@Nullable Object key, V defaultValue) {
        Node<K,V> e;
        if ((e = getNode(hash(key), key)) == null)
            return defaultValue;
@@ -556,8 +556,8 @@ public class LinkedHashMap<K,V>
         public final Iterator<K> iterator() {
             return new LinkedKeyIterator();
         }
-        public final boolean contains(Object o) { return containsKey(o); }
-        public final boolean remove(Object key) {
+        public final boolean contains(@Nullable Object o) { return containsKey(o); }
+        public final boolean remove(@Nullable Object key) {
             return removeNode(hash(key), key, null, false, true) != null;
         }
         @SideEffectFree
@@ -612,7 +612,7 @@ public class LinkedHashMap<K,V>
         public final Iterator<V> iterator() {
             return new LinkedValueIterator();
         }
-        public final boolean contains(Object o) { return containsValue(o); }
+        public final boolean contains(@Nullable Object o) { return containsValue(o); }
         @SideEffectFree
         public final Spliterator<V> spliterator() {
             return Spliterators.spliterator(this, Spliterator.SIZED |
@@ -662,7 +662,7 @@ public class LinkedHashMap<K,V>
         public final Iterator<Map.Entry<K,V>> iterator() {
             return new LinkedEntryIterator();
         }
-        public final boolean contains(Object o) {
+        public final boolean contains(@Nullable Object o) {
             if (!(o instanceof Map.Entry))
                 return false;
             Map.Entry<?,?> e = (Map.Entry<?,?>) o;
@@ -670,7 +670,7 @@ public class LinkedHashMap<K,V>
             Node<K,V> candidate = getNode(hash(key), key);
             return candidate != null && candidate.equals(e);
         }
-        public final boolean remove(Object o) {
+        public final boolean remove(@Nullable Object o) {
             if (o instanceof Map.Entry) {
                 Map.Entry<?,?> e = (Map.Entry<?,?>) o;
                 Object key = e.getKey();

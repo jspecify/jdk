@@ -430,7 +430,7 @@ class Field extends AccessibleObject implements Member {
     @SideEffectFree
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public @Nullable Object get(@GuardSatisfied Field this, @UnknownInitialization @GuardSatisfied @Nullable Object obj)
+    public @Nullable Object get(@GuardSatisfied Field this, @UnknownInitialization @GuardSatisfied Object obj)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {

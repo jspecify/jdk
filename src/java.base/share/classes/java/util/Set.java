@@ -158,7 +158,7 @@ public interface Set<E> extends Collection<E> {
      * (<a href="Collection.html#optional-restrictions">optional</a>)
      */
     @Pure
-    boolean contains(@GuardSatisfied Set<E> this, @GuardSatisfied @Nullable Object o);
+    boolean contains(@GuardSatisfied Set<E> this, @GuardSatisfied Object o);
 
     /**
      * Returns an iterator over the elements in this set.  The elements are
@@ -291,7 +291,7 @@ public interface Set<E> extends Collection<E> {
      * @throws UnsupportedOperationException if the {@code remove} operation
      *         is not supported by this set
      */
-    boolean remove(@GuardSatisfied Set<E> this, @Nullable Object o);
+    boolean remove(@GuardSatisfied Set<E> this, Object o);
 
 
     // Bulk Operations

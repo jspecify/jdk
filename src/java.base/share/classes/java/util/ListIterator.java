@@ -76,7 +76,7 @@ public interface ListIterator<E> extends Iterator<E> {
      * @return {@code true} if the list iterator has more elements when
      *         traversing the list in the forward direction
      */
-    @Pure
+    @Pure // @Pure is not necessary here: it's inherited from Iterator
     boolean hasNext();
 
     /**

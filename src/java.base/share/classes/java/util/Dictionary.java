@@ -122,7 +122,7 @@ class Dictionary<K,V> {
      * @see     java.util.Dictionary#put(java.lang.Object, java.lang.Object)
      */
     @Pure
-    public abstract @Nullable V get(@GuardSatisfied Dictionary<K, V> this, @Nullable Object key);
+    public abstract @Nullable V get(@GuardSatisfied Dictionary<K, V> this, Object key);
 
     /**
      * Maps the specified {@code key} to the specified

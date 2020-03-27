@@ -4558,7 +4558,7 @@ public class ConcurrentHashMap<K extends @NonNull Object,V extends @NonNull Obje
             return sb.append(']').toString();
         }
 
-        public final boolean containsAll(Collection<?> c) {
+        public final boolean containsAll(Collection<? extends @NonNull Object> c) {
             if (c != this) {
                 for (Object e : c) {
                     if (e == null || !contains(e))
@@ -4568,7 +4568,7 @@ public class ConcurrentHashMap<K extends @NonNull Object,V extends @NonNull Obje
             return true;
         }
 
-        public boolean removeAll(Collection<?> c) {
+        public boolean removeAll(Collection<? extends @NonNull Object> c) {
             if (c == null) throw new NullPointerException();
             boolean modified = false;
             // Use (c instanceof Set) as a hint that lookup in c is as
@@ -4590,7 +4590,7 @@ public class ConcurrentHashMap<K extends @NonNull Object,V extends @NonNull Obje
             return modified;
         }
 
-        public final boolean retainAll(Collection<?> c) {
+        public final boolean retainAll(Collection<? extends @NonNull Object> c) {
             if (c == null) throw new NullPointerException();
             boolean modified = false;
             for (Iterator<E> it = iterator(); it.hasNext();) {
@@ -4775,7 +4775,7 @@ public class ConcurrentHashMap<K extends @NonNull Object,V extends @NonNull Obje
             throw new UnsupportedOperationException();
         }
 
-        @Override public boolean removeAll(Collection<?> c) {
+        @Override public boolean removeAll(Collection<? extends @NonNull Object> c) {
             if (c == null) throw new NullPointerException();
             boolean modified = false;
             for (Iterator<V> it = iterator(); it.hasNext();) {

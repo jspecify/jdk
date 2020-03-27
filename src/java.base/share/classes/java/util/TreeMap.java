@@ -243,7 +243,7 @@ public class TreeMap<K,V>
      */
     @Pure
     @EnsuresKeyForIf(expression={"#1"}, result=true, map={"this"})
-    public boolean containsKey(@GuardSatisfied TreeMap<K, V> this, @GuardSatisfied @Nullable Object key) {
+    public boolean containsKey(@GuardSatisfied TreeMap<K, V> this, @GuardSatisfied Object key) {
         return getEntry(key) != null;
     }
 
@@ -261,7 +261,7 @@ public class TreeMap<K,V>
      * @since 1.2
      */
     @Pure
-    public boolean containsValue(@GuardSatisfied TreeMap<K, V> this, @GuardSatisfied @Nullable Object value) {
+    public boolean containsValue(@GuardSatisfied TreeMap<K, V> this, @GuardSatisfied Object value) {
         for (Entry<K,V> e = getFirstEntry(); e != null; e = successor(e))
             if (valEquals(value, e.value))
                 return true;
@@ -290,7 +290,7 @@ public class TreeMap<K,V>
      *         and this map uses natural ordering, or its comparator
      *         does not permit null keys
      */
-    public @Nullable V get(@GuardSatisfied TreeMap<K, V> this, @GuardSatisfied @Nullable Object key) {
+    public @Nullable V get(@GuardSatisfied TreeMap<K, V> this, @GuardSatisfied Object key) {
         Entry<K,V> p = getEntry(key);
         return (p==null ? null : p.value);
     }
@@ -616,7 +616,7 @@ public class TreeMap<K,V>
      *         and this map uses natural ordering, or its comparator
      *         does not permit null keys
      */
-    public @Nullable V remove(@GuardSatisfied TreeMap<K, V> this, @Nullable Object key) {
+    public @Nullable V remove(@GuardSatisfied TreeMap<K, V> this, Object key) {
         Entry<K,V> p = getEntry(key);
         if (p == null)
             return null;
