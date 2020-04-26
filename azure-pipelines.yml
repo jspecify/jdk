@@ -1,4 +1,5 @@
 jobs:
+
 - job: build_jdk
   pool:
     vmImage: 'ubuntu-latest'
@@ -22,6 +23,7 @@ jobs:
   ## Don't run tests, which pass only with old version of tools (compilers, etc.).
   # - bash: make -C /jdk run-test-tier1
   #   displayName: make run-test-tier1
+
 - job: build_jdk11u
   pool:
     vmImage: 'ubuntu-latest'
@@ -69,3 +71,45 @@ jobs:
   - bash: cd ../jdk11u && make run-test TEST="jtreg:test/jdk:tier1"
     timeoutInMinutes: 0
     displayName: make run-test
+
+- job: test_cftests_all
+  pool:
+    vmImage: 'ubuntu-latest'
+  container: mdernst/cf-ubuntu-jdk11:latest
+  steps:
+  - checkout: self
+    fetchDepth: 25
+  - bash: mkdir -p /tmp/$USER && git -C /tmp/$USER clone --depth 1 -q https://github.com/plume-lib/plume-scripts.git
+    displayName: clone plume-scripts
+  - bash: /tmp/$USER/plume-scripts/git-clone-related typetools checker-framework
+    displayName: clone checker-framework
+  - bash: (cd ../checker-framework && checker/bin-devel/test-cftests-all.sh)
+    displayName: test-cftests-all.sh
+
+- job: test_daikon
+  pool:
+    vmImage: 'ubuntu-latest'
+  container: mdernst/cf-ubuntu-jdk11:latest
+  steps:
+  - checkout: self
+    fetchDepth: 25
+  - bash: mkdir -p /tmp/$USER && git -C /tmp/$USER clone --depth 1 -q https://github.com/plume-lib/plume-scripts.git
+    displayName: clone plume-scripts
+  - bash: /tmp/$USER/plume-scripts/git-clone-related typetools checker-framework
+    displayName: clone checker-framework
+  - bash: (cd ../checker-framework && checker/bin-devel/test-daikon.sh)
+    displayName: test-daikon.sh
+
+- job: test_plume_lib
+  pool:
+    vmImage: 'ubuntu-latest'
+  container: mdernst/cf-ubuntu-jdk11:latest
+  steps:
+  - checkout: self
+    fetchDepth: 25
+  - bash: mkdir -p /tmp/$USER && git -C /tmp/$USER clone --depth 1 -q https://github.com/plume-lib/plume-scripts.git
+    displayName: clone plume-scripts
+  - bash: /tmp/$USER/plume-scripts/git-clone-related typetools checker-framework
+    displayName: clone checker-framework
+  - bash: (cd ../checker-framework && checker/bin-devel/test-plume-lib.sh)
+    displayName: test-daikon.sh
