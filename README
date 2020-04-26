@@ -32,8 +32,9 @@ Repositories such as jdk11u and jdk12u have been updated and do compile.
 
 This fork's annotations are pulled into those repositories, in order to
 build an annotated JDK.  We do not write annotations in (say) jdk11u,
-because it has diverged so far from other repositories that merging it into
-jdk12u would be more painful than merging jdk into both jdk11u and jdk12u.
+because it has diverged far from other repositories.  It would be even more
+painful to write annotations on jdk11u and then try to merge it into a
+subsequent version like jdk12u.
 
 
 Pull request merge conflicts
@@ -100,11 +101,14 @@ The typetools/jdk11u repository
 The typetools/jdk11u repository is a merge of `openjdk/jdk11u` and `typetools/jdk`.
 That is, it is a fork of `openjdk/jdk11u`, with Checker Framework type annotations.
 
-**Do not edit that repository.**
-Make changes here, in the `typetools/jdk` repository.
+**Do not edit the `typetools/jdk11u` repository.**
+Make changes in the `typetools/jdk` repository.
+(Note that this README file appears in both the `typetools/jdk` and `typetools/jdk11u` repositories!)
 
 To update jdk11u from its upstreams:
 ```
+cd jdk11u
+git pull
 git pull https://github.com/openjdk/jdk11u.git
 git pull https://github.com/typetools/jdk.git
 ```
