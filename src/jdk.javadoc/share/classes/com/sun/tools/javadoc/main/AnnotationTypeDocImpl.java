@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import com.sun.javadoc.*;
 
 import com.sun.source.util.TreePath;
@@ -65,6 +66,7 @@ public class AnnotationTypeDocImpl
      * Returns true, as this is an annotation type.
      * (For legacy doclets, return false.)
      */
+    @Pure
     public boolean isAnnotationType() {
         return !isInterface();
     }
@@ -74,6 +76,7 @@ public class AnnotationTypeDocImpl
      * type is not considered an interface for this purpose.
      * (For legacy doclets, returns true.)
      */
+    @Pure
     public boolean isInterface() {
         return env.legacyDoclet;
     }

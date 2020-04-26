@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.lang.reflect.Modifier;
 
 import com.sun.javadoc.*;
@@ -73,6 +74,7 @@ public class MethodDocImpl
      *
      * @return true
      */
+    @Pure
     public boolean isMethod() {
         return true;
     }
@@ -80,6 +82,7 @@ public class MethodDocImpl
     /**
      * Return true if this method is default
      */
+    @Pure
     public boolean isDefault() {
         return (sym.flags() & Flags.DEFAULT) != 0;
     }
@@ -87,6 +90,7 @@ public class MethodDocImpl
     /**
      * Return true if this method is abstract
      */
+    @Pure
     public boolean isAbstract() {
         return (Modifier.isAbstract(getModifiers()) && !isDefault());
     }

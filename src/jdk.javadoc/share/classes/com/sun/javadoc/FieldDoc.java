@@ -25,6 +25,8 @@
 
 package com.sun.javadoc;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
@@ -57,6 +59,7 @@ public interface FieldDoc extends MemberDoc {
      *
      * @return true if this field is transient
      */
+    @Pure
     boolean isTransient();
 
     /**
@@ -64,6 +67,7 @@ public interface FieldDoc extends MemberDoc {
      *
      * @return true if this field is volatile
      */
+    @Pure
     boolean isVolatile();
 
     /**
@@ -81,7 +85,7 @@ public interface FieldDoc extends MemberDoc {
      * automatically wrapped in an object if it has a primitive type.
      * If the field is not constant, returns null.
      */
-    Object constantValue();
+    @Nullable Object constantValue();
 
     /**
      * Get the value of a constant field.
@@ -91,5 +95,5 @@ public interface FieldDoc extends MemberDoc {
      * other than primitive literals. If the field is
      * not constant, returns null.
      */
-    String constantValueExpression();
+    @Nullable String constantValueExpression();
 }

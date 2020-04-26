@@ -26,6 +26,7 @@
 package jdk.javadoc.internal.tool;
 
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -234,6 +235,7 @@ public class JavadocTool extends com.sun.tools.javac.main.JavaCompiler {
     }
 
     /** Is the given string a valid package name? */
+    @Pure
     boolean isValidPackageName(String s) {
         if (s.contains("/")) {
             String[] a = s.split("/");
@@ -245,6 +247,7 @@ public class JavadocTool extends com.sun.tools.javac.main.JavaCompiler {
         return isValidPackageName0(s);
     }
 
+    @Pure
     private boolean isValidPackageName0(String s) {
         for (int index = s.indexOf('.') ; index != -1; index = s.indexOf('.')) {
             if (!isValidClassName(s.substring(0, index))) {
@@ -284,6 +287,7 @@ public class JavadocTool extends com.sun.tools.javac.main.JavaCompiler {
      * @return true if given class name is a valid class name
      * and false otherwise.
      */
+    @Pure
     public static boolean isValidClassName(String s) {
         if (s.length() < 1) return false;
         if (s.equals("package-info")) return true;

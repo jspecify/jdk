@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.formats.html;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.util.SortedSet;
 
 import javax.lang.model.element.PackageElement;
@@ -199,6 +200,7 @@ public class TreeWriter extends AbstractTreeWriter {
         return bodyTree;
     }
 
+    @Pure
     private boolean isUnnamedPackage() {
         return packages.size() == 1 && packages.first().isUnnamed();
     }

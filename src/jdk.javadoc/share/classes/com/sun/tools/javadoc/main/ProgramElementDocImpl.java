@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.lang.reflect.Modifier;
 import java.text.CollationKey;
 
@@ -177,6 +178,7 @@ public abstract class ProgramElementDocImpl
     /**
      * Return true if this program element is public
      */
+    @Pure
     public boolean isPublic() {
         int modifiers = getModifiers();
         return Modifier.isPublic(modifiers);
@@ -185,6 +187,7 @@ public abstract class ProgramElementDocImpl
     /**
      * Return true if this program element is protected
      */
+    @Pure
     public boolean isProtected() {
         int modifiers = getModifiers();
         return Modifier.isProtected(modifiers);
@@ -193,6 +196,7 @@ public abstract class ProgramElementDocImpl
     /**
      * Return true if this program element is private
      */
+    @Pure
     public boolean isPrivate() {
         int modifiers = getModifiers();
         return Modifier.isPrivate(modifiers);
@@ -201,6 +205,7 @@ public abstract class ProgramElementDocImpl
     /**
      * Return true if this program element is package private
      */
+    @Pure
     public boolean isPackagePrivate() {
         return !(isPublic() || isPrivate() || isProtected());
     }
@@ -208,6 +213,7 @@ public abstract class ProgramElementDocImpl
     /**
      * Return true if this program element is static
      */
+    @Pure
     public boolean isStatic() {
         int modifiers = getModifiers();
         return Modifier.isStatic(modifiers);
@@ -216,6 +222,7 @@ public abstract class ProgramElementDocImpl
     /**
      * Return true if this program element is final
      */
+    @Pure
     public boolean isFinal() {
         int modifiers = getModifiers();
         return Modifier.isFinal(modifiers);

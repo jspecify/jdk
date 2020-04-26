@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.toolkit.util;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
@@ -245,24 +246,28 @@ class StandardDocFileFactory extends DocFileFactory {
 
         /** Return true is file has an absolute path name. */
         @Override
+        @Pure
         public boolean isAbsolute() {
             return file.isAbsolute();
         }
 
         /** Return true is file identifies a directory. */
         @Override
+        @Pure
         public boolean isDirectory() {
             return Files.isDirectory(file);
         }
 
         /** Return true is file identifies a file. */
         @Override
+        @Pure
         public boolean isFile() {
             return Files.isRegularFile(file);
         }
 
         /** Return true if this file is the same as another. */
         @Override
+        @Pure
         public boolean isSameFile(DocFile other) {
             if (!(other instanceof StandardDocFile))
                 return false;

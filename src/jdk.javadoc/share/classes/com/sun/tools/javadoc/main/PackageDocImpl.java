@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -318,6 +319,7 @@ public class PackageDocImpl extends DocImpl implements PackageDoc {
     /**
      * Return true if this package is included in the active set.
      */
+    @Pure
     public boolean isIncluded() {
         return isIncluded;
     }

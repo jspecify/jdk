@@ -25,6 +25,8 @@
 
 package com.sun.javadoc;
 
+import org.checkerframework.dataflow.qual.Pure;
+
 /**
  * Represents a method or constructor of a java class.
  *
@@ -71,6 +73,7 @@ public interface ExecutableMemberDoc extends MemberDoc {
      *
      * @return true if this method is native
      */
+    @Pure
     boolean isNative();
 
     /**
@@ -78,6 +81,7 @@ public interface ExecutableMemberDoc extends MemberDoc {
      *
      * @return true if this method is synchronized
      */
+    @Pure
     boolean isSynchronized();
 
     /**
@@ -87,6 +91,7 @@ public interface ExecutableMemberDoc extends MemberDoc {
      * @since 1.5
      * @return true if this method was declared to take a variable number of arguments.
      */
+    @Pure
     public boolean isVarArgs();
 
     /**
@@ -105,6 +110,7 @@ public interface ExecutableMemberDoc extends MemberDoc {
      * @return the receiver type of this executable element.
      * @since 1.8
      */
+    @Pure
     Type receiverType();
 
     /**

@@ -25,6 +25,7 @@
 
 package jdk.javadoc.doclet;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.util.List;
 import java.util.Set;
 
@@ -58,6 +59,7 @@ public interface Taglet {
      * Indicates whether this taglet is for inline tags or not.
      * @return true if this taglet is for an inline tag, and false otherwise
      */
+    @Pure
     boolean isInlineTag();
 
     /**

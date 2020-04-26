@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Locale;
@@ -255,6 +256,7 @@ public class RootDocImpl extends DocImpl implements RootDoc {
      * Return true if this Doc is include in the active set.
      * RootDocImpl isn't even a program entity so it is always false.
      */
+    @Pure
     public boolean isIncluded() {
         return false;
     }
@@ -389,6 +391,7 @@ public class RootDocImpl extends DocImpl implements RootDoc {
         return env.initJavaScriptScanner(allowScriptInComments);
     }
 
+    @Pure
     public boolean isFunctionalInterface(AnnotationDesc annotationDesc) {
         return Feature.LAMBDA.allowedInSource(env.source)
             && annotationDesc.annotationType().qualifiedName().equals(

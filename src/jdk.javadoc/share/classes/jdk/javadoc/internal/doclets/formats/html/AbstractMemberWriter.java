@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.formats.html;
 
+import org.checkerframework.dataflow.qual.Pure;
 import jdk.javadoc.internal.doclets.formats.html.markup.Table;
 import jdk.javadoc.internal.doclets.formats.html.markup.TableHeader;
 
@@ -396,6 +397,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
     * false otherwise.
      *@return true if inherited
     */
+    @Pure
     protected boolean isInherited(Element ped){
         return (!utils.isPrivate(ped) &&
                 (!utils.isPackagePrivate(ped) ||

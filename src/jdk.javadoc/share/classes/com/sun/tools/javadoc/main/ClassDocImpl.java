@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Modifier;
@@ -157,6 +158,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
      * Return true if this is a class, not an interface.
      */
     @Override
+    @Pure
     public boolean isClass() {
         return !Modifier.isInterface(getModifiers());
     }
@@ -166,6 +168,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
      * not an enumeration, exception, an error, or an interface.
      */
     @Override
+    @Pure
     public boolean isOrdinaryClass() {
         if (isEnum() || isInterface() || isAnnotationType()) {
             return false;
@@ -184,6 +187,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
      * (For legacy doclets, return false.)
      */
     @Override
+    @Pure
     public boolean isEnum() {
         return (getFlags() & Flags.ENUM) != 0
                &&
@@ -195,6 +199,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
      * Overridden by AnnotationTypeDocImpl.
      */
     @Override
+    @Pure
     public boolean isInterface() {
         return Modifier.isInterface(getModifiers());
     }
@@ -203,6 +208,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
      * Return true if this is an exception class
      */
     @Override
+    @Pure
     public boolean isException() {
         if (isEnum() || isInterface() || isAnnotationType()) {
             return false;
@@ -219,6 +225,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
      * Return true if this is an error class
      */
     @Override
+    @Pure
     public boolean isError() {
         if (isEnum() || isInterface() || isAnnotationType()) {
             return false;
@@ -234,6 +241,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
     /**
      * Return true if this is a throwable class
      */
+    @Pure
     public boolean isThrowable() {
         if (isEnum() || isInterface() || isAnnotationType()) {
             return false;
@@ -249,6 +257,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
     /**
      * Return true if this class is abstract
      */
+    @Pure
     public boolean isAbstract() {
         return Modifier.isAbstract(getModifiers());
     }
@@ -256,6 +265,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
     /**
      * Returns true if this class was synthesized by the compiler.
      */
+    @Pure
     public boolean isSynthetic() {
         return (getFlags() & Flags.SYNTHETIC) != 0;
     }
@@ -268,6 +278,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
      * included class.
      */
 
+    @Pure
     public boolean isIncluded() {
         if (isIncluded) {
             return true;
@@ -1213,6 +1224,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
     /**
      * Return false, as this is not a primitive type.
      */
+    @Pure
     public boolean isPrimitive() {
         return false;
     }
@@ -1228,6 +1240,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
      * <code>java.io.Serializable</code>,
      * Externalizable objects are also Serializable.
      */
+    @Pure
     public boolean isSerializable() {
         try {
             return env.types.isSubtype(type, env.syms.serializableType);
@@ -1241,6 +1254,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
      * Return true if this class implements
      * <code>java.io.Externalizable</code>.
      */
+    @Pure
     public boolean isExternalizable() {
         try {
             return env.types.isSubtype(type, env.externalizableSym.type);

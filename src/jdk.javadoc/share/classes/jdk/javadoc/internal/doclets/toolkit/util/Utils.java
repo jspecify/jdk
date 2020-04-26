@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.toolkit.util;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.lang.annotation.Documented;
 import java.lang.ref.SoftReference;
 import java.net.URI;
@@ -215,6 +216,7 @@ public class Utils {
      * @param t2 the target
      * @return true if t1 is a superclass of t2.
      */
+    @Pure
     public boolean isSubclassOf(TypeElement t1, TypeElement t2) {
         return typeUtils.isSubtype(t1.asType(), t2.asType());
     }
@@ -260,6 +262,7 @@ public class Utils {
      * <cite>The Java&trade; Language Specification</cite>,
      * all the outer classes and static inner classes are core classes.
      */
+    @Pure
     public boolean isCoreClass(TypeElement e) {
         return getEnclosingTypeElement(e) == null || isStatic(e);
     }
@@ -288,14 +291,17 @@ public class Utils {
                 : StandardLocation.CLASS_PATH;
     }
 
+    @Pure
     public boolean isAnnotated(TypeMirror e) {
         return !e.getAnnotationMirrors().isEmpty();
     }
 
+    @Pure
     public boolean isAnnotated(Element e) {
         return !e.getAnnotationMirrors().isEmpty();
     }
 
+    @Pure
     public boolean isAnnotationType(Element e) {
         return new SimpleElementVisitor9<Boolean, Void>() {
             @Override
@@ -321,66 +327,82 @@ public class Utils {
      * @param e element
      * @return true if class or enum
      */
+    @Pure
     public boolean isClass(Element e) {
         return e.getKind().isClass();
     }
 
+    @Pure
     public boolean isConstructor(Element e) {
          return e.getKind() == CONSTRUCTOR;
     }
 
+    @Pure
     public boolean isEnum(Element e) {
         return e.getKind() == ENUM;
     }
 
+    @Pure
     boolean isEnumConstant(Element e) {
         return e.getKind() == ENUM_CONSTANT;
     }
 
+    @Pure
     public boolean isField(Element e) {
         return e.getKind() == FIELD;
     }
 
+    @Pure
     public boolean isInterface(Element e) {
         return e.getKind() == INTERFACE;
     }
 
+    @Pure
     public boolean isMethod(Element e) {
         return e.getKind() == METHOD;
     }
 
+    @Pure
     public boolean isModule(Element e) {
         return e.getKind() == ElementKind.MODULE;
     }
 
+    @Pure
     public boolean isPackage(Element e) {
         return e.getKind() == ElementKind.PACKAGE;
     }
 
+    @Pure
     public boolean isAbstract(Element e) {
         return e.getModifiers().contains(Modifier.ABSTRACT);
     }
 
+    @Pure
     public boolean isDefault(Element e) {
         return e.getModifiers().contains(Modifier.DEFAULT);
     }
 
+    @Pure
     public boolean isPackagePrivate(Element e) {
         return !(isPublic(e) || isPrivate(e) || isProtected(e));
     }
 
+    @Pure
     public boolean isPrivate(Element e) {
         return e.getModifiers().contains(Modifier.PRIVATE);
     }
 
+    @Pure
     public boolean isProtected(Element e) {
         return e.getModifiers().contains(Modifier.PROTECTED);
     }
 
+    @Pure
     public boolean isPublic(Element e) {
         return e.getModifiers().contains(Modifier.PUBLIC);
     }
 
+    @Pure
     public boolean isProperty(String name) {
         return configuration.javafx && name.endsWith("Property");
     }
@@ -395,18 +417,22 @@ public class Utils {
         return name.substring(0, name.lastIndexOf("Property"));
     }
 
+    @Pure
     public boolean isOverviewElement(Element e) {
         return e.getKind() == ElementKind.OTHER;
     }
 
+    @Pure
     public boolean isStatic(Element e) {
         return e.getModifiers().contains(Modifier.STATIC);
     }
 
+    @Pure
     public boolean isSerializable(TypeElement e) {
         return typeUtils.isSubtype(e.asType(), getSerializableType());
     }
 
+    @Pure
     public boolean isExternalizable(TypeElement e) {
         return typeUtils.isSubtype(e.asType(), getExternalizableType());
     }
@@ -504,16 +530,19 @@ public class Utils {
         }.visit(e, set);
     }
 
+    @Pure
     public boolean isFunctionalInterface(AnnotationMirror amirror) {
         return amirror.getAnnotationType().equals(getFunctionalInterface()) &&
                 configuration.docEnv.getSourceVersion()
                         .compareTo(SourceVersion.RELEASE_8) >= 0;
     }
 
+    @Pure
     public boolean isNoType(TypeMirror t) {
         return t.getKind() == NONE;
     }
 
+    @Pure
     public boolean isOrdinaryClass(TypeElement te) {
         if (isEnum(te) || isInterface(te) || isAnnotationType(te)) {
             return false;
@@ -524,6 +553,7 @@ public class Utils {
         return true;
     }
 
+    @Pure
     public boolean isError(TypeElement te) {
         if (isEnum(te) || isInterface(te) || isAnnotationType(te)) {
             return false;
@@ -531,6 +561,7 @@ public class Utils {
         return typeUtils.isSubtype(te.asType(), getErrorType());
     }
 
+    @Pure
     public boolean isException(TypeElement te) {
         if (isEnum(te) || isInterface(te) || isAnnotationType(te)) {
             return false;
@@ -538,6 +569,7 @@ public class Utils {
         return typeUtils.isSubtype(te.asType(), getExceptionType());
     }
 
+    @Pure
     public boolean isPrimitive(TypeMirror t) {
         return new SimpleTypeVisitor9<Boolean, Void>() {
 
@@ -560,6 +592,7 @@ public class Utils {
         }.visit(t);
     }
 
+    @Pure
     public boolean isExecutableElement(Element e) {
         ElementKind kind = e.getKind();
         switch (kind) {
@@ -570,6 +603,7 @@ public class Utils {
         }
     }
 
+    @Pure
     public boolean isVariableElement(Element e) {
         ElementKind kind = e.getKind();
         switch(kind) {
@@ -582,6 +616,7 @@ public class Utils {
         }
     }
 
+    @Pure
     public boolean isTypeElement(Element e) {
         switch (e.getKind()) {
             case CLASS: case ENUM: case INTERFACE: case ANNOTATION_TYPE:
@@ -701,34 +736,42 @@ public class Utils {
         }.visit(t).toString();
     }
 
+    @Pure
     public boolean isArrayType(TypeMirror t) {
         return t.getKind() == ARRAY;
     }
 
+    @Pure
     public boolean isDeclaredType(TypeMirror t) {
         return t.getKind() == DECLARED;
     }
 
+    @Pure
     public boolean isErrorType(TypeMirror t) {
         return t.getKind() == ERROR;
     }
 
+    @Pure
     public boolean isIntersectionType(TypeMirror t) {
         return t.getKind() == INTERSECTION;
     }
 
+    @Pure
     public boolean isTypeParameterElement(Element e) {
         return e.getKind() == TYPE_PARAMETER;
     }
 
+    @Pure
     public boolean isTypeVariable(TypeMirror t) {
         return t.getKind() == TYPEVAR;
     }
 
+    @Pure
     public boolean isVoid(TypeMirror t) {
         return t.getKind() == VOID;
     }
 
+    @Pure
     public boolean isWildCard(TypeMirror t) {
         return t.getKind() == WILDCARD;
     }
@@ -1005,6 +1048,7 @@ public class Utils {
      *
      * @return true return true if it should be documented and false otherwise.
      */
+    @Pure
     public boolean isDocumentedAnnotation(TypeElement annotation) {
         for (AnnotationMirror anno : annotation.getAnnotationMirrors()) {
             if (getFullyQualifiedName(anno.getAnnotationType().asElement()).equals(
@@ -1025,6 +1069,7 @@ public class Utils {
      * @return true if this class is linkable and false if we can't link to the
      * desired class.
      */
+    @Pure
     public boolean isLinkable(TypeElement typeElem) {
         return
             (typeElem != null &&
@@ -1364,6 +1409,7 @@ public class Utils {
      * @param e the Element to check.
      * @return true if the given Element is deprecated.
      */
+    @Pure
     public boolean isDeprecated(Element e) {
         if (isPackage(e)) {
             return configuration.workArounds.isDeprecated0(e);
@@ -1377,6 +1423,7 @@ public class Utils {
      * @param e the Element to check.
      * @return true if the given Element is deprecated for removal.
      */
+    @Pure
     public boolean isDeprecatedForRemoval(Element e) {
         List<? extends AnnotationMirror> annotationList = e.getAnnotationMirrors();
         JavacTypes jctypes = ((DocEnvImpl) configuration.docEnv).toolEnv.typeutils;
@@ -1440,6 +1487,7 @@ public class Utils {
      * @param m a method
      * @return true if there are no comments, false otherwise
      */
+    @Pure
     public boolean isSimpleOverride(ExecutableElement m) {
         if (!configuration.summarizeOverriddenMethods ||
                 !isIncluded(m)) {
@@ -2672,20 +2720,24 @@ public class Utils {
             buf.append(chars.charAt(15 & (c>>4)));
             buf.append(chars.charAt(15 & (c>>0)));
         }
+        @Pure
         private boolean isPrintableAscii(char c) {
             return c >= ' ' && c <= '~';
         }
     }
 
+    @Pure
     public boolean isEnclosingPackageIncluded(TypeElement te) {
         return isIncluded(containingPackage(te));
     }
 
+    @Pure
     public boolean isIncluded(Element e) {
         return configuration.docEnv.isIncluded(e);
     }
 
     private SimpleElementVisitor9<Boolean, Void> specifiedVisitor = null;
+    @Pure
     public boolean isSpecified(Element e) {
         if (specifiedVisitor == null) {
             specifiedVisitor = new SimpleElementVisitor9<Boolean, Void>() {
@@ -2739,130 +2791,162 @@ public class Utils {
         return mdle.getQualifiedName().toString();
     }
 
+    @Pure
     public boolean isAttribute(DocTree doctree) {
         return isKind(doctree, ATTRIBUTE);
     }
 
+    @Pure
     public boolean isAuthor(DocTree doctree) {
         return isKind(doctree, AUTHOR);
     }
 
+    @Pure
     public boolean isComment(DocTree doctree) {
         return isKind(doctree, COMMENT);
     }
 
+    @Pure
     public boolean isDeprecated(DocTree doctree) {
         return isKind(doctree, DEPRECATED);
     }
 
+    @Pure
     public boolean isDocComment(DocTree doctree) {
         return isKind(doctree, DOC_COMMENT);
     }
 
+    @Pure
     public boolean isDocRoot(DocTree doctree) {
         return isKind(doctree, DOC_ROOT);
     }
 
+    @Pure
     public boolean isEndElement(DocTree doctree) {
         return isKind(doctree, END_ELEMENT);
     }
 
+    @Pure
     public boolean isEntity(DocTree doctree) {
         return isKind(doctree, ENTITY);
     }
 
+    @Pure
     public boolean isErroneous(DocTree doctree) {
         return isKind(doctree, ERRONEOUS);
     }
 
+    @Pure
     public boolean isException(DocTree doctree) {
         return isKind(doctree, EXCEPTION);
     }
 
+    @Pure
     public boolean isIdentifier(DocTree doctree) {
         return isKind(doctree, IDENTIFIER);
     }
 
+    @Pure
     public boolean isInheritDoc(DocTree doctree) {
         return isKind(doctree, INHERIT_DOC);
     }
 
+    @Pure
     public boolean isLink(DocTree doctree) {
         return isKind(doctree, LINK);
     }
 
+    @Pure
     public boolean isLinkPlain(DocTree doctree) {
         return isKind(doctree, LINK_PLAIN);
     }
 
+    @Pure
     public boolean isLiteral(DocTree doctree) {
         return isKind(doctree, LITERAL);
     }
 
+    @Pure
     public boolean isOther(DocTree doctree) {
         return doctree.getKind() == DocTree.Kind.OTHER;
     }
 
+    @Pure
     public boolean isParam(DocTree doctree) {
         return isKind(doctree, PARAM);
     }
 
+    @Pure
     public boolean isReference(DocTree doctree) {
         return isKind(doctree, REFERENCE);
     }
 
+    @Pure
     public boolean isReturn(DocTree doctree) {
         return isKind(doctree, RETURN);
     }
 
+    @Pure
     public boolean isSee(DocTree doctree) {
         return isKind(doctree, SEE);
     }
 
+    @Pure
     public boolean isSerial(DocTree doctree) {
         return isKind(doctree, SERIAL);
     }
 
+    @Pure
     public boolean isSerialData(DocTree doctree) {
         return isKind(doctree, SERIAL_DATA);
     }
 
+    @Pure
     public boolean isSerialField(DocTree doctree) {
         return isKind(doctree, SERIAL_FIELD);
     }
 
+    @Pure
     public boolean isSince(DocTree doctree) {
         return isKind(doctree, SINCE);
     }
 
+    @Pure
     public boolean isStartElement(DocTree doctree) {
         return isKind(doctree, START_ELEMENT);
     }
 
+    @Pure
     public boolean isText(DocTree doctree) {
         return isKind(doctree, TEXT);
     }
 
+    @Pure
     public boolean isThrows(DocTree doctree) {
         return isKind(doctree, THROWS);
     }
 
+    @Pure
     public boolean isUnknownBlockTag(DocTree doctree) {
         return isKind(doctree, UNKNOWN_BLOCK_TAG);
     }
 
+    @Pure
     public boolean isUnknownInlineTag(DocTree doctree) {
         return isKind(doctree, UNKNOWN_INLINE_TAG);
     }
 
+    @Pure
     public boolean isValue(DocTree doctree) {
         return isKind(doctree, VALUE);
     }
 
+    @Pure
     public boolean isVersion(DocTree doctree) {
         return isKind(doctree, VERSION);
     }
 
+    @Pure
     private boolean isKind(DocTree doctree, DocTree.Kind match) {
         return  doctree.getKind() == match;
     }
@@ -3075,6 +3159,7 @@ public class Utils {
         }
     }
 
+    @Pure
     boolean isValidDuo(DocCommentDuo duo) {
         return duo != null && duo.dcTree != null;
     }
@@ -3253,6 +3338,7 @@ public class Utils {
         }
 
         @Override
+        @Pure
         public boolean isEmpty() {
             return wkMap.isEmpty();
         }

@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import com.sun.javadoc.*;
 
 import com.sun.source.util.TreePath;
@@ -59,6 +60,7 @@ public class AnnotationTypeElementDocImpl
      * Returns true, as this is an annotation type element.
      * (For legacy doclets, return false.)
      */
+    @Pure
     public boolean isAnnotationTypeElement() {
         return !isMethod();
     }
@@ -68,6 +70,7 @@ public class AnnotationTypeElementDocImpl
      * consider it one for this purpose.
      * (For legacy doclets, return true.)
      */
+    @Pure
     public boolean isMethod() {
         return env.legacyDoclet;
     }
@@ -76,6 +79,7 @@ public class AnnotationTypeElementDocImpl
      * Returns false, even though this is indeed abstract.  See
      * MethodDocImpl.isAbstract() for the (il)logic behind this.
      */
+    @Pure
     public boolean isAbstract() {
         return false;
     }

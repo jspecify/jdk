@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import com.sun.javadoc.*;
 
 import com.sun.source.util.TreePath;
@@ -68,6 +69,7 @@ public class ConstructorDocImpl
      *
      * @return true
      */
+    @Pure
     public boolean isConstructor() {
         return true;
     }

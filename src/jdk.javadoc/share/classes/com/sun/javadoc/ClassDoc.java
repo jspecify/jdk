@@ -25,6 +25,7 @@
 
 package com.sun.javadoc;
 
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 
@@ -60,6 +61,7 @@ public interface ClassDoc extends ProgramElementDoc, Type {
      * @return true if this class is abstract.  Return true
      *         for all interfaces.
      */
+    @Pure
     boolean isAbstract();
 
     /**
@@ -73,6 +75,7 @@ public interface ClassDoc extends ProgramElementDoc, Type {
      * @return true if this class implements or interface extends
      *         {@code java.io.Serializable}.
      */
+    @Pure
     boolean isSerializable();
 
     /**
@@ -82,6 +85,7 @@ public interface ClassDoc extends ProgramElementDoc, Type {
      * @return true if this class implements or interface extends
      *         {@code java.io.Externalizable}.
      */
+    @Pure
     boolean isExternalizable();
 
     /**

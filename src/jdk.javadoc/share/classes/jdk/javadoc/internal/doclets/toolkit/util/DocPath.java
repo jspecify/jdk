@@ -210,6 +210,7 @@ public class DocPath {
      * Return true if this path is empty.
      * @return true if this path is empty
      */
+    @Pure
     public boolean isEmpty() {
         return path.isEmpty();
     }

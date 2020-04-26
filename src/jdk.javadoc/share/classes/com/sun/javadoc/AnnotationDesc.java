@@ -25,6 +25,7 @@
 
 package com.sun.javadoc;
 
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * Represents an annotation.
@@ -64,6 +65,7 @@ public interface AnnotationDesc {
      *
      * @return true if the annotation is synthesized.
      */
+    @Pure
     boolean isSynthesized();
 
     /**

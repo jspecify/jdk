@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.util.regex.*;
 
 import com.sun.javadoc.*;
@@ -91,6 +92,7 @@ class ParamTagImpl extends TagImpl implements ParamTag {
     /**
      * Return true if this ParamTag corresponds to a type parameter.
      */
+    @Pure
     public boolean isTypeParameter() {
         return isTypeParameter;
     }

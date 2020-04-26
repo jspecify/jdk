@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.toolkit;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -95,6 +96,7 @@ public abstract class Content {
      *
      * @return true if the content is valid else return false
      */
+    @Pure
     public boolean isValid() {
         return !isEmpty();
     }

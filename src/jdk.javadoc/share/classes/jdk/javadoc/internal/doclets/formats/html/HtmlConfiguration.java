@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.formats.html;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.net.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -374,6 +375,7 @@ public class HtmlConfiguration extends BaseConfiguration {
     /**
      * Return true if the generated output is HTML5.
      */
+    @Pure
     public boolean isOutputHtml5() {
         return htmlVersion == HtmlVersion.HTML5;
     }

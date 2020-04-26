@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -330,6 +331,7 @@ public abstract class DocImpl implements Doc, Comparable<Object> {
      *
      * @return true if it represents a field
      */
+    @Pure
     public boolean isField() {
         return false;
     }
@@ -339,6 +341,7 @@ public abstract class DocImpl implements Doc, Comparable<Object> {
      *
      * @return true if it represents an enum constant
      */
+    @Pure
     public boolean isEnumConstant() {
         return false;
     }
@@ -348,6 +351,7 @@ public abstract class DocImpl implements Doc, Comparable<Object> {
      *
      * @return true if it represents a constructor
      */
+    @Pure
     public boolean isConstructor() {
         return false;
     }
@@ -359,6 +363,7 @@ public abstract class DocImpl implements Doc, Comparable<Object> {
      *
      * @return true if it represents a method
      */
+    @Pure
     public boolean isMethod() {
         return false;
     }
@@ -369,6 +374,7 @@ public abstract class DocImpl implements Doc, Comparable<Object> {
      *
      * @return true if it represents an annotation type element
      */
+    @Pure
     public boolean isAnnotationTypeElement() {
         return false;
     }
@@ -379,6 +385,7 @@ public abstract class DocImpl implements Doc, Comparable<Object> {
      *
      * @return true if it represents a interface
      */
+    @Pure
     public boolean isInterface() {
         return false;
     }
@@ -388,6 +395,7 @@ public abstract class DocImpl implements Doc, Comparable<Object> {
      *
      * @return true if it represents a exception
      */
+    @Pure
     public boolean isException() {
         return false;
     }
@@ -397,6 +405,7 @@ public abstract class DocImpl implements Doc, Comparable<Object> {
      *
      * @return true if it represents a error
      */
+    @Pure
     public boolean isError() {
         return false;
     }
@@ -406,6 +415,7 @@ public abstract class DocImpl implements Doc, Comparable<Object> {
      *
      * @return true if it represents an enum type
      */
+    @Pure
     public boolean isEnum() {
         return false;
     }
@@ -415,6 +425,7 @@ public abstract class DocImpl implements Doc, Comparable<Object> {
      *
      * @return true if it represents an annotation type
      */
+    @Pure
     public boolean isAnnotationType() {
         return false;
     }
@@ -426,6 +437,7 @@ public abstract class DocImpl implements Doc, Comparable<Object> {
      *
      * @return true if it represents an ordinary class
      */
+    @Pure
     public boolean isOrdinaryClass() {
         return false;
     }
@@ -438,6 +450,7 @@ public abstract class DocImpl implements Doc, Comparable<Object> {
      *
      * @return true if it represents a class
      */
+    @Pure
     public boolean isClass() {
         return false;
     }

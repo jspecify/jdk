@@ -25,6 +25,8 @@
 
 package com.sun.javadoc;
 
+import org.checkerframework.dataflow.qual.Pure;
+
 /**
  * Represents an @param documentation tag.
  * Stores the name and comment parts of the parameter tag.
@@ -69,5 +71,6 @@ public interface ParamTag extends Tag {
      * parameter.
      * @since 1.5
      */
+    @Pure
     boolean isTypeParameter();
 }

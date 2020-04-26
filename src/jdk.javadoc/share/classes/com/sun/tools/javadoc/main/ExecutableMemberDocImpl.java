@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.lang.reflect.Modifier;
 import java.text.CollationKey;
 
@@ -90,6 +91,7 @@ public abstract class ExecutableMemberDocImpl
     /**
      * Return true if this method is native
      */
+    @Pure
     public boolean isNative() {
         return Modifier.isNative(getModifiers());
     }
@@ -97,6 +99,7 @@ public abstract class ExecutableMemberDocImpl
     /**
      * Return true if this method is synchronized
      */
+    @Pure
     public boolean isSynchronized() {
         return Modifier.isSynchronized(getModifiers());
     }
@@ -105,6 +108,7 @@ public abstract class ExecutableMemberDocImpl
      * Return true if this method was declared to take a variable number
      * of arguments.
      */
+    @Pure
     public boolean isVarArgs() {
         return ((sym.flags() & Flags.VARARGS) != 0
                 && !env.legacyDoclet);
@@ -113,10 +117,12 @@ public abstract class ExecutableMemberDocImpl
     /**
      * Returns true if this field was synthesized by the compiler.
      */
+    @Pure
     public boolean isSynthetic() {
         return ((sym.flags() & Flags.SYNTHETIC) != 0);
     }
 
+    @Pure
     public boolean isIncluded() {
         return containingClass().isIncluded() && env.shouldDocument(sym);
     }

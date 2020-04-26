@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.formats.html.markup;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
@@ -81,6 +82,7 @@ public class ContentBuilder extends Content {
     }
 
     @Override
+    @Pure
     public boolean isEmpty() {
         for (Content content: contents) {
             if (!content.isEmpty())

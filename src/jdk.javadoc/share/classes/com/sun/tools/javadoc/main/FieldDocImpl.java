@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import com.sun.source.util.TreePath;
 import java.lang.reflect.Modifier;
 
@@ -196,6 +197,7 @@ public class FieldDocImpl extends MemberDocImpl implements FieldDoc {
     /**
      * Return true if this field is included in the active set.
      */
+    @Pure
     public boolean isIncluded() {
         return containingClass().isIncluded() && env.shouldDocument(sym);
     }
@@ -204,6 +206,7 @@ public class FieldDocImpl extends MemberDocImpl implements FieldDoc {
      * Is this Doc item a field (but not an enum constant?
      */
     @Override
+    @Pure
     public boolean isField() {
         return !isEnumConstant();
     }
@@ -213,6 +216,7 @@ public class FieldDocImpl extends MemberDocImpl implements FieldDoc {
      * (For legacy doclets, return false.)
      */
     @Override
+    @Pure
     public boolean isEnumConstant() {
         return (getFlags() & Flags.ENUM) != 0 &&
                !env.legacyDoclet;
@@ -221,6 +225,7 @@ public class FieldDocImpl extends MemberDocImpl implements FieldDoc {
     /**
      * Return true if this field is transient
      */
+    @Pure
     public boolean isTransient() {
         return Modifier.isTransient(getModifiers());
     }
@@ -228,6 +233,7 @@ public class FieldDocImpl extends MemberDocImpl implements FieldDoc {
     /**
      * Return true if this field is volatile
      */
+    @Pure
     public boolean isVolatile() {
         return Modifier.isVolatile(getModifiers());
     }
@@ -235,6 +241,7 @@ public class FieldDocImpl extends MemberDocImpl implements FieldDoc {
     /**
      * Returns true if this field was synthesized by the compiler.
      */
+    @Pure
     public boolean isSynthetic() {
         return (getFlags() & Flags.SYNTHETIC) != 0;
     }

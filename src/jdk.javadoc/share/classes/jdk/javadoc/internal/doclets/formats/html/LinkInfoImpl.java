@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.formats.html;
 
+import org.checkerframework.dataflow.qual.Pure;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
@@ -420,6 +421,7 @@ public class LinkInfoImpl extends LinkInfo {
      * desired place.
      */
     @Override
+    @Pure
     public boolean isLinkable() {
         return configuration.utils.isLinkable(typeElement);
     }

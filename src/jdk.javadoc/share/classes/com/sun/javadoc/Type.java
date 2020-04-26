@@ -25,6 +25,8 @@
 
 package com.sun.javadoc;
 
+import org.checkerframework.dataflow.qual.Pure;
+
 /**
  * Represents a type.  A type can be a class or interface, an
  * invocation (like {@code List<String>}) of a generic class or interface,
@@ -104,6 +106,7 @@ public interface Type {
      * @return true if this type represents a primitive type.
      * @since 1.5
      */
+    @Pure
     boolean isPrimitive();
 
     /**

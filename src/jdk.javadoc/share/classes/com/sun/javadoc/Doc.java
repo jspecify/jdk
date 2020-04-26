@@ -25,6 +25,8 @@
 
 package com.sun.javadoc;
 
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.text.BreakIterator;
@@ -165,6 +167,7 @@ public interface Doc extends Comparable<Object> {
      * @exception ClassCastException the specified Object's type prevents it
      *        from being compared to this Object.
      */
+    @Pure
     int compareTo(Object obj);
 
     /**
@@ -172,6 +175,7 @@ public interface Doc extends Comparable<Object> {
      *
      * @return true if it represents a field
      */
+    @Pure
     boolean isField();
 
     /**
@@ -180,6 +184,7 @@ public interface Doc extends Comparable<Object> {
      * @return true if it represents an enum constant
      * @since 1.5
      */
+    @Pure
     boolean isEnumConstant();
 
     /**
@@ -187,6 +192,7 @@ public interface Doc extends Comparable<Object> {
      *
      * @return true if it represents a constructor
      */
+    @Pure
     boolean isConstructor();
 
     /**
@@ -195,6 +201,7 @@ public interface Doc extends Comparable<Object> {
      *
      * @return true if it represents a method
      */
+    @Pure
     boolean isMethod();
 
     /**
@@ -203,6 +210,7 @@ public interface Doc extends Comparable<Object> {
      * @return true if it represents an annotation type element
      * @since 1.5
      */
+    @Pure
     boolean isAnnotationTypeElement();
 
     /**
@@ -210,6 +218,7 @@ public interface Doc extends Comparable<Object> {
      *
      * @return true if it represents an interface
      */
+    @Pure
     boolean isInterface();
 
     /**
@@ -217,6 +226,7 @@ public interface Doc extends Comparable<Object> {
      *
      * @return true if it represents an exception
      */
+    @Pure
     boolean isException();
 
     /**
@@ -224,6 +234,7 @@ public interface Doc extends Comparable<Object> {
      *
      * @return true if it represents a error
      */
+    @Pure
     boolean isError();
 
     /**
@@ -232,6 +243,7 @@ public interface Doc extends Comparable<Object> {
      * @return true if it represents an enum type
      * @since 1.5
      */
+    @Pure
     boolean isEnum();
 
     /**
@@ -240,6 +252,7 @@ public interface Doc extends Comparable<Object> {
      * @return true if it represents an annotation type
      * @since 1.5
      */
+    @Pure
     boolean isAnnotationType();
 
     /**
@@ -250,6 +263,7 @@ public interface Doc extends Comparable<Object> {
      *
      * @return true if it represents an ordinary class
      */
+    @Pure
     boolean isOrdinaryClass();
 
     /**
@@ -260,6 +274,7 @@ public interface Doc extends Comparable<Object> {
      *
      * @return true if it represents a class
      */
+    @Pure
     boolean isClass();
 
     /**
@@ -271,6 +286,7 @@ public interface Doc extends Comparable<Object> {
      *         <a href="{@docRoot}/jdk.javadoc/com/sun/javadoc/package-summary.html#included">included</a>
      *         in the result set.
      */
+    @Pure
     boolean isIncluded();
 
     /**
@@ -285,5 +301,5 @@ public interface Doc extends Comparable<Object> {
      *         no position is available.  A default constructor returns
      *         null because it has no location in the source file.
      */
-    SourcePosition position();
+    @Nullable SourcePosition position();
 }

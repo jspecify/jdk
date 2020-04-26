@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.toolkit;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.io.*;
 import java.util.*;
 
@@ -1093,6 +1094,7 @@ public abstract class BaseConfiguration {
      * @param te the TypeElement for which the page generation is checked
      * @return true if it is a generated doc.
      */
+    @Pure
     public boolean isGeneratedDoc(TypeElement te) {
         if (!nodeprecated) {
             return true;
@@ -1328,6 +1330,7 @@ public abstract class BaseConfiguration {
      *
      * @return the allowScriptInComments
      */
+    @Pure
     public boolean isAllowScriptInComments() {
         return allowScriptInComments;
     }

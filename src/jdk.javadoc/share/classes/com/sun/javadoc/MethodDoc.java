@@ -25,6 +25,8 @@
 
 package com.sun.javadoc;
 
+import org.checkerframework.dataflow.qual.Pure;
+
 /**
  * Represents a method of a java class.
  *
@@ -45,6 +47,7 @@ public interface MethodDoc extends ExecutableMemberDoc {
      *
      * @return true if this method is abstract
      */
+    @Pure
     boolean isAbstract();
 
     /**
@@ -52,6 +55,7 @@ public interface MethodDoc extends ExecutableMemberDoc {
      *
      * @return true if this method is default
      */
+    @Pure
     boolean isDefault();
 
     /**
@@ -106,5 +110,6 @@ public interface MethodDoc extends ExecutableMemberDoc {
      * @return {@code true} if this method overrides the other
      * @since 1.5
      */
+    @Pure
     boolean overrides(MethodDoc meth);
 }

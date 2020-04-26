@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import com.sun.javadoc.*;
 
 import com.sun.tools.javac.code.Type;
@@ -87,6 +88,7 @@ abstract class AbstractTypeImpl implements com.sun.javadoc.Type {
         return "";
     }
 
+    @Pure
     public boolean isPrimitive() {
         return false;
     }

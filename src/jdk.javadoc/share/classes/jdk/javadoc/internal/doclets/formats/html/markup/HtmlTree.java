@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.formats.html.markup;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.charset.Charset;
@@ -946,6 +947,7 @@ public class HtmlTree extends Content {
      * {@inheritDoc}
      */
     @Override
+    @Pure
     public boolean isEmpty() {
         return (!hasContent() && !hasAttrs());
     }
@@ -986,6 +988,7 @@ public class HtmlTree extends Content {
      * @return true if the HTML tree is valid
      */
     @Override
+    @Pure
     public boolean isValid() {
         switch (htmlTag) {
             case A :
@@ -1016,6 +1019,7 @@ public class HtmlTree extends Content {
      *
      * @return true if the HTML tag is an inline element
      */
+    @Pure
     public boolean isInline() {
         return (htmlTag.blockType == HtmlTag.BlockType.INLINE);
     }

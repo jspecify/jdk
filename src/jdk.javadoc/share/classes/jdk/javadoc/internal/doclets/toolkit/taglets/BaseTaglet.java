@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.toolkit.taglets;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.util.Set;
 import javax.lang.model.element.Element;
 
@@ -126,6 +127,7 @@ public class BaseTaglet implements Taglet {
      * Returns true if this {@code Taglet} is an inline tag.
      * @return true if this {@code Taglet} represents an inline tag and false otherwise.
      */
+    @Pure
     public final boolean isInlineTag() {
         return inline;
     }

@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.formats.html;
 
+import org.checkerframework.dataflow.qual.Pure;
 import jdk.javadoc.internal.doclets.formats.html.markup.Head;
 import jdk.javadoc.internal.doclets.formats.html.markup.TableHeader;
 
@@ -736,6 +737,7 @@ public class HtmlDocletWriter {
         return null;
     }
 
+    @Pure
     public boolean isClassLinkable(TypeElement typeElement) {
         if (utils.isIncluded(typeElement)) {
             return configuration.isGeneratedDoc(typeElement);
@@ -1649,6 +1651,7 @@ public class HtmlDocletWriter {
      * <cite>The Java&trade; Language Specification</cite>,
      * all the outer classes and static nested classes are core classes.
      */
+    @Pure
     public boolean isCoreClass(TypeElement typeElement) {
         return utils.getEnclosingTypeElement(typeElement) == null || utils.isStatic(typeElement);
     }

@@ -25,6 +25,8 @@
 
 package com.sun.javadoc;
 
+import org.checkerframework.common.value.qual.MinLen;
+
 /**
  * Represents the root of the program structure information
  * for one run of javadoc.  From this root all other program
@@ -61,7 +63,7 @@ public interface RootDoc extends Doc, DocErrorReporter {
      *
      * @return an array of arrays of String.
      */
-    String[][] options();
+    String[] @MinLen(1) [] options();
 
     /**
      * Return the packages
@@ -81,7 +83,7 @@ public interface RootDoc extends Doc, DocErrorReporter {
      *
      * @return classes and interfaces specified on the command line.
      */
-    ClassDoc[] specifiedClasses();
+    ClassDoc @MinLen(1) [] specifiedClasses();
 
     /**
      * Return the

@@ -25,6 +25,7 @@
 
 package com.sun.javadoc;
 
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
@@ -55,5 +56,6 @@ public interface MemberDoc extends ProgramElementDoc {
      *
      * @return true if this member was synthesized by the compiler.
      */
+    @Pure
     boolean isSynthetic();
 }

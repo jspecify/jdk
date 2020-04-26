@@ -25,6 +25,8 @@
 
 package jdk.javadoc.internal.doclets.toolkit.util;
 
+import org.checkerframework.dataflow.qual.Pure;
+
 /**
  * Abstraction for simple relative URIs, consisting of a path,
  * an optional query, and an optional fragment. DocLink objects can
@@ -108,6 +110,7 @@ public class DocLink {
     }
 
     // return true if the path begins <letters>://
+    @Pure
     private boolean isAbsoluteURL(DocPath path) {
         String s = path.getPath();
         for (int i = 0; i < s.length(); i++) {
@@ -141,6 +144,7 @@ public class DocLink {
         return sb.toString();
     }
 
+    @Pure
     private static boolean isEmpty(String s) {
         return (s == null) || s.isEmpty();
     }

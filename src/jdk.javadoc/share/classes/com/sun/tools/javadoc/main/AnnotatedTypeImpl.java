@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import com.sun.javadoc.*;
 import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Attribute.TypeCompound;
@@ -101,6 +102,7 @@ public class AnnotatedTypeImpl
     }
 
     @Override
+    @Pure
     public boolean isPrimitive() {
         return this.underlyingType().isPrimitive();
     }

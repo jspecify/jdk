@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import com.sun.javadoc.*;
 
 import com.sun.tools.javac.code.Attribute;
@@ -95,6 +96,7 @@ public class AnnotationDescImpl implements AnnotationDesc {
      *
      * @return true if the annotation is synthesized.
      */
+    @Pure
     public boolean isSynthesized() {
         return annotation.isSynthesized();
     }

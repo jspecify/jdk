@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.formats.html.markup;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -447,6 +448,7 @@ public class Table {
      *
      * @return true if the table has no rows
      */
+    @Pure
     public boolean isEmpty() {
         return bodyRows.isEmpty();
     }

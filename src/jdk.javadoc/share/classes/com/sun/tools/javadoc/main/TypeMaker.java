@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import com.sun.javadoc.*;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
@@ -330,6 +331,7 @@ public class TypeMaker {
         /**
          * Return true if this is an array of a primitive type.
          */
+        @Pure
         public boolean isPrimitive() {
             return skipArrays().isPrimitive();
         }

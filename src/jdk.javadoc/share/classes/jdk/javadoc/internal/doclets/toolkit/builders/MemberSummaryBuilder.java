@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.toolkit.builders;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -420,6 +421,7 @@ public abstract class MemberSummaryBuilder extends AbstractMemberBuilder {
      * method, property getter, or property setter.
      * @return true if the given documentation belongs to a getter.
      */
+    @Pure
     private boolean isGetter(Element element) {
         final String pedName = element.getSimpleName().toString();
         return pedName.startsWith("get") || pedName.startsWith("is");
@@ -431,6 +433,7 @@ public abstract class MemberSummaryBuilder extends AbstractMemberBuilder {
      * method, property getter, or property setter.
      * @return true if the given documentation belongs to a setter.
      */
+    @Pure
     private boolean isSetter(Element element) {
         return element.getSimpleName().toString().startsWith("set");
     }

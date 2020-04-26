@@ -25,6 +25,8 @@
 
 package com.sun.javadoc;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
@@ -54,7 +56,7 @@ public interface ProgramElementDoc extends Doc {
      * @return a ClassDoc for this element's containing class or interface.
      * If this is a top-level class or interface, return null.
      */
-    ClassDoc containingClass();
+    @Nullable ClassDoc containingClass();
 
     /**
      * Get the package that this program element is contained in.
@@ -113,6 +115,7 @@ public interface ProgramElementDoc extends Doc {
      *
      * @return true if this program element is public.
      */
+    @Pure
     boolean isPublic();
 
     /**
@@ -120,6 +123,7 @@ public interface ProgramElementDoc extends Doc {
      *
      * @return true if this program element is protected.
      */
+    @Pure
     boolean isProtected();
 
     /**
@@ -127,6 +131,7 @@ public interface ProgramElementDoc extends Doc {
      *
      * @return true if this program element is private.
      */
+    @Pure
     boolean isPrivate();
 
     /**
@@ -134,12 +139,14 @@ public interface ProgramElementDoc extends Doc {
      *
      * @return true if this program element is package private.
      */
+    @Pure
     boolean isPackagePrivate();
     /**
      * Return true if this program element is static.
      *
      * @return true if this program element is static.
      */
+    @Pure
     boolean isStatic();
 
     /**
@@ -147,5 +154,6 @@ public interface ProgramElementDoc extends Doc {
      *
      * @return true if this program element is final.
      */
+    @Pure
     boolean isFinal();
 }

@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.toolkit;
 
+import org.checkerframework.dataflow.qual.Pure;
 import java.util.regex.Pattern;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.type.TypeKind;
@@ -138,6 +139,7 @@ public class PropertyUtils {
      * @param setterMethod
      * @return true if setter method, false otherwise.
      */
+    @Pure
     public boolean isValidSetterMethod(ExecutableElement setterMethod) {
         return setterMethod.getReturnType().getKind() == TypeKind.VOID;
     }
@@ -147,6 +149,7 @@ public class PropertyUtils {
      * @param propertyMethod
      * @return true if the method is a property method, false otherwise.
      */
+    @Pure
     public boolean isPropertyMethod(ExecutableElement propertyMethod) {
         if (!javafx ||
                 !propertyMethod.getParameters().isEmpty() ||

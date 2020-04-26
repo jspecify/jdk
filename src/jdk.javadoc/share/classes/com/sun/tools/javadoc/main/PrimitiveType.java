@@ -25,6 +25,7 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.dataflow.qual.Pure;
 import com.sun.javadoc.*;
 
 /**
@@ -157,6 +158,7 @@ class PrimitiveType implements com.sun.javadoc.Type {
     /**
      * Return true if this is a primitive type.
      */
+    @Pure
     public boolean isPrimitive() {
         return true;
     }
