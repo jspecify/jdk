@@ -171,7 +171,6 @@ import java.io.Serializable;
  */
 @CFComment({"lock/nullness: Subclasses of this interface/class may opt to prohibit null elements"})
 @AnnotatedFor({"lock", "nullness", "index"})
-@Covariant({0})
 public interface Map<K, V> {
     // Query Operations
 
