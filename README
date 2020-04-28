@@ -89,6 +89,7 @@ cd src/java.base/share/classes
 rm -rf org/checkerframework
 wget https://repo1.maven.org/maven2/org/checkerframework/checker-qual/$VER/checker-qual-$VER-sources.jar
 unzip checker-qual-$VER-sources.jar -x 'META-INF*'
+chmod -R u+w org/checkerframework
 jar tf checker-qual-$VER-sources.jar  | grep '\.java$' | sed 's/\/[^/]*\.java/;/' | sed 's/\//./g' | sed 's/^/    exports /' | sort | uniq
 rm -f checker-qual-$VER-sources.jar
 
