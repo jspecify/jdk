@@ -26,6 +26,7 @@
 package com.sun.javadoc;
 
 import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
  * Represents a type.  A type can be a class or interface, an
@@ -43,6 +44,7 @@ import org.checkerframework.dataflow.qual.Pure;
  *   in the package {@code jdk.javadoc.doclet}.
  *   For more information, see the <i>Migration Guide</i> in the documentation for that package.
  */
+@AnnotatedFor({"nullness", "value"})
 @Deprecated(since="9", forRemoval=true)
 @SuppressWarnings("removal")
 public interface Type {

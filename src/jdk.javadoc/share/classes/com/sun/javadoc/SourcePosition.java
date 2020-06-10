@@ -26,8 +26,10 @@
 package com.sun.javadoc;
 
 import java.io.File;
+
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
  * This interface describes a source position: filename, line number,
@@ -41,6 +43,7 @@ import org.checkerframework.dataflow.qual.SideEffectFree;
  *   in the package {@code jdk.javadoc.doclet}.
  *   For more information, see the <i>Migration Guide</i> in the documentation for that package.
  */
+@AnnotatedFor({"nullness", "value"})
 @Deprecated(since="9", forRemoval=true)
 @SuppressWarnings("removal")
 public interface SourcePosition {
