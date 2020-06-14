@@ -10,13 +10,8 @@ them cause build failures, especially in the interim builds):
  * src/java.base/share/classes/java/time/*
  * src/jdk.compiler/share/classes/com/sun/tools/javac/*
 
-There are two annotated versions of the JDK:
- * A JDK 11 version, in this directory.
- * A JDK 8 version, in directory `checker/jdk/` of repository
-   https://github.com/typetools/checker-framework/ .
-Whenever you make a change to one, you *must* make the corresponding change
-to the other.  Please make the `jdk` pull request first, and refer to its
-URL in your `checker-framework` pull request.
+Annotations for classes that exist in JDK 8 but were removed in JDK 11 appear
+in jdk8.astub files in repository https://github.com/typetools/checker-framework/ .
 
 This fork is not up to date with respect to `openjdk/jdk` (the current OpenJDK version).
 This fork contains all commits through the release of JDK 11:
