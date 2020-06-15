@@ -362,7 +362,7 @@ public @UsesObjectEquals class Package extends NamedPackage implements java.lang
     @CallerSensitive
     @Deprecated(since="9")
     @SuppressWarnings("deprecation")
-    public static @Nullable Package getPackage(String name) {
+    public static @Nullable Package getPackage(@DotSeparatedIdentifiers String name) {
         ClassLoader l = ClassLoader.getClassLoader(Reflection.getCallerClass());
         return l != null ? l.getPackage(name) : BootLoader.getDefinedPackage(name);
     }
@@ -541,7 +541,7 @@ public @UsesObjectEquals class Package extends NamedPackage implements java.lang
                                                    sealbase);
     }
 
-    Package(String name, Module module) {
+    Package(@DotSeparatedIdentifiers String name, Module module) {
         super(name, module);
         this.versionInfo = VersionInfo.NULL_VERSION_INFO;
     }

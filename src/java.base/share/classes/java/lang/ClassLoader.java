@@ -1094,7 +1094,7 @@ public abstract @UsesObjectEquals class ClassLoader {
      * @revised 9
      * @spec JPMS
      */
-    protected final Class<?> defineClass(@Nullable String name, java.nio.ByteBuffer b,
+    protected final Class<?> defineClass(@Nullable @BinaryName String name, java.nio.ByteBuffer b,
                                          @Nullable ProtectionDomain protectionDomain)
         throws ClassFormatError
     {
@@ -1121,10 +1121,10 @@ public abstract @UsesObjectEquals class ClassLoader {
         return c;
     }
 
-    static native Class<?> defineClass1(ClassLoader loader, String name, byte[] b, int off, int len,
+    static native Class<?> defineClass1(ClassLoader loader, @BinaryName String name, byte[] b, int off, int len,
                                         ProtectionDomain pd, String source);
 
-    static native Class<?> defineClass2(ClassLoader loader, String name, java.nio.ByteBuffer b,
+    static native Class<?> defineClass2(ClassLoader loader, @BinaryName String name, java.nio.ByteBuffer b,
                                         int off, int len, ProtectionDomain pd,
                                         String source);
 

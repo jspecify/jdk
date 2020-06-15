@@ -836,7 +836,7 @@ public final @Interned class Class<@UnknownKeyFor T> implements java.io.Serializ
 
     // cache the name to reduce the number of calls into the VM
     private transient @ClassGetName String name;
-    private native String getName0();
+    private native @ClassGetName String getName0();
 
     /**
      * Returns the class loader for the class.  Some implementations may use

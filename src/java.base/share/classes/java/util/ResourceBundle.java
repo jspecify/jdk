@@ -418,7 +418,7 @@ public abstract class ResourceBundle {
                 }
 
                 @Override
-                public ResourceBundle getBundle(String baseName, Locale locale, Module module) {
+                public ResourceBundle getBundle(@BinaryName String baseName, Locale locale, Module module) {
                     // use the given module as the caller to bypass the access check
                     return getBundleImpl(module, module,
                                          baseName, locale,
@@ -974,7 +974,7 @@ public abstract class ResourceBundle {
      * @see <a href="#resource-bundle-modules">Resource Bundles and Named Modules</a>
      */
     @CallerSensitive
-    public static ResourceBundle getBundle(String baseName, Module module) {
+    public static ResourceBundle getBundle(@BinaryName String baseName, Module module) {
         return getBundleFromModule(Reflection.getCallerClass(), module, baseName,
                                    Locale.getDefault(),
                                    getDefaultControl(module, baseName));
@@ -1027,7 +1027,7 @@ public abstract class ResourceBundle {
      * @see <a href="#resource-bundle-modules">Resource Bundles and Named Modules</a>
      */
     @CallerSensitive
-    public static ResourceBundle getBundle(String baseName, Locale targetLocale, Module module) {
+    public static ResourceBundle getBundle(@BinaryName String baseName, Locale targetLocale, Module module) {
         return getBundleFromModule(Reflection.getCallerClass(), module, baseName, targetLocale,
                                    getDefaultControl(module, baseName));
     }

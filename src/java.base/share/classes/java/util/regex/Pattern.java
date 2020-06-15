@@ -1076,7 +1076,7 @@ public final @UsesObjectEquals class Pattern
      */
     @CFComment({"lock/nullness: pure wrt equals(@GuardSatisfied Pattern this) but not =="})
     @Pure
-    public static @Regex Pattern compile(@Regex String regex) {
+    public static Pattern compile(@Regex String regex) {
         return new Pattern(regex, 0);
     }
 

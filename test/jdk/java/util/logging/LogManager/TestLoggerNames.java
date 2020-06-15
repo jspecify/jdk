@@ -1,3 +1,5 @@
+import org.checkerframework.checker.signature.qual.BinaryName;
+
 /*
  * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -50,7 +52,7 @@ public class TestLoggerNames {
         final Semaphore sem = new Semaphore(0);
         final Semaphore wait = new Semaphore(0);
 
-        public TestLogger(String name, String resourceBundleName) {
+        public TestLogger(String name, @BinaryName String resourceBundleName) {
             super(name, resourceBundleName);
         }
 

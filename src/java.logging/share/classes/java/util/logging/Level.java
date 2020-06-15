@@ -108,7 +108,7 @@ public @Interned class Level implements java.io.Serializable {
     /**
      * @serial The resource bundle name to be used in localizing the level name.
      */
-    private final @Nullable String resourceBundleName;
+    private final @Nullable @BinaryName String resourceBundleName;
 
     // localized level name
     private transient @Nullable String localizedLevelName;
@@ -237,7 +237,7 @@ public @Interned class Level implements java.io.Serializable {
      *    or an empty string, it is ignored.
      * @throws NullPointerException if the name is null
      */
-    protected Level(String name, int value, @Nullable String resourceBundleName) {
+    protected Level(String name, int value, @Nullable @BinaryName String resourceBundleName) {
         this(name, value, resourceBundleName, true);
     }
 

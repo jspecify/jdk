@@ -25,6 +25,7 @@
 
 package java.util.spi;
 
+import org.checkerframework.checker.signature.qual.BinaryName;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
@@ -158,5 +159,5 @@ public interface ResourceBundleProvider {
      * @return the ResourceBundle created for the given parameters, or null if no
      *         {@code ResourceBundle} for the given parameters is found
      */
-    public ResourceBundle getBundle(String baseName, Locale locale);
+    public ResourceBundle getBundle(@BinaryName String baseName, Locale locale);
 }

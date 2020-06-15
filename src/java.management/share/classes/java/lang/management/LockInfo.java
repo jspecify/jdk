@@ -60,7 +60,7 @@ import sun.management.LockInfoCompositeData;
 @AnnotatedFor({"signature", "interning"})
 public @UsesObjectEquals class LockInfo {
 
-    private String className;
+    private @ClassGetName String className;
     private int    identityHashCode;
 
     /**

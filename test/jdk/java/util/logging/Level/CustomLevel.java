@@ -1,3 +1,5 @@
+import org.checkerframework.checker.signature.qual.BinaryName;
+
 /*
  * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -47,7 +49,7 @@ import java.util.logging.*;
  */
 
 public class CustomLevel extends Level {
-    public CustomLevel(String name, int value, String resourceBundleName) {
+    public CustomLevel(String name, int value, @BinaryName String resourceBundleName) {
         super(name, value, resourceBundleName);
     }
 

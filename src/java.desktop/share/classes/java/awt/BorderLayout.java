@@ -25,6 +25,7 @@
 
 package java.awt;
 
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -125,7 +126,7 @@ import java.util.Hashtable;
  * @since       1.0
  */
 @AnnotatedFor({"interning"})
-public class BorderLayout implements LayoutManager2,
+public @UsesObjectEquals class BorderLayout implements LayoutManager2,
                                      java.io.Serializable {
     /**
      * Constructs a border layout with the horizontal gaps

@@ -28,6 +28,7 @@ package java.util.logging;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.signature.qual.BinaryName;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.CFComment;
 
@@ -286,7 +287,7 @@ public @UsesObjectEquals class LogRecord implements java.io.Serializable {
      * The result may be null if the message is not localizable.
      * @return the localization resource bundle name
      */
-    public @Nullable String getResourceBundleName() {
+    public @Nullable @BinaryName String getResourceBundleName() {
         return resourceBundleName;
     }
 

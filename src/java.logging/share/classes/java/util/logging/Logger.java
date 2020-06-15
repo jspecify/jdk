@@ -783,7 +783,7 @@ public @UsesObjectEquals class Logger {
     // adding a new Logger object is handled by LogManager.addLogger().
     @Pure
     @CallerSensitive
-    public static Logger getLogger(String name, @Nullable String resourceBundleName) {
+    public static Logger getLogger(String name, @Nullable @BinaryName String resourceBundleName) {
         return Logger.getLogger(name, resourceBundleName, Reflection.getCallerClass());
     }
 
