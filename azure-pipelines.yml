@@ -112,4 +112,4 @@ jobs:
   - bash: /tmp/$USER/plume-scripts/git-clone-related typetools checker-framework
     displayName: clone checker-framework
   - bash: (cd ../checker-framework && checker/bin-devel/test-plume-lib.sh)
-    displayName: test-daikon.sh
+    displayName: test-plume-lib.sh
