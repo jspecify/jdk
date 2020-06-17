@@ -28,6 +28,9 @@ package java.lang;
 import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.common.value.qual.PolyValue;
+import org.checkerframework.common.value.qual.StaticallyExecutable;
+import org.checkerframework.common.value.qual.StringVal;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -49,7 +52,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @author  Arthur van Hoff
  * @since   1.0
  */
-@AnnotatedFor({"interning", "nullness"})
+@AnnotatedFor({"interning", "nullness", "value"})
 public final class Boolean implements java.io.Serializable,
                                       Comparable<Boolean>
 {
@@ -96,6 +99,7 @@ public final class Boolean implements java.io.Serializable,
      * Also consider using the final fields {@link #TRUE} and {@link #FALSE}
      * if possible.
      */
+    @StaticallyExecutable
     @Deprecated(since="9")
     public Boolean(boolean value) {
         this.value = value;
@@ -116,6 +120,7 @@ public final class Boolean implements java.io.Serializable,
      * {@code boolean} primitive, or use {@link #valueOf(String)}
      * to convert a string to a {@code Boolean} object.
      */
+    @StaticallyExecutable
     @Deprecated(since="9")
     public Boolean(@Nullable String s) {
         this(parseBoolean(s));
@@ -137,6 +142,7 @@ public final class Boolean implements java.io.Serializable,
      * @since 1.5
      */
     @Pure
+    @StaticallyExecutable
     @EnsuresNonNullIf(expression="#1", result=true)
     public static boolean parseBoolean(@Nullable String s) {
         return "true".equalsIgnoreCase(s);
@@ -149,8 +155,9 @@ public final class Boolean implements java.io.Serializable,
      * @return  the primitive {@code boolean} value of this object.
      */
     @Pure
+    @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public boolean booleanValue() {
+    public @PolyValue boolean booleanValue(@PolyValue Boolean this) {
         return value;
     }
 
@@ -169,8 +176,9 @@ public final class Boolean implements java.io.Serializable,
      * @since  1.4
      */
     @Pure
+    @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public static @Interned Boolean valueOf(boolean b) {
+    public static @Interned @PolyValue Boolean valueOf(@PolyValue boolean b) {
         return (b ? TRUE : FALSE);
     }
 
@@ -186,7 +194,8 @@ public final class Boolean implements java.io.Serializable,
      * @return  the {@code Boolean} value represented by the string.
      */
     @Pure
-    public static @Interned Boolean valueOf(@Nullable String s) {
+    @StaticallyExecutable
+    public static @Interned @PolyValue Boolean valueOf(@Nullable @PolyValue String s) {
         return parseBoolean(s) ? TRUE : FALSE;
     }
 
@@ -201,7 +210,8 @@ public final class Boolean implements java.io.Serializable,
      * @since 1.4
      */
     @Pure
-    public static String toString(boolean b) {
+    @StaticallyExecutable
+    public static @StringVal({"true", "false"}) String toString(boolean b) {
         return b ? "true" : "false";
     }
 
@@ -213,8 +223,9 @@ public final class Boolean implements java.io.Serializable,
      *
      * @return  a string representation of this object.
      */
+    @StaticallyExecutable
     @SideEffectFree
-    public String toString() {
+    public @StringVal({"true", "false"}) String toString() {
         return value ? "true" : "false";
     }
 
@@ -226,6 +237,7 @@ public final class Boolean implements java.io.Serializable,
      * object represents {@code false}.
      */
     @Pure
+    @StaticallyExecutable
     @Override
     public int hashCode() {
         return Boolean.hashCode(value);
@@ -239,6 +251,8 @@ public final class Boolean implements java.io.Serializable,
      * @return a hash code value for a {@code boolean} value.
      * @since 1.8
      */
+    @Pure
+    @StaticallyExecutable
     public static int hashCode(boolean value) {
         return value ? 1231 : 1237;
     }
@@ -253,6 +267,7 @@ public final class Boolean implements java.io.Serializable,
      *          same value; {@code false} otherwise.
      */
     @Pure
+    @StaticallyExecutable
     @EnsuresNonNullIf(expression="#1", result=true)
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof Boolean) {
@@ -278,6 +293,7 @@ public final class Boolean implements java.io.Serializable,
      * @see     java.lang.System#getProperty(java.lang.String, java.lang.String)
      */
     @Pure
+    @StaticallyExecutable
     @EnsuresNonNullIf(expression="#1", result=true)
     public static boolean getBoolean(@Nullable String name) {
         boolean result = false;
@@ -301,6 +317,7 @@ public final class Boolean implements java.io.Serializable,
      * @since  1.5
      */
     @Pure
+    @StaticallyExecutable
     public int compareTo(Boolean b) {
         return compare(this.value, b.value);
     }
@@ -319,6 +336,8 @@ public final class Boolean implements java.io.Serializable,
      *         a value greater than {@code 0} if {@code x && !y}
      * @since 1.7
      */
+    @Pure
+    @StaticallyExecutable
     public static int compare(boolean x, boolean y) {
         return (x == y) ? 0 : (x ? 1 : -1);
     }
@@ -333,6 +352,8 @@ public final class Boolean implements java.io.Serializable,
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
+    @Pure
+    @StaticallyExecutable
     public static boolean logicalAnd(boolean a, boolean b) {
         return a && b;
     }
@@ -347,6 +368,8 @@ public final class Boolean implements java.io.Serializable,
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
+    @Pure
+    @StaticallyExecutable
     public static boolean logicalOr(boolean a, boolean b) {
         return a || b;
     }
@@ -361,6 +384,8 @@ public final class Boolean implements java.io.Serializable,
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
+    @Pure
+    @StaticallyExecutable
     public static boolean logicalXor(boolean a, boolean b) {
         return a ^ b;
     }

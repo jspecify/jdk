@@ -28,6 +28,7 @@ package java.util;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.common.value.qual.MinLen;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.lang.*;
@@ -337,7 +338,7 @@ public
      * @exception  NoSuchElementException  if there are no more tokens in this
      *               tokenizer's string.
      */
-    public String nextToken() {
+    public @MinLen(1) String nextToken() {
         /*
          * If next position already computed in hasMoreElements() and
          * delimiters have changed between the computation and this invocation,
@@ -373,7 +374,7 @@ public
      *               tokenizer's string.
      * @exception NullPointerException if delim is {@code null}
      */
-    public String nextToken(String delim) {
+    public @MinLen(1) String nextToken(String delim) {
         delimiters = delim;
 
         /* delimiter string specified, so set the appropriate flag. */

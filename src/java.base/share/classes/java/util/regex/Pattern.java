@@ -29,6 +29,7 @@ import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.regex.qual.PolyRegex;
 import org.checkerframework.checker.regex.qual.Regex;
+import org.checkerframework.common.value.qual.MinLen;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -1269,7 +1270,7 @@ public final @UsesObjectEquals class Pattern
      * @return  The array of strings computed by splitting the input
      *          around matches of this pattern
      */
-    public String[] split(CharSequence input, int limit) {
+    public String @MinLen(1) [] split(CharSequence input, int limit) {
         int index = 0;
         boolean matchLimited = limit > 0;
         ArrayList<String> matchList = new ArrayList<>();
@@ -1345,7 +1346,7 @@ public final @UsesObjectEquals class Pattern
      * @return  The array of strings computed by splitting the input
      *          around matches of this pattern
      */
-    public String[] split(CharSequence input) {
+    public String @MinLen(1) [] split(CharSequence input) {
         return split(input, 0);
     }
 

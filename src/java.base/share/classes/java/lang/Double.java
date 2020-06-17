@@ -26,6 +26,10 @@
 package java.lang;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.common.value.qual.DoubleVal;
+import org.checkerframework.common.value.qual.IntVal;
+import org.checkerframework.common.value.qual.PolyValue;
+import org.checkerframework.common.value.qual.StaticallyExecutable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -51,7 +55,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @author  Joseph D. Darcy
  * @since 1.0
  */
-@AnnotatedFor({"nullness", "index"})
+@AnnotatedFor({"nullness", "index", "value"})
 public final class Double extends Number implements Comparable<Double> {
     /**
      * A constant holding the positive infinity of type
@@ -82,7 +86,7 @@ public final class Double extends Number implements Comparable<Double> {
      * {@code 0x1.fffffffffffffP+1023} and also equal to
      * {@code Double.longBitsToDouble(0x7fefffffffffffffL)}.
      */
-    public static final double MAX_VALUE = 0x1.fffffffffffffP+1023; // 1.7976931348623157e+308
+    public static final @DoubleVal(0x1.fffffffffffffP+1023) double MAX_VALUE = 0x1.fffffffffffffP+1023; // 1.7976931348623157e+308
 
     /**
      * A constant holding the smallest positive normal value of type
@@ -101,7 +105,7 @@ public final class Double extends Number implements Comparable<Double> {
      * {@code 0x0.0000000000001P-1022} and also equal to
      * {@code Double.longBitsToDouble(0x1L)}.
      */
-    public static final double MIN_VALUE = 0x0.0000000000001P-1022; // 4.9e-324
+    public static final @DoubleVal(0x0.0000000000001P-1022) double MIN_VALUE = 0x0.0000000000001P-1022; // 4.9e-324
 
     /**
      * Maximum exponent a finite {@code double} variable may have.
@@ -110,7 +114,7 @@ public final class Double extends Number implements Comparable<Double> {
      *
      * @since 1.6
      */
-    public static final int MAX_EXPONENT = 1023;
+    public static final @IntVal(1023) int MAX_EXPONENT = 1023;
 
     /**
      * Minimum exponent a normalized {@code double} variable may
@@ -119,21 +123,21 @@ public final class Double extends Number implements Comparable<Double> {
      *
      * @since 1.6
      */
-    public static final int MIN_EXPONENT = -1022;
+    public static final @IntVal(-1022) int MIN_EXPONENT = -1022;
 
     /**
      * The number of bits used to represent a {@code double} value.
      *
      * @since 1.5
      */
-    public static final int SIZE = 64;
+    public static final @IntVal(64) int SIZE = 64;
 
     /**
      * The number of bytes used to represent a {@code double} value.
      *
      * @since 1.8
      */
-    public static final int BYTES = SIZE / Byte.SIZE;
+    public static final @IntVal(8) int BYTES = SIZE / Byte.SIZE;
 
     /**
      * The {@code Class} instance representing the primitive type
@@ -207,6 +211,7 @@ public final class Double extends Number implements Comparable<Double> {
      * @return a string representation of the argument.
      */
     @SideEffectFree
+    @StaticallyExecutable
     public static String toString(double d) {
         return FloatingDecimal.toJavaFormatString(d);
     }
@@ -290,6 +295,7 @@ public final class Double extends Number implements Comparable<Double> {
      * @author Joseph D. Darcy
      */
     @SideEffectFree
+    @StaticallyExecutable
     public static String toHexString(double d) {
         /*
          * Modeled after the "a" conversion specifier in C99, section
@@ -511,6 +517,7 @@ public final class Double extends Number implements Comparable<Double> {
      *             parsable number.
      */
     @SideEffectFree
+    @StaticallyExecutable
     public static Double valueOf(String s) throws NumberFormatException {
         return new Double(parseDouble(s));
     }
@@ -529,8 +536,9 @@ public final class Double extends Number implements Comparable<Double> {
      * @since  1.5
      */
     @SideEffectFree
+    @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public static Double valueOf(double d) {
+    public static @PolyValue Double valueOf(@PolyValue double d) {
         return new Double(d);
     }
 
@@ -550,6 +558,7 @@ public final class Double extends Number implements Comparable<Double> {
      * @since 1.2
      */
     @Pure
+    @StaticallyExecutable
     public static double parseDouble(String s) throws NumberFormatException {
         return FloatingDecimal.parseDouble(s);
     }
@@ -563,6 +572,7 @@ public final class Double extends Number implements Comparable<Double> {
      *          {@code false} otherwise.
      */
     @Pure
+    @StaticallyExecutable
     public static boolean isNaN(double v) {
         return (v != v);
     }
@@ -576,6 +586,7 @@ public final class Double extends Number implements Comparable<Double> {
      *          infinity or negative infinity; {@code false} otherwise.
      */
     @Pure
+    @StaticallyExecutable
     public static boolean isInfinite(double v) {
         return (v == POSITIVE_INFINITY) || (v == NEGATIVE_INFINITY);
     }
@@ -590,6 +601,8 @@ public final class Double extends Number implements Comparable<Double> {
      * floating-point value, {@code false} otherwise.
      * @since 1.8
      */
+    @Pure
+    @StaticallyExecutable
     public static boolean isFinite(double d) {
         return Math.abs(d) <= Double.MAX_VALUE;
     }
@@ -612,6 +625,7 @@ public final class Double extends Number implements Comparable<Double> {
      * {@link #valueOf(double)} is generally a better choice, as it is
      * likely to yield significantly better space and time performance.
      */
+    @StaticallyExecutable
     @Deprecated(since="9")
     public Double(double value) {
         this.value = value;
@@ -633,6 +647,7 @@ public final class Double extends Number implements Comparable<Double> {
      * {@code double} primitive, or use {@link #valueOf(String)}
      * to convert a string to a {@code Double} object.
      */
+    @StaticallyExecutable
     @Deprecated(since="9")
     public Double(String s) throws NumberFormatException {
         value = parseDouble(s);
@@ -646,6 +661,7 @@ public final class Double extends Number implements Comparable<Double> {
      *          NaN; {@code false} otherwise.
      */
     @Pure
+    @StaticallyExecutable
     public boolean isNaN() {
         return isNaN(value);
     }
@@ -659,6 +675,7 @@ public final class Double extends Number implements Comparable<Double> {
      *          {@code false} otherwise.
      */
     @Pure
+    @StaticallyExecutable
     public boolean isInfinite() {
         return isInfinite(value);
     }
@@ -673,6 +690,7 @@ public final class Double extends Number implements Comparable<Double> {
      * @see java.lang.Double#toString(double)
      */
     @SideEffectFree
+    @StaticallyExecutable
     public String toString() {
         return toString(value);
     }
@@ -687,7 +705,8 @@ public final class Double extends Number implements Comparable<Double> {
      * @since 1.1
      */
     @Pure
-    public byte byteValue() {
+    @StaticallyExecutable
+    public @PolyValue byte byteValue(@PolyValue Double this) {
         return (byte)value;
     }
 
@@ -701,7 +720,8 @@ public final class Double extends Number implements Comparable<Double> {
      * @since 1.1
      */
     @Pure
-    public short shortValue() {
+    @StaticallyExecutable
+    public @PolyValue short shortValue(@PolyValue Double this) {
         return (short)value;
     }
 
@@ -714,7 +734,8 @@ public final class Double extends Number implements Comparable<Double> {
      *          converted to type {@code int}
      */
     @Pure
-    public int intValue() {
+    @StaticallyExecutable
+    public @PolyValue int intValue(@PolyValue Double this) {
         return (int)value;
     }
 
@@ -727,7 +748,8 @@ public final class Double extends Number implements Comparable<Double> {
      * @jls 5.1.3 Narrowing Primitive Conversions
      */
     @Pure
-    public long longValue() {
+    @StaticallyExecutable
+    public @PolyValue long longValue(@PolyValue Double this) {
         return (long)value;
     }
 
@@ -741,7 +763,8 @@ public final class Double extends Number implements Comparable<Double> {
      * @since 1.0
      */
     @Pure
-    public float floatValue() {
+    @StaticallyExecutable
+    public @PolyValue float floatValue(@PolyValue Double this) {
         return (float)value;
     }
 
@@ -751,8 +774,9 @@ public final class Double extends Number implements Comparable<Double> {
      * @return the {@code double} value represented by this object
      */
     @Pure
+    @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public double doubleValue() {
+    public @PolyValue double doubleValue(@PolyValue Double this) {
         return value;
     }
 
@@ -778,6 +802,7 @@ public final class Double extends Number implements Comparable<Double> {
      * @return  a {@code hash code} value for this object.
      */
     @Pure
+    @StaticallyExecutable
     @Override
     public int hashCode() {
         return Double.hashCode(value);
@@ -791,6 +816,7 @@ public final class Double extends Number implements Comparable<Double> {
      * @return a hash code value for a {@code double} value.
      * @since 1.8
      */
+    @StaticallyExecutable
     public static int hashCode(double value) {
         long bits = doubleToLongBits(value);
         return (int)(bits ^ (bits >>> 32));
@@ -836,6 +862,7 @@ public final class Double extends Number implements Comparable<Double> {
      * @see java.lang.Double#doubleToLongBits(double)
      */
     @Pure
+    @StaticallyExecutable
     public boolean equals(@Nullable Object obj) {
         return (obj instanceof Double)
                && (doubleToLongBits(((Double)obj).value) ==
@@ -875,6 +902,7 @@ public final class Double extends Number implements Comparable<Double> {
      * @return the bits that represent the floating-point number.
      */
     @Pure
+    @StaticallyExecutable
     @HotSpotIntrinsicCandidate
     public static long doubleToLongBits(double value) {
         if (!isNaN(value)) {
@@ -920,6 +948,7 @@ public final class Double extends Number implements Comparable<Double> {
      * @since 1.3
      */
     @Pure
+    @StaticallyExecutable
     @HotSpotIntrinsicCandidate
     public static native long doubleToRawLongBits(double value);
 
@@ -985,6 +1014,7 @@ public final class Double extends Number implements Comparable<Double> {
      *          bit pattern.
      */
     @Pure
+    @StaticallyExecutable
     @HotSpotIntrinsicCandidate
     public static native double longBitsToDouble(long bits);
 
@@ -1019,6 +1049,7 @@ public final class Double extends Number implements Comparable<Double> {
      * @since   1.2
      */
     @Pure
+    @StaticallyExecutable
     public int compareTo(Double anotherDouble) {
         return Double.compare(value, anotherDouble.value);
     }
@@ -1042,6 +1073,7 @@ public final class Double extends Number implements Comparable<Double> {
      * @since 1.4
      */
     @Pure
+    @StaticallyExecutable
     public static int compare(double d1, double d2) {
         if (d1 < d2)
             return -1;           // Neither val is NaN, thisVal is smaller
@@ -1067,6 +1099,8 @@ public final class Double extends Number implements Comparable<Double> {
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
+    @Pure
+    @StaticallyExecutable
     public static double sum(double a, double b) {
         return a + b;
     }
@@ -1081,6 +1115,8 @@ public final class Double extends Number implements Comparable<Double> {
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
+    @Pure
+    @StaticallyExecutable
     public static double max(double a, double b) {
         return Math.max(a, b);
     }
@@ -1095,6 +1131,8 @@ public final class Double extends Number implements Comparable<Double> {
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
+    @Pure
+    @StaticallyExecutable
     public static double min(double a, double b) {
         return Math.min(a, b);
     }

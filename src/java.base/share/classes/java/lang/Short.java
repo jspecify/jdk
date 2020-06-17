@@ -26,9 +26,13 @@
 package java.lang;
 
 import org.checkerframework.checker.index.qual.PolyIndex;
-import org.checkerframework.checker.index.qual.PolyIndex;
 import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.common.value.qual.ArrayLen;
+import org.checkerframework.common.value.qual.IntRange;
+import org.checkerframework.common.value.qual.IntVal;
+import org.checkerframework.common.value.qual.PolyValue;
+import org.checkerframework.common.value.qual.StaticallyExecutable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -50,20 +54,20 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @see     java.lang.Number
  * @since   1.1
  */
-@AnnotatedFor({"nullness", "index"})
+@AnnotatedFor({"nullness", "index", "value"})
 public final class Short extends Number implements Comparable<Short> {
 
     /**
      * A constant holding the minimum value a {@code short} can
      * have, -2<sup>15</sup>.
      */
-    public static final short   MIN_VALUE = -32768;
+    public static final @IntVal(-32768) short   MIN_VALUE = -32768;
 
     /**
      * A constant holding the maximum value a {@code short} can
      * have, 2<sup>15</sup>-1.
      */
-    public static final @Positive short   MAX_VALUE = 32767;
+    public static final @Positive @IntVal(32767) short   MAX_VALUE = 32767;
 
     /**
      * The {@code Class} instance representing the primitive type
@@ -81,7 +85,8 @@ public final class Short extends Number implements Comparable<Short> {
      * @see java.lang.Integer#toString(int)
      */
     @SideEffectFree
-    public static String toString(short s) {
+    @StaticallyExecutable
+    public static @ArrayLen({1, 2, 3, 4, 5, 6}) String toString(short s) {
         return Integer.toString((int)s, 10);
     }
 
@@ -126,7 +131,8 @@ public final class Short extends Number implements Comparable<Short> {
      *                  does not contain a parsable {@code short}.
      */
     @Pure
-    public static short parseShort(String s, @Positive int radix)
+    @StaticallyExecutable
+    public static short parseShort(String s, @Positive @IntRange(from = 2, to = 36) int radix)
         throws NumberFormatException {
         int i = Integer.parseInt(s, radix);
         if (i < MIN_VALUE || i > MAX_VALUE)
@@ -154,6 +160,7 @@ public final class Short extends Number implements Comparable<Short> {
      *          contain a parsable {@code short}.
      */
     @Pure
+    @StaticallyExecutable
     public static short parseShort(String s) throws NumberFormatException {
         return parseShort(s, 10);
     }
@@ -184,7 +191,8 @@ public final class Short extends Number implements Comparable<Short> {
      *                  not contain a parsable {@code short}.
      */
     @SideEffectFree
-    public static Short valueOf(String s, @Positive int radix)
+    @StaticallyExecutable
+    public static Short valueOf(String s, @Positive @IntRange(from = 2, to = 36) int radix)
         throws NumberFormatException {
         return valueOf(parseShort(s, radix));
     }
@@ -212,6 +220,7 @@ public final class Short extends Number implements Comparable<Short> {
      *          not contain a parsable {@code short}.
      */
     @SideEffectFree
+    @StaticallyExecutable
     public static Short valueOf(String s) throws NumberFormatException {
         return valueOf(s, 10);
     }
@@ -244,8 +253,9 @@ public final class Short extends Number implements Comparable<Short> {
      * @since  1.5
      */
     @SideEffectFree
+    @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public static @PolyIndex Short valueOf(@PolyIndex short s) {
+    public static @PolyIndex @PolyValue Short valueOf(@PolyIndex @PolyValue short s) {
         final int offset = 128;
         int sAsInt = s;
         if (sAsInt >= -128 && sAsInt <= 127) { // must cache
@@ -297,6 +307,7 @@ public final class Short extends Number implements Comparable<Short> {
      * @see java.lang.Short#parseShort(java.lang.String, int)
      */
     @SideEffectFree
+    @StaticallyExecutable
     public static Short decode(String nm) throws NumberFormatException {
         int i = Integer.decode(nm);
         if (i < MIN_VALUE || i > MAX_VALUE)
@@ -325,6 +336,7 @@ public final class Short extends Number implements Comparable<Short> {
      * likely to yield significantly better space and time performance.
      */
     @SideEffectFree
+    @StaticallyExecutable
     @Deprecated(since="9")
     public @PolyIndex Short(@PolyIndex short value) {
         this.value = value;
@@ -349,6 +361,7 @@ public final class Short extends Number implements Comparable<Short> {
      * to convert a string to a {@code Short} object.
      */
     @SideEffectFree
+    @StaticallyExecutable
     @Deprecated(since="9")
     public Short(String s) throws NumberFormatException {
         this.value = parseShort(s, 10);
@@ -360,7 +373,8 @@ public final class Short extends Number implements Comparable<Short> {
      * @jls 5.1.3 Narrowing Primitive Conversions
      */
     @Pure
-    public @PolyIndex byte byteValue(@PolyIndex Short this) {
+    @StaticallyExecutable
+    public @PolyIndex @PolyValue byte byteValue(@PolyIndex @PolyValue Short this) {
         return (byte)value;
     }
 
@@ -369,8 +383,9 @@ public final class Short extends Number implements Comparable<Short> {
      * {@code short}.
      */
     @Pure
+    @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public @PolyIndex short shortValue(@PolyIndex Short this) {
+    public @PolyIndex @PolyValue short shortValue(@PolyIndex @PolyValue Short this) {
         return value;
     }
 
@@ -380,7 +395,8 @@ public final class Short extends Number implements Comparable<Short> {
      * @jls 5.1.2 Widening Primitive Conversions
      */
     @Pure
-    public @PolyIndex int intValue(@PolyIndex Short this) {
+    @StaticallyExecutable
+    public @PolyIndex @PolyValue int intValue(@PolyIndex @PolyValue Short this) {
         return (int)value;
     }
 
@@ -390,7 +406,8 @@ public final class Short extends Number implements Comparable<Short> {
      * @jls 5.1.2 Widening Primitive Conversions
      */
     @Pure
-    public @PolyIndex long longValue(@PolyIndex Short this) {
+    @StaticallyExecutable
+    public @PolyIndex @PolyValue long longValue(@PolyIndex @PolyValue Short this) {
         return (long)value;
     }
 
@@ -400,7 +417,8 @@ public final class Short extends Number implements Comparable<Short> {
      * @jls 5.1.2 Widening Primitive Conversions
      */
     @Pure
-    public float floatValue() {
+    @StaticallyExecutable
+    public @PolyValue float floatValue(@PolyValue Short this) {
         return (float)value;
     }
 
@@ -410,7 +428,8 @@ public final class Short extends Number implements Comparable<Short> {
      * @jls 5.1.2 Widening Primitive Conversions
      */
     @Pure
-    public double doubleValue() {
+    @StaticallyExecutable
+    public @PolyValue double doubleValue(@PolyValue Short this) {
         return (double)value;
     }
 
@@ -425,7 +444,8 @@ public final class Short extends Number implements Comparable<Short> {
      *          base&nbsp;10.
      */
     @SideEffectFree
-    public String toString() {
+    @StaticallyExecutable
+    public @ArrayLen({1, 2, 3, 4, 5, 6}) String toString() {
         return Integer.toString((int)value);
     }
 
@@ -436,6 +456,7 @@ public final class Short extends Number implements Comparable<Short> {
      * @return a hash code value for this {@code Short}
      */
     @Pure
+    @StaticallyExecutable
     @Override
     public int hashCode() {
         return Short.hashCode(value);
@@ -449,6 +470,8 @@ public final class Short extends Number implements Comparable<Short> {
      * @return a hash code value for a {@code short} value.
      * @since 1.8
      */
+    @Pure
+    @StaticallyExecutable
     public static int hashCode(short value) {
         return (int)value;
     }
@@ -464,6 +487,7 @@ public final class Short extends Number implements Comparable<Short> {
      *                  {@code false} otherwise.
      */
     @Pure
+    @StaticallyExecutable
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof Short) {
             return value == ((Short)obj).shortValue();
@@ -485,6 +509,7 @@ public final class Short extends Number implements Comparable<Short> {
      * @since   1.2
      */
     @Pure
+    @StaticallyExecutable
     public int compareTo(Short anotherShort) {
         return compare(this.value, anotherShort.value);
     }
@@ -503,6 +528,8 @@ public final class Short extends Number implements Comparable<Short> {
      *         a value greater than {@code 0} if {@code x > y}
      * @since 1.7
      */
+    @Pure
+    @StaticallyExecutable
     public static int compare(short x, short y) {
         return x - y;
     }
@@ -519,6 +546,8 @@ public final class Short extends Number implements Comparable<Short> {
      *         unsigned values
      * @since 9
      */
+    @Pure
+    @StaticallyExecutable
     public static int compareUnsigned(short x, short y) {
         return Short.toUnsignedInt(x) - Short.toUnsignedInt(y);
     }
@@ -528,7 +557,7 @@ public final class Short extends Number implements Comparable<Short> {
      * complement binary form.
      * @since 1.5
      */
-    public static final @Positive int SIZE = 16;
+    public static final @Positive @IntVal(16) int SIZE = 16;
 
     /**
      * The number of bytes used to represent a {@code short} value in two's
@@ -536,7 +565,7 @@ public final class Short extends Number implements Comparable<Short> {
      *
      * @since 1.8
      */
-    public static final int BYTES = SIZE / Byte.SIZE;
+    public static final @IntVal(2) int BYTES = SIZE / Byte.SIZE;
 
     /**
      * Returns the value obtained by reversing the order of the bytes in the
@@ -548,6 +577,7 @@ public final class Short extends Number implements Comparable<Short> {
      * @since 1.5
      */
     @Pure
+    @StaticallyExecutable
     @HotSpotIntrinsicCandidate
     public static short reverseBytes(short i) {
         return (short) (((i & 0xFF00) >> 8) | (i << 8));
@@ -570,6 +600,8 @@ public final class Short extends Number implements Comparable<Short> {
      *         conversion
      * @since 1.8
      */
+    @Pure
+    @StaticallyExecutable
     public static int toUnsignedInt(short x) {
         return ((int) x) & 0xffff;
     }
@@ -590,6 +622,8 @@ public final class Short extends Number implements Comparable<Short> {
      *         conversion
      * @since 1.8
      */
+    @Pure
+    @StaticallyExecutable
     public static long toUnsignedLong(short x) {
         return ((long) x) & 0xffffL;
     }

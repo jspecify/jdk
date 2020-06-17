@@ -33,6 +33,7 @@ import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.common.value.qual.MinLen;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -4893,7 +4894,7 @@ public class Arrays {
      * @since 1.5
      */
     @SideEffectFree
-    public static String toString(long @Nullable [] a) {
+    public static @MinLen(2) String toString(long @Nullable [] a) {
         if (a == null)
             return "null";
         int iMax = a.length - 1;
@@ -4924,7 +4925,7 @@ public class Arrays {
      * @since 1.5
      */
     @SideEffectFree
-    public static String toString(int @Nullable [] a) {
+    public static @MinLen(2) String toString(int @Nullable [] a) {
         if (a == null)
             return "null";
         int iMax = a.length - 1;
@@ -4955,7 +4956,7 @@ public class Arrays {
      * @since 1.5
      */
     @SideEffectFree
-    public static String toString(short @Nullable [] a) {
+    public static @MinLen(2) String toString(short @Nullable [] a) {
         if (a == null)
             return "null";
         int iMax = a.length - 1;
@@ -4986,7 +4987,7 @@ public class Arrays {
      * @since 1.5
      */
     @SideEffectFree
-    public static String toString(char @Nullable [] a) {
+    public static @MinLen(2) String toString(char @Nullable [] a) {
         if (a == null)
             return "null";
         int iMax = a.length - 1;
@@ -5017,7 +5018,7 @@ public class Arrays {
      * @since 1.5
      */
     @SideEffectFree
-    public static String toString(byte @Nullable [] a) {
+    public static @MinLen(2) String toString(byte @Nullable [] a) {
         if (a == null)
             return "null";
         int iMax = a.length - 1;
@@ -5048,7 +5049,7 @@ public class Arrays {
      * @since 1.5
      */
     @SideEffectFree
-    public static String toString(boolean @Nullable [] a) {
+    public static @MinLen(2) String toString(boolean @Nullable [] a) {
         if (a == null)
             return "null";
         int iMax = a.length - 1;
@@ -5079,7 +5080,7 @@ public class Arrays {
      * @since 1.5
      */
     @SideEffectFree
-    public static String toString(float @Nullable [] a) {
+    public static @MinLen(2) String toString(float @Nullable [] a) {
         if (a == null)
             return "null";
 
@@ -5111,7 +5112,7 @@ public class Arrays {
      * @since 1.5
      */
     @SideEffectFree
-    public static String toString(double @Nullable [] a) {
+    public static @MinLen(2) String toString(double @Nullable [] a) {
         if (a == null)
             return "null";
         int iMax = a.length - 1;
@@ -5145,7 +5146,7 @@ public class Arrays {
      * @since 1.5
      */
     @SideEffectFree
-    public static String toString(@PolyNull @PolyInterned Object @Nullable [] a) {
+    public static @MinLen(2) String toString(@PolyNull @PolyInterned Object @Nullable [] a) {
         if (a == null)
             return "null";
 
@@ -5197,7 +5198,7 @@ public class Arrays {
      * @since 1.5
      */
     @SideEffectFree
-    public static String deepToString(@PolyNull @PolyInterned Object @Nullable [] a) {
+    public static @MinLen(2) String deepToString(@PolyNull @PolyInterned Object @Nullable [] a) {
         if (a == null)
             return "null";
 

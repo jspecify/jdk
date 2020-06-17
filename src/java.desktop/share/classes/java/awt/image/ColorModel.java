@@ -25,18 +25,19 @@
 
 package java.awt.image;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.checker.index.qual.IndexFor;
 import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.checker.index.qual.SameLen;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.common.value.qual.PolyValue;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.awt.Transparency;
 import java.awt.color.ColorSpace;
@@ -981,7 +982,7 @@ public abstract class ColorModel implements Transparency{
      * @throws UnsupportedOperationException if this
      *          method is not supported by this {@code ColorModel}
      */
-    public @NonNegative int @SameLen({"#2"}) [] getComponents(int pixel, int[] components, @IndexFor({"#2"}) int offset) {
+    public @NonNegative int @SameLen({"#2"}) @PolyValue [] getComponents(int pixel, int @PolyValue [] components, @IndexFor({"#2"}) int offset) {
         throw new UnsupportedOperationException
             ("This method is not supported by this color model.");
     }
@@ -1023,7 +1024,7 @@ public abstract class ColorModel implements Transparency{
      * @throws UnsupportedOperationException if this
      *          method is not supported by this {@code ColorModel}
      */
-    public @NonNegative int @SameLen({"#2"}) [] getComponents(Object pixel, int[] components, @IndexFor({"#2"}) int offset) {
+    public @NonNegative int @SameLen({"#2"}) @PolyValue [] getComponents(Object pixel, int @PolyValue [] components, @IndexFor({"#2"}) int offset) {
         throw new UnsupportedOperationException
             ("This method is not supported by this color model.");
     }

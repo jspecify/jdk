@@ -41,6 +41,7 @@ package java.util;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.common.value.qual.IntRange;
 import org.checkerframework.common.value.qual.IntVal;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
@@ -2985,7 +2986,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #getFirstDayOfWeek()
      * @see #getMinimalDaysInFirstWeek()
      */
-    public void setFirstDayOfWeek(@GuardSatisfied Calendar this, int value)
+    public void setFirstDayOfWeek(@GuardSatisfied Calendar this, @IntRange(from = 1, to = 7) int value)
     {
         if (firstDayOfWeek == value) {
             return;
@@ -3002,7 +3003,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #setFirstDayOfWeek(int)
      * @see #getMinimalDaysInFirstWeek()
      */
-    public int getFirstDayOfWeek(@GuardSatisfied Calendar this)
+    public @IntRange(from = 1, to = 7) int getFirstDayOfWeek(@GuardSatisfied Calendar this)
     {
         return firstDayOfWeek;
     }
@@ -3017,7 +3018,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * of the year.
      * @see #getMinimalDaysInFirstWeek()
      */
-    public void setMinimalDaysInFirstWeek(@GuardSatisfied Calendar this, int value)
+    public void setMinimalDaysInFirstWeek(@GuardSatisfied Calendar this, @IntRange(from = 1, to = 7) int value)
     {
         if (minimalDaysInFirstWeek == value) {
             return;
@@ -3036,7 +3037,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @return the minimal days required in the first week of the year.
      * @see #setMinimalDaysInFirstWeek(int)
      */
-    public int getMinimalDaysInFirstWeek(@GuardSatisfied Calendar this)
+    public @IntRange(from = 1, to = 7) int getMinimalDaysInFirstWeek(@GuardSatisfied Calendar this)
     {
         return minimalDaysInFirstWeek;
     }

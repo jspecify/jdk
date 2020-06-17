@@ -369,7 +369,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
     private boolean closed = false;
 
     // The current radix used by this scanner
-    private @Positive int radix = 10;
+    private @Positive @IntRange(from = 2, to = 36) int radix = 10;
 
     // The default radix for this scanner
     private @IntRange(from = 2, to = 36) int defaultRadix = 10;
@@ -1337,7 +1337,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *
      * @return the default radix of this scanner
      */
-    public @Positive int radix() {
+    public @Positive @IntRange(from = 2, to = 36) int radix() {
         return this.defaultRadix;
     }
 
@@ -1374,7 +1374,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
 
     // The next operation should occur in the specified radix but
     // the default is left untouched.
-    private void setRadix(@Positive int radix) {
+    private void setRadix(@Positive @IntRange(from = 2, to = 36) int radix) {
         if ((radix < Character.MIN_RADIX) || (radix > Character.MAX_RADIX))
             throw new IllegalArgumentException("radix:"+radix);
 
@@ -1933,7 +1933,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public boolean hasNextByte(@GuardSatisfied Scanner this, @Positive int radix) {
+    public boolean hasNextByte(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
         setRadix(radix);
         boolean result = hasNext(integerPattern());
         if (result) { // Cache it
@@ -1999,7 +1999,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public @PolySigned byte nextByte(@GuardSatisfied Scanner this, @Positive int radix) {
+    public @PolySigned byte nextByte(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
         // Check cached result
         if ((typeCache != null) && (typeCache instanceof Byte)
             && this.radix == radix) {
@@ -2049,7 +2049,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public boolean hasNextShort(@GuardSatisfied Scanner this, @Positive int radix) {
+    public boolean hasNextShort(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
         setRadix(radix);
         boolean result = hasNext(integerPattern());
         if (result) { // Cache it
@@ -2115,7 +2115,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public @PolySigned short nextShort(@GuardSatisfied Scanner this, @Positive int radix) {
+    public @PolySigned short nextShort(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
         // Check cached result
         if ((typeCache != null) && (typeCache instanceof Short)
             && this.radix == radix) {
@@ -2165,7 +2165,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public boolean hasNextInt(@GuardSatisfied Scanner this, @Positive int radix) {
+    public boolean hasNextInt(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
         setRadix(radix);
         boolean result = hasNext(integerPattern());
         if (result) { // Cache it
@@ -2255,7 +2255,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public @PolySigned int nextInt(@GuardSatisfied Scanner this, @Positive int radix) {
+    public @PolySigned int nextInt(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
         // Check cached result
         if ((typeCache != null) && (typeCache instanceof Integer)
             && this.radix == radix) {
@@ -2305,7 +2305,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public boolean hasNextLong(@GuardSatisfied Scanner this, @Positive int radix) {
+    public boolean hasNextLong(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
         setRadix(radix);
         boolean result = hasNext(integerPattern());
         if (result) { // Cache it
@@ -2371,7 +2371,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public @PolySigned long nextLong(@GuardSatisfied Scanner this, @Positive int radix) {
+    public @PolySigned long nextLong(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
         // Check cached result
         if ((typeCache != null) && (typeCache instanceof Long)
             && this.radix == radix) {

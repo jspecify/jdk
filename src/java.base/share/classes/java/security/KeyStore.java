@@ -26,8 +26,8 @@
 package java.security;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.io.*;
 import java.security.cert.Certificate;
