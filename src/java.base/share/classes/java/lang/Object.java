@@ -37,6 +37,7 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.CFComment;
+import org.checkerframework.common.aliasing.qual.Unique;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
 
@@ -49,7 +50,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @see     java.lang.Class
  * @since   1.0
  */
-@AnnotatedFor({"guieffect", "index", "lock", "nullness"})
+@AnnotatedFor({"aliasing", "guieffect", "index", "lock", "nullness"})
 @PolyUIType
 public class Object {
 
@@ -62,7 +63,7 @@ public class Object {
      * Constructs a new object.
      */
     @HotSpotIntrinsicCandidate
-    public Object() {}
+    public @Unique Object() {}
 
     /**
      * Returns the runtime class of this {@code Object}. The returned
