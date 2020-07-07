@@ -25,6 +25,8 @@
 
 package com.sun.tools.javac.code;
 
+import org.checkerframework.checker.interning.qual.InternedDistinct;
+
 import java.util.Iterator;
 
 import com.sun.tools.javac.tree.JCTree.JCLambda;
@@ -60,9 +62,9 @@ public class TypeAnnotationPosition {
         public final TypePathEntryKind tag;
         public final int arg;
 
-        public static final TypePathEntry ARRAY = new TypePathEntry(TypePathEntryKind.ARRAY);
-        public static final TypePathEntry INNER_TYPE = new TypePathEntry(TypePathEntryKind.INNER_TYPE);
-        public static final TypePathEntry WILDCARD = new TypePathEntry(TypePathEntryKind.WILDCARD);
+        public static final @InternedDistinct TypePathEntry ARRAY = new TypePathEntry(TypePathEntryKind.ARRAY);
+        public static final @InternedDistinct TypePathEntry INNER_TYPE = new TypePathEntry(TypePathEntryKind.INNER_TYPE);
+        public static final @InternedDistinct TypePathEntry WILDCARD = new TypePathEntry(TypePathEntryKind.WILDCARD);
 
         private TypePathEntry(TypePathEntryKind tag) {
             Assert.check(tag == TypePathEntryKind.ARRAY ||
