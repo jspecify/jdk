@@ -13,6 +13,21 @@ them cause build failures, especially in the interim builds):
 Annotations for classes that exist in JDK 8 but were removed in JDK 11 appear
 in jdk8.astub files in repository https://github.com/typetools/checker-framework/ .
 
+
+Contributing
+------------
+
+We welcome pull requests that add new annotations or correct existing ones.
+Thanks in advance for your contributions!
+
+When adding annotations, please annotate an entire file at a time, and add an
+`@AnnotatedFor` annotation on the class declaration.  The rationale is explained
+at https://checkerframework.org/manual/#library-tips-fully-annotate .
+
+
+Relationship to other repositories
+----------------------------------
+
 This fork is not up to date with respect to `openjdk/jdk` (the current OpenJDK version).
 This fork contains all commits through the release of JDK 11:
 https://github.com/typetools/jdk/commit/da75f3c4ad5bdf25167a3ed80e51f567ab3dbd01
