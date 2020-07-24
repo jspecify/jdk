@@ -18,7 +18,6 @@ This fork contains all commits through the release of JDK 11:
 https://github.com/typetools/jdk/commit/da75f3c4ad5bdf25167a3ed80e51f567ab3dbd01
 with commit message:
 8209806: API docs should be updated to refer to javase11
-[TODO: How did I determine that was the right commit to use?]
 
 This fork is an ancestor of JDK release forks such as jdk11u.  This fork
 does not compile, because the commit of `openjdk/jdk` on which it is based
