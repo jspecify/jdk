@@ -24,6 +24,8 @@
  */
 package java.sql;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import java.util.Map;
 
 /**
@@ -50,7 +52,7 @@ public class SQLClientInfoException extends SQLException {
 
 
 
-        private Map<String, ClientInfoStatus>   failedProperties;
+        private @Nullable Map<String, ClientInfoStatus>   failedProperties;
 
         /**
      * Constructs a <code>SQLClientInfoException</code>  Object.
@@ -87,7 +89,7 @@ public class SQLClientInfoException extends SQLException {
      *
      * @since 1.6
      */
-        public SQLClientInfoException(Map<String, ClientInfoStatus> failedProperties) {
+        public SQLClientInfoException(@Nullable Map<String, ClientInfoStatus> failedProperties) {
 
                 this.failedProperties = failedProperties;
         }
@@ -111,8 +113,8 @@ public class SQLClientInfoException extends SQLException {
      *
      * @since 1.6
      */
-        public SQLClientInfoException(Map<String, ClientInfoStatus> failedProperties,
-                                                           Throwable cause) {
+        public SQLClientInfoException(@Nullable Map<String, ClientInfoStatus> failedProperties,
+                                                           @Nullable Throwable cause) {
 
                 super(cause != null?cause.toString():null);
                 initCause(cause);
@@ -139,8 +141,8 @@ public class SQLClientInfoException extends SQLException {
      *
      * @since 1.6
      */
-        public SQLClientInfoException(String reason,
-                Map<String, ClientInfoStatus> failedProperties) {
+        public SQLClientInfoException(@Nullable String reason,
+                @Nullable Map<String, ClientInfoStatus> failedProperties) {
 
                 super(reason);
                 this.failedProperties = failedProperties;
@@ -165,9 +167,9 @@ public class SQLClientInfoException extends SQLException {
      *
      * @since 1.6
      */
-        public SQLClientInfoException(String reason,
-                                                           Map<String, ClientInfoStatus> failedProperties,
-                                                           Throwable cause) {
+        public SQLClientInfoException(@Nullable String reason,
+                                                           @Nullable Map<String, ClientInfoStatus> failedProperties,
+                                                           @Nullable Throwable cause) {
 
                 super(reason);
                 initCause(cause);
@@ -194,9 +196,9 @@ public class SQLClientInfoException extends SQLException {
      *
      * @since 1.6
      */
-        public SQLClientInfoException(String reason,
-                                                           String SQLState,
-                                                           Map<String, ClientInfoStatus> failedProperties) {
+        public SQLClientInfoException(@Nullable String reason,
+                                                           @Nullable String SQLState,
+                                                           @Nullable Map<String, ClientInfoStatus> failedProperties) {
 
                 super(reason, SQLState);
                 this.failedProperties = failedProperties;
@@ -220,10 +222,10 @@ public class SQLClientInfoException extends SQLException {
      *
      * @since 1.6
      */
-        public SQLClientInfoException(String reason,
-                                                           String SQLState,
-                                                           Map<String, ClientInfoStatus> failedProperties,
-                                                           Throwable cause) {
+        public SQLClientInfoException(@Nullable String reason,
+                                                           @Nullable String SQLState,
+                                                           @Nullable Map<String, ClientInfoStatus> failedProperties,
+                                                           @Nullable Throwable cause) {
 
                 super(reason, SQLState);
                 initCause(cause);
@@ -250,10 +252,10 @@ public class SQLClientInfoException extends SQLException {
      *
      * @since 1.6
      */
-        public SQLClientInfoException(String reason,
-                                                           String SQLState,
+        public SQLClientInfoException(@Nullable String reason,
+                                                           @Nullable String SQLState,
                                                            int vendorCode,
-                                                           Map<String, ClientInfoStatus> failedProperties) {
+                                                           @Nullable Map<String, ClientInfoStatus> failedProperties) {
 
                 super(reason, SQLState, vendorCode);
                 this.failedProperties = failedProperties;
@@ -279,11 +281,11 @@ public class SQLClientInfoException extends SQLException {
      *
      * @since 1.6
      */
-        public SQLClientInfoException(String reason,
-                                                           String SQLState,
+        public SQLClientInfoException(@Nullable String reason,
+                                                           @Nullable String SQLState,
                                                            int vendorCode,
-                                                           Map<String, ClientInfoStatus> failedProperties,
-                                                           Throwable cause) {
+                                                           @Nullable Map<String, ClientInfoStatus> failedProperties,
+                                                           @Nullable Throwable cause) {
 
                 super(reason, SQLState, vendorCode);
                 initCause(cause);
@@ -301,7 +303,7 @@ public class SQLClientInfoException extends SQLException {
      *
      * @since 1.6
      */
-        public Map<String, ClientInfoStatus> getFailedProperties() {
+        public @Nullable Map<String, ClientInfoStatus> getFailedProperties() {
 
                 return this.failedProperties;
         }
