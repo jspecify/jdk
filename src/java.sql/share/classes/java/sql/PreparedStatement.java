@@ -630,7 +630,7 @@ public interface PreparedStatement extends Statement {
      * this method is called on a closed <code>PreparedStatement</code>
      * @since 1.2
      */
-    void setDate(int parameterIndex, java.sql.@Nullable Date x, Calendar cal)
+    void setDate(int parameterIndex, java.sql.@Nullable Date x, @Nullable Calendar cal)
             throws SQLException;
 
     /**
@@ -652,7 +652,7 @@ public interface PreparedStatement extends Statement {
      * this method is called on a closed <code>PreparedStatement</code>
      * @since 1.2
      */
-    void setTime(int parameterIndex, java.sql.@Nullable Time x, Calendar cal)
+    void setTime(int parameterIndex, java.sql.@Nullable Time x, @Nullable Calendar cal)
             throws SQLException;
 
     /**
@@ -674,7 +674,7 @@ public interface PreparedStatement extends Statement {
      * this method is called on a closed <code>PreparedStatement</code>
      * @since 1.2
      */
-    void setTimestamp(int parameterIndex, java.sql.@Nullable Timestamp x, Calendar cal)
+    void setTimestamp(int parameterIndex, java.sql.@Nullable Timestamp x, @Nullable Calendar cal)
             throws SQLException;
 
     /**
