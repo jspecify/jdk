@@ -25,6 +25,9 @@
 
 package java.lang.annotation;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * The common interface extended by all annotation types.  Note that an
  * interface that manually extends this one does <i>not</i> define
@@ -41,6 +44,7 @@ package java.lang.annotation;
  * @author  Josh Bloch
  * @since   1.5
  */
+@AnnotatedFor({"nullness"})
 public interface Annotation {
     /**
      * Returns true if the specified object represents an annotation
@@ -78,7 +82,7 @@ public interface Annotation {
      * @return true if the specified object represents an annotation
      *     that is logically equivalent to this one, otherwise false
      */
-    boolean equals(Object obj);
+    boolean equals(@Nullable Object obj);
 
     /**
      * Returns the hash code of this annotation, as defined below:
