@@ -26,6 +26,7 @@ package java.util.function;
 
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.Covariant;
 
 /**
  * Represents a supplier of results.
@@ -41,6 +42,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since 1.8
  */
 @AnnotatedFor({"lock", "nullness"})
+@Covariant(0)
 @FunctionalInterface
 public interface Supplier<T> {
 

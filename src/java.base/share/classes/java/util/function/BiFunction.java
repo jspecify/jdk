@@ -25,6 +25,7 @@
 package java.util.function;
 
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.Covariant;
 
 import java.util.Objects;
 
@@ -43,6 +44,7 @@ import java.util.Objects;
  * @since 1.8
  */
 @AnnotatedFor({"lock", "nullness"})
+@Covariant(2)
 @FunctionalInterface
 public interface BiFunction<T, U, R> {
 
