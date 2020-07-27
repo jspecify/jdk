@@ -96,17 +96,15 @@ Qualifier definitions
 The java.base module contains a copy of the Checker Framework qualifiers.
 To update that copy:
 
-# Get version number from https://checkerframework.org/ .
-VER=3.3.0
-cd src/java.base/share/classes
-rm -rf org/checkerframework
-wget https://repo1.maven.org/maven2/org/checkerframework/checker-qual/$VER/checker-qual-$VER-sources.jar
-unzip checker-qual-$VER-sources.jar -x 'META-INF*'
-chmod -R u+w org/checkerframework
-jar tf checker-qual-$VER-sources.jar  | grep '\.java$' | sed 's/\/[^/]*\.java/;/' | sed 's/\//./g' | sed 's/^/    exports /' | sort | uniq
-rm -f checker-qual-$VER-sources.jar
+(cd $CHECKERFRAMEWORK && rm -rf checker-qual/build/libs && ./gradlew :checker-qual:sourcesJar)
+cp -pf $CHECKERFRAMEWORK/checker-qual/build/libs/checker-qual-*-source.jar checker-qual.jar
+(cd src/java.base/share/classes && rm -rf org/checkerframework && \
+  unzip ../../../../checker-qual.jar -x 'META-INF*' && \
+  rm -f org/checkerframework/checker/signedness/SignednessUtilExtra.java && \
+  chmod -R u+w org/checkerframework)
+jar tf checker-qual.jar | grep '\.java$' | sed 's/\/[^/]*\.java/;/' | sed 's/\//./g' | sed 's/^/    exports /' | sort | uniq
 
-Copy the exports lines that were printed by the penultimate command to
+Copy the exports lines that were printed by the last command to
 src/java.base/share/classes/module-info.java .
 
 

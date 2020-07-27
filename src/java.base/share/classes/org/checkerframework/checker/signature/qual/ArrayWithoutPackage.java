@@ -1,4 +1,4 @@
-package org.checkerframework.checker.fenum.qual;
+package org.checkerframework.checker.signature.qual;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -8,12 +8,14 @@ import java.lang.annotation.Target;
 import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
- * SwingBoxOrientation.
+ * An identifier or primitive type, followed by any number of array square brackets.
  *
- * @checker_framework.manual #fenum-checker Fake Enum Checker
+ * <p>Example: Foobar[][] Example: Baz22
+ *
+ * @checker_framework.manual #signature-checker Signature Checker
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@SubtypeOf(FenumTop.class)
-public @interface SwingBoxOrientation {}
+@SubtypeOf({FullyQualifiedName.class, ClassGetSimpleName.class})
+public @interface ArrayWithoutPackage {}

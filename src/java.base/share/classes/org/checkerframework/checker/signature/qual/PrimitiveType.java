@@ -1,4 +1,4 @@
-package org.checkerframework.checker.fenum.qual;
+package org.checkerframework.checker.signature.qual;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -8,12 +8,12 @@ import java.lang.annotation.Target;
 import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
- * SwingBoxOrientation.
+ * A primitive type. One of: boolean, byte, char, double, float, int, long, short.
  *
- * @checker_framework.manual #fenum-checker Fake Enum Checker
+ * @checker_framework.manual #signature-checker Signature Checker
  */
+@SubtypeOf({IdentifierOrPrimitiveType.class})
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@SubtypeOf(FenumTop.class)
-public @interface SwingBoxOrientation {}
+public @interface PrimitiveType {}
