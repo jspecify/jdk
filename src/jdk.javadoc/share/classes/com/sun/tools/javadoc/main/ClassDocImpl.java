@@ -25,7 +25,9 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.checker.signature.qual.BinaryName;
 import org.checkerframework.dataflow.qual.Pure;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Modifier;
@@ -372,14 +374,14 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
      *  if no qualifier, just return flat name
      * </pre>
      */
-    public String qualifiedName() {
+    public @BinaryName String qualifiedName() {
         if (qualifiedName == null) {
             qualifiedName = getClassName(tsym, true);
         }
         return qualifiedName;
     }
 
-    private String qualifiedName;
+    private @BinaryName String qualifiedName;
 
     /**
      * Return unqualified name of type excluding any dimension information.

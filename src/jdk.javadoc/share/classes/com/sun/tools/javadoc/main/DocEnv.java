@@ -25,6 +25,8 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.checker.signature.qual.ClassGetName;
+
 import java.lang.reflect.Modifier;
 import java.util.*;
 
@@ -176,7 +178,7 @@ public class DocEnv {
     /**
      * Look up ClassDoc by qualified name.
      */
-    public ClassDocImpl lookupClass(String name) {
+    public ClassDocImpl lookupClass(@ClassGetName String name) {
         ClassSymbol c = getClassSymbol(name);
         if (c != null) {
             return getClassDoc(c);

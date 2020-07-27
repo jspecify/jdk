@@ -25,7 +25,9 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.checker.signature.qual.BinaryName;
 import org.checkerframework.dataflow.qual.Pure;
+
 import com.sun.javadoc.*;
 
 import com.sun.source.util.TreePath;
@@ -89,7 +91,7 @@ public class ConstructorDocImpl
      *
      * @return the qualified name of the member.
      */
-    public String qualifiedName() {
+    public @BinaryName String qualifiedName() {
         return sym.enclClass().getQualifiedName().toString();
     }
 

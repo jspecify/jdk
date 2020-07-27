@@ -46,7 +46,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *   in the package {@code jdk.javadoc.doclet}.
  *   For more information, see the <i>Migration Guide</i> in the documentation for that package.
  */
-@AnnotatedFor({"lock", "nullness", "value"})
+@AnnotatedFor({"lock", "nullness", "signature", "value"})
 @Deprecated(since="9", forRemoval=true)
 @SuppressWarnings("removal")
 public interface MemberDoc extends ProgramElementDoc {

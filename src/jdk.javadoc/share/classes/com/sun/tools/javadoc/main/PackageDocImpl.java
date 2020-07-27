@@ -25,7 +25,9 @@
 
 package com.sun.tools.javadoc.main;
 
+import org.checkerframework.checker.signature.qual.BinaryName;
 import org.checkerframework.dataflow.qual.Pure;
+
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -338,7 +340,7 @@ public class PackageDocImpl extends DocImpl implements PackageDoc {
     /**
      * Get package name.
      */
-    public String qualifiedName() {
+    public @BinaryName String qualifiedName() {
         if (qualifiedName == null) {
             Name fullname = sym.getQualifiedName();
             // Some bogus tests depend on the interned "" being returned.
@@ -348,7 +350,7 @@ public class PackageDocImpl extends DocImpl implements PackageDoc {
         return qualifiedName;
     }
 
-    private String qualifiedName;
+    private @BinaryName String qualifiedName;
 
     /**
      * set doc path for an unzipped directory
