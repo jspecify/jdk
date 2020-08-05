@@ -590,7 +590,7 @@ public final class Constructor<T> extends Executable {
      * @throws NullPointerException  {@inheritDoc}
      * @since 1.5
      */
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> @Nullable T getAnnotation(Class<T> annotationClass) {
         return super.getAnnotation(annotationClass);
     }
 
@@ -644,7 +644,7 @@ public final class Constructor<T> extends Executable {
      * @since 1.8
      */
     @Override
-    public AnnotatedType getAnnotatedReceiverType() {
+    public @Nullable AnnotatedType getAnnotatedReceiverType() {
         Class<?> thisDeclClass = getDeclaringClass();
         Class<?> enclosingClass = thisDeclClass.getEnclosingClass();
 
