@@ -29,6 +29,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.lang.annotation.*;
 import java.util.HashMap;
@@ -45,6 +46,7 @@ import sun.reflect.annotation.AnnotationSupport;
  *
  * @since 1.8
  */
+@AnnotatedFor({"nullness"})
 public final class Parameter implements AnnotatedElement {
 
     private final String name;
@@ -290,7 +292,7 @@ public final class Parameter implements AnnotatedElement {
      * {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}
      */
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> @Nullable T getAnnotation(Class<T> annotationClass) {
         Objects.requireNonNull(annotationClass);
         return annotationClass.cast(declaredAnnotations().get(annotationClass));
     }
@@ -316,7 +318,7 @@ public final class Parameter implements AnnotatedElement {
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public <T extends Annotation> T getDeclaredAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> @Nullable T getDeclaredAnnotation(Class<T> annotationClass) {
         // Only annotations on classes are inherited, for all other
         // objects getDeclaredAnnotation is the same as
         // getAnnotation.

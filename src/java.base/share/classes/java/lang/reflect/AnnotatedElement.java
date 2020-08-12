@@ -293,7 +293,7 @@ public interface AnnotatedElement {
      * @throws NullPointerException if the given annotation class is null
      * @since 1.5
      */
-    <T extends @Nullable Annotation> @Nullable T getAnnotation(Class<T> annotationClass);
+    <T extends Annotation> @Nullable T getAnnotation(Class<T> annotationClass);
 
     /**
      * Returns annotations that are <em>present</em> on this element.

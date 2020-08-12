@@ -25,11 +25,14 @@
 
 package java.lang.reflect;
 
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * A common interface for all entities that declare type variables.
  *
  * @since 1.5
  */
+@AnnotatedFor({"nullness"})
 public interface GenericDeclaration extends AnnotatedElement {
     /**
      * Returns an array of {@code TypeVariable} objects that

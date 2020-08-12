@@ -25,6 +25,9 @@
 
 package java.lang.reflect;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.annotation.*;
 import java.util.Map;
 import java.util.Objects;
@@ -43,6 +46,7 @@ import sun.reflect.generics.repository.ConstructorRepository;
  *
  * @since 1.8
  */
+@AnnotatedFor({"nullness"})
 public abstract class Executable extends AccessibleObject
     implements Member, GenericDeclaration {
     /*
@@ -567,7 +571,7 @@ public abstract class Executable extends AccessibleObject
      * {@inheritDoc}
      * @throws NullPointerException  {@inheritDoc}
      */
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> @Nullable T getAnnotation(Class<T> annotationClass) {
         Objects.requireNonNull(annotationClass);
         return annotationClass.cast(declaredAnnotations().get(annotationClass));
     }
@@ -670,7 +674,7 @@ public abstract class Executable extends AccessibleObject
      * constructor represented by this {@code Executable} or {@code null} if
      * this {@code Executable} can not have a receiver parameter
      */
-    public AnnotatedType getAnnotatedReceiverType() {
+    public @Nullable AnnotatedType getAnnotatedReceiverType() {
         if (Modifier.isStatic(this.getModifiers()))
             return null;
         return TypeAnnotationParser.buildAnnotatedType(getTypeAnnotationBytes0(),

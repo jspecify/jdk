@@ -489,7 +489,7 @@ public @UsesObjectEquals class Package extends NamedPackage implements java.lang
      * @since 1.8
      */
     @Override
-    public <A extends Annotation> A getDeclaredAnnotation(Class<A> annotationClass) {
+    public <A extends Annotation> @Nullable A getDeclaredAnnotation(Class<A> annotationClass) {
         return getPackageInfo().getDeclaredAnnotation(annotationClass);
     }
 

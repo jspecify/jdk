@@ -25,6 +25,10 @@
 
 package java.lang.reflect;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.CFComment;
+
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.security.AccessController;
@@ -72,6 +76,7 @@ import sun.security.util.SecurityConstants;
  * @revised 9
  * @spec JPMS
  */
+@AnnotatedFor({"nullness"})
 public class AccessibleObject implements AnnotatedElement {
 
     static void checkPermission() {
@@ -444,6 +449,7 @@ public class AccessibleObject implements AnnotatedElement {
      * @see #setAccessible(boolean)
      */
     @CallerSensitive
+    @CFComment("Sometimes null is forbidden; other times, it is required")
     public final boolean canAccess(Object obj) {
         if (!Member.class.isInstance(this)) {
             return override;
@@ -503,7 +509,7 @@ public class AccessibleObject implements AnnotatedElement {
      * @throws NullPointerException {@inheritDoc}
      * @since 1.5
      */
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> @Nullable T getAnnotation(Class<T> annotationClass) {
         throw new AssertionError("All subclasses should override this method");
     }
 
@@ -538,7 +544,7 @@ public class AccessibleObject implements AnnotatedElement {
      * @since 1.8
      */
     @Override
-    public <T extends Annotation> T getDeclaredAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> @Nullable T getDeclaredAnnotation(Class<T> annotationClass) {
         // Only annotations on classes are inherited, for all other
         // objects getDeclaredAnnotation is the same as
         // getAnnotation.

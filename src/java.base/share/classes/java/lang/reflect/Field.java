@@ -1177,7 +1177,7 @@ class Field extends AccessibleObject implements Member {
      * @since 1.5
      */
     @SideEffectFree
-    public <T extends @Nullable Annotation> @Nullable T getAnnotation(@GuardSatisfied Field this, Class<@NonNull T> annotationClass) {
+    public <T extends Annotation> @Nullable T getAnnotation(@GuardSatisfied Field this, Class<T> annotationClass) {
         Objects.requireNonNull(annotationClass);
         return annotationClass.cast(declaredAnnotations().get(annotationClass));
     }
