@@ -63,7 +63,7 @@ import jdk.internal.misc.VM;
  * and working off of that snapshot, rather than holding the thread group locked
  * while we work on the children.
  */
-@AnnotatedFor({"index", "interning", "lock", "nullable"})
+@AnnotatedFor({"index", "interning", "lock", "nullness"})
 public
 @UsesObjectEquals class ThreadGroup implements Thread.UncaughtExceptionHandler {
     private final ThreadGroup parent;

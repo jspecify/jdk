@@ -36,7 +36,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author     unascribed
  * @since      1.0
  */
-@AnnotatedFor({"nullnesss"})
+@AnnotatedFor({"nullness"})
 public class ClassCircularityError extends LinkageError {
     private static final long serialVersionUID = 1054362542914539689L;
 
