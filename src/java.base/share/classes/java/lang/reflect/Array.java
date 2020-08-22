@@ -150,7 +150,7 @@ public final
      * argument is negative, or if it is greater than or equal to the
      * length of the specified array
      */
-    public static native Object get(Object array, @IndexFor({"#1"}) int index)
+    public static native @Pure Object get(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
     /**
@@ -169,7 +169,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
-    public static native boolean getBoolean(Object array, @IndexFor({"#1"}) int index)
+    public static native @Pure boolean getBoolean(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
     /**
@@ -188,7 +188,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
-    public static native byte getByte(Object array, @IndexFor({"#1"}) int index)
+    public static native @Pure byte getByte(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
     /**
@@ -207,7 +207,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
-    public static native char getChar(Object array, @IndexFor({"#1"}) int index)
+    public static native @Pure char getChar(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
     /**
@@ -226,7 +226,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
-    public static native short getShort(Object array, @IndexFor({"#1"}) int index)
+    public static native @Pure short getShort(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
     /**
@@ -245,7 +245,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
-    public static native int getInt(Object array, @IndexFor({"#1"}) int index)
+    public static native @Pure int getInt(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
     /**
@@ -264,7 +264,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
-    public static native long getLong(Object array, @IndexFor({"#1"}) int index)
+    public static native @Pure long getLong(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
     /**
@@ -283,7 +283,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
-    public static native float getFloat(Object array, @IndexFor({"#1"}) int index)
+    public static native @Pure float getFloat(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
     /**
@@ -302,7 +302,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
-    public static native double getDouble(Object array, @IndexFor({"#1"}) int index)
+    public static native @Pure double getDouble(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
     /**
