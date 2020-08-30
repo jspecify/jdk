@@ -29,6 +29,7 @@ import org.checkerframework.checker.index.qual.IndexFor;
 import org.checkerframework.checker.index.qual.LengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.common.value.qual.StaticallyExecutable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -131,6 +132,7 @@ public final
      * an array
      */
     @HotSpotIntrinsicCandidate
+    @StaticallyExecutable
     public static native @Pure @LengthOf({"#1"}) int getLength(Object array)
         throws IllegalArgumentException;
 
@@ -169,6 +171,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
+    @StaticallyExecutable
     public static native @Pure boolean getBoolean(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
@@ -188,6 +191,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
+    @StaticallyExecutable
     public static native @Pure byte getByte(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
@@ -207,6 +211,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
+    @StaticallyExecutable
     public static native @Pure char getChar(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
@@ -226,6 +231,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
+    @StaticallyExecutable
     public static native @Pure short getShort(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
@@ -245,6 +251,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
+    @StaticallyExecutable
     public static native @Pure int getInt(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
@@ -264,6 +271,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
+    @StaticallyExecutable
     public static native @Pure long getLong(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
@@ -283,6 +291,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
+    @StaticallyExecutable
     public static native @Pure float getFloat(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
@@ -302,6 +311,7 @@ public final
      * length of the specified array
      * @see Array#get
      */
+    @StaticallyExecutable
     public static native @Pure double getDouble(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
