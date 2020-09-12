@@ -25,6 +25,7 @@
 
 package sun.security.tools.keytool;
 
+import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -3413,7 +3414,7 @@ public final class Main {
     /**
      * Converts a byte array to hex string
      */
-    private String toHexString(byte[] block) {
+    private String toHexString(@PolySigned byte[] block) {
         StringBuffer buf = new StringBuffer();
         int len = block.length;
         for (int i = 0; i < len; i++) {

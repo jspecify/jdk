@@ -290,7 +290,7 @@ public final class Integer extends Number implements Comparable<Integer> {
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static @ArrayLenRange(from = 1, to = 8) String toHexString(@Unsigned int i) {
+    public static @ArrayLenRange(from = 1, to = 8) String toHexString(@UnknownSignedness int i) {
         return toUnsignedString0(i, 4);
     }
 

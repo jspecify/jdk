@@ -322,7 +322,7 @@ public final class Long extends Number implements Comparable<Long> {
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static @ArrayLenRange(from = 1, to = 16) String toHexString(@Unsigned long i) {
+    public static @ArrayLenRange(from = 1, to = 16) String toHexString(@UnknownSignedness long i) {
         return toUnsignedString0(i, 4);
     }
 

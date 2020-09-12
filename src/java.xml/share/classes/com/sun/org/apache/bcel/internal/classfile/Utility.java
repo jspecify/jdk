@@ -19,6 +19,7 @@
  */
 package com.sun.org.apache.bcel.internal.classfile;
 
+import org.checkerframework.checker.signedness.qual.PolySigned;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.CharArrayReader;
@@ -1114,7 +1115,7 @@ public abstract class Utility {
      *
      * @return bytes as hexadecimal string, e.g. 00 fa 12 ...
      */
-    public static String toHexString(final byte[] bytes) {
+    public static String toHexString(final @PolySigned byte[] bytes) {
         final StringBuilder buf = new StringBuilder();
         for (int i = 0; i < bytes.length; i++) {
             final short b = byteToShort(bytes[i]);
