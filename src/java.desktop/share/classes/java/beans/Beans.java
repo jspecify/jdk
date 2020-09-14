@@ -26,6 +26,7 @@
 package java.beans;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import com.sun.beans.finder.ClassFinder;
@@ -60,7 +61,7 @@ import java.util.Vector;
  * @since 1.1
  */
 
-@AnnotatedFor({"interning"})
+@AnnotatedFor({"interning", "nullness"})
 public @UsesObjectEquals class Beans {
 
     /**
@@ -79,7 +80,7 @@ public @UsesObjectEquals class Beans {
      * @exception IOException if an I/O error occurs.
      */
 
-    public static Object instantiate(ClassLoader cls, String beanName) throws IOException, ClassNotFoundException {
+    public static Object instantiate(@Nullable ClassLoader cls, String beanName) throws IOException, ClassNotFoundException {
         return Beans.instantiate(cls, beanName, null, null);
     }
 
@@ -102,8 +103,8 @@ public @UsesObjectEquals class Beans {
      * @since 1.2
      */
     @SuppressWarnings("deprecation")
-    public static Object instantiate(ClassLoader cls, String beanName,
-                                     BeanContext beanContext)
+    public static Object instantiate(@Nullable ClassLoader cls, String beanName,
+                                     @Nullable BeanContext beanContext)
             throws IOException, ClassNotFoundException {
         return Beans.instantiate(cls, beanName, beanContext, null);
     }
@@ -167,9 +168,9 @@ public @UsesObjectEquals class Beans {
      * documentation</a> for further information.
      */
     @Deprecated(since = "9")
-    public static Object instantiate(ClassLoader cls, String beanName,
-                                     BeanContext beanContext,
-                                     AppletInitializer initializer)
+    public static Object instantiate(@Nullable ClassLoader cls, String beanName,
+                                     @Nullable BeanContext beanContext,
+                                     @Nullable AppletInitializer initializer)
             throws IOException, ClassNotFoundException {
 
         InputStream ins;
@@ -524,7 +525,7 @@ class BeansAppletContext implements AppletContext {
         this.target = target;
     }
 
-    public AudioClip getAudioClip(URL url) {
+    public @Nullable AudioClip getAudioClip(URL url) {
         // We don't currently support audio clips in the Beans.instantiate
         // applet context, unless by some luck there exists a URL content
         // class that can generate an AudioClip from the audio URL.
@@ -535,7 +536,7 @@ class BeansAppletContext implements AppletContext {
         }
     }
 
-    public synchronized Image getImage(URL url) {
+    public synchronized @Nullable Image getImage(URL url) {
         Object o = imageCache.get(url);
         if (o != null) {
             return (Image)o;
@@ -559,7 +560,7 @@ class BeansAppletContext implements AppletContext {
         }
     }
 
-    public Applet getApplet(String name) {
+    public @Nullable Applet getApplet(String name) {
         return null;
     }
 
@@ -585,12 +586,12 @@ class BeansAppletContext implements AppletContext {
         // We do nothing.
     }
 
-    public InputStream getStream(String key){
+    public @Nullable InputStream getStream(String key){
         // We do nothing.
         return null;
     }
 
-    public Iterator<String> getStreamKeys(){
+    public @Nullable Iterator<String> getStreamKeys(){
         // We do nothing.
         return null;
     }
@@ -631,7 +632,7 @@ class BeansAppletStub implements AppletStub {
         return codeBase;
     }
 
-    public String getParameter(String name) {
+    public @Nullable String getParameter(String name) {
         return null;
     }
 

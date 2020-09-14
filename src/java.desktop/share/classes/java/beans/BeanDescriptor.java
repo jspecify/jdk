@@ -24,6 +24,10 @@
  */
 package java.beans;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.lang.ref.Reference;
 import javax.swing.SwingContainer;
 
@@ -37,10 +41,11 @@ import javax.swing.SwingContainer;
  * @since 1.1
  */
 
+@AnnotatedFor({"nullness"})
 public class BeanDescriptor extends FeatureDescriptor {
 
     private Reference<? extends Class<?>> beanClassRef;
-    private Reference<? extends Class<?>> customizerClassRef;
+    private @Nullable Reference<? extends Class<?>> customizerClassRef;
 
     /**
      * Create a BeanDescriptor for a bean that doesn't have a customizer.
@@ -60,7 +65,7 @@ public class BeanDescriptor extends FeatureDescriptor {
      * @param customizerClass  The Class object of the Java class that implements
      *          the bean's Customizer.  For example sun.beans.OurButtonCustomizer.class.
      */
-    public BeanDescriptor(Class<?> beanClass, Class<?> customizerClass) {
+    public BeanDescriptor(Class<?> beanClass, @Nullable Class<?> customizerClass) {
         this.beanClassRef = getWeakReference(beanClass);
         this.customizerClassRef = getWeakReference(customizerClass);
 
@@ -90,7 +95,7 @@ public class BeanDescriptor extends FeatureDescriptor {
      *
      * @return The Class object for the bean.
      */
-    public Class<?> getBeanClass() {
+    public @Nullable Class<?> getBeanClass() {
         return (this.beanClassRef != null)
                 ? this.beanClassRef.get()
                 : null;
@@ -102,7 +107,7 @@ public class BeanDescriptor extends FeatureDescriptor {
      * @return The Class object for the bean's customizer.  This may
      * be null if the bean doesn't have a customizer.
      */
-    public Class<?> getCustomizerClass() {
+    public @Nullable Class<?> getCustomizerClass() {
         return (this.customizerClassRef != null)
                 ? this.customizerClassRef.get()
                 : null;
