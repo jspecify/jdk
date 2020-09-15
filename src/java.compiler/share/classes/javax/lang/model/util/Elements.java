@@ -25,6 +25,9 @@
 
 package javax.lang.model.util;
 
+import org.checkerframework.checker.signature.qual.CanonicalName;
+import org.checkerframework.checker.signature.qual.FullyQualifiedName;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -100,7 +103,7 @@ public interface Elements {
      * @see #getPackageElement(ModuleElement, CharSequence)
      * @since 9
      */
-    default Set<? extends PackageElement> getAllPackageElements(CharSequence name) {
+    default Set<? extends PackageElement> getAllPackageElements(@FullyQualifiedName CharSequence name) {
         Set<? extends ModuleElement> modules = getAllModuleElements();
         if (modules.isEmpty()) {
             PackageElement packageElt = getPackageElement(name);
@@ -126,7 +129,7 @@ public interface Elements {
      * @param name  the canonical name
      * @return the named type element, or {@code null} if it cannot be uniquely found
      */
-    TypeElement getTypeElement(CharSequence name);
+    TypeElement getTypeElement(@FullyQualifiedName CharSequence name);
 
     /**
      * Returns a type element given its canonical name, as seen from the given module.
@@ -140,7 +143,7 @@ public interface Elements {
      * @see #getAllTypeElements
      * @since 9
      */
-    default TypeElement getTypeElement(ModuleElement module, CharSequence name) {
+    default TypeElement getTypeElement(ModuleElement module, @FullyQualifiedName CharSequence name) {
         return null;
     }
 
@@ -168,7 +171,7 @@ public interface Elements {
      * @see #getTypeElement(ModuleElement, CharSequence)
      * @since 9
      */
-    default Set<? extends TypeElement> getAllTypeElements(CharSequence name) {
+    default Set<? extends TypeElement> getAllTypeElements(@FullyQualifiedName CharSequence name) {
         Set<? extends ModuleElement> modules = getAllModuleElements();
         if (modules.isEmpty()) {
             TypeElement typeElt = getTypeElement(name);

@@ -25,6 +25,7 @@
 
 package java.lang;
 
+import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
@@ -1650,7 +1651,7 @@ public final @Interned class Class<@UnknownKeyFor T> implements java.io.Serializ
      * {@code null} otherwise.
      * @since 1.5
      */
-    public @Nullable @ClassGetSimpleName String getCanonicalName() {
+    public @Nullable @CanonicalName String getCanonicalName() {
         ReflectionData<T> rd = reflectionData();
         String canonicalName = rd.canonicalName;
         if (canonicalName == null) {
@@ -1659,6 +1660,7 @@ public final @Interned class Class<@UnknownKeyFor T> implements java.io.Serializ
         return canonicalName == ReflectionData.NULL_SENTINEL? null : canonicalName;
     }
 
+    @CFComment("signature: returns a @CanonicalName or ReflectionData.NULL_SENTINEL")
     private String getCanonicalName0() {
         if (isArray()) {
             String canonicalName = getComponentType().getCanonicalName();
@@ -3004,6 +3006,7 @@ public final @Interned class Class<@UnknownKeyFor T> implements java.io.Serializ
 
         // Cached names
         String simpleName;
+        @CFComment("signature: is a @CanonicalName or ReflectionData.NULL_SENTINEL")
         String canonicalName;
         static final String NULL_SENTINEL = new String();
 
