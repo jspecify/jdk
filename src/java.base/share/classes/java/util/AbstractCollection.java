@@ -155,7 +155,7 @@ public abstract class AbstractCollection<E> implements Collection<E> {
      */
     @Override
     @SideEffectFree
-    public Object[] toArray() {
+    public @PolyNull Object[] toArray(AbstractCollection<@PolyNull E> this) {
         // Estimate size of array; be prepared to see more or fewer elements
         Object[] r = new Object[size()];
         Iterator<E> it = iterator();

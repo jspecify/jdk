@@ -37,6 +37,7 @@ package java.util.concurrent;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 
@@ -331,7 +332,7 @@ public class CopyOnWriteArrayList<E>
      *
      * @return an array containing all the elements in this list
      */
-    public Object[] toArray() {
+    public @PolyNull Object[] toArray(CopyOnWriteArrayList<@PolyNull E> this) {
         return getArray().clone();
     }
 

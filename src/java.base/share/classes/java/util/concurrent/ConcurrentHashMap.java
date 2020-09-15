@@ -4478,7 +4478,7 @@ public class ConcurrentHashMap<K extends @NonNull Object,V extends @NonNull Obje
         private static final String OOME_MSG = "Required array size too large";
 
         @SideEffectFree
-        public final Object[] toArray() {
+        public final @PolyNull Object[] toArray(CollectionView<K,V,@PolyNull E> this) {
             long sz = map.mappingCount();
             if (sz > MAX_ARRAY_SIZE)
                 throw new OutOfMemoryError(OOME_MSG);
