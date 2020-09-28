@@ -29,6 +29,8 @@ import org.checkerframework.checker.guieffect.qual.PolyUI;
 import org.checkerframework.checker.guieffect.qual.PolyUIEffect;
 import org.checkerframework.checker.guieffect.qual.PolyUIType;
 import org.checkerframework.checker.guieffect.qual.SafeEffect;
+import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
+import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -99,7 +101,7 @@ public @UsesObjectEquals class PropertyChangeSupport implements Serializable {
      * @param sourceBean  The bean to be given as the source for any events.
      */
     @SafeEffect
-    public PropertyChangeSupport(@PolyUI Object sourceBean) {
+    public PropertyChangeSupport(@PolyUI @UnknownInitialization(Object.class) Object sourceBean) {
         if (sourceBean == null) {
             throw new NullPointerException();
         }
@@ -506,7 +508,7 @@ public @UsesObjectEquals class PropertyChangeSupport implements Serializable {
     /**
      * The object to be provided as the "source" for any generated events.
      */
-    private Object source;
+    private @NotOnlyInitialized Object source;
 
     /**
      * @serialField children                                   Hashtable
