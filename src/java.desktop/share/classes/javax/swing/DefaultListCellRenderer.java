@@ -27,6 +27,7 @@ package javax.swing;
 
 import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import javax.swing.*;
 import javax.swing.event.*;
@@ -74,7 +75,7 @@ import sun.swing.SwingUtilities2;
  * @author Hans Muller
  * @since 1.2
  */
-@AnnotatedFor({"interning"})
+@AnnotatedFor({"interning", "nullness"})
 @SuppressWarnings("serial") // Same-version serialization only
 public class DefaultListCellRenderer extends JLabel
     implements ListCellRenderer<Object>, Serializable
@@ -121,7 +122,7 @@ public class DefaultListCellRenderer extends JLabel
 
     public Component getListCellRendererComponent(
         JList<?> list,
-        Object value,
+        @Nullable Object value,
         int index,
         boolean isSelected,
         boolean cellHasFocus)

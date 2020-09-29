@@ -26,6 +26,7 @@ package javax.swing;
 
 import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import javax.swing.event.*;
 import javax.swing.filechooser.*;
@@ -87,7 +88,7 @@ import java.lang.ref.WeakReference;
  * @author Jeff Dinkins
  * @since 1.2
  */
-@AnnotatedFor({"interning"})
+@AnnotatedFor({"interning","nullness"})
 @JavaBean(defaultProperty = "UI", description = "A component which allows for the interactive selection of a file.")
 @SwingContainer(false)
 @SuppressWarnings("serial") // Superclass is not serializable across versions
@@ -246,18 +247,18 @@ public class JFileChooser extends JComponent implements Accessible {
     // ***** instance variables *****
     // ******************************
 
-    private String dialogTitle = null;
-    private String approveButtonText = null;
-    private String approveButtonToolTipText = null;
+    private @Nullable String dialogTitle = null;
+    private @Nullable String approveButtonText = null;
+    private @Nullable String approveButtonToolTipText = null;
     private int approveButtonMnemonic = 0;
 
     private Vector<FileFilter> filters = new Vector<FileFilter>(5);
-    private JDialog dialog = null;
+    private @Nullable JDialog dialog = null;
     private int dialogType = OPEN_DIALOG;
     private int returnValue = ERROR_OPTION;
-    private JComponent accessory = null;
+    private @Nullable JComponent accessory = null;
 
-    private FileView fileView = null;
+    private @Nullable FileView fileView = null;
 
     private boolean controlsShown = true;
 
@@ -267,7 +268,7 @@ public class JFileChooser extends JComponent implements Accessible {
     // Listens to changes in the native setting for showing hidden files.
     // The Listener is removed and the native setting is ignored if
     // setFileHidingEnabled() is ever called.
-    private transient PropertyChangeListener showFilesListener = null;
+    private transient @Nullable PropertyChangeListener showFilesListener = null;
 
     private int fileSelectionMode = FILES_ONLY;
 
@@ -277,13 +278,13 @@ public class JFileChooser extends JComponent implements Accessible {
 
     private boolean dragEnabled = false;
 
-    private FileFilter fileFilter = null;
+    private @Nullable FileFilter fileFilter = null;
 
-    private FileSystemView fileSystemView = null;
+    private @Nullable FileSystemView fileSystemView = null;
 
-    private File currentDirectory = null;
-    private File selectedFile = null;
-    private File[] selectedFiles;
+    private @Nullable File currentDirectory = null;
+    private @Nullable File selectedFile = null;
+    private File @Nullable[] selectedFiles;
 
     // *************************************
     // ***** JFileChooser Constructors *****
@@ -310,7 +311,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @param currentDirectoryPath  a <code>String</code> giving the path
      *                          to a file or directory
      */
-    public JFileChooser(String currentDirectoryPath) {
+    public JFileChooser(@Nullable String currentDirectoryPath) {
         this(currentDirectoryPath, (FileSystemView) null);
     }
 
@@ -325,7 +326,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @param currentDirectory  a <code>File</code> object specifying
      *                          the path to a file or directory
      */
-    public JFileChooser(File currentDirectory) {
+    public JFileChooser(@Nullable File currentDirectory) {
         this(currentDirectory, (FileSystemView) null);
     }
 
@@ -335,7 +336,7 @@ public class JFileChooser extends JComponent implements Accessible {
      *
      * @param fsv a {@code FileSystemView}
      */
-    public JFileChooser(FileSystemView fsv) {
+    public JFileChooser(@Nullable FileSystemView fsv) {
         this((File) null, fsv);
     }
 
@@ -348,7 +349,7 @@ public class JFileChooser extends JComponent implements Accessible {
      *                         file or directory
      * @param fsv a {@code FileSystemView}
      */
-    public JFileChooser(File currentDirectory, FileSystemView fsv) {
+    public JFileChooser(@Nullable File currentDirectory, @Nullable FileSystemView fsv) {
         setup(fsv);
         setCurrentDirectory(currentDirectory);
     }
@@ -361,7 +362,7 @@ public class JFileChooser extends JComponent implements Accessible {
      *                             or directory
      * @param fsv a {@code FileSystemView}
      */
-    public JFileChooser(String currentDirectoryPath, FileSystemView fsv) {
+    public JFileChooser(@Nullable String currentDirectoryPath, @Nullable FileSystemView fsv) {
         setup(fsv);
         if(currentDirectoryPath == null) {
             setCurrentDirectory(null);
@@ -375,7 +376,7 @@ public class JFileChooser extends JComponent implements Accessible {
      *
      * @param view the {@code FileSystemView} used for setup
      */
-    protected void setup(FileSystemView view) {
+    protected void setup(@Nullable FileSystemView view) {
         installShowFilesListener();
         installHierarchyListener();
 
@@ -482,7 +483,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @see #setSelectedFile
      * @return the selected file
      */
-    public File getSelectedFile() {
+    public @Nullable File getSelectedFile() {
         return selectedFile;
     }
 
@@ -496,7 +497,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @param file the selected file
      */
     @BeanProperty(preferred = true)
-    public void setSelectedFile(File file) {
+    public void setSelectedFile(@Nullable File file) {
         File oldValue = selectedFile;
         selectedFile = file;
         if(selectedFile != null) {
@@ -532,7 +533,7 @@ public class JFileChooser extends JComponent implements Accessible {
      */
     @BeanProperty(description
             = "The list of selected files if the chooser is in multiple selection mode.")
-    public void setSelectedFiles(File[] selectedFiles) {
+    public void setSelectedFiles(File @Nullable[] selectedFiles) {
         File[] oldValue = this.selectedFiles;
         if (selectedFiles == null || selectedFiles.length == 0) {
             selectedFiles = null;
@@ -551,7 +552,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @return the current directory
      * @see #setCurrentDirectory
      */
-    public File getCurrentDirectory() {
+    public @Nullable File getCurrentDirectory() {
         return currentDirectory;
     }
 
@@ -573,7 +574,7 @@ public class JFileChooser extends JComponent implements Accessible {
      */
     @BeanProperty(preferred = true, description
             = "The directory that the JFileChooser is showing files of.")
-    public void setCurrentDirectory(File dir) {
+    public void setCurrentDirectory(@Nullable File dir) {
         File oldValue = currentDirectory;
 
         if (dir != null && !dir.exists()) {
@@ -652,7 +653,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @see #showDialog
      */
-    public int showOpenDialog(Component parent) throws HeadlessException {
+    public int showOpenDialog(@Nullable Component parent) throws HeadlessException {
         setDialogType(OPEN_DIALOG);
         return showDialog(parent, null);
     }
@@ -677,7 +678,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @see #showDialog
      */
-    public int showSaveDialog(Component parent) throws HeadlessException {
+    public int showSaveDialog(@Nullable Component parent) throws HeadlessException {
         setDialogType(SAVE_DIALOG);
         return showDialog(parent, null);
     }
@@ -737,7 +738,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
     @SuppressWarnings("deprecation")
-    public int showDialog(Component parent, String approveButtonText)
+    public int showDialog(@Nullable Component parent, @Nullable String approveButtonText)
         throws HeadlessException {
         if (dialog != null) {
             // Prevent to show second instance of dialog if the previous one still exists
@@ -794,7 +795,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @since 1.4
      */
-    protected JDialog createDialog(Component parent) throws HeadlessException {
+    protected JDialog createDialog(@Nullable Component parent) throws HeadlessException {
         FileChooserUI ui = getUI();
         String title = ui.getDialogTitle(this);
         putClientProperty(AccessibleContext.ACCESSIBLE_DESCRIPTION_PROPERTY,
@@ -957,7 +958,7 @@ public class JFileChooser extends JComponent implements Accessible {
      */
     @BeanProperty(preferred = true, description
             = "The title of the JFileChooser dialog window.")
-    public void setDialogTitle(String dialogTitle) {
+    public void setDialogTitle(@Nullable String dialogTitle) {
         String oldValue = this.dialogTitle;
         this.dialogTitle = dialogTitle;
         if(dialog != null) {
@@ -972,7 +973,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @return the string from the {@code JFileChooser} window's title bar
      * @see #setDialogTitle
      */
-    public String getDialogTitle() {
+    public @Nullable String getDialogTitle() {
         return dialogTitle;
     }
 
@@ -993,7 +994,7 @@ public class JFileChooser extends JComponent implements Accessible {
      */
     @BeanProperty(preferred = true, description
             = "The tooltip text for the ApproveButton.")
-    public void setApproveButtonToolTipText(String toolTipText) {
+    public void setApproveButtonToolTipText(@Nullable String toolTipText) {
         if(approveButtonToolTipText == toolTipText) {
             return;
         }
@@ -1013,7 +1014,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @see #setDialogType
      * @see #showDialog
      */
-    public String getApproveButtonToolTipText() {
+    public @Nullable String getApproveButtonToolTipText() {
         return approveButtonToolTipText;
     }
 
@@ -1073,7 +1074,7 @@ public class JFileChooser extends JComponent implements Accessible {
     // PENDING(jeff) - have ui set this on dialog type change
     @BeanProperty(preferred = true, description
             = "The text that goes in the ApproveButton.")
-    public void setApproveButtonText(String approveButtonText) {
+    public void setApproveButtonText(@Nullable String approveButtonText) {
         if(this.approveButtonText == approveButtonText) {
             return;
         }
@@ -1095,7 +1096,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @see #setDialogType
      * @see #showDialog
      */
-    public String getApproveButtonText() {
+    public @Nullable String getApproveButtonText() {
         return approveButtonText;
     }
 
@@ -1131,7 +1132,7 @@ public class JFileChooser extends JComponent implements Accessible {
      */
     @BeanProperty(preferred = true, description
             = "Adds a filter to the list of user choosable file filters.")
-    public void addChoosableFileFilter(FileFilter filter) {
+    public void addChoosableFileFilter(@Nullable FileFilter filter) {
         if(filter != null && !filters.contains(filter)) {
             FileFilter[] oldValue = getChoosableFileFilters();
             filters.addElement(filter);
@@ -1152,7 +1153,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @see #getChoosableFileFilters
      * @see #resetChoosableFileFilters
      */
-    public boolean removeChoosableFileFilter(FileFilter f) {
+    public boolean removeChoosableFileFilter(@Nullable FileFilter f) {
         int index = filters.indexOf(f);
         if (index >= 0) {
             if(getFileFilter() == f) {
@@ -1209,7 +1210,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @return the {@code AcceptAll} file filter
      */
     @BeanProperty(bound = false)
-    public FileFilter getAcceptAllFileFilter() {
+    public @Nullable FileFilter getAcceptAllFileFilter() {
         FileFilter filter = null;
         if(getUI() != null) {
             filter = getUI().getAcceptAllFileFilter(this);
@@ -1263,7 +1264,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @return this JFileChooser's accessory component, or null
      * @see #setAccessory
      */
-    public JComponent getAccessory() {
+    public @Nullable JComponent getAccessory() {
         return accessory;
     }
 
@@ -1281,7 +1282,7 @@ public class JFileChooser extends JComponent implements Accessible {
      */
     @BeanProperty(preferred = true, description
             = "Sets the accessory component on the JFileChooser.")
-    public void setAccessory(JComponent newAccessory) {
+    public void setAccessory(@Nullable JComponent newAccessory) {
         JComponent oldValue = accessory;
         accessory = newAccessory;
         firePropertyChange(ACCESSORY_CHANGED_PROPERTY, oldValue, accessory);
@@ -1441,7 +1442,7 @@ public class JFileChooser extends JComponent implements Accessible {
      */
     @BeanProperty(preferred = true, description
             = "Sets the File Filter used to filter out files of type.")
-    public void setFileFilter(FileFilter filter) {
+    public void setFileFilter(@Nullable FileFilter filter) {
         FileFilter oldValue = fileFilter;
         fileFilter = filter;
         if (filter != null) {
@@ -1473,7 +1474,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @see #setFileFilter
      * @see #addChoosableFileFilter
      */
-    public FileFilter getFileFilter() {
+    public @Nullable FileFilter getFileFilter() {
         return fileFilter;
     }
 
@@ -1487,7 +1488,7 @@ public class JFileChooser extends JComponent implements Accessible {
      */
     @BeanProperty(preferred = true, description
             = "Sets the File View used to get file type information.")
-    public void setFileView(FileView fileView) {
+    public void setFileView(@Nullable FileView fileView) {
         FileView oldValue = this.fileView;
         this.fileView = fileView;
         firePropertyChange(FILE_VIEW_CHANGED_PROPERTY, oldValue, fileView);
@@ -1499,7 +1500,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @return the current file view
      * @see #setFileView
      */
-    public FileView getFileView() {
+    public @Nullable FileView getFileView() {
         return fileView;
     }
 
@@ -1519,7 +1520,7 @@ public class JFileChooser extends JComponent implements Accessible {
      *          <code>f</code>
      * @see FileView#getName
      */
-    public String getName(File f) {
+    public @Nullable String getName(@Nullable File f) {
         String filename = null;
         if(f != null) {
             if(getFileView() != null) {
@@ -1542,7 +1543,7 @@ public class JFileChooser extends JComponent implements Accessible {
      *          <code>f</code>
      * @see FileView#getDescription
      */
-    public String getDescription(File f) {
+    public @Nullable String getDescription(@Nullable File f) {
         String description = null;
         if(f != null) {
             if(getFileView() != null) {
@@ -1565,7 +1566,7 @@ public class JFileChooser extends JComponent implements Accessible {
      *          <code>f</code>
      * @see FileView#getTypeDescription
      */
-    public String getTypeDescription(File f) {
+    public @Nullable String getTypeDescription(@Nullable File f) {
         String typeDescription = null;
         if(f != null) {
             if(getFileView() != null) {
@@ -1588,7 +1589,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @return the <code>Icon</code> for this file, or type of file
      * @see FileView#getIcon
      */
-    public Icon getIcon(File f) {
+    public @Nullable Icon getIcon(@Nullable File f) {
         Icon icon = null;
         if (f != null) {
             if(getFileView() != null) {
@@ -1611,7 +1612,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @return true if the file/directory can be traversed, otherwise false
      * @see FileView#isTraversable
      */
-    public boolean isTraversable(File f) {
+    public boolean isTraversable(@Nullable File f) {
         Boolean traversable = null;
         if (f != null) {
             if (getFileView() != null) {
@@ -1636,7 +1637,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @return true if the file should be displayed, otherwise false
      * @see FileFilter#accept
      */
-    public boolean accept(File f) {
+    public boolean accept(@Nullable File f) {
         boolean shown = true;
         if(f != null && fileFilter != null) {
             shown = fileFilter.accept(f);
@@ -1654,7 +1655,7 @@ public class JFileChooser extends JComponent implements Accessible {
      */
     @BeanProperty(expert = true, description
             = "Sets the FileSytemView used to get filesystem information.")
-    public void setFileSystemView(FileSystemView fsv) {
+    public void setFileSystemView(@Nullable FileSystemView fsv) {
         FileSystemView oldValue = fileSystemView;
         fileSystemView = fsv;
         firePropertyChange(FILE_SYSTEM_VIEW_CHANGED_PROPERTY, oldValue, fileSystemView);
@@ -1665,7 +1666,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @return the <code>FileSystemView</code> object
      * @see #setFileSystemView
      */
-    public FileSystemView getFileSystemView() {
+    public @Nullable FileSystemView getFileSystemView() {
         return fileSystemView;
     }
 

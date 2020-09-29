@@ -40,6 +40,9 @@ import javax.accessibility.AccessibleState;
 import javax.accessibility.AccessibleStateSet;
 import javax.swing.WindowConstants;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import sun.awt.AWTAccessor;
 import sun.awt.SunToolkit;
 
@@ -135,6 +138,7 @@ import sun.awt.SunToolkit;
  * @see Window#addWindowListener
  * @since       1.0
  */
+@AnnotatedFor({"nullness"})
 public class Frame extends Window implements MenuContainer {
 
     /* Note: These are being obsoleted;  programs should use the Cursor class
@@ -311,7 +315,7 @@ public class Frame extends Window implements MenuContainer {
      * @see #getMenuBar
      * @see #setMenuBar(MenuBar)
      */
-    MenuBar     menuBar;
+    @Nullable MenuBar     menuBar;
 
     /**
      * This field indicates whether the frame is resizable.
@@ -420,7 +424,7 @@ public class Frame extends Window implements MenuContainer {
      * @see java.awt.Component#setVisible(boolean)
      * @see java.awt.GraphicsConfiguration#getBounds
      */
-    public Frame(String title) throws HeadlessException {
+    public Frame(@Nullable String title) throws HeadlessException {
         init(title, null);
     }
 
@@ -445,7 +449,7 @@ public class Frame extends Window implements MenuContainer {
      * @see java.awt.GraphicsConfiguration#getBounds
      * @since 1.3
      */
-    public Frame(String title, GraphicsConfiguration gc) {
+    public Frame(@Nullable String title, GraphicsConfiguration gc) {
         super(gc);
         init(title, gc);
     }
@@ -509,7 +513,7 @@ public class Frame extends Window implements MenuContainer {
      *              is treated as an empty string, "".
      * @see      #getTitle
      */
-    public void setTitle(String title) {
+    public void setTitle(@Nullable String title) {
         String oldTitle = this.title;
         if (title == null) {
             title = "";
@@ -541,7 +545,7 @@ public class Frame extends Window implements MenuContainer {
      * @see       Window#getIconImages()
      * @see       Window#setIconImages
      */
-    public Image getIconImage() {
+    public @Nullable Image getIconImage() {
         java.util.List<Image> icons = this.icons;
         if (icons != null) {
             if (icons.size() > 0) {
@@ -554,7 +558,7 @@ public class Frame extends Window implements MenuContainer {
     /**
      * {@inheritDoc}
      */
-    public void setIconImage(Image image) {
+    public void setIconImage(@Nullable Image image) {
         super.setIconImage(image);
     }
 
@@ -564,7 +568,7 @@ public class Frame extends Window implements MenuContainer {
      *                   if this frame doesn't have a menu bar.
      * @see       #setMenuBar(MenuBar)
      */
-    public MenuBar getMenuBar() {
+    public @Nullable MenuBar getMenuBar() {
         return menuBar;
     }
 
@@ -575,7 +579,7 @@ public class Frame extends Window implements MenuContainer {
      *            existing menu bar on this frame is removed.
      * @see       #getMenuBar
      */
-    public void setMenuBar(MenuBar mb) {
+    public void setMenuBar(@Nullable MenuBar mb) {
         synchronized (getTreeLock()) {
             if (menuBar == mb) {
                 return;
@@ -863,7 +867,7 @@ public class Frame extends Window implements MenuContainer {
      * @see #getMaximizedBounds()
      * @since 1.4
      */
-    public void setMaximizedBounds(Rectangle bounds) {
+    public void setMaximizedBounds(@Nullable Rectangle bounds) {
         synchronized(getObjectLock()) {
             this.maximizedBounds = bounds;
         }
@@ -882,7 +886,7 @@ public class Frame extends Window implements MenuContainer {
      * @see     #setMaximizedBounds(Rectangle)
      * @since   1.4
      */
-    public Rectangle getMaximizedBounds() {
+    public @Nullable Rectangle getMaximizedBounds() {
         synchronized(getObjectLock()) {
             return maximizedBounds;
         }
@@ -970,7 +974,7 @@ public class Frame extends Window implements MenuContainer {
      * {@inheritDoc}
      */
     @Override
-    public void setShape(Shape shape) {
+    public void setShape(@Nullable Shape shape) {
         synchronized (getTreeLock()) {
             if ((shape != null) && !isUndecorated()) {
                 throw new IllegalComponentStateException("The frame is decorated");
@@ -983,7 +987,7 @@ public class Frame extends Window implements MenuContainer {
      * {@inheritDoc}
      */
     @Override
-    public void setBackground(Color bgColor) {
+    public void setBackground(@Nullable Color bgColor) {
         synchronized (getTreeLock()) {
             if ((bgColor != null) && (bgColor.getAlpha() < 255) && !isUndecorated()) {
                 throw new IllegalComponentStateException("The frame is decorated");
@@ -998,7 +1002,7 @@ public class Frame extends Window implements MenuContainer {
      *           If {@code m} is {@code null}, then
      *           no action is taken
      */
-    public void remove(MenuComponent m) {
+    public void remove(@Nullable MenuComponent m) {
         if (m == null) {
             return;
         }

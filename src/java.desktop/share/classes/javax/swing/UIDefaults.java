@@ -27,6 +27,10 @@ package javax.swing;
 
 
 import javax.swing.plaf.ComponentUI;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import javax.swing.border.*;
 import javax.swing.event.SwingPropertyChangeSupport;
 
@@ -73,6 +77,7 @@ import sun.swing.SwingUtilities2;
  * @author Hans Muller
  * @since 1.2
  */
+@AnnotatedFor({"nullness"})
 @SuppressWarnings("serial") // Same-version serialization only
 public class UIDefaults extends Hashtable<Object,Object>
 {
@@ -165,7 +170,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      * @see #addResourceBundle
      * @since 1.4
      */
-    public Object get(Object key) {
+    public @Nullable Object get(Object key) {
         Object value = getFromHashtable( key );
         return (value != null) ? value : getFromResourceBundle(key, null);
     }
@@ -268,7 +273,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      * @see #addResourceBundle
      * @since 1.4
      */
-    public Object get(Object key, Locale l) {
+    public @Nullable Object get(Object key, @Nullable Locale l) {
         Object value = getFromHashtable( key );
         return (value != null) ? value : getFromResourceBundle(key, l);
     }
@@ -276,7 +281,7 @@ public class UIDefaults extends Hashtable<Object,Object>
     /**
      * Looks up given key in our resource bundles.
      */
-    private Object getFromResourceBundle(Object key, Locale l) {
+    private @Nullable Object getFromResourceBundle(Object key, @Nullable Locale l) {
 
         if( resourceBundles == null ||
             resourceBundles.isEmpty() ||
@@ -373,7 +378,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      * @see #putDefaults
      * @see java.util.Hashtable#put
      */
-    public Object put(Object key, Object value) {
+    public @Nullable Object put(Object key, @Nullable Object value) {
         Object oldValue = (value == null) ? super.remove(key) : super.put(key, value);
         if (key instanceof String) {
             firePropertyChange((String)key, oldValue, value);
@@ -393,7 +398,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      * @see #put
      * @see java.util.Hashtable#put
      */
-    public void putDefaults(Object[] keyValueList) {
+    public void putDefaults(@Nullable Object[] keyValueList) {
         for(int i = 0, max = keyValueList.length; i < max; i += 2) {
             Object value = keyValueList[i + 1];
             if (value == null) {
@@ -415,7 +420,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          return the <code>Font</code> object; otherwise return
      *          <code>null</code>
      */
-    public Font getFont(Object key) {
+    public @Nullable Font getFont(Object key) {
         Object value = get(key);
         return (value instanceof Font) ? (Font)value : null;
     }
@@ -432,7 +437,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          <code>null</code>
      * @since 1.4
      */
-    public Font getFont(Object key, Locale l) {
+    public @Nullable Font getFont(Object key, @Nullable Locale l) {
         Object value = get(key,l);
         return (value instanceof Font) ? (Font)value : null;
     }
@@ -445,7 +450,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          return the <code>Color</code> object; otherwise return
      *          <code>null</code>
      */
-    public Color getColor(Object key) {
+    public @Nullable Color getColor(Object key) {
         Object value = get(key);
         return (value instanceof Color) ? (Color)value : null;
     }
@@ -462,7 +467,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          <code>null</code>
      * @since 1.4
      */
-    public Color getColor(Object key, Locale l) {
+    public @Nullable Color getColor(Object key, @Nullable Locale l) {
         Object value = get(key,l);
         return (value instanceof Color) ? (Color)value : null;
     }
@@ -476,7 +481,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          return the <code>Icon</code> object; otherwise return
      *          <code>null</code>
      */
-    public Icon getIcon(Object key) {
+    public @Nullable Icon getIcon(Object key) {
         Object value = get(key);
         return (value instanceof Icon) ? (Icon)value : null;
     }
@@ -493,7 +498,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          <code>null</code>
      * @since 1.4
      */
-    public Icon getIcon(Object key, Locale l) {
+    public @Nullable Icon getIcon(Object key, @Nullable Locale l) {
         Object value = get(key,l);
         return (value instanceof Icon) ? (Icon)value : null;
     }
@@ -507,7 +512,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          return the <code>Border</code> object; otherwise return
      *          <code>null</code>
      */
-    public Border getBorder(Object key) {
+    public @Nullable Border getBorder(Object key) {
         Object value = get(key);
         return (value instanceof Border) ? (Border)value : null;
     }
@@ -524,7 +529,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          <code>null</code>
      * @since 1.4
      */
-    public Border getBorder(Object key, Locale l)  {
+    public @Nullable Border getBorder(Object key, @Nullable Locale l)  {
         Object value = get(key,l);
         return (value instanceof Border) ? (Border)value : null;
     }
@@ -538,7 +543,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          return the <code>String</code> object; otherwise return
      *          <code>null</code>
      */
-    public String getString(Object key) {
+    public @Nullable String getString(Object key) {
         Object value = get(key);
         return (value instanceof String) ? (String)value : null;
     }
@@ -554,7 +559,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          <code>null</code>
      * @since 1.4
      */
-    public String getString(Object key, Locale l) {
+    public @Nullable String getString(Object key, @Nullable Locale l) {
         Object value = get(key,l);
         return (value instanceof String) ? (String)value : null;
     }
@@ -582,7 +587,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          return its value, otherwise return 0
      * @since 1.4
      */
-    public int getInt(Object key, Locale l) {
+    public int getInt(Object key, @Nullable Locale l) {
         Object value = get(key,l);
         return (value instanceof Integer) ? ((Integer)value).intValue() : 0;
     }
@@ -628,7 +633,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          return the <code>Insets</code> object; otherwise return
      *          <code>null</code>
      */
-    public Insets getInsets(Object key) {
+    public @Nullable Insets getInsets(Object key) {
         Object value = get(key);
         return (value instanceof Insets) ? (Insets)value : null;
     }
@@ -645,7 +650,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          <code>null</code>
      * @since 1.4
      */
-    public Insets getInsets(Object key, Locale l) {
+    public @Nullable Insets getInsets(Object key, @Nullable Locale l) {
         Object value = get(key,l);
         return (value instanceof Insets) ? (Insets)value : null;
     }
@@ -659,7 +664,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          return the <code>Dimension</code> object; otherwise return
      *          <code>null</code>
      */
-    public Dimension getDimension(Object key) {
+    public @Nullable Dimension getDimension(Object key) {
         Object value = get(key);
         return (value instanceof Dimension) ? (Dimension)value : null;
     }
@@ -676,7 +681,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      *          <code>null</code>
      * @since 1.4
      */
-    public Dimension getDimension(Object key, Locale l) {
+    public @Nullable Dimension getDimension(Object key, @Nullable Locale l) {
         Object value = get(key,l);
         return (value instanceof Dimension) ? (Dimension)value : null;
     }
@@ -702,8 +707,8 @@ public class UIDefaults extends Hashtable<Object,Object>
      * @return the value of <code>Class.forName(get(uidClassID))</code>
      * @see #getUI
      */
-    public Class<? extends ComponentUI>
-        getUIClass(String uiClassID, ClassLoader uiClassLoader)
+    public @Nullable Class<? extends ComponentUI>
+        getUIClass(String uiClassID, @Nullable ClassLoader uiClassLoader)
     {
         try {
             String className = (String)get(uiClassID);
@@ -742,7 +747,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      * @return the Class object returned by
      *          <code>getUIClass(uiClassID, null)</code>
      */
-    public Class<? extends ComponentUI> getUIClass(String uiClassID) {
+    public @Nullable Class<? extends ComponentUI> getUIClass(String uiClassID) {
         return getUIClass(uiClassID, null);
     }
 

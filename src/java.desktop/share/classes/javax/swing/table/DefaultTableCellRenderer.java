@@ -27,6 +27,7 @@ package javax.swing.table;
 
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import javax.swing.*;
@@ -86,7 +87,7 @@ import sun.swing.SwingUtilities2;
  * @author Philip Milne
  * @see JTable
  */
-@AnnotatedFor({"index", "interning"})
+@AnnotatedFor({"index", "interning", "nullness"})
 @SuppressWarnings("serial") // Same-version serialization only
 public class DefaultTableCellRenderer extends JLabel
     implements TableCellRenderer, Serializable
@@ -109,8 +110,8 @@ public class DefaultTableCellRenderer extends JLabel
     // to after its foreground and background colors have been set
     // to the selection background color.
     // These ivars will be made protected when their names are finalized.
-    private Color unselectedForeground;
-    private Color unselectedBackground;
+    private @Nullable Color unselectedForeground;
+    private @Nullable Color unselectedBackground;
 
     /**
      * Creates a default table cell renderer.
@@ -193,7 +194,7 @@ public class DefaultTableCellRenderer extends JLabel
      * @return the default table cell renderer
      * @see javax.swing.JComponent#isPaintingForPrint()
      */
-    public Component getTableCellRendererComponent(JTable table, Object value,
+    public Component getTableCellRendererComponent(JTable table, @Nullable Object value,
                           boolean isSelected, boolean hasFocus, @NonNegative int row, @NonNegative int column) {
         if (table == null) {
             return this;
@@ -347,7 +348,7 @@ public class DefaultTableCellRenderer extends JLabel
      * See the <a href="#override">Implementation Note</a>
      * for more information.
      */
-    protected void firePropertyChange(@Interned String propertyName, Object oldValue, Object newValue) {
+    protected void firePropertyChange(@Interned String propertyName, @Nullable Object oldValue, @Nullable Object newValue) {
         // Strings get interned...
         if (propertyName=="text"
             || propertyName == "labelFor"
@@ -378,7 +379,7 @@ public class DefaultTableCellRenderer extends JLabel
      * @see JLabel#setText
      *
      */
-    protected void setValue(Object value) {
+    protected void setValue(@Nullable Object value) {
         setText((value == null) ? "" : value.toString());
     }
 

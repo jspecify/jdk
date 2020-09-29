@@ -29,6 +29,11 @@ import java.awt.Insets;
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.plaf.ComponentUI;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import sun.awt.AppContext;
 
 /**
@@ -43,6 +48,7 @@ import sun.awt.AppContext;
  *
  * @author Scott Violet
  */
+@AnnotatedFor({"nullness"})
 public class DefaultLookup {
     /**
      * Key used to store DefaultLookup for AppContext.
@@ -69,7 +75,7 @@ public class DefaultLookup {
      * <code>AppContext</code>. Null implies the UIManager should be
      * used.
      */
-    public static void setDefaultLookup(DefaultLookup lookup) {
+    public static void setDefaultLookup(@Nullable DefaultLookup lookup) {
         synchronized(DefaultLookup.class) {
             if (!isLookupSet && lookup == null) {
                 // Null was passed in, and no one has invoked setDefaultLookup
@@ -89,7 +95,7 @@ public class DefaultLookup {
         }
     }
 
-    public static Object get(JComponent c, ComponentUI ui, String key) {
+    public static @Nullable Object get(JComponent c, ComponentUI ui, String key) {
         boolean lookupSet;
         synchronized(DefaultLookup.class) {
             lookupSet = isLookupSet;
@@ -142,8 +148,8 @@ public class DefaultLookup {
         return getInt(c, ui, key, -1);
     }
 
-    public static Insets getInsets(JComponent c, ComponentUI ui, String key,
-                                   Insets defaultValue) {
+    public static @PolyNull Insets getInsets(JComponent c, ComponentUI ui, String key,
+                                   @PolyNull Insets defaultValue) {
         Object iValue = get(c, ui, key);
 
         if (iValue == null || !(iValue instanceof Insets)) {
@@ -152,7 +158,7 @@ public class DefaultLookup {
         return (Insets)iValue;
     }
 
-    public static Insets getInsets(JComponent c, ComponentUI ui, String key) {
+    public static @Nullable Insets getInsets(JComponent c, ComponentUI ui, String key) {
         return getInsets(c, ui, key, null);
     }
 
@@ -170,8 +176,8 @@ public class DefaultLookup {
         return getBoolean(c, ui, key, false);
     }
 
-    public static Color getColor(JComponent c, ComponentUI ui, String key,
-                                 Color defaultValue) {
+    public static @PolyNull Color getColor(JComponent c, ComponentUI ui, String key,
+                                 @PolyNull Color defaultValue) {
         Object iValue = get(c, ui, key);
 
         if (iValue == null || !(iValue instanceof Color)) {
@@ -180,12 +186,12 @@ public class DefaultLookup {
         return (Color)iValue;
     }
 
-    public static Color getColor(JComponent c, ComponentUI ui, String key) {
+    public static @Nullable Color getColor(JComponent c, ComponentUI ui, String key) {
         return getColor(c, ui, key, null);
     }
 
-    public static Icon getIcon(JComponent c, ComponentUI ui, String key,
-            Icon defaultValue) {
+    public static @PolyNull Icon getIcon(JComponent c, ComponentUI ui, String key,
+            @PolyNull Icon defaultValue) {
         Object iValue = get(c, ui, key);
         if (iValue == null || !(iValue instanceof Icon)) {
             return defaultValue;
@@ -193,12 +199,12 @@ public class DefaultLookup {
         return (Icon)iValue;
     }
 
-    public static Icon getIcon(JComponent c, ComponentUI ui, String key) {
+    public static @Nullable Icon getIcon(JComponent c, ComponentUI ui, String key) {
         return getIcon(c, ui, key, null);
     }
 
-    public static Border getBorder(JComponent c, ComponentUI ui, String key,
-            Border defaultValue) {
+    public static @PolyNull Border getBorder(JComponent c, ComponentUI ui, String key,
+            @PolyNull Border defaultValue) {
         Object iValue = get(c, ui, key);
         if (iValue == null || !(iValue instanceof Border)) {
             return defaultValue;
@@ -206,11 +212,11 @@ public class DefaultLookup {
         return (Border)iValue;
     }
 
-    public static Border getBorder(JComponent c, ComponentUI ui, String key) {
+    public static @Nullable Border getBorder(JComponent c, ComponentUI ui, String key) {
         return getBorder(c, ui, key, null);
     }
 
-    public Object getDefault(JComponent c, ComponentUI ui, String key) {
+    public @Nullable Object getDefault(JComponent c, ComponentUI ui, String key) {
         // basic
         return UIManager.get(key, c.getLocale());
     }
