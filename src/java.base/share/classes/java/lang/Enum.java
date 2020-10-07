@@ -30,6 +30,7 @@ import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.lock.qual.GuardedByUnknown;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.common.value.qual.PolyValue;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -61,7 +62,7 @@ import java.io.ObjectStreamException;
  * @see     java.util.EnumMap
  * @since   1.5
  */
-@AnnotatedFor({"lock", "nullness", "index"})
+@AnnotatedFor({"lock", "nullness", "index", "value"})
 @SuppressWarnings("serial") // No serialVersionUID needed due to
                             // special-casing of enum types.
 public abstract class Enum<E extends Enum<E>>
@@ -85,7 +86,7 @@ public abstract class Enum<E extends Enum<E>>
      *
      * @return the name of this enum constant
      */
-    public final String name(@GuardedByUnknown @UnknownInitialization(java.lang.Enum.class) Enum<E> this) {
+    public final @PolyValue String name(@GuardedByUnknown @UnknownInitialization(java.lang.Enum.class) @PolyValue Enum<E> this) {
         return name;
     }
 
@@ -244,8 +245,8 @@ public abstract class Enum<E extends Enum<E>>
      *         is null
      * @since 1.5
      */
-    public static <T extends Enum<T>> T valueOf(Class<T> enumType,
-                                                String name) {
+    public static <T extends Enum<T>> @PolyValue T valueOf(Class<T> enumType,
+                                                @PolyValue String name) {
         T result = enumType.enumConstantDirectory().get(name);
         if (result != null)
             return result;
