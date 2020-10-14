@@ -99,6 +99,14 @@ jobs:
     displayName: clone checker-framework
   - bash: (cd ../checker-framework && checker/bin-devel/test-cftests-all.sh)
     displayName: test-cftests-all.sh
+## Here is how to create artifacts that can be downloaded.
+#   - bash: (cd ../checker-framework/checker/build/jtregJdk11/ && tar -czvf all.tgz all)
+#     condition: succeededOrFailed()
+#     displayName: tar jtregJdk11/all
+#   - publish: $(System.DefaultWorkingDirectory)/../checker-framework/checker/build/jtregJdk11/all.tgz
+#     artifact: all.tgz
+#     condition: failed()
+#     displayName: publish all.tgz
 
 - job: test_daikon
   pool:
