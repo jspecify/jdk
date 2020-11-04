@@ -35,12 +35,8 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import java.util.AbstractQueue;
@@ -80,8 +76,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author Doug Lea
  * @param <E> the type of elements held in this queue
  */
-@AnnotatedFor({"nullness"})
-public class DelayQueue<E extends @NonNull Delayed> extends AbstractQueue<E>
+@DefaultNonNull
+public class DelayQueue<E extends  Delayed> extends AbstractQueue<E>
     implements BlockingQueue<E> {
 
     private final transient ReentrantLock lock = new ReentrantLock();
@@ -319,7 +315,7 @@ public class DelayQueue<E extends @NonNull Delayed> extends AbstractQueue<E>
         }
     }
 
-    @Pure
+    
     public int size() {
         final ReentrantLock lock = this.lock;
         lock.lock();
@@ -409,8 +405,8 @@ public class DelayQueue<E extends @NonNull Delayed> extends AbstractQueue<E>
      *
      * @return an array containing all of the elements in this queue
      */
-    @SideEffectFree
-    public @PolyNull Object[] toArray(DelayQueue<@PolyNull E> this) {
+    
+    public @Nullable Object[] toArray() {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
@@ -455,8 +451,8 @@ public class DelayQueue<E extends @NonNull Delayed> extends AbstractQueue<E>
      *         this queue
      * @throws NullPointerException if the specified array is null
      */
-    @SideEffectFree
-    public <T> T[] toArray(T[] a) {
+    
+    public <T extends @Nullable Object> T[] toArray(T[] a) {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
@@ -470,7 +466,7 @@ public class DelayQueue<E extends @NonNull Delayed> extends AbstractQueue<E>
      * Removes a single instance of the specified element from this
      * queue, if it is present, whether or not it has expired.
      */
-    public boolean remove(Object o) {
+    public boolean remove(@Nullable Object o) {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
@@ -508,7 +504,7 @@ public class DelayQueue<E extends @NonNull Delayed> extends AbstractQueue<E>
      *
      * @return an iterator over the elements in this queue
      */
-    @SideEffectFree
+    
     public Iterator<E> iterator() {
         return new Itr(toArray());
     }

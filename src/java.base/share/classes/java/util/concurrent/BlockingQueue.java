@@ -35,10 +35,8 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.Queue;
@@ -181,8 +179,8 @@ import java.util.Queue;
  * @author Doug Lea
  * @param <E> the type of elements held in this queue
  */
-@AnnotatedFor({"nullness"})
-public interface BlockingQueue<E extends @NonNull Object> extends Queue<E> {
+@DefaultNonNull
+public interface BlockingQueue<E> extends Queue<E> {
     /**
      * Inserts the specified element into this queue if it is possible to do
      * so immediately without violating capacity restrictions, returning
@@ -312,7 +310,7 @@ public interface BlockingQueue<E extends @NonNull Object> extends Queue<E> {
      * @throws NullPointerException if the specified element is null
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean remove(Object o);
+    boolean remove(@Nullable Object o);
 
     /**
      * Returns {@code true} if this queue contains the specified element.
@@ -327,8 +325,8 @@ public interface BlockingQueue<E extends @NonNull Object> extends Queue<E> {
      * @throws NullPointerException if the specified element is null
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    @Pure
-    boolean contains(Object o);
+    
+    boolean contains(@Nullable Object o);
 
     /**
      * Removes all available elements from this queue and adds them

@@ -24,11 +24,7 @@
  */
 package sun.rmi.transport;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.rmi.server.ObjID;
 
@@ -71,8 +67,8 @@ class ObjectEndpoint {
      * ObjectEndpoint instance with the same object identifier and
      * transport as this object.
      **/
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof ObjectEndpoint) {
             ObjectEndpoint oe = (ObjectEndpoint) obj;

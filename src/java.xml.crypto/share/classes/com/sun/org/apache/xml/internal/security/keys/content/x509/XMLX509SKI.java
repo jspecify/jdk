@@ -22,11 +22,7 @@
  */
 package com.sun.org.apache.xml.internal.security.keys.content.x509;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
@@ -151,8 +147,8 @@ public class XMLX509SKI extends SignatureElementProxy implements XMLX509DataCont
     }
 
     /** {@inheritDoc} */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof XMLX509SKI)) {
             return false;

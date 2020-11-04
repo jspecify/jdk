@@ -25,11 +25,11 @@
 
 package javax.management;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 
 // java import
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Set;
 import java.io.ObjectInputStream;
@@ -261,7 +261,7 @@ import javax.management.loading.ClassLoaderRepository;
  * MBeanPermission#MBeanPermission(String,String,ObjectName,String)
  * MBeanPermission(null, null, name, "isRegistered")}.</p>
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface MBeanServer extends MBeanServerConnection {
 
     /**

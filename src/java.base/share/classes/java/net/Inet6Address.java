@@ -25,14 +25,8 @@
 
 package java.net;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -181,9 +175,9 @@ import java.util.Arrays;
  * @since 1.4
  */
 
-@AnnotatedFor({"interning"})
+
 public final
-@UsesObjectEquals class Inet6Address extends InetAddress {
+ class Inet6Address extends InetAddress {
     static final int INADDRSZ = 16;
 
     /*
@@ -881,8 +875,8 @@ public final
      * @see     java.net.InetAddress#getAddress()
      */
     @Override
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (obj == null || !(obj instanceof Inet6Address))
             return false;

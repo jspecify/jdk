@@ -24,9 +24,8 @@
  */
 package java.util.function;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.Covariant;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a supplier of results.
@@ -41,15 +40,15 @@ import org.checkerframework.framework.qual.Covariant;
  *
  * @since 1.8
  */
-@AnnotatedFor({"lock", "nullness"})
-@Covariant(0)
+@DefaultNonNull
+
 @FunctionalInterface
-public interface Supplier<T> {
+public interface Supplier<T extends @Nullable Object> {
 
     /**
      * Gets a result.
      *
      * @return a result
      */
-    T get(@GuardSatisfied Supplier<T> this);
+    T get();
 }

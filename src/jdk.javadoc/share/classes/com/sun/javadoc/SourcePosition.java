@@ -25,11 +25,10 @@
 
 package com.sun.javadoc;
 
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 import java.io.File;
 
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
  * This interface describes a source position: filename, line number,
@@ -43,7 +42,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *   in the package {@code jdk.javadoc.doclet}.
  *   For more information, see the <i>Migration Guide</i> in the documentation for that package.
  */
-@AnnotatedFor({"nullness", "signature", "value"})
+@DefaultNonNull
 @Deprecated(since="9", forRemoval=true)
 @SuppressWarnings("removal")
 public interface SourcePosition {
@@ -52,7 +51,7 @@ public interface SourcePosition {
      *
      *  @return the source file as a File.
      */
-    @SideEffectFree
+    
     File file();
 
     /** The line in the source file. The first line is numbered 1;
@@ -60,7 +59,7 @@ public interface SourcePosition {
      *
      *  @return the line number in the source file as an integer.
      */
-    @Pure
+    
     int line();
 
     /** The column in the source file. The first column is
@@ -70,10 +69,10 @@ public interface SourcePosition {
      *
      *  @return the column on the source line as an integer.
      */
-    @Pure
+    
     int column();
 
     /** Convert the source position to the form "Filename:line". */
-    @SideEffectFree
+    
     String toString();
 }

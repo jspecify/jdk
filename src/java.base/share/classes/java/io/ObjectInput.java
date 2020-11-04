@@ -25,12 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTEqLengthOf;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * ObjectInput extends the DataInput interface to include the reading of
@@ -43,7 +39,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see java.io.ObjectInputStream
  * @since   1.1
  */
-@AnnotatedFor({"nullness", "index"})
+@DefaultNonNull
 public interface ObjectInput extends DataInput, AutoCloseable {
     /**
      * Read and return an object. The class that implements this interface
@@ -75,7 +71,7 @@ public interface ObjectInput extends DataInput, AutoCloseable {
      *          returned when the end of the stream is reached.
      * @exception IOException If an I/O error has occurred.
      */
-    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(byte b[]) throws IOException;
+    public   int read(byte b[]) throws IOException;
 
     /**
      * Reads into an array of bytes.  This method will
@@ -87,7 +83,7 @@ public interface ObjectInput extends DataInput, AutoCloseable {
      *          returned when the end of the stream is reached.
      * @exception IOException If an I/O error has occurred.
      */
-    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException;
+    public   int read(byte b[],  int off,   int len) throws IOException;
 
     /**
      * Skips n bytes of input.
@@ -95,7 +91,7 @@ public interface ObjectInput extends DataInput, AutoCloseable {
      * @return  the actual number of bytes skipped.
      * @exception IOException If an I/O error has occurred.
      */
-    public @NonNegative long skip(long n) throws IOException;
+    public  long skip(long n) throws IOException;
 
     /**
      * Returns the number of bytes that can be read
@@ -103,7 +99,7 @@ public interface ObjectInput extends DataInput, AutoCloseable {
      * @return the number of available bytes.
      * @exception IOException If an I/O error has occurred.
      */
-    public @NonNegative int available() throws IOException;
+    public  int available() throws IOException;
 
     /**
      * Closes the input stream. Must be called

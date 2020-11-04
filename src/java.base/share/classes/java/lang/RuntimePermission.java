@@ -25,8 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.security.*;
 import java.lang.module.ModuleFinder;
@@ -401,7 +401,7 @@ import java.lang.module.ModuleFinder;
  * @since 1.2
  */
 
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public final class RuntimePermission extends BasicPermission {
 
     private static final long serialVersionUID = 7399184964622342223L;

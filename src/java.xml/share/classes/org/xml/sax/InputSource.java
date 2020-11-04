@@ -30,10 +30,8 @@
 
 package org.xml.sax;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -87,7 +85,7 @@ import java.io.InputStream;
  * @see java.io.InputStream
  * @see java.io.Reader
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public class InputSource {
 
     /**
@@ -99,7 +97,7 @@ public class InputSource {
      * @see #setCharacterStream
      * @see #setEncoding
      */
-    @SideEffectFree
+    
     public InputSource ()
     {
     }
@@ -122,7 +120,7 @@ public class InputSource {
      * @see #setEncoding
      * @see #setCharacterStream
      */
-    @SideEffectFree
+    
     public InputSource (String systemId)
     {
         setSystemId(systemId);
@@ -144,7 +142,7 @@ public class InputSource {
      * @see #setByteStream
      * @see #setCharacterStream
      */
-    @SideEffectFree
+    
     public InputSource (InputStream byteStream)
     {
         setByteStream(byteStream);
@@ -165,7 +163,7 @@ public class InputSource {
      * @see #setByteStream
      * @see #setCharacterStream
      */
-    @SideEffectFree
+    
     public InputSource (Reader characterStream)
     {
         setCharacterStream(characterStream);
@@ -196,7 +194,7 @@ public class InputSource {
      * @return The public identifier, or null if none was supplied.
      * @see #setPublicId
      */
-    @Pure
+    
     public @Nullable String getPublicId ()
     {
         return publicId;
@@ -244,7 +242,7 @@ public class InputSource {
      * @see #setSystemId
      * @see #getEncoding
      */
-    @Pure
+    
     public @Nullable String getSystemId ()
     {
         return systemId;
@@ -284,7 +282,7 @@ public class InputSource {
      * @see #getEncoding
      * @see #setByteStream
      */
-    @Pure
+    
     public @Nullable InputStream getByteStream ()
     {
         return byteStream;
@@ -322,7 +320,7 @@ public class InputSource {
      * @see #getSystemId
      * @see #getByteStream
      */
-    @Pure
+    
     public @Nullable String getEncoding ()
     {
         return encoding;
@@ -353,7 +351,7 @@ public class InputSource {
      * @return The character stream, or null if none was supplied.
      * @see #setCharacterStream
      */
-    @Pure
+    
     public @Nullable Reader getCharacterStream ()
     {
         return characterStream;

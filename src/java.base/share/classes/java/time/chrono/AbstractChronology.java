@@ -61,11 +61,7 @@
  */
 package java.time.chrono;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import static java.time.temporal.ChronoField.ALIGNED_DAY_OF_WEEK_IN_MONTH;
 import static java.time.temporal.ChronoField.ALIGNED_DAY_OF_WEEK_IN_YEAR;
@@ -687,8 +683,8 @@ public abstract class AbstractChronology implements Chronology {
      * @return true if this is equal to the other chronology
      */
     @Override
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
            return true;

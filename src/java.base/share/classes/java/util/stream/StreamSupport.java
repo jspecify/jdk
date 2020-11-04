@@ -24,7 +24,8 @@
  */
 package java.util.stream;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 import java.util.Spliterator;
@@ -39,7 +40,7 @@ import java.util.function.Supplier;
  *
  * @since 1.8
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public final class StreamSupport {
 
     // Suppresses default constructor, ensuring non-instantiability.
@@ -67,7 +68,7 @@ public final class StreamSupport {
      *        stream.
      * @return a new sequential or parallel {@code Stream}
      */
-    public static <T> Stream<T> stream(Spliterator<T> spliterator, boolean parallel) {
+    public static <T extends @Nullable Object> Stream<T> stream(Spliterator<T> spliterator, boolean parallel) {
         Objects.requireNonNull(spliterator);
         return new ReferencePipeline.Head<>(spliterator,
                                             StreamOpFlag.fromCharacteristics(spliterator),
@@ -107,7 +108,7 @@ public final class StreamSupport {
      * @return a new sequential or parallel {@code Stream}
      * @see #stream(java.util.Spliterator, boolean)
      */
-    public static <T> Stream<T> stream(Supplier<? extends Spliterator<T>> supplier,
+    public static <T extends @Nullable Object> Stream<T> stream(Supplier<? extends Spliterator<T>> supplier,
                                        int characteristics,
                                        boolean parallel) {
         Objects.requireNonNull(supplier);

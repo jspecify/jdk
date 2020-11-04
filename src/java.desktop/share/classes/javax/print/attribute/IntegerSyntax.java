@@ -25,11 +25,7 @@
 
 package javax.print.attribute;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.io.Serializable;
 
@@ -111,8 +107,8 @@ public abstract class IntegerSyntax implements Serializable, Cloneable {
      * @return {@code true} if {@code object} is equivalent to this integer
      *         attribute, {@code false} otherwise
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object object) {
 
         return (object != null && object instanceof IntegerSyntax &&

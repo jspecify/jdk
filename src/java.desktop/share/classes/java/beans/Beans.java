@@ -25,9 +25,8 @@
 
 package java.beans;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import com.sun.beans.finder.ClassFinder;
 
@@ -61,8 +60,8 @@ import java.util.Vector;
  * @since 1.1
  */
 
-@AnnotatedFor({"interning", "nullness"})
-public @UsesObjectEquals class Beans {
+@DefaultNonNull
+public  class Beans {
 
     /**
      * <p>

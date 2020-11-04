@@ -25,13 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.reflect.Field;
 import jdk.internal.reflect.CallerSensitive;
@@ -47,8 +42,8 @@ import sun.reflect.misc.ReflectUtil;
  * @see ObjectStreamClass
  * @since 1.2
  */
-@AnnotatedFor({"interning", "lock", "nullness"})
-public @UsesObjectEquals class ObjectStreamField
+@DefaultNonNull
+public  class ObjectStreamField
     implements Comparable<Object>
 {
 
@@ -262,7 +257,7 @@ public @UsesObjectEquals class ObjectStreamField
      * @return  null if this field has a primitive type.
      */
     // REMIND: deprecate?
-    public @Nullable @Interned String getTypeString() {
+    public @Nullable  String getTypeString() {
         return isPrimitive() ? null : getSignature();
     }
 
@@ -294,8 +289,8 @@ public @UsesObjectEquals class ObjectStreamField
      * @return  true if and only if this field corresponds to a primitive type
      */
     // REMIND: deprecate?
-    @Pure
-    public boolean isPrimitive(@GuardSatisfied ObjectStreamField this) {
+    
+    public boolean isPrimitive() {
         char tcode = getTypeCode();
         return ((tcode != 'L') && (tcode != '['));
     }
@@ -308,8 +303,8 @@ public @UsesObjectEquals class ObjectStreamField
      *
      * @since 1.4
      */
-    @Pure
-    public boolean isUnshared(@GuardSatisfied ObjectStreamField this) {
+    
+    public boolean isUnshared() {
         return unshared;
     }
 
@@ -320,8 +315,8 @@ public @UsesObjectEquals class ObjectStreamField
      * are compared.
      */
     // REMIND: deprecate?
-    @Pure
-    public int compareTo(@GuardSatisfied ObjectStreamField this, @GuardSatisfied Object obj) {
+    
+    public int compareTo( Object obj) {
         ObjectStreamField other = (ObjectStreamField) obj;
         boolean isPrim = isPrimitive();
         if (isPrim != other.isPrimitive()) {
@@ -333,8 +328,8 @@ public @UsesObjectEquals class ObjectStreamField
     /**
      * Return a string that describes this field.
      */
-    @SideEffectFree
-    public String toString(@GuardSatisfied ObjectStreamField this) {
+    
+    public String toString() {
         return getSignature() + ' ' + name;
     }
 

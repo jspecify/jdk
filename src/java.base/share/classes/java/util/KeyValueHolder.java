@@ -25,11 +25,7 @@
 
 package java.util;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.vm.annotation.Stable;
 
@@ -104,8 +100,8 @@ final class KeyValueHolder<K,V> implements Map.Entry<K,V> {
      * value are non-null, so equals() can be called safely on them.
      */
     @Override
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object o) {
         if (!(o instanceof Map.Entry))
             return false;

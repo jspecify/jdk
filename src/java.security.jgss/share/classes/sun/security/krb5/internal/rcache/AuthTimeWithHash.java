@@ -25,11 +25,7 @@
 
 package sun.security.krb5.internal.rcache;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import sun.security.action.GetPropertyAction;
 
@@ -84,8 +80,8 @@ public class AuthTimeWithHash extends AuthTime
      * @return true if two objects are equivalent, otherwise, return false.
      */
     @Override
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object o) {
         if (this == o) return true;
         if (!(o instanceof AuthTimeWithHash)) return false;

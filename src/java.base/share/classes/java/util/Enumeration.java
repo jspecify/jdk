@@ -25,8 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An object that implements the Enumeration interface generates a
@@ -64,8 +64,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  Lee Boynton
  * @since   1.0
  */
-@AnnotatedFor({"lock", "nullness"})
-public interface Enumeration<E> {
+@DefaultNonNull
+public interface Enumeration<E extends @Nullable Object> {
     /**
      * Tests if this enumeration contains more elements.
      *
@@ -73,7 +73,7 @@ public interface Enumeration<E> {
      *           contains at least one more element to provide;
      *          {@code false} otherwise.
      */
-    @Pure
+    
     boolean hasMoreElements();
 
     /**

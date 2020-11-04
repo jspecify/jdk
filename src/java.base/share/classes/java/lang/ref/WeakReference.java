@@ -25,8 +25,8 @@
 
 package java.lang.ref;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -48,8 +48,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since    1.2
  */
 
-@AnnotatedFor({"nullness"})
-public class WeakReference<T> extends Reference<T> {
+@DefaultNonNull
+public class WeakReference<T extends @Nullable Object> extends Reference<T> {
 
     /**
      * Creates a new weak reference that refers to the given object.  The new

@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown to indicate that an array has been accessed with an illegal index. The
@@ -35,7 +34,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *
  * @since 1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class ArrayIndexOutOfBoundsException extends IndexOutOfBoundsException {
     private static final long serialVersionUID = -5116101128118950844L;
 
@@ -43,7 +42,7 @@ public class ArrayIndexOutOfBoundsException extends IndexOutOfBoundsException {
      * Constructs an {@code ArrayIndexOutOfBoundsException} with no detail
      * message.
      */
-    @SideEffectFree
+    
     public ArrayIndexOutOfBoundsException() {
         super();
     }
@@ -54,7 +53,7 @@ public class ArrayIndexOutOfBoundsException extends IndexOutOfBoundsException {
      *
      * @param s the detail message.
      */
-    @SideEffectFree
+    
     public ArrayIndexOutOfBoundsException(@Nullable String s) {
         super(s);
     }
@@ -68,7 +67,7 @@ public class ArrayIndexOutOfBoundsException extends IndexOutOfBoundsException {
      *
      * @param index the illegal index.
      */
-    @SideEffectFree
+    
     public ArrayIndexOutOfBoundsException(int index) {
         super("Array index out of range: " + index);
     }

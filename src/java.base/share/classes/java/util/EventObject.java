@@ -25,10 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * <p>
@@ -41,8 +39,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since 1.1
  */
 
-@AnnotatedFor({"index", "interning", "lock", "nullness"})
-public @UsesObjectEquals class EventObject implements java.io.Serializable {
+@DefaultNonNull
+public  class EventObject implements java.io.Serializable {
 
     private static final long serialVersionUID = 5516075349620653480L;
 
@@ -69,7 +67,7 @@ public @UsesObjectEquals class EventObject implements java.io.Serializable {
      *
      * @return the object on which the Event initially occurred
      */
-    public Object getSource(@GuardSatisfied EventObject this) {
+    public Object getSource() {
         return source;
     }
 
@@ -78,8 +76,8 @@ public @UsesObjectEquals class EventObject implements java.io.Serializable {
      *
      * @return a String representation of this EventObject
      */
-    @SideEffectFree
-    public String toString(@GuardSatisfied EventObject this) {
+    
+    public String toString() {
         return getClass().getName() + "[source=" + source + "]";
     }
 }

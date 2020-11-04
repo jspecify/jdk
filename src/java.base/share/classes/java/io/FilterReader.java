@@ -25,12 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTEqLengthOf;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -45,7 +41,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since       1.1
  */
 
-@AnnotatedFor({"nullness", "index"})
+@DefaultNonNull
 public abstract class FilterReader extends Reader {
 
     /**
@@ -79,7 +75,7 @@ public abstract class FilterReader extends Reader {
      * @exception  IOException  If an I/O error occurs
      * @exception  IndexOutOfBoundsException {@inheritDoc}
      */
-    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(char cbuf[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
+    public   int read(char cbuf[],  int off,   int len) throws IOException {
         return in.read(cbuf, off, len);
     }
 
@@ -88,7 +84,7 @@ public abstract class FilterReader extends Reader {
      *
      * @exception  IOException  If an I/O error occurs
      */
-    public @NonNegative long skip(@NonNegative long n) throws IOException {
+    public  long skip( long n) throws IOException {
         return in.skip(n);
     }
 
@@ -113,7 +109,7 @@ public abstract class FilterReader extends Reader {
      *
      * @exception  IOException  If an I/O error occurs
      */
-    public void mark(@NonNegative int readAheadLimit) throws IOException {
+    public void mark( int readAheadLimit) throws IOException {
         in.mark(readAheadLimit);
     }
 

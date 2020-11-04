@@ -25,14 +25,13 @@
 
 package javax.tools;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Set;
 import java.io.InputStream;
 import java.io.OutputStream;
 import javax.lang.model.SourceVersion;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
  * Common interface for tools that can be invoked from a program.
@@ -48,7 +47,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author Jonathan Gibbons
  * @since 1.6
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface Tool {
     /**
      * Returns the name of this tool, or an empty string if no name is provided.

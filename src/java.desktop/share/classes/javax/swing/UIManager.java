@@ -24,10 +24,8 @@
  */
 package javax.swing;
 
-import org.checkerframework.checker.guieffect.qual.SafeEffect;
-import org.checkerframework.checker.guieffect.qual.UIType;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.Component;
 import java.awt.Font;
@@ -181,8 +179,8 @@ import sun.awt.AWTAccessor;
  * @author Hans Muller
  * @since 1.2
  */
-@AnnotatedFor({"guieffect", "nullness"})
-@UIType
+@DefaultNonNull
+
 @SuppressWarnings("serial") // Same-version serialization only
 public class UIManager implements Serializable
 {
@@ -573,7 +571,7 @@ public class UIManager implements Serializable
      *          {@code false}
      * @see #getLookAndFeel
      */
-    @SafeEffect
+    
     public static void setLookAndFeel(LookAndFeel newLookAndFeel)
         throws UnsupportedLookAndFeelException
     {
@@ -625,7 +623,7 @@ public class UIManager implements Serializable
      *         a class that extends {@code LookAndFeel}
      * @throws NullPointerException if {@code className} is {@code null}
      */
-    @SafeEffect
+    
     @SuppressWarnings("deprecation")
     public static void setLookAndFeel(String className)
         throws ClassNotFoundException,

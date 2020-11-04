@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown to indicate that the requested operation is not supported.<p>
@@ -39,12 +38,12 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  Josh Bloch
  * @since   1.2
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class UnsupportedOperationException extends RuntimeException {
     /**
      * Constructs an UnsupportedOperationException with no detail message.
      */
-    @SideEffectFree
+    
     public UnsupportedOperationException() {
     }
 
@@ -54,7 +53,7 @@ public class UnsupportedOperationException extends RuntimeException {
      *
      * @param message the detail message
      */
-    @SideEffectFree
+    
     public UnsupportedOperationException(@Nullable String message) {
         super(message);
     }
@@ -75,7 +74,7 @@ public class UnsupportedOperationException extends RuntimeException {
      *         unknown.)
      * @since 1.5
      */
-    @SideEffectFree
+    
     public UnsupportedOperationException(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }
@@ -94,7 +93,7 @@ public class UnsupportedOperationException extends RuntimeException {
      *         unknown.)
      * @since  1.5
      */
-    @SideEffectFree
+    
     public UnsupportedOperationException(@Nullable Throwable cause) {
         super(cause);
     }

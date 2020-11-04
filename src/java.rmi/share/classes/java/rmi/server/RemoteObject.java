@@ -25,11 +25,7 @@
 
 package java.rmi.server;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.rmi.Remote;
 import java.rmi.NoSuchObjectException;
@@ -138,8 +134,8 @@ public abstract class RemoteObject implements Remote, java.io.Serializable {
      * @return  true if these Objects are equal; false otherwise.
      * @see             java.util.Hashtable
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof RemoteObject) {
             if (ref == null) {

@@ -25,11 +25,8 @@
 
 package com.sun.javadoc;
 
-import org.checkerframework.checker.signature.qual.BinaryName;
-import org.checkerframework.checker.signature.qual.BinaryNameOrPrimitiveType;
-import org.checkerframework.checker.signature.qual.IdentifierOrPrimitiveType;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a type.  A type can be a class or interface, an
@@ -47,7 +44,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *   in the package {@code jdk.javadoc.doclet}.
  *   For more information, see the <i>Migration Guide</i> in the documentation for that package.
  */
-@AnnotatedFor({"nullness", "signature", "value"})
+@DefaultNonNull
 @Deprecated(since="9", forRemoval=true)
 @SuppressWarnings("removal")
 public interface Type {
@@ -111,7 +108,7 @@ public interface Type {
      * @return true if this type represents a primitive type.
      * @since 1.5
      */
-    @Pure
+    
     boolean isPrimitive();
 
     /**

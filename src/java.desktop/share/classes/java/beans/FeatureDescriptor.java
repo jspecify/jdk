@@ -25,10 +25,8 @@
 
 package java.beans;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 import com.sun.beans.TypeResolver;
 
 import java.lang.ref.Reference;
@@ -54,8 +52,8 @@ import java.util.Map.Entry;
  * @since 1.1
  */
 
-@AnnotatedFor({"interning", "nullness"})
-public @UsesObjectEquals class FeatureDescriptor {
+@DefaultNonNull
+public  class FeatureDescriptor {
     private static final String TRANSIENT = "transient";
 
     private @Nullable Reference<? extends Class<?>> classRef;
@@ -291,7 +289,7 @@ public @UsesObjectEquals class FeatureDescriptor {
      *
      * @return the initialized attribute table
      */
-    @EnsuresNonNull({"this.table"})
+    
     private Hashtable<String, Object> getTable() {
         if (this.table == null) {
             this.table = new Hashtable<>();
@@ -344,7 +342,7 @@ public @UsesObjectEquals class FeatureDescriptor {
      *
      * @see SoftReference
      */
-    static <T> @Nullable Reference<T> getSoftReference(@Nullable T object) {
+    static <T extends @Nullable Object> @Nullable Reference<T> getSoftReference(@Nullable T object) {
         return (object != null)
                 ? new SoftReference<>(object)
                 : null;
@@ -357,7 +355,7 @@ public @UsesObjectEquals class FeatureDescriptor {
      *
      * @see WeakReference
      */
-    static <T> @Nullable Reference<T> getWeakReference(@Nullable T object) {
+    static <T extends @Nullable Object> @Nullable Reference<T> getWeakReference(@Nullable T object) {
         return (object != null)
                 ? new WeakReference<>(object)
                 : null;

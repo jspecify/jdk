@@ -25,8 +25,8 @@
 
 package javax.naming.ldap;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import javax.naming.*;
 import javax.naming.directory.*;
@@ -90,7 +90,7 @@ import java.util.Hashtable;
   * @since 1.3
   */
 
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public class InitialLdapContext extends InitialDirContext implements LdapContext {
     private static final String
         BIND_CONTROLS_PROPERTY = "java.naming.ldap.control.connect";

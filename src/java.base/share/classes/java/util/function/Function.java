@@ -24,8 +24,8 @@
  */
 package java.util.function;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.Covariant;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -40,10 +40,10 @@ import java.util.Objects;
  *
  * @since 1.8
  */
-@AnnotatedFor({"lock", "nullness"})
-@Covariant(1)
+@DefaultNonNull
+
 @FunctionalInterface
-public interface Function<T, R> {
+public interface Function<T extends @Nullable Object, R extends @Nullable Object> {
 
     /**
      * Applies this function to the given argument.
@@ -68,7 +68,7 @@ public interface Function<T, R> {
      *
      * @see #andThen(Function)
      */
-    default <V> Function<V, R> compose(Function<? super V, ? extends T> before) {
+    default <V extends @Nullable Object> Function<V, R> compose(Function<? super V, ? extends T> before) {
         Objects.requireNonNull(before);
         return (V v) -> apply(before.apply(v));
     }
@@ -88,7 +88,7 @@ public interface Function<T, R> {
      *
      * @see #compose(Function)
      */
-    default <V> Function<T, V> andThen(Function<? super R, ? extends V> after) {
+    default <V extends @Nullable Object> Function<T, V> andThen(Function<? super R, ? extends V> after) {
         Objects.requireNonNull(after);
         return (T t) -> after.apply(apply(t));
     }
@@ -99,7 +99,7 @@ public interface Function<T, R> {
      * @param <T> the type of the input and output objects to the function
      * @return a function that always returns its input argument
      */
-    static <T> Function<T, T> identity() {
+    static <T extends @Nullable Object> Function<T, T> identity() {
         return t -> t;
     }
 }

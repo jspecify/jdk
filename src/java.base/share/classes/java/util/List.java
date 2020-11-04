@@ -25,18 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.IndexFor;
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.lock.qual.ReleasesNoLocks;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.UnaryOperator;
 
@@ -148,9 +138,9 @@ import java.util.function.UnaryOperator;
  * @since 1.2
  */
 
-@CFComment({"lock/nullness: Subclasses of this interface/class may opt to prohibit null elements"})
-@AnnotatedFor({"lock", "nullness", "index"})
-public interface List<E> extends Collection<E> {
+
+@DefaultNonNull
+public interface List<E extends @Nullable Object> extends Collection<E> {
     // Query Operations
 
     /**
@@ -160,16 +150,16 @@ public interface List<E> extends Collection<E> {
      *
      * @return the number of elements in this list
      */
-    @Pure
-    @NonNegative int size(@GuardSatisfied List<E> this);
+    
+     int size();
 
     /**
      * Returns {@code true} if this list contains no elements.
      *
      * @return {@code true} if this list contains no elements
      */
-    @Pure
-    boolean isEmpty(@GuardSatisfied List<E> this);
+    
+    boolean isEmpty();
 
     /**
      * Returns {@code true} if this list contains the specified element.
@@ -186,15 +176,15 @@ public interface List<E> extends Collection<E> {
      *         list does not permit null elements
      * (<a href="Collection.html#optional-restrictions">optional</a>)
      */
-    @Pure
-    boolean contains(@GuardSatisfied List<E> this, Object o);
+    
+    boolean contains(@Nullable Object o);
 
     /**
      * Returns an iterator over the elements in this list in proper sequence.
      *
      * @return an iterator over the elements in this list in proper sequence
      */
-    @SideEffectFree
+    
     Iterator<E> iterator();
 
     /**
@@ -213,8 +203,8 @@ public interface List<E> extends Collection<E> {
      *         sequence
      * @see Arrays#asList(Object[])
      */
-    @SideEffectFree
-    @PolyNull Object[] toArray(List<@PolyNull E> this);
+    
+    @Nullable Object[] toArray();
 
     /**
      * Returns an array containing all of the elements in this list in
@@ -255,8 +245,8 @@ public interface List<E> extends Collection<E> {
      *         this list
      * @throws NullPointerException if the specified array is null
      */
-    @SideEffectFree
-    <T> @Nullable T @PolyNull [] toArray(T @PolyNull [] a);
+    
+    <T extends @Nullable Object> @Nullable T @Nullable [] toArray(T @Nullable [] a);
 
 
     // Modification Operations
@@ -283,8 +273,8 @@ public interface List<E> extends Collection<E> {
      * @throws IllegalArgumentException if some property of this element
      *         prevents it from being added to this list
      */
-    @ReleasesNoLocks
-    boolean add(@GuardSatisfied List<E> this, E e);
+    
+    boolean add(E e);
 
     /**
      * Removes the first occurrence of the specified element from this list,
@@ -307,7 +297,7 @@ public interface List<E> extends Collection<E> {
      * @throws UnsupportedOperationException if the {@code remove} operation
      *         is not supported by this list
      */
-    boolean remove(@GuardSatisfied List<E> this, Object o);
+    boolean remove(@Nullable Object o);
 
 
     // Bulk Modification Operations
@@ -330,8 +320,8 @@ public interface List<E> extends Collection<E> {
      *         or if the specified collection is null
      * @see #contains(Object)
      */
-    @Pure
-    boolean containsAll(@GuardSatisfied List<E> this, Collection<?> c);
+    
+    boolean containsAll(Collection<?> c);
 
     /**
      * Appends all of the elements in the specified collection to the end of
@@ -354,7 +344,7 @@ public interface List<E> extends Collection<E> {
      *         specified collection prevents it from being added to this list
      * @see #add(Object)
      */
-    boolean addAll(@GuardSatisfied List<E> this, Collection<? extends E> c);
+    boolean addAll(Collection<? extends E> c);
 
     /**
      * Inserts all of the elements in the specified collection into this
@@ -383,7 +373,7 @@ public interface List<E> extends Collection<E> {
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index > size()})
      */
-    boolean addAll(@GuardSatisfied List<E> this, @IndexOrHigh({"this"}) int index, Collection<? extends E> c);
+    boolean addAll( int index, Collection<? extends E> c);
 
     /**
      * Removes from this list all of its elements that are contained in the
@@ -403,7 +393,7 @@ public interface List<E> extends Collection<E> {
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    boolean removeAll(@GuardSatisfied List<E> this, Collection<?> c);
+    boolean removeAll(Collection<?> c);
 
     /**
      * Retains only the elements in this list that are contained in the
@@ -425,7 +415,7 @@ public interface List<E> extends Collection<E> {
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    boolean retainAll(@GuardSatisfied List<E> this, Collection<?> c);
+    boolean retainAll(Collection<?> c);
 
     /**
      * Replaces each element of this list with the result of applying the
@@ -541,7 +531,7 @@ public interface List<E> extends Collection<E> {
      * @throws UnsupportedOperationException if the {@code clear} operation
      *         is not supported by this list
      */
-    void clear(@GuardSatisfied List<E> this);
+    void clear();
 
 
     // Comparison and hashing
@@ -560,8 +550,8 @@ public interface List<E> extends Collection<E> {
      * @param o the object to be compared for equality with this list
      * @return {@code true} if the specified object is equal to this list
      */
-    @Pure
-    boolean equals(@GuardSatisfied List<E> this, @Nullable Object o);
+    
+    boolean equals(@Nullable Object o);
 
     /**
      * Returns the hash code value for this list.  The hash code of a list
@@ -580,8 +570,8 @@ public interface List<E> extends Collection<E> {
      * @see Object#equals(Object)
      * @see #equals(Object)
      */
-    @Pure
-    int hashCode(@GuardSatisfied List<E> this);
+    
+    int hashCode();
 
 
     // Positional Access Operations
@@ -594,8 +584,8 @@ public interface List<E> extends Collection<E> {
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index >= size()})
      */
-    @Pure
-    E get(@GuardSatisfied List<E> this, @IndexFor({"this"}) int index);
+    
+    E get( int index);
 
     /**
      * Replaces the element at the specified position in this list with the
@@ -615,7 +605,7 @@ public interface List<E> extends Collection<E> {
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index >= size()})
      */
-    E set(@GuardSatisfied List<E> this, @IndexFor({"this"}) int index, E element);
+    E set( int index, E element);
 
     /**
      * Inserts the specified element at the specified position in this list
@@ -636,8 +626,8 @@ public interface List<E> extends Collection<E> {
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index > size()})
      */
-    @ReleasesNoLocks
-    void add(@GuardSatisfied List<E> this, @IndexOrHigh({"this"}) int index, E element);
+    
+    void add( int index, E element);
 
     /**
      * Removes the element at the specified position in this list (optional
@@ -652,8 +642,8 @@ public interface List<E> extends Collection<E> {
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index >= size()})
      */
-    @ReleasesNoLocks
-    E remove(@GuardSatisfied List<E> this, @IndexFor({"this"}) int index);
+    
+    E remove( int index);
 
 
     // Search Operations
@@ -675,8 +665,8 @@ public interface List<E> extends Collection<E> {
      *         list does not permit null elements
      *         (<a href="Collection.html#optional-restrictions">optional</a>)
      */
-    @GTENegativeOne @Pure
-    int indexOf(@GuardSatisfied List<E> this, Object o);
+     
+    int indexOf(@Nullable Object o);
 
     /**
      * Returns the index of the last occurrence of the specified element
@@ -695,8 +685,8 @@ public interface List<E> extends Collection<E> {
      *         list does not permit null elements
      *         (<a href="Collection.html#optional-restrictions">optional</a>)
      */
-    @GTENegativeOne @Pure
-    int lastIndexOf(@GuardSatisfied List<E> this, Object o);
+     
+    int lastIndexOf(@Nullable Object o);
 
 
     // List Iterators
@@ -725,7 +715,7 @@ public interface List<E> extends Collection<E> {
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index > size()})
      */
-    ListIterator<E> listIterator(@IndexOrHigh({"this"}) int index);
+    ListIterator<E> listIterator( int index);
 
     // View
 
@@ -763,8 +753,8 @@ public interface List<E> extends Collection<E> {
      *         ({@code fromIndex < 0 || toIndex > size ||
      *         fromIndex > toIndex})
      */
-    @SideEffectFree
-    List<E> subList(@GuardSatisfied List<E> this, @IndexOrHigh({"this"}) int fromIndex, @IndexOrHigh({"this"}) int toIndex);
+    
+    List<E> subList( int fromIndex,  int toIndex);
 
     /**
      * Creates a {@link Spliterator} over the elements in this list.
@@ -799,7 +789,7 @@ public interface List<E> extends Collection<E> {
      * @return a {@code Spliterator} over the elements in this list
      * @since 1.8
      */
-    @SideEffectFree
+    
     @Override
     default Spliterator<E> spliterator() {
         if (this instanceof RandomAccess) {
@@ -819,7 +809,7 @@ public interface List<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> List<E> of() {
+    static <E extends @Nullable Object> List<E> of() {
         return ImmutableCollections.emptyList();
     }
 
@@ -835,7 +825,7 @@ public interface List<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> List<E> of(E e1) {
+    static <E extends @Nullable Object> List<E> of(E e1) {
         return new ImmutableCollections.List12<>(e1);
     }
 
@@ -852,7 +842,7 @@ public interface List<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> List<E> of(E e1, E e2) {
+    static <E extends @Nullable Object> List<E> of(E e1, E e2) {
         return new ImmutableCollections.List12<>(e1, e2);
     }
 
@@ -870,7 +860,7 @@ public interface List<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> List<E> of(E e1, E e2, E e3) {
+    static <E extends @Nullable Object> List<E> of(E e1, E e2, E e3) {
         return new ImmutableCollections.ListN<>(e1, e2, e3);
     }
 
@@ -889,7 +879,7 @@ public interface List<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> List<E> of(E e1, E e2, E e3, E e4) {
+    static <E extends @Nullable Object> List<E> of(E e1, E e2, E e3, E e4) {
         return new ImmutableCollections.ListN<>(e1, e2, e3, e4);
     }
 
@@ -909,7 +899,7 @@ public interface List<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> List<E> of(E e1, E e2, E e3, E e4, E e5) {
+    static <E extends @Nullable Object> List<E> of(E e1, E e2, E e3, E e4, E e5) {
         return new ImmutableCollections.ListN<>(e1, e2, e3, e4, e5);
     }
 
@@ -930,7 +920,7 @@ public interface List<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> List<E> of(E e1, E e2, E e3, E e4, E e5, E e6) {
+    static <E extends @Nullable Object> List<E> of(E e1, E e2, E e3, E e4, E e5, E e6) {
         return new ImmutableCollections.ListN<>(e1, e2, e3, e4, e5,
                                                 e6);
     }
@@ -953,7 +943,7 @@ public interface List<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> List<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7) {
+    static <E extends @Nullable Object> List<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7) {
         return new ImmutableCollections.ListN<>(e1, e2, e3, e4, e5,
                                                 e6, e7);
     }
@@ -977,7 +967,7 @@ public interface List<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> List<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8) {
+    static <E extends @Nullable Object> List<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8) {
         return new ImmutableCollections.ListN<>(e1, e2, e3, e4, e5,
                                                 e6, e7, e8);
     }
@@ -1002,7 +992,7 @@ public interface List<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> List<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8, E e9) {
+    static <E extends @Nullable Object> List<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8, E e9) {
         return new ImmutableCollections.ListN<>(e1, e2, e3, e4, e5,
                                                 e6, e7, e8, e9);
     }
@@ -1028,7 +1018,7 @@ public interface List<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> List<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8, E e9, E e10) {
+    static <E extends @Nullable Object> List<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8, E e9, E e10) {
         return new ImmutableCollections.ListN<>(e1, e2, e3, e4, e5,
                                                 e6, e7, e8, e9, e10);
     }
@@ -1060,7 +1050,7 @@ public interface List<E> extends Collection<E> {
      */
     @SafeVarargs
     @SuppressWarnings("varargs")
-    static <E> List<E> of(E... elements) {
+    static <E extends @Nullable Object> List<E> of(E... elements) {
         switch (elements.length) { // implicit null check of elements
             case 0:
                 return ImmutableCollections.emptyList();
@@ -1089,7 +1079,7 @@ public interface List<E> extends Collection<E> {
      * @throws NullPointerException if coll is null, or if it contains any nulls
      * @since 10
      */
-    static <E> List<E> copyOf(Collection<? extends E> coll) {
+    static <E extends @Nullable Object> List<E> copyOf(Collection<? extends E> coll) {
         return ImmutableCollections.listCopy(coll);
     }
 }

@@ -25,10 +25,10 @@
 
 package java.net;
 
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
  * A CookieStore object represents a storage for cookie. Can store and retrieve
@@ -42,7 +42,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author Edward Wang
  * @since 1.6
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface CookieStore {
     /**
      * Adds one HTTP cookie to the store. This is called for every

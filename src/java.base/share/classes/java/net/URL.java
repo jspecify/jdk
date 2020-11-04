@@ -25,13 +25,8 @@
 
 package java.net;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -156,7 +151,7 @@ import sun.security.action.GetPropertyAction;
  * @author  James Gosling
  * @since 1.0
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public final class URL implements java.io.Serializable {
 
     static final String BUILTIN_HANDLERS_PREFIX = "sun.net.www.protocol";
@@ -943,8 +938,8 @@ public final class URL implements java.io.Serializable {
      * @return  {@code true} if the objects are the same;
      *          {@code false} otherwise.
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof URL))
             return false;
@@ -1164,7 +1159,7 @@ public final class URL implements java.io.Serializable {
     /**
      * The URLStreamHandler factory.
      */
-    private static volatile @MonotonicNonNull URLStreamHandlerFactory factory;
+    private static volatile  URLStreamHandlerFactory factory;
 
     /**
      * Sets an application's {@code URLStreamHandlerFactory}.

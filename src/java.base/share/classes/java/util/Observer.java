@@ -24,8 +24,8 @@
  */
 package java.util;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A class can implement the {@code Observer} interface when it
@@ -39,12 +39,8 @@ import org.checkerframework.framework.qual.CFComment;
  * This interface has been deprecated. See the {@link Observable}
  * class for further information.
  */
-@CFComment({"guieffect: These types are polymorphic, but they're basically unusable unless I fix the subtyping among differently permissioned interfaces...",
-    "package java.util;",
-    "@PolyUIType interface Observer {",
-    "@PolyUIEffect void update(@PolyUI Observer this, @PolyUI Observable o, Object arg);"
-})
-@AnnotatedFor({"lock", "nullness"})
+
+@DefaultNonNull
 @Deprecated(since="9")
 public interface Observer {
     /**

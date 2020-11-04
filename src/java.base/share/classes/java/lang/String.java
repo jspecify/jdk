@@ -25,37 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.formatter.qual.FormatMethod;
-import org.checkerframework.checker.index.qual.IndexFor;
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.IndexOrLow;
-import org.checkerframework.checker.index.qual.LTEqLengthOf;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.LengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.index.qual.Positive;
-import org.checkerframework.checker.index.qual.SameLen;
-import org.checkerframework.checker.index.qual.SubstringIndexFor;
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.regex.qual.PolyRegex;
-import org.checkerframework.checker.regex.qual.Regex;
-import org.checkerframework.checker.signature.qual.PolySignature;
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.common.value.qual.ArrayLen;
-import org.checkerframework.common.value.qual.ArrayLenRange;
-import org.checkerframework.common.value.qual.EnsuresMinLenIf;
-import org.checkerframework.common.value.qual.MinLen;
-import org.checkerframework.common.value.qual.PolyValue;
-import org.checkerframework.common.value.qual.StaticallyExecutable;
-import org.checkerframework.common.value.qual.StringVal;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
-import org.checkerframework.common.aliasing.qual.Unique;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.ObjectStreamField;
 import java.io.UnsupportedEncodingException;
@@ -154,7 +125,7 @@ import jdk.internal.vm.annotation.Stable;
  * @jls     15.18.1 String Concatenation Operator +
  */
 
-@AnnotatedFor({"aliasing", "formatter", "index", "interning", "lock", "nullness", "regex", "signature", "signedness"})
+@DefaultNonNull
 public final class String
     implements java.io.Serializable, Comparable<String>, CharSequence {
 
@@ -249,9 +220,9 @@ public final class String
      * an empty character sequence.  Note that use of this constructor is
      * unnecessary since Strings are immutable.
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @StringVal("") @Unique String() {
+    
+    
+    public   String() {
         this.value = "".value;
         this.coder = "".coder;
     }
@@ -266,10 +237,10 @@ public final class String
      * @param  original
      *         A {@code String}
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     @HotSpotIntrinsicCandidate
-    public @PolyValue @Unique String(@PolyValue String original) {
+    public   String( String original) {
         this.value = original.value;
         this.coder = original.coder;
         this.hash = original.hash;
@@ -284,9 +255,9 @@ public final class String
      * @param  value
      *         The initial value of the string
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @PolyValue @Unique String(char value @GuardSatisfied @PolyValue []) {
+    
+    
+    public   String(char value   []) {
         this(value, 0, value.length, null);
     }
 
@@ -311,9 +282,9 @@ public final class String
      *          If {@code offset} is negative, {@code count} is negative, or
      *          {@code offset} is greater than {@code value.length - count}
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @Unique String(char value @GuardSatisfied [], @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int count) {
+    
+    
+    public  String(char value  [],  int offset,   int count) {
         this(value, offset, count, rangeCheck(value, offset, count));
     }
 
@@ -350,9 +321,9 @@ public final class String
      *
      * @since  1.5
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @Unique String(int @GuardSatisfied [] codePoints, @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int count) {
+    
+    
+    public  String(int  [] codePoints,  int offset,   int count) {
         checkBoundsOffCount(offset, count, codePoints.length);
         if (count == 0) {
             this.value = "".value;
@@ -411,10 +382,10 @@ public final class String
      * @see  #String(byte[], java.nio.charset.Charset)
      * @see  #String(byte[])
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     @Deprecated(since="1.1")
-    public @Unique String(byte ascii @GuardSatisfied [], int hibyte, @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int count) {
+    public  String(byte ascii  [], int hibyte,  int offset,   int count) {
         checkBoundsOffCount(offset, count, ascii.length);
         if (count == 0) {
             this.value = "".value;
@@ -465,10 +436,10 @@ public final class String
      * @see  #String(byte[], java.nio.charset.Charset)
      * @see  #String(byte[])
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     @Deprecated(since="1.1")
-    public @Unique String(byte ascii @GuardSatisfied [], int hibyte) {
+    public  String(byte ascii  [], int hibyte) {
         this(ascii, hibyte, 0, ascii.length);
     }
 
@@ -505,9 +476,9 @@ public final class String
      *
      * @since  1.1
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @Unique String(@PolySigned byte bytes @GuardSatisfied [], @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int length, String charsetName)
+    
+    
+    public  String( byte bytes  [],  int offset,   int length, String charsetName)
             throws UnsupportedEncodingException {
         if (charsetName == null)
             throw new NullPointerException("charsetName");
@@ -548,9 +519,9 @@ public final class String
      *
      * @since  1.6
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @Unique String(@PolySigned byte bytes @GuardSatisfied [], @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int length, Charset charset) {
+    
+    
+    public  String( byte bytes  [],  int offset,   int length, Charset charset) {
         if (charset == null)
             throw new NullPointerException("charset");
         checkBoundsOffCount(offset, length, bytes.length);
@@ -583,9 +554,9 @@ public final class String
      *
      * @since  1.1
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @Unique String(@PolySigned byte bytes @GuardSatisfied [], String charsetName)
+    
+    
+    public  String( byte bytes  [], String charsetName)
             throws UnsupportedEncodingException {
         this(bytes, 0, bytes.length, charsetName);
     }
@@ -610,9 +581,9 @@ public final class String
      *
      * @since  1.6
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @Unique String(@PolySigned byte bytes @GuardSatisfied [], Charset charset) {
+    
+    
+    public  String( byte bytes  [], Charset charset) {
         this(bytes, 0, bytes.length, charset);
     }
 
@@ -642,9 +613,9 @@ public final class String
      *
      * @since  1.1
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @Unique String(@PolySigned byte bytes @GuardSatisfied [], @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int length) {
+    
+    
+    public  String( byte bytes  [],  int offset,   int length) {
         checkBoundsOffCount(offset, length, bytes.length);
         StringCoding.Result ret = StringCoding.decode(bytes, offset, length);
         this.value = ret.value;
@@ -667,9 +638,9 @@ public final class String
      *
      * @since  1.1
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @Unique String(@PolySigned byte @GuardSatisfied [] bytes) {
+    
+    
+    public  String( byte  [] bytes) {
         this(bytes, 0, bytes.length);
     }
 
@@ -682,9 +653,9 @@ public final class String
      * @param  buffer
      *         A {@code StringBuffer}
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @Unique String(@GuardSatisfied StringBuffer buffer) {
+    
+    
+    public  String( StringBuffer buffer) {
         this(buffer.toString());
     }
 
@@ -703,9 +674,9 @@ public final class String
      *
      * @since  1.5
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @Unique String(@GuardSatisfied StringBuilder builder) {
+    
+    
+    public  String( StringBuilder builder) {
         this(builder, null);
     }
 
@@ -717,9 +688,9 @@ public final class String
      * @return  the length of the sequence of characters represented by this
      *          object.
      */
-    @Pure
-    @StaticallyExecutable
-    public @LengthOf({"this"}) int length() {
+    
+    
+    public  int length() {
         return value.length >> coder();
     }
 
@@ -732,10 +703,10 @@ public final class String
      * @since 1.6
      */
     @SuppressWarnings("contracts.conditional.postcondition.not.satisfied")
-    @CFComment("index: The postcondition is EnsuresMinLenIf.  It's true because: values.length != 0 => this is @MinLen(1), as values.length is @LengthOf(this).")
-    @Pure
-    @StaticallyExecutable
-    @EnsuresMinLenIf(expression="this", result=false, targetValue=1)
+    
+    
+    
+    
     public boolean isEmpty() {
         return value.length == 0;
     }
@@ -758,9 +729,9 @@ public final class String
      *             argument is negative or not less than the length of this
      *             string.
      */
-    @Pure
-    @StaticallyExecutable
-    public char charAt(@IndexFor({"this"}) int index) {
+    
+    
+    public char charAt( int index) {
         if (isLatin1()) {
             return StringLatin1.charAt(value, index);
         } else {
@@ -790,9 +761,9 @@ public final class String
      *             string.
      * @since      1.5
      */
-    @Pure
-    @StaticallyExecutable
-    public int codePointAt(@IndexFor({"this"}) int index) {
+    
+    
+    public int codePointAt( int index) {
         if (isLatin1()) {
             checkIndex(index, value.length);
             return value[index] & 0xff;
@@ -824,9 +795,9 @@ public final class String
      *            of this string.
      * @since     1.5
      */
-    @Pure
-    @StaticallyExecutable
-    public int codePointBefore(@LTEqLengthOf({"this"}) @Positive int index) {
+    
+    
+    public int codePointBefore(  int index) {
         int i = index - 1;
         if (i < 0 || i >= length()) {
             throw new StringIndexOutOfBoundsException(index);
@@ -858,9 +829,9 @@ public final class String
      * {@code beginIndex} is larger than {@code endIndex}.
      * @since  1.5
      */
-    @Pure
-    @StaticallyExecutable
-    public @NonNegative int codePointCount(@IndexOrHigh({"this"}) int beginIndex, @IndexOrHigh({"this"}) int endIndex) {
+    
+    
+    public  int codePointCount( int beginIndex,  int endIndex) {
         if (beginIndex < 0 || beginIndex > endIndex ||
             endIndex > length()) {
             throw new IndexOutOfBoundsException();
@@ -891,9 +862,9 @@ public final class String
      *   of {@code codePointOffset} code points.
      * @since 1.5
      */
-    @Pure
-    @StaticallyExecutable
-    public @IndexOrHigh({"this"}) int offsetByCodePoints(@IndexOrHigh({"this"}) int index, int codePointOffset) {
+    
+    
+    public  int offsetByCodePoints( int index, int codePointOffset) {
         if (index < 0 || index > length()) {
             throw new IndexOutOfBoundsException();
         }
@@ -930,7 +901,7 @@ public final class String
      *            <li>{@code dstBegin+(srcEnd-srcBegin)} is larger than
      *                {@code dst.length}</ul>
      */
-    public void getChars(@IndexOrHigh({"this"}) int srcBegin, @IndexOrHigh({"this"}) int srcEnd, char dst @GuardSatisfied [], @IndexOrHigh({"#3"}) int dstBegin) {
+    public void getChars( int srcBegin,  int srcEnd, char dst  [],  int dstBegin) {
         checkBoundsBeginEnd(srcBegin, srcEnd, length());
         checkBoundsOffCount(dstBegin, srcEnd - srcBegin, dst.length);
         if (isLatin1()) {
@@ -984,7 +955,7 @@ public final class String
      *          </ul>
      */
     @Deprecated(since="1.1")
-    public void getBytes(@IndexOrHigh({"this"}) int srcBegin, @IndexOrHigh({"this"}) int srcEnd, byte dst @GuardSatisfied [], @IndexOrHigh({"#3"}) int dstBegin) {
+    public void getBytes( int srcBegin,  int srcEnd, byte dst  [],  int dstBegin) {
         checkBoundsBeginEnd(srcBegin, srcEnd, length());
         Objects.requireNonNull(dst);
         checkBoundsOffCount(dstBegin, srcEnd - srcBegin, dst.length);
@@ -1015,9 +986,9 @@ public final class String
      *
      * @since  1.1
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @PolySigned byte[] getBytes(String charsetName)
+    
+    
+    public  byte[] getBytes(String charsetName)
             throws UnsupportedEncodingException {
         if (charsetName == null) throw new NullPointerException();
         return StringCoding.encode(charsetName, coder(), value);
@@ -1041,9 +1012,9 @@ public final class String
      *
      * @since  1.6
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @PolySigned byte[] getBytes(Charset charset) {
+    
+    
+    public  byte[] getBytes(Charset charset) {
         if (charset == null) throw new NullPointerException();
         return StringCoding.encode(charset, coder(), value);
      }
@@ -1061,9 +1032,9 @@ public final class String
      *
      * @since      1.1
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @PolySigned byte[] getBytes() {
+    
+    
+    public  byte[] getBytes() {
         return StringCoding.encode(coder(), value);
     }
 
@@ -1085,10 +1056,10 @@ public final class String
      * @see  #compareTo(String)
      * @see  #equalsIgnoreCase(String)
      */
-    @EnsuresNonNullIf(expression={"#1"}, result=true)
-    @Pure
-    @StaticallyExecutable
-    public boolean equals(@GuardSatisfied @Nullable Object anObject) {
+    
+    
+    
+    public boolean equals( @Nullable Object anObject) {
         if (this == anObject) {
             return true;
         }
@@ -1120,9 +1091,9 @@ public final class String
      *
      * @since  1.4
      */
-    @Pure
-    @StaticallyExecutable
-    public boolean contentEquals(@GuardSatisfied StringBuffer sb) {
+    
+    
+    public boolean contentEquals( StringBuffer sb) {
         return contentEquals((CharSequence)sb);
     }
 
@@ -1168,9 +1139,9 @@ public final class String
      *
      * @since  1.5
      */
-    @Pure
-    @StaticallyExecutable
-    public boolean contentEquals(@GuardSatisfied CharSequence cs) {
+    
+    
+    public boolean contentEquals( CharSequence cs) {
         // Argument is a StringBuffer, StringBuilder
         if (cs instanceof AbstractStringBuilder) {
             if (cs instanceof StringBuffer) {
@@ -1233,9 +1204,9 @@ public final class String
      *
      * @see  #equals(Object)
      */
-    @EnsuresNonNullIf(expression={"#1"}, result=true)
-    @Pure
-    @StaticallyExecutable
+    
+    
+    
     public boolean equalsIgnoreCase(@Nullable String anotherString) {
         return (this == anotherString) ? true
                 : (anotherString != null)
@@ -1287,8 +1258,8 @@ public final class String
      *          value greater than {@code 0} if this string is
      *          lexicographically greater than the string argument.
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public int compareTo(String anotherString) {
         byte v1[] = value;
         byte v2[] = anotherString.value;
@@ -1352,8 +1323,8 @@ public final class String
      * @see     java.text.Collator
      * @since   1.2
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public int compareToIgnoreCase(String str) {
         return CASE_INSENSITIVE_ORDER.compare(this, str);
     }
@@ -1393,8 +1364,8 @@ public final class String
      *          exactly matches the specified subregion of the string argument;
      *          {@code false} otherwise.
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public boolean regionMatches(int toffset, String other, int ooffset, int len) {
         byte tv[] = value;
         byte ov[] = other.value;
@@ -1485,8 +1456,8 @@ public final class String
      *          or case insensitive depends on the {@code ignoreCase}
      *          argument.
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public boolean regionMatches(boolean ignoreCase, int toffset,
             String other, int ooffset, int len) {
         if (!ignoreCase) {
@@ -1527,8 +1498,8 @@ public final class String
      *          this.substring(toffset).startsWith(prefix)
      *          </pre>
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public boolean startsWith(String prefix, int toffset) {
         // Note: toffset might be near -1>>>1.
         if (toffset < 0 || toffset > length() - prefix.length()) {
@@ -1572,8 +1543,8 @@ public final class String
      *          {@link #equals(Object)} method.
      * @since   1.0
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public boolean startsWith(String prefix) {
         return startsWith(prefix, 0);
     }
@@ -1589,8 +1560,8 @@ public final class String
      *          empty string or is equal to this {@code String} object
      *          as determined by the {@link #equals(Object)} method.
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public boolean endsWith(String suffix) {
         return startsWith(suffix, length() - suffix.length());
     }
@@ -1608,8 +1579,8 @@ public final class String
      *
      * @return  a hash code value for this object.
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public int hashCode() {
         int h = hash;
         if (h == 0 && value.length > 0) {
@@ -1643,9 +1614,9 @@ public final class String
      *          character sequence represented by this object, or
      *          {@code -1} if the character does not occur.
      */
-    @Pure
-    @StaticallyExecutable
-    public @IndexOrLow({"this"}) int indexOf(int ch) {
+    
+    
+    public  int indexOf(int ch) {
         return indexOf(ch, 0);
     }
 
@@ -1688,9 +1659,9 @@ public final class String
      *          than or equal to {@code fromIndex}, or {@code -1}
      *          if the character does not occur.
      */
-    @Pure
-    @StaticallyExecutable
-    public @IndexOrLow({"this"}) int indexOf(int ch, int fromIndex) {
+    
+    
+    public  int indexOf(int ch, int fromIndex) {
         return isLatin1() ? StringLatin1.indexOf(value, ch, fromIndex)
                           : StringUTF16.indexOf(value, ch, fromIndex);
     }
@@ -1718,9 +1689,9 @@ public final class String
      *          character sequence represented by this object, or
      *          {@code -1} if the character does not occur.
      */
-    @Pure
-    @StaticallyExecutable
-    public @IndexOrLow({"this"}) int lastIndexOf(int ch) {
+    
+    
+    public  int lastIndexOf(int ch) {
         return lastIndexOf(ch, length() - 1);
     }
 
@@ -1758,9 +1729,9 @@ public final class String
      *          than or equal to {@code fromIndex}, or {@code -1}
      *          if the character does not occur before that point.
      */
-    @Pure
-    @StaticallyExecutable
-    public @IndexOrLow({"this"}) int lastIndexOf(int ch, int fromIndex) {
+    
+    
+    public  int lastIndexOf(int ch, int fromIndex) {
         return isLatin1() ? StringLatin1.lastIndexOf(value, ch, fromIndex)
                           : StringUTF16.lastIndexOf(value, ch, fromIndex);
     }
@@ -1779,9 +1750,9 @@ public final class String
      * @return  the index of the first occurrence of the specified substring,
      *          or {@code -1} if there is no such occurrence.
      */
-    @Pure
-    @StaticallyExecutable
-    public @LTEqLengthOf({"this"}) @SubstringIndexFor(value={"this"}, offset={"#1.length()-1"}) int indexOf(String str) {
+    
+    
+    public   int indexOf(String str) {
         if (coder() == str.coder()) {
             return isLatin1() ? StringLatin1.indexOf(value, str.value)
                               : StringUTF16.indexOf(value, str.value);
@@ -1809,9 +1780,9 @@ public final class String
      *          starting at the specified index,
      *          or {@code -1} if there is no such occurrence.
      */
-    @Pure
-    @StaticallyExecutable
-    public @LTEqLengthOf({"this"}) @SubstringIndexFor(value={"this"}, offset={"#1.length()-1"}) int indexOf(String str, int fromIndex) {
+    
+    
+    public   int indexOf(String str, int fromIndex) {
         return indexOf(value, coder(), length(), str, fromIndex);
     }
 
@@ -1871,9 +1842,9 @@ public final class String
      * @return  the index of the last occurrence of the specified substring,
      *          or {@code -1} if there is no such occurrence.
      */
-    @Pure
-    @StaticallyExecutable
-    public @LTEqLengthOf({"this"}) @SubstringIndexFor(value={"this"}, offset={"#1.length()-1"}) int lastIndexOf(String str) {
+    
+    
+    public   int lastIndexOf(String str) {
         return lastIndexOf(str, length());
     }
 
@@ -1894,9 +1865,9 @@ public final class String
      *          searching backward from the specified index,
      *          or {@code -1} if there is no such occurrence.
      */
-    @Pure
-    @StaticallyExecutable
-    public @LTEqLengthOf({"this"}) @SubstringIndexFor(value={"this"}, offset={"#1.length()-1"}) int lastIndexOf(String str, int fromIndex) {
+    
+    
+    public   int lastIndexOf(String str, int fromIndex) {
         return lastIndexOf(value, coder(), length(), str, fromIndex);
     }
 
@@ -1960,9 +1931,9 @@ public final class String
      *             {@code beginIndex} is negative or larger than the
      *             length of this {@code String} object.
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public String substring(@IndexOrHigh({"this"}) int beginIndex) {
+    
+    
+    public String substring( int beginIndex) {
         if (beginIndex < 0) {
             throw new StringIndexOutOfBoundsException(beginIndex);
         }
@@ -1999,9 +1970,9 @@ public final class String
      *             {@code beginIndex} is larger than
      *             {@code endIndex}.
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public String substring(@IndexOrHigh({"this"}) int beginIndex, @IndexOrHigh({"this"}) int endIndex) {
+    
+    
+    public String substring( int beginIndex,  int endIndex) {
         int length = length();
         checkBoundsBeginEnd(beginIndex, endIndex, length);
         int subLen = endIndex - beginIndex;
@@ -2041,9 +2012,9 @@ public final class String
      * @since 1.4
      * @spec JSR-51
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public CharSequence subSequence(@IndexOrHigh({"this"}) int beginIndex, @IndexOrHigh({"this"}) int endIndex) {
+    
+    
+    public CharSequence subSequence( int beginIndex,  int endIndex) {
         return this.substring(beginIndex, endIndex);
     }
 
@@ -2067,8 +2038,8 @@ public final class String
      * @return  a string that represents the concatenation of this object's
      *          characters followed by the string argument's characters.
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public String concat(String str) {
         int olen = str.length();
         if (olen == 0) {
@@ -2118,8 +2089,8 @@ public final class String
      * @return  a string derived from this string by replacing every
      *          occurrence of {@code oldChar} with {@code newChar}.
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public String replace(char oldChar, char newChar) {
         if (oldChar != newChar) {
             String ret = isLatin1() ? StringLatin1.replace(value, oldChar, newChar)
@@ -2158,9 +2129,9 @@ public final class String
      * @since 1.4
      * @spec JSR-51
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public boolean matches(@Regex String regex) {
+    
+    
+    public boolean matches( String regex) {
         return Pattern.matches(regex, this);
     }
 
@@ -2172,8 +2143,8 @@ public final class String
      * @return true if this string contains {@code s}, false otherwise
      * @since 1.5
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public boolean contains(CharSequence s) {
         return indexOf(s.toString()) >= 0;
     }
@@ -2219,9 +2190,9 @@ public final class String
      * @since 1.4
      * @spec JSR-51
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public String replaceFirst(@Regex String regex, String replacement) {
+    
+    
+    public String replaceFirst( String regex, String replacement) {
         return Pattern.compile(regex).matcher(this).replaceFirst(replacement);
     }
 
@@ -2266,9 +2237,9 @@ public final class String
      * @since 1.4
      * @spec JSR-51
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public String replaceAll(@Regex String regex, String replacement) {
+    
+    
+    public String replaceAll( String regex, String replacement) {
         return Pattern.compile(regex).matcher(this).replaceAll(replacement);
     }
 
@@ -2284,9 +2255,9 @@ public final class String
      * @return  The resulting string
      * @since 1.5
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public String replace(@GuardSatisfied CharSequence target, @GuardSatisfied CharSequence replacement) {
+    
+    
+    public String replace( CharSequence target,  CharSequence replacement) {
         String tgtStr = target.toString();
         String replStr = replacement.toString();
         int j = indexOf(tgtStr);
@@ -2410,9 +2381,9 @@ public final class String
      * @since 1.4
      * @spec JSR-51
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public String @MinLen(1) [] split(@Regex String regex, int limit) {
+    
+    
+    public String  [] split( String regex, int limit) {
         /* fastpath if the regex is a
          (1)one-char String and this character is not one of the
             RegEx's meta characters ".$|()[{^?*+\\", or
@@ -2510,9 +2481,9 @@ public final class String
      * @since 1.4
      * @spec JSR-51
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public String @MinLen(1) [] split(@Regex String regex) {
+    
+    
+    public String  [] split( String regex) {
         return split(regex, 0);
     }
 
@@ -2541,8 +2512,8 @@ public final class String
      * @see java.util.StringJoiner
      * @since 1.8
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public static String join(CharSequence delimiter, CharSequence... elements) {
         Objects.requireNonNull(delimiter);
         Objects.requireNonNull(elements);
@@ -2588,8 +2559,8 @@ public final class String
      * @see    java.util.StringJoiner
      * @since 1.8
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public static String join(CharSequence delimiter,
             Iterable<? extends CharSequence> elements) {
         Objects.requireNonNull(delimiter);
@@ -2655,9 +2626,9 @@ public final class String
      * @see     java.lang.String#toUpperCase(Locale)
      * @since   1.1
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public String toLowerCase(@GuardSatisfied Locale locale) {
+    
+    
+    public String toLowerCase( Locale locale) {
         return isLatin1() ? StringLatin1.toLowerCase(this, value, locale)
                           : StringUTF16.toLowerCase(this, value, locale);
     }
@@ -2681,8 +2652,8 @@ public final class String
      * @return  the {@code String}, converted to lowercase.
      * @see     java.lang.String#toLowerCase(Locale)
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public String toLowerCase() {
         return toLowerCase(Locale.getDefault());
     }
@@ -2740,9 +2711,9 @@ public final class String
      * @see     java.lang.String#toLowerCase(Locale)
      * @since   1.1
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public String toUpperCase(@GuardSatisfied Locale locale) {
+    
+    
+    public String toUpperCase( Locale locale) {
         return isLatin1() ? StringLatin1.toUpperCase(this, value, locale)
                           : StringUTF16.toUpperCase(this, value, locale);
     }
@@ -2766,8 +2737,8 @@ public final class String
      * @return  the {@code String}, converted to uppercase.
      * @see     java.lang.String#toUpperCase(Locale)
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public String toUpperCase() {
         return toUpperCase(Locale.getDefault());
     }
@@ -2804,8 +2775,8 @@ public final class String
      *          and trailing space removed, or this string if it
      *          has no leading or trailing space.
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public String trim() {
         String ret = isLatin1() ? StringLatin1.trim(value)
                                 : StringUTF16.trim(value);
@@ -2838,8 +2809,8 @@ public final class String
      *
      * @since 11
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public String strip() {
         String ret = isLatin1() ? StringLatin1.strip(value)
                                 : StringUTF16.strip(value);
@@ -2870,8 +2841,8 @@ public final class String
      *
      * @since 11
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public String stripLeading() {
         String ret = isLatin1() ? StringLatin1.stripLeading(value)
                                 : StringUTF16.stripLeading(value);
@@ -2902,8 +2873,8 @@ public final class String
      *
      * @since 11
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public String stripTrailing() {
         String ret = isLatin1() ? StringLatin1.stripTrailing(value)
                                 : StringUTF16.stripTrailing(value);
@@ -2923,14 +2894,14 @@ public final class String
      *
      * @since 11
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public boolean isBlank() {
         return indexOfNonWhitespace() == length();
     }
 
-    @Pure
-    @StaticallyExecutable
+    
+    
     private int indexOfNonWhitespace() {
         if (isLatin1()) {
             return StringLatin1.indexOfNonWhitespace(value);
@@ -2979,9 +2950,9 @@ public final class String
      *
      * @return  the string itself.
      */
-    @Pure
-    @StaticallyExecutable
-    public @SameLen({"this"}) @PolyRegex @PolyValue String toString(@PolyRegex @PolyValue String this) {
+    
+    
+    public    String toString() {
         return this;
     }
 
@@ -3029,9 +3000,9 @@ public final class String
      *          of this string and whose contents are initialized to contain
      *          the character sequence represented by this string.
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @PolySigned char @SameLen({"this"}) @PolyValue [] toCharArray(@PolyValue String this) {
+    
+    
+    public  char   [] toCharArray() {
         return isLatin1() ? StringLatin1.toChars(value)
                           : StringUTF16.toChars(value);
     }
@@ -3073,10 +3044,10 @@ public final class String
      * @see  java.util.Formatter
      * @since  1.5
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    @FormatMethod
-    public static String format(String format, @GuardSatisfied @Nullable Object @GuardSatisfied ... args) {
+    
+    
+    
+    public static String format(String format,  @Nullable Object  ... args) {
         return new Formatter().format(format, args).toString();
     }
 
@@ -3117,10 +3088,10 @@ public final class String
      * @see  java.util.Formatter
      * @since  1.5
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    @FormatMethod
-    public static String format(@GuardSatisfied @Nullable Locale l, String format, @GuardSatisfied @Nullable Object @GuardSatisfied ... args) {
+    
+    
+    
+    public static String format( @Nullable Locale l, String format,  @Nullable Object  ... args) {
         return new Formatter(l).format(format, args).toString();
     }
 
@@ -3133,9 +3104,9 @@ public final class String
      *          {@code obj.toString()} is returned.
      * @see     java.lang.Object#toString()
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static String valueOf(@GuardSatisfied @Nullable Object obj) {
+    
+    
+    public static String valueOf( @Nullable Object obj) {
         return (obj == null) ? "null" : obj.toString();
     }
 
@@ -3149,9 +3120,9 @@ public final class String
      * @return  a {@code String} that contains the characters of the
      *          character array.
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static @SameLen({"#1"}) @PolyValue String valueOf(char data @GuardSatisfied @PolyValue []) {
+    
+    
+    public static   String valueOf(char data   []) {
         return new String(data);
     }
 
@@ -3175,9 +3146,9 @@ public final class String
      *          {@code offset+count} is larger than
      *          {@code data.length}.
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static String valueOf(char data @GuardSatisfied [], @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int count) {
+    
+    
+    public static String valueOf(char data  [],  int offset,   int count) {
         return new String(data, offset, count);
     }
 
@@ -3194,9 +3165,9 @@ public final class String
      *          {@code offset+count} is larger than
      *          {@code data.length}.
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static String copyValueOf(char data @GuardSatisfied [], @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int count) {
+    
+    
+    public static String copyValueOf(char data  [],  int offset,   int count) {
         return new String(data, offset, count);
     }
 
@@ -3207,9 +3178,9 @@ public final class String
      * @return  a {@code String} that contains the characters of the
      *          character array.
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static @SameLen({"#1"}) @PolyValue String copyValueOf(char data @GuardSatisfied @PolyValue []) {
+    
+    
+    public static   String copyValueOf(char data   []) {
         return new String(data);
     }
 
@@ -3221,9 +3192,9 @@ public final class String
      *          {@code "true"} is returned; otherwise, a string equal to
      *          {@code "false"} is returned.
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static @StringVal({"true", "false"}) String valueOf(boolean b) {
+    
+    
+    public static  String valueOf(boolean b) {
         return b ? "true" : "false";
     }
 
@@ -3235,9 +3206,9 @@ public final class String
      * @return  a string of length {@code 1} containing
      *          as its single character the argument {@code c}.
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static @ArrayLen(1) String valueOf(char c) {
+    
+    
+    public static  String valueOf(char c) {
         if (COMPACT_STRINGS && StringLatin1.canEncode(c)) {
             return new String(StringLatin1.toBytes(c), LATIN1);
         }
@@ -3254,9 +3225,9 @@ public final class String
      * @return  a string representation of the {@code int} argument.
      * @see     java.lang.Integer#toString(int, int)
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static @ArrayLenRange(from = 1, to = 11) String valueOf(int i) {
+    
+    
+    public static  String valueOf(int i) {
         return Integer.toString(i);
     }
 
@@ -3270,9 +3241,9 @@ public final class String
      * @return  a string representation of the {@code long} argument.
      * @see     java.lang.Long#toString(long)
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static @ArrayLenRange(from = 1, to = 20) String valueOf(long l) {
+    
+    
+    public static  String valueOf(long l) {
         return Long.toString(l);
     }
 
@@ -3286,8 +3257,8 @@ public final class String
      * @return  a string representation of the {@code float} argument.
      * @see     java.lang.Float#toString(float)
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public static String valueOf(float f) {
         return Float.toString(f);
     }
@@ -3302,8 +3273,8 @@ public final class String
      * @return  a  string representation of the {@code double} argument.
      * @see     java.lang.Double#toString(double)
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public static String valueOf(double d) {
         return Double.toString(d);
     }
@@ -3332,9 +3303,9 @@ public final class String
      *          guaranteed to be from a pool of unique strings.
      * @jls 3.10.5 String Literals
      */
-    @Pure
-    @StaticallyExecutable
-    public native @Interned @SameLen({"this"}) @PolySignature @PolyRegex @PolyValue String intern(@PolySignature @PolyRegex @PolyValue String this);
+    
+    
+    public native      String intern();
 
     /**
      * Returns a string whose value is the concatenation of this
@@ -3354,8 +3325,8 @@ public final class String
      *
      * @since 11
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public String repeat(int count) {
         if (count < 0) {
             throw new IllegalArgumentException("count is negative: " + count);

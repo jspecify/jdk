@@ -25,10 +25,8 @@
 
 package java.security;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Deterministic;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -63,8 +61,8 @@ import sun.security.util.SecurityConstants;
  * @since 1.2
  */
 
-@AnnotatedFor({"interning", "nullness"})
-public @UsesObjectEquals class ProtectionDomain {
+@DefaultNonNull
+public  class ProtectionDomain {
 
     /**
      * If true, {@link #impliesWithAltFilePerm} will try to be compatible on
@@ -80,7 +78,7 @@ public @UsesObjectEquals class ProtectionDomain {
         }
 
         @Override
-        public <T> T doIntersectionPrivilege(
+        public <T extends @Nullable Object> T doIntersectionPrivilege(
                 PrivilegedAction<T> action,
                 final AccessControlContext stack,
                 final AccessControlContext context) {
@@ -95,7 +93,7 @@ public @UsesObjectEquals class ProtectionDomain {
         }
 
         @Override
-        public <T> T doIntersectionPrivilege(
+        public <T extends @Nullable Object> T doIntersectionPrivilege(
                 PrivilegedAction<T> action,
                 AccessControlContext context) {
             return doIntersectionPrivilege(action,
@@ -244,7 +242,7 @@ public @UsesObjectEquals class ProtectionDomain {
      * @return the CodeSource of this domain which may be null.
      * @since 1.2
      */
-    @Deterministic
+    
     public final @Nullable CodeSource getCodeSource() {
         return this.codesource;
     }

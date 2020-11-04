@@ -35,11 +35,8 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Deque;
 import java.util.Iterator;
@@ -201,8 +198,8 @@ import java.util.NoSuchElementException;
  * @author Doug Lea
  * @param <E> the type of elements held in this deque
  */
-@AnnotatedFor({"nullness"})
-public interface BlockingDeque<E extends @NonNull Object> extends BlockingQueue<E>, Deque<E> {
+@DefaultNonNull
+public interface BlockingDeque<E> extends BlockingQueue<E>, Deque<E> {
     /*
      * We have "diamond" multiple interface inheritance here, and that
      * introduces ambiguities.  Methods might end up with different
@@ -410,7 +407,7 @@ public interface BlockingDeque<E extends @NonNull Object> extends BlockingQueue<
      * @throws NullPointerException if the specified element is null
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean removeFirstOccurrence(Object o);
+    boolean removeFirstOccurrence(@Nullable Object o);
 
     /**
      * Removes the last occurrence of the specified element from this deque.
@@ -428,7 +425,7 @@ public interface BlockingDeque<E extends @NonNull Object> extends BlockingQueue<
      * @throws NullPointerException if the specified element is null
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean removeLastOccurrence(Object o);
+    boolean removeLastOccurrence(@Nullable Object o);
 
     // *** BlockingQueue methods ***
 
@@ -605,7 +602,7 @@ public interface BlockingDeque<E extends @NonNull Object> extends BlockingQueue<
      * @throws NullPointerException if the specified element is null
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean remove(Object o);
+    boolean remove(@Nullable Object o);
 
     /**
      * Returns {@code true} if this deque contains the specified element.
@@ -620,15 +617,15 @@ public interface BlockingDeque<E extends @NonNull Object> extends BlockingQueue<
      * @throws NullPointerException if the specified element is null
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    @Pure
-    boolean contains(Object o);
+    
+    boolean contains(@Nullable Object o);
 
     /**
      * Returns the number of elements in this deque.
      *
      * @return the number of elements in this deque
      */
-    @Pure
+    
     int size();
 
     /**
@@ -637,7 +634,7 @@ public interface BlockingDeque<E extends @NonNull Object> extends BlockingQueue<
      *
      * @return an iterator over the elements in this deque in proper sequence
      */
-    @SideEffectFree
+    
     Iterator<E> iterator();
 
     // *** Stack methods ***

@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown when an application tries to use the Java <code>new</code>
@@ -42,7 +41,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  */
 
 
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class InstantiationError extends IncompatibleClassChangeError {
     private static final long serialVersionUID = -4885810657349421204L;
@@ -50,7 +49,7 @@ class InstantiationError extends IncompatibleClassChangeError {
     /**
      * Constructs an <code>InstantiationError</code> with no detail  message.
      */
-    @SideEffectFree
+    
     public InstantiationError() {
         super();
     }
@@ -61,7 +60,7 @@ class InstantiationError extends IncompatibleClassChangeError {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public InstantiationError(@Nullable String s) {
         super(s);
     }

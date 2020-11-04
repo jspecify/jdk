@@ -25,9 +25,8 @@
 
 package java.net;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -56,9 +55,9 @@ import java.util.Collections;
  * @see     java.nio.channels.SocketChannel
  * @since   1.0
  */
-@AnnotatedFor({"interning", "nullness"})
+@DefaultNonNull
 public
-@UsesObjectEquals class Socket implements java.io.Closeable {
+ class Socket implements java.io.Closeable {
     /**
      * Various states of this socket.
      */
@@ -1761,7 +1760,7 @@ public
      *
      * @since 9
      */
-    public <T> Socket setOption(SocketOption<T> name, T value) throws IOException {
+    public <T extends @Nullable Object> Socket setOption(SocketOption<T> name, T value) throws IOException {
         getImpl().setOption(name, value);
         return this;
     }
@@ -1790,7 +1789,7 @@ public
      * @since 9
      */
     @SuppressWarnings("unchecked")
-    public <T> T getOption(SocketOption<T> name) throws IOException {
+    public <T extends @Nullable Object> T getOption(SocketOption<T> name) throws IOException {
         return getImpl().getOption(name);
     }
 

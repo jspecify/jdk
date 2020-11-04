@@ -26,10 +26,10 @@
 package javax.swing;
 
 
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 import javax.swing.plaf.ComponentUI;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import javax.swing.border.*;
 import javax.swing.event.SwingPropertyChangeSupport;
@@ -77,7 +77,7 @@ import sun.swing.SwingUtilities2;
  * @author Hans Muller
  * @since 1.2
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 @SuppressWarnings("serial") // Same-version serialization only
 public class UIDefaults extends Hashtable<Object,Object>
 {

@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Signals that a method has been invoked at an illegal or
@@ -38,14 +37,14 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  Jonni Kanerva
  * @since   1.1
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class IllegalStateException extends RuntimeException {
     /**
      * Constructs an IllegalStateException with no detail message.
      * A detail message is a String that describes this particular exception.
      */
-    @SideEffectFree
+    
     public IllegalStateException() {
         super();
     }
@@ -57,7 +56,7 @@ class IllegalStateException extends RuntimeException {
      *
      * @param s the String that contains a detailed message
      */
-    @SideEffectFree
+    
     public IllegalStateException(@Nullable String s) {
         super(s);
     }
@@ -78,7 +77,7 @@ class IllegalStateException extends RuntimeException {
      *         unknown.)
      * @since 1.5
      */
-    @SideEffectFree
+    
     public IllegalStateException(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }
@@ -97,7 +96,7 @@ class IllegalStateException extends RuntimeException {
      *         unknown.)
      * @since  1.5
      */
-    @SideEffectFree
+    
     public IllegalStateException(@Nullable Throwable cause) {
         super(cause);
     }

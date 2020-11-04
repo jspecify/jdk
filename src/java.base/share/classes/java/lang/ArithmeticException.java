@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown when an exceptional arithmetic condition has occurred. For
@@ -42,7 +41,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class ArithmeticException extends RuntimeException {
     private static final long serialVersionUID = 2256477558314496007L;
 
@@ -50,7 +49,7 @@ public class ArithmeticException extends RuntimeException {
      * Constructs an {@code ArithmeticException} with no detail
      * message.
      */
-    @SideEffectFree
+    
     public ArithmeticException() {
         super();
     }
@@ -61,7 +60,7 @@ public class ArithmeticException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public ArithmeticException(@Nullable String s) {
         super(s);
     }

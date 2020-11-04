@@ -25,12 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.formatter.qual.FormatMethod;
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 import java.util.Formatter;
@@ -65,7 +61,7 @@ import java.nio.charset.UnsupportedCharsetException;
  * @since       1.1
  */
 
-@AnnotatedFor({"formatter", "index", "nullness"})
+@DefaultNonNull
 public class PrintWriter extends Writer {
 
     /**
@@ -508,7 +504,7 @@ public class PrintWriter extends Writer {
      *          cause the corresponding method of the underlying {@code Writer}
      *          to throw an {@code IndexOutOfBoundsException}
      */
-    public void write(char buf[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) {
+    public void write(char buf[],  int off,   int len) {
         try {
             synchronized (lock) {
                 ensureOpen();
@@ -543,7 +539,7 @@ public class PrintWriter extends Writer {
      *          cause the corresponding method of the underlying {@code Writer}
      *          to throw an {@code IndexOutOfBoundsException}
      */
-    public void write(String s, @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) {
+    public void write(String s,  int off,   int len) {
         try {
             synchronized (lock) {
                 ensureOpen();
@@ -893,7 +889,7 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    @FormatMethod
+    
     public PrintWriter printf(String format, @Nullable Object ... args) {
         return format(format, args);
     }
@@ -947,7 +943,7 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    @FormatMethod
+    
     public PrintWriter printf(@Nullable Locale l, String format, @Nullable Object ... args) {
         return format(l, format, args);
     }
@@ -992,7 +988,7 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    @FormatMethod
+    
     public PrintWriter format(String format, @Nullable Object ... args) {
         try {
             synchronized (lock) {
@@ -1053,7 +1049,7 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    @FormatMethod
+    
     public PrintWriter format(@Nullable Locale l, String format, @Nullable Object ... args) {
         try {
             synchronized (lock) {
@@ -1136,7 +1132,7 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    public PrintWriter append(@Nullable CharSequence csq, @IndexOrHigh({"#1"}) int start, @IndexOrHigh({"#1"}) int end) {
+    public PrintWriter append(@Nullable CharSequence csq,  int start,  int end) {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }

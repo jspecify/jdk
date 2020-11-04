@@ -25,9 +25,8 @@
 
 package java.util.prefs;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 import java.io.*;
@@ -123,7 +122,7 @@ import java.lang.Double;
  * @see     Preferences
  * @since   1.4
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public abstract class AbstractPreferences extends Preferences {
     /**
      * The code point U+0000, assigned to the null control character, is the
@@ -294,7 +293,7 @@ public abstract class AbstractPreferences extends Preferences {
      * @throws IllegalArgumentException if key contains the null control
      *         character, code point U+0000.
      */
-    public @PolyNull String get(String key, @PolyNull String def) {
+    public @Nullable String get(String key, @Nullable String def) {
         if (key==null)
             throw new NullPointerException("Null key");
         if (key.indexOf(CODE_POINT_U0000) != -1)
@@ -699,7 +698,7 @@ public abstract class AbstractPreferences extends Preferences {
      * @throws IllegalArgumentException if key contains the null control
      *         character, code point U+0000.
      */
-    public byte @PolyNull[] getByteArray(String key, byte @PolyNull[] def) {
+    public byte @Nullable[] getByteArray(String key, byte @Nullable[] def) {
         byte[] result = def;
         String value = get(key, null);
         try {

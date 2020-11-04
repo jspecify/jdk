@@ -25,9 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An abstract wrapper class for an {@code EventListener} class
@@ -54,8 +53,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *
  * @since 1.4
  */
-@AnnotatedFor({"index", "interning", "lock", "nullness"})
-public abstract @UsesObjectEquals class EventListenerProxy<T extends EventListener>
+@DefaultNonNull
+public abstract  class EventListenerProxy<T extends EventListener>
         implements EventListener {
 
     private final T listener;
@@ -74,7 +73,7 @@ public abstract @UsesObjectEquals class EventListenerProxy<T extends EventListen
      *
      * @return  the listener associated with the proxy
      */
-    public T getListener(@GuardSatisfied EventListenerProxy<T> this) {
+    public T getListener() {
         return this.listener;
     }
 }

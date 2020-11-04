@@ -25,11 +25,7 @@
 
 package javax.naming;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Enumeration;
 import java.util.Properties;
@@ -283,8 +279,8 @@ public class CompositeName implements Name {
       * @return true if obj is equal to this composite name, false otherwise.
       * @see #hashCode
       */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         return (obj != null &&
                 obj instanceof CompositeName &&

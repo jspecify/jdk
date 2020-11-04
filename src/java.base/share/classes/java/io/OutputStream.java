@@ -25,12 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -52,8 +48,8 @@ import java.util.Objects;
  * @see     java.io.OutputStream#write(int)
  * @since   1.0
  */
-@AnnotatedFor({"index", "interning", "nullness", "signedness"})
-public abstract @UsesObjectEquals class OutputStream implements Closeable, Flushable {
+@DefaultNonNull
+public abstract  class OutputStream implements Closeable, Flushable {
     /**
      * Returns a new {@code OutputStream} which discards all bytes.  The
      * returned stream is initially open.  The stream is closed by calling
@@ -114,7 +110,7 @@ public abstract @UsesObjectEquals class OutputStream implements Closeable, Flush
      *             an <code>IOException</code> may be thrown if the
      *             output stream has been closed.
      */
-    public abstract void write(@PolySigned int b) throws IOException;
+    public abstract void write( int b) throws IOException;
 
     /**
      * Writes <code>b.length</code> bytes from the specified byte array
@@ -126,7 +122,7 @@ public abstract @UsesObjectEquals class OutputStream implements Closeable, Flush
      * @exception  IOException  if an I/O error occurs.
      * @see        java.io.OutputStream#write(byte[], int, int)
      */
-    public void write(@PolySigned byte b[]) throws IOException {
+    public void write( byte b[]) throws IOException {
         write(b, 0, b.length);
     }
 
@@ -158,7 +154,7 @@ public abstract @UsesObjectEquals class OutputStream implements Closeable, Flush
      *             an <code>IOException</code> is thrown if the output
      *             stream is closed.
      */
-    public void write(@PolySigned byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
+    public void write( byte b[],  int off,   int len) throws IOException {
         Objects.checkFromIndexSize(off, len, b.length);
         // len == 0 condition implicitly handled by loop bounds
         for (int i = 0 ; i < len ; i++) {

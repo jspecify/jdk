@@ -25,9 +25,8 @@
 
 package javax.xml.namespace;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Iterator;
 
@@ -81,7 +80,7 @@ import java.util.Iterator;
  * @since 1.5
  */
 
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface NamespaceContext {
 
     /**
@@ -144,7 +143,7 @@ public interface NamespaceContext {
      * @throws IllegalArgumentException When {@code prefix} is
      *   {@code null}
      */
-    @Pure
+    
     String getNamespaceURI(String prefix);
 
     /**
@@ -206,7 +205,7 @@ public interface NamespaceContext {
      * @throws IllegalArgumentException When {@code namespaceURI} is
      *   {@code null}
      */
-    @Nullable @Pure
+    @Nullable 
     String getPrefix(String namespaceURI);
 
     /**
@@ -275,6 +274,6 @@ public interface NamespaceContext {
      * @throws IllegalArgumentException When {@code namespaceURI} is
      *   {@code null}
      */
-    @Pure
+    
     Iterator<String> getPrefixes(String namespaceURI);
 }

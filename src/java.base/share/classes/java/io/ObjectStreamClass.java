@@ -25,11 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.signature.qual.BinaryName;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
@@ -84,7 +81,7 @@ import static java.io.ObjectStreamField.*;
  *     Object Serialization Specification, Section 4, Class Descriptors</a>
  * @since   1.1
  */
-@AnnotatedFor({"index", "lock", "nullness", "signature"})
+@DefaultNonNull
 public class ObjectStreamClass implements Serializable {
 
     /** serialPersistentFields value indicating no serializable fields */
@@ -251,7 +248,7 @@ public class ObjectStreamClass implements Serializable {
      *
      * @return a string representing the name of the class
      */
-    public @BinaryName String getName() {
+    public  String getName() {
         return name;
     }
 
@@ -324,8 +321,8 @@ public class ObjectStreamClass implements Serializable {
     /**
      * Return a string describing this ObjectStreamClass.
      */
-    @SideEffectFree
-    public String toString(@GuardSatisfied ObjectStreamClass this) {
+    
+    public String toString() {
         return name + ": static final long serialVersionUID = " +
             getSerialVersionUID() + "L;";
     }

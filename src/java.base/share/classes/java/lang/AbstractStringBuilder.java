@@ -25,17 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.index.qual.Positive;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.math.FloatingDecimal;
 import java.util.Arrays;
@@ -65,8 +56,8 @@ import static java.lang.String.checkOffset;
  * @author      Ulf Zibis
  * @since       1.5
  */
-@AnnotatedFor({"index", "interning", "lock", "nullness"})
-abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, CharSequence {
+@DefaultNonNull
+abstract  class AbstractStringBuilder implements Appendable, CharSequence {
     /**
      * The value is used for character storage.
      */
@@ -91,7 +82,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
     /**
      * Creates an AbstractStringBuilder of the specified capacity.
      */
-    AbstractStringBuilder(@NonNegative int capacity) {
+    AbstractStringBuilder( int capacity) {
         if (COMPACT_STRINGS) {
             value = new byte[capacity];
             coder = LATIN1;
@@ -130,9 +121,9 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @return  the length of the sequence of characters currently
      *          represented by this object
      */
-    @Pure
+    
     @Override
-    public @NonNegative int length(@GuardSatisfied AbstractStringBuilder this) {
+    public  int length() {
         return count;
     }
 
@@ -143,7 +134,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *
      * @return  the current capacity
      */
-    public @NonNegative int capacity() {
+    public  int capacity() {
         return value.length >> coder;
     }
 
@@ -163,7 +154,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *
      * @param   minimumCapacity   the minimum desired capacity.
      */
-    public void ensureCapacity(@NonNegative int minimumCapacity) {
+    public void ensureCapacity( int minimumCapacity) {
         if (minimumCapacity > 0) {
             ensureCapacityInternal(minimumCapacity);
         }
@@ -176,7 +167,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * If {@code minimumCapacity} is non positive due to numeric
      * overflow, this method throws {@code OutOfMemoryError}.
      */
-    private void ensureCapacityInternal(@NonNegative int minimumCapacity) {
+    private void ensureCapacityInternal( int minimumCapacity) {
         // overflow-conscious code
         int oldCapacity = value.length >> coder;
         if (minimumCapacity - oldCapacity > 0) {
@@ -205,7 +196,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @throws OutOfMemoryError if minCapacity is less than zero or
      *         greater than (Integer.MAX_VALUE >> coder)
      */
-    private int newCapacity(@NonNegative int minCapacity) {
+    private int newCapacity( int minCapacity) {
         // overflow-conscious code
         int oldCapacity = value.length >> coder;
         int newCapacity = (oldCapacity << 1) + 2;
@@ -281,7 +272,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @throws     IndexOutOfBoundsException  if the
      *               {@code newLength} argument is negative.
      */
-    public void setLength(@NonNegative int newLength) {
+    public void setLength( int newLength) {
         if (newLength < 0) {
             throw new StringIndexOutOfBoundsException(newLength);
         }
@@ -314,7 +305,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *             negative or greater than or equal to {@code length()}.
      */
     @Override
-    public char charAt(@NonNegative int index) {
+    public char charAt( int index) {
         checkIndex(index, count);
         if (isLatin1()) {
             return (char)(value[index] & 0xff);
@@ -343,7 +334,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *             argument is negative or not less than the length of this
      *             sequence.
      */
-    public int codePointAt(@NonNegative int index) {
+    public int codePointAt( int index) {
         int count = this.count;
         byte[] value = this.value;
         checkIndex(index, count);
@@ -374,7 +365,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *            argument is less than 1 or greater than the length
      *            of this sequence.
      */
-    public int codePointBefore(@Positive int index) {
+    public int codePointBefore( int index) {
         int i = index - 1;
         if (i < 0 || i >= count) {
             throw new StringIndexOutOfBoundsException(index);
@@ -405,7 +396,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * is larger than the length of this sequence, or
      * {@code beginIndex} is larger than {@code endIndex}.
      */
-    public @NonNegative int codePointCount(@NonNegative int beginIndex, @NonNegative int endIndex) {
+    public  int codePointCount( int beginIndex,  int endIndex) {
         if (beginIndex < 0 || endIndex > count || beginIndex > endIndex) {
             throw new IndexOutOfBoundsException();
         }
@@ -434,7 +425,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *   before {@code index} has fewer than the absolute value of
      *   {@code codePointOffset} code points.
      */
-    public @NonNegative int offsetByCodePoints(@NonNegative int index, int codePointOffset) {
+    public  int offsetByCodePoints( int index, int codePointOffset) {
         if (index < 0 || index > count) {
             throw new IndexOutOfBoundsException();
         }
@@ -470,7 +461,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *             {@code dst.length}
      *             </ul>
      */
-    public void getChars(@NonNegative int srcBegin, @NonNegative int srcEnd, char[] dst, @IndexOrHigh({"#3"}) int dstBegin)
+    public void getChars( int srcBegin,  int srcEnd, char[] dst,  int dstBegin)
     {
         checkRangeSIOOBE(srcBegin, srcEnd, count);  // compatible to old version
         int n = srcEnd - srcBegin;
@@ -496,7 +487,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @throws     IndexOutOfBoundsException  if {@code index} is
      *             negative or greater than or equal to {@code length()}.
      */
-    public void setCharAt(@NonNegative int index, char ch) {
+    public void setCharAt( int index, char ch) {
         checkIndex(index, count);
         if (isLatin1() && StringLatin1.canEncode(ch)) {
             value[index] = (byte)ch;
@@ -635,7 +626,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *             {@code end} is greater than {@code s.length()}
      */
     @Override
-    public AbstractStringBuilder append(@Nullable CharSequence s, @IndexOrHigh({"#1"}) int start, @IndexOrHigh({"#1"}) int end) {
+    public AbstractStringBuilder append(@Nullable CharSequence s,  int start,  int end) {
         if (s == null) {
             s = "null";
         }
@@ -691,7 +682,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *         if {@code offset < 0} or {@code len < 0}
      *         or {@code offset+len > str.length}
      */
-    public AbstractStringBuilder append(char str[], @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) {
+    public AbstractStringBuilder append(char str[],  int offset,   int len) {
         int end = offset + len;
         checkRange(offset, end, str.length);
         ensureCapacityInternal(count + len);
@@ -866,7 +857,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *             is negative, greater than {@code length()}, or
      *             greater than {@code end}.
      */
-    public AbstractStringBuilder delete(@NonNegative int start, @NonNegative int end) {
+    public AbstractStringBuilder delete( int start,  int end) {
         int count = this.count;
         if (end > count) {
             end = count;
@@ -923,7 +914,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *              is negative or greater than or equal to
      *              {@code length()}.
      */
-    public AbstractStringBuilder deleteCharAt(@NonNegative int index) {
+    public AbstractStringBuilder deleteCharAt( int index) {
         checkIndex(index, count);
         shift(index + 1, -1);
         count--;
@@ -949,7 +940,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *             is negative, greater than {@code length()}, or
      *             greater than {@code end}.
      */
-    public AbstractStringBuilder replace(@NonNegative int start, @NonNegative int end, String str) {
+    public AbstractStringBuilder replace( int start,  int end, String str) {
         int count = this.count;
         if (end > count) {
             end = count;
@@ -975,7 +966,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @throws     StringIndexOutOfBoundsException  if {@code start} is
      *             less than zero, or greater than the length of this object.
      */
-    public String substring(@NonNegative int start) {
+    public String substring( int start) {
         return substring(start, count);
     }
 
@@ -1006,7 +997,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @spec JSR-51
      */
     @Override
-    public CharSequence subSequence(@NonNegative int start, @NonNegative int end) {
+    public CharSequence subSequence( int start,  int end) {
         return substring(start, end);
     }
 
@@ -1024,7 +1015,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *             {@code length()}, or {@code start} is
      *             greater than {@code end}.
      */
-    public String substring(@NonNegative int start, @NonNegative int end) {
+    public String substring( int start,  int end) {
         checkRangeSIOOBE(start, end, count);
         if (isLatin1()) {
             return StringLatin1.newString(value, start, end - start);
@@ -1058,8 +1049,8 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *             {@code (offset+len)} is greater than
      *             {@code str.length}.
      */
-    public AbstractStringBuilder insert(@NonNegative int index, char[] str, @LTLengthOf(value={"#2"}, offset={"#4 - 1"}) @NonNegative int offset,
-                                        @IndexOrHigh({"#2"}) int len)
+    public AbstractStringBuilder insert( int index, char[] str,   int offset,
+                                         int len)
     {
         checkOffset(index, count);
         checkRangeSIOOBE(offset, offset + len, str.length);
@@ -1089,7 +1080,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @return     a reference to this object.
      * @throws     StringIndexOutOfBoundsException  if the offset is invalid.
      */
-    public AbstractStringBuilder insert(@NonNegative int offset, Object obj) {
+    public AbstractStringBuilder insert( int offset, Object obj) {
         return insert(offset, String.valueOf(obj));
     }
 
@@ -1124,7 +1115,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @return     a reference to this object.
      * @throws     StringIndexOutOfBoundsException  if the offset is invalid.
      */
-    public AbstractStringBuilder insert(@NonNegative int offset, @Nullable String str) {
+    public AbstractStringBuilder insert( int offset, @Nullable String str) {
         checkOffset(offset, count);
         if (str == null) {
             str = "null";
@@ -1161,7 +1152,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @return     a reference to this object.
      * @throws     StringIndexOutOfBoundsException  if the offset is invalid.
      */
-    public AbstractStringBuilder insert(@NonNegative int offset, char[] str) {
+    public AbstractStringBuilder insert( int offset, char[] str) {
         checkOffset(offset, count);
         int len = str.length;
         ensureCapacityInternal(count + len);
@@ -1192,7 +1183,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @return     a reference to this object.
      * @throws     IndexOutOfBoundsException  if the offset is invalid.
      */
-    public AbstractStringBuilder insert(@NonNegative int dstOffset, @Nullable CharSequence s) {
+    public AbstractStringBuilder insert( int dstOffset, @Nullable CharSequence s) {
         if (s == null) {
             s = "null";
         }
@@ -1246,8 +1237,8 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *              {@code start} is greater than {@code end} or
      *              {@code end} is greater than {@code s.length()}
      */
-    public AbstractStringBuilder insert(@NonNegative int dstOffset, @Nullable CharSequence s,
-                                        @IndexOrHigh({"#2"}) int start, @IndexOrHigh({"#2"}) int end)
+    public AbstractStringBuilder insert( int dstOffset, @Nullable CharSequence s,
+                                         int start,  int end)
     {
         if (s == null) {
             s = "null";
@@ -1281,7 +1272,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @return     a reference to this object.
      * @throws     StringIndexOutOfBoundsException  if the offset is invalid.
      */
-    public AbstractStringBuilder insert(@NonNegative int offset, boolean b) {
+    public AbstractStringBuilder insert( int offset, boolean b) {
         return insert(offset, String.valueOf(b));
     }
 
@@ -1304,7 +1295,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @return     a reference to this object.
      * @throws     IndexOutOfBoundsException  if the offset is invalid.
      */
-    public AbstractStringBuilder insert(@NonNegative int offset, char c) {
+    public AbstractStringBuilder insert( int offset, char c) {
         checkOffset(offset, count);
         ensureCapacityInternal(count + 1);
         shift(offset, 1);
@@ -1339,7 +1330,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @return     a reference to this object.
      * @throws     StringIndexOutOfBoundsException  if the offset is invalid.
      */
-    public AbstractStringBuilder insert(@NonNegative int offset, int i) {
+    public AbstractStringBuilder insert( int offset, int i) {
         return insert(offset, String.valueOf(i));
     }
 
@@ -1362,7 +1353,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @return     a reference to this object.
      * @throws     StringIndexOutOfBoundsException  if the offset is invalid.
      */
-    public AbstractStringBuilder insert(@NonNegative int offset, long l) {
+    public AbstractStringBuilder insert( int offset, long l) {
         return insert(offset, String.valueOf(l));
     }
 
@@ -1385,7 +1376,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @return     a reference to this object.
      * @throws     StringIndexOutOfBoundsException  if the offset is invalid.
      */
-    public AbstractStringBuilder insert(@NonNegative int offset, float f) {
+    public AbstractStringBuilder insert( int offset, float f) {
         return insert(offset, String.valueOf(f));
     }
 
@@ -1408,7 +1399,7 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @return     a reference to this object.
      * @throws     StringIndexOutOfBoundsException  if the offset is invalid.
      */
-    public AbstractStringBuilder insert(@NonNegative int offset, double d) {
+    public AbstractStringBuilder insert( int offset, double d) {
         return insert(offset, String.valueOf(d));
     }
 
@@ -1426,8 +1417,8 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @return  the index of the first occurrence of the specified substring,
      *          or {@code -1} if there is no such occurrence.
      */
-    @Pure
-    public @GTENegativeOne int indexOf(@GuardSatisfied AbstractStringBuilder this, String str) {
+    
+    public  int indexOf(String str) {
         return indexOf(str, 0);
     }
 
@@ -1448,8 +1439,8 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *          starting at the specified index,
      *          or {@code -1} if there is no such occurrence.
      */
-    @Pure
-    public @GTENegativeOne int indexOf(@GuardSatisfied AbstractStringBuilder this, String str, int fromIndex) {
+    
+    public  int indexOf(String str, int fromIndex) {
         return String.indexOf(value, coder, count, str, fromIndex);
     }
 
@@ -1468,8 +1459,8 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      * @return  the index of the last occurrence of the specified substring,
      *          or {@code -1} if there is no such occurrence.
      */
-    @Pure
-    public @GTENegativeOne int lastIndexOf(@GuardSatisfied AbstractStringBuilder this, String str) {
+    
+    public  int lastIndexOf(String str) {
         return lastIndexOf(str, count);
     }
 
@@ -1490,8 +1481,8 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *          searching backward from the specified index,
      *          or {@code -1} if there is no such occurrence.
      */
-    @Pure
-    public @GTENegativeOne int lastIndexOf(@GuardSatisfied AbstractStringBuilder this, String str, int fromIndex) {
+    
+    public  int lastIndexOf(String str, int fromIndex) {
         return String.lastIndexOf(value, coder, count, str, fromIndex);
     }
 
@@ -1545,9 +1536,9 @@ abstract @UsesObjectEquals class AbstractStringBuilder implements Appendable, Ch
      *
      * @return  a string representation of this sequence of characters.
      */
-    @SideEffectFree
+    
     @Override
-    public abstract String toString(@GuardSatisfied AbstractStringBuilder this);
+    public abstract String toString();
 
     /**
      * {@inheritDoc}

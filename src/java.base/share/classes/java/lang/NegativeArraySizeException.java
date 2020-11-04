@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown if an application tries to create an array with negative size.
@@ -35,7 +34,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class NegativeArraySizeException extends RuntimeException {
     private static final long serialVersionUID = -8960118058596991861L;
@@ -44,7 +43,7 @@ class NegativeArraySizeException extends RuntimeException {
      * Constructs a <code>NegativeArraySizeException</code> with no
      * detail message.
      */
-    @SideEffectFree
+    
     public NegativeArraySizeException() {
         super();
     }
@@ -55,7 +54,7 @@ class NegativeArraySizeException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public NegativeArraySizeException(@Nullable String s) {
         super(s);
     }

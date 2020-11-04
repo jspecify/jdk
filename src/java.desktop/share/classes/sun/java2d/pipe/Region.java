@@ -25,11 +25,7 @@
 
 package sun.java2d.pipe;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.Rectangle;
 import java.awt.Shape;
@@ -1375,8 +1371,8 @@ public final class Region {
     }
 
     @Override
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object o) {
         if (this == o) {
             return true;

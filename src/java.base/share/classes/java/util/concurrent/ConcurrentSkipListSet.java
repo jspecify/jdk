@@ -35,12 +35,8 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.reflect.Field;
 import java.util.AbstractSet;
@@ -99,8 +95,8 @@ import java.util.Spliterator;
  * @param <E> the type of elements maintained by this set
  * @since 1.6
  */
-@AnnotatedFor({"nullness"})
-public class ConcurrentSkipListSet<E extends @NonNull Object>
+@DefaultNonNull
+public class ConcurrentSkipListSet<E>
     extends AbstractSet<E>
     implements NavigableSet<E>, Cloneable, java.io.Serializable {
 
@@ -175,7 +171,7 @@ public class ConcurrentSkipListSet<E extends @NonNull Object>
      *
      * @return a shallow copy of this set
      */
-    @SideEffectFree
+    
     public ConcurrentSkipListSet<E> clone() {
         try {
             @SuppressWarnings("unchecked")
@@ -206,7 +202,7 @@ public class ConcurrentSkipListSet<E extends @NonNull Object>
      *
      * @return the number of elements in this set
      */
-    @Pure
+    
     public int size() {
         return m.size();
     }
@@ -215,7 +211,7 @@ public class ConcurrentSkipListSet<E extends @NonNull Object>
      * Returns {@code true} if this set contains no elements.
      * @return {@code true} if this set contains no elements
      */
-    @Pure
+    
     public boolean isEmpty() {
         return m.isEmpty();
     }
@@ -231,7 +227,7 @@ public class ConcurrentSkipListSet<E extends @NonNull Object>
      *         compared with the elements currently in this set
      * @throws NullPointerException if the specified element is null
      */
-    @Pure
+    
     public boolean contains(Object o) {
         return m.containsKey(o);
     }
@@ -284,7 +280,7 @@ public class ConcurrentSkipListSet<E extends @NonNull Object>
      *
      * @return an iterator over the elements in this set in ascending order
      */
-    @SideEffectFree
+    
     public Iterator<E> iterator() {
         return m.navigableKeySet().iterator();
     }
@@ -313,8 +309,8 @@ public class ConcurrentSkipListSet<E extends @NonNull Object>
      * @param o the object to be compared for equality with this set
      * @return {@code true} if the specified object is equal to this set
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object o) {
         // Override AbstractSet version to avoid calling size()
         if (o == this)
@@ -343,7 +339,7 @@ public class ConcurrentSkipListSet<E extends @NonNull Object>
      * @throws NullPointerException if the specified collection or any
      *         of its elements are null
      */
-    public boolean removeAll(Collection<? extends @NonNull Object> c) {
+    public boolean removeAll(Collection<?> c) {
         // Override AbstractSet version to avoid unnecessary call to size()
         boolean modified = false;
         for (Object e : c)
@@ -399,7 +395,7 @@ public class ConcurrentSkipListSet<E extends @NonNull Object>
 
     /* ---------------- SortedSet operations -------------- */
 
-    @Pure
+    
     public @Nullable Comparator<? super E> comparator() {
         return m.comparator();
     }
@@ -514,7 +510,7 @@ public class ConcurrentSkipListSet<E extends @NonNull Object>
      * @since 1.8
      */
     @SuppressWarnings({"unchecked"})
-    @SideEffectFree
+    
     public Spliterator<E> spliterator() {
         return (m instanceof ConcurrentSkipListMap)
             ? ((ConcurrentSkipListMap<E,?>)m).keySpliterator()

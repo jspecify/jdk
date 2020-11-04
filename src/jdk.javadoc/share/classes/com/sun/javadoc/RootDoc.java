@@ -25,11 +25,8 @@
 
 package com.sun.javadoc;
 
-import org.checkerframework.checker.signature.qual.DotSeparatedIdentifiers;
-import org.checkerframework.checker.signature.qual.BinaryName;
-import org.checkerframework.common.value.qual.MinLen;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents the root of the program structure information
@@ -46,7 +43,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *   in the package {@code jdk.javadoc.doclet}.
  *   For more information, see the <i>Migration Guide</i> in the documentation for that package.
  */
-@AnnotatedFor({"nullness", "signature", "value"})
+@DefaultNonNull
 @Deprecated(since="9", forRemoval=true)
 @SuppressWarnings("removal")
 public interface RootDoc extends Doc, DocErrorReporter {
@@ -68,8 +65,8 @@ public interface RootDoc extends Doc, DocErrorReporter {
      *
      * @return an array of arrays of String.
      */
-    @SideEffectFree
-    String[] @MinLen(1) [] options();
+    
+    String[]  [] options();
 
     /**
      * Return the packages
@@ -89,8 +86,8 @@ public interface RootDoc extends Doc, DocErrorReporter {
      *
      * @return classes and interfaces specified on the command line.
      */
-    @SideEffectFree
-    ClassDoc @MinLen(1) [] specifiedClasses();
+    
+    ClassDoc  [] specifiedClasses();
 
     /**
      * Return the
@@ -99,7 +96,7 @@ public interface RootDoc extends Doc, DocErrorReporter {
      *
      * @return included classes and interfaces in all packages.
      */
-    @SideEffectFree
+    
     ClassDoc[] classes();
 
     /**
@@ -110,7 +107,7 @@ public interface RootDoc extends Doc, DocErrorReporter {
      * @return a PackageDoc holding the specified package, null if
      * this package is not referenced.
      */
-    PackageDoc packageNamed(@DotSeparatedIdentifiers String name);
+    PackageDoc packageNamed( String name);
 
     /**
      * Return a ClassDoc for the specified class or interface name.
@@ -122,5 +119,5 @@ public interface RootDoc extends Doc, DocErrorReporter {
      * @return a ClassDoc holding the specified class, null if
      * this class is not referenced.
      */
-    ClassDoc classNamed(@BinaryName String qualifiedName);
+    ClassDoc classNamed( String qualifiedName);
 }

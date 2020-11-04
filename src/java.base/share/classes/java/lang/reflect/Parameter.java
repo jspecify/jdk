@@ -24,12 +24,8 @@
  */
 package java.lang.reflect;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.*;
 import java.util.HashMap;
@@ -46,7 +42,7 @@ import sun.reflect.annotation.AnnotationSupport;
  *
  * @since 1.8
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public final class Parameter implements AnnotatedElement {
 
     private final String name;
@@ -83,8 +79,8 @@ public final class Parameter implements AnnotatedElement {
      * @param obj The object to compare.
      * @return Whether or not this is equal to the argument.
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if(obj instanceof Parameter) {
             Parameter other = (Parameter)obj;

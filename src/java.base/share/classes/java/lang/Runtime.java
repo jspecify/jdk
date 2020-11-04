@@ -25,10 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.TerminatesExecution;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.*;
 import java.math.BigInteger;
@@ -58,8 +56,8 @@ import jdk.internal.reflect.Reflection;
  * @since   1.0
  */
 
-@AnnotatedFor({"interning", "nullness"})
-public @UsesObjectEquals class Runtime {
+@DefaultNonNull
+public  class Runtime {
     private static final Runtime currentRuntime = new Runtime();
 
     private static Version version;
@@ -113,7 +111,7 @@ public @UsesObjectEquals class Runtime {
      * @see #removeShutdownHook
      * @see #halt(int)
      */
-    @TerminatesExecution
+    
     public void exit(int status) {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {

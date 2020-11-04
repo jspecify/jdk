@@ -25,11 +25,7 @@
 
 package sun.java2d.xr;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Simple MutableInteger implementation to be used as a reuseable HashMap key.
@@ -48,8 +44,8 @@ public class MutableInteger {
         return getValue();
     }
 
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object o) {
         return (o instanceof MutableInteger) &&
                (((MutableInteger) o).getValue() == getValue());

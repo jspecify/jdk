@@ -25,8 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.misc.SharedSecrets;
 
@@ -79,7 +79,7 @@ import jdk.internal.misc.SharedSecrets;
  * @since 1.5
  * @see EnumMap
  */
-@AnnotatedFor({"nullness", "index"})
+@DefaultNonNull
 @SuppressWarnings("serial") // No serialVersionUID due to usage of
                             // serial proxy pattern
 public abstract class EnumSet<E extends Enum<E>> extends AbstractSet<E>

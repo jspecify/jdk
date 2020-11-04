@@ -25,11 +25,7 @@
 
 package com.sun.jndi.dns;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 
 import java.util.ArrayList;
@@ -212,8 +208,8 @@ public final class DnsName implements Name {
         return h;
     }
 
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof Name) || (obj instanceof CompositeName)) {
             return false;

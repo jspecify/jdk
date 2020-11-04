@@ -25,8 +25,8 @@
 
 package com.sun.javadoc;
 
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -49,7 +49,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *   in the package {@code jdk.javadoc.doclet}.
  *   For more information, see the <i>Migration Guide</i> in the documentation for that package.
  */
-@AnnotatedFor({"lock", "nullness", "signature", "value"})
+@DefaultNonNull
 @Deprecated(since="9", forRemoval=true)
 @SuppressWarnings("removal")
 public interface ClassDoc extends ProgramElementDoc, Type {
@@ -61,7 +61,7 @@ public interface ClassDoc extends ProgramElementDoc, Type {
      * @return true if this class is abstract.  Return true
      *         for all interfaces.
      */
-    @Pure
+    
     boolean isAbstract();
 
     /**
@@ -75,7 +75,7 @@ public interface ClassDoc extends ProgramElementDoc, Type {
      * @return true if this class implements or interface extends
      *         {@code java.io.Serializable}.
      */
-    @Pure
+    
     boolean isSerializable();
 
     /**
@@ -85,7 +85,7 @@ public interface ClassDoc extends ProgramElementDoc, Type {
      * @return true if this class implements or interface extends
      *         {@code java.io.Externalizable}.
      */
-    @Pure
+    
     boolean isExternalizable();
 
     /**

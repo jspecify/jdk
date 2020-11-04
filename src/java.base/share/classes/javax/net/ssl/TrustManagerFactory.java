@@ -25,8 +25,8 @@
 
 package javax.net.ssl;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.security.Security;
 import java.security.*;
@@ -55,7 +55,7 @@ import sun.security.jca.GetInstance;
  * @since 1.4
  * @see TrustManager
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public class TrustManagerFactory {
     // The provider
     private Provider provider;

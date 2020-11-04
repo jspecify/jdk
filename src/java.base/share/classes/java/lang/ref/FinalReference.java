@@ -25,13 +25,14 @@
 
 package java.lang.ref;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Final references, used to implement finalization
  */
-@AnnotatedFor({"nullness"})
-class FinalReference<T> extends Reference<T> {
+@DefaultNonNull
+class FinalReference<T extends @Nullable Object> extends Reference<T> {
 
     public FinalReference(T referent, ReferenceQueue<? super T> q) {
         super(referent, q);

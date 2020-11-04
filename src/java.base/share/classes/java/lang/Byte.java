@@ -25,18 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.index.qual.PolyIndex;
-import org.checkerframework.checker.index.qual.Positive;
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.common.value.qual.ArrayLen;
-import org.checkerframework.common.value.qual.IntRange;
-import org.checkerframework.common.value.qual.IntVal;
-import org.checkerframework.common.value.qual.PolyValue;
-import org.checkerframework.common.value.qual.StaticallyExecutable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
 
@@ -56,20 +46,20 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @see     java.lang.Number
  * @since   1.1
  */
-@AnnotatedFor({"index", "interning", "nullness", "value"})
+@DefaultNonNull
 public final class Byte extends Number implements Comparable<Byte> {
 
     /**
      * A constant holding the minimum value a {@code byte} can
      * have, -2<sup>7</sup>.
      */
-    public static final @IntVal(-128) byte   MIN_VALUE = -128;
+    public static final  byte   MIN_VALUE = -128;
 
     /**
      * A constant holding the maximum value a {@code byte} can
      * have, 2<sup>7</sup>-1.
      */
-    public static final @Positive @IntVal(127) byte   MAX_VALUE = 127;
+    public static final   byte   MAX_VALUE = 127;
 
     /**
      * The {@code Class} instance representing the primitive type
@@ -86,8 +76,8 @@ public final class Byte extends Number implements Comparable<Byte> {
      * @return the string representation of the specified {@code byte}
      * @see java.lang.Integer#toString(int)
      */
-    @SideEffectFree
-    public static @ArrayLen({1,2,3,4}) String toString(byte b) {
+    
+    public static  String toString(byte b) {
         return Integer.toString((int)b, 10);
     }
 
@@ -115,10 +105,10 @@ public final class Byte extends Number implements Comparable<Byte> {
      * @return a {@code Byte} instance representing {@code b}.
      * @since  1.5
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     @HotSpotIntrinsicCandidate
-    public static @PolyIndex @Interned @PolyValue Byte valueOf(@PolyIndex @PolyValue byte b) {
+    public static    Byte valueOf(  byte b) {
         final int offset = 128;
         return ByteCache.cache[(int)b + offset];
     }
@@ -164,9 +154,9 @@ public final class Byte extends Number implements Comparable<Byte> {
      * @throws          NumberFormatException If the string does
      *                  not contain a parsable {@code byte}.
      */
-    @Pure
-    @StaticallyExecutable
-    public static byte parseByte(String s, @Positive @IntRange(from = 2, to = 36) int radix)
+    
+    
+    public static byte parseByte(String s,   int radix)
         throws NumberFormatException {
         int i = Integer.parseInt(s, radix);
         if (i < MIN_VALUE || i > MAX_VALUE)
@@ -193,8 +183,8 @@ public final class Byte extends Number implements Comparable<Byte> {
      * @throws          NumberFormatException if the string does not
      *                  contain a parsable {@code byte}.
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public static byte parseByte(String s) throws NumberFormatException {
         return parseByte(s, 10);
     }
@@ -224,9 +214,9 @@ public final class Byte extends Number implements Comparable<Byte> {
      * @throws          NumberFormatException If the {@code String} does
      *                  not contain a parsable {@code byte}.
      */
-    @Pure
-    @StaticallyExecutable
-    public static @Interned Byte valueOf(String s, @Positive @IntRange(from = 2, to = 36) int radix)
+    
+    
+    public static  Byte valueOf(String s,   int radix)
         throws NumberFormatException {
         return valueOf(parseByte(s, radix));
     }
@@ -253,9 +243,9 @@ public final class Byte extends Number implements Comparable<Byte> {
      * @throws          NumberFormatException If the {@code String} does
      *                  not contain a parsable {@code byte}.
      */
-    @Pure
-    @StaticallyExecutable
-    public static @Interned Byte valueOf(String s) throws NumberFormatException {
+    
+    
+    public static  Byte valueOf(String s) throws NumberFormatException {
         return valueOf(s, 10);
     }
 
@@ -301,8 +291,8 @@ public final class Byte extends Number implements Comparable<Byte> {
      *            contain a parsable {@code byte}.
      * @see java.lang.Byte#parseByte(java.lang.String, int)
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public static Byte decode(String nm) throws NumberFormatException {
         int i = Integer.decode(nm);
         if (i < MIN_VALUE || i > MAX_VALUE)
@@ -330,9 +320,9 @@ public final class Byte extends Number implements Comparable<Byte> {
      * {@link #valueOf(byte)} is generally a better choice, as it is
      * likely to yield significantly better space and time performance.
      */
-    @StaticallyExecutable
+    
     @Deprecated(since="9")
-    public @PolyIndex Byte(@PolyIndex byte value) {
+    public  Byte( byte value) {
         this.value = value;
     }
 
@@ -354,7 +344,7 @@ public final class Byte extends Number implements Comparable<Byte> {
      * {@code byte} primitive, or use {@link #valueOf(String)}
      * to convert a string to a {@code Byte} object.
      */
-    @StaticallyExecutable
+    
     @Deprecated(since="9")
     public Byte(String s) throws NumberFormatException {
         this.value = parseByte(s, 10);
@@ -364,10 +354,10 @@ public final class Byte extends Number implements Comparable<Byte> {
      * Returns the value of this {@code Byte} as a
      * {@code byte}.
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     @HotSpotIntrinsicCandidate
-    public @PolyIndex @PolyValue byte byteValue(@PolyIndex @PolyValue Byte this) {
+    public   byte byteValue() {
         return value;
     }
 
@@ -376,9 +366,9 @@ public final class Byte extends Number implements Comparable<Byte> {
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversions
      */
-    @Pure
-    @StaticallyExecutable
-    public @PolyIndex @PolyValue short shortValue(@PolyIndex @PolyValue Byte this) {
+    
+    
+    public   short shortValue() {
         return (short)value;
     }
 
@@ -387,9 +377,9 @@ public final class Byte extends Number implements Comparable<Byte> {
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversions
      */
-    @Pure
-    @StaticallyExecutable
-    public @PolyIndex @PolyValue int intValue(@PolyIndex @PolyValue Byte this) {
+    
+    
+    public   int intValue() {
         return (int)value;
     }
 
@@ -398,9 +388,9 @@ public final class Byte extends Number implements Comparable<Byte> {
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversions
      */
-    @Pure
-    @StaticallyExecutable
-    public @PolyIndex @PolyValue long longValue(@PolyIndex @PolyValue Byte this) {
+    
+    
+    public   long longValue() {
         return (long)value;
     }
 
@@ -409,9 +399,9 @@ public final class Byte extends Number implements Comparable<Byte> {
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversions
      */
-    @Pure
-    @StaticallyExecutable
-    public @PolyValue float floatValue(@PolyValue Byte this) {
+    
+    
+    public  float floatValue() {
         return (float)value;
     }
 
@@ -420,9 +410,9 @@ public final class Byte extends Number implements Comparable<Byte> {
      * after a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversions
      */
-    @Pure
-    @StaticallyExecutable
-    public @PolyValue double doubleValue(@PolyValue Byte this) {
+    
+    
+    public  double doubleValue() {
         return (double)value;
     }
 
@@ -436,8 +426,8 @@ public final class Byte extends Number implements Comparable<Byte> {
      * @return  a string representation of the value of this object in
      *          base&nbsp;10.
      */
-    @SideEffectFree
-    public @ArrayLen({1,2,3,4}) String toString() {
+    
+    public  String toString() {
         return Integer.toString((int)value);
     }
 
@@ -447,8 +437,8 @@ public final class Byte extends Number implements Comparable<Byte> {
      *
      * @return a hash code value for this {@code Byte}
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     @Override
     public int hashCode() {
         return Byte.hashCode(value);
@@ -462,8 +452,8 @@ public final class Byte extends Number implements Comparable<Byte> {
      * @return a hash code value for a {@code byte} value.
      * @since 1.8
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public static int hashCode(byte value) {
         return (int)value;
     }
@@ -478,8 +468,8 @@ public final class Byte extends Number implements Comparable<Byte> {
      * @return          {@code true} if the objects are the same;
      *                  {@code false} otherwise.
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof Byte) {
             return value == ((Byte)obj).byteValue();
@@ -500,8 +490,8 @@ public final class Byte extends Number implements Comparable<Byte> {
      *           comparison).
      * @since   1.2
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public int compareTo(Byte anotherByte) {
         return compare(this.value, anotherByte.value);
     }
@@ -520,8 +510,8 @@ public final class Byte extends Number implements Comparable<Byte> {
      *         a value greater than {@code 0} if {@code x > y}
      * @since 1.7
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public static int compare(byte x, byte y) {
         return x - y;
     }
@@ -538,8 +528,8 @@ public final class Byte extends Number implements Comparable<Byte> {
      *         unsigned values
      * @since 9
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public static int compareUnsigned(byte x, byte y) {
         return Byte.toUnsignedInt(x) - Byte.toUnsignedInt(y);
     }
@@ -560,8 +550,8 @@ public final class Byte extends Number implements Comparable<Byte> {
      *         conversion
      * @since 1.8
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public static int toUnsignedInt(byte x) {
         return ((int) x) & 0xff;
     }
@@ -582,8 +572,8 @@ public final class Byte extends Number implements Comparable<Byte> {
      *         conversion
      * @since 1.8
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public static long toUnsignedLong(byte x) {
         return ((long) x) & 0xffL;
     }
@@ -595,7 +585,7 @@ public final class Byte extends Number implements Comparable<Byte> {
      *
      * @since 1.5
      */
-    public static final @Positive @IntVal(8) int SIZE = 8;
+    public static final   int SIZE = 8;
 
     /**
      * The number of bytes used to represent a {@code byte} value in two's
@@ -603,7 +593,7 @@ public final class Byte extends Number implements Comparable<Byte> {
      *
      * @since 1.8
      */
-    public static final @Positive @IntVal(1) int BYTES = SIZE / Byte.SIZE;
+    public static final   int BYTES = SIZE / Byte.SIZE;
 
     /** use serialVersionUID from JDK 1.1. for interoperability */
     private static final long serialVersionUID = -7183698231559129828L;

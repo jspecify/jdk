@@ -25,10 +25,8 @@
 
 package com.sun.javadoc;
 
-import org.checkerframework.checker.signature.qual.BinaryName;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a java program element: class, interface, field,
@@ -46,7 +44,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *   in the package {@code jdk.javadoc.doclet}.
  *   For more information, see the <i>Migration Guide</i> in the documentation for that package.
  */
-@AnnotatedFor({"lock", "nullness", "signature", "value"})
+@DefaultNonNull
 @Deprecated(since="9", forRemoval=true)
 @SuppressWarnings("removal")
 public interface ProgramElementDoc extends Doc {
@@ -78,7 +76,7 @@ public interface ProgramElementDoc extends Doc {
      *
      * @return the qualified name of the program element as a String.
      */
-    @BinaryName String qualifiedName();
+     String qualifiedName();
 
     /**
      * Get the modifier specifier integer.
@@ -116,7 +114,7 @@ public interface ProgramElementDoc extends Doc {
      *
      * @return true if this program element is public.
      */
-    @Pure
+    
     boolean isPublic();
 
     /**
@@ -124,7 +122,7 @@ public interface ProgramElementDoc extends Doc {
      *
      * @return true if this program element is protected.
      */
-    @Pure
+    
     boolean isProtected();
 
     /**
@@ -132,7 +130,7 @@ public interface ProgramElementDoc extends Doc {
      *
      * @return true if this program element is private.
      */
-    @Pure
+    
     boolean isPrivate();
 
     /**
@@ -140,14 +138,14 @@ public interface ProgramElementDoc extends Doc {
      *
      * @return true if this program element is package private.
      */
-    @Pure
+    
     boolean isPackagePrivate();
     /**
      * Return true if this program element is static.
      *
      * @return true if this program element is static.
      */
-    @Pure
+    
     boolean isStatic();
 
     /**
@@ -155,6 +153,6 @@ public interface ProgramElementDoc extends Doc {
      *
      * @return true if this program element is final.
      */
-    @Pure
+    
     boolean isFinal();
 }

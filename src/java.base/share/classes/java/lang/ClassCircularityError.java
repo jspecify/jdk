@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown when the Java Virtual Machine detects a circularity in the
@@ -36,14 +35,14 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author     unascribed
  * @since      1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class ClassCircularityError extends LinkageError {
     private static final long serialVersionUID = 1054362542914539689L;
 
     /**
      * Constructs a {@code ClassCircularityError} with no detail message.
      */
-    @SideEffectFree
+    
     public ClassCircularityError() {
         super();
     }
@@ -55,7 +54,7 @@ public class ClassCircularityError extends LinkageError {
      * @param  s
      *         The detail message
      */
-    @SideEffectFree
+    
     public ClassCircularityError(@Nullable String s) {
         super(s);
     }

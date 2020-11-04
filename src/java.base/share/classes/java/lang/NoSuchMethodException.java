@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown when a particular method cannot be found.
@@ -35,7 +34,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author     unascribed
  * @since      1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class NoSuchMethodException extends ReflectiveOperationException {
     private static final long serialVersionUID = 5034388446362600923L;
@@ -43,7 +42,7 @@ class NoSuchMethodException extends ReflectiveOperationException {
     /**
      * Constructs a <code>NoSuchMethodException</code> without a detail message.
      */
-    @SideEffectFree
+    
     public NoSuchMethodException() {
         super();
     }
@@ -53,7 +52,7 @@ class NoSuchMethodException extends ReflectiveOperationException {
      *
      * @param      s   the detail message.
      */
-    @SideEffectFree
+    
     public NoSuchMethodException(@Nullable String s) {
         super(s);
     }

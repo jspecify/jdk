@@ -25,14 +25,8 @@
 
 package java.net;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.io.ObjectStreamException;
 
@@ -91,9 +85,9 @@ import java.io.ObjectStreamException;
  * @since 1.4
  */
 
-@AnnotatedFor({"interning"})
+
 public final
-@UsesObjectEquals class Inet4Address extends InetAddress {
+ class Inet4Address extends InetAddress {
     static final int INADDRSZ = 4;
 
     /** use serialVersionUID from InetAddress, but Inet4Address instance
@@ -352,8 +346,8 @@ public final
      *          {@code false} otherwise.
      * @see     java.net.InetAddress#getAddress()
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         return (obj != null) && (obj instanceof Inet4Address) &&
             (((InetAddress)obj).holder().getAddress() == holder().getAddress());

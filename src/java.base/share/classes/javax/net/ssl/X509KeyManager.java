@@ -25,7 +25,7 @@
 
 package javax.net.ssl;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.security.PrivateKey;
 import java.security.Principal;

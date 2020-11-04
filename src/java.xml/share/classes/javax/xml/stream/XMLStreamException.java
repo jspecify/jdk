@@ -25,10 +25,8 @@
 
 package javax.xml.stream;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The base exception for unexpected processing errors.  This Exception
@@ -39,7 +37,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since 1.6
  */
 
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public class XMLStreamException extends Exception {
   private static final long serialVersionUID = 2018819321811497362L;
 
@@ -49,7 +47,7 @@ public class XMLStreamException extends Exception {
   /**
    * Default constructor
    */
-  @SideEffectFree
+  
   public XMLStreamException(){
     super();
   }
@@ -59,7 +57,7 @@ public class XMLStreamException extends Exception {
    *
    * @param msg the message to report
    */
-  @SideEffectFree
+  
   public XMLStreamException(@Nullable String msg) {
     super(msg);
   }
@@ -69,7 +67,7 @@ public class XMLStreamException extends Exception {
    *
    * @param th a nested exception
    */
-  @SideEffectFree
+  
   public XMLStreamException(@Nullable Throwable th) {
       super(th);
     nested = th;
@@ -81,7 +79,7 @@ public class XMLStreamException extends Exception {
    * @param th a nested exception
    * @param msg the message to report
    */
-  @SideEffectFree
+  
   public XMLStreamException(@Nullable String msg, @Nullable Throwable th) {
     super(msg, th);
     nested = th;
@@ -94,7 +92,7 @@ public class XMLStreamException extends Exception {
    * @param msg the message to report
    * @param location the location of the error
    */
-  @SideEffectFree
+  
   public XMLStreamException(@Nullable String msg, Location location, @Nullable Throwable th) {
     super("ParseError at [row,col]:["+location.getLineNumber()+","+
           location.getColumnNumber()+"]\n"+
@@ -109,7 +107,7 @@ public class XMLStreamException extends Exception {
    * @param msg the message to report
    * @param location the location of the error
    */
-  @SideEffectFree
+  
   public XMLStreamException(@Nullable String msg,
                             Location location) {
     super("ParseError at [row,col]:["+location.getLineNumber()+","+
@@ -124,7 +122,7 @@ public class XMLStreamException extends Exception {
    *
    * @return Nested exception
    */
-  @Pure
+  
   public @Nullable Throwable getNestedException() {
     return nested;
   }
@@ -134,7 +132,7 @@ public class XMLStreamException extends Exception {
    *
    * @return the location of the exception, may be null if none is available
    */
-  @Pure
+  
   public @Nullable Location getLocation() {
     return location;
   }

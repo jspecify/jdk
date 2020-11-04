@@ -25,9 +25,8 @@
 
 package java.lang.reflect;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
@@ -76,7 +75,7 @@ import sun.security.util.SecurityConstants;
  * @revised 9
  * @spec JPMS
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class AccessibleObject implements AnnotatedElement {
 
     static void checkPermission() {
@@ -449,7 +448,7 @@ public class AccessibleObject implements AnnotatedElement {
      * @see #setAccessible(boolean)
      */
     @CallerSensitive
-    @CFComment("Sometimes null is forbidden; other times, it is required")
+    
     public final boolean canAccess(Object obj) {
         if (!Member.class.isInstance(this)) {
             return override;

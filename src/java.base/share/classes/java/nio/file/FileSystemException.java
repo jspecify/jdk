@@ -25,8 +25,8 @@
 
 package java.nio.file;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 
@@ -37,7 +37,7 @@ import java.io.IOException;
  * @since 1.7
  */
 
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public class FileSystemException
     extends IOException
 {

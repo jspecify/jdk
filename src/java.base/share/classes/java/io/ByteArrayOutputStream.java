@@ -25,14 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.nio.charset.Charset;
 import java.util.Arrays;
@@ -53,7 +47,7 @@ import java.util.Objects;
  * @since   1.0
  */
 
-@AnnotatedFor({"lock", "nullness", "index", "signedness"})
+@DefaultNonNull
 public class ByteArrayOutputStream extends OutputStream {
 
     /**
@@ -64,7 +58,7 @@ public class ByteArrayOutputStream extends OutputStream {
     /**
      * The number of valid bytes in the buffer.
      */
-    protected @IndexOrHigh({"this.buf"}) int count;
+    protected  int count;
 
     /**
      * Creates a new {@code ByteArrayOutputStream}. The buffer capacity is
@@ -81,7 +75,7 @@ public class ByteArrayOutputStream extends OutputStream {
      * @param  size   the initial size.
      * @throws IllegalArgumentException if size is negative.
      */
-    public ByteArrayOutputStream(@NonNegative int size) {
+    public ByteArrayOutputStream( int size) {
         if (size < 0) {
             throw new IllegalArgumentException("Negative initial size: "
                                                + size);
@@ -143,7 +137,7 @@ public class ByteArrayOutputStream extends OutputStream {
      *
      * @param   b   the byte to be written.
      */
-    public synchronized void write(@PolySigned int b) {
+    public synchronized void write( int b) {
         ensureCapacity(count + 1);
         buf[count] = (byte) b;
         count += 1;
@@ -161,7 +155,7 @@ public class ByteArrayOutputStream extends OutputStream {
      * {@code len} is negative, or {@code len} is greater than
      * {@code b.length - off}
      */
-    public synchronized void write(@PolySigned byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) {
+    public synchronized void write( byte b[],  int off,   int len) {
         Objects.checkFromIndexSize(off, len, b.length);
         ensureCapacity(count + len);
         System.arraycopy(b, off, buf, count, len);
@@ -217,7 +211,7 @@ public class ByteArrayOutputStream extends OutputStream {
      * @return  the current contents of this output stream, as a byte array.
      * @see     java.io.ByteArrayOutputStream#size()
      */
-    public synchronized @PolySigned byte[] toByteArray() {
+    public synchronized  byte[] toByteArray() {
         return Arrays.copyOf(buf, count);
     }
 
@@ -228,8 +222,8 @@ public class ByteArrayOutputStream extends OutputStream {
      *          of valid bytes in this output stream.
      * @see     java.io.ByteArrayOutputStream#count
      */
-    @Pure
-    public synchronized @IndexOrHigh({"this.buf"}) int size(@GuardSatisfied ByteArrayOutputStream this) {
+    
+    public synchronized  int size() {
         return count;
     }
 
@@ -248,8 +242,8 @@ public class ByteArrayOutputStream extends OutputStream {
      * @return String decoded from the buffer's contents.
      * @since  1.1
      */
-    @SideEffectFree
-    public synchronized String toString(@GuardSatisfied ByteArrayOutputStream this) {
+    
+    public synchronized String toString() {
         return new String(buf, 0, count);
     }
 
@@ -284,8 +278,8 @@ public class ByteArrayOutputStream extends OutputStream {
      *         If the named charset is not supported
      * @since  1.1
      */
-    @SideEffectFree
-    public synchronized String toString(@GuardSatisfied ByteArrayOutputStream this, String charsetName)
+    
+    public synchronized String toString(String charsetName)
         throws UnsupportedEncodingException
     {
         return new String(buf, 0, count, charsetName);
@@ -334,9 +328,9 @@ public class ByteArrayOutputStream extends OutputStream {
      * @see        java.io.ByteArrayOutputStream#toString(String)
      * @see        java.io.ByteArrayOutputStream#toString()
      */
-    @SideEffectFree
+    
     @Deprecated
-    public synchronized String toString(@GuardSatisfied ByteArrayOutputStream this, int hibyte) {
+    public synchronized String toString(int hibyte) {
         return new String(buf, hibyte, 0, count);
     }
 

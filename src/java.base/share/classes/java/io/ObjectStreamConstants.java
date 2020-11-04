@@ -25,7 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Constants written into the Object Serialization Stream.
@@ -33,7 +34,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since 1.1
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public interface ObjectStreamConstants {
 
     /**

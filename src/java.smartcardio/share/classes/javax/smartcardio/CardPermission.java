@@ -25,11 +25,7 @@
 
 package javax.smartcardio;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.io.*;
 import java.util.StringJoiner;
@@ -266,8 +262,8 @@ public class CardPermission extends Permission {
      * @return true if and only if the specified object is equal to this
      *   CardPermission
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

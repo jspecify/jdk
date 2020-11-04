@@ -25,13 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.signature.qual.DotSeparatedIdentifiers;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
@@ -125,8 +120,8 @@ import jdk.internal.reflect.Reflection;
  * @revised 9
  * @spec JPMS
  */
-@AnnotatedFor({"interning", "lock", "nullness", "signature"})
-public @UsesObjectEquals class Package extends NamedPackage implements java.lang.reflect.AnnotatedElement {
+@DefaultNonNull
+public  class Package extends NamedPackage implements java.lang.reflect.AnnotatedElement {
     /**
      * Return the name of this package.
      *
@@ -134,7 +129,7 @@ public @UsesObjectEquals class Package extends NamedPackage implements java.lang
      *          <cite>The Java&trade; Language Specification</cite>,
      *          for example, {@code java.lang}
      */
-    public @DotSeparatedIdentifiers String getName() {
+    public  String getName() {
         return packageName();
     }
 
@@ -234,8 +229,8 @@ public @UsesObjectEquals class Package extends NamedPackage implements java.lang
      *
      * @return true if the package is sealed, false otherwise
      */
-    @Pure
-    public boolean isSealed(@GuardSatisfied Package this) {
+    
+    public boolean isSealed() {
         return module().isNamed() || versionInfo.sealBase != null;
     }
 
@@ -246,8 +241,8 @@ public @UsesObjectEquals class Package extends NamedPackage implements java.lang
      * @param url the code source URL
      * @return true if this package is sealed with respect to the given {@code url}
      */
-    @Pure
-    public boolean isSealed(@GuardSatisfied Package this, @GuardSatisfied URL url) {
+    
+    public boolean isSealed( URL url) {
         Objects.requireNonNull(url);
 
         URL sealBase = null;
@@ -285,8 +280,8 @@ public @UsesObjectEquals class Package extends NamedPackage implements java.lang
      * @exception NumberFormatException if the current version is not known or
      *          the desired or current version is not of the correct dotted form.
      */
-    @Pure
-    public boolean isCompatibleWith(@GuardSatisfied Package this, String desired)
+    
+    public boolean isCompatibleWith(String desired)
         throws NumberFormatException
     {
         if (versionInfo.specVersion == null || versionInfo.specVersion.length() < 1) {
@@ -358,11 +353,11 @@ public @UsesObjectEquals class Package extends NamedPackage implements java.lang
      * @revised 9
      * @spec JPMS
      */
-    @Pure
+    
     @CallerSensitive
     @Deprecated(since="9")
     @SuppressWarnings("deprecation")
-    public static @Nullable Package getPackage(@DotSeparatedIdentifiers String name) {
+    public static @Nullable Package getPackage( String name) {
         ClassLoader l = ClassLoader.getClassLoader(Reflection.getCallerClass());
         return l != null ? l.getPackage(name) : BootLoader.getDefinedPackage(name);
     }
@@ -384,7 +379,7 @@ public @UsesObjectEquals class Package extends NamedPackage implements java.lang
      * @revised 9
      * @spec JPMS
      */
-    @Pure
+    
     @CallerSensitive
     public static Package[] getPackages() {
         ClassLoader cl = ClassLoader.getClassLoader(Reflection.getCallerClass());
@@ -395,9 +390,9 @@ public @UsesObjectEquals class Package extends NamedPackage implements java.lang
      * Return the hash code computed from the package name.
      * @return the hash code computed from the package name.
      */
-    @Pure
+    
     @Override
-    public int hashCode(@GuardSatisfied Package this){
+    public int hashCode(){
         return packageName().hashCode();
     }
 
@@ -408,9 +403,9 @@ public @UsesObjectEquals class Package extends NamedPackage implements java.lang
      * If the package version is defined it is appended.
      * @return the string representation of the package.
      */
-    @SideEffectFree
+    
     @Override
-    public String toString(@GuardSatisfied Package this) {
+    public String toString() {
         String spec = versionInfo.specTitle;
         String ver =  versionInfo.specVersion;
         if (spec != null && spec.length() > 0)
@@ -462,9 +457,9 @@ public @UsesObjectEquals class Package extends NamedPackage implements java.lang
      * @throws NullPointerException {@inheritDoc}
      * @since 1.5
      */
-    @Pure
+    
     @Override
-    public boolean isAnnotationPresent(@GuardSatisfied Package this, @GuardSatisfied Class<? extends Annotation> annotationClass) {
+    public boolean isAnnotationPresent( Class<? extends Annotation> annotationClass) {
         return AnnotatedElement.super.isAnnotationPresent(annotationClass);
     }
 
@@ -526,7 +521,7 @@ public @UsesObjectEquals class Package extends NamedPackage implements java.lang
      * @param sealbase code source where this Package comes from
      * @param loader defining class loader
      */
-    Package(@DotSeparatedIdentifiers String name,
+    Package( String name,
             String spectitle, String specversion, String specvendor,
             String impltitle, String implversion, String implvendor,
             URL sealbase, ClassLoader loader)
@@ -541,7 +536,7 @@ public @UsesObjectEquals class Package extends NamedPackage implements java.lang
                                                    sealbase);
     }
 
-    Package(@DotSeparatedIdentifiers String name, Module module) {
+    Package( String name, Module module) {
         super(name, module);
         this.versionInfo = VersionInfo.NULL_VERSION_INFO;
     }

@@ -25,14 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.RequiresNonNull;
-import org.checkerframework.checker.signature.qual.BinaryName;
-import org.checkerframework.checker.signature.qual.FullyQualifiedName;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.InputStream;
 import java.io.IOException;
@@ -238,8 +232,8 @@ import sun.security.util.SecurityConstants;
  * @revised 9
  * @spec JPMS
  */
-@AnnotatedFor({"interning", "lock", "nullness", "signature"})
-public abstract @UsesObjectEquals class ClassLoader {
+@DefaultNonNull
+public abstract  class ClassLoader {
 
     private static native void registerNatives();
     static {
@@ -527,7 +521,7 @@ public abstract @UsesObjectEquals class ClassLoader {
      * @throws  ClassNotFoundException
      *          If the class was not found
      */
-    public Class<?> loadClass(@BinaryName String name) throws ClassNotFoundException {
+    public Class<?> loadClass( String name) throws ClassNotFoundException {
         return loadClass(name, false);
     }
 
@@ -572,7 +566,7 @@ public abstract @UsesObjectEquals class ClassLoader {
      * @throws  ClassNotFoundException
      *          If the class could not be found
      */
-    protected Class<?> loadClass(@BinaryName String name, boolean resolve)
+    protected Class<?> loadClass( String name, boolean resolve)
         throws ClassNotFoundException
     {
         synchronized (getClassLoadingLock(name)) {
@@ -724,7 +718,7 @@ public abstract @UsesObjectEquals class ClassLoader {
      *
      * @since  1.2
      */
-    protected Class<?> findClass(@BinaryName String name) throws ClassNotFoundException {
+    protected Class<?> findClass( String name) throws ClassNotFoundException {
         throw new ClassNotFoundException(name);
     }
 
@@ -882,7 +876,7 @@ public abstract @UsesObjectEquals class ClassLoader {
      * @revised 9
      * @spec JPMS
      */
-    protected final Class<?> defineClass(@Nullable @BinaryName String name, byte[] b, int off, int len)
+    protected final Class<?> defineClass(@Nullable  String name, byte[] b, int off, int len)
         throws ClassFormatError
     {
         return defineClass(name, b, off, len, null);
@@ -1018,7 +1012,7 @@ public abstract @UsesObjectEquals class ClassLoader {
      * @revised 9
      * @spec JPMS
      */
-    protected final Class<?> defineClass(@Nullable @BinaryName String name, byte[] b, int off, int len,
+    protected final Class<?> defineClass(@Nullable  String name, byte[] b, int off, int len,
                                          @Nullable ProtectionDomain protectionDomain)
         throws ClassFormatError
     {
@@ -1094,7 +1088,7 @@ public abstract @UsesObjectEquals class ClassLoader {
      * @revised 9
      * @spec JPMS
      */
-    protected final Class<?> defineClass(@Nullable @BinaryName String name, java.nio.ByteBuffer b,
+    protected final Class<?> defineClass(@Nullable  String name, java.nio.ByteBuffer b,
                                          @Nullable ProtectionDomain protectionDomain)
         throws ClassFormatError
     {
@@ -1121,10 +1115,10 @@ public abstract @UsesObjectEquals class ClassLoader {
         return c;
     }
 
-    static native Class<?> defineClass1(ClassLoader loader, @BinaryName String name, byte[] b, int off, int len,
+    static native Class<?> defineClass1(ClassLoader loader,  String name, byte[] b, int off, int len,
                                         ProtectionDomain pd, String source);
 
-    static native Class<?> defineClass2(ClassLoader loader, @BinaryName String name, java.nio.ByteBuffer b,
+    static native Class<?> defineClass2(ClassLoader loader,  String name, java.nio.ByteBuffer b,
                                         int off, int len, ProtectionDomain pd,
                                         String source);
 
@@ -1252,7 +1246,7 @@ public abstract @UsesObjectEquals class ClassLoader {
      * @see  #ClassLoader(ClassLoader)
      * @see  #getParent()
      */
-    protected final Class<?> findSystemClass(@BinaryName String name)
+    protected final Class<?> findSystemClass( String name)
         throws ClassNotFoundException
     {
         return getSystemClassLoader().loadClass(name);
@@ -1285,7 +1279,7 @@ public abstract @UsesObjectEquals class ClassLoader {
      *
      * @since  1.1
      */
-    protected final @Nullable Class<?> findLoadedClass(@BinaryName String name) {
+    protected final @Nullable Class<?> findLoadedClass( String name) {
         if (!checkName(name))
             return null;
         return findLoadedClass0(name);
@@ -2199,7 +2193,7 @@ public abstract @UsesObjectEquals class ClassLoader {
      * @see <a href="{@docRoot}/../specs/jar/jar.html#package-sealing">
      *      The JAR File Specification: Package Sealing</a>
      */
-    protected Package definePackage(@FullyQualifiedName String name, @Nullable String specTitle,
+    protected Package definePackage( String name, @Nullable String specTitle,
                                     @Nullable String specVersion, @Nullable String specVendor,
                                     @Nullable String implTitle, @Nullable String implVersion,
                                     @Nullable String implVendor, @Nullable URL sealBase)
@@ -2343,8 +2337,7 @@ public abstract @UsesObjectEquals class ClassLoader {
      * @revised 9
      * @spec JPMS
      */
-    @CFComment({"nullness: The size of array passed to toArray",
-     "method is of exact same size as of the map for which toArray method is invoked"})
+    
     @SuppressWarnings({"nullness:return.type.incompatible"})
     protected Package[] getPackages() {
         Stream<Package> pkgs = packages();
@@ -2619,8 +2612,7 @@ public abstract @UsesObjectEquals class ClassLoader {
     }
 
     // Invoked in the java.lang.Runtime class to implement load and loadLibrary.
-    @CFComment({"nulness: usr_paths and sys_paths are initialized",
-                "by intializePath method if they are null"})
+    
     @SuppressWarnings({"nullness:dereference.of.nullable"})
     static void loadLibrary(Class<?> fromClass, String name,
                             boolean isAbsolute) {
@@ -2933,7 +2925,7 @@ public abstract @UsesObjectEquals class ClassLoader {
      *
      * @since  1.4
      */
-    @RequiresNonNull({"classAssertionStatus", "packageAssertionStatus"})
+    
     boolean desiredAssertionStatus(String className) {
         synchronized (assertionLock) {
             // assert classAssertionStatus   != null;
@@ -2967,7 +2959,7 @@ public abstract @UsesObjectEquals class ClassLoader {
     // Set up the assertions with information provided by the VM.
     // Note: Should only be called inside a synchronized block
     @SuppressWarnings({"contracts.postcondition.not.satisfied"})
-    @EnsuresNonNull({"classAssertionStatus", "packageAssertionStatus"})
+    
     private void initializeJavaAssertionMaps() {
         // assert Thread.holdsLock(assertionLock);
 
@@ -3029,7 +3021,7 @@ public abstract @UsesObjectEquals class ClassLoader {
 /*
  * A utility class that will enumerate over an array of enumerations.
  */
-final class CompoundEnumeration<E> implements Enumeration<E> {
+final class CompoundEnumeration<E extends @Nullable Object> implements Enumeration<E> {
     private final Enumeration<E>[] enums;
     private int index;
 

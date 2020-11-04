@@ -35,10 +35,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A collection designed for holding elements prior to processing.
@@ -140,9 +138,9 @@ import org.checkerframework.framework.qual.CFComment;
  * @author Doug Lea
  * @param <E> the type of elements held in this queue
  */
-@CFComment({"lock/nullness: Subclasses of this interface/class may opt to prohibit null elements"})
-@AnnotatedFor({"lock", "nullness"})
-public interface Queue<E> extends Collection<E> {
+
+@DefaultNonNull
+public interface Queue<E extends @Nullable Object> extends Collection<E> {
     /**
      * Inserts the specified element into this queue if it is possible to do so
      * immediately without violating capacity restrictions, returning
@@ -160,7 +158,7 @@ public interface Queue<E> extends Collection<E> {
      * @throws IllegalArgumentException if some property of this element
      *         prevents it from being added to this queue
      */
-    boolean add(@GuardSatisfied Queue<E> this, E e);
+    boolean add(E e);
 
     /**
      * Inserts the specified element into this queue if it is possible to do
@@ -189,7 +187,7 @@ public interface Queue<E> extends Collection<E> {
      * @return the head of this queue
      * @throws NoSuchElementException if this queue is empty
      */
-    E remove(@GuardSatisfied Queue<E> this);
+    E remove();
 
     /**
      * Retrieves and removes the head of this queue,
@@ -197,7 +195,7 @@ public interface Queue<E> extends Collection<E> {
      *
      * @return the head of this queue, or {@code null} if this queue is empty
      */
-    @Nullable E poll(@GuardSatisfied Queue<E> this);
+    @Nullable E poll();
 
     /**
      * Retrieves, but does not remove, the head of this queue.  This method

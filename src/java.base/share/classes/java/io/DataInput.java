@@ -25,11 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The {@code DataInput} interface provides
@@ -160,7 +157,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see     java.io.DataOutput
  * @since   1.0
  */
-@AnnotatedFor({"nullness", "index"})
+@DefaultNonNull
 public
 interface DataInput {
     /**
@@ -254,7 +251,7 @@ interface DataInput {
      *          all the bytes.
      * @throws  IOException   if an I/O error occurs.
      */
-    void readFully(byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException;
+    void readFully(byte b[],  int off,   int len) throws IOException;
 
     /**
      * Makes an attempt to skip over
@@ -277,7 +274,7 @@ interface DataInput {
      * @return     the number of bytes actually skipped.
      * @exception  IOException   if an I/O error occurs.
      */
-    @NonNegative int skipBytes(int n) throws IOException;
+     int skipBytes(int n) throws IOException;
 
     /**
      * Reads one input byte and returns
@@ -328,7 +325,7 @@ interface DataInput {
      *               all the bytes.
      * @exception  IOException   if an I/O error occurs.
      */
-    @NonNegative int readUnsignedByte() throws IOException;
+     int readUnsignedByte() throws IOException;
 
     /**
      * Reads two input bytes and returns
@@ -372,7 +369,7 @@ interface DataInput {
      *               all the bytes.
      * @exception  IOException   if an I/O error occurs.
      */
-    @NonNegative int readUnsignedShort() throws IOException;
+     int readUnsignedShort() throws IOException;
 
     /**
      * Reads two input bytes and returns a {@code char} value.

@@ -24,9 +24,8 @@
  */
 package javax.swing;
 
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import javax.swing.event.*;
 import javax.swing.filechooser.*;
@@ -88,7 +87,7 @@ import java.lang.ref.WeakReference;
  * @author Jeff Dinkins
  * @since 1.2
  */
-@AnnotatedFor({"interning","nullness"})
+@DefaultNonNull
 @JavaBean(defaultProperty = "UI", description = "A component which allows for the interactive selection of a file.")
 @SwingContainer(false)
 @SuppressWarnings("serial") // Superclass is not serializable across versions
@@ -158,90 +157,90 @@ public class JFileChooser extends JComponent implements Accessible {
     public static final int FILES_AND_DIRECTORIES = 2;
 
     /** Instruction to cancel the current selection. */
-    public static final @Interned String CANCEL_SELECTION = "CancelSelection";
+    public static final  String CANCEL_SELECTION = "CancelSelection";
 
     /**
      * Instruction to approve the current selection
      * (same as pressing yes or ok).
      */
-    public static final @Interned String APPROVE_SELECTION = "ApproveSelection";
+    public static final  String APPROVE_SELECTION = "ApproveSelection";
 
     /** Identifies change in the text on the approve (yes, ok) button. */
-    public static final @Interned String APPROVE_BUTTON_TEXT_CHANGED_PROPERTY = "ApproveButtonTextChangedProperty";
+    public static final  String APPROVE_BUTTON_TEXT_CHANGED_PROPERTY = "ApproveButtonTextChangedProperty";
 
     /**
      * Identifies change in the tooltip text for the approve (yes, ok)
      * button.
      */
-    public static final @Interned String APPROVE_BUTTON_TOOL_TIP_TEXT_CHANGED_PROPERTY = "ApproveButtonToolTipTextChangedProperty";
+    public static final  String APPROVE_BUTTON_TOOL_TIP_TEXT_CHANGED_PROPERTY = "ApproveButtonToolTipTextChangedProperty";
 
     /** Identifies change in the mnemonic for the approve (yes, ok) button. */
-    public static final @Interned String APPROVE_BUTTON_MNEMONIC_CHANGED_PROPERTY = "ApproveButtonMnemonicChangedProperty";
+    public static final  String APPROVE_BUTTON_MNEMONIC_CHANGED_PROPERTY = "ApproveButtonMnemonicChangedProperty";
 
     /** Instruction to display the control buttons. */
-    public static final @Interned String CONTROL_BUTTONS_ARE_SHOWN_CHANGED_PROPERTY = "ControlButtonsAreShownChangedProperty";
+    public static final  String CONTROL_BUTTONS_ARE_SHOWN_CHANGED_PROPERTY = "ControlButtonsAreShownChangedProperty";
 
     /** Identifies user's directory change. */
-    public static final @Interned String DIRECTORY_CHANGED_PROPERTY = "directoryChanged";
+    public static final  String DIRECTORY_CHANGED_PROPERTY = "directoryChanged";
 
     /** Identifies change in user's single-file selection. */
-    public static final @Interned String SELECTED_FILE_CHANGED_PROPERTY = "SelectedFileChangedProperty";
+    public static final  String SELECTED_FILE_CHANGED_PROPERTY = "SelectedFileChangedProperty";
 
     /** Identifies change in user's multiple-file selection. */
     public static final String SELECTED_FILES_CHANGED_PROPERTY = "SelectedFilesChangedProperty";
 
     /** Enables multiple-file selections. */
-    public static final @Interned String MULTI_SELECTION_ENABLED_CHANGED_PROPERTY = "MultiSelectionEnabledChangedProperty";
+    public static final  String MULTI_SELECTION_ENABLED_CHANGED_PROPERTY = "MultiSelectionEnabledChangedProperty";
 
     /**
      * Says that a different object is being used to find available drives
      * on the system.
      */
-    public static final @Interned String FILE_SYSTEM_VIEW_CHANGED_PROPERTY = "FileSystemViewChanged";
+    public static final  String FILE_SYSTEM_VIEW_CHANGED_PROPERTY = "FileSystemViewChanged";
 
     /**
      * Says that a different object is being used to retrieve file
      * information.
      */
-    public static final @Interned String FILE_VIEW_CHANGED_PROPERTY = "fileViewChanged";
+    public static final  String FILE_VIEW_CHANGED_PROPERTY = "fileViewChanged";
 
     /** Identifies a change in the display-hidden-files property. */
     public static final String FILE_HIDING_CHANGED_PROPERTY = "FileHidingChanged";
 
     /** User changed the kind of files to display. */
-    public static final @Interned String FILE_FILTER_CHANGED_PROPERTY = "fileFilterChanged";
+    public static final  String FILE_FILTER_CHANGED_PROPERTY = "fileFilterChanged";
 
     /**
      * Identifies a change in the kind of selection (single,
      * multiple, etc.).
      */
-    public static final @Interned String FILE_SELECTION_MODE_CHANGED_PROPERTY = "fileSelectionChanged";
+    public static final  String FILE_SELECTION_MODE_CHANGED_PROPERTY = "fileSelectionChanged";
 
     /**
      * Says that a different accessory component is in use
      * (for example, to preview files).
      */
-    public static final @Interned String ACCESSORY_CHANGED_PROPERTY = "AccessoryChangedProperty";
+    public static final  String ACCESSORY_CHANGED_PROPERTY = "AccessoryChangedProperty";
 
     /**
      * Identifies whether a the AcceptAllFileFilter is used or not.
      */
-    public static final @Interned String ACCEPT_ALL_FILE_FILTER_USED_CHANGED_PROPERTY = "acceptAllFileFilterUsedChanged";
+    public static final  String ACCEPT_ALL_FILE_FILTER_USED_CHANGED_PROPERTY = "acceptAllFileFilterUsedChanged";
 
     /** Identifies a change in the dialog title. */
-    public static final @Interned String DIALOG_TITLE_CHANGED_PROPERTY = "DialogTitleChangedProperty";
+    public static final  String DIALOG_TITLE_CHANGED_PROPERTY = "DialogTitleChangedProperty";
 
     /**
      * Identifies a change in the type of files displayed (files only,
      * directories only, or both files and directories).
      */
-    public static final @Interned String DIALOG_TYPE_CHANGED_PROPERTY = "DialogTypeChangedProperty";
+    public static final  String DIALOG_TYPE_CHANGED_PROPERTY = "DialogTypeChangedProperty";
 
     /**
      * Identifies a change in the list of predefined file filters
      * the user can choose from.
      */
-    public static final @Interned String CHOOSABLE_FILE_FILTER_CHANGED_PROPERTY = "ChoosableFileFilterChangedProperty";
+    public static final  String CHOOSABLE_FILE_FILTER_CHANGED_PROPERTY = "ChoosableFileFilterChangedProperty";
 
     // ******************************
     // ***** instance variables *****

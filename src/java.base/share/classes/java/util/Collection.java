@@ -25,14 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
@@ -227,9 +221,9 @@ import java.util.stream.StreamSupport;
  * @since 1.2
  */
 
-@CFComment("lock/nullness: Subclasses of this interface/class may opt to prohibit null elements")
-@AnnotatedFor({"lock", "nullness", "index"})
-public interface Collection<E> extends Iterable<E> {
+
+@DefaultNonNull
+public interface Collection<E extends @Nullable Object> extends Iterable<E> {
     // Query Operations
 
     /**
@@ -239,16 +233,16 @@ public interface Collection<E> extends Iterable<E> {
      *
      * @return the number of elements in this collection
      */
-    @Pure
-    @NonNegative int size(@GuardSatisfied Collection<E> this);
+    
+     int size();
 
     /**
      * Returns {@code true} if this collection contains no elements.
      *
      * @return {@code true} if this collection contains no elements
      */
-    @Pure
-    boolean isEmpty(@GuardSatisfied Collection<E> this);
+    
+    boolean isEmpty();
 
     /**
      * Returns {@code true} if this collection contains the specified element.
@@ -266,9 +260,9 @@ public interface Collection<E> extends Iterable<E> {
      *         collection does not permit null elements
      *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    @CFComment({"lock: not true, because map could contain nulls:  AssertParametersNonNull(\"get(#1)\")"})
-    @Pure
-    boolean contains(@GuardSatisfied Collection<E> this, @GuardSatisfied Object o);
+    
+    
+    boolean contains(@Nullable Object o);
 
     /**
      * Returns an iterator over the elements in this collection.  There are no
@@ -278,7 +272,7 @@ public interface Collection<E> extends Iterable<E> {
      *
      * @return an {@code Iterator} over the elements in this collection
      */
-    @SideEffectFree
+    
     Iterator<E> iterator();
 
     /**
@@ -303,12 +297,9 @@ public interface Collection<E> extends Iterable<E> {
      * @return an array, whose {@linkplain Class#getComponentType runtime component
      * type} is {@code Object}, containing all of the elements in this collection
      */
-    @CFComment({"lock: The Nullness Checker does NOT use these signatures for either version",
-    "of toArray; rather, the checker has hard-coded rules for those two",
-    "methods, because the most useful type for toArray is not expressible",
-    "in the surface syntax that the nullness annotations support."})
-    @SideEffectFree
-    @PolyNull Object[] toArray(Collection<@PolyNull E> this);
+    
+    
+    @Nullable Object[] toArray();
 
     /**
      * Returns an array containing all of the elements in this collection;
@@ -361,8 +352,8 @@ public interface Collection<E> extends Iterable<E> {
      *         runtime component type} of the specified array
      * @throws NullPointerException if the specified array is null
      */
-    @SideEffectFree
-    <T> @Nullable T @PolyNull [] toArray(T @PolyNull [] a);
+    
+    <T extends @Nullable Object> @Nullable T @Nullable [] toArray(T @Nullable [] a);
 
     /**
      * Returns an array containing all of the elements in this collection,
@@ -399,7 +390,7 @@ public interface Collection<E> extends Iterable<E> {
      * @throws NullPointerException if the generator function is null
      * @since 11
      */
-    default <T> T[] toArray(IntFunction<T[]> generator) {
+    default <T extends @Nullable Object> T[] toArray(IntFunction<T[]> generator) {
         return toArray(generator.apply(0));
     }
 
@@ -438,7 +429,7 @@ public interface Collection<E> extends Iterable<E> {
      * @throws IllegalStateException if the element cannot be added at this
      *         time due to insertion restrictions
      */
-    boolean add(@GuardSatisfied Collection<E> this, E e);
+    boolean add(E e);
 
     /**
      * Removes a single instance of the specified element from this
@@ -460,7 +451,7 @@ public interface Collection<E> extends Iterable<E> {
      * @throws UnsupportedOperationException if the {@code remove} operation
      *         is not supported by this collection
      */
-    boolean remove(@GuardSatisfied Collection<E> this, Object o);
+    boolean remove(@Nullable Object o);
 
 
     // Bulk Operations
@@ -483,8 +474,8 @@ public interface Collection<E> extends Iterable<E> {
      *         or if the specified collection is null.
      * @see    #contains(Object)
      */
-    @Pure
-    boolean containsAll(@GuardSatisfied Collection<E> this, @GuardSatisfied Collection<?> c);
+    
+    boolean containsAll(Collection<?> c);
 
     /**
      * Adds all of the elements in the specified collection to this collection
@@ -510,7 +501,7 @@ public interface Collection<E> extends Iterable<E> {
      *         this time due to insertion restrictions
      * @see #add(Object)
      */
-    boolean addAll(@GuardSatisfied Collection<E> this, Collection<? extends E> c);
+    boolean addAll(Collection<? extends E> c);
 
     /**
      * Removes all of this collection's elements that are also contained in the
@@ -535,7 +526,7 @@ public interface Collection<E> extends Iterable<E> {
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    boolean removeAll(@GuardSatisfied Collection<E> this, Collection<?> c);
+    boolean removeAll(Collection<?> c);
 
     /**
      * Removes all of the elements of this collection that satisfy the given
@@ -594,7 +585,7 @@ public interface Collection<E> extends Iterable<E> {
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    boolean retainAll(@GuardSatisfied Collection<E> this, Collection<?> c);
+    boolean retainAll(Collection<?> c);
 
     /**
      * Removes all of the elements from this collection (optional operation).
@@ -603,7 +594,7 @@ public interface Collection<E> extends Iterable<E> {
      * @throws UnsupportedOperationException if the {@code clear} operation
      *         is not supported by this collection
      */
-    void clear(@GuardSatisfied Collection<E> this);
+    void clear();
 
 
     // Comparison and hashing
@@ -641,8 +632,8 @@ public interface Collection<E> extends Iterable<E> {
      * @see Set#equals(Object)
      * @see List#equals(Object)
      */
-    @Pure
-    boolean equals(@GuardSatisfied Collection<E> this, @GuardSatisfied @Nullable Object o);
+    
+    boolean equals( @Nullable Object o);
 
     /**
      * Returns the hash code value for this collection.  While the
@@ -659,8 +650,8 @@ public interface Collection<E> extends Iterable<E> {
      * @see Object#hashCode()
      * @see Object#equals(Object)
      */
-    @Pure
-    int hashCode(@GuardSatisfied Collection<E> this);
+    
+    int hashCode();
 
     /**
      * Creates a {@link Spliterator} over the elements in this collection.
@@ -712,7 +703,7 @@ public interface Collection<E> extends Iterable<E> {
      * @return a {@code Spliterator} over the elements in this collection
      * @since 1.8
      */
-    @SideEffectFree
+    
     @Override
     default Spliterator<E> spliterator() {
         return Spliterators.spliterator(this, 0);

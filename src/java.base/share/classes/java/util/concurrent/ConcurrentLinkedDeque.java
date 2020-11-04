@@ -35,13 +35,8 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -101,8 +96,8 @@ import java.util.function.Predicate;
  * @author Martin Buchholz
  * @param <E> the type of elements held in this deque
  */
-@AnnotatedFor({"nullness"})
-public class ConcurrentLinkedDeque<E extends @NonNull Object>
+@DefaultNonNull
+public class ConcurrentLinkedDeque<E>
     extends AbstractCollection<E>
     implements Deque<E>, java.io.Serializable {
 
@@ -301,7 +296,7 @@ public class ConcurrentLinkedDeque<E extends @NonNull Object>
         return (Node<E>) NEXT_TERMINATOR;
     }
 
-    static final class Node<E> {
+    static final class Node<E extends @Nullable Object> {
         volatile Node<E> prev;
         volatile E item;
         volatile Node<E> next;
@@ -311,7 +306,7 @@ public class ConcurrentLinkedDeque<E extends @NonNull Object>
      * Returns a new node holding item.  Uses relaxed write because item
      * can only be seen after piggy-backing publication via CAS.
      */
-    static <E> Node<E> newNode(E item) {
+    static <E extends @Nullable Object> Node<E> newNode(E item) {
         Node<E> node = new Node<E>();
         ITEM.set(node, item);
         return node;
@@ -1083,7 +1078,7 @@ public class ConcurrentLinkedDeque<E extends @NonNull Object>
      * @param o element whose presence in this deque is to be tested
      * @return {@code true} if this deque contains the specified element
      */
-    @Pure
+    
     public boolean contains(@Nullable Object o) {
         if (o != null) {
             for (Node<E> p = first(); p != null; p = succ(p)) {
@@ -1100,8 +1095,8 @@ public class ConcurrentLinkedDeque<E extends @NonNull Object>
      *
      * @return {@code true} if this collection contains no elements
      */
-    @EnsuresNonNullIf(expression={"peek()", "peekFirst()", "peekLast()", "poll()", "pollFirst()", "pollLast()"}, result=false)
-    @Pure
+    
+    
     public boolean isEmpty() {
         return peekFirst() == null;
     }
@@ -1122,7 +1117,7 @@ public class ConcurrentLinkedDeque<E extends @NonNull Object>
      *
      * @return the number of elements in this deque
      */
-    @Pure
+    
     public int size() {
         restart: for (;;) {
             int count = 0;
@@ -1295,8 +1290,8 @@ public class ConcurrentLinkedDeque<E extends @NonNull Object>
      *
      * @return an array containing all of the elements in this deque
      */
-    @SideEffectFree
-    public @PolyNull Object[] toArray(ConcurrentLinkedDeque<@PolyNull E> this) {
+    
+    public @Nullable Object[] toArray() {
         return toArrayInternal(null);
     }
 
@@ -1337,9 +1332,9 @@ public class ConcurrentLinkedDeque<E extends @NonNull Object>
      *         this deque
      * @throws NullPointerException if the specified array is null
      */
-    @SideEffectFree
+    
     @SuppressWarnings("unchecked")
-    public <T> T[] toArray(T[] a) {
+    public <T extends @Nullable Object> T[] toArray(T[] a) {
         if (a == null) throw new NullPointerException();
         return (T[]) toArrayInternal(a);
     }
@@ -1353,7 +1348,7 @@ public class ConcurrentLinkedDeque<E extends @NonNull Object>
      *
      * @return an iterator over the elements in this deque in proper sequence
      */
-    @SideEffectFree
+    
     public Iterator<E> iterator() {
         return new Itr();
     }
@@ -1559,7 +1554,7 @@ public class ConcurrentLinkedDeque<E extends @NonNull Object>
      * @return a {@code Spliterator} over the elements in this deque
      * @since 1.8
      */
-    @SideEffectFree
+    
     public Spliterator<E> spliterator() {
         return new CLDSpliterator();
     }
@@ -1627,7 +1622,7 @@ public class ConcurrentLinkedDeque<E extends @NonNull Object>
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean removeAll(Collection<? extends @NonNull Object> c) {
+    public boolean removeAll(Collection<?> c) {
         Objects.requireNonNull(c);
         return bulkRemove(e -> c.contains(e));
     }
@@ -1635,7 +1630,7 @@ public class ConcurrentLinkedDeque<E extends @NonNull Object>
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean retainAll(Collection<? extends @NonNull Object> c) {
+    public boolean retainAll(Collection<?> c) {
         Objects.requireNonNull(c);
         return bulkRemove(e -> !c.contains(e));
     }

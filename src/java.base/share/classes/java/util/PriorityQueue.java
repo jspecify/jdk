@@ -25,16 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.index.qual.Positive;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -93,10 +85,10 @@ import jdk.internal.misc.SharedSecrets;
  * @author Josh Bloch, Doug Lea
  * @param <E> the type of elements held in this queue
  */
-@CFComment({"lock/nullness: This class doesn't permits null elements"})
-@AnnotatedFor({"lock", "nullness", "index"})
+
+@DefaultNonNull
 @SuppressWarnings("unchecked")
-public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
+public class PriorityQueue<E> extends AbstractQueue<E>
     implements java.io.Serializable {
 
     private static final long serialVersionUID = -7720805057305804111L;
@@ -148,7 +140,7 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
      * @throws IllegalArgumentException if {@code initialCapacity} is less
      *         than 1
      */
-    public PriorityQueue(@Positive int initialCapacity) {
+    public PriorityQueue( int initialCapacity) {
         this(initialCapacity, null);
     }
 
@@ -176,7 +168,7 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
      * @throws IllegalArgumentException if {@code initialCapacity} is
      *         less than 1
      */
-    public PriorityQueue(@Positive int initialCapacity,
+    public PriorityQueue( int initialCapacity,
                          Comparator<? super E> comparator) {
         // Note: This restriction of at least one is not actually needed,
         // but continues for 1.5 compatibility
@@ -336,7 +328,7 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
      *         according to the priority queue's ordering
      * @throws NullPointerException if the specified element is null
      */
-    public boolean add(@GuardSatisfied PriorityQueue<E> this, E e) {
+    public boolean add(E e) {
         return offer(e);
     }
 
@@ -361,11 +353,11 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
         return true;
     }
 
-    public @Nullable E peek(@GuardSatisfied PriorityQueue<E> this) {
+    public @Nullable E peek() {
         return (E) queue[0];
     }
 
-    private int indexOf(Object o) {
+    private int indexOf(@Nullable Object o) {
         if (o != null) {
             final Object[] es = queue;
             for (int i = 0, n = size; i < n; i++)
@@ -386,7 +378,7 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
      * @param o element to be removed from this queue, if present
      * @return {@code true} if this queue changed as a result of the call
      */
-    public boolean remove(@GuardSatisfied PriorityQueue<E> this, @Nullable Object o) {
+    public boolean remove(@Nullable Object o) {
         int i = indexOf(o);
         if (i == -1)
             return false;
@@ -419,8 +411,8 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
      * @param o object to be checked for containment in this queue
      * @return {@code true} if this queue contains the specified element
      */
-    @Pure
-    public boolean contains(@GuardSatisfied PriorityQueue<E> this, @GuardSatisfied @Nullable Object o) {
+    
+    public boolean contains(@Nullable Object o) {
         return indexOf(o) >= 0;
     }
 
@@ -437,8 +429,8 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
      *
      * @return an array containing all of the elements in this queue
      */
-    @SideEffectFree
-    public @PolyNull Object[] toArray(PriorityQueue<@PolyNull E> this) {
+    
+    public @Nullable Object[] toArray() {
         return Arrays.copyOf(queue, size);
     }
 
@@ -478,8 +470,8 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
      *         this queue
      * @throws NullPointerException if the specified array is null
      */
-    @SideEffectFree
-    public <T> @Nullable T @PolyNull [] toArray(T @PolyNull [] a) {
+    
+    public <T extends @Nullable Object> @Nullable T @Nullable [] toArray(T @Nullable [] a) {
         final int size = this.size;
         if (a.length < size)
             // Make a new array of a's runtime type, but my contents:
@@ -496,7 +488,7 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
      *
      * @return an iterator over the elements in this queue
      */
-    @SideEffectFree
+    
     public Iterator<E> iterator() {
         return new Itr();
     }
@@ -585,8 +577,8 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
         }
     }
 
-    @Pure
-    public @NonNegative int size(@GuardSatisfied PriorityQueue<E> this) {
+    
+    public  int size() {
         return size;
     }
 
@@ -594,7 +586,7 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
      * Removes all of the elements from this priority queue.
      * The queue will be empty after this call returns.
      */
-    public void clear(@GuardSatisfied PriorityQueue<E> this) {
+    public void clear() {
         modCount++;
         final Object[] es = queue;
         for (int i = 0, n = size; i < n; i++)
@@ -602,7 +594,7 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
         size = 0;
     }
 
-    public @Nullable E poll(@GuardSatisfied PriorityQueue<E> this) {
+    public @Nullable E poll() {
         final Object[] es;
         final E result;
 
@@ -673,7 +665,7 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
             siftUpComparable(k, x, queue);
     }
 
-    private static <T> void siftUpComparable(int k, T x, Object[] es) {
+    private static <T extends @Nullable Object> void siftUpComparable(int k, T x, Object[] es) {
         Comparable<? super T> key = (Comparable<? super T>) x;
         while (k > 0) {
             int parent = (k - 1) >>> 1;
@@ -686,7 +678,7 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
         es[k] = key;
     }
 
-    private static <T> void siftUpUsingComparator(
+    private static <T extends @Nullable Object> void siftUpUsingComparator(
         int k, T x, Object[] es, Comparator<? super T> cmp) {
         while (k > 0) {
             int parent = (k - 1) >>> 1;
@@ -714,7 +706,7 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
             siftDownComparable(k, x, queue, size);
     }
 
-    private static <T> void siftDownComparable(int k, T x, Object[] es, int n) {
+    private static <T extends @Nullable Object> void siftDownComparable(int k, T x, Object[] es, int n) {
         // assert n > 0;
         Comparable<? super T> key = (Comparable<? super T>)x;
         int half = n >>> 1;           // loop while a non-leaf
@@ -733,7 +725,7 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
         es[k] = key;
     }
 
-    private static <T> void siftDownUsingComparator(
+    private static <T extends @Nullable Object> void siftDownUsingComparator(
         int k, T x, Object[] es, int n, Comparator<? super T> cmp) {
         // assert n > 0;
         int half = n >>> 1;
@@ -777,8 +769,8 @@ public class PriorityQueue<E extends @NonNull Object> extends AbstractQueue<E>
      *         {@code null} if this queue is sorted according to the
      *         natural ordering of its elements
      */
-    @Pure
-    public @Nullable Comparator<? super E> comparator(@GuardSatisfied PriorityQueue<E> this) {
+    
+    public @Nullable Comparator<? super E> comparator() {
         return comparator;
     }
 

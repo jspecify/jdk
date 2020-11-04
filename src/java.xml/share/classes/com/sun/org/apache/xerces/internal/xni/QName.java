@@ -21,11 +21,7 @@
 
 package com.sun.org.apache.xerces.internal.xni;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A structure that holds the components of an XML Namespaces qualified
@@ -154,8 +150,8 @@ implements Cloneable {
     } // hashCode():int
 
     /** Returns true if the two objects are equal. */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object object) {
         if (object == this) {
             return true;

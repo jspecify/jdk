@@ -25,9 +25,8 @@
 
 package javax.xml.parsers;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -81,7 +80,7 @@ import org.xml.sax.helpers.DefaultHandler;
  * @author Jeff Suttor
  * @since 1.4
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 @SuppressWarnings("deprecation")
 public abstract class SAXParser {
 
@@ -110,7 +109,7 @@ public abstract class SAXParser {
          *
          * @since 1.5
          */
-        @CFComment("nullness: this.getClass().getPackage() is non-null as this class is in the `parsers` package")
+        
         @SuppressWarnings({"nullness"})
         public void reset() {
 
@@ -527,7 +526,7 @@ public abstract class SAXParser {
      *
      * @since 1.5
      */
-    @CFComment("nullness: this.getClass().getPackage() is non-null as this class is in the `parsers` package")
+    
     @SuppressWarnings({"nullness"})
     public @Nullable Schema getSchema() {
         throw new UnsupportedOperationException(
@@ -554,7 +553,7 @@ public abstract class SAXParser {
      *
      * @see SAXParserFactory#setXIncludeAware(boolean)
      */
-    @CFComment("nullness: this.getClass().getPackage() is non-null as this class is in the `parsers` package")
+    
     @SuppressWarnings({"nullness"})
     public boolean isXIncludeAware() {
         throw new UnsupportedOperationException(

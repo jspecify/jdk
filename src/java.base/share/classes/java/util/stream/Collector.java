@@ -24,7 +24,8 @@
  */
 package java.util.stream;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.EnumSet;
@@ -196,8 +197,8 @@ import java.util.function.Supplier;
  * @param <R> the result type of the reduction operation
  * @since 1.8
  */
-@AnnotatedFor({"lock", "nullness"})
-public interface Collector<T, A, R> {
+@DefaultNonNull
+public interface Collector<T extends @Nullable Object, A extends @Nullable Object, R extends @Nullable Object> {
     /**
      * A function that creates and returns a new mutable result container.
      *
@@ -260,7 +261,7 @@ public interface Collector<T, A, R> {
      * @throws NullPointerException if any argument is null
      * @return the new {@code Collector}
      */
-    public static<T, R> Collector<T, R, R> of(Supplier<R> supplier,
+    public static<T extends @Nullable Object, R extends @Nullable Object> Collector<T, R, R> of(Supplier<R> supplier,
                                               BiConsumer<R, T> accumulator,
                                               BinaryOperator<R> combiner,
                                               Characteristics... characteristics) {
@@ -291,7 +292,7 @@ public interface Collector<T, A, R> {
      * @throws NullPointerException if any argument is null
      * @return the new {@code Collector}
      */
-    public static<T, A, R> Collector<T, A, R> of(Supplier<A> supplier,
+    public static<T extends @Nullable Object, A extends @Nullable Object, R extends @Nullable Object> Collector<T, A, R> of(Supplier<A> supplier,
                                                  BiConsumer<A, T> accumulator,
                                                  BinaryOperator<A> combiner,
                                                  Function<A, R> finisher,

@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.misc.VM;
 
@@ -43,8 +42,8 @@ import jdk.internal.misc.VM;
  * @see java.io.DeleteOnExitHook
  */
 
-@AnnotatedFor({"interning", "nullness"})
-@UsesObjectEquals class Shutdown {
+@DefaultNonNull
+ class Shutdown {
 
     // The system shutdown hooks are registered with a predefined slot.
     // The list of shutdown hooks is as follows:

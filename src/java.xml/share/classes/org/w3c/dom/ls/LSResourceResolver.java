@@ -41,9 +41,8 @@
 
 package org.w3c.dom.ls;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  *  <code>LSResourceResolver</code> provides a way for applications to
@@ -70,7 +69,7 @@ and Save Specification</a>.
  *
  * @since 1.5
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public interface LSResourceResolver {
     /**
      *  Allow the application to resolve external resources.
@@ -108,7 +107,7 @@ public interface LSResourceResolver {
      *   source, or <code>null</code> to request that the parser open a
      *   regular URI connection to the resource.
      */
-    @Pure
+    
     public @Nullable LSInput resolveResource(String type,
                                    @Nullable String namespaceURI,
                                    @Nullable String publicId,

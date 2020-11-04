@@ -25,12 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 
@@ -69,8 +65,8 @@ import java.util.Arrays;
  * @since   1.0
  */
 
-@AnnotatedFor({"index", "interning", "lock", "nullness"})
-public @UsesObjectEquals class StreamTokenizer {
+@DefaultNonNull
+public  class StreamTokenizer {
 
     /* Only one of these will be non-null */
     private Reader reader = null;
@@ -780,7 +776,7 @@ public @UsesObjectEquals class StreamTokenizer {
      *
      * @return  the current line number of this stream tokenizer.
      */
-    public @NonNegative int lineno() {
+    public  int lineno() {
         return LINENO;
     }
 
@@ -798,8 +794,8 @@ public @UsesObjectEquals class StreamTokenizer {
      * @see     java.io.StreamTokenizer#sval
      * @see     java.io.StreamTokenizer#ttype
      */
-    @SideEffectFree
-    public String toString(@GuardSatisfied StreamTokenizer this) {
+    
+    public String toString() {
         String ret;
         switch (ttype) {
           case TT_EOF:

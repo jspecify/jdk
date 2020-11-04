@@ -24,9 +24,8 @@
  */
 package java.util;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
@@ -297,8 +296,8 @@ import java.util.function.LongConsumer;
  * @see Collection
  * @since 1.8
  */
-@AnnotatedFor({"lock", "nullness"})
-public interface Spliterator<T> {
+@DefaultNonNull
+public interface Spliterator<T extends @Nullable Object> {
     /**
      * If a remaining element exists, performs the given action on it,
      * returning {@code true}; else returns {@code false}.  If this
@@ -466,7 +465,7 @@ public interface Spliterator<T> {
      * @throws IllegalStateException if the spliterator does not report
      *         a characteristic of {@code SORTED}.
      */
-    @Pure
+    
     default @Nullable Comparator<? super T> getComparator() {
         throw new IllegalStateException();
     }
@@ -608,7 +607,7 @@ public interface Spliterator<T> {
      * @see Spliterator.OfDouble
      * @since 1.8
      */
-    public interface OfPrimitive<T, T_CONS, T_SPLITR extends Spliterator.OfPrimitive<T, T_CONS, T_SPLITR>>
+    public interface OfPrimitive<T extends @Nullable Object, T_CONS extends @Nullable Object, T_SPLITR extends Spliterator.OfPrimitive<T, T_CONS, T_SPLITR>>
             extends Spliterator<T> {
         @Override
         @Nullable T_SPLITR trySplit();

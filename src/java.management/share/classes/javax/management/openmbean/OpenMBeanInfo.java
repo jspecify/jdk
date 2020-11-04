@@ -26,11 +26,7 @@
 
 package javax.management.openmbean;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 
 // java import
@@ -159,8 +155,8 @@ public interface OpenMBeanInfo {
      *
      * @return  {@code true} if the specified object is equal to this {@code OpenMBeanInfo} instance.
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj);
 
     /**

@@ -25,11 +25,7 @@
 
 package com.sun.org.apache.xerces.internal.jaxp.datatype;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import com.sun.org.apache.xerces.internal.util.DatatypeMessageFormatter;
 import java.io.IOException;
@@ -1694,8 +1690,8 @@ public class XMLGregorianCalendarImpl
      *
      * @return <code>true</code> when <code>compare(this,(XMLGregorianCalendar)obj) == EQUAL.</code>.
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
 
         if (obj == null || !(obj instanceof XMLGregorianCalendar)) {

@@ -25,9 +25,8 @@
 
 package javax.xml.xpath;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import javax.xml.namespace.QName;
 
@@ -45,7 +44,7 @@ import javax.xml.namespace.QName;
  * @author  Jeff Suttor
  * @since 1.5
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface XPathVariableResolver {
   /**
    * <p>Find a variable in the set of available variables.</p>
@@ -59,6 +58,6 @@ public interface XPathVariableResolver {
    *
    * @throws NullPointerException If <code>variableName</code> is <code>null</code>.
    */
-  @Pure
+  
   public @Nullable Object resolveVariable(QName variableName);
 }

@@ -25,11 +25,7 @@
 
 package java.net;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class represents a Network Interface address. In short it's an
@@ -104,8 +100,8 @@ public class InterfaceAddress {
      *          {@code false} otherwise.
      * @see     java.net.InterfaceAddress#hashCode()
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof InterfaceAddress)) {
             return false;

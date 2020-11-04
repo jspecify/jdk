@@ -25,9 +25,8 @@
 
 package javax.swing;
 
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import javax.swing.*;
 import javax.swing.event.*;
@@ -75,7 +74,7 @@ import sun.swing.SwingUtilities2;
  * @author Hans Muller
  * @since 1.2
  */
-@AnnotatedFor({"interning", "nullness"})
+@DefaultNonNull
 @SuppressWarnings("serial") // Same-version serialization only
 public class DefaultListCellRenderer extends JLabel
     implements ListCellRenderer<Object>, Serializable
@@ -261,7 +260,7 @@ public class DefaultListCellRenderer extends JLabel
     * for more information.
     */
     @Override
-    protected void firePropertyChange(@Interned String propertyName, Object oldValue, Object newValue) {
+    protected void firePropertyChange( String propertyName, Object oldValue, Object newValue) {
         // Strings get interned...
         if (propertyName == "text"
             || ((SwingUtilities2.isScaleChanged(propertyName, oldValue, newValue)

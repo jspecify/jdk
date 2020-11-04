@@ -25,10 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An {@code Error} is a subclass of {@code Throwable}
@@ -51,7 +49,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @jls 11.2 Compile-Time Checking of Exceptions
  * @since   1.0
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 public class Error extends Throwable {
     static final long serialVersionUID = 4980196508277280342L;
 
@@ -60,7 +58,7 @@ public class Error extends Throwable {
      * The cause is not initialized, and may subsequently be initialized by a
      * call to {@link #initCause}.
      */
-    @SideEffectFree
+    
     public Error() {
         super();
     }
@@ -73,7 +71,7 @@ public class Error extends Throwable {
      * @param   message   the detail message. The detail message is saved for
      *          later retrieval by the {@link #getMessage()} method.
      */
-    @SideEffectFree
+    
     public Error(@Nullable String message) {
         super(message);
     }
@@ -92,8 +90,8 @@ public class Error extends Throwable {
      *         unknown.)
      * @since  1.4
      */
-    @SideEffectFree
-    public Error(@Nullable String message, @GuardSatisfied @Nullable Throwable cause) {
+    
+    public Error(@Nullable String message,  @Nullable Throwable cause) {
         super(message, cause);
     }
 
@@ -110,7 +108,7 @@ public class Error extends Throwable {
      *         unknown.)
      * @since  1.4
      */
-    @SideEffectFree
+    
     public Error(@Nullable Throwable cause) {
         super(cause);
     }
@@ -130,7 +128,7 @@ public class Error extends Throwable {
      *
      * @since 1.7
      */
-    @SideEffectFree
+    
     protected Error(@Nullable String message, @Nullable Throwable cause,
                     boolean enableSuppression,
                     boolean writableStackTrace) {

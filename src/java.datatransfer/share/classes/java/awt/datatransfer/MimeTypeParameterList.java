@@ -25,11 +25,7 @@
 
 package java.awt.datatransfer;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Enumeration;
 import java.util.Hashtable;
@@ -80,8 +76,8 @@ class MimeTypeParameterList implements Cloneable {
      * set of parameter names and associated values. The order of the parameters
      * is not considered.
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object thatObject) {
         //System.out.println("MimeTypeParameterList.equals("+this+","+thatObject+")");
         if (!(thatObject instanceof MimeTypeParameterList)) {

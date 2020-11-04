@@ -25,15 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.formatter.qual.FormatMethod;
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTEqLengthOf;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 import java.nio.charset.Charset;
@@ -101,8 +94,8 @@ import sun.nio.cs.StreamEncoder;
  * @since   1.6
  */
 
-@AnnotatedFor({"formatter", "index", "interning", "nullness"})
-public final @UsesObjectEquals class Console implements Flushable
+@DefaultNonNull
+public final  class Console implements Flushable
 {
    /**
     * Retrieves the unique {@link java.io.PrintWriter PrintWriter} object
@@ -179,7 +172,7 @@ public final @UsesObjectEquals class Console implements Flushable
     *
     * @return  This console
     */
-    @FormatMethod
+    
     public Console format(String fmt, @Nullable Object ...args) {
         formatter.format(fmt, args).flush();
         return this;
@@ -220,7 +213,7 @@ public final @UsesObjectEquals class Console implements Flushable
     *
     * @return  This console
     */
-    @FormatMethod
+    
     public Console printf(String format, @Nullable Object ... args) {
         return format(format, args);
     }
@@ -469,7 +462,7 @@ public final @UsesObjectEquals class Console implements Flushable
             return in.ready();
         }
 
-        public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(char cbuf[], @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int length)
+        public   int read(char cbuf[],  int offset,   int length)
             throws IOException
         {
             int off = offset;

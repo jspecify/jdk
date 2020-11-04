@@ -25,8 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * FormattableFlags are passed to the {@link Formattable#formatTo
@@ -36,8 +36,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *
  * @since  1.5
  */
-@AnnotatedFor({"interning", "lock", "nullness"})
-public @UsesObjectEquals class FormattableFlags {
+@DefaultNonNull
+public  class FormattableFlags {
 
     // Explicit instantiation of this class is prohibited.
     private FormattableFlags() {}

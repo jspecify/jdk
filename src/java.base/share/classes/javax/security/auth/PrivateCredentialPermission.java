@@ -25,11 +25,7 @@
 
 package javax.security.auth;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 import java.text.MessageFormat;
@@ -273,8 +269,8 @@ public final class PrivateCredentialPermission extends Permission {
      *          has the same credential class as this object,
      *          and has the same Principals as this object.
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (obj == this)
             return true;

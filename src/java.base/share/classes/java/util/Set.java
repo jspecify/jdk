@@ -25,14 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A collection that contains no duplicate elements.  More formally, sets
@@ -119,9 +113,9 @@ import org.checkerframework.framework.qual.CFComment;
  * @since 1.2
  */
 
-@CFComment({"lock/nullness: Subclasses of this interface/class may opt to prohibit null elements"})
-@AnnotatedFor({"lock", "nullness", "index"})
-public interface Set<E> extends Collection<E> {
+
+@DefaultNonNull
+public interface Set<E extends @Nullable Object> extends Collection<E> {
     // Query Operations
 
     /**
@@ -131,16 +125,16 @@ public interface Set<E> extends Collection<E> {
      *
      * @return the number of elements in this set (its cardinality)
      */
-    @Pure
-    @NonNegative int size(@GuardSatisfied Set<E> this);
+    
+     int size();
 
     /**
      * Returns {@code true} if this set contains no elements.
      *
      * @return {@code true} if this set contains no elements
      */
-    @Pure
-    boolean isEmpty(@GuardSatisfied Set<E> this);
+    
+    boolean isEmpty();
 
     /**
      * Returns {@code true} if this set contains the specified element.
@@ -157,8 +151,8 @@ public interface Set<E> extends Collection<E> {
      *         set does not permit null elements
      * (<a href="Collection.html#optional-restrictions">optional</a>)
      */
-    @Pure
-    boolean contains(@GuardSatisfied Set<E> this, @GuardSatisfied Object o);
+    
+    boolean contains(@Nullable Object o);
 
     /**
      * Returns an iterator over the elements in this set.  The elements are
@@ -167,7 +161,7 @@ public interface Set<E> extends Collection<E> {
      *
      * @return an iterator over the elements in this set
      */
-    @SideEffectFree
+    
     Iterator<E> iterator();
 
     /**
@@ -186,8 +180,8 @@ public interface Set<E> extends Collection<E> {
      *
      * @return an array containing all the elements in this set
      */
-    @SideEffectFree
-    @PolyNull Object[] toArray(Set<@PolyNull E> this);
+    
+    @Nullable Object[] toArray();
 
     /**
      * Returns an array containing all of the elements in this set; the
@@ -231,8 +225,8 @@ public interface Set<E> extends Collection<E> {
      *         set
      * @throws NullPointerException if the specified array is null
      */
-    @SideEffectFree
-    <T> @Nullable T @PolyNull [] toArray(T @PolyNull [] a);
+    
+    <T extends @Nullable Object> @Nullable T @Nullable [] toArray(T @Nullable [] a);
 
 
     // Modification Operations
@@ -267,7 +261,7 @@ public interface Set<E> extends Collection<E> {
      * @throws IllegalArgumentException if some property of the specified element
      *         prevents it from being added to this set
      */
-    boolean add(@GuardSatisfied Set<E> this, E e);
+    boolean add(E e);
 
 
     /**
@@ -291,7 +285,7 @@ public interface Set<E> extends Collection<E> {
      * @throws UnsupportedOperationException if the {@code remove} operation
      *         is not supported by this set
      */
-    boolean remove(@GuardSatisfied Set<E> this, Object o);
+    boolean remove(@Nullable Object o);
 
 
     // Bulk Operations
@@ -315,8 +309,8 @@ public interface Set<E> extends Collection<E> {
      *         or if the specified collection is null
      * @see    #contains(Object)
      */
-    @Pure
-    boolean containsAll(@GuardSatisfied Set<E> this, @GuardSatisfied Collection<?> c);
+    
+    boolean containsAll(Collection<?> c);
 
     /**
      * Adds all of the elements in the specified collection to this set if
@@ -340,7 +334,7 @@ public interface Set<E> extends Collection<E> {
      *         specified collection prevents it from being added to this set
      * @see #add(Object)
      */
-    boolean addAll(@GuardSatisfied Set<E> this, Collection<? extends E> c);
+    boolean addAll(Collection<? extends E> c);
 
     /**
      * Retains only the elements in this set that are contained in the
@@ -363,7 +357,7 @@ public interface Set<E> extends Collection<E> {
      *         or if the specified collection is null
      * @see #remove(Object)
      */
-    boolean retainAll(@GuardSatisfied Set<E> this, Collection<?> c);
+    boolean retainAll(Collection<?> c);
 
     /**
      * Removes from this set all of its elements that are contained in the
@@ -386,7 +380,7 @@ public interface Set<E> extends Collection<E> {
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    boolean removeAll(@GuardSatisfied Set<E> this, Collection<?> c);
+    boolean removeAll(Collection<?> c);
 
     /**
      * Removes all of the elements from this set (optional operation).
@@ -395,7 +389,7 @@ public interface Set<E> extends Collection<E> {
      * @throws UnsupportedOperationException if the {@code clear} method
      *         is not supported by this set
      */
-    void clear(@GuardSatisfied Set<E> this);
+    void clear();
 
 
     // Comparison and hashing
@@ -412,8 +406,8 @@ public interface Set<E> extends Collection<E> {
      * @param o object to be compared for equality with this set
      * @return {@code true} if the specified object is equal to this set
      */
-    @Pure
-    boolean equals(@GuardSatisfied Set<E> this, @GuardSatisfied @Nullable Object o);
+    
+    boolean equals( @Nullable Object o);
 
     /**
      * Returns the hash code value for this set.  The hash code of a set is
@@ -428,8 +422,8 @@ public interface Set<E> extends Collection<E> {
      * @see Object#equals(Object)
      * @see Set#equals(Object)
      */
-    @Pure
-    int hashCode(@GuardSatisfied Set<E> this);
+    
+    int hashCode();
 
     /**
      * Creates a {@code Spliterator} over the elements in this set.
@@ -468,7 +462,7 @@ public interface Set<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> Set<E> of() {
+    static <E extends @Nullable Object> Set<E> of() {
         return ImmutableCollections.emptySet();
     }
 
@@ -483,7 +477,7 @@ public interface Set<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> Set<E> of(E e1) {
+    static <E extends @Nullable Object> Set<E> of(E e1) {
         return new ImmutableCollections.Set12<>(e1);
     }
 
@@ -500,7 +494,7 @@ public interface Set<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> Set<E> of(E e1, E e2) {
+    static <E extends @Nullable Object> Set<E> of(E e1, E e2) {
         return new ImmutableCollections.Set12<>(e1, e2);
     }
 
@@ -518,7 +512,7 @@ public interface Set<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> Set<E> of(E e1, E e2, E e3) {
+    static <E extends @Nullable Object> Set<E> of(E e1, E e2, E e3) {
         return new ImmutableCollections.SetN<>(e1, e2, e3);
     }
 
@@ -537,7 +531,7 @@ public interface Set<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> Set<E> of(E e1, E e2, E e3, E e4) {
+    static <E extends @Nullable Object> Set<E> of(E e1, E e2, E e3, E e4) {
         return new ImmutableCollections.SetN<>(e1, e2, e3, e4);
     }
 
@@ -557,7 +551,7 @@ public interface Set<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> Set<E> of(E e1, E e2, E e3, E e4, E e5) {
+    static <E extends @Nullable Object> Set<E> of(E e1, E e2, E e3, E e4, E e5) {
         return new ImmutableCollections.SetN<>(e1, e2, e3, e4, e5);
     }
 
@@ -578,7 +572,7 @@ public interface Set<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> Set<E> of(E e1, E e2, E e3, E e4, E e5, E e6) {
+    static <E extends @Nullable Object> Set<E> of(E e1, E e2, E e3, E e4, E e5, E e6) {
         return new ImmutableCollections.SetN<>(e1, e2, e3, e4, e5,
                                                e6);
     }
@@ -601,7 +595,7 @@ public interface Set<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> Set<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7) {
+    static <E extends @Nullable Object> Set<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7) {
         return new ImmutableCollections.SetN<>(e1, e2, e3, e4, e5,
                                                e6, e7);
     }
@@ -625,7 +619,7 @@ public interface Set<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> Set<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8) {
+    static <E extends @Nullable Object> Set<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8) {
         return new ImmutableCollections.SetN<>(e1, e2, e3, e4, e5,
                                                e6, e7, e8);
     }
@@ -650,7 +644,7 @@ public interface Set<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> Set<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8, E e9) {
+    static <E extends @Nullable Object> Set<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8, E e9) {
         return new ImmutableCollections.SetN<>(e1, e2, e3, e4, e5,
                                                e6, e7, e8, e9);
     }
@@ -676,7 +670,7 @@ public interface Set<E> extends Collection<E> {
      *
      * @since 9
      */
-    static <E> Set<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8, E e9, E e10) {
+    static <E extends @Nullable Object> Set<E> of(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8, E e9, E e10) {
         return new ImmutableCollections.SetN<>(e1, e2, e3, e4, e5,
                                                e6, e7, e8, e9, e10);
     }
@@ -709,7 +703,7 @@ public interface Set<E> extends Collection<E> {
      */
     @SafeVarargs
     @SuppressWarnings("varargs")
-    static <E> Set<E> of(E... elements) {
+    static <E extends @Nullable Object> Set<E> of(E... elements) {
         switch (elements.length) { // implicit null check of elements
             case 0:
                 return ImmutableCollections.emptySet();
@@ -740,7 +734,7 @@ public interface Set<E> extends Collection<E> {
      * @since 10
      */
     @SuppressWarnings("unchecked")
-    static <E> Set<E> copyOf(Collection<? extends E> coll) {
+    static <E extends @Nullable Object> Set<E> copyOf(Collection<? extends E> coll) {
         if (coll instanceof ImmutableCollections.AbstractImmutableSet) {
             return (Set<E>)coll;
         } else {

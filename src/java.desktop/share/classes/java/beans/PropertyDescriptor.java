@@ -24,10 +24,8 @@
  */
 package java.beans;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.ref.Reference;
 import java.lang.reflect.Method;
@@ -42,7 +40,7 @@ import sun.reflect.misc.ReflectUtil;
  * exports via a pair of accessor methods.
  * @since 1.1
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class PropertyDescriptor extends FeatureDescriptor {
 
     private @Nullable Reference<? extends Class<?>> propertyTypeRef;
@@ -75,7 +73,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @exception IntrospectionException if an exception occurs during
      *              introspection.
      */
-    @SideEffectFree
+    
     public PropertyDescriptor(String propertyName, Class<?> beanClass)
                 throws IntrospectionException {
         this(propertyName, beanClass,
@@ -97,7 +95,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @exception IntrospectionException if an exception occurs during
      *              introspection.
      */
-    @SideEffectFree
+    
     public PropertyDescriptor(String propertyName, Class<?> beanClass,
                 @Nullable String readMethodName, @Nullable String writeMethodName)
                 throws IntrospectionException {
@@ -140,7 +138,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @exception IntrospectionException if an exception occurs during
      *              introspection.
      */
-    @SideEffectFree
+    
     public PropertyDescriptor(String propertyName, @Nullable Method readMethod, @Nullable Method writeMethod)
                 throws IntrospectionException {
         if (propertyName == null || propertyName.length() == 0) {
@@ -211,7 +209,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @return the {@code Class} object that represents the Java type info,
      *         or {@code null} if the type cannot be determined
      */
-    @Pure
+    
     public synchronized @Nullable Class<?> getPropertyType() {
         Class<?> type = getPropertyType0();
         if (type  == null) {
@@ -241,7 +239,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @return The method that should be used to read the property value.
      * May return null if the property can't be read.
      */
-    @Pure
+    
     public synchronized @Nullable Method getReadMethod() {
         Method readMethod = this.readMethodRef.get();
         if (readMethod == null) {
@@ -311,7 +309,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @return The method that should be used to write the property value.
      * May return null if the property can't be written.
      */
-    @Pure
+    
     public synchronized @Nullable Method getWriteMethod() {
         Method writeMethod = this.writeMethodRef.get();
         if (writeMethod == null) {
@@ -398,7 +396,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *
      * @return True if this is a bound property.
      */
-    @Pure
+    
     public boolean isBound() {
         return bound;
     }
@@ -419,7 +417,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *
      * @return True if this is a constrained property.
      */
-    @Pure
+    
     public boolean isConstrained() {
         return constrained;
     }
@@ -457,7 +455,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *          so the PropertyEditorManager should be used to locate
      *          a suitable PropertyEditor.
      */
-    @Pure
+    
     public @Nullable Class<?> getPropertyEditorClass() {
         return (this.propertyEditorClassRef != null)
                 ? this.propertyEditorClassRef.get()
@@ -477,7 +475,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *         not been defined or cannot be created
      * @since 1.5
      */
-    @SideEffectFree
+    
     @SuppressWarnings("deprecation")
     public @Nullable PropertyEditor createPropertyEditor(@Nullable Object bean) {
         Object editor = null;
@@ -515,7 +513,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *
      * @since 1.4
      */
-    @Pure
+    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;
@@ -732,7 +730,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @return a hash code value for this object.
      * @since 1.5
      */
-    @Pure
+    
     public int hashCode() {
         int result = 7;
 

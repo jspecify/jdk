@@ -41,9 +41,8 @@
 
 package org.w3c.dom;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The <code>Element</code> interface represents an element in an HTML or XML
@@ -62,7 +61,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * inherited from the <code>Node</code> interface where it was moved.
  * <p>See also the <a href='http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407'>Document Object Model (DOM) Level 3 Core Specification</a>.
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public interface Element extends Node {
     /**
      * The name of the element. If <code>Node.localName</code> is different
@@ -76,7 +75,7 @@ public interface Element extends Node {
      * the <code>tagName</code> of an HTML element in the canonical
      * uppercase form, regardless of the case in the source HTML document.
      */
-    @Pure
+    
     public String getTagName();
 
     /**
@@ -85,7 +84,7 @@ public interface Element extends Node {
      * @return The <code>Attr</code> value as a string, or the empty string
      *   if that attribute does not have a specified or default value.
      */
-    @Pure
+    
     public String getAttribute(String name);
 
     /**
@@ -142,7 +141,7 @@ public interface Element extends Node {
      *   <code>nodeName</code>) or <code>null</code> if there is no such
      *   attribute.
      */
-    @Pure
+    
     public @Nullable Attr getAttributeNode(String name);
 
     /**
@@ -195,7 +194,7 @@ public interface Element extends Node {
      *   matches all tags.
      * @return A list of matching <code>Element</code> nodes.
      */
-    @Pure
+    
     public NodeList getElementsByTagName(String name);
 
     /**
@@ -214,7 +213,7 @@ public interface Element extends Node {
      *   through the Document does not support XML Namespaces (such as [<a href='http://www.w3.org/TR/1999/REC-html401-19991224/'>HTML 4.01</a>]).
      * @since 1.4, DOM Level 2
      */
-    @Pure
+    
     public String getAttributeNS(@Nullable String namespaceURI,
                                  String localName)
                                  throws DOMException;
@@ -311,7 +310,7 @@ public interface Element extends Node {
      *   through the Document does not support XML Namespaces (such as [<a href='http://www.w3.org/TR/1999/REC-html401-19991224/'>HTML 4.01</a>]).
      * @since 1.4, DOM Level 2
      */
-    @Pure
+    
     public @Nullable Attr getAttributeNodeNS(@Nullable String namespaceURI,
                                    String localName)
                                    throws DOMException;
@@ -361,7 +360,7 @@ public interface Element extends Node {
      *   through the Document does not support XML Namespaces (such as [<a href='http://www.w3.org/TR/1999/REC-html401-19991224/'>HTML 4.01</a>]).
      * @since 1.4, DOM Level 2
      */
-    @Pure
+    
     public NodeList getElementsByTagNameNS(@Nullable String namespaceURI,
                                            String localName)
                                            throws DOMException;
@@ -376,7 +375,7 @@ public interface Element extends Node {
      *    otherwise.
      * @since 1.4, DOM Level 2
      */
-    @Pure
+    
     public boolean hasAttribute(String name);
 
     /**
@@ -398,7 +397,7 @@ public interface Element extends Node {
      *   through the Document does not support XML Namespaces (such as [<a href='http://www.w3.org/TR/1999/REC-html401-19991224/'>HTML 4.01</a>]).
      * @since 1.4, DOM Level 2
      */
-    @Pure
+    
     public boolean hasAttributeNS(@Nullable String namespaceURI,
                                   String localName)
                                   throws DOMException;
@@ -407,7 +406,7 @@ public interface Element extends Node {
      *  The type information associated with this element.
      * @since 1.5, DOM Level 3
      */
-    @Pure
+    
     public TypeInfo getSchemaTypeInfo();
 
     /**

@@ -24,8 +24,8 @@
  */
 package javax.swing;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.AWTEvent;
 import java.awt.BorderLayout;
@@ -121,7 +121,7 @@ import javax.accessibility.AccessibleStateSet;
  * @author David Kloba
  * @since 1.2
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 @JavaBean(defaultProperty = "JMenuBar", description = "A toplevel window which can be minimized to an icon.")
 @SwingContainer(delegate = "getContentPane")
 @SuppressWarnings("serial") // Same-version serialization only

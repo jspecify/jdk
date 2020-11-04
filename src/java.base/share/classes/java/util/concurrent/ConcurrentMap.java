@@ -35,10 +35,8 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.checker.nullness.qual.EnsuresKeyFor;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Map;
 import java.util.Objects;
@@ -73,8 +71,8 @@ import java.util.function.Function;
  * @param <K> the type of keys maintained by this map
  * @param <V> the type of mapped values
  */
-@AnnotatedFor({"nullness"})
-public interface ConcurrentMap<K extends @NonNull Object,V extends @NonNull Object> extends Map<K,V> {
+@DefaultNonNull
+public interface ConcurrentMap<K,V> extends Map<K,V> {
 
     /**
      * {@inheritDoc}
@@ -89,7 +87,7 @@ public interface ConcurrentMap<K extends @NonNull Object,V extends @NonNull Obje
      * @since 1.8
      */
     @Override
-    default V getOrDefault(Object key, V defaultValue) {
+    default V getOrDefault(@Nullable Object key, V defaultValue) {
         V v;
         return ((v = get(key)) != null) ? v : defaultValue;
     }
@@ -160,7 +158,7 @@ public interface ConcurrentMap<K extends @NonNull Object,V extends @NonNull Obje
      * @throws IllegalArgumentException if some property of the specified key
      *         or value prevents it from being stored in this map
      */
-    @EnsuresKeyFor(value={"#1"}, map={"this"})
+    
     @Nullable V putIfAbsent(K key, V value);
 
     /**
@@ -192,7 +190,7 @@ public interface ConcurrentMap<K extends @NonNull Object,V extends @NonNull Obje
      *         and this map does not permit null keys or values
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean remove(Object key, Object value);
+    boolean remove(@Nullable Object key, @Nullable Object value);
 
     /**
      * Replaces the entry for a key only if currently mapped to a given value.

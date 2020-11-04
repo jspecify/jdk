@@ -41,9 +41,8 @@
 
 package org.w3c.dom;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The <code>Attr</code> interface represents an attribute in an
@@ -192,13 +191,13 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * </table>
  * <p>See also the <a href='http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407'>Document Object Model (DOM) Level 3 Core Specification</a>.
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public interface Attr extends Node {
     /**
      * Returns the name of this attribute. If <code>Node.localName</code> is
      * different from <code>null</code>, this attribute is a qualified name.
      */
-    @Pure
+    
     public String getName();
 
     /**
@@ -211,7 +210,7 @@ public interface Attr extends Node {
      * use <code>Document.normalizeDocument()</code> to guarantee this
      * information is up-to-date.
      */
-    @Pure
+    
     public boolean getSpecified();
 
     /**
@@ -228,7 +227,7 @@ public interface Attr extends Node {
      * mutation; in such case, the value on retrieval may differ from the
      * value on setting.
      */
-    @Pure
+    
     public String getValue();
     /**
      * On retrieval, the value of the attribute is returned as a string.
@@ -254,7 +253,7 @@ public interface Attr extends Node {
      * <code>null</code> if this attribute is not in use.
      * @since 1.4, DOM Level 2
      */
-    @Pure
+    
     public @Nullable Element getOwnerElement();
 
     /**
@@ -265,7 +264,7 @@ public interface Attr extends Node {
      *  may not be reliable if the node was moved.
      * @since 1.5, DOM Level 3
      */
-    @Pure
+    
     public TypeInfo getSchemaTypeInfo();
 
     /**
@@ -314,7 +313,7 @@ public interface Attr extends Node {
      * <code>isId</code> will always return true.
      * @since 1.5, DOM Level 3
      */
-    @Pure
+    
     public boolean isId();
 
 }

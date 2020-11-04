@@ -21,11 +21,7 @@
 
 package com.sun.org.apache.xerces.internal.impl.xs;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import com.sun.org.apache.xerces.internal.util.XMLResourceIdentifierImpl;
 import com.sun.org.apache.xerces.internal.xni.QName;
@@ -205,8 +201,8 @@ public class XSDDescription extends XMLResourceIdentifierImpl
      * @param descObj The description of the grammar to be compared with
      * @return        True if they are equal, else false
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object descObj) {
         if(!(descObj instanceof XMLSchemaDescription)) return false;
         XMLSchemaDescription desc = (XMLSchemaDescription)descObj;

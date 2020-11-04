@@ -24,11 +24,7 @@
 
 package org.graalvm.compiler.java;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import static org.graalvm.compiler.bytecode.Bytecodes.DUP;
 import static org.graalvm.compiler.bytecode.Bytecodes.DUP2;
@@ -945,8 +941,8 @@ public final class FrameStateBuilder implements SideEffectsState {
     }
 
     @Override
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object otherObject) {
         if (otherObject instanceof FrameStateBuilder) {
             FrameStateBuilder other = (FrameStateBuilder) otherObject;

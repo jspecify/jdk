@@ -25,8 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Superclass of all exceptions specific to Object Stream classes.
@@ -34,7 +34,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since   1.1
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public abstract class ObjectStreamException extends IOException {
 
     private static final long serialVersionUID = 7260898174833392607L;

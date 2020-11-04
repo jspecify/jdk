@@ -25,15 +25,8 @@
 
 package java.util.regex;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.regex.qual.PolyRegex;
-import org.checkerframework.checker.regex.qual.Regex;
-import org.checkerframework.common.value.qual.MinLen;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
@@ -783,8 +776,8 @@ import java.util.stream.StreamSupport;
  * @spec        JSR-51
  */
 
-@AnnotatedFor({"index", "interning", "lock", "nullness", "regex"})
-public final @UsesObjectEquals class Pattern
+@DefaultNonNull
+public final  class Pattern
     implements java.io.Serializable
 {
 
@@ -1075,9 +1068,9 @@ public final @UsesObjectEquals class Pattern
      * @throws  PatternSyntaxException
      *          If the expression's syntax is invalid
      */
-    @CFComment({"lock/nullness: pure wrt equals(@GuardSatisfied Pattern this) but not =="})
-    @Pure
-    public static Pattern compile(@Regex String regex) {
+    
+    
+    public static Pattern compile( String regex) {
         return new Pattern(regex, 0);
     }
 
@@ -1103,9 +1096,9 @@ public final @UsesObjectEquals class Pattern
      * @throws  PatternSyntaxException
      *          If the expression's syntax is invalid
      */
-    @CFComment({"lock/nullness: pure wrt equals(@GuardSatisfied Pattern this) but not =="})
-    @Pure
-    public static Pattern compile(@Regex String regex, int flags) {
+    
+    
+    public static Pattern compile( String regex, int flags) {
         return new Pattern(regex, flags);
     }
 
@@ -1126,8 +1119,8 @@ public final @UsesObjectEquals class Pattern
      * @return  The string representation of this pattern
      * @since 1.5
      */
-    @SideEffectFree
-    public String toString(@GuardSatisfied Pattern this) {
+    
+    public String toString() {
         return pattern;
     }
 
@@ -1139,7 +1132,7 @@ public final @UsesObjectEquals class Pattern
      *
      * @return  A new matcher for this pattern
      */
-    public @PolyRegex Matcher matcher(@PolyRegex Pattern this, CharSequence input) {
+    public  Matcher matcher(CharSequence input) {
         if (!compiled) {
             synchronized(this) {
                 if (!compiled)
@@ -1185,7 +1178,7 @@ public final @UsesObjectEquals class Pattern
      * @throws  PatternSyntaxException
      *          If the expression's syntax is invalid
      */
-    public static boolean matches(@Regex String regex, CharSequence input) {
+    public static boolean matches( String regex, CharSequence input) {
         Pattern p = Pattern.compile(regex);
         Matcher m = p.matcher(input);
         return m.matches();
@@ -1270,7 +1263,7 @@ public final @UsesObjectEquals class Pattern
      * @return  The array of strings computed by splitting the input
      *          around matches of this pattern
      */
-    public String @MinLen(1) [] split(CharSequence input, int limit) {
+    public String  [] split(CharSequence input, int limit) {
         int index = 0;
         boolean matchLimited = limit > 0;
         ArrayList<String> matchList = new ArrayList<>();
@@ -1346,7 +1339,7 @@ public final @UsesObjectEquals class Pattern
      * @return  The array of strings computed by splitting the input
      *          around matches of this pattern
      */
-    public String @MinLen(1) [] split(CharSequence input) {
+    public String  [] split(CharSequence input) {
         return split(input, 0);
     }
 
@@ -1364,9 +1357,9 @@ public final @UsesObjectEquals class Pattern
      * @return  A literal string replacement
      * @since 1.5
      */
-    @CFComment({"nullness: pure wrt equals() but not =="})
-    @Pure
-    public static @Regex String quote(String s) {
+    
+    
+    public static  String quote(String s) {
         int slashEIndex = s.indexOf("\\E");
         if (slashEIndex == -1)
             return "\\Q" + s + "\\E";

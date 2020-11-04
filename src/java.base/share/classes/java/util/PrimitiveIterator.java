@@ -24,8 +24,8 @@
  */
 package java.util;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
@@ -68,8 +68,8 @@ import java.util.function.LongConsumer;
  *
  * @since 1.8
  */
-@AnnotatedFor({"lock", "nullness"})
-public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
+@DefaultNonNull
+public interface PrimitiveIterator<T extends @Nullable Object, T_CONS extends @Nullable Object> extends Iterator<T> {
 
     /**
      * Performs the given action for each remaining element, in the order
@@ -127,7 +127,7 @@ public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
          * {@link #nextInt()}, and returns that boxed result.
          */
         @Override
-        default Integer next(PrimitiveIterator.@GuardSatisfied OfInt this) {
+        default Integer next() {
             if (Tripwire.ENABLED)
                 Tripwire.trip(getClass(), "{0} calling PrimitiveIterator.OfInt.nextInt()");
             return nextInt();
@@ -202,7 +202,7 @@ public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
          * {@link #nextLong()}, and returns that boxed result.
          */
         @Override
-        default Long next(PrimitiveIterator.@GuardSatisfied OfLong this) {
+        default Long next() {
             if (Tripwire.ENABLED)
                 Tripwire.trip(getClass(), "{0} calling PrimitiveIterator.OfLong.nextLong()");
             return nextLong();
@@ -276,7 +276,7 @@ public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
          * {@link #nextDouble()}, and returns that boxed result.
          */
         @Override
-        default Double next(PrimitiveIterator.@GuardSatisfied OfDouble this) {
+        default Double next() {
             if (Tripwire.ENABLED)
                 Tripwire.trip(getClass(), "{0} calling PrimitiveIterator.OfDouble.nextLong()");
             return nextDouble();

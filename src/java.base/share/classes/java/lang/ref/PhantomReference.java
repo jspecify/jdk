@@ -25,10 +25,8 @@
 
 package java.lang.ref;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Phantom reference objects, which are enqueued after the collector
@@ -51,8 +49,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since    1.2
  */
 
-@AnnotatedFor({"lock", "nullness"})
-public class PhantomReference<T> extends Reference<T> {
+@DefaultNonNull
+public class PhantomReference<T extends @Nullable Object> extends Reference<T> {
 
     /**
      * Returns this reference object's referent.  Because the referent of a
@@ -61,8 +59,8 @@ public class PhantomReference<T> extends Reference<T> {
      *
      * @return {@code null}
      */
-    @SideEffectFree
-    public @Nullable T get(@GuardSatisfied PhantomReference<T> this) {
+    
+    public @Nullable T get() {
         return null;
     }
 

@@ -25,26 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.index.qual.PolyIndex;
-import org.checkerframework.checker.index.qual.Positive;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.checker.signedness.qual.SignedPositive;
-import org.checkerframework.checker.signedness.qual.SignednessGlb;
-import org.checkerframework.checker.signedness.qual.UnknownSignedness;
-import org.checkerframework.checker.signedness.qual.Unsigned;
-import org.checkerframework.common.value.qual.ArrayLenRange;
-import org.checkerframework.common.value.qual.IntRange;
-import org.checkerframework.common.value.qual.IntVal;
-import org.checkerframework.common.value.qual.PolyValue;
-import org.checkerframework.common.value.qual.StaticallyExecutable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.Native;
 import java.util.Objects;
@@ -77,19 +59,19 @@ import static java.lang.String.UTF16;
  * @author  Joseph D. Darcy
  * @since 1.0
  */
-@AnnotatedFor({"nullness", "index", "signedness", "value"})
+@DefaultNonNull
 public final class Integer extends Number implements Comparable<Integer> {
     /**
      * A constant holding the minimum value an {@code int} can
      * have, -2<sup>31</sup>.
      */
-    @Native public static final @IntVal(0x80000000) int   MIN_VALUE = 0x80000000;
+    @Native public static final  int   MIN_VALUE = 0x80000000;
 
     /**
      * A constant holding the maximum value an {@code int} can
      * have, 2<sup>31</sup>-1.
      */
-    @Native public static final @SignedPositive @IntVal(0x7fffffff) int   MAX_VALUE = 0x7fffffff;
+    @Native public static final   int   MAX_VALUE = 0x7fffffff;
 
     /**
      * The {@code Class} instance representing the primitive type
@@ -156,10 +138,10 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @see     java.lang.Character#MAX_RADIX
      * @see     java.lang.Character#MIN_RADIX
      */
-    @CFComment("@IntRange(2, 36) int radix: the method uses 10 if radix is outside the valid range, but that is still probably an error, and other methods (like many methods in Integer, and Byte.toString) do throw an exception if the radix is outside the valid range")
-    @SideEffectFree
-    @StaticallyExecutable
-    public static @ArrayLenRange(from = 1) String toString(int i, @Positive @IntRange(from = 2, to = 36) int radix) {
+    
+    
+    
+    public static  String toString(int i,   int radix) {
         if (radix < Character.MIN_RADIX || radix > Character.MAX_RADIX)
             radix = 10;
 
@@ -192,9 +174,9 @@ public final class Integer extends Number implements Comparable<Integer> {
         return toStringUTF16(i, radix);
     }
 
-    @SideEffectFree
-    @StaticallyExecutable
-    private static String toStringUTF16(int i, @IntRange(from = 2, to = 36) int radix) {
+    
+    
+    private static String toStringUTF16(int i,  int radix) {
         byte[] buf = new byte[33 * 2];
         boolean negative = (i < 0);
         int charPos = 32;
@@ -239,10 +221,10 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @see     #toString(int, int)
      * @since 1.8
      */
-    @CFComment("@IntRange(2, 36) int radix: see CFComment on toString")
-    @SideEffectFree
-    @StaticallyExecutable
-    public static String toUnsignedString(@Unsigned int i, @Positive @IntRange(from = 2, to = 36) int radix) {
+    
+    
+    
+    public static String toUnsignedString( int i,   int radix) {
         return Long.toUnsignedString(toUnsignedLong(i), radix);
     }
 
@@ -288,9 +270,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @see #toUnsignedString(int, int)
      * @since   1.0.2
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static @ArrayLenRange(from = 1, to = 8) String toHexString(@UnknownSignedness int i) {
+    
+    
+    public static  String toHexString( int i) {
         return toUnsignedString0(i, 4);
     }
 
@@ -328,9 +310,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @see #toUnsignedString(int, int)
      * @since   1.0.2
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static @ArrayLenRange(from = 1, to = 11) String toOctalString(@Unsigned int i) {
+    
+    
+    public static  String toOctalString( int i) {
         return toUnsignedString0(i, 3);
     }
 
@@ -362,16 +344,16 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @see #toUnsignedString(int, int)
      * @since   1.0.2
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static @ArrayLenRange(from = 1, to = 32) String toBinaryString(@Unsigned int i) {
+    
+    
+    public static  String toBinaryString( int i) {
         return toUnsignedString0(i, 1);
     }
 
     /**
      * Convert the integer to an unsigned number.
      */
-    private static String toUnsignedString0(@Unsigned int val, @IntVal({1, 2, 3, 4}) int shift) {
+    private static String toUnsignedString0( int val,  int shift) {
         // assert shift > 0 && shift <=5 : "Illegal shift value";
         int mag = Integer.SIZE - Integer.numberOfLeadingZeros(val);
         int chars = Math.max(((mag + (shift - 1)) / shift), 1);
@@ -469,10 +451,10 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @param   i   an integer to be converted.
      * @return  a string representation of the argument in base&nbsp;10.
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     @HotSpotIntrinsicCandidate
-    public static @ArrayLenRange(from = 1, to = 11) String toString(int i) {
+    public static  String toString(int i) {
         int size = stringSize(i);
         if (COMPACT_STRINGS) {
             byte[] buf = new byte[size];
@@ -499,9 +481,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @see     #toUnsignedString(int, int)
      * @since 1.8
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static String toUnsignedString(@Unsigned int i) {
+    
+    
+    public static String toUnsignedString( int i) {
         return Long.toString(toUnsignedLong(i));
     }
 
@@ -641,9 +623,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @exception  NumberFormatException if the {@code String}
      *             does not contain a parsable {@code int}.
      */
-    @Pure
-    @StaticallyExecutable
-    public static int parseInt(String s, @Positive @IntRange(from = 2, to = 36) int radix)
+    
+    
+    public static int parseInt(String s,   int radix)
                 throws NumberFormatException
     {
         /*
@@ -732,9 +714,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      *             {@link java.lang.Character#MAX_RADIX}.
      * @since  9
      */
-    @Pure
-    @StaticallyExecutable
-    public static int parseInt(CharSequence s, int beginIndex, int endIndex, @IntRange(from = 2, to = 36) int radix)
+    
+    
+    public static int parseInt(CharSequence s, int beginIndex, int endIndex,  int radix)
                 throws NumberFormatException {
         s = Objects.requireNonNull(s);
 
@@ -810,8 +792,8 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @exception  NumberFormatException  if the string does not contain a
      *               parsable integer.
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public static int parseInt(String s) throws NumberFormatException {
         return parseInt(s,10);
     }
@@ -859,9 +841,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      *             does not contain a parsable {@code int}.
      * @since 1.8
      */
-    @Pure
-    @StaticallyExecutable
-    public static @Unsigned int parseUnsignedInt(String s, @Positive @IntRange(from = 2, to = 36) int radix)
+    
+    
+    public static  int parseUnsignedInt(String s,   int radix)
                 throws NumberFormatException {
         if (s == null)  {
             throw new NumberFormatException("null");
@@ -921,9 +903,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      *             {@link java.lang.Character#MAX_RADIX}.
      * @since  9
      */
-    @Pure
-    @StaticallyExecutable
-    public static int parseUnsignedInt(CharSequence s, int beginIndex, int endIndex, @IntRange(from = 2, to = 36) int radix)
+    
+    
+    public static int parseUnsignedInt(CharSequence s, int beginIndex, int endIndex,  int radix)
                 throws NumberFormatException {
         s = Objects.requireNonNull(s);
 
@@ -974,9 +956,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      *            parsable unsigned integer.
      * @since 1.8
      */
-    @Pure
-    @StaticallyExecutable
-    public static @Unsigned int parseUnsignedInt(String s) throws NumberFormatException {
+    
+    
+    public static  int parseUnsignedInt(String s) throws NumberFormatException {
         return parseUnsignedInt(s, 10);
     }
 
@@ -1005,9 +987,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @exception NumberFormatException if the {@code String}
      *            does not contain a parsable {@code int}.
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static Integer valueOf(String s, @Positive @IntRange(from = 2, to = 36) int radix) throws NumberFormatException {
+    
+    
+    public static Integer valueOf(String s,   int radix) throws NumberFormatException {
         return Integer.valueOf(parseInt(s,radix));
     }
 
@@ -1033,8 +1015,8 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @exception  NumberFormatException  if the string cannot be parsed
      *             as an integer.
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public static Integer valueOf(String s) throws NumberFormatException {
         return Integer.valueOf(parseInt(s, 10));
     }
@@ -1099,10 +1081,10 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @return an {@code Integer} instance representing {@code i}.
      * @since  1.5
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     @HotSpotIntrinsicCandidate
-    public static @PolyIndex @PolyValue Integer valueOf(@PolyIndex @PolyValue int i) {
+    public static   Integer valueOf(  int i) {
         if (i >= IntegerCache.low && i <= IntegerCache.high)
             return IntegerCache.cache[i + (-IntegerCache.low)];
         return new Integer(i);
@@ -1127,10 +1109,10 @@ public final class Integer extends Number implements Comparable<Integer> {
      * {@link #valueOf(int)} is generally a better choice, as it is
      * likely to yield significantly better space and time performance.
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     @Deprecated(since="9")
-    public @PolyIndex Integer(@PolyIndex int value) {
+    public  Integer( int value) {
         this.value = value;
     }
 
@@ -1151,8 +1133,8 @@ public final class Integer extends Number implements Comparable<Integer> {
      * {@code int} primitive, or use {@link #valueOf(String)}
      * to convert a string to an {@code Integer} object.
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     @Deprecated(since="9")
     public Integer(String s) throws NumberFormatException {
         this.value = parseInt(s, 10);
@@ -1163,9 +1145,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * after a narrowing primitive conversion.
      * @jls 5.1.3 Narrowing Primitive Conversions
      */
-    @Pure
-    @StaticallyExecutable
-    public @PolyIndex @PolyValue byte byteValue(@PolyIndex @PolyValue Integer this) {
+    
+    
+    public   byte byteValue() {
         return (byte)value;
     }
 
@@ -1174,9 +1156,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * after a narrowing primitive conversion.
      * @jls 5.1.3 Narrowing Primitive Conversions
      */
-    @Pure
-    @StaticallyExecutable
-    public @PolyIndex @PolyValue short shortValue(@PolyIndex @PolyValue Integer this) {
+    
+    
+    public   short shortValue() {
         return (short)value;
     }
 
@@ -1184,10 +1166,10 @@ public final class Integer extends Number implements Comparable<Integer> {
      * Returns the value of this {@code Integer} as an
      * {@code int}.
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     @HotSpotIntrinsicCandidate
-    public @PolyIndex @PolyValue int intValue(@PolyIndex @PolyValue Integer this) {
+    public   int intValue() {
         return value;
     }
 
@@ -1197,9 +1179,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @jls 5.1.2 Widening Primitive Conversions
      * @see Integer#toUnsignedLong(int)
      */
-    @Pure
-    @StaticallyExecutable
-    public @PolyIndex @PolyValue long longValue(@PolyIndex @PolyValue Integer this) {
+    
+    
+    public   long longValue() {
         return (long)value;
     }
 
@@ -1208,9 +1190,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * after a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversions
      */
-    @Pure
-    @StaticallyExecutable
-    public @PolyValue float floatValue(@PolyValue Integer this) {
+    
+    
+    public  float floatValue() {
         return (float)value;
     }
 
@@ -1219,9 +1201,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * after a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversions
      */
-    @Pure
-    @StaticallyExecutable
-    public @PolyValue double doubleValue(@PolyValue Integer this) {
+    
+    
+    public  double doubleValue() {
         return (double)value;
     }
 
@@ -1235,9 +1217,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @return  a string representation of the value of this object in
      *          base&nbsp;10.
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public @ArrayLenRange(from = 1, to = 11) String toString() {
+    
+    
+    public  String toString() {
         return toString(value);
     }
 
@@ -1248,8 +1230,8 @@ public final class Integer extends Number implements Comparable<Integer> {
      *          primitive {@code int} value represented by this
      *          {@code Integer} object.
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     @Override
     public int hashCode() {
         return Integer.hashCode(value);
@@ -1264,8 +1246,8 @@ public final class Integer extends Number implements Comparable<Integer> {
      *
      * @return a hash code value for an {@code int} value.
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public static int hashCode(int value) {
         return value;
     }
@@ -1280,8 +1262,8 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @return  {@code true} if the objects are the same;
      *          {@code false} otherwise.
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof Integer) {
             return value == ((Integer)obj).intValue();
@@ -1319,8 +1301,8 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @see     java.lang.System#getProperty(java.lang.String)
      * @see     java.lang.System#getProperty(java.lang.String, java.lang.String)
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public static @Nullable Integer getInteger(@Nullable String nm) {
         return getInteger(nm, null);
     }
@@ -1367,8 +1349,8 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @see     java.lang.System#getProperty(java.lang.String)
      * @see     java.lang.System#getProperty(java.lang.String, java.lang.String)
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public static Integer getInteger(@Nullable String nm, int val) {
         Integer result = getInteger(nm, null);
         return (result == null) ? Integer.valueOf(val) : result;
@@ -1411,9 +1393,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @see     System#getProperty(java.lang.String)
      * @see     System#getProperty(java.lang.String, java.lang.String)
      */
-    @SideEffectFree
-    @StaticallyExecutable
-    public static @PolyNull Integer getInteger(@Nullable String nm, @PolyNull Integer val) {
+    
+    
+    public static @Nullable Integer getInteger(@Nullable String nm, @Nullable Integer val) {
         String v = null;
         try {
             v = System.getProperty(nm);
@@ -1470,8 +1452,8 @@ public final class Integer extends Number implements Comparable<Integer> {
      *            contain a parsable integer.
      * @see java.lang.Integer#parseInt(java.lang.String, int)
      */
-    @SideEffectFree
-    @StaticallyExecutable
+    
+    
     public static Integer decode(String nm) throws NumberFormatException {
         int radix = 10;
         int index = 0;
@@ -1532,8 +1514,8 @@ public final class Integer extends Number implements Comparable<Integer> {
      *           comparison).
      * @since   1.2
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public int compareTo(Integer anotherInteger) {
         return compare(this.value, anotherInteger.value);
     }
@@ -1552,8 +1534,8 @@ public final class Integer extends Number implements Comparable<Integer> {
      *         a value greater than {@code 0} if {@code x > y}
      * @since 1.7
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public static int compare(int x, int y) {
         return (x < y) ? -1 : ((x == y) ? 0 : 1);
     }
@@ -1570,9 +1552,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      *         unsigned values
      * @since 1.8
      */
-    @Pure
-    @StaticallyExecutable
-    public static int compareUnsigned(@Unsigned int x, @Unsigned int y) {
+    
+    
+    public static int compareUnsigned( int x,  int y) {
         return compare(x + MIN_VALUE, y + MIN_VALUE);
     }
 
@@ -1593,9 +1575,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      *         conversion
      * @since 1.8
      */
-    @Pure
-    @StaticallyExecutable
-    public static @SignedPositive long toUnsignedLong(int x) {
+    
+    
+    public static  long toUnsignedLong(int x) {
         return ((long) x) & 0xffffffffL;
     }
 
@@ -1617,9 +1599,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @see #remainderUnsigned
      * @since 1.8
      */
-    @Pure
-    @StaticallyExecutable
-    public static @Unsigned int divideUnsigned(@Unsigned int dividend, @Unsigned int divisor) {
+    
+    
+    public static  int divideUnsigned( int dividend,  int divisor) {
         // In lieu of tricky code, for now just use long arithmetic.
         return (int)(toUnsignedLong(dividend) / toUnsignedLong(divisor));
     }
@@ -1636,9 +1618,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @see #divideUnsigned
      * @since 1.8
      */
-    @Pure
-    @StaticallyExecutable
-    public static @Unsigned int remainderUnsigned(@Unsigned int dividend, @Unsigned int divisor) {
+    
+    
+    public static  int remainderUnsigned( int dividend,  int divisor) {
         // In lieu of tricky code, for now just use long arithmetic.
         return (int)(toUnsignedLong(dividend) % toUnsignedLong(divisor));
     }
@@ -1652,7 +1634,7 @@ public final class Integer extends Number implements Comparable<Integer> {
      *
      * @since 1.5
      */
-    @Native public static final @SignedPositive @IntVal(32) int SIZE = 32;
+    @Native public static final   int SIZE = 32;
 
     /**
      * The number of bytes used to represent an {@code int} value in two's
@@ -1660,7 +1642,7 @@ public final class Integer extends Number implements Comparable<Integer> {
      *
      * @since 1.8
      */
-    public static final @SignedPositive @IntVal(4) int BYTES = SIZE / Byte.SIZE;
+    public static final   int BYTES = SIZE / Byte.SIZE;
 
     /**
      * Returns an {@code int} value with at most a single one-bit, in the
@@ -1675,9 +1657,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      *     the specified value is itself equal to zero.
      * @since 1.5
      */
-    @Pure
-    @StaticallyExecutable
-    public static int highestOneBit(@UnknownSignedness int i) {
+    
+    
+    public static int highestOneBit( int i) {
         return i & (MIN_VALUE >>> numberOfLeadingZeros(i));
     }
 
@@ -1694,9 +1676,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      *     the specified value is itself equal to zero.
      * @since 1.5
      */
-    @Pure
-    @StaticallyExecutable
-    public static int lowestOneBit(@UnknownSignedness int i) {
+    
+    
+    public static int lowestOneBit( int i) {
         // HD, Section 2-1
         return i & -i;
     }
@@ -1722,10 +1704,10 @@ public final class Integer extends Number implements Comparable<Integer> {
      *     is equal to zero.
      * @since 1.5
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     @HotSpotIntrinsicCandidate
-    public static @NonNegative @IntRange(from = 0, to = 32) int numberOfLeadingZeros(@UnknownSignedness int i) {
+    public static   int numberOfLeadingZeros( int i) {
         // HD, Count leading 0's
         if (i <= 0)
             return i == 0 ? 32 : 0;
@@ -1751,10 +1733,10 @@ public final class Integer extends Number implements Comparable<Integer> {
      *     to zero.
      * @since 1.5
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     @HotSpotIntrinsicCandidate
-    public static @NonNegative @IntRange(from = 0, to = 32) int numberOfTrailingZeros(@UnknownSignedness int i) {
+    public static   int numberOfTrailingZeros( int i) {
         // HD, Figure 5-14
         int y;
         if (i == 0) return 32;
@@ -1776,10 +1758,10 @@ public final class Integer extends Number implements Comparable<Integer> {
      *     representation of the specified {@code int} value.
      * @since 1.5
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     @HotSpotIntrinsicCandidate
-    public static @NonNegative int bitCount(@UnknownSignedness int i) {
+    public static  int bitCount( int i) {
         // HD, Figure 5-2
         i = i - ((i >>> 1) & 0x55555555);
         i = (i & 0x33333333) + ((i >>> 2) & 0x33333333);
@@ -1809,9 +1791,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      *     specified number of bits.
      * @since 1.5
      */
-    @Pure
-    @StaticallyExecutable
-    public static @PolySigned int rotateLeft(@PolySigned int i, int distance) {
+    
+    
+    public static  int rotateLeft( int i, int distance) {
         return (i << distance) | (i >>> -distance);
     }
 
@@ -1835,9 +1817,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      *     specified number of bits.
      * @since 1.5
      */
-    @Pure
-    @StaticallyExecutable
-    public static @PolySigned int rotateRight(@PolySigned int i, int distance) {
+    
+    
+    public static  int rotateRight( int i, int distance) {
         return (i >>> distance) | (i << -distance);
     }
 
@@ -1851,9 +1833,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      *     specified {@code int} value.
      * @since 1.5
      */
-    @Pure
-    @StaticallyExecutable
-    public static @SignednessGlb int reverse(@PolySigned int i) {
+    
+    
+    public static  int reverse( int i) {
         // HD, Figure 7-1
         i = (i & 0x55555555) << 1 | (i >>> 1) & 0x55555555;
         i = (i & 0x33333333) << 2 | (i >>> 2) & 0x33333333;
@@ -1871,9 +1853,9 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @return the signum function of the specified {@code int} value.
      * @since 1.5
      */
-    @Pure
-    @StaticallyExecutable
-    public static @GTENegativeOne int signum(int i) {
+    
+    
+    public static  int signum(int i) {
         // HD, Section 2-7
         return (i >> 31) | (-i >>> 31);
     }
@@ -1887,10 +1869,10 @@ public final class Integer extends Number implements Comparable<Integer> {
      *     {@code int} value.
      * @since 1.5
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     @HotSpotIntrinsicCandidate
-    public static @SignednessGlb int reverseBytes(@PolySigned int i) {
+    public static  int reverseBytes( int i) {
         return (i << 24)            |
                ((i & 0xff00) << 8)  |
                ((i >>> 8) & 0xff00) |
@@ -1906,8 +1888,8 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public static int sum(int a, int b) {
         return a + b;
     }
@@ -1922,8 +1904,8 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public static int max(int a, int b) {
         return Math.max(a, b);
     }
@@ -1938,8 +1920,8 @@ public final class Integer extends Number implements Comparable<Integer> {
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    @Pure
-    @StaticallyExecutable
+    
+    
     public static int min(int a, int b) {
         return Math.min(a, b);
     }

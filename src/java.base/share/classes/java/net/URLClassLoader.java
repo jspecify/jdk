@@ -25,8 +25,8 @@
 
 package java.net;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.Closeable;
 import java.io.File;
@@ -83,7 +83,7 @@ import sun.security.util.SecurityConstants;
  * @author  David Connelly
  * @since   1.2
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public class URLClassLoader extends SecureClassLoader implements Closeable {
     /* The search path for classes and resources */
     private final URLClassPath ucp;

@@ -25,10 +25,8 @@
 
 package java.lang.reflect;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.Annotation;
 import java.lang.annotation.AnnotationFormatError;
@@ -256,7 +254,7 @@ import sun.reflect.annotation.AnnotationType;
  * @since 1.5
  * @author Josh Bloch
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 public interface AnnotatedElement {
     /**
      * Returns true if an annotation for the specified type
@@ -276,8 +274,8 @@ public interface AnnotatedElement {
      * @throws NullPointerException if the given annotation class is null
      * @since 1.5
      */
-    @Pure
-    default boolean isAnnotationPresent(@GuardSatisfied AnnotatedElement this, Class<? extends Annotation> annotationClass) {
+    
+    default boolean isAnnotationPresent(Class<? extends Annotation> annotationClass) {
         return getAnnotation(annotationClass) != null;
     }
 

@@ -25,14 +25,8 @@
 
 package java.lang.reflect;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
-import org.checkerframework.framework.qual.Covariant;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.misc.SharedSecrets;
 import jdk.internal.reflect.CallerSensitive;
@@ -70,14 +64,10 @@ import java.util.StringJoiner;
  * @author      Nakul Saraiya
  * @since 1.1
  */
-@CFComment({"nullness: The type argument to Constructor is meaningless.",
-"Constructor<@NonNull String> and Constructor<@Nullable String> have the same",
-"meaning, but are unrelated by the Java type hierarchy.",
-"@Covariant makes Constructor<@NonNull String> a subtype of Constructor<@Nullable String>."
-})
-@AnnotatedFor({"lock", "nullness"})
-@Covariant({0})
-public final class Constructor<T> extends Executable {
+
+@DefaultNonNull
+
+public final class Constructor<T extends @Nullable Object> extends Executable {
     private Class<T>            clazz;
     private int                 slot;
     private Class<?>[]          parameterTypes;
@@ -324,8 +314,8 @@ public final class Constructor<T> extends Executable {
      * the same if they were declared by the same class and have the
      * same formal parameter types.
      */
-    @Pure
-    public boolean equals(@GuardSatisfied Constructor<T> this, @GuardSatisfied @Nullable Object obj) {
+    
+    public boolean equals( @Nullable Object obj) {
         if (obj != null && obj instanceof Constructor) {
             Constructor<?> other = (Constructor<?>)obj;
             if (getDeclaringClass() == other.getDeclaringClass()) {
@@ -340,8 +330,8 @@ public final class Constructor<T> extends Executable {
      * the same as the hashcode for the underlying constructor's
      * declaring class name.
      */
-    @Pure
-    public int hashCode(@GuardSatisfied Constructor<T> this) {
+    
+    public int hashCode() {
         return getDeclaringClass().getName().hashCode();
     }
 
@@ -369,8 +359,8 @@ public final class Constructor<T> extends Executable {
      * @jls 8.8.3 Constructor Modifiers
      * @jls 8.9.2 Enum Body Declarations
      */
-    @SideEffectFree
-    public String toString(@GuardSatisfied Constructor<T> this) {
+    
+    public String toString() {
         return sharedToString(Modifier.constructorModifiers(),
                               false,
                               parameterTypes,
@@ -491,7 +481,7 @@ public final class Constructor<T> extends Executable {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public @NonNull T newInstance(Object ... initargs)
+    public  T newInstance(Object ... initargs)
         throws InstantiationException, IllegalAccessException,
                IllegalArgumentException, InvocationTargetException
     {
@@ -514,9 +504,9 @@ public final class Constructor<T> extends Executable {
      * {@inheritDoc}
      * @since 1.5
      */
-    @Pure
+    
     @Override
-    public boolean isVarArgs(@GuardSatisfied Constructor<T> this) {
+    public boolean isVarArgs() {
         return super.isVarArgs();
     }
 
@@ -525,9 +515,9 @@ public final class Constructor<T> extends Executable {
      * @jls 13.1 The Form of a Binary
      * @since 1.5
      */
-    @Pure
+    
     @Override
-    public boolean isSynthetic(@GuardSatisfied Constructor<T> this) {
+    public boolean isSynthetic() {
         return super.isSynthetic();
     }
 

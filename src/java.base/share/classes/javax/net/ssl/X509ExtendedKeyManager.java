@@ -25,9 +25,8 @@
 
 package javax.net.ssl;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.security.Principal;
 
@@ -41,13 +40,13 @@ import java.security.Principal;
  * @since 1.5
  * @author Brad R. Wetmore
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public abstract class X509ExtendedKeyManager implements X509KeyManager {
 
     /**
      * Constructor used by subclasses only.
      */
-    @SideEffectFree
+    
     protected X509ExtendedKeyManager() {
     }
 

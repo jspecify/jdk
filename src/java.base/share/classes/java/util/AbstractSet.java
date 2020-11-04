@@ -25,11 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class provides a skeletal implementation of the {@code Set}
@@ -61,9 +58,9 @@ import org.checkerframework.framework.qual.CFComment;
  * @since 1.2
  */
 
-@CFComment("lock/nullness: Subclasses of this interface/class may opt to prohibit null elements")
-@AnnotatedFor({"lock", "nullness"})
-public abstract class AbstractSet<E> extends AbstractCollection<E> implements Set<E> {
+
+@DefaultNonNull
+public abstract class AbstractSet<E extends @Nullable Object> extends AbstractCollection<E> implements Set<E> {
     /**
      * Sole constructor.  (For invocation by subclass constructors, typically
      * implicit.)
@@ -90,8 +87,8 @@ public abstract class AbstractSet<E> extends AbstractCollection<E> implements Se
      * @param o object to be compared for equality with this set
      * @return {@code true} if the specified object is equal to this set
      */
-    @Pure
-    public boolean equals(@GuardSatisfied AbstractSet<E> this, @GuardSatisfied @Nullable Object o) {
+    
+    public boolean equals( @Nullable Object o) {
         if (o == this)
             return true;
 
@@ -124,8 +121,8 @@ public abstract class AbstractSet<E> extends AbstractCollection<E> implements Se
      * @see Object#equals(Object)
      * @see Set#equals(Object)
      */
-    @Pure
-    public int hashCode(@GuardSatisfied AbstractSet<E> this) {
+    
+    public int hashCode() {
         int h = 0;
         Iterator<E> i = iterator();
         while (i.hasNext()) {
@@ -173,7 +170,7 @@ public abstract class AbstractSet<E> extends AbstractCollection<E> implements Se
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    public boolean removeAll(@GuardSatisfied AbstractSet<E> this, Collection<?> c) {
+    public boolean removeAll(Collection<?> c) {
         Objects.requireNonNull(c);
         boolean modified = false;
 

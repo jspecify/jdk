@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown when an application tries to call an abstract method.
@@ -39,7 +38,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class AbstractMethodError extends IncompatibleClassChangeError {
     private static final long serialVersionUID = -1654391082989018462L;
@@ -47,7 +46,7 @@ class AbstractMethodError extends IncompatibleClassChangeError {
     /**
      * Constructs an <code>AbstractMethodError</code> with no detail  message.
      */
-    @SideEffectFree
+    
     public AbstractMethodError() {
         super();
     }
@@ -58,7 +57,7 @@ class AbstractMethodError extends IncompatibleClassChangeError {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public AbstractMethodError(@Nullable String s) {
         super(s);
     }

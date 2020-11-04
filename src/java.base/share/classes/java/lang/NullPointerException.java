@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown when an application attempts to use {@code null} in a
@@ -53,7 +52,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class NullPointerException extends RuntimeException {
     private static final long serialVersionUID = 5162710183389028792L;
@@ -61,7 +60,7 @@ class NullPointerException extends RuntimeException {
     /**
      * Constructs a {@code NullPointerException} with no detail message.
      */
-    @SideEffectFree
+    
     public NullPointerException() {
         super();
     }
@@ -72,7 +71,7 @@ class NullPointerException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public NullPointerException(@Nullable String s) {
         super(s);
     }

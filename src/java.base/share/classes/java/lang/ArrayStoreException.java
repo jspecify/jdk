@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown to indicate that an attempt has been made to store the
@@ -41,7 +40,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class ArrayStoreException extends RuntimeException {
     private static final long serialVersionUID = -4522193890499838241L;
@@ -49,7 +48,7 @@ class ArrayStoreException extends RuntimeException {
     /**
      * Constructs an <code>ArrayStoreException</code> with no detail message.
      */
-    @SideEffectFree
+    
     public ArrayStoreException() {
         super();
     }
@@ -60,7 +59,7 @@ class ArrayStoreException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public ArrayStoreException(@Nullable String s) {
         super(s);
     }

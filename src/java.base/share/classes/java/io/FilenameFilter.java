@@ -25,7 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Instances of classes that implement this interface are used to
@@ -41,7 +42,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see     java.io.File#list(java.io.FilenameFilter)
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 @FunctionalInterface
 public interface FilenameFilter {
     /**

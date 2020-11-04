@@ -25,16 +25,7 @@
 
 package java.util;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.EnsuresKeyFor;
-import org.checkerframework.checker.nullness.qual.EnsuresKeyForIf;
-import org.checkerframework.checker.nullness.qual.KeyFor;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.ref.WeakReference;
 import java.lang.ref.ReferenceQueue;
@@ -144,8 +135,8 @@ import java.util.function.Consumer;
  * @see         java.util.HashMap
  * @see         java.lang.ref.WeakReference
  */
-@CFComment({"lock: permits null keys and values"})
-@AnnotatedFor({"lock", "index"})
+
+
 public class WeakHashMap<K,V>
     extends AbstractMap<K,V>
     implements Map<K,V> {
@@ -217,7 +208,7 @@ public class WeakHashMap<K,V>
      * @throws IllegalArgumentException if the initial capacity is negative,
      *         or if the load factor is nonpositive.
      */
-    public WeakHashMap(@NonNegative int initialCapacity, float loadFactor) {
+    public WeakHashMap( int initialCapacity, float loadFactor) {
         if (initialCapacity < 0)
             throw new IllegalArgumentException("Illegal Initial Capacity: "+
                                                initialCapacity);
@@ -242,7 +233,7 @@ public class WeakHashMap<K,V>
      * @param  initialCapacity The initial capacity of the {@code WeakHashMap}
      * @throws IllegalArgumentException if the initial capacity is negative
      */
-    public WeakHashMap(@NonNegative int initialCapacity) {
+    public WeakHashMap( int initialCapacity) {
         this(initialCapacity, DEFAULT_LOAD_FACTOR);
     }
 
@@ -370,8 +361,8 @@ public class WeakHashMap<K,V>
      * entries that will be removed before next attempted access
      * because they are no longer referenced.
      */
-    @Pure
-    public @NonNegative int size(@GuardSatisfied WeakHashMap<K, V> this) {
+    
+    public  int size() {
         if (size == 0)
             return 0;
         expungeStaleEntries();
@@ -384,8 +375,8 @@ public class WeakHashMap<K,V>
      * entries that will be removed before next attempted access
      * because they are no longer referenced.
      */
-    @Pure
-    public boolean isEmpty(@GuardSatisfied WeakHashMap<K, V> this) {
+    
+    public boolean isEmpty() {
         return size() == 0;
     }
 
@@ -407,8 +398,8 @@ public class WeakHashMap<K,V>
      *
      * @see #put(Object, Object)
      */
-    @Pure
-    public @Nullable V get(@GuardSatisfied WeakHashMap<K, V> this, @GuardSatisfied @Nullable Object key) {
+    
+    public @Nullable V get(@Nullable Object key) {
         Object k = maskNull(key);
         int h = hash(k);
         Entry<K,V>[] tab = getTable();
@@ -430,9 +421,9 @@ public class WeakHashMap<K,V>
      * @return {@code true} if there is a mapping for {@code key};
      *         {@code false} otherwise
      */
-    @EnsuresKeyForIf(expression={"#1"}, result=true, map={"this"})
-    @Pure
-    public boolean containsKey(@GuardSatisfied WeakHashMap<K, V> this, @GuardSatisfied @Nullable Object key) {
+    
+    
+    public boolean containsKey(@Nullable Object key) {
         return getEntry(key) != null;
     }
 
@@ -463,8 +454,8 @@ public class WeakHashMap<K,V>
      *         (A {@code null} return can also indicate that the map
      *         previously associated {@code null} with {@code key}.)
      */
-    @EnsuresKeyFor(value={"#1"}, map={"this"})
-    public @Nullable V put(@GuardSatisfied WeakHashMap<K, V> this, K key, V value) {
+    
+    public @Nullable V put(K key, V value) {
         Object k = maskNull(key);
         int h = hash(k);
         Entry<K,V>[] tab = getTable();
@@ -557,7 +548,7 @@ public class WeakHashMap<K,V>
      * @param m mappings to be stored in this map.
      * @throws  NullPointerException if the specified map is null.
      */
-    public void putAll(@GuardSatisfied WeakHashMap<K, V> this, Map<? extends K, ? extends V> m) {
+    public void putAll(Map<? extends K, ? extends V> m) {
         int numKeysToBeAdded = m.size();
         if (numKeysToBeAdded == 0)
             return;
@@ -606,7 +597,7 @@ public class WeakHashMap<K,V>
      * @return the previous value associated with {@code key}, or
      *         {@code null} if there was no mapping for {@code key}
      */
-    public @Nullable V remove(@GuardSatisfied WeakHashMap<K, V> this, @Nullable Object key) {
+    public @Nullable V remove(@Nullable Object key) {
         Object k = maskNull(key);
         int h = hash(k);
         Entry<K,V>[] tab = getTable();
@@ -666,7 +657,7 @@ public class WeakHashMap<K,V>
      * Removes all of the mappings from this map.
      * The map will be empty after this call returns.
      */
-    public void clear(@GuardSatisfied WeakHashMap<K, V> this) {
+    public void clear() {
         // clear out ref queue. We don't need to expunge entries
         // since table is getting cleared.
         while (queue.poll() != null)
@@ -691,8 +682,8 @@ public class WeakHashMap<K,V>
      * @return {@code true} if this map maps one or more keys to the
      *         specified value
      */
-    @Pure
-    public boolean containsValue(@GuardSatisfied WeakHashMap<K, V> this, @GuardSatisfied @Nullable Object value) {
+    
+    public boolean containsValue(@Nullable Object value) {
         if (value==null)
             return containsNullValue();
 
@@ -884,8 +875,8 @@ public class WeakHashMap<K,V>
      * operations.  It does not support the {@code add} or {@code addAll}
      * operations.
      */
-    @SideEffectFree
-    public Set<@KeyFor({"this"}) K> keySet(@GuardSatisfied WeakHashMap<K, V> this) {
+    
+    public Set< K> keySet() {
         Set<K> ks = keySet;
         if (ks == null) {
             ks = new KeySet();
@@ -895,13 +886,13 @@ public class WeakHashMap<K,V>
     }
 
     private class KeySet extends AbstractSet<K> {
-        @SideEffectFree
+        
         public Iterator<K> iterator() {
             return new KeyIterator();
         }
 
-        @Pure
-        public @NonNegative int size() {
+        
+        public  int size() {
             return WeakHashMap.this.size();
         }
 
@@ -922,7 +913,7 @@ public class WeakHashMap<K,V>
             WeakHashMap.this.clear();
         }
 
-        @SideEffectFree
+        
         public Spliterator<K> spliterator() {
             return new KeySpliterator<>(WeakHashMap.this, 0, -1, 0, 0);
         }
@@ -941,8 +932,8 @@ public class WeakHashMap<K,V>
      * {@code retainAll} and {@code clear} operations.  It does not
      * support the {@code add} or {@code addAll} operations.
      */
-    @SideEffectFree
-    public Collection<V> values(@GuardSatisfied WeakHashMap<K, V> this) {
+    
+    public Collection<V> values() {
         Collection<V> vs = values;
         if (vs == null) {
             vs = new Values();
@@ -952,13 +943,13 @@ public class WeakHashMap<K,V>
     }
 
     private class Values extends AbstractCollection<V> {
-        @SideEffectFree
+        
         public Iterator<V> iterator() {
             return new ValueIterator();
         }
 
-        @Pure
-        public @NonNegative int size() {
+        
+        public  int size() {
             return WeakHashMap.this.size();
         }
 
@@ -970,7 +961,7 @@ public class WeakHashMap<K,V>
             WeakHashMap.this.clear();
         }
 
-        @SideEffectFree
+        
         public Spliterator<V> spliterator() {
             return new ValueSpliterator<>(WeakHashMap.this, 0, -1, 0, 0);
         }
@@ -990,14 +981,14 @@ public class WeakHashMap<K,V>
      * {@code clear} operations.  It does not support the
      * {@code add} or {@code addAll} operations.
      */
-    @SideEffectFree
-    public Set<Map.Entry<@KeyFor({"this"}) K,V>> entrySet(@GuardSatisfied WeakHashMap<K, V> this) {
+    
+    public Set<Map.Entry< K,V>> entrySet() {
         Set<Map.Entry<K,V>> es = entrySet;
         return es != null ? es : (entrySet = new EntrySet());
     }
 
     private class EntrySet extends AbstractSet<Map.Entry<K,V>> {
-        @SideEffectFree
+        
         public Iterator<Map.Entry<K,V>> iterator() {
             return new EntryIterator();
         }
@@ -1014,8 +1005,8 @@ public class WeakHashMap<K,V>
             return removeMapping(o);
         }
 
-        @Pure
-        public @NonNegative int size() {
+        
+        public  int size() {
             return WeakHashMap.this.size();
         }
 
@@ -1030,17 +1021,17 @@ public class WeakHashMap<K,V>
             return list;
         }
 
-        @SideEffectFree
+        
         public Object[] toArray() {
             return deepCopy().toArray();
         }
 
-        @SideEffectFree
+        
         public <T> T[] toArray(T[] a) {
             return deepCopy().toArray(a);
         }
 
-        @SideEffectFree
+        
         public Spliterator<Map.Entry<K,V>> spliterator() {
             return new EntrySpliterator<>(WeakHashMap.this, 0, -1, 0, 0);
         }

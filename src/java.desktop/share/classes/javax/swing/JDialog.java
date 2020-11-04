@@ -24,8 +24,8 @@
  */
 package javax.swing;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -96,7 +96,7 @@ import javax.accessibility.*;
  * @author Scott Violet
  * @since 1.2
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 @JavaBean(defaultProperty = "JMenuBar", description = "A toplevel window for creating dialog boxes.")
 @SwingContainer(delegate = "getContentPane")
 @SuppressWarnings("serial") // Same-version serialization only

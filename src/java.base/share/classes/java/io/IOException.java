@@ -25,8 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Signals that an I/O exception of some sort has occurred. This
@@ -38,7 +38,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see     java.io.OutputStream
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class IOException extends Exception {
     static final long serialVersionUID = 7818375828146090155L;

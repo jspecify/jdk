@@ -25,17 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTEqLengthOf;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.index.qual.Positive;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -78,7 +69,7 @@ import java.util.stream.StreamSupport;
  * @since       1.1
  */
 
-@AnnotatedFor({"lock", "nullness", "index"})
+@DefaultNonNull
 public class BufferedReader extends Reader {
 
     private Reader in;
@@ -109,7 +100,7 @@ public class BufferedReader extends Reader {
      *
      * @exception  IllegalArgumentException  If {@code sz <= 0}
      */
-    public BufferedReader(Reader in, @Positive int sz) {
+    public BufferedReader(Reader in,  int sz) {
         super(in);
         if (sz <= 0)
             throw new IllegalArgumentException("Buffer size <= 0");
@@ -186,7 +177,7 @@ public class BufferedReader extends Reader {
      *         end of the stream has been reached
      * @exception  IOException  If an I/O error occurs
      */
-    public @GTENegativeOne int read(@GuardSatisfied BufferedReader this) throws IOException {
+    public  int read() throws IOException {
         synchronized (lock) {
             ensureOpen();
             for (;;) {
@@ -286,7 +277,7 @@ public class BufferedReader extends Reader {
      * @exception  IOException  If an I/O error occurs
      * @exception  IndexOutOfBoundsException {@inheritDoc}
      */
-    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(@GuardSatisfied BufferedReader this, char cbuf[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
+    public   int read(char cbuf[],  int off,   int len) throws IOException {
         synchronized (lock) {
             ensureOpen();
             if ((off < 0) || (off > cbuf.length) || (len < 0) ||
@@ -323,7 +314,7 @@ public class BufferedReader extends Reader {
      *
      * @exception  IOException  If an I/O error occurs
      */
-    String readLine(@GuardSatisfied BufferedReader this, boolean ignoreLF) throws IOException {
+    String readLine(boolean ignoreLF) throws IOException {
         StringBuffer s = null;
         int startChar;
 
@@ -400,7 +391,7 @@ public class BufferedReader extends Reader {
      *
      * @see java.nio.file.Files#readAllLines
      */
-    public @Nullable String readLine(@GuardSatisfied BufferedReader this) throws IOException {
+    public @Nullable String readLine() throws IOException {
         return readLine(false);
     }
 
@@ -414,7 +405,7 @@ public class BufferedReader extends Reader {
      * @exception  IllegalArgumentException  If <code>n</code> is negative.
      * @exception  IOException  If an I/O error occurs
      */
-    public @NonNegative long skip(@GuardSatisfied BufferedReader this, @NonNegative long n) throws IOException {
+    public  long skip( long n) throws IOException {
         if (n < 0L) {
             throw new IllegalArgumentException("skip value is negative");
         }
@@ -454,9 +445,9 @@ public class BufferedReader extends Reader {
      *
      * @exception  IOException  If an I/O error occurs
      */
-    @EnsuresNonNullIf(expression={"readLine()"}, result=true)
-    @Pure
-    public boolean ready(@GuardSatisfied BufferedReader this) throws IOException {
+    
+    
+    public boolean ready() throws IOException {
         synchronized (lock) {
             ensureOpen();
 
@@ -504,7 +495,7 @@ public class BufferedReader extends Reader {
      * @exception  IllegalArgumentException  If {@code readAheadLimit < 0}
      * @exception  IOException  If an I/O error occurs
      */
-    public void mark(@GuardSatisfied BufferedReader this, @NonNegative int readAheadLimit) throws IOException {
+    public void mark( int readAheadLimit) throws IOException {
         if (readAheadLimit < 0) {
             throw new IllegalArgumentException("Read-ahead limit < 0");
         }
@@ -522,7 +513,7 @@ public class BufferedReader extends Reader {
      * @exception  IOException  If the stream has never been marked,
      *                          or if the mark has been invalidated
      */
-    public void reset(@GuardSatisfied BufferedReader this) throws IOException {
+    public void reset() throws IOException {
         synchronized (lock) {
             ensureOpen();
             if (markedChar < 0)
@@ -534,7 +525,7 @@ public class BufferedReader extends Reader {
         }
     }
 
-    public void close(@GuardSatisfied BufferedReader this) throws IOException {
+    public void close() throws IOException {
         synchronized (lock) {
             if (in == null)
                 return;
@@ -575,7 +566,7 @@ public class BufferedReader extends Reader {
      *
      * @since 1.8
      */
-    public Stream<String> lines(@GuardSatisfied BufferedReader this) {
+    public Stream<String> lines() {
         Iterator<String> iter = new Iterator<>() {
             String nextLine = null;
 

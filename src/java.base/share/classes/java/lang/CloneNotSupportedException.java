@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown to indicate that the <code>clone</code> method in class
@@ -45,7 +44,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since   1.0
  */
 
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class CloneNotSupportedException extends Exception {
     private static final long serialVersionUID = 5195511250079656443L;
@@ -54,7 +53,7 @@ class CloneNotSupportedException extends Exception {
      * Constructs a <code>CloneNotSupportedException</code> with no
      * detail message.
      */
-    @SideEffectFree
+    
     public CloneNotSupportedException() {
         super();
     }
@@ -65,7 +64,7 @@ class CloneNotSupportedException extends Exception {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public CloneNotSupportedException(@Nullable String s) {
         super(s);
     }

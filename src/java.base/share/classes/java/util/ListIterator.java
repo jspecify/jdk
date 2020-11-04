@@ -25,11 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An iterator for lists that allows the programmer
@@ -63,8 +60,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see List#listIterator()
  * @since   1.2
  */
-@AnnotatedFor({"lock", "nullness", "index"})
-public interface ListIterator<E> extends Iterator<E> {
+@DefaultNonNull
+public interface ListIterator<E extends @Nullable Object> extends Iterator<E> {
     // Query Operations
 
     /**
@@ -76,7 +73,7 @@ public interface ListIterator<E> extends Iterator<E> {
      * @return {@code true} if the list iterator has more elements when
      *         traversing the list in the forward direction
      */
-    @Pure // @Pure is not necessary here: it's inherited from Iterator
+     // @Pure is not necessary here: it's inherited from Iterator
     boolean hasNext();
 
     /**
@@ -89,7 +86,7 @@ public interface ListIterator<E> extends Iterator<E> {
      * @return the next element in the list
      * @throws NoSuchElementException if the iteration has no next element
      */
-    E next(@GuardSatisfied ListIterator<E> this);
+    E next();
 
     /**
      * Returns {@code true} if this list iterator has more elements when
@@ -100,7 +97,7 @@ public interface ListIterator<E> extends Iterator<E> {
      * @return {@code true} if the list iterator has more elements when
      *         traversing the list in the reverse direction
      */
-    @Pure
+    
     boolean hasPrevious();
 
     /**
@@ -115,7 +112,7 @@ public interface ListIterator<E> extends Iterator<E> {
      * @throws NoSuchElementException if the iteration has no previous
      *         element
      */
-    E previous(@GuardSatisfied ListIterator<E> this);
+    E previous();
 
     /**
      * Returns the index of the element that would be returned by a
@@ -126,8 +123,8 @@ public interface ListIterator<E> extends Iterator<E> {
      *         subsequent call to {@code next}, or list size if the list
      *         iterator is at the end of the list
      */
-    @Pure
-    @NonNegative int nextIndex();
+    
+     int nextIndex();
 
     /**
      * Returns the index of the element that would be returned by a
@@ -138,8 +135,8 @@ public interface ListIterator<E> extends Iterator<E> {
      *         subsequent call to {@code previous}, or -1 if the list
      *         iterator is at the beginning of the list
      */
-    @Pure
-    @GTENegativeOne int previousIndex();
+    
+     int previousIndex();
 
 
     // Modification Operations
@@ -158,7 +155,7 @@ public interface ListIterator<E> extends Iterator<E> {
      *         {@code add} have been called after the last call to
      *         {@code next} or {@code previous}
      */
-    void remove(@GuardSatisfied ListIterator<E> this);
+    void remove();
 
     /**
      * Replaces the last element returned by {@link #next} or
@@ -180,7 +177,7 @@ public interface ListIterator<E> extends Iterator<E> {
      *         {@code add} have been called after the last call to
      *         {@code next} or {@code previous}
      */
-    void set(@GuardSatisfied ListIterator<E> this, E e);
+    void set(E e);
 
     /**
      * Inserts the specified element into the list (optional operation).
@@ -202,5 +199,5 @@ public interface ListIterator<E> extends Iterator<E> {
      * @throws IllegalArgumentException if some aspect of this element
      *         prevents it from being added to this list
      */
-    void add(@GuardSatisfied ListIterator<E> this, E e);
+    void add(E e);
 }

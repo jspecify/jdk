@@ -25,8 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * <p>Hash table and linked list implementation of the {@code Set} interface,
@@ -118,9 +118,9 @@ import org.checkerframework.framework.qual.CFComment;
  * @since   1.4
  */
 
-@CFComment({"lock/nullness: This class permits null elements"})
-@AnnotatedFor({"lock", "nullness"})
-public class LinkedHashSet<E>
+
+@DefaultNonNull
+public class LinkedHashSet<E extends @Nullable Object>
     extends HashSet<E>
     implements Set<E>, Cloneable, java.io.Serializable {
 

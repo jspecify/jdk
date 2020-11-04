@@ -29,12 +29,7 @@
 
 package java.math;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.common.value.qual.PolyValue;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import static java.math.BigInteger.LONG_MASK;
 import java.util.Arrays;
@@ -3053,8 +3048,8 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      * @see    #hashCode
      */
     @Override
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object x) {
         if (!(x instanceof BigDecimal))
             return false;
@@ -3412,7 +3407,7 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
     @Override
-    public @PolyValue long longValue(@PolyValue BigDecimal this){
+    public  long longValue(){
         return (intCompact != INFLATED && scale == 0) ?
             intCompact:
             toBigInteger().longValue();
@@ -3482,7 +3477,7 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
     @Override
-    public @PolyValue int intValue(@PolyValue BigDecimal this) {
+    public  int intValue() {
         return  (intCompact != INFLATED && scale == 0) ?
             (int)intCompact :
             toBigInteger().intValue();
@@ -3566,7 +3561,7 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
     @Override
-    public @PolyValue float floatValue(@PolyValue BigDecimal this){
+    public  float floatValue(){
         if(intCompact != INFLATED) {
             if (scale == 0) {
                 return (float)intCompact;
@@ -3611,7 +3606,7 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
     @Override
-    public @PolyValue double doubleValue(@PolyValue BigDecimal this){
+    public  double doubleValue(){
         if(intCompact != INFLATED) {
             if (scale == 0) {
                 return (double)intCompact;

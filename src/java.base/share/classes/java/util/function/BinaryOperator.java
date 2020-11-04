@@ -24,7 +24,8 @@
  */
 package java.util.function;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 import java.util.Comparator;
@@ -44,9 +45,9 @@ import java.util.Comparator;
  * @see UnaryOperator
  * @since 1.8
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 @FunctionalInterface
-public interface BinaryOperator<T> extends BiFunction<T,T,T> {
+public interface BinaryOperator<T extends @Nullable Object> extends BiFunction<T,T,T> {
     /**
      * Returns a {@link BinaryOperator} which returns the lesser of two elements
      * according to the specified {@code Comparator}.
@@ -57,7 +58,7 @@ public interface BinaryOperator<T> extends BiFunction<T,T,T> {
      *         according to the supplied {@code Comparator}
      * @throws NullPointerException if the argument is null
      */
-    public static <T> BinaryOperator<T> minBy(Comparator<? super T> comparator) {
+    public static <T extends @Nullable Object> BinaryOperator<T> minBy(Comparator<? super T> comparator) {
         Objects.requireNonNull(comparator);
         return (a, b) -> comparator.compare(a, b) <= 0 ? a : b;
     }
@@ -72,7 +73,7 @@ public interface BinaryOperator<T> extends BiFunction<T,T,T> {
      *         according to the supplied {@code Comparator}
      * @throws NullPointerException if the argument is null
      */
-    public static <T> BinaryOperator<T> maxBy(Comparator<? super T> comparator) {
+    public static <T extends @Nullable Object> BinaryOperator<T> maxBy(Comparator<? super T> comparator) {
         Objects.requireNonNull(comparator);
         return (a, b) -> comparator.compare(a, b) >= 0 ? a : b;
     }

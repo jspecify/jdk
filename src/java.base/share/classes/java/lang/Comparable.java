@@ -25,11 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 
@@ -100,8 +97,8 @@ import java.util.*;
  * @see java.util.Comparator
  * @since 1.2
  */
-@AnnotatedFor({"lock", "nullness", "index"})
-public interface Comparable<T extends @NonNull Object> {
+@DefaultNonNull
+public interface Comparable<T> {
     /**
      * Compares this object with the specified object for order.  Returns a
      * negative integer, zero, or a positive integer as this object is less
@@ -142,7 +139,7 @@ public interface Comparable<T extends @NonNull Object> {
      * @throws ClassCastException if the specified object's type prevents it
      *         from being compared to this object.
      */
-    @CFComment("nullness: arguments may NOT be null")
-    @Pure
-    public int compareTo(@GuardSatisfied Comparable<T> this, @NonNull T o);
+    
+    
+    public int compareTo( T o);
 }

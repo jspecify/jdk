@@ -24,7 +24,8 @@
  */
 package java.sql;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An object that is used to identify a generic SQL type, called a JDBC type or
@@ -32,7 +33,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *
  * @since 1.8
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface SQLType {
 
     /**

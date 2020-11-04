@@ -25,7 +25,8 @@
 
 package java.net;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -43,7 +44,7 @@ import java.util.Set;
  * @since 1.8
  */
 
-/*package*/@AnnotatedFor("nullness") class HttpConnectSocketImpl extends PlainSocketImpl {
+/*package*/@DefaultNonNull class HttpConnectSocketImpl extends PlainSocketImpl {
 
     private static final String httpURLClazzStr =
                                   "sun.net.www.protocol.http.HttpURLConnection";

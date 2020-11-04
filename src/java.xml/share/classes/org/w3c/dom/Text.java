@@ -41,10 +41,8 @@
 
 package org.w3c.dom;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The <code>Text</code> interface inherits from <code>CharacterData</code>
@@ -71,7 +69,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * an attribute.
  * <p>See also the <a href='http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407'>Document Object Model (DOM) Level 3 Core Specification</a>.
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface Text extends CharacterData {
     /**
      * Breaks this node into two nodes at the specified <code>offset</code>,
@@ -101,7 +99,7 @@ public interface Text extends CharacterData {
      * <code>Document.normalizeDocument()</code>.
      * @since 1.5, DOM Level 3
      */
-    @Pure
+    
     public boolean isElementContentWhitespace();
 
     /**
@@ -130,7 +128,7 @@ public interface Text extends CharacterData {
      *
      * @since 1.5, DOM Level 3
      */
-    @SideEffectFree
+    
     public String getWholeText();
 
     /**

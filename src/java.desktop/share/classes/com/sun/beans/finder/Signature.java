@@ -24,11 +24,7 @@
  */
 package com.sun.beans.finder;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class is designed to be a key of a cache
@@ -89,8 +85,8 @@ final class Signature {
      * @see #hashCode()
      */
     @Override
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object object) {
         if (this == object) {
             return true;

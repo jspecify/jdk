@@ -25,14 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.KeyFor;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.checker.propkey.qual.PropertyKey;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -145,7 +139,7 @@ import jdk.internal.util.xml.PropertiesDefaultHandler;
  * @author  Xueming Shen
  * @since   1.0
  */
-@AnnotatedFor({"index", "lock", "nullness", "propkey"})
+@DefaultNonNull
 public
 class Properties extends Hashtable<Object,Object> {
     /**
@@ -231,7 +225,7 @@ class Properties extends Hashtable<Object,Object> {
      * @see #getProperty
      * @since    1.2
      */
-    public synchronized @Nullable Object setProperty(@GuardSatisfied Properties this, @PropertyKey String key, String value) {
+    public synchronized @Nullable Object setProperty( String key, String value) {
         return put(key, value);
     }
 
@@ -1110,8 +1104,8 @@ class Properties extends Hashtable<Object,Object> {
      * @see     #setProperty
      * @see     #defaults
      */
-    @Pure
-    public @Nullable String getProperty(@GuardSatisfied Properties this, @PropertyKey String key) {
+    
+    public @Nullable String getProperty( String key) {
         Object oval = map.get(key);
         String sval = (oval instanceof String) ? (String)oval : null;
         Properties defaults;
@@ -1131,8 +1125,8 @@ class Properties extends Hashtable<Object,Object> {
      * @see     #setProperty
      * @see     #defaults
      */
-    @Pure
-    public @PolyNull String getProperty(@GuardSatisfied Properties this, @PropertyKey String key, @PolyNull String defaultValue) {
+    
+    public @Nullable String getProperty( String key, @Nullable String defaultValue) {
         String val = getProperty(key);
         return (val == null) ? defaultValue : val;
     }
@@ -1282,13 +1276,13 @@ class Properties extends Hashtable<Object,Object> {
     // Hashtable methods overridden and delegated to a ConcurrentHashMap instance
 
     @Override
-    @Pure
+    
     public int size() {
         return map.size();
     }
 
     @Override
-    @Pure
+    
     public boolean isEmpty() {
         return map.isEmpty();
     }
@@ -1311,13 +1305,13 @@ class Properties extends Hashtable<Object,Object> {
     }
 
     @Override
-    @Pure
+    
     public boolean containsValue(Object value) {
         return map.containsValue(value);
     }
 
     @Override
-    @Pure
+    
     public boolean containsKey(Object key) {
         return map.containsKey(key);
     }
@@ -1353,7 +1347,7 @@ class Properties extends Hashtable<Object,Object> {
     }
 
     @Override
-    public Set<@KeyFor("this") Object> keySet() {
+    public Set< Object> keySet() {
         return Collections.synchronizedSet(map.keySet(), this);
     }
 
@@ -1363,8 +1357,8 @@ class Properties extends Hashtable<Object,Object> {
     }
 
     @Override
-    @SideEffectFree
-    public Set<Map.Entry<@KeyFor("this") Object, Object>> entrySet() {
+    
+    public Set<Map.Entry< Object, Object>> entrySet() {
         return Collections.synchronizedSet(new EntrySet(map.entrySet()), this);
     }
 
@@ -1384,7 +1378,7 @@ class Properties extends Hashtable<Object,Object> {
         @Override public boolean isEmpty() { return entrySet.isEmpty(); }
         @Override public boolean contains(Object o) { return entrySet.contains(o); }
         @Override public Object[] toArray() { return entrySet.toArray(); }
-        @Override public <T> T[] toArray(T[] a) { return entrySet.toArray(a); }
+        @Override public <T extends @Nullable Object> T[] toArray(T[] a) { return entrySet.toArray(a); }
         @Override public void clear() { entrySet.clear(); }
         @Override public boolean remove(Object o) { return entrySet.remove(o); }
 

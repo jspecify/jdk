@@ -21,11 +21,7 @@
 
 package com.sun.org.apache.xerces.internal.impl.dtd.models;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -287,8 +283,8 @@ public class CMStateSet
     int         fBits2;
     byte[]      fByteArray;
     /* Optimization(Jan, 2001) */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object o) {
         if (!(o instanceof CMStateSet)) return false;
         return isSameSet((CMStateSet)o);

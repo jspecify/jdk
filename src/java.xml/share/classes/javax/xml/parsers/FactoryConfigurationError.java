@@ -25,8 +25,8 @@
 
 package javax.xml.parsers;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown when a problem with configuration with the Parser Factories
@@ -38,7 +38,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since 1.4
  */
 
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public class FactoryConfigurationError extends Error {
     private static final long serialVersionUID = -827108682472263355L;
 

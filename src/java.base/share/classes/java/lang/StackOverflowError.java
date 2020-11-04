@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown when a stack overflow occurs because an application
@@ -36,7 +35,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author unascribed
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class StackOverflowError extends VirtualMachineError {
     private static final long serialVersionUID = 8609175038441759607L;
@@ -44,7 +43,7 @@ class StackOverflowError extends VirtualMachineError {
     /**
      * Constructs a <code>StackOverflowError</code> with no detail message.
      */
-    @SideEffectFree
+    
     public StackOverflowError() {
         super();
     }
@@ -55,7 +54,7 @@ class StackOverflowError extends VirtualMachineError {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public StackOverflowError(@Nullable String s) {
         super(s);
     }

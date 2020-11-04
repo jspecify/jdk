@@ -25,11 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.nio.channels.FileChannel;
 import jdk.internal.misc.SharedSecrets;
@@ -72,7 +69,7 @@ import sun.nio.ch.FileChannelImpl;
  * @see     java.nio.file.Files#newOutputStream
  * @since   1.0
  */
-@AnnotatedFor({"nullness", "index", "signedness"})
+@DefaultNonNull
 public
 class FileOutputStream extends OutputStream
 {
@@ -321,7 +318,7 @@ class FileOutputStream extends OutputStream
      * @param      b   the byte to be written.
      * @exception  IOException  if an I/O error occurs.
      */
-    public void write(@PolySigned int b) throws IOException {
+    public void write( int b) throws IOException {
         write(b, fdAccess.getAppend(fd));
     }
 
@@ -334,7 +331,7 @@ class FileOutputStream extends OutputStream
      *     end of file
      * @exception IOException If an I/O error has occurred.
      */
-    private native void writeBytes(@PolySigned byte b[], int off, int len, boolean append)
+    private native void writeBytes( byte b[], int off, int len, boolean append)
         throws IOException;
 
     /**
@@ -344,7 +341,7 @@ class FileOutputStream extends OutputStream
      * @param      b   the data.
      * @exception  IOException  if an I/O error occurs.
      */
-    public void write(@PolySigned byte b[]) throws IOException {
+    public void write( byte b[]) throws IOException {
         writeBytes(b, 0, b.length, fdAccess.getAppend(fd));
     }
 
@@ -357,7 +354,7 @@ class FileOutputStream extends OutputStream
      * @param      len   the number of bytes to write.
      * @exception  IOException  if an I/O error occurs.
      */
-    public void write(@PolySigned byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
+    public void write( byte b[],  int off,   int len) throws IOException {
         writeBytes(b, off, len, fdAccess.getAppend(fd));
     }
 

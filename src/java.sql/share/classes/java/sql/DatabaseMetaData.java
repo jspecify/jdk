@@ -26,8 +26,8 @@
 
 package java.sql;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Comprehensive information about the database as a whole.
@@ -73,7 +73,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *
  * @since 1.1
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface DatabaseMetaData extends Wrapper {
 
     //----------------------------------------------------------------------

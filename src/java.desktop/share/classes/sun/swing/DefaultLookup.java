@@ -24,15 +24,14 @@
  */
 package sun.swing;
 
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 import java.awt.Color;
 import java.awt.Insets;
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.plaf.ComponentUI;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import sun.awt.AppContext;
 
@@ -48,7 +47,7 @@ import sun.awt.AppContext;
  *
  * @author Scott Violet
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class DefaultLookup {
     /**
      * Key used to store DefaultLookup for AppContext.
@@ -148,8 +147,8 @@ public class DefaultLookup {
         return getInt(c, ui, key, -1);
     }
 
-    public static @PolyNull Insets getInsets(JComponent c, ComponentUI ui, String key,
-                                   @PolyNull Insets defaultValue) {
+    public static @Nullable Insets getInsets(JComponent c, ComponentUI ui, String key,
+                                   @Nullable Insets defaultValue) {
         Object iValue = get(c, ui, key);
 
         if (iValue == null || !(iValue instanceof Insets)) {
@@ -176,8 +175,8 @@ public class DefaultLookup {
         return getBoolean(c, ui, key, false);
     }
 
-    public static @PolyNull Color getColor(JComponent c, ComponentUI ui, String key,
-                                 @PolyNull Color defaultValue) {
+    public static @Nullable Color getColor(JComponent c, ComponentUI ui, String key,
+                                 @Nullable Color defaultValue) {
         Object iValue = get(c, ui, key);
 
         if (iValue == null || !(iValue instanceof Color)) {
@@ -190,8 +189,8 @@ public class DefaultLookup {
         return getColor(c, ui, key, null);
     }
 
-    public static @PolyNull Icon getIcon(JComponent c, ComponentUI ui, String key,
-            @PolyNull Icon defaultValue) {
+    public static @Nullable Icon getIcon(JComponent c, ComponentUI ui, String key,
+            @Nullable Icon defaultValue) {
         Object iValue = get(c, ui, key);
         if (iValue == null || !(iValue instanceof Icon)) {
             return defaultValue;
@@ -203,8 +202,8 @@ public class DefaultLookup {
         return getIcon(c, ui, key, null);
     }
 
-    public static @PolyNull Border getBorder(JComponent c, ComponentUI ui, String key,
-            @PolyNull Border defaultValue) {
+    public static @Nullable Border getBorder(JComponent c, ComponentUI ui, String key,
+            @Nullable Border defaultValue) {
         Object iValue = get(c, ui, key);
         if (iValue == null || !(iValue instanceof Border)) {
             return defaultValue;

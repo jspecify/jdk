@@ -25,9 +25,8 @@
 
 package javax.xml.stream;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This interface is used to resolve resources during an XML parse.  If an application wishes to
@@ -38,7 +37,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author Copyright (c) 2009 by Oracle Corporation. All Rights Reserved.
  * @since 1.6
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface XMLResolver {
 
   /**
@@ -54,7 +53,7 @@ public interface XMLResolver {
    * @return The resource requested or null.
    * @throws XMLStreamException if there was a failure attempting to resolve the resource.
    */
-  @Pure
+  
   public @Nullable Object resolveEntity(@Nullable String publicID,
                               String systemID,
                               @Nullable String baseURI,

@@ -25,8 +25,8 @@
 
 package com.sun.javadoc;
 
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a member of a java class: field, constructor, or method.
@@ -46,7 +46,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *   in the package {@code jdk.javadoc.doclet}.
  *   For more information, see the <i>Migration Guide</i> in the documentation for that package.
  */
-@AnnotatedFor({"lock", "nullness", "signature", "value"})
+@DefaultNonNull
 @Deprecated(since="9", forRemoval=true)
 @SuppressWarnings("removal")
 public interface MemberDoc extends ProgramElementDoc {
@@ -56,6 +56,6 @@ public interface MemberDoc extends ProgramElementDoc {
      *
      * @return true if this member was synthesized by the compiler.
      */
-    @Pure
+    
     boolean isSynthetic();
 }

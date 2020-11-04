@@ -25,9 +25,8 @@
 
 package javax.xml.parsers;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl;
 import javax.xml.validation.Schema;
@@ -42,7 +41,7 @@ import javax.xml.validation.Schema;
  * @since 1.4
  */
 
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public abstract class DocumentBuilderFactory {
 
     private boolean validating = false;
@@ -504,7 +503,7 @@ public abstract class DocumentBuilderFactory {
      *
      * @since 1.5
      */
-    @CFComment("nullness: this.getClass().getPackage() is non-null as this class is in the `parsers` package")
+    
     @SuppressWarnings({"nullness"})
     public @Nullable Schema getSchema() {
         throw new UnsupportedOperationException(
@@ -573,7 +572,7 @@ public abstract class DocumentBuilderFactory {
      *
      * @since 1.5
      */
-    @CFComment("nullness: this.getClass().getPackage() is non-null as this class is in the `parsers` package")
+    
     @SuppressWarnings({"nullness"})
     public void setSchema(@Nullable Schema schema) {
         throw new UnsupportedOperationException(
@@ -622,7 +621,7 @@ public abstract class DocumentBuilderFactory {
      *
      * @since 1.5
      */
-    @CFComment("nullness: this.getClass().getPackage() is non-null as this class is in the `parsers` package")
+    
     @SuppressWarnings({"nullness"})
     public boolean isXIncludeAware() {
         throw new UnsupportedOperationException(

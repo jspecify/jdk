@@ -25,8 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A task that can be scheduled for one-time or repeated execution by a
@@ -40,8 +40,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since   1.3
  */
 
-@AnnotatedFor({"interning", "lock", "nullness"})
-public abstract @UsesObjectEquals class TimerTask implements Runnable {
+@DefaultNonNull
+public abstract  class TimerTask implements Runnable {
     /**
      * This object is used to control access to the TimerTask internals.
      */

@@ -25,12 +25,8 @@
 
 package java.util.logging;
 
-import org.checkerframework.checker.initialization.qual.UnderInitialization;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.signature.qual.BinaryName;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.*;
@@ -79,8 +75,8 @@ import static jdk.internal.logger.SurrogateLogger.isFilteredFrame;
  * @since 1.4
  */
 
-@AnnotatedFor({"index", "interning", "nullness"})
-public @UsesObjectEquals class LogRecord implements java.io.Serializable {
+@DefaultNonNull
+public  class LogRecord implements java.io.Serializable {
     private static final AtomicLong globalSequenceNumber
         = new AtomicLong(0);
 
@@ -195,7 +191,7 @@ public @UsesObjectEquals class LogRecord implements java.io.Serializable {
     /**
      * Returns the default value for a new LogRecord's threadID.
      */
-    private int defaultThreadID(@UnderInitialization LogRecord this) {
+    private int defaultThreadID() {
         long tid = Thread.currentThread().getId();
         if (tid < MIN_SEQUENTIAL_THREAD_ID) {
             return (int) tid;
@@ -287,7 +283,7 @@ public @UsesObjectEquals class LogRecord implements java.io.Serializable {
      * The result may be null if the message is not localizable.
      * @return the localization resource bundle name
      */
-    public @Nullable @BinaryName String getResourceBundleName() {
+    public @Nullable  String getResourceBundleName() {
         return resourceBundleName;
     }
 
@@ -573,7 +569,7 @@ public @UsesObjectEquals class LogRecord implements java.io.Serializable {
      * a null String is written.  Otherwise the output of Object.toString()
      * is written.
      */
-    @CFComment({"nullness: out.writeInt and out.writeObject do not affect parameters field. http://tinyurl.com/cfissue/984"})
+    
     @SuppressWarnings({"dereference.of.nullable"})
     private void writeObject(ObjectOutputStream out) throws IOException {
         // We have to write serialized fields first.
@@ -605,7 +601,7 @@ public @UsesObjectEquals class LogRecord implements java.io.Serializable {
         }
     }
 
-    @CFComment({"nullness: in.readObject does not affect parameters field. http://tinyurl.com/cfissue/984"})
+    
     @SuppressWarnings({"dereference.of.nullable"})
     private void readObject(ObjectInputStream in)
                         throws IOException, ClassNotFoundException {

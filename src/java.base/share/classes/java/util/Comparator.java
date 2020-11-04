@@ -25,12 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.Serializable;
 import java.util.function.Function;
@@ -112,11 +108,10 @@ import java.util.Comparators;
  * @see java.io.Serializable
  * @since 1.2
  */
-@CFComment({"lock/nullness: Javadoc says: \"a comparator may optionally permit comparison of null",
-"arguments, while maintaining the requirements for an equivalence relation.\""})
-@AnnotatedFor({"lock", "nullness", "index"})
+
+@DefaultNonNull
 @FunctionalInterface
-public interface Comparator<T> {
+public interface Comparator<T extends @Nullable Object> {
     /**
      * Compares its two arguments for order.  Returns a negative integer,
      * zero, or a positive integer as the first argument is less than, equal
@@ -181,8 +176,8 @@ public interface Comparator<T> {
      * @see Object#equals(Object)
      * @see Object#hashCode()
      */
-    @Pure
-    boolean equals(@GuardSatisfied Comparator<T> this, @GuardSatisfied @Nullable Object obj);
+    
+    boolean equals( @Nullable Object obj);
 
     /**
      * Returns a comparator that imposes the reverse ordering of this
@@ -246,7 +241,7 @@ public interface Comparator<T> {
      * @see #thenComparing(Comparator)
      * @since 1.8
      */
-    default <U> Comparator<T> thenComparing(
+    default <U extends @Nullable Object> Comparator<T> thenComparing(
             Function<? super T, ? extends U> keyExtractor,
             Comparator<? super U> keyComparator)
     {
@@ -364,7 +359,7 @@ public interface Comparator<T> {
      * @since 1.8
      */
     @SuppressWarnings("unchecked")
-    public static <T extends Comparable<@NonNull ? super @NonNull T>> Comparator<T> naturalOrder() {
+    public static <T extends Comparable< ? super  T>> Comparator<T> naturalOrder() {
         return (Comparator<T>) Comparators.NaturalOrderComparator.INSTANCE;
     }
 
@@ -385,7 +380,7 @@ public interface Comparator<T> {
      *         {@code Comparator}.
      * @since 1.8
      */
-    public static <T> Comparator<@Nullable T> nullsFirst(Comparator<@Nullable ? super T> comparator) {
+    public static <T extends @Nullable Object> Comparator<@Nullable T> nullsFirst(Comparator< ? super T> comparator) {
         return new Comparators.NullComparator<>(true, comparator);
     }
 
@@ -406,7 +401,7 @@ public interface Comparator<T> {
      *         {@code Comparator}.
      * @since 1.8
      */
-    public static <T> Comparator<@Nullable T> nullsLast(Comparator<@Nullable ? super T> comparator) {
+    public static <T extends @Nullable Object> Comparator<@Nullable T> nullsLast(Comparator< ? super T> comparator) {
         return new Comparators.NullComparator<>(false, comparator);
     }
 
@@ -437,7 +432,7 @@ public interface Comparator<T> {
      * @throws NullPointerException if either argument is null
      * @since 1.8
      */
-    public static <T, U> Comparator<T> comparing(
+    public static <T extends @Nullable Object, U extends @Nullable Object> Comparator<T> comparing(
             Function<? super T, ? extends U> keyExtractor,
             Comparator<? super U> keyComparator)
     {
@@ -472,7 +467,7 @@ public interface Comparator<T> {
      * @throws NullPointerException if the argument is null
      * @since 1.8
      */
-    public static <T, U extends Comparable<? super U>> Comparator<T> comparing(
+    public static <T extends @Nullable Object, U extends Comparable<? super U>> Comparator<T> comparing(
             Function<? super T, ? extends U> keyExtractor)
     {
         Objects.requireNonNull(keyExtractor);
@@ -495,7 +490,7 @@ public interface Comparator<T> {
      * @throws NullPointerException if the argument is null
      * @since 1.8
      */
-    public static <T> Comparator<T> comparingInt(ToIntFunction<? super T> keyExtractor) {
+    public static <T extends @Nullable Object> Comparator<T> comparingInt(ToIntFunction<? super T> keyExtractor) {
         Objects.requireNonNull(keyExtractor);
         return (Comparator<T> & Serializable)
             (c1, c2) -> Integer.compare(keyExtractor.applyAsInt(c1), keyExtractor.applyAsInt(c2));
@@ -516,7 +511,7 @@ public interface Comparator<T> {
      * @throws NullPointerException if the argument is null
      * @since 1.8
      */
-    public static <T> Comparator<T> comparingLong(ToLongFunction<? super T> keyExtractor) {
+    public static <T extends @Nullable Object> Comparator<T> comparingLong(ToLongFunction<? super T> keyExtractor) {
         Objects.requireNonNull(keyExtractor);
         return (Comparator<T> & Serializable)
             (c1, c2) -> Long.compare(keyExtractor.applyAsLong(c1), keyExtractor.applyAsLong(c2));
@@ -537,7 +532,7 @@ public interface Comparator<T> {
      * @throws NullPointerException if the argument is null
      * @since 1.8
      */
-    public static<T> Comparator<T> comparingDouble(ToDoubleFunction<? super T> keyExtractor) {
+    public static<T extends @Nullable Object> Comparator<T> comparingDouble(ToDoubleFunction<? super T> keyExtractor) {
         Objects.requireNonNull(keyExtractor);
         return (Comparator<T> & Serializable)
             (c1, c2) -> Double.compare(keyExtractor.applyAsDouble(c1), keyExtractor.applyAsDouble(c2));

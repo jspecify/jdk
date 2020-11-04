@@ -25,14 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.net.URI;
 import java.net.URL;
@@ -154,12 +148,8 @@ import sun.security.action.GetPropertyAction;
  * @since   1.0
  */
 
-@CFComment({"nullness:",
-"This @EnsuresNonNullIfTrue is not true, since the list methods also",
-"return null in the case of an IO error (instead of throwing IOException).",
-"EnsuresNonNullIf(expression={\"list()\",\"list(FilenameFilter)\",\"listFiles()\",\"listFiles(FilenameFilter)\",\"listFiles(FileFilter)\"}, result=true)\""
-})
-@AnnotatedFor({"index", "interning", "lock", "nullness"})
+
+@DefaultNonNull
 public class File
     implements Serializable, Comparable<File>
 {
@@ -233,7 +223,7 @@ public class File
      * string for convenience.  This string contains a single character, namely
      * {@link #separatorChar}.
      */
-    public static final @Interned String separator = "" + separatorChar;
+    public static final  String separator = "" + separatorChar;
 
     /**
      * The system-dependent path-separator character.  This field is
@@ -252,7 +242,7 @@ public class File
      * for convenience.  This string contains a single character, namely
      * {@link #pathSeparatorChar}.
      */
-    public static final @Interned String pathSeparator = "" + pathSeparatorChar;
+    public static final  String pathSeparator = "" + pathSeparatorChar;
 
 
     /* -- Constructors -- */
@@ -484,8 +474,8 @@ public class File
      *          abstract pathname, or <code>null</code> if this pathname
      *          does not name a parent
      */
-    @Pure
-    public @Nullable String getParent(@GuardSatisfied File this) {
+    
+    public @Nullable String getParent() {
         int index = path.lastIndexOf(separatorChar);
         if (index < prefixLength) {
             if ((prefixLength > 0) && (path.length() > prefixLength))
@@ -511,8 +501,8 @@ public class File
      *
      * @since 1.2
      */
-    @Pure
-    public @Nullable File getParentFile(@GuardSatisfied File this) {
+    
+    public @Nullable File getParentFile() {
         String p = this.getParent();
         if (p == null) return null;
         return new File(p, this.prefixLength);
@@ -542,8 +532,8 @@ public class File
      * @return  <code>true</code> if this abstract pathname is absolute,
      *          <code>false</code> otherwise
      */
-    @Pure
-    public boolean isAbsolute(@GuardSatisfied File this) {
+    
+    public boolean isAbsolute() {
         return fs.isAbsolute(this);
     }
 
@@ -857,8 +847,8 @@ public class File
      *          java.lang.SecurityManager#checkRead(java.lang.String)}
      *          method denies read access to the file
      */
-    @Pure
-    public boolean isDirectory(@GuardSatisfied File this) {
+    
+    public boolean isDirectory() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkRead(path);
@@ -891,8 +881,8 @@ public class File
      *          java.lang.SecurityManager#checkRead(java.lang.String)}
      *          method denies read access to the file
      */
-    @Pure
-    public boolean isFile(@GuardSatisfied File this) {
+    
+    public boolean isFile() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkRead(path);
@@ -921,8 +911,8 @@ public class File
      *
      * @since 1.2
      */
-    @Pure
-    public boolean isHidden(@GuardSatisfied File this) {
+    
+    public boolean isHidden() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkRead(path);
@@ -996,7 +986,7 @@ public class File
      *          java.lang.SecurityManager#checkRead(java.lang.String)}
      *          method denies read access to the file
      */
-    public @NonNegative long length() {
+    public  long length() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkRead(path);
@@ -1830,7 +1820,7 @@ public class File
      *
      * @since  1.6
      */
-    public @NonNegative long getTotalSpace() {
+    public  long getTotalSpace() {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new RuntimePermission("getFileSystemAttributes"));
@@ -1868,7 +1858,7 @@ public class File
      *
      * @since  1.6
      */
-    public @NonNegative long getFreeSpace() {
+    public  long getFreeSpace() {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new RuntimePermission("getFileSystemAttributes"));
@@ -1909,7 +1899,7 @@ public class File
      *
      * @since  1.6
      */
-    public @NonNegative long getUsableSpace() {
+    public  long getUsableSpace() {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new RuntimePermission("getFileSystemAttributes"));
@@ -2176,8 +2166,8 @@ public class File
      *
      * @since   1.2
      */
-    @Pure
-    public int compareTo(@GuardSatisfied File this, @GuardSatisfied File pathname) {
+    
+    public int compareTo( File pathname) {
         return fs.compare(this, pathname);
     }
 
@@ -2195,8 +2185,8 @@ public class File
      * @return  <code>true</code> if and only if the objects are the same;
      *          <code>false</code> otherwise
      */
-    @Pure
-    public boolean equals(@GuardSatisfied File this, @GuardSatisfied @Nullable Object obj) {
+    
+    public boolean equals( @Nullable Object obj) {
         if ((obj != null) && (obj instanceof File)) {
             return compareTo((File)obj) == 0;
         }
@@ -2217,8 +2207,8 @@ public class File
      *
      * @return  A hash code for this abstract pathname
      */
-    @Pure
-    public int hashCode(@GuardSatisfied File this) {
+    
+    public int hashCode() {
         return fs.hashCode(this);
     }
 
@@ -2228,8 +2218,8 @@ public class File
      *
      * @return  The string form of this abstract pathname
      */
-    @SideEffectFree
-    public String toString(@GuardSatisfied File this) {
+    
+    public String toString() {
         return getPath();
     }
 

@@ -24,6 +24,8 @@
  */
 package javax.swing;
 
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 import java.applet.Applet;
 import java.awt.*;
 import java.awt.event.*;
@@ -38,9 +40,6 @@ import javax.swing.border.*;
 import sun.awt.AWTAccessor;
 import sun.security.action.GetBooleanAction;
 
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 
 /**
@@ -207,7 +206,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since 1.2
  */
 /// PENDING(klobad) Who should be opaque in this component?
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 @SuppressWarnings("serial")
 public class JRootPane extends JComponent implements Accessible {
 
@@ -309,7 +308,7 @@ public class JRootPane extends JComponent implements Accessible {
     private int windowDecorationStyle;
 
     /** The menu bar. */
-    protected @MonotonicNonNull JMenuBar menuBar;
+    protected  JMenuBar menuBar;
 
     /** The content pane. */
     protected Container contentPane;

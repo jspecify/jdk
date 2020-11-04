@@ -25,11 +25,7 @@
 
 package sun.font;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.FontFormatException;
 import java.awt.geom.GeneralPath;
@@ -46,8 +42,8 @@ public abstract class PhysicalFont extends Font2D {
     // nativeNames is a String or a (possibly null) String[].
     protected Object nativeNames;
 
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object o) {
         return (o != null && o.getClass() == this.getClass() &&
                 ((Font2D)o).fullName.equals(this.fullName));

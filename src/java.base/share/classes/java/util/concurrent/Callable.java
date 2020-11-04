@@ -35,8 +35,8 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A task that returns a result and may throw an exception.
@@ -57,10 +57,10 @@ import org.checkerframework.framework.qual.CFComment;
  * @author Doug Lea
  * @param <V> the result type of method {@code call}
  */
-@CFComment({"nullness: Make upper bound explicit for clarity."})
-@AnnotatedFor({"nullness"})
+
+@DefaultNonNull
 @FunctionalInterface
-public interface Callable<V> {
+public interface Callable<V extends @Nullable Object> {
     /**
      * Computes a result, or throws an exception if unable to do so.
      *

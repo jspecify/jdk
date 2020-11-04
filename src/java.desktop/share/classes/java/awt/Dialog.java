@@ -24,8 +24,8 @@
  */
 package java.awt;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.peer.DialogPeer;
 import java.awt.event.*;
@@ -37,7 +37,6 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import javax.accessibility.*;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 import sun.awt.AppContext;
 import sun.awt.AWTPermissions;
@@ -99,7 +98,7 @@ import java.security.AccessControlException;
  * @author      Arthur van Hoff
  * @since       1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class Dialog extends Window {
 
     static {

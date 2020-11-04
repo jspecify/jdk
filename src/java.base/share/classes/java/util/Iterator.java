@@ -25,11 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
-import org.checkerframework.framework.qual.Covariant;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.Consumer;
 
@@ -61,12 +58,10 @@ import java.util.function.Consumer;
  * @see Iterable
  * @since 1.2
  */
-@CFComment({"nullness: This @Covariant annotation is sound, but it would not be sound on",
-            "ListIterator (a subclass of Iterator), which supports a set operation."
-})
-@AnnotatedFor({"lock", "nullness"})
-@Covariant({0})
-public interface Iterator<E> {
+
+@DefaultNonNull
+
+public interface Iterator<E extends @Nullable Object> {
     /**
      * Returns {@code true} if the iteration has more elements.
      * (In other words, returns {@code true} if {@link #next} would
@@ -74,8 +69,8 @@ public interface Iterator<E> {
      *
      * @return {@code true} if the iteration has more elements
      */
-    @Pure
-    boolean hasNext(@GuardSatisfied Iterator<E> this);
+    
+    boolean hasNext();
 
     /**
      * Returns the next element in the iteration.
@@ -83,7 +78,7 @@ public interface Iterator<E> {
      * @return the next element in the iteration
      * @throws NoSuchElementException if the iteration has no more elements
      */
-    E next(@GuardSatisfied Iterator<E> this);
+    E next();
 
     /**
      * Removes from the underlying collection the last element returned
@@ -110,7 +105,7 @@ public interface Iterator<E> {
      *         been called after the last call to the {@code next}
      *         method
      */
-    default void remove(@GuardSatisfied Iterator<E> this) {
+    default void remove() {
         throw new UnsupportedOperationException("remove");
     }
 

@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown to indicate that a thread has attempted to wait on an
@@ -42,7 +41,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see     java.lang.Object#wait(long, int)
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class IllegalMonitorStateException extends RuntimeException {
     private static final long serialVersionUID = 3713306369498869069L;
@@ -51,7 +50,7 @@ class IllegalMonitorStateException extends RuntimeException {
      * Constructs an <code>IllegalMonitorStateException</code> with no
      * detail message.
      */
-    @SideEffectFree
+    
     public IllegalMonitorStateException() {
         super();
     }
@@ -62,7 +61,7 @@ class IllegalMonitorStateException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public IllegalMonitorStateException(@Nullable String s) {
         super(s);
     }

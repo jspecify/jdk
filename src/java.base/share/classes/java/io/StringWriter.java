@@ -25,13 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -46,7 +41,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since       1.1
  */
 
-@AnnotatedFor({"lock", "nullness", "index"})
+@DefaultNonNull
 public class StringWriter extends Writer {
 
     private StringBuffer buf;
@@ -71,7 +66,7 @@ public class StringWriter extends Writer {
      * @throws IllegalArgumentException
      *         If {@code initialSize} is negative
      */
-    public StringWriter(@NonNegative int initialSize) {
+    public StringWriter( int initialSize) {
         if (initialSize < 0) {
             throw new IllegalArgumentException("Negative buffer size");
         }
@@ -98,7 +93,7 @@ public class StringWriter extends Writer {
      *          or {@code off + len} is negative or greater than the length
      *          of the given array
      */
-    public void write(char cbuf[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) {
+    public void write(char cbuf[],  int off,   int len) {
         if ((off < 0) || (off > cbuf.length) || (len < 0) ||
             ((off + len) > cbuf.length) || ((off + len) < 0)) {
             throw new IndexOutOfBoundsException();
@@ -127,7 +122,7 @@ public class StringWriter extends Writer {
      *          or {@code off + len} is negative or greater than the length
      *          of the given string
      */
-    public void write(String str, @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len)  {
+    public void write(String str,  int off,   int len)  {
         buf.append(str, off, off + len);
     }
 
@@ -194,7 +189,7 @@ public class StringWriter extends Writer {
      *
      * @since  1.5
      */
-    public StringWriter append(@Nullable CharSequence csq, @IndexOrHigh({"#1"}) int start, @IndexOrHigh({"#1"}) int end) {
+    public StringWriter append(@Nullable CharSequence csq,  int start,  int end) {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }
@@ -223,8 +218,8 @@ public class StringWriter extends Writer {
     /**
      * Return the buffer's current value as a string.
      */
-    @SideEffectFree
-    public String toString(@GuardSatisfied StringWriter this) {
+    
+    public String toString() {
         return buf.toString();
     }
 

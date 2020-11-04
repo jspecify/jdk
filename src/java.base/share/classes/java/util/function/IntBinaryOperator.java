@@ -24,7 +24,8 @@
  */
 package java.util.function;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents an operation upon two {@code int}-valued operands and producing an
@@ -38,7 +39,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see IntUnaryOperator
  * @since 1.8
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 @FunctionalInterface
 public interface IntBinaryOperator {
 

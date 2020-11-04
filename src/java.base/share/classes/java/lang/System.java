@@ -24,17 +24,8 @@
  */
 package java.lang;
 
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.dataflow.qual.TerminatesExecution;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -100,8 +91,8 @@ import sun.security.util.SecurityConstants;
  *
  * @since   1.0
  */
-@AnnotatedFor({"index", "interning", "lock", "nullness", "signedness"})
-public final @UsesObjectEquals class System {
+@DefaultNonNull
+public final  class System {
     /* Register the natives via the static initializer.
      *
      * VM will invoke the initializeSystemClass method to complete
@@ -540,11 +531,11 @@ public final @UsesObjectEquals class System {
      * @throws     NullPointerException if either {@code src} or
      *             {@code dest} is {@code null}.
      */
-    @SideEffectFree
+    
     @HotSpotIntrinsicCandidate
-    public static native void arraycopy(@PolySigned @GuardSatisfied Object src,  @NonNegative int  srcPos,
-                                        @PolySigned @GuardSatisfied Object dest, @NonNegative int destPos,
-                                        @LTLengthOf(value={"#1", "#3"}, offset={"#2 - 1", "#4 - 1"}) @NonNegative int length);
+    public static native void arraycopy(  Object src,   int  srcPos,
+                                          Object dest,  int destPos,
+                                          int length);
 
     /**
      * Returns the same hash code for the given object as
@@ -559,9 +550,9 @@ public final @UsesObjectEquals class System {
      * @see Object#hashCode
      * @see java.util.Objects#hashCode(Object)
      */
-    @Pure
+    
     @HotSpotIntrinsicCandidate
-    public static native int identityHashCode(@GuardSatisfied @Nullable Object x);
+    public static native int identityHashCode( @Nullable Object x);
 
     /**
      * System properties. The following properties are guaranteed to be defined:
@@ -818,7 +809,7 @@ public final @UsesObjectEquals class System {
      * @see        java.lang.SecurityManager#checkPropertyAccess(java.lang.String)
      * @see        java.lang.System#getProperties()
      */
-    @Pure
+    
     public static @Nullable String getProperty(String key) {
         checkKey(key);
         SecurityManager sm = getSecurityManager();
@@ -854,8 +845,8 @@ public final @UsesObjectEquals class System {
      * @see        java.lang.SecurityManager#checkPropertyAccess(java.lang.String)
      * @see        java.lang.System#getProperties()
      */
-    @Pure
-    public static @PolyNull String getProperty(String key, @PolyNull String def) {
+    
+    public static @Nullable String getProperty(String key, @Nullable String def) {
         checkKey(key);
         SecurityManager sm = getSecurityManager();
         if (sm != null) {
@@ -1759,7 +1750,7 @@ public final @UsesObjectEquals class System {
      *        method doesn't allow exit with the specified status.
      * @see        java.lang.Runtime#exit(int)
      */
-    @TerminatesExecution
+    
     public static void exit(int status) {
         Runtime.getRuntime().exit(status);
     }

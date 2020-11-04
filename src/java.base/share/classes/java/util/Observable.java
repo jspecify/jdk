@@ -25,12 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class represents an observable object, or "data"
@@ -79,16 +75,10 @@ import org.checkerframework.framework.qual.CFComment;
  * For reactive streams style programming, see the
  * {@link java.util.concurrent.Flow} API.
  */
-@CFComment({"guieffect:",
-    "@PolyUIType class Observable {",
-        "@SafeEffect void addObserver(@PolyUI Observable this, @PolyUI Observer o);",
-        "@SafeEffect void deleteObserver(@PolyUI Observable this, @PolyUI Observer o);",
-        "@PolyUIEffect void notifyObservers(@PolyUI Observable this);" ,
-        "@PolyUIEffect void notifyObservers(@PolyUI Observable this, Object arg);}"
-})
-@AnnotatedFor({"index", "interning", "lock", "nullness"})
+
+@DefaultNonNull
 @Deprecated(since="9")
-public @UsesObjectEquals class Observable {
+public  class Observable {
     private boolean changed = false;
     private Vector<Observer> obs;
 
@@ -107,7 +97,7 @@ public @UsesObjectEquals class Observable {
      * @param   o   an observer to be added.
      * @throws NullPointerException   if the parameter o is null.
      */
-    public synchronized void addObserver(@GuardSatisfied Observable this, Observer o) {
+    public synchronized void addObserver(Observer o) {
         if (o == null)
             throw new NullPointerException();
         if (!obs.contains(o)) {
@@ -120,7 +110,7 @@ public @UsesObjectEquals class Observable {
      * Passing {@code null} to this method will have no effect.
      * @param   o   the observer to be deleted.
      */
-    public synchronized void deleteObserver(@GuardSatisfied Observable this, @Nullable Observer o) {
+    public synchronized void deleteObserver(@Nullable Observer o) {
         obs.removeElement(o);
     }
 
@@ -191,7 +181,7 @@ public @UsesObjectEquals class Observable {
     /**
      * Clears the observer list so that this object no longer has any observers.
      */
-    public synchronized void deleteObservers(@GuardSatisfied Observable this) {
+    public synchronized void deleteObservers() {
         obs.removeAllElements();
     }
 
@@ -236,7 +226,7 @@ public @UsesObjectEquals class Observable {
      *
      * @return  the number of observers of this object.
      */
-    public synchronized @NonNegative int countObservers() {
+    public synchronized  int countObservers() {
         return obs.size();
     }
 }

@@ -25,7 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 
@@ -118,7 +119,7 @@ import java.io.IOException;
  *
  * @since  1.5
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 public interface Formattable {
 
     /**

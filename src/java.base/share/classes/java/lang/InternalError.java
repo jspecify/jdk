@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown to indicate some unexpected internal error has occurred in
@@ -36,14 +35,14 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class InternalError extends VirtualMachineError {
     private static final long serialVersionUID = -9062593416125562365L;
 
     /**
      * Constructs an <code>InternalError</code> with no detail message.
      */
-    @SideEffectFree
+    
     public InternalError() {
         super();
     }
@@ -54,7 +53,7 @@ public class InternalError extends VirtualMachineError {
      *
      * @param   message   the detail message.
      */
-    @SideEffectFree
+    
     public InternalError(@Nullable String message) {
         super(message);
     }
@@ -74,7 +73,7 @@ public class InternalError extends VirtualMachineError {
      *         unknown.)
      * @since  1.8
      */
-    @SideEffectFree
+    
     public InternalError(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }
@@ -91,7 +90,7 @@ public class InternalError extends VirtualMachineError {
      *         unknown.)
      * @since  1.8
      */
-    @SideEffectFree
+    
     public InternalError(@Nullable Throwable cause) {
         super(cause);
     }

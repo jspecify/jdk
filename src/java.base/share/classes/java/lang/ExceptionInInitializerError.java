@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Signals that an unexpected exception has occurred in a static initializer.
@@ -45,7 +44,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  Frank Yellin
  * @since   1.1
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class ExceptionInInitializerError extends LinkageError {
     /**
      * Use serialVersionUID from JDK 1.1.X for interoperability
@@ -68,7 +67,7 @@ public class ExceptionInInitializerError extends LinkageError {
      * throwable object.
      * A detail message is a String that describes this particular exception.
      */
-    @SideEffectFree
+    
     public ExceptionInInitializerError() {
         initCause(null);  // Disallow subsequent initCause
     }
@@ -81,7 +80,7 @@ public class ExceptionInInitializerError extends LinkageError {
      *
      * @param thrown The exception thrown
      */
-    @SideEffectFree
+    
     public ExceptionInInitializerError(@Nullable Throwable thrown) {
         initCause(null);  // Disallow subsequent initCause
         this.exception = thrown;
@@ -97,7 +96,7 @@ public class ExceptionInInitializerError extends LinkageError {
      *
      * @param s the detail message
      */
-    @SideEffectFree
+    
     public ExceptionInInitializerError(@Nullable String s) {
         super(s);
         initCause(null);  // Disallow subsequent initCause

@@ -25,11 +25,7 @@
 
 package java.awt;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.geom.Dimension2D;
 import java.beans.Transient;
@@ -210,8 +206,8 @@ public class Dimension extends Dimension2D implements java.io.Serializable {
     /**
      * Checks whether two dimension objects have equal values.
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof Dimension) {
             Dimension d = (Dimension)obj;

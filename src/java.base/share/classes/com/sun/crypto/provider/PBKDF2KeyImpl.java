@@ -25,11 +25,7 @@
 
 package com.sun.crypto.provider;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.io.ObjectStreamException;
 import java.lang.ref.Reference;
@@ -258,8 +254,8 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
         return(retval ^= getAlgorithm().toLowerCase(Locale.ENGLISH).hashCode());
     }
 
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (obj == this)
             return true;

@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Signals that the class doesn't have a field of a specified name.
@@ -35,14 +34,14 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since   1.1
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class NoSuchFieldException extends ReflectiveOperationException {
     private static final long serialVersionUID = -6143714805279938260L;
 
     /**
      * Constructor.
      */
-    @SideEffectFree
+    
     public NoSuchFieldException() {
         super();
     }
@@ -52,7 +51,7 @@ public class NoSuchFieldException extends ReflectiveOperationException {
      *
      * @param s the detail message
      */
-    @SideEffectFree
+    
     public NoSuchFieldException(@Nullable String s) {
         super(s);
     }

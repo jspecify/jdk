@@ -25,8 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The {@code Void} class is an uninstantiable placeholder class to hold a
@@ -36,9 +36,9 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since   1.1
  */
-@AnnotatedFor({"interning", "nullness"})
+@DefaultNonNull
 public final
-@UsesObjectEquals class Void {
+ class Void {
 
     /**
      * The {@code Class} object representing the pseudo-type corresponding to

@@ -25,10 +25,8 @@
 
 package java.util.jar;
 
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.common.value.qual.StringVal;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.misc.SharedSecrets;
 import jdk.internal.misc.JavaUtilZipFileAccess;
@@ -150,7 +148,7 @@ import java.util.zip.ZipFile;
  * @see     java.util.jar.JarEntry
  * @since   1.2
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class JarFile extends ZipFile {
     private final static Runtime.Version BASE_VERSION;
@@ -210,14 +208,14 @@ class JarFile extends ZipFile {
         }
     }
 
-    private static final @Interned @StringVal("META-INF/") String META_INF = "META-INF/";
+    private static final   String META_INF = "META-INF/";
 
-    private static final @Interned @StringVal("META-INF/versions/") String META_INF_VERSIONS = META_INF + "versions/";
+    private static final   String META_INF_VERSIONS = META_INF + "versions/";
 
     /**
      * The JAR manifest file name.
      */
-    public static final @Interned  @StringVal("META-INF/MANIFEST.MF") String MANIFEST_NAME = META_INF + "MANIFEST.MF";
+    public static final    String MANIFEST_NAME = META_INF + "MANIFEST.MF";
 
     /**
      * Returns the version that represents the unversioned configuration of a

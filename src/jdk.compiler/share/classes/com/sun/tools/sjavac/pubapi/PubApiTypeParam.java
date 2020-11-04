@@ -25,11 +25,7 @@
 
 package com.sun.tools.sjavac.pubapi;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.io.Serializable;
 import java.util.List;
@@ -48,8 +44,8 @@ public class PubApiTypeParam implements Serializable {
     }
 
     @Override
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (getClass() != obj.getClass())
             return false;

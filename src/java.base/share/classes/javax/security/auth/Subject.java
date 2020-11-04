@@ -25,11 +25,7 @@
 
 package javax.security.auth;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 import java.io.*;
@@ -790,8 +786,8 @@ public final class Subject implements java.io.Serializable {
      *         {@code Subject} or the provided {@code Subject}.
      */
     @Override
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object o) {
 
         if (o == null) {

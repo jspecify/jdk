@@ -25,12 +25,7 @@
 
 package sun.security.tools.keytool;
 
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -3414,7 +3409,7 @@ public final class Main {
     /**
      * Converts a byte array to hex string
      */
-    private String toHexString(@PolySigned byte[] block) {
+    private String toHexString( byte[] block) {
         StringBuffer buf = new StringBuffer();
         int len = block.length;
         for (int i = 0; i < len; i++) {
@@ -4664,8 +4659,8 @@ class Pair<A, B> {
         return "Pair[" + fst + "," + snd + "]";
     }
 
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object other) {
         return
             other instanceof Pair &&

@@ -24,7 +24,8 @@
  */
 package java.util.function;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a function that accepts a long-valued argument and produces an
@@ -37,7 +38,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see Function
  * @since 1.8
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 @FunctionalInterface
 public interface LongToIntFunction {
 

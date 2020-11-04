@@ -25,9 +25,8 @@
 
 package java.security;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.*;
 import java.security.cert.Certificate;
@@ -195,8 +194,8 @@ import sun.security.util.Debug;
  * @since 1.2
  */
 
-@AnnotatedFor({"interning", "nullness"})
-public @UsesObjectEquals class KeyStore {
+@DefaultNonNull
+public  class KeyStore {
 
     private static final Debug kdebug = Debug.getInstance("keystore");
     private static final Debug pdebug =

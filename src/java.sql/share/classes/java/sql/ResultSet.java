@@ -25,8 +25,8 @@
 
 package java.sql;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.util.Calendar;
@@ -149,7 +149,7 @@ import java.io.InputStream;
  * @since 1.1
  */
 
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface ResultSet extends Wrapper, AutoCloseable {
 
     /**
@@ -4115,7 +4115,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.7
      */
-     public <T> @Nullable T getObject(int columnIndex, Class<T> type) throws SQLException;
+     public <T extends @Nullable Object> @Nullable T getObject(int columnIndex, Class<T> type) throws SQLException;
 
 
     /**
@@ -4146,7 +4146,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.7
      */
-     public <T> @Nullable T getObject(String columnLabel, Class<T> type) throws SQLException;
+     public <T extends @Nullable Object> @Nullable T getObject(String columnLabel, Class<T> type) throws SQLException;
 
     //------------------------- JDBC 4.2 -----------------------------------
 

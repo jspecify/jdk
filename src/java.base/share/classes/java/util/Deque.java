@@ -35,13 +35,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A linear collection that supports element insertion and removal at
@@ -209,9 +204,9 @@ import org.checkerframework.framework.qual.CFComment;
  * @since  1.6
  * @param <E> the type of elements held in this deque
  */
-@CFComment({"lock/nullness: Subclasses of this interface/class may opt to prohibit null elements"})
-@AnnotatedFor({"lock", "nullness", "index"})
-public interface Deque<E> extends Queue<E> {
+
+@DefaultNonNull
+public interface Deque<E extends @Nullable Object> extends Queue<E> {
     /**
      * Inserts the specified element at the front of this deque if it is
      * possible to do so immediately without violating capacity restrictions,
@@ -229,7 +224,7 @@ public interface Deque<E> extends Queue<E> {
      * @throws IllegalArgumentException if some property of the specified
      *         element prevents it from being added to this deque
      */
-    void addFirst(@GuardSatisfied Deque<E> this, E e);
+    void addFirst(E e);
 
     /**
      * Inserts the specified element at the end of this deque if it is
@@ -250,7 +245,7 @@ public interface Deque<E> extends Queue<E> {
      * @throws IllegalArgumentException if some property of the specified
      *         element prevents it from being added to this deque
      */
-    void addLast(@GuardSatisfied Deque<E> this, E e);
+    void addLast(E e);
 
     /**
      * Inserts the specified element at the front of this deque unless it would
@@ -296,7 +291,7 @@ public interface Deque<E> extends Queue<E> {
      * @return the head of this deque
      * @throws NoSuchElementException if this deque is empty
      */
-    E removeFirst(@GuardSatisfied Deque<E> this);
+    E removeFirst();
 
     /**
      * Retrieves and removes the last element of this deque.  This method
@@ -306,7 +301,7 @@ public interface Deque<E> extends Queue<E> {
      * @return the tail of this deque
      * @throws NoSuchElementException if this deque is empty
      */
-    E removeLast(@GuardSatisfied Deque<E> this);
+    E removeLast();
 
     /**
      * Retrieves and removes the first element of this deque,
@@ -314,7 +309,7 @@ public interface Deque<E> extends Queue<E> {
      *
      * @return the head of this deque, or {@code null} if this deque is empty
      */
-    @Nullable E pollFirst(@GuardSatisfied Deque<E> this);
+    @Nullable E pollFirst();
 
     /**
      * Retrieves and removes the last element of this deque,
@@ -322,7 +317,7 @@ public interface Deque<E> extends Queue<E> {
      *
      * @return the tail of this deque, or {@code null} if this deque is empty
      */
-    @Nullable E pollLast(@GuardSatisfied Deque<E> this);
+    @Nullable E pollLast();
 
     /**
      * Retrieves, but does not remove, the first element of this deque.
@@ -333,7 +328,7 @@ public interface Deque<E> extends Queue<E> {
      * @return the head of this deque
      * @throws NoSuchElementException if this deque is empty
      */
-    E getFirst(@GuardSatisfied Deque<E> this);
+    E getFirst();
 
     /**
      * Retrieves, but does not remove, the last element of this deque.
@@ -343,7 +338,7 @@ public interface Deque<E> extends Queue<E> {
      * @return the tail of this deque
      * @throws NoSuchElementException if this deque is empty
      */
-    E getLast(@GuardSatisfied Deque<E> this);
+    E getLast();
 
     /**
      * Retrieves, but does not remove, the first element of this deque,
@@ -378,7 +373,7 @@ public interface Deque<E> extends Queue<E> {
      *         deque does not permit null elements
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean removeFirstOccurrence(@GuardSatisfied Deque<E> this, Object o);
+    boolean removeFirstOccurrence(@Nullable Object o);
 
     /**
      * Removes the last occurrence of the specified element from this deque.
@@ -397,7 +392,7 @@ public interface Deque<E> extends Queue<E> {
      *         deque does not permit null elements
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean removeLastOccurrence(@GuardSatisfied Deque<E> this, Object o);
+    boolean removeLastOccurrence(@Nullable Object o);
 
     // *** Queue methods ***
 
@@ -423,7 +418,7 @@ public interface Deque<E> extends Queue<E> {
      * @throws IllegalArgumentException if some property of the specified
      *         element prevents it from being added to this deque
      */
-    boolean add(@GuardSatisfied Deque<E> this, E e);
+    boolean add(E e);
 
     /**
      * Inserts the specified element into the queue represented by this deque
@@ -459,7 +454,7 @@ public interface Deque<E> extends Queue<E> {
      * @return the head of the queue represented by this deque
      * @throws NoSuchElementException if this deque is empty
      */
-    E remove(@GuardSatisfied Deque<E> this);
+    E remove();
 
     /**
      * Retrieves and removes the head of the queue represented by this deque
@@ -471,7 +466,7 @@ public interface Deque<E> extends Queue<E> {
      * @return the first element of this deque, or {@code null} if
      *         this deque is empty
      */
-    @Nullable E poll(@GuardSatisfied Deque<E> this);
+    @Nullable E poll();
 
     /**
      * Retrieves, but does not remove, the head of the queue represented by
@@ -544,7 +539,7 @@ public interface Deque<E> extends Queue<E> {
      * @throws IllegalArgumentException if some property of the specified
      *         element prevents it from being added to this deque
      */
-    void push(@GuardSatisfied Deque<E> this, E e);
+    void push(E e);
 
     /**
      * Pops an element from the stack represented by this deque.  In other
@@ -556,7 +551,7 @@ public interface Deque<E> extends Queue<E> {
      *         of the stack represented by this deque)
      * @throws NoSuchElementException if this deque is empty
      */
-    E pop(@GuardSatisfied Deque<E> this);
+    E pop();
 
 
     // *** Collection methods ***
@@ -580,7 +575,7 @@ public interface Deque<E> extends Queue<E> {
      *         deque does not permit null elements
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    boolean remove(@GuardSatisfied Deque<E> this, Object o);
+    boolean remove(@Nullable Object o);
 
     /**
      * Returns {@code true} if this deque contains the specified element.
@@ -596,16 +591,16 @@ public interface Deque<E> extends Queue<E> {
      *         deque does not permit null elements
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    @Pure
-    boolean contains(@GuardSatisfied Deque<E> this, Object o);
+    
+    boolean contains(@Nullable Object o);
 
     /**
      * Returns the number of elements in this deque.
      *
      * @return the number of elements in this deque
      */
-    @Pure
-    @NonNegative int size(@GuardSatisfied Deque<E> this);
+    
+     int size();
 
     /**
      * Returns an iterator over the elements in this deque in proper sequence.
@@ -613,7 +608,7 @@ public interface Deque<E> extends Queue<E> {
      *
      * @return an iterator over the elements in this deque in proper sequence
      */
-    @SideEffectFree
+    
     Iterator<E> iterator();
 
     /**

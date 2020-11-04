@@ -25,15 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
 
@@ -92,7 +85,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @see         java.lang.String
  * @since       1.5
  */
-@AnnotatedFor({"lock", "nullness", "index"})
+@DefaultNonNull
 public final class StringBuilder
     extends AbstractStringBuilder
     implements java.io.Serializable, Comparable<StringBuilder>, CharSequence
@@ -119,7 +112,7 @@ public final class StringBuilder
      *               argument is less than {@code 0}.
      */
     @HotSpotIntrinsicCandidate
-    public StringBuilder(@NonNegative int capacity) {
+    public StringBuilder( int capacity) {
         super(capacity);
     }
 
@@ -220,7 +213,7 @@ public final class StringBuilder
      * @throws     IndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder append(@Nullable CharSequence s, @IndexOrHigh({"#1"}) int start, @IndexOrHigh({"#1"}) int end) {
+    public StringBuilder append(@Nullable CharSequence s,  int start,  int end) {
         super.append(s, start, end);
         return this;
     }
@@ -235,7 +228,7 @@ public final class StringBuilder
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder append(char[] str, @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) {
+    public StringBuilder append(char[] str,  int offset,   int len) {
         super.append(str, offset, len);
         return this;
     }
@@ -291,7 +284,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder delete(@NonNegative int start, @NonNegative int end) {
+    public StringBuilder delete( int start,  int end) {
         super.delete(start, end);
         return this;
     }
@@ -300,7 +293,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder deleteCharAt(@NonNegative int index) {
+    public StringBuilder deleteCharAt( int index) {
         super.deleteCharAt(index);
         return this;
     }
@@ -309,7 +302,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder replace(@NonNegative int start, @NonNegative int end, String str) {
+    public StringBuilder replace( int start,  int end, String str) {
         super.replace(start, end, str);
         return this;
     }
@@ -318,8 +311,8 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert(@NonNegative int index, char[] str, @IndexOrHigh({"#2"}) int offset,
-                                @IndexOrHigh({"#2"}) int len)
+    public StringBuilder insert( int index, char[] str,  int offset,
+                                 int len)
     {
         super.insert(index, str, offset, len);
         return this;
@@ -329,7 +322,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert(@NonNegative int offset, @Nullable Object obj) {
+    public StringBuilder insert( int offset, @Nullable Object obj) {
             super.insert(offset, obj);
             return this;
     }
@@ -338,7 +331,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert(@NonNegative int offset, @Nullable String str) {
+    public StringBuilder insert( int offset, @Nullable String str) {
         super.insert(offset, str);
         return this;
     }
@@ -347,7 +340,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert(@NonNegative int offset, char[] str) {
+    public StringBuilder insert( int offset, char[] str) {
         super.insert(offset, str);
         return this;
     }
@@ -356,7 +349,7 @@ public final class StringBuilder
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert(@NonNegative int dstOffset, @Nullable CharSequence s) {
+    public StringBuilder insert( int dstOffset, @Nullable CharSequence s) {
             super.insert(dstOffset, s);
             return this;
     }
@@ -365,8 +358,8 @@ public final class StringBuilder
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert(@NonNegative int dstOffset, @Nullable CharSequence s,
-                                @NonNegative int start, @NonNegative int end)
+    public StringBuilder insert( int dstOffset, @Nullable CharSequence s,
+                                 int start,  int end)
     {
         super.insert(dstOffset, s, start, end);
         return this;
@@ -376,7 +369,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert(@NonNegative int offset, boolean b) {
+    public StringBuilder insert( int offset, boolean b) {
         super.insert(offset, b);
         return this;
     }
@@ -385,7 +378,7 @@ public final class StringBuilder
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert(@NonNegative int offset, char c) {
+    public StringBuilder insert( int offset, char c) {
         super.insert(offset, c);
         return this;
     }
@@ -394,7 +387,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert(@NonNegative int offset, int i) {
+    public StringBuilder insert( int offset, int i) {
         super.insert(offset, i);
         return this;
     }
@@ -403,7 +396,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert(@NonNegative int offset, long l) {
+    public StringBuilder insert( int offset, long l) {
         super.insert(offset, l);
         return this;
     }
@@ -412,7 +405,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert(@NonNegative int offset, float f) {
+    public StringBuilder insert( int offset, float f) {
         super.insert(offset, f);
         return this;
     }
@@ -421,32 +414,32 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert(@NonNegative int offset, double d) {
+    public StringBuilder insert( int offset, double d) {
         super.insert(offset, d);
         return this;
     }
 
-    @Pure
+    
     @Override
-    public @GTENegativeOne int indexOf(@GuardSatisfied StringBuilder this, String str) {
+    public  int indexOf(String str) {
         return super.indexOf(str);
     }
 
-    @Pure
+    
     @Override
-    public @GTENegativeOne int indexOf(@GuardSatisfied StringBuilder this, String str, int fromIndex) {
+    public  int indexOf(String str, int fromIndex) {
         return super.indexOf(str, fromIndex);
     }
 
-    @Pure
+    
     @Override
-    public @GTENegativeOne int lastIndexOf(@GuardSatisfied StringBuilder this, String str) {
+    public  int lastIndexOf(String str) {
         return super.lastIndexOf(str);
     }
 
-    @Pure
+    
     @Override
-    public @GTENegativeOne int lastIndexOf(@GuardSatisfied StringBuilder this, String str, int fromIndex) {
+    public  int lastIndexOf(String str, int fromIndex) {
         return super.lastIndexOf(str, fromIndex);
     }
 
@@ -456,10 +449,10 @@ public final class StringBuilder
         return this;
     }
 
-    @SideEffectFree
+    
     @Override
     @HotSpotIntrinsicCandidate
-    public String toString(@GuardSatisfied StringBuilder this) {
+    public String toString() {
         // Create a copy, don't share the array
         return isLatin1() ? StringLatin1.newString(value, 0, count)
                           : StringUTF16.newString(value, 0, count);

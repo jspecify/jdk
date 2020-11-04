@@ -25,17 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.EnsuresKeyFor;
-import org.checkerframework.checker.nullness.qual.EnsuresKeyForIf;
-import org.checkerframework.checker.nullness.qual.KeyFor;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.*;
 import java.util.function.BiConsumer;
@@ -144,9 +135,9 @@ import jdk.internal.misc.SharedSecrets;
  * @see     TreeMap
  * @since 1.0
  */
-@CFComment({"lock: This collection can only contain nonnull values"})
-@AnnotatedFor({"lock", "nullness", "index"})
-public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
+
+@DefaultNonNull
+public class Hashtable<K,V>
     extends Dictionary<K,V>
     implements Map<K,V>, Cloneable, java.io.Serializable {
 
@@ -196,7 +187,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      * @exception  IllegalArgumentException  if the initial capacity is less
      *             than zero, or if the load factor is nonpositive.
      */
-    public Hashtable(@NonNegative int initialCapacity, float loadFactor) {
+    public Hashtable( int initialCapacity, float loadFactor) {
         if (initialCapacity < 0)
             throw new IllegalArgumentException("Illegal Capacity: "+
                                                initialCapacity);
@@ -218,7 +209,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      * @exception IllegalArgumentException if the initial capacity is less
      *              than zero.
      */
-    public Hashtable(@NonNegative int initialCapacity) {
+    public Hashtable( int initialCapacity) {
         this(initialCapacity, 0.75f);
     }
 
@@ -257,8 +248,8 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      *
      * @return  the number of keys in this hashtable.
      */
-    @Pure
-    public synchronized @NonNegative int size(@GuardSatisfied Hashtable<K, V> this) {
+    
+    public synchronized  int size() {
         return count;
     }
 
@@ -268,8 +259,8 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      * @return  {@code true} if this hashtable maps no keys to values;
      *          {@code false} otherwise.
      */
-    @Pure
-    public synchronized boolean isEmpty(@GuardSatisfied Hashtable<K, V> this) {
+    
+    public synchronized boolean isEmpty() {
         return count == 0;
     }
 
@@ -285,7 +276,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      * @see     #keySet()
      * @see     Map
      */
-    public synchronized Enumeration<@KeyFor({"this"}) K> keys() {
+    public synchronized Enumeration< K> keys() {
         return this.<K>getEnumeration(KEYS);
     }
 
@@ -321,8 +312,8 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      *             {@code false} otherwise.
      * @exception  NullPointerException  if the value is {@code null}
      */
-    @Pure
-    public synchronized boolean contains(@GuardSatisfied Hashtable<K, V> this, @GuardSatisfied Object value) {
+    
+    public synchronized boolean contains( Object value) {
         if (value == null) {
             throw new NullPointerException();
         }
@@ -350,8 +341,8 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      * @throws NullPointerException  if the value is {@code null}
      * @since 1.2
      */
-    @Pure
-    public boolean containsValue(@GuardSatisfied Hashtable<K, V> this, @GuardSatisfied Object value) {
+    
+    public boolean containsValue( Object value) {
         return contains(value);
     }
 
@@ -365,9 +356,9 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      * @throws  NullPointerException  if the key is {@code null}
      * @see     #contains(Object)
      */
-    @EnsuresKeyForIf(expression={"#1"}, result=true, map={"this"})
-    @Pure
-    public synchronized boolean containsKey(@GuardSatisfied Hashtable<K, V> this, @GuardSatisfied Object key) {
+    
+    
+    public synchronized boolean containsKey( Object key) {
         Entry<?,?> tab[] = table;
         int hash = key.hashCode();
         int index = (hash & 0x7FFFFFFF) % tab.length;
@@ -394,9 +385,9 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      * @throws NullPointerException if the specified key is null
      * @see     #put(Object, Object)
      */
-    @Pure
+    
     @SuppressWarnings("unchecked")
-    public synchronized @Nullable V get(@GuardSatisfied Hashtable<K, V> this, @GuardSatisfied Object key) {
+    public synchronized @Nullable V get( Object key) {
         Entry<?,?> tab[] = table;
         int hash = key.hashCode();
         int index = (hash & 0x7FFFFFFF) % tab.length;
@@ -490,8 +481,8 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      * @see     Object#equals(Object)
      * @see     #get(Object)
      */
-    @EnsuresKeyFor(value={"#1"}, map={"this"})
-    public synchronized @Nullable V put(@GuardSatisfied Hashtable<K, V> this, K key, V value) {
+    
+    public synchronized @Nullable V put(K key, V value) {
         // Make sure the value is not null
         if (value == null) {
             throw new NullPointerException();
@@ -524,7 +515,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      *          or {@code null} if the key did not have a mapping
      * @throws  NullPointerException  if the key is {@code null}
      */
-    public synchronized @Nullable V remove(@GuardSatisfied Hashtable<K, V> this, Object key) {
+    public synchronized @Nullable V remove(Object key) {
         Entry<?,?> tab[] = table;
         int hash = key.hashCode();
         int index = (hash & 0x7FFFFFFF) % tab.length;
@@ -556,7 +547,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      * @throws NullPointerException if the specified map is null
      * @since 1.2
      */
-    public synchronized void putAll(@GuardSatisfied Hashtable<K, V> this, Map<? extends K, ? extends V> t) {
+    public synchronized void putAll(Map<? extends K, ? extends V> t) {
         for (Map.Entry<? extends K, ? extends V> e : t.entrySet())
             put(e.getKey(), e.getValue());
     }
@@ -564,7 +555,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
     /**
      * Clears this hashtable so that it contains no keys.
      */
-    public synchronized void clear(@GuardSatisfied Hashtable<K, V> this) {
+    public synchronized void clear() {
         Entry<?,?> tab[] = table;
         for (int index = tab.length; --index >= 0; )
             tab[index] = null;
@@ -579,8 +570,8 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      *
      * @return  a clone of the hashtable
      */
-    @SideEffectFree
-    public synchronized Object clone(@GuardSatisfied Hashtable<K, V> this) {
+    
+    public synchronized Object clone() {
         Hashtable<?,?> t = cloneHashtable();
         t.table = new Entry<?,?>[table.length];
         for (int i = table.length ; i-- > 0 ; ) {
@@ -614,7 +605,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      *
      * @return  a string representation of this hashtable
      */
-    public synchronized String toString(@GuardSatisfied Hashtable<K, V> this) {
+    public synchronized String toString() {
         int max = size() - 1;
         if (max == -1)
             return "{}";
@@ -638,7 +629,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
     }
 
 
-    private <T> Enumeration<T> getEnumeration(int type) {
+    private <T extends @Nullable Object> Enumeration<T> getEnumeration(int type) {
         if (count == 0) {
             return Collections.emptyEnumeration();
         } else {
@@ -646,7 +637,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
         }
     }
 
-    private <T> Iterator<T> getIterator(int type) {
+    private <T extends @Nullable Object> Iterator<T> getIterator(int type) {
         if (count == 0) {
             return Collections.emptyIterator();
         } else {
@@ -680,20 +671,20 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      *
      * @since 1.2
      */
-    @SideEffectFree
-    public Set<@KeyFor({"this"}) K> keySet(@GuardSatisfied Hashtable<K, V> this) {
+    
+    public Set< K> keySet() {
         if (keySet == null)
             keySet = Collections.synchronizedSet(new KeySet(), this);
         return keySet;
     }
 
     private class KeySet extends AbstractSet<K> {
-        @SideEffectFree
+        
         public Iterator<K> iterator() {
             return getIterator(KEYS);
         }
-        @Pure
-        public @NonNegative int size() {
+        
+        public  int size() {
             return count;
         }
         public boolean contains(Object o) {
@@ -723,15 +714,15 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      *
      * @since 1.2
      */
-    @SideEffectFree
-    public Set<Map.Entry<@KeyFor({"this"}) K,V>> entrySet(@GuardSatisfied Hashtable<K, V> this) {
+    
+    public Set<Map.Entry< K,V>> entrySet() {
         if (entrySet==null)
             entrySet = Collections.synchronizedSet(new EntrySet(), this);
         return entrySet;
     }
 
     private class EntrySet extends AbstractSet<Map.Entry<K,V>> {
-        @SideEffectFree
+        
         public Iterator<Map.Entry<K,V>> iterator() {
             return getIterator(ENTRIES);
         }
@@ -782,8 +773,8 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
             return false;
         }
 
-        @Pure
-        public @NonNegative int size() {
+        
+        public  int size() {
             return count;
         }
 
@@ -807,8 +798,8 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      *
      * @since 1.2
      */
-    @SideEffectFree
-    public Collection<V> values(@GuardSatisfied Hashtable<K, V> this) {
+    
+    public Collection<V> values() {
         if (values==null)
             values = Collections.synchronizedCollection(new ValueCollection(),
                                                         this);
@@ -816,12 +807,12 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
     }
 
     private class ValueCollection extends AbstractCollection<V> {
-        @SideEffectFree
+        
         public Iterator<V> iterator() {
             return getIterator(VALUES);
         }
-        @Pure
-        public @NonNegative int size() {
+        
+        public  int size() {
             return count;
         }
         public boolean contains(Object o) {
@@ -843,8 +834,8 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      * @see Map#equals(Object)
      * @since 1.2
      */
-    @Pure
-    public synchronized boolean equals(@GuardSatisfied Hashtable<K, V> this, @GuardSatisfied @Nullable Object o) {
+    
+    public synchronized boolean equals( @Nullable Object o) {
         if (o == this)
             return true;
 
@@ -882,8 +873,8 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      * @see Map#hashCode()
      * @since 1.2
      */
-    @Pure
-    public synchronized int hashCode(@GuardSatisfied Hashtable<K, V> this) {
+    
+    public synchronized int hashCode() {
         /*
          * This code detects the recursion caused by computing the hash code
          * of a self-referential hash table and prevents the stack overflow
@@ -959,7 +950,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
         }
     }
 
-    @EnsuresKeyFor(value={"#1"}, map={"this"})
+    
     @Override
     public synchronized V putIfAbsent(K key, V value) {
         Objects.requireNonNull(value);
@@ -1386,7 +1377,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
     /**
      * Hashtable bucket collision list entry
      */
-    private static class Entry<K,V> implements Map.Entry<K,V> {
+    private static class Entry<K extends @Nullable Object,V extends @Nullable Object> implements Map.Entry<K,V> {
         final int hash;
         final K key;
         V value;
@@ -1399,7 +1390,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
             this.next = next;
         }
 
-        @SideEffectFree
+        
         @SuppressWarnings("unchecked")
         protected Object clone() {
             return new Entry<>(hash, key, value,
@@ -1455,7 +1446,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
      * to avoid unintentionally increasing the capabilities granted a user
      * by passing an Enumeration.
      */
-    private class Enumerator<T> implements Enumeration<T>, Iterator<T> {
+    private class Enumerator<T extends @Nullable Object> implements Enumeration<T>, Iterator<T> {
         final Entry<?,?>[] table = Hashtable.this.table;
         int index = table.length;
         Entry<?,?> entry;

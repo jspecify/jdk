@@ -25,7 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Marker interface used by {@code List} implementations to indicate that
@@ -66,6 +67,6 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *
  * @since 1.4
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 public interface RandomAccess {
 }

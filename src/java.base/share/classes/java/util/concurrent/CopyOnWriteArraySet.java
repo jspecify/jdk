@@ -35,12 +35,7 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.util.AbstractSet;
 import java.util.Collection;
@@ -139,7 +134,7 @@ public class CopyOnWriteArraySet<E> extends AbstractSet<E>
      *
      * @return the number of elements in this set
      */
-    @Pure
+    
     public int size() {
         return al.size();
     }
@@ -149,7 +144,7 @@ public class CopyOnWriteArraySet<E> extends AbstractSet<E>
      *
      * @return {@code true} if this set contains no elements
      */
-    @Pure
+    
     public boolean isEmpty() {
         return al.isEmpty();
     }
@@ -182,7 +177,7 @@ public class CopyOnWriteArraySet<E> extends AbstractSet<E>
      *
      * @return an array containing all the elements in this set
      */
-    public @PolyNull Object[] toArray(CopyOnWriteArraySet<@PolyNull E> this) {
+    public @Nullable Object[] toArray() {
         return al.toArray();
     }
 
@@ -356,7 +351,7 @@ public class CopyOnWriteArraySet<E> extends AbstractSet<E>
      *         or if the specified collection is null
      * @see #remove(Object)
      */
-    public boolean removeAll(Collection<? extends @NonNull Object> c) {
+    public boolean removeAll(Collection<?> c) {
         return al.removeAll(c);
     }
 
@@ -379,7 +374,7 @@ public class CopyOnWriteArraySet<E> extends AbstractSet<E>
      *         or if the specified collection is null
      * @see #remove(Object)
      */
-    public boolean retainAll(Collection<? extends @NonNull Object> c) {
+    public boolean retainAll(Collection<?> c) {
         return al.retainAll(c);
     }
 
@@ -414,8 +409,8 @@ public class CopyOnWriteArraySet<E> extends AbstractSet<E>
      * @param o object to be compared for equality with this set
      * @return {@code true} if the specified object is equal to this set
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object o) {
         return (o == this)
             || ((o instanceof Set)

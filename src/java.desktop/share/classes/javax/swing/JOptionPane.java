@@ -24,9 +24,8 @@
  */
 package javax.swing;
 
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -309,7 +308,7 @@ import sun.awt.AWTAccessor;
  * @author Scott Violet
  * @since 1.2
  */
-@AnnotatedFor({"interning", "nullness"})
+@DefaultNonNull
 @JavaBean(defaultProperty = "UI", description = "A component which implements standard dialog box controls.")
 @SwingContainer
 @SuppressWarnings("serial") // Same-version serialization only
@@ -374,27 +373,27 @@ public class JOptionPane extends JComponent implements Accessible
     public static final int   PLAIN_MESSAGE = -1;
 
     /** Bound property name for <code>icon</code>. */
-    public static final @Interned String      ICON_PROPERTY = "icon";
+    public static final  String      ICON_PROPERTY = "icon";
     /** Bound property name for <code>message</code>. */
-    public static final @Interned String      MESSAGE_PROPERTY = "message";
+    public static final  String      MESSAGE_PROPERTY = "message";
     /** Bound property name for <code>value</code>. */
-    public static final @Interned String      VALUE_PROPERTY = "value";
+    public static final  String      VALUE_PROPERTY = "value";
     /** Bound property name for <code>option</code>. */
-    public static final @Interned String      OPTIONS_PROPERTY = "options";
+    public static final  String      OPTIONS_PROPERTY = "options";
     /** Bound property name for <code>initialValue</code>. */
-    public static final @Interned String      INITIAL_VALUE_PROPERTY = "initialValue";
+    public static final  String      INITIAL_VALUE_PROPERTY = "initialValue";
     /** Bound property name for <code>type</code>. */
-    public static final @Interned String      MESSAGE_TYPE_PROPERTY = "messageType";
+    public static final  String      MESSAGE_TYPE_PROPERTY = "messageType";
     /** Bound property name for <code>optionType</code>. */
-    public static final @Interned String      OPTION_TYPE_PROPERTY = "optionType";
+    public static final  String      OPTION_TYPE_PROPERTY = "optionType";
     /** Bound property name for <code>selectionValues</code>. */
-    public static final @Interned String      SELECTION_VALUES_PROPERTY = "selectionValues";
+    public static final  String      SELECTION_VALUES_PROPERTY = "selectionValues";
     /** Bound property name for <code>initialSelectionValue</code>. */
-    public static final @Interned String      INITIAL_SELECTION_VALUE_PROPERTY = "initialSelectionValue";
+    public static final  String      INITIAL_SELECTION_VALUE_PROPERTY = "initialSelectionValue";
     /** Bound property name for <code>inputValue</code>. */
-    public static final @Interned String      INPUT_VALUE_PROPERTY = "inputValue";
+    public static final  String      INPUT_VALUE_PROPERTY = "inputValue";
     /** Bound property name for <code>wantsInput</code>. */
-    public static final @Interned String      WANTS_INPUT_PROPERTY = "wantsInput";
+    public static final  String      WANTS_INPUT_PROPERTY = "wantsInput";
 
     /** Icon used in pane. */
     protected transient @Nullable Icon                  icon;

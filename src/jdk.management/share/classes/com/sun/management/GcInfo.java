@@ -25,11 +25,7 @@
 
 package com.sun.management;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.management.MemoryUsage;
 import javax.management.openmbean.CompositeData;
@@ -250,8 +246,8 @@ public class GcInfo implements CompositeData, CompositeDataView {
         return cdata.containsValue(value);
     }
 
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         return cdata.equals(obj);
     }

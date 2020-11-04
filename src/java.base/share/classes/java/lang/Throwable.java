@@ -25,13 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.initialization.qual.UnknownInitialization;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 import  java.io.*;
 import  java.util.*;
 
@@ -119,8 +114,8 @@ import  java.util.*;
  * @jls 11.2 Compile-Time Checking of Exceptions
  * @since 1.0
  */
-@AnnotatedFor({"interning", "lock", "nullness"})
-public @UsesObjectEquals class Throwable implements Serializable {
+@DefaultNonNull
+public  class Throwable implements Serializable {
     /** use serialVersionUID from JDK 1.0.2 for interoperability */
     private static final long serialVersionUID = -3042686055658047285L;
 
@@ -259,7 +254,7 @@ public @UsesObjectEquals class Throwable implements Serializable {
      * <p>The {@link #fillInStackTrace()} method is called to initialize
      * the stack trace data in the newly created throwable.
      */
-    @SideEffectFree
+    
     public Throwable() {
         fillInStackTrace();
     }
@@ -275,7 +270,7 @@ public @UsesObjectEquals class Throwable implements Serializable {
      * @param   message   the detail message. The detail message is saved for
      *          later retrieval by the {@link #getMessage()} method.
      */
-    @SideEffectFree
+    
     public Throwable(@Nullable String message) {
         fillInStackTrace();
         detailMessage = message;
@@ -298,7 +293,7 @@ public @UsesObjectEquals class Throwable implements Serializable {
      *         unknown.)
      * @since  1.4
      */
-    @SideEffectFree
+    
     public Throwable(@Nullable String message, @Nullable Throwable cause) {
         fillInStackTrace();
         detailMessage = message;
@@ -322,7 +317,7 @@ public @UsesObjectEquals class Throwable implements Serializable {
      *         unknown.)
      * @since  1.4
      */
-    @SideEffectFree
+    
     public Throwable(@Nullable Throwable cause) {
         fillInStackTrace();
         detailMessage = (cause==null ? null : cause.toString());
@@ -370,7 +365,7 @@ public @UsesObjectEquals class Throwable implements Serializable {
      * @see ArithmeticException
      * @since 1.7
      */
-    @SideEffectFree
+    
     protected Throwable(@Nullable String message, @Nullable Throwable cause,
                         boolean enableSuppression,
                         boolean writableStackTrace) {
@@ -391,8 +386,8 @@ public @UsesObjectEquals class Throwable implements Serializable {
      * @return  the detail message string of this {@code Throwable} instance
      *          (which may be {@code null}).
      */
-    @Pure
-    public @Nullable String getMessage(@GuardSatisfied Throwable this) {
+    
+    public @Nullable String getMessage() {
         return detailMessage;
     }
 
@@ -406,8 +401,8 @@ public @UsesObjectEquals class Throwable implements Serializable {
      * @return  The localized description of this throwable.
      * @since   1.1
      */
-    @SideEffectFree
-    public @Nullable String getLocalizedMessage(@GuardSatisfied Throwable this) {
+    
+    public @Nullable String getLocalizedMessage() {
         return getMessage();
     }
 
@@ -431,8 +426,8 @@ public @UsesObjectEquals class Throwable implements Serializable {
      *          cause is nonexistent or unknown.
      * @since 1.4
      */
-    @Pure
-    public synchronized @Nullable Throwable getCause(@GuardSatisfied Throwable this) {
+    
+    public synchronized @Nullable Throwable getCause() {
         return (cause==this ? null : cause);
     }
 
@@ -472,7 +467,7 @@ public @UsesObjectEquals class Throwable implements Serializable {
      *         been called on this throwable.
      * @since  1.4
      */
-    public synchronized @UnknownInitialization Throwable initCause(@UnknownInitialization Throwable this, @Nullable Throwable cause) {
+    public synchronized  Throwable initCause(@Nullable Throwable cause) {
         if (this.cause != this)
             throw new IllegalStateException("Can't overwrite cause with " +
                                             Objects.toString(cause, "a null"), this);
@@ -496,8 +491,8 @@ public @UsesObjectEquals class Throwable implements Serializable {
      *
      * @return a string representation of this throwable.
      */
-    @SideEffectFree
-    public String toString(@GuardSatisfied Throwable this) {
+    
+    public String toString() {
         String s = getClass().getName();
         String message = getLocalizedMessage();
         return (message != null) ? (s + ": " + message) : s;

@@ -24,9 +24,8 @@
  */
 package java.util.stream;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.LongSummaryStatistics;
@@ -74,7 +73,7 @@ import java.util.function.Supplier;
  * @see Stream
  * @see <a href="package-summary.html">java.util.stream</a>
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 public interface LongStream extends BaseStream<Long, LongStream> {
 
     /**
@@ -119,7 +118,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      *               function to apply to each element
      * @return the new stream
      */
-    <U> Stream<U> mapToObj(LongFunction<? extends U> mapper);
+    <U extends @Nullable Object> Stream<U> mapToObj(LongFunction<? extends U> mapper);
 
     /**
      * Returns an {@code IntStream} consisting of the results of applying the
@@ -455,7 +454,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      *
      * @return an array containing the elements of this stream
      */
-    @SideEffectFree
+    
     long[] toArray();
 
     /**
@@ -590,7 +589,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * @return the result of the reduction
      * @see Stream#collect(Supplier, BiConsumer, BiConsumer)
      */
-    <R> R collect(Supplier<R> supplier,
+    <R extends @Nullable Object> R collect(Supplier<R> supplier,
                   ObjLongConsumer<R> accumulator,
                   BiConsumer<R, R> combiner);
 
@@ -830,11 +829,11 @@ public interface LongStream extends BaseStream<Long, LongStream> {
     @Override
     LongStream parallel();
 
-    @SideEffectFree
+    
     @Override
     PrimitiveIterator.OfLong iterator();
 
-    @SideEffectFree
+    
     @Override
     Spliterator.OfLong spliterator();
 
@@ -1168,7 +1167,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
          * @throws IllegalStateException if the builder has already transitioned
          * to the built state
          */
-        default Builder add(LongStream.@GuardSatisfied Builder this, long t) {
+        default Builder add(long t) {
             accept(t);
             return this;
         }

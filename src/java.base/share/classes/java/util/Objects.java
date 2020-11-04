@@ -25,16 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.ForceInline;
@@ -64,8 +56,8 @@ import java.util.function.Supplier;
  *
  * @since 1.7
  */
-@AnnotatedFor({"index", "interning", "lock", "nullness"})
-public final @UsesObjectEquals class Objects {
+@DefaultNonNull
+public final  class Objects {
     private Objects() {
         throw new AssertionError("No java.util.Objects instances for you!");
     }
@@ -85,8 +77,8 @@ public final @UsesObjectEquals class Objects {
      * and {@code false} otherwise
      * @see Object#equals(Object)
      */
-    @Pure
-    public static boolean equals(@GuardSatisfied @Nullable Object a, @GuardSatisfied @Nullable Object b) {
+    
+    public static boolean equals( @Nullable Object a,  @Nullable Object b) {
         return (a == b) || (a != null && a.equals(b));
     }
 
@@ -107,8 +99,8 @@ public final @UsesObjectEquals class Objects {
     * @see Arrays#deepEquals(Object[], Object[])
     * @see Objects#equals(Object, Object)
     */
-    @Pure
-    public static boolean deepEquals(@GuardSatisfied @Nullable Object a, @GuardSatisfied @Nullable Object b) {
+    
+    public static boolean deepEquals( @Nullable Object a,  @Nullable Object b) {
         if (a == b)
             return true;
         else if (a == null || b == null)
@@ -126,8 +118,8 @@ public final @UsesObjectEquals class Objects {
      * a {@code null} argument
      * @see Object#hashCode
      */
-    @Pure
-    public static int hashCode(@GuardSatisfied @Nullable Object o) {
+    
+    public static int hashCode( @Nullable Object o) {
         return o != null ? o.hashCode() : 0;
     }
 
@@ -157,8 +149,8 @@ public final @UsesObjectEquals class Objects {
     * @see Arrays#hashCode(Object[])
     * @see List#hashCode
     */
-    @Pure
-    public static int hash(@GuardSatisfied @Nullable Object... values) {
+    
+    public static int hash( @Nullable Object... values) {
         return Arrays.hashCode(values);
     }
 
@@ -172,8 +164,8 @@ public final @UsesObjectEquals class Objects {
      * @see Object#toString
      * @see String#valueOf(Object)
      */
-    @SideEffectFree
-    public static String toString(@GuardSatisfied @Nullable Object o) {
+    
+    public static String toString( @Nullable Object o) {
         return String.valueOf(o);
     }
 
@@ -190,8 +182,8 @@ public final @UsesObjectEquals class Objects {
      * otherwise.
      * @see Objects#toString(Object)
      */
-    @SideEffectFree
-    public static String toString(@GuardSatisfied @Nullable Object o, String nullDefault) {
+    
+    public static String toString( @Nullable Object o, String nullDefault) {
         return (o != null) ? o.toString() : nullDefault;
     }
 
@@ -215,8 +207,8 @@ public final @UsesObjectEquals class Objects {
      * @see Comparable
      * @see Comparator
      */
-    @Pure
-    public static <T> int compare(@GuardSatisfied @Nullable T a, @GuardSatisfied @Nullable T b, @GuardSatisfied Comparator<? super T> c) {
+    
+    public static <T extends @Nullable Object> int compare( @Nullable T a,  @Nullable T b,  Comparator<? super T> c) {
         return (a == b) ? 0 :  c.compare(a, b);
     }
 
@@ -235,9 +227,9 @@ public final @UsesObjectEquals class Objects {
      * @return {@code obj} if not {@code null}
      * @throws NullPointerException if {@code obj} is {@code null}
      */
-    @CFComment({"lock: TODO: treat like other nullness assertion methods in the Checker Framework."})
-    @EnsuresNonNull("#1")
-    public static <T> @NonNull T requireNonNull(@NonNull T obj) {
+    
+    
+    public static <T extends @Nullable Object>  T requireNonNull( T obj) {
         if (obj == null)
             throw new NullPointerException();
         return obj;
@@ -262,9 +254,9 @@ public final @UsesObjectEquals class Objects {
      * @return {@code obj} if not {@code null}
      * @throws NullPointerException if {@code obj} is {@code null}
      */
-    @EnsuresNonNull("#1")
-    @SideEffectFree
-    public static <T> @NonNull T requireNonNull(@GuardSatisfied @NonNull T obj, @Nullable String message) {
+    
+    
+    public static <T extends @Nullable Object>  T requireNonNull(  T obj, @Nullable String message) {
         if (obj == null)
             throw new NullPointerException(message);
         return obj;
@@ -284,9 +276,9 @@ public final @UsesObjectEquals class Objects {
      * @see java.util.function.Predicate
      * @since 1.8
      */
-    @EnsuresNonNullIf(expression={"#1"}, result=false)
-    @Pure
-    public static boolean isNull(@GuardSatisfied @Nullable Object obj) {
+    
+    
+    public static boolean isNull( @Nullable Object obj) {
         return obj == null;
     }
 
@@ -304,9 +296,9 @@ public final @UsesObjectEquals class Objects {
      * @see java.util.function.Predicate
      * @since 1.8
      */
-    @EnsuresNonNullIf(expression={"#1"}, result=true)
-    @Pure
-    public static boolean nonNull(@GuardSatisfied @Nullable Object obj) {
+    
+    
+    public static boolean nonNull( @Nullable Object obj) {
         return obj != null;
     }
 
@@ -324,7 +316,7 @@ public final @UsesObjectEquals class Objects {
      *        {@code defaultObj} is {@code null}
      * @since 9
      */
-    public static <T> @NonNull T requireNonNullElse(@Nullable T obj, @NonNull T defaultObj) {
+    public static <T extends @Nullable Object>  T requireNonNullElse(@Nullable T obj,  T defaultObj) {
         return (obj != null) ? obj : requireNonNull(defaultObj, "defaultObj");
     }
 
@@ -343,7 +335,7 @@ public final @UsesObjectEquals class Objects {
      *        the {@code supplier.get()} value is {@code null}
      * @since 9
      */
-    public static <T extends @NonNull Object> T requireNonNullElseGet(@Nullable T obj, Supplier<? extends T> supplier) {
+    public static <T> T requireNonNullElseGet(@Nullable T obj, Supplier<? extends T> supplier) {
         return (obj != null) ? obj
                 : requireNonNull(requireNonNull(supplier, "supplier").get(), "supplier.get()");
     }
@@ -368,9 +360,9 @@ public final @UsesObjectEquals class Objects {
      * @throws NullPointerException if {@code obj} is {@code null}
      * @since 1.8
      */
-    @EnsuresNonNull("#1")
-    @Pure
-    public static <T> @NonNull T requireNonNull(@GuardSatisfied @NonNull T obj, @GuardSatisfied Supplier<String> messageSupplier) {
+    
+    
+    public static <T extends @Nullable Object>  T requireNonNull(  T obj,  Supplier<String> messageSupplier) {
         if (obj == null)
             throw new NullPointerException(messageSupplier == null ?
                                            null : messageSupplier.get());

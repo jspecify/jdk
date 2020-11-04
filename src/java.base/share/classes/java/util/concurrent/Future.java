@@ -35,8 +35,8 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@code Future} represents the result of an asynchronous
@@ -88,8 +88,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author Doug Lea
  * @param <V> The result type returned by this Future's {@code get} method
  */
-@AnnotatedFor({"nullness"})
-public interface Future<V> {
+@DefaultNonNull
+public interface Future<V extends @Nullable Object> {
 
     /**
      * Attempts to cancel execution of this task.  This attempt will
@@ -120,7 +120,7 @@ public interface Future<V> {
      *
      * @return {@code true} if this task was cancelled before it completed
      */
-    @Pure
+    
     boolean isCancelled();
 
     /**
@@ -132,7 +132,7 @@ public interface Future<V> {
      *
      * @return {@code true} if this task completed
      */
-    @Pure
+    
     boolean isDone();
 
     /**

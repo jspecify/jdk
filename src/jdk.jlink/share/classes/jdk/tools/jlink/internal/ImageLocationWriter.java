@@ -25,11 +25,7 @@
 
 package jdk.tools.jlink.internal;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.jimage.ImageLocation;
 import jdk.internal.jimage.ImageStream;
@@ -135,8 +131,8 @@ public final class ImageLocationWriter extends ImageLocation {
     }
 
     @Override
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

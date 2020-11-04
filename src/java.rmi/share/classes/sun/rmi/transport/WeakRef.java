@@ -24,11 +24,7 @@
  */
 package sun.rmi.transport;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.ref.*;
 import sun.rmi.runtime.Log;
@@ -131,8 +127,8 @@ class WeakRef extends WeakReference<Object> {
      * contained reference has not been cleared, if "obj" is another WeakRef
      * object with the identical non-null referent.  Otherwise, return false.
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof WeakRef) {
             if (obj == this)

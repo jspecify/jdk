@@ -41,9 +41,8 @@
 
 package org.w3c.dom;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Objects implementing the <code>NamedNodeMap</code> interface are used to
@@ -57,7 +56,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * <p><code>NamedNodeMap</code> objects in the DOM are live.
  * <p>See also the <a href='http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407'>Document Object Model (DOM) Level 3 Core Specification</a>.
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface NamedNodeMap {
     /**
      * Retrieves a node specified by name.
@@ -66,7 +65,7 @@ public interface NamedNodeMap {
      *   <code>nodeName</code>, or <code>null</code> if it does not identify
      *   any node in this map.
      */
-    @Pure
+    
     public @Nullable Node getNamedItem(String name);
 
     /**
@@ -125,14 +124,14 @@ public interface NamedNodeMap {
      * @return The node at the <code>index</code>th position in the map, or
      *   <code>null</code> if that is not a valid index.
      */
-    @Pure
+    
     public @Nullable Node item(int index);
 
     /**
      * The number of nodes in this map. The range of valid child node indices
      * is <code>0</code> to <code>length-1</code> inclusive.
      */
-    @Pure
+    
     public int getLength();
 
     /**
@@ -151,7 +150,7 @@ public interface NamedNodeMap {
      *   Document does not support XML Namespaces (such as [<a href='http://www.w3.org/TR/1999/REC-html401-19991224/'>HTML 4.01</a>]).
      * @since 1.4, DOM Level 2
      */
-    @Pure
+    
     public @Nullable Node getNamedItemNS(@Nullable String namespaceURI,
                                String localName)
                                throws DOMException;

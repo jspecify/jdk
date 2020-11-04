@@ -25,10 +25,8 @@
 
 package java.util.regex;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Unchecked exception thrown to indicate a syntax error in a
@@ -39,7 +37,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @spec JSR-51
  */
 
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 public class PatternSyntaxException
     extends IllegalArgumentException
 {
@@ -62,7 +60,7 @@ public class PatternSyntaxException
      *         The approximate index in the pattern of the error,
      *         or {@code -1} if the index is not known
      */
-    @SideEffectFree
+    
     public PatternSyntaxException(String desc, String regex, int index) {
         this.desc = desc;
         this.pattern = regex;
@@ -75,8 +73,8 @@ public class PatternSyntaxException
      * @return  The approximate index in the pattern of the error,
      *         or {@code -1} if the index is not known
      */
-    @Pure
-    public int getIndex(@GuardSatisfied PatternSyntaxException this) {
+    
+    public int getIndex() {
         return index;
     }
 
@@ -85,8 +83,8 @@ public class PatternSyntaxException
      *
      * @return  The description of the error
      */
-    @Pure
-    public String getDescription(@GuardSatisfied PatternSyntaxException this) {
+    
+    public String getDescription() {
         return desc;
     }
 
@@ -95,8 +93,8 @@ public class PatternSyntaxException
      *
      * @return  The erroneous pattern
      */
-    @Pure
-    public String getPattern(@GuardSatisfied PatternSyntaxException this) {
+    
+    public String getPattern() {
         return pattern;
     }
 
@@ -107,8 +105,8 @@ public class PatternSyntaxException
      *
      * @return  The full detail message
      */
-    @Pure
-    public String getMessage(@GuardSatisfied PatternSyntaxException this) {
+    
+    public String getMessage() {
         StringBuilder sb = new StringBuilder();
         sb.append(desc);
         if (index >= 0) {

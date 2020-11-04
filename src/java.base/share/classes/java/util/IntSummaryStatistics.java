@@ -24,8 +24,8 @@
  */
 package java.util;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.IntConsumer;
 import java.util.stream.Collector;
@@ -65,7 +65,7 @@ import java.util.stream.Collector;
  * <p>This implementation does not check for overflow of the sum.
  * @since 1.8
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 public class IntSummaryStatistics implements IntConsumer {
     private long count;
     private long sum;
@@ -155,7 +155,7 @@ public class IntSummaryStatistics implements IntConsumer {
      *
      * @return the count of values
      */
-    public final long getCount(@GuardSatisfied IntSummaryStatistics this) {
+    public final long getCount() {
         return count;
     }
 
@@ -165,7 +165,7 @@ public class IntSummaryStatistics implements IntConsumer {
      *
      * @return the sum of values, or zero if none
      */
-    public final long getSum(@GuardSatisfied IntSummaryStatistics this) {
+    public final long getSum() {
         return sum;
     }
 
@@ -175,7 +175,7 @@ public class IntSummaryStatistics implements IntConsumer {
      *
      * @return the minimum value, or {@code Integer.MAX_VALUE} if none
      */
-    public final int getMin(@GuardSatisfied IntSummaryStatistics this) {
+    public final int getMin() {
         return min;
     }
 
@@ -185,7 +185,7 @@ public class IntSummaryStatistics implements IntConsumer {
      *
      * @return the maximum value, or {@code Integer.MIN_VALUE} if none
      */
-    public final int getMax(@GuardSatisfied IntSummaryStatistics this) {
+    public final int getMax() {
         return max;
     }
 
@@ -195,7 +195,7 @@ public class IntSummaryStatistics implements IntConsumer {
      *
      * @return the arithmetic mean of values, or zero if none
      */
-    public final double getAverage(@GuardSatisfied IntSummaryStatistics this) {
+    public final double getAverage() {
         return getCount() > 0 ? (double) getSum() / getCount() : 0.0d;
     }
 

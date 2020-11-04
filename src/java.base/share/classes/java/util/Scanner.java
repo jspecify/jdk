@@ -25,15 +25,7 @@
 
 package java.util;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.index.qual.Positive;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.common.value.qual.IntRange;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.Nullable;
 
 import java.io.*;
 import java.math.*;
@@ -317,8 +309,8 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  *
  * @since   1.5
  */
-@AnnotatedFor({"index", "interning", "lock", "signedness"})
-public final @UsesObjectEquals class Scanner implements Iterator<String>, Closeable {
+
+public final  class Scanner implements Iterator<String>, Closeable {
 
     // Internal buffer used to hold input
     private CharBuffer buf;
@@ -369,10 +361,10 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
     private boolean closed = false;
 
     // The current radix used by this scanner
-    private @Positive @IntRange(from = 2, to = 36) int radix = 10;
+    private   int radix = 10;
 
     // The default radix for this scanner
-    private @IntRange(from = 2, to = 36) int defaultRadix = 10;
+    private  int defaultRadix = 10;
 
     // The locale used by this scanner
     private Locale locale = null;
@@ -1337,7 +1329,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *
      * @return the default radix of this scanner
      */
-    public @Positive @IntRange(from = 2, to = 36) int radix() {
+    public   int radix() {
         return this.defaultRadix;
     }
 
@@ -1359,7 +1351,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @return this scanner
      * @throws IllegalArgumentException if radix is out of range
      */
-    public Scanner useRadix(@IntRange(from = 2, to = 36) int radix) {
+    public Scanner useRadix( int radix) {
         if ((radix < Character.MIN_RADIX) || (radix > Character.MAX_RADIX))
             throw new IllegalArgumentException("radix:"+radix);
 
@@ -1374,7 +1366,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
 
     // The next operation should occur in the specified radix but
     // the default is left untouched.
-    private void setRadix(@Positive @IntRange(from = 2, to = 36) int radix) {
+    private void setRadix(  int radix) {
         if ((radix < Character.MIN_RADIX) || (radix > Character.MAX_RADIX))
             throw new IllegalArgumentException("radix:"+radix);
 
@@ -1417,8 +1409,8 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *
      * @return  The string representation of this scanner
      */
-    @SideEffectFree
-    public String toString(@GuardSatisfied Scanner this) {
+    
+    public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("java.util.Scanner");
         sb.append("[delimiters=" + delimPattern + "]");
@@ -1447,7 +1439,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @see java.util.Iterator
      */
-    public boolean hasNext(@GuardSatisfied Scanner this) {
+    public boolean hasNext() {
         ensureOpen();
         saveState();
         modCount++;
@@ -1473,7 +1465,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @see java.util.Iterator
      */
-    public String next(@GuardSatisfied Scanner this) {
+    public String next() {
         ensureOpen();
         clearCaches();
         modCount++;
@@ -1498,7 +1490,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws UnsupportedOperationException if this method is invoked.
      * @see java.util.Iterator
      */
-    public void remove(@GuardSatisfied Scanner this) {
+    public void remove() {
         throw new UnsupportedOperationException();
     }
 
@@ -1515,7 +1507,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *         the specified pattern
      * @throws IllegalStateException if this scanner is closed
      */
-    public boolean hasNext(@GuardSatisfied Scanner this, String pattern)  {
+    public boolean hasNext(String pattern)  {
         return hasNext(patternCache.forName(pattern));
     }
 
@@ -1533,7 +1525,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws NoSuchElementException if no such tokens are available
      * @throws IllegalStateException if this scanner is closed
      */
-    public String next(@GuardSatisfied Scanner this, String pattern)  {
+    public String next(String pattern)  {
         return next(patternCache.forName(pattern));
     }
 
@@ -1548,7 +1540,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *         the specified pattern
      * @throws IllegalStateException if this scanner is closed
      */
-    public boolean hasNext(@GuardSatisfied Scanner this, Pattern pattern) {
+    public boolean hasNext(Pattern pattern) {
         ensureOpen();
         if (pattern == null)
             throw new NullPointerException();
@@ -1581,7 +1573,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws NoSuchElementException if no more tokens are available
      * @throws IllegalStateException if this scanner is closed
      */
-    public String next(@GuardSatisfied Scanner this, Pattern pattern) {
+    public String next(Pattern pattern) {
         ensureOpen();
         if (pattern == null)
             throw new NullPointerException();
@@ -1652,7 +1644,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws NoSuchElementException if no line was found
      * @throws IllegalStateException if this scanner is closed
      */
-    public String nextLine(@GuardSatisfied Scanner this) {
+    public String nextLine() {
         modCount++;
         if (hasNextPattern == linePattern())
             return getCachedResult();
@@ -1754,7 +1746,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if horizon is negative
      */
-    public String findWithinHorizon(String pattern, @NonNegative int horizon) {
+    public String findWithinHorizon(String pattern,  int horizon) {
         return findWithinHorizon(patternCache.forName(pattern), horizon);
     }
 
@@ -1789,7 +1781,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if horizon is negative
      */
-    public String findWithinHorizon(Pattern pattern, @NonNegative int horizon) {
+    public String findWithinHorizon(Pattern pattern,  int horizon) {
         ensureOpen();
         if (pattern == null)
             throw new NullPointerException();
@@ -1835,7 +1827,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws NoSuchElementException if the specified pattern is not found
      * @throws IllegalStateException if this scanner is closed
      */
-    public Scanner skip(@GuardSatisfied Scanner this, Pattern pattern) {
+    public Scanner skip(Pattern pattern) {
         ensureOpen();
         if (pattern == null)
             throw new NullPointerException();
@@ -1868,7 +1860,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @return this scanner
      * @throws IllegalStateException if this scanner is closed
      */
-    public Scanner skip(@GuardSatisfied Scanner this, String pattern) {
+    public Scanner skip(String pattern) {
         return skip(patternCache.forName(pattern));
     }
 
@@ -1884,7 +1876,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *         boolean value
      * @throws IllegalStateException if this scanner is closed
      */
-    public boolean hasNextBoolean(@GuardSatisfied Scanner this)  {
+    public boolean hasNextBoolean()  {
         return hasNext(boolPattern());
     }
 
@@ -1900,7 +1892,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws NoSuchElementException if input is exhausted
      * @throws IllegalStateException if this scanner is closed
      */
-    public boolean nextBoolean(@GuardSatisfied Scanner this)  {
+    public boolean nextBoolean()  {
         clearCaches();
         return Boolean.parseBoolean(next(boolPattern()));
     }
@@ -1914,7 +1906,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *         byte value
      * @throws IllegalStateException if this scanner is closed
      */
-    public boolean hasNextByte(@GuardSatisfied Scanner this) {
+    public boolean hasNextByte() {
         return hasNextByte(defaultRadix);
     }
 
@@ -1933,7 +1925,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public boolean hasNextByte(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
+    public boolean hasNextByte(  int radix) {
         setRadix(radix);
         boolean result = hasNext(integerPattern());
         if (result) { // Cache it
@@ -1964,7 +1956,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws NoSuchElementException if input is exhausted
      * @throws IllegalStateException if this scanner is closed
      */
-    public @PolySigned byte nextByte(@GuardSatisfied Scanner this) {
+    public  byte nextByte() {
          return nextByte(defaultRadix);
     }
 
@@ -1999,7 +1991,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public @PolySigned byte nextByte(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
+    public  byte nextByte(  int radix) {
         // Check cached result
         if ((typeCache != null) && (typeCache instanceof Byte)
             && this.radix == radix) {
@@ -2030,7 +2022,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *         short value in the default radix
      * @throws IllegalStateException if this scanner is closed
      */
-    public boolean hasNextShort(@GuardSatisfied Scanner this) {
+    public boolean hasNextShort() {
         return hasNextShort(defaultRadix);
     }
 
@@ -2049,7 +2041,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public boolean hasNextShort(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
+    public boolean hasNextShort(  int radix) {
         setRadix(radix);
         boolean result = hasNext(integerPattern());
         if (result) { // Cache it
@@ -2080,7 +2072,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws NoSuchElementException if input is exhausted
      * @throws IllegalStateException if this scanner is closed
      */
-    public @PolySigned short nextShort(@GuardSatisfied Scanner this) {
+    public  short nextShort() {
         return nextShort(defaultRadix);
     }
 
@@ -2115,7 +2107,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public @PolySigned short nextShort(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
+    public  short nextShort(  int radix) {
         // Check cached result
         if ((typeCache != null) && (typeCache instanceof Short)
             && this.radix == radix) {
@@ -2146,7 +2138,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *         int value
      * @throws IllegalStateException if this scanner is closed
      */
-    public boolean hasNextInt(@GuardSatisfied Scanner this) {
+    public boolean hasNextInt() {
         return hasNextInt(defaultRadix);
     }
 
@@ -2165,7 +2157,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public boolean hasNextInt(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
+    public boolean hasNextInt(  int radix) {
         setRadix(radix);
         boolean result = hasNext(integerPattern());
         if (result) { // Cache it
@@ -2220,7 +2212,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws NoSuchElementException if input is exhausted
      * @throws IllegalStateException if this scanner is closed
      */
-    public @PolySigned int nextInt(@GuardSatisfied Scanner this) {
+    public  int nextInt() {
         return nextInt(defaultRadix);
     }
 
@@ -2255,7 +2247,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public @PolySigned int nextInt(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
+    public  int nextInt(  int radix) {
         // Check cached result
         if ((typeCache != null) && (typeCache instanceof Integer)
             && this.radix == radix) {
@@ -2286,7 +2278,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *         long value
      * @throws IllegalStateException if this scanner is closed
      */
-    public boolean hasNextLong(@GuardSatisfied Scanner this) {
+    public boolean hasNextLong() {
         return hasNextLong(defaultRadix);
     }
 
@@ -2305,7 +2297,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public boolean hasNextLong(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
+    public boolean hasNextLong(  int radix) {
         setRadix(radix);
         boolean result = hasNext(integerPattern());
         if (result) { // Cache it
@@ -2336,7 +2328,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws NoSuchElementException if input is exhausted
      * @throws IllegalStateException if this scanner is closed
      */
-    public @PolySigned long nextLong(@GuardSatisfied Scanner this) {
+    public  long nextLong() {
         return nextLong(defaultRadix);
     }
 
@@ -2371,7 +2363,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public @PolySigned long nextLong(@GuardSatisfied Scanner this, @Positive @IntRange(from = 2, to = 36) int radix) {
+    public  long nextLong(  int radix) {
         // Check cached result
         if ((typeCache != null) && (typeCache instanceof Long)
             && this.radix == radix) {
@@ -2454,7 +2446,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *         float value
      * @throws IllegalStateException if this scanner is closed
      */
-    public boolean hasNextFloat(@GuardSatisfied Scanner this) {
+    public boolean hasNextFloat() {
         setRadix(10);
         boolean result = hasNext(floatPattern());
         if (result) { // Cache it
@@ -2495,7 +2487,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws NoSuchElementException if input is exhausted
      * @throws IllegalStateException if this scanner is closed
      */
-    public float nextFloat(@GuardSatisfied Scanner this) {
+    public float nextFloat() {
         // Check cached result
         if ((typeCache != null) && (typeCache instanceof Float)) {
             float val = ((Float)typeCache).floatValue();
@@ -2521,7 +2513,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *         double value
      * @throws IllegalStateException if this scanner is closed
      */
-    public boolean hasNextDouble(@GuardSatisfied Scanner this) {
+    public boolean hasNextDouble() {
         setRadix(10);
         boolean result = hasNext(floatPattern());
         if (result) { // Cache it
@@ -2562,7 +2554,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws NoSuchElementException if the input is exhausted
      * @throws IllegalStateException if this scanner is closed
      */
-    public double nextDouble(@GuardSatisfied Scanner this) {
+    public double nextDouble() {
         // Check cached result
         if ((typeCache != null) && (typeCache instanceof Double)) {
             double val = ((Double)typeCache).doubleValue();
@@ -2592,7 +2584,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *         {@code BigInteger}
      * @throws IllegalStateException if this scanner is closed
      */
-    public boolean hasNextBigInteger(@GuardSatisfied Scanner this) {
+    public boolean hasNextBigInteger() {
         return hasNextBigInteger(defaultRadix);
     }
 
@@ -2612,7 +2604,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public boolean hasNextBigInteger(@GuardSatisfied Scanner this, @IntRange(from = 2, to = 36) int radix) {
+    public boolean hasNextBigInteger( int radix) {
         setRadix(radix);
         boolean result = hasNext(integerPattern());
         if (result) { // Cache it
@@ -2644,7 +2636,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws NoSuchElementException if the input is exhausted
      * @throws IllegalStateException if this scanner is closed
      */
-    public BigInteger nextBigInteger(@GuardSatisfied Scanner this) {
+    public BigInteger nextBigInteger() {
         return nextBigInteger(defaultRadix);
     }
 
@@ -2674,7 +2666,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if the radix is out of range
      */
-    public BigInteger nextBigInteger(@GuardSatisfied Scanner this, @IntRange(from = 2, to = 36) int radix) {
+    public BigInteger nextBigInteger( int radix) {
         // Check cached result
         if ((typeCache != null) && (typeCache instanceof BigInteger)
             && this.radix == radix) {
@@ -2706,7 +2698,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *         {@code BigDecimal}
      * @throws IllegalStateException if this scanner is closed
      */
-    public boolean hasNextBigDecimal(@GuardSatisfied Scanner this) {
+    public boolean hasNextBigDecimal() {
         setRadix(10);
         boolean result = hasNext(decimalPattern());
         if (result) { // Cache it
@@ -2740,7 +2732,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws NoSuchElementException if the input is exhausted
      * @throws IllegalStateException if this scanner is closed
      */
-    public BigDecimal nextBigDecimal(@GuardSatisfied Scanner this) {
+    public BigDecimal nextBigDecimal() {
         // Check cached result
         if ((typeCache != null) && (typeCache instanceof BigDecimal)) {
             BigDecimal val = (BigDecimal)typeCache;
@@ -2782,7 +2774,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *
      * @since 1.6
      */
-    public Scanner reset(@GuardSatisfied Scanner this) {
+    public Scanner reset() {
         delimPattern = WHITESPACE_PATTERN;
         useLocale(Locale.getDefault(Locale.Category.FORMAT));
         useRadix(10);

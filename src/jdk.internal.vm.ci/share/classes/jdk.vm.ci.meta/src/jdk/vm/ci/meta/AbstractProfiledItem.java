@@ -22,11 +22,7 @@
  */
 package jdk.vm.ci.meta;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A profiled type that has a probability. Profiled types are naturally sorted in descending order
@@ -79,8 +75,8 @@ public abstract class AbstractProfiledItem<T> implements Comparable<AbstractProf
     }
 
     @Override
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

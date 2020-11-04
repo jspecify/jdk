@@ -25,11 +25,7 @@
 
 package org.ietf.jgss;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.io.InputStream;
 import java.io.IOException;
@@ -156,8 +152,8 @@ public class Oid {
      * value, <code>false</code> otherwise.
      * @param other the Oid object that has to be compared to this one
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object other) {
 
         //check if both reference the same object

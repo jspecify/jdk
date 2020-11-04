@@ -25,14 +25,8 @@
 
 package java.sql;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -88,8 +82,8 @@ import jdk.internal.reflect.Reflection;
  * @see Connection
  * @since 1.1
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class DriverManager {
+
+public  class DriverManager {
 
 
     // List of registered JDBC drivers
@@ -730,8 +724,8 @@ class DriverInfo {
     }
 
     @Override
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object other) {
         return (other instanceof DriverInfo)
                 && this.driver == ((DriverInfo) other).driver;

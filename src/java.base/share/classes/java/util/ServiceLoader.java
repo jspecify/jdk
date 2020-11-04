@@ -25,11 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -393,8 +390,8 @@ import jdk.internal.reflect.Reflection;
  * @spec JPMS
  */
 
-@AnnotatedFor({"interning", "lock", "nullness"})
-public final @UsesObjectEquals class ServiceLoader<S>
+@DefaultNonNull
+public final  class ServiceLoader<S extends @Nullable Object>
     implements Iterable<S>
 {
     // The class or interface representing the service being loaded
@@ -443,7 +440,7 @@ public final @UsesObjectEquals class ServiceLoader<S>
      * @since 9
      * @spec JPMS
      */
-    public static interface Provider<S> extends Supplier<S> {
+    public static interface Provider<S extends @Nullable Object> extends Supplier<S> {
         /**
          * Returns the provider type. There is no guarantee that this type is
          * accessible or that it has a public no-args constructor. The {@link
@@ -686,7 +683,7 @@ public final @UsesObjectEquals class ServiceLoader<S>
      * permissions, the static factory to obtain the provider or the
      * provider's no-arg constructor.
      */
-    private static class ProviderImpl<S> implements Provider<S> {
+    private static class ProviderImpl<S extends @Nullable Object> implements Provider<S> {
         final Class<S> service;
         final Class<? extends S> type;
         final Method factoryMethod;  // factory method or null
@@ -910,7 +907,7 @@ public final @UsesObjectEquals class ServiceLoader<S>
      * Implements lazy service provider lookup of service providers that
      * are provided by modules in a module layer (or parent layers)
      */
-    private final class LayerLookupIterator<T>
+    private final class LayerLookupIterator<T extends @Nullable Object>
         implements Iterator<Provider<T>>
     {
         Deque<ModuleLayer> stack = new ArrayDeque<>();
@@ -987,7 +984,7 @@ public final @UsesObjectEquals class ServiceLoader<S>
      * are provided by modules defined to a class loader or to modules in
      * layers with a module defined to the class loader.
      */
-    private final class ModuleServicesLookupIterator<T>
+    private final class ModuleServicesLookupIterator<T extends @Nullable Object>
         implements Iterator<Provider<T>>
     {
         ClassLoader currentLoader;
@@ -1112,7 +1109,7 @@ public final @UsesObjectEquals class ServiceLoader<S>
      * configured via service configuration files. Service providers in named
      * modules are silently ignored by this lookup iterator.
      */
-    private final class LazyClassPathLookupIterator<T>
+    private final class LazyClassPathLookupIterator<T extends @Nullable Object>
         implements Iterator<Provider<T>>
     {
         static final String PREFIX = "META-INF/services/";
@@ -1359,7 +1356,7 @@ public final @UsesObjectEquals class ServiceLoader<S>
      * @revised 9
      * @spec JPMS
      */
-    @SideEffectFree
+    
     public Iterator<S> iterator() {
 
         // create lookup iterator if needed
@@ -1466,7 +1463,7 @@ public final @UsesObjectEquals class ServiceLoader<S>
         return StreamSupport.stream(s, false);
     }
 
-    private class ProviderSpliterator<T> implements Spliterator<Provider<T>> {
+    private class ProviderSpliterator<T extends @Nullable Object> implements Spliterator<Provider<T>> {
         final int expectedReloadCount = ServiceLoader.this.reloadCount;
         final Iterator<Provider<T>> iterator;
         int index;
@@ -1537,7 +1534,7 @@ public final @UsesObjectEquals class ServiceLoader<S>
      *
      * @return A new service loader
      */
-    static <S> ServiceLoader<S> load(Class<S> service,
+    static <S extends @Nullable Object> ServiceLoader<S> load(Class<S> service,
                                      ClassLoader loader,
                                      Module callerModule)
     {
@@ -1648,7 +1645,7 @@ public final @UsesObjectEquals class ServiceLoader<S>
      * @spec JPMS
      */
     @CallerSensitive
-    public static <S> ServiceLoader<S> load(Class<S> service,
+    public static <S extends @Nullable Object> ServiceLoader<S> load(Class<S> service,
                                             @Nullable ClassLoader loader)
     {
         return new ServiceLoader<>(Reflection.getCallerClass(), service, loader);
@@ -1694,7 +1691,7 @@ public final @UsesObjectEquals class ServiceLoader<S>
      * @spec JPMS
      */
     @CallerSensitive
-    public static <S> ServiceLoader<S> load(Class<S> service) {
+    public static <S extends @Nullable Object> ServiceLoader<S> load(Class<S> service) {
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         return new ServiceLoader<>(Reflection.getCallerClass(), service, cl);
     }
@@ -1730,7 +1727,7 @@ public final @UsesObjectEquals class ServiceLoader<S>
      * @spec JPMS
      */
     @CallerSensitive
-    public static <S> ServiceLoader<S> loadInstalled(Class<S> service) {
+    public static <S extends @Nullable Object> ServiceLoader<S> loadInstalled(Class<S> service) {
         ClassLoader cl = ClassLoader.getPlatformClassLoader();
         return new ServiceLoader<>(Reflection.getCallerClass(), service, cl);
     }
@@ -1783,7 +1780,7 @@ public final @UsesObjectEquals class ServiceLoader<S>
      * @spec JPMS
      */
     @CallerSensitive
-    public static <S> ServiceLoader<S> load(ModuleLayer layer, Class<S> service) {
+    public static <S extends @Nullable Object> ServiceLoader<S> load(ModuleLayer layer, Class<S> service) {
         return new ServiceLoader<>(Reflection.getCallerClass(), layer, service);
     }
 
@@ -1849,8 +1846,8 @@ public final @UsesObjectEquals class ServiceLoader<S>
      *
      * @return  A descriptive string
      */
-    @SideEffectFree
-    public String toString(@GuardSatisfied ServiceLoader<S> this) {
+    
+    public String toString() {
         return "java.util.ServiceLoader[" + service.getName() + "]";
     }
 

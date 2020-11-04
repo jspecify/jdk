@@ -25,9 +25,8 @@
 
 package javax.swing.tree;
 
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.Color;
 import java.awt.Component;
@@ -131,7 +130,7 @@ import sun.swing.SwingUtilities2;
  * @author Ray Ryan
  * @author Scott Violet
  */
-@AnnotatedFor({"interning", "nullness"})
+@DefaultNonNull
 @SuppressWarnings("serial") // Same-version serialization only
 public class DefaultTreeCellRenderer extends JLabel implements TreeCellRenderer
 {
@@ -693,7 +692,7 @@ public class DefaultTreeCellRenderer extends JLabel implements TreeCellRenderer
     * See the <a href="#override">Implementation Note</a>
     * for more information.
     */
-    protected void firePropertyChange(@Interned String propertyName, @Nullable Object oldValue, @Nullable Object newValue) {
+    protected void firePropertyChange( String propertyName, @Nullable Object oldValue, @Nullable Object newValue) {
         // Strings get interned...
         if (propertyName == "text"
             || ((SwingUtilities2.isScaleChanged(propertyName, oldValue, newValue)

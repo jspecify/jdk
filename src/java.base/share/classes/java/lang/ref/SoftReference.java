@@ -25,10 +25,8 @@
 
 package java.lang.ref;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Soft reference objects, which are cleared at the discretion of the garbage
@@ -65,8 +63,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since    1.2
  */
 
-@AnnotatedFor({"lock", "nullness"})
-public class SoftReference<T> extends Reference<T> {
+@DefaultNonNull
+public class SoftReference<T extends @Nullable Object> extends Reference<T> {
 
     /**
      * Timestamp clock, updated by the garbage collector
@@ -113,8 +111,8 @@ public class SoftReference<T> extends Reference<T> {
      * @return   The object to which this reference refers, or
      *           {@code null} if this reference object has been cleared
      */
-    @SideEffectFree
-    public @Nullable T get(@GuardSatisfied SoftReference<T> this) {
+    
+    public @Nullable T get() {
         T o = super.get();
         if (o != null && this.timestamp != clock)
             this.timestamp = clock;

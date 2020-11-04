@@ -25,15 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
  * Private implementation class for EnumSet, for "jumbo" enum types
@@ -43,7 +36,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since 1.5
  * @serial exclude
  */
-@AnnotatedFor({"index"})
+
 class JumboEnumSet<E extends Enum<E>> extends EnumSet<E> {
     private static final long serialVersionUID = 334349849919042784L;
 
@@ -169,8 +162,8 @@ class JumboEnumSet<E extends Enum<E>> extends EnumSet<E> {
      *
      * @return the number of elements in this set
      */
-    @Pure
-    public @NonNegative int size() {
+    
+    public  int size() {
         return size;
     }
 
@@ -179,7 +172,7 @@ class JumboEnumSet<E extends Enum<E>> extends EnumSet<E> {
      *
      * @return {@code true} if this set contains no elements
      */
-    @Pure
+    
     public boolean isEmpty() {
         return size == 0;
     }
@@ -190,7 +183,7 @@ class JumboEnumSet<E extends Enum<E>> extends EnumSet<E> {
      * @param e element to be checked for containment in this collection
      * @return {@code true} if this set contains the specified element
      */
-    public boolean contains(Object e) {
+    public boolean contains(@Nullable Object e) {
         if (e == null)
             return false;
         Class<?> eClass = e.getClass();
@@ -231,7 +224,7 @@ class JumboEnumSet<E extends Enum<E>> extends EnumSet<E> {
      * @param e element to be removed from this set, if present
      * @return {@code true} if the set contained the specified element
      */
-    public boolean remove(Object e) {
+    public boolean remove(@Nullable Object e) {
         if (e == null)
             return false;
         Class<?> eClass = e.getClass();
@@ -361,8 +354,8 @@ class JumboEnumSet<E extends Enum<E>> extends EnumSet<E> {
      * @param o object to be compared for equality with this set
      * @return {@code true} if the specified object is equal to this set
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object o) {
         if (!(o instanceof JumboEnumSet))
             return super.equals(o);

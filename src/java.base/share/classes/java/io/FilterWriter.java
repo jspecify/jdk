@@ -25,10 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -43,7 +41,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since       1.1
  */
 
-@AnnotatedFor({"nullness", "index"})
+@DefaultNonNull
 public abstract class FilterWriter extends Writer {
 
     /**
@@ -85,7 +83,7 @@ public abstract class FilterWriter extends Writer {
      *
      * @throws  IOException  If an I/O error occurs
      */
-    public void write(char cbuf[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
+    public void write(char cbuf[],  int off,   int len) throws IOException {
         out.write(cbuf, off, len);
     }
 
@@ -103,7 +101,7 @@ public abstract class FilterWriter extends Writer {
      *
      * @throws  IOException  If an I/O error occurs
      */
-    public void write(String str, @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
+    public void write(String str,  int off,   int len) throws IOException {
         out.write(str, off, len);
     }
 

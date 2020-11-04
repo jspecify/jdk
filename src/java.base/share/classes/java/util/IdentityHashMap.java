@@ -25,16 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.EnsuresKeyFor;
-import org.checkerframework.checker.nullness.qual.EnsuresKeyForIf;
-import org.checkerframework.checker.nullness.qual.KeyFor;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.reflect.Array;
 import java.util.function.BiConsumer;
@@ -147,9 +139,9 @@ import jdk.internal.misc.SharedSecrets;
  * @since   1.4
  */
 
-@CFComment({"lock/nullness: This collection can only contain null values"})
-@AnnotatedFor({"lock", "nullness", "index"})
-public class IdentityHashMap<K,V>
+
+@DefaultNonNull
+public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Object>
     extends AbstractMap<K,V>
     implements Map<K,V>, java.io.Serializable, Cloneable
 {
@@ -233,7 +225,7 @@ public class IdentityHashMap<K,V>
      * @param expectedMaxSize the expected maximum size of the map
      * @throws IllegalArgumentException if {@code expectedMaxSize} is negative
      */
-    public IdentityHashMap(@NonNegative int expectedMaxSize) {
+    public IdentityHashMap( int expectedMaxSize) {
         if (expectedMaxSize < 0)
             throw new IllegalArgumentException("expectedMaxSize is negative: "
                                                + expectedMaxSize);
@@ -286,8 +278,8 @@ public class IdentityHashMap<K,V>
      *
      * @return the number of key-value mappings in this map
      */
-    @Pure
-    public @NonNegative int size(@GuardSatisfied IdentityHashMap<K, V> this) {
+    
+    public  int size() {
         return size;
     }
 
@@ -298,8 +290,8 @@ public class IdentityHashMap<K,V>
      * @return {@code true} if this identity hash map contains no key-value
      *         mappings
      */
-    @Pure
-    public boolean isEmpty(@GuardSatisfied IdentityHashMap<K, V> this) {
+    
+    public boolean isEmpty() {
         return size == 0;
     }
 
@@ -336,9 +328,9 @@ public class IdentityHashMap<K,V>
      *
      * @see #put(Object, Object)
      */
-    @Pure
+    
     @SuppressWarnings("unchecked")
-    public @Nullable V get(@GuardSatisfied IdentityHashMap<K, V> this, @GuardSatisfied @Nullable Object key) {
+    public @Nullable V get(@Nullable Object key) {
         Object k = maskNull(key);
         Object[] tab = table;
         int len = tab.length;
@@ -362,9 +354,9 @@ public class IdentityHashMap<K,V>
      *          in this map
      * @see     #containsValue(Object)
      */
-    @EnsuresKeyForIf(expression={"#1"}, result=true, map={"this"})
-    @Pure
-    public boolean containsKey(@GuardSatisfied IdentityHashMap<K, V> this, @GuardSatisfied @Nullable Object key) {
+    
+    
+    public boolean containsKey(@Nullable Object key) {
         Object k = maskNull(key);
         Object[] tab = table;
         int len = tab.length;
@@ -388,8 +380,8 @@ public class IdentityHashMap<K,V>
      *         specified object reference
      * @see     #containsKey(Object)
      */
-    @Pure
-    public boolean containsValue(@GuardSatisfied IdentityHashMap<K, V> this, @GuardSatisfied @Nullable Object value) {
+    
+    public boolean containsValue(@Nullable Object value) {
         Object[] tab = table;
         for (int i = 1; i < tab.length; i += 2)
             if (tab[i] == value && tab[i - 1] != null)
@@ -436,8 +428,8 @@ public class IdentityHashMap<K,V>
      * @see     #get(Object)
      * @see     #containsKey(Object)
      */
-    @EnsuresKeyFor(value={"#1"}, map={"this"})
-    public @Nullable V put(@GuardSatisfied IdentityHashMap<K, V> this, K key, V value) {
+    
+    public @Nullable V put(K key, V value) {
         final Object k = maskNull(key);
 
         retryAfterResize: for (;;) {
@@ -516,7 +508,7 @@ public class IdentityHashMap<K,V>
      * @param m mappings to be stored in this map
      * @throws NullPointerException if the specified map is null
      */
-    public void putAll(@GuardSatisfied IdentityHashMap<K, V> this, Map<? extends K, ? extends V> m) {
+    public void putAll(Map<? extends K, ? extends V> m) {
         int n = m.size();
         if (n == 0)
             return;
@@ -536,7 +528,7 @@ public class IdentityHashMap<K,V>
      *         (A {@code null} return can also indicate that the map
      *         previously associated {@code null} with {@code key}.)
      */
-    public @Nullable V remove(@GuardSatisfied IdentityHashMap<K, V> this, @Nullable Object key) {
+    public @Nullable V remove(@Nullable Object key) {
         Object k = maskNull(key);
         Object[] tab = table;
         int len = tab.length;
@@ -632,7 +624,7 @@ public class IdentityHashMap<K,V>
      * Removes all of the mappings from this map.
      * The map will be empty after this call returns.
      */
-    public void clear(@GuardSatisfied IdentityHashMap<K, V> this) {
+    public void clear() {
         modCount++;
         Object[] tab = table;
         for (int i = 0; i < tab.length; i++)
@@ -657,8 +649,8 @@ public class IdentityHashMap<K,V>
      * @return {@code true} if the specified object is equal to this map
      * @see Object#equals(Object)
      */
-    @Pure
-    public boolean equals(@GuardSatisfied @Nullable IdentityHashMap<K, V> this, @GuardSatisfied Object o) {
+    
+    public boolean equals( Object o) {
         if (o == this) {
             return true;
         } else if (o instanceof IdentityHashMap) {
@@ -700,8 +692,8 @@ public class IdentityHashMap<K,V>
      * @see Object#equals(Object)
      * @see #equals(Object)
      */
-    @Pure
-    public int hashCode(@GuardSatisfied IdentityHashMap<K, V> this) {
+    
+    public int hashCode() {
         int result = 0;
         Object[] tab = table;
         for (int i = 0; i < tab.length; i +=2) {
@@ -721,8 +713,8 @@ public class IdentityHashMap<K,V>
      *
      * @return a shallow copy of this map
      */
-    @SideEffectFree
-    public Object clone(@GuardSatisfied IdentityHashMap<K, V> this) {
+    
+    public Object clone() {
         try {
             IdentityHashMap<?,?> m = (IdentityHashMap<?,?>) super.clone();
             m.entrySet = null;
@@ -733,7 +725,7 @@ public class IdentityHashMap<K,V>
         }
     }
 
-    private abstract class IdentityHashMapIterator<T> implements Iterator<T> {
+    private abstract class IdentityHashMapIterator<T extends @Nullable Object> implements Iterator<T> {
         int index = (size != 0 ? 0 : table.length); // current slot.
         int expectedModCount = modCount; // to support fast-fail
         int lastReturnedIndex = -1;      // to allow remove()
@@ -986,8 +978,8 @@ public class IdentityHashMap<K,V>
      * @see Object#equals(Object)
      * @see System#identityHashCode(Object)
      */
-    @SideEffectFree
-    public Set<@KeyFor({"this"}) K> keySet(@GuardSatisfied IdentityHashMap<K, V> this) {
+    
+    public Set< K> keySet() {
         Set<K> ks = keySet;
         if (ks == null) {
             ks = new KeySet();
@@ -997,12 +989,12 @@ public class IdentityHashMap<K,V>
     }
 
     private class KeySet extends AbstractSet<K> {
-        @SideEffectFree
+        
         public Iterator<K> iterator() {
             return new KeyIterator();
         }
-        @Pure
-        public @NonNegative int size() {
+        
+        public  int size() {
             return size;
         }
         public boolean contains(@Nullable Object o) {
@@ -1038,13 +1030,13 @@ public class IdentityHashMap<K,V>
                 result += System.identityHashCode(key);
             return result;
         }
-        @SideEffectFree
+        
         public Object[] toArray() {
             return toArray(new Object[0]);
         }
         @SuppressWarnings("unchecked")
-        @SideEffectFree
-        public <T> T[] toArray(T[] a) {
+        
+        public <T extends @Nullable Object> T[] toArray(T[] a) {
             int expectedModCount = modCount;
             int size = size();
             if (a.length < size)
@@ -1072,7 +1064,7 @@ public class IdentityHashMap<K,V>
             return a;
         }
 
-        @SideEffectFree
+        
         public Spliterator<K> spliterator() {
             return new KeySpliterator<>(IdentityHashMap.this, 0, -1, 0, 0);
         }
@@ -1098,8 +1090,8 @@ public class IdentityHashMap<K,V>
      * behavior of its {@code contains}, {@code remove} and
      * {@code containsAll} methods.</b>
      */
-    @SideEffectFree
-    public Collection<V> values(@GuardSatisfied IdentityHashMap<K, V> this) {
+    
+    public Collection<V> values() {
         Collection<V> vs = values;
         if (vs == null) {
             vs = new Values();
@@ -1109,12 +1101,12 @@ public class IdentityHashMap<K,V>
     }
 
     private class Values extends AbstractCollection<V> {
-        @SideEffectFree
+        
         public Iterator<V> iterator() {
             return new ValueIterator();
         }
-        @Pure
-        public @NonNegative int size() {
+        
+        public  int size() {
             return size;
         }
         public boolean contains(@Nullable Object o) {
@@ -1132,13 +1124,13 @@ public class IdentityHashMap<K,V>
         public void clear() {
             IdentityHashMap.this.clear();
         }
-        @SideEffectFree
+        
         public Object[] toArray() {
             return toArray(new Object[0]);
         }
         @SuppressWarnings("unchecked")
-        @SideEffectFree
-        public <T> T[] toArray(T[] a) {
+        
+        public <T extends @Nullable Object> T[] toArray(T[] a) {
             int expectedModCount = modCount;
             int size = size();
             if (a.length < size)
@@ -1165,7 +1157,7 @@ public class IdentityHashMap<K,V>
             return a;
         }
 
-        @SideEffectFree
+        
         public Spliterator<V> spliterator() {
             return new ValueSpliterator<>(IdentityHashMap.this, 0, -1, 0, 0);
         }
@@ -1209,8 +1201,8 @@ public class IdentityHashMap<K,V>
      *
      * @return a set view of the identity-mappings contained in this map
      */
-    @SideEffectFree
-    public Set<Map.Entry<@KeyFor({"this"}) K,V>> entrySet(@GuardSatisfied IdentityHashMap<K, V> this) {
+    
+    public Set<Map.Entry< K,V>> entrySet() {
         Set<Map.Entry<K,V>> es = entrySet;
         if (es != null)
             return es;
@@ -1219,7 +1211,7 @@ public class IdentityHashMap<K,V>
     }
 
     private class EntrySet extends AbstractSet<Map.Entry<K,V>> {
-        @SideEffectFree
+        
         public Iterator<Map.Entry<K,V>> iterator() {
             return new EntryIterator();
         }
@@ -1235,8 +1227,8 @@ public class IdentityHashMap<K,V>
             Map.Entry<?,?> entry = (Map.Entry<?,?>)o;
             return removeMapping(entry.getKey(), entry.getValue());
         }
-        @Pure
-        public @NonNegative int size() {
+        
+        public  int size() {
             return size;
         }
         public void clear() {
@@ -1259,14 +1251,14 @@ public class IdentityHashMap<K,V>
             return modified;
         }
 
-        @SideEffectFree
+        
         public Object[] toArray() {
             return toArray(new Object[0]);
         }
 
         @SuppressWarnings("unchecked")
-        @SideEffectFree
-        public <T> T[] toArray(T[] a) {
+        
+        public <T extends @Nullable Object> T[] toArray(T[] a) {
             int expectedModCount = modCount;
             int size = size();
             if (a.length < size)
@@ -1294,7 +1286,7 @@ public class IdentityHashMap<K,V>
             return a;
         }
 
-        @SideEffectFree
+        
         public Spliterator<Map.Entry<K,V>> spliterator() {
             return new EntrySpliterator<>(IdentityHashMap.this, 0, -1, 0, 0);
         }
@@ -1424,7 +1416,7 @@ public class IdentityHashMap<K,V>
      * Similar form as array-based Spliterators, but skips blank elements,
      * and guestimates size as decreasing by half per split.
      */
-    static class IdentityHashMapSpliterator<K,V> {
+    static class IdentityHashMapSpliterator<K extends @Nullable Object,V extends @Nullable Object> {
         final IdentityHashMap<K,V> map;
         int index;             // current index, modified on advance/split
         int fence;             // -1 until first use; then one past last index
@@ -1456,7 +1448,7 @@ public class IdentityHashMap<K,V>
         }
     }
 
-    static final class KeySpliterator<K,V>
+    static final class KeySpliterator<K extends @Nullable Object,V extends @Nullable Object>
         extends IdentityHashMapSpliterator<K,V>
         implements Spliterator<K> {
         KeySpliterator(IdentityHashMap<K,V> map, int origin, int fence, int est,
@@ -1513,7 +1505,7 @@ public class IdentityHashMap<K,V>
         }
     }
 
-    static final class ValueSpliterator<K,V>
+    static final class ValueSpliterator<K extends @Nullable Object,V extends @Nullable Object>
         extends IdentityHashMapSpliterator<K,V>
         implements Spliterator<V> {
         ValueSpliterator(IdentityHashMap<K,V> m, int origin, int fence, int est,
@@ -1572,7 +1564,7 @@ public class IdentityHashMap<K,V>
 
     }
 
-    static final class EntrySpliterator<K,V>
+    static final class EntrySpliterator<K extends @Nullable Object,V extends @Nullable Object>
         extends IdentityHashMapSpliterator<K,V>
         implements Spliterator<Map.Entry<K,V>> {
         EntrySpliterator(IdentityHashMap<K,V> m, int origin, int fence, int est,

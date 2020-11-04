@@ -25,8 +25,8 @@
 
 package com.sun.javadoc;
 
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents an annotation.
@@ -40,7 +40,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *   in the package {@code jdk.javadoc.doclet}.
  *   For more information, see the <i>Migration Guide</i> in the documentation for that package.
  */
-@AnnotatedFor({"nullness", "signature", "value"})
+@DefaultNonNull
 @Deprecated(since="9", forRemoval=true)
 @SuppressWarnings("removal")
 public interface AnnotationDesc {
@@ -67,7 +67,7 @@ public interface AnnotationDesc {
      *
      * @return true if the annotation is synthesized.
      */
-    @Pure
+    
     boolean isSynthesized();
 
     /**

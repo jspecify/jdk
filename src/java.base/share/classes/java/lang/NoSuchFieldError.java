@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown if an application tries to access or modify a specified
@@ -40,7 +39,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class NoSuchFieldError extends IncompatibleClassChangeError {
     private static final long serialVersionUID = -3456430195886129035L;
@@ -48,7 +47,7 @@ class NoSuchFieldError extends IncompatibleClassChangeError {
     /**
      * Constructs a <code>NoSuchFieldError</code> with no detail message.
      */
-    @SideEffectFree
+    
     public NoSuchFieldError() {
         super();
     }
@@ -59,7 +58,7 @@ class NoSuchFieldError extends IncompatibleClassChangeError {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public NoSuchFieldError(@Nullable String s) {
         super(s);
     }

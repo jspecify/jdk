@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown when the Java Virtual Machine attempts to read a class
@@ -37,7 +36,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class ClassFormatError extends LinkageError {
     private static final long serialVersionUID = -8420114879011949195L;
@@ -45,7 +44,7 @@ class ClassFormatError extends LinkageError {
     /**
      * Constructs a <code>ClassFormatError</code> with no detail message.
      */
-    @SideEffectFree
+    
     public ClassFormatError() {
         super();
     }
@@ -56,7 +55,7 @@ class ClassFormatError extends LinkageError {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public ClassFormatError(@Nullable String s) {
         super(s);
     }

@@ -25,8 +25,8 @@
 
 package java.lang.instrument;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.security.ProtectionDomain;
 import java.util.List;
@@ -71,7 +71,7 @@ import java.util.jar.JarFile;
  *
  * @since   1.5
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public interface Instrumentation {
     /**
      * Registers the supplied transformer. All future class definitions

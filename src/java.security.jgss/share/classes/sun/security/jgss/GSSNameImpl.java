@@ -25,11 +25,7 @@
 
 package sun.security.jgss;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import org.ietf.jgss.*;
 import sun.security.jgss.spi.*;
@@ -367,8 +363,8 @@ public class GSSNameImpl implements GSSName {
         return 1;
     }
 
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object another) {
 
         try {

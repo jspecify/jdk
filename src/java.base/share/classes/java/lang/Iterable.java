@@ -24,7 +24,8 @@
  */
 package java.lang;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Iterator;
 import java.util.Objects;
@@ -41,8 +42,8 @@ import java.util.function.Consumer;
  * @since 1.5
  * @jls 14.14.2 The enhanced {@code for} statement
  */
-@AnnotatedFor({"lock", "nullness"})
-public interface Iterable<T> {
+@DefaultNonNull
+public interface Iterable<T extends @Nullable Object> {
     /**
      * Returns an iterator over elements of type {@code T}.
      *

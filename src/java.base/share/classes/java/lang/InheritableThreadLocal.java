@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.ref.*;
 
@@ -55,9 +54,9 @@ import java.lang.ref.*;
  * @since   1.2
  */
 
-@CFComment({"nullness: See comment in ThreadLocal class about type parameter annotation."})
-@AnnotatedFor({"nullness"})
-public class InheritableThreadLocal<@Nullable T> extends ThreadLocal<T> {
+
+@DefaultNonNull
+public class InheritableThreadLocal< T extends @Nullable Object> extends ThreadLocal<T> {
     /**
      * Computes the child's initial value for this inheritable thread-local
      * variable as a function of the parent's value at the time the child

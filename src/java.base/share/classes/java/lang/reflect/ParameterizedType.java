@@ -25,9 +25,8 @@
 
 package java.lang.reflect;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -48,7 +47,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *
  * @since 1.5
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public interface ParameterizedType extends Type {
     /**
      * Returns an array of {@code Type} objects representing the actual type
@@ -67,7 +66,7 @@ public interface ParameterizedType extends Type {
      *     be instantiated for any reason
      * @since 1.5
      */
-    @NonNull Type @NonNull [] getActualTypeArguments();
+     Type  [] getActualTypeArguments();
 
     /**
      * Returns the {@code Type} object representing the class or interface
@@ -77,7 +76,7 @@ public interface ParameterizedType extends Type {
      *     that declared this type
      * @since 1.5
      */
-    @NonNull Type getRawType();
+     Type getRawType();
 
     /**
      * Returns a {@code Type} object representing the type that this type

@@ -25,12 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.InvalidObjectException;
 import jdk.internal.misc.SharedSecrets;
@@ -94,8 +90,8 @@ import jdk.internal.misc.SharedSecrets;
  * @since   1.2
  */
 
-@AnnotatedFor({"lock", "nullness", "index"})
-public class HashSet<E>
+@DefaultNonNull
+public class HashSet<E extends @Nullable Object>
     extends AbstractSet<E>
     implements Set<E>, Cloneable, java.io.Serializable
 {
@@ -137,7 +133,7 @@ public class HashSet<E>
      * @throws     IllegalArgumentException if the initial capacity is less
      *             than zero, or if the load factor is nonpositive
      */
-    public HashSet(@NonNegative int initialCapacity, float loadFactor) {
+    public HashSet( int initialCapacity, float loadFactor) {
         map = new HashMap<>(initialCapacity, loadFactor);
     }
 
@@ -149,7 +145,7 @@ public class HashSet<E>
      * @throws     IllegalArgumentException if the initial capacity is less
      *             than zero
      */
-    public HashSet(@NonNegative int initialCapacity) {
+    public HashSet( int initialCapacity) {
         map = new HashMap<>(initialCapacity);
     }
 
@@ -177,7 +173,7 @@ public class HashSet<E>
      * @return an Iterator over the elements in this set
      * @see ConcurrentModificationException
      */
-    @SideEffectFree
+    
     public Iterator<E> iterator() {
         return map.keySet().iterator();
     }
@@ -187,8 +183,8 @@ public class HashSet<E>
      *
      * @return the number of elements in this set (its cardinality)
      */
-    @Pure
-    public @NonNegative int size(@GuardSatisfied HashSet<E> this) {
+    
+    public  int size() {
         return map.size();
     }
 
@@ -197,8 +193,8 @@ public class HashSet<E>
      *
      * @return {@code true} if this set contains no elements
      */
-    @Pure
-    public boolean isEmpty(@GuardSatisfied HashSet<E> this) {
+    
+    public boolean isEmpty() {
         return map.isEmpty();
     }
 
@@ -211,8 +207,8 @@ public class HashSet<E>
      * @param o element whose presence in this set is to be tested
      * @return {@code true} if this set contains the specified element
      */
-    @Pure
-    public boolean contains(@GuardSatisfied HashSet<E> this, @GuardSatisfied @Nullable Object o) {
+    
+    public boolean contains(@Nullable Object o) {
         return map.containsKey(o);
     }
 
@@ -228,7 +224,7 @@ public class HashSet<E>
      * @return {@code true} if this set did not already contain the specified
      * element
      */
-    public boolean add(@GuardSatisfied HashSet<E> this, E e) {
+    public boolean add(E e) {
         return map.put(e, PRESENT)==null;
     }
 
@@ -244,7 +240,7 @@ public class HashSet<E>
      * @param o object to be removed from this set, if present
      * @return {@code true} if the set contained the specified element
      */
-    public boolean remove(@GuardSatisfied HashSet<E> this, @Nullable Object o) {
+    public boolean remove(@Nullable Object o) {
         return map.remove(o)==PRESENT;
     }
 
@@ -252,7 +248,7 @@ public class HashSet<E>
      * Removes all of the elements from this set.
      * The set will be empty after this call returns.
      */
-    public void clear(@GuardSatisfied HashSet<E> this) {
+    public void clear() {
         map.clear();
     }
 
@@ -262,9 +258,9 @@ public class HashSet<E>
      *
      * @return a shallow copy of this set
      */
-    @SideEffectFree
+    
     @SuppressWarnings("unchecked")
-    public Object clone(@GuardSatisfied HashSet<E> this) {
+    public Object clone() {
         try {
             HashSet<E> newSet = (HashSet<E>) super.clone();
             newSet.map = (HashMap<E, Object>) map.clone();

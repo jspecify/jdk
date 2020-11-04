@@ -25,11 +25,7 @@
 
 package sun.java2d.loops;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.AlphaComposite;
 import java.util.HashMap;
@@ -287,8 +283,8 @@ public final class CompositeType {
         return false;
     }
 
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object o) {
         if (o instanceof CompositeType) {
             return (((CompositeType) o).uniqueID == this.uniqueID);

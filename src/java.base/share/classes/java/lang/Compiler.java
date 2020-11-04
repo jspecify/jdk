@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The {@code Compiler} class is provided to support Java-to-native-code
@@ -44,9 +43,9 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  Frank Yellin
  * @since   1.0
  */
-@AnnotatedFor({"interning", "nullness"})
+@DefaultNonNull
 @Deprecated(since="9", forRemoval=true)
-public final @UsesObjectEquals class Compiler  {
+public final  class Compiler  {
     private Compiler() {}               // don't make instances
 
     /**

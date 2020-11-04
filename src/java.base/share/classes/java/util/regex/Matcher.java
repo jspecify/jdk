@@ -25,14 +25,8 @@
 
 package java.util.regex;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
@@ -121,8 +115,8 @@ import java.util.stream.StreamSupport;
  * @spec        JSR-51
  */
 
-@AnnotatedFor({"index", "interning", "lock", "nullness"})
-public final @UsesObjectEquals class Matcher implements MatchResult {
+@DefaultNonNull
+public final  class Matcher implements MatchResult {
 
     /**
      * The Pattern object that created this Matcher.
@@ -456,8 +450,8 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      *          If no match has yet been attempted,
      *          or if the previous match operation failed
      */
-    @Pure
-    public @NonNegative int start() {
+    
+    public  int start() {
         if (first < 0)
             throw new IllegalStateException("No match available");
         return first;
@@ -487,8 +481,8 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      *          If there is no capturing group in the pattern
      *          with the given index
      */
-    @Pure
-    public @GTENegativeOne int start(@NonNegative int group) {
+    
+    public  int start( int group) {
         if (first < 0)
             throw new IllegalStateException("No match available");
         if (group < 0 || group > groupCount())
@@ -530,8 +524,8 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      *          If no match has yet been attempted,
      *          or if the previous match operation failed
      */
-    @Pure
-    public @NonNegative int end() {
+    
+    public  int end() {
         if (first < 0)
             throw new IllegalStateException("No match available");
         return last;
@@ -561,8 +555,8 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      *          If there is no capturing group in the pattern
      *          with the given index
      */
-    @Pure
-    public @GTENegativeOne int end(@NonNegative int group) {
+    
+    public  int end( int group) {
         if (first < 0)
             throw new IllegalStateException("No match available");
         if (group < 0 || group > groupCount())
@@ -614,7 +608,7 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      *          If no match has yet been attempted,
      *          or if the previous match operation failed
      */
-    @SideEffectFree
+    
     public String group() {
         return group(0);
     }
@@ -655,8 +649,8 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      *          If there is no capturing group in the pattern
      *          with the given index
      */
-    @SideEffectFree
-    public @Nullable String group(@NonNegative int group) {
+    
+    public @Nullable String group( int group) {
         if (first < 0)
             throw new IllegalStateException("No match found");
         if (group < 0 || group > groupCount())
@@ -712,8 +706,8 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      *
      * @return The number of capturing groups in this matcher's pattern
      */
-    @Pure
-    public @NonNegative int groupCount() {
+    
+    public  int groupCount() {
         return parentPattern.capturingGroupCount - 1;
     }
 
@@ -782,7 +776,7 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      *          sequence starting at the given index matches this matcher's
      *          pattern
      */
-    public boolean find(@NonNegative int start) {
+    public boolean find( int start) {
         int limit = getTextLength();
         if ((start < 0) || (start > limit))
             throw new IndexOutOfBoundsException("Illegal start index");
@@ -1525,7 +1519,7 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      * @return  this matcher
      * @since 1.5
      */
-    public Matcher region(@NonNegative int start, @NonNegative int end) {
+    public Matcher region( int start,  int end) {
         if ((start < 0) || (start > getTextLength()))
             throw new IndexOutOfBoundsException("start");
         if ((end < 0) || (end > getTextLength()))
@@ -1547,8 +1541,8 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      * @return  The starting point of this matcher's region
      * @since 1.5
      */
-    @Pure
-    public @NonNegative int regionStart() {
+    
+    public  int regionStart() {
         return from;
     }
 
@@ -1561,8 +1555,8 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      * @return  the ending point of this matcher's region
      * @since 1.5
      */
-    @Pure
-    public @NonNegative int regionEnd() {
+    
+    public  int regionEnd() {
         return to;
     }
 
@@ -1583,7 +1577,7 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      * @see java.util.regex.Matcher#useTransparentBounds(boolean)
      * @since 1.5
      */
-    @Pure
+    
     public boolean hasTransparentBounds() {
         return transparentBounds;
     }
@@ -1635,7 +1629,7 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      * @see java.util.regex.Matcher#useAnchoringBounds(boolean)
      * @since 1.5
      */
-    @Pure
+    
     public boolean hasAnchoringBounds() {
         return anchoringBounds;
     }
@@ -1674,8 +1668,8 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      * @return  The string representation of this matcher
      * @since 1.5
      */
-    @SideEffectFree
-    public String toString(@GuardSatisfied Matcher this) {
+    
+    public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("java.util.regex.Matcher")
                 .append("[pattern=").append(pattern())
@@ -1700,7 +1694,7 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      *          otherwise
      * @since 1.5
      */
-    @Pure
+    
     public boolean hitEnd() {
         return hitEnd;
     }
@@ -1719,7 +1713,7 @@ public final @UsesObjectEquals class Matcher implements MatchResult {
      *          negative one.
      * @since 1.5
      */
-    @Pure
+    
     public boolean requireEnd() {
         return requireEnd;
     }

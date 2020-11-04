@@ -25,7 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.*;
 import static java.lang.annotation.ElementType.*;
@@ -54,7 +55,7 @@ import static java.lang.annotation.ElementType.*;
  * @jls 5.5.2 Checked Casts and Unchecked Casts
  * @jls 9.6.4.5 @SuppressWarnings
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 @Target({TYPE, FIELD, METHOD, PARAMETER, CONSTRUCTOR, LOCAL_VARIABLE, MODULE})
 @Retention(RetentionPolicy.SOURCE)
 public @interface SuppressWarnings {

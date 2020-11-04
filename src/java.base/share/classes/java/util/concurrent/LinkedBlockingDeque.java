@@ -35,10 +35,7 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.dataflow.qual.Pure;
+import org.jspecify.annotations.Nullable;
 
 import java.util.AbstractQueue;
 import java.util.Collection;
@@ -579,7 +576,7 @@ public class LinkedBlockingDeque<E>
         }
     }
 
-    public boolean removeFirstOccurrence(Object o) {
+    public boolean removeFirstOccurrence(@Nullable Object o) {
         if (o == null) return false;
         final ReentrantLock lock = this.lock;
         lock.lock();
@@ -596,7 +593,7 @@ public class LinkedBlockingDeque<E>
         }
     }
 
-    public boolean removeLastOccurrence(Object o) {
+    public boolean removeLastOccurrence(@Nullable Object o) {
         if (o == null) return false;
         final ReentrantLock lock = this.lock;
         lock.lock();
@@ -788,7 +785,7 @@ public class LinkedBlockingDeque<E>
      * @param o element to be removed from this deque, if present
      * @return {@code true} if this deque changed as a result of the call
      */
-    public boolean remove(Object o) {
+    public boolean remove(@Nullable Object o) {
         return removeFirstOccurrence(o);
     }
 
@@ -797,7 +794,7 @@ public class LinkedBlockingDeque<E>
      *
      * @return the number of elements in this deque
      */
-    @Pure
+    
     public int size() {
         final ReentrantLock lock = this.lock;
         lock.lock();
@@ -904,7 +901,7 @@ public class LinkedBlockingDeque<E>
      * @return an array containing all of the elements in this deque
      */
     @SuppressWarnings("unchecked")
-    public @PolyNull Object[] toArray(LinkedBlockingDeque<@PolyNull E> this) {
+    public @Nullable Object[] toArray() {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
@@ -1342,7 +1339,7 @@ public class LinkedBlockingDeque<E>
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean removeAll(Collection<? extends @NonNull Object> c) {
+    public boolean removeAll(Collection<?> c) {
         Objects.requireNonNull(c);
         return bulkRemove(e -> c.contains(e));
     }
@@ -1350,7 +1347,7 @@ public class LinkedBlockingDeque<E>
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean retainAll(Collection<? extends @NonNull Object> c) {
+    public boolean retainAll(Collection<?> c) {
         Objects.requireNonNull(c);
         return bulkRemove(e -> !c.contains(e));
     }

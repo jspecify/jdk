@@ -25,15 +25,14 @@
 
 package javax.tools;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.util.Locale;
 import java.util.concurrent.Callable;
 import javax.annotation.processing.Processor;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
  * Interface to invoke Java&trade; programming language compilers from
@@ -221,7 +220,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see JavaFileManager
  * @since 1.6
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface JavaCompiler extends Tool, OptionChecker {
 
     /**

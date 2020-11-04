@@ -38,13 +38,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.common.value.qual.IntVal;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -336,7 +331,7 @@ import sun.util.calendar.ZoneInfo;
  * @author David Goldsmith, Mark Davis, Chen-Lieh Huang, Alan Liu
  * @since 1.1
  */
-@AnnotatedFor({"lock", "nullness", "index"})
+@DefaultNonNull
 public class GregorianCalendar extends Calendar {
     /*
      * Implementation Notes
@@ -376,7 +371,7 @@ public class GregorianCalendar extends Calendar {
      *
      * @see #ERA
      */
-    public static final @IntVal({0}) int BC = 0;
+    public static final  int BC = 0;
 
     /**
      * Value of the {@link #ERA} field indicating
@@ -394,7 +389,7 @@ public class GregorianCalendar extends Calendar {
      *
      * @see #ERA
      */
-    public static final @IntVal({1}) int AD = 1;
+    public static final  int AD = 1;
 
     /**
      * Value of the {@link #ERA} field indicating
@@ -763,7 +758,7 @@ public class GregorianCalendar extends Calendar {
      *
      * @param date the given Gregorian cutover date.
      */
-    public void setGregorianChange(@GuardSatisfied GregorianCalendar this, Date date) {
+    public void setGregorianChange(Date date) {
         long cutoverTime = date.getTime();
         if (cutoverTime == gregorianCutover) {
             return;
@@ -826,8 +821,8 @@ public class GregorianCalendar extends Calendar {
      * @param year the given year.
      * @return <code>true</code> if the given year is a leap year; <code>false</code> otherwise.
      */
-    @Pure
-    public boolean isLeapYear(@GuardSatisfied GregorianCalendar this, int year) {
+    
+    public boolean isLeapYear(int year) {
         if ((year & 3) != 0) {
             return false;
         }
@@ -875,9 +870,9 @@ public class GregorianCalendar extends Calendar {
      * <code>false</code> otherwise.
      * @see Calendar#compareTo(Calendar)
      */
-    @Pure
+    
     @Override
-    public boolean equals(@GuardSatisfied GregorianCalendar this, @GuardSatisfied @Nullable Object obj) {
+    public boolean equals( @Nullable Object obj) {
         return obj instanceof GregorianCalendar &&
             super.equals(obj) &&
             gregorianCutover == ((GregorianCalendar)obj).gregorianCutover;
@@ -886,9 +881,9 @@ public class GregorianCalendar extends Calendar {
     /**
      * Generates the hash code for this <code>GregorianCalendar</code> object.
      */
-    @Pure
+    
     @Override
-    public int hashCode(@GuardSatisfied GregorianCalendar this) {
+    public int hashCode() {
         return super.hashCode() ^ (int)gregorianCutoverDate;
     }
 
@@ -921,7 +916,7 @@ public class GregorianCalendar extends Calendar {
      * non-lenient mode.
      */
     @Override
-    public void add(@GuardSatisfied GregorianCalendar this, int field, int amount) {
+    public void add(int field, int amount) {
         // If amount == 0, do nothing even the given field is out of
         // range. This is tested by JCK.
         if (amount == 0) {
@@ -1120,7 +1115,7 @@ public class GregorianCalendar extends Calendar {
      * @see #set(int,int)
      */
     @Override
-    public void roll(@GuardSatisfied GregorianCalendar this, int field, boolean up) {
+    public void roll(int field, boolean up) {
         roll(field, up ? +1 : -1);
     }
 
@@ -1169,7 +1164,7 @@ public class GregorianCalendar extends Calendar {
      * @since 1.2
      */
     @Override
-    public void roll(@GuardSatisfied GregorianCalendar this, int field, int amount) {
+    public void roll(int field, int amount) {
         // If amount == 0, do nothing even the given field is out of
         // range. This is tested by JCK.
         if (amount == 0) {
@@ -2006,9 +2001,9 @@ public class GregorianCalendar extends Calendar {
             (internalGet(ZONE_OFFSET) + internalGet(DST_OFFSET));
     }
 
-    @SideEffectFree
+    
     @Override
-    public Object clone(@GuardSatisfied GregorianCalendar this)
+    public Object clone()
     {
         GregorianCalendar other = (GregorianCalendar) super.clone();
 
@@ -2037,7 +2032,7 @@ public class GregorianCalendar extends Calendar {
     }
 
     @Override
-    public void setTimeZone(@GuardSatisfied GregorianCalendar this, TimeZone zone) {
+    public void setTimeZone(TimeZone zone) {
         super.setTimeZone(zone);
         // To share the zone by CalendarDates
         gdate.setZone(zone);

@@ -26,9 +26,8 @@
 
 package javax.naming.directory;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Hashtable;
 import java.util.Enumeration;
@@ -72,14 +71,14 @@ import javax.naming.NamingEnumeration;
   * @since 1.3
   */
 
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface Attributes extends Cloneable, java.io.Serializable {
     /**
       * Determines whether the attribute set ignores the case of
       * attribute identifiers when retrieving or adding attributes.
       * @return true if case is ignored; false otherwise.
       */
-    @Pure
+    
     boolean isCaseIgnored();
 
     /**
@@ -87,7 +86,7 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       *
       * @return The nonnegative number of attributes in this attribute set.
       */
-    @Pure
+    
     int size();
 
     /**
@@ -102,7 +101,7 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       * @see #put
       * @see #remove
       */
-    @Nullable @Pure
+    @Nullable 
     Attribute get(String attrID);
 
     /**
@@ -115,7 +114,7 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       *         If attribute set has zero attributes, an empty enumeration
       *         is returned.
       */
-    @Pure
+    
     NamingEnumeration<? extends Attribute> getAll();
 
     /**
@@ -130,7 +129,7 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       *         If attribute set has zero attributes, an empty enumeration
       *         is returned.
       */
-    @Pure
+    
     NamingEnumeration<String> getIDs();
 
     /**

@@ -25,12 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTEqLengthOf;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -50,7 +46,7 @@ import java.util.Objects;
  * @see     java.io.StringBufferInputStream
  * @since   1.0
  */
-@AnnotatedFor({"nullness", "index"})
+@DefaultNonNull
 public class ByteArrayInputStream extends InputStream {
 
     /**
@@ -130,7 +126,7 @@ public class ByteArrayInputStream extends InputStream {
      * @param   offset   the offset in the buffer of the first byte to read.
      * @param   length   the maximum number of bytes to read from the buffer.
      */
-    public ByteArrayInputStream(byte buf[], @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int length) {
+    public ByteArrayInputStream(byte buf[],  int offset,   int length) {
         this.buf = buf;
         this.pos = offset;
         this.count = Math.min(offset + length, buf.length);
@@ -150,7 +146,7 @@ public class ByteArrayInputStream extends InputStream {
      * @return  the next byte of data, or {@code -1} if the end of the
      *          stream has been reached.
      */
-    public synchronized @GTENegativeOne int read() {
+    public synchronized  int read() {
         return (pos < count) ? (buf[pos++] & 0xff) : -1;
     }
 
@@ -177,7 +173,7 @@ public class ByteArrayInputStream extends InputStream {
      * {@code len} is negative, or {@code len} is greater than
      * {@code b.length - off}
      */
-    public synchronized @GTENegativeOne @LTEqLengthOf({"#1"}) int read(byte b[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) {
+    public synchronized   int read(byte b[],  int off,   int len) {
         Objects.checkFromIndexSize(off, len, b.length);
 
         if (pos >= count) {
@@ -226,7 +222,7 @@ public class ByteArrayInputStream extends InputStream {
      * @param   n   the number of bytes to be skipped.
      * @return  the actual number of bytes skipped.
      */
-    public synchronized @NonNegative long skip(long n) {
+    public synchronized  long skip(long n) {
         long k = count - pos;
         if (n < k) {
             k = n < 0 ? 0 : n;
@@ -246,7 +242,7 @@ public class ByteArrayInputStream extends InputStream {
      * @return  the number of remaining bytes that can be read (or skipped
      *          over) from this input stream without blocking.
      */
-    public synchronized @NonNegative int available() {
+    public synchronized  int available() {
         return count - pos;
     }
 
@@ -276,7 +272,7 @@ public class ByteArrayInputStream extends InputStream {
      *
      * @since   1.1
      */
-    public void mark(@NonNegative int readAheadLimit) {
+    public void mark( int readAheadLimit) {
         mark = pos;
     }
 

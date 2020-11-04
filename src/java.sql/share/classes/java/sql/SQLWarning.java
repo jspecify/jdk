@@ -25,7 +25,7 @@
 
 package java.sql;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * <P>An exception that provides information on  database access

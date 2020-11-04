@@ -25,8 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.File;
 import java.io.FileDescriptor;
@@ -190,7 +190,7 @@ import sun.security.action.GetPropertyAction;
  * @since 1.5
  */
 
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public final class ProcessBuilder
 {
     private List<String> command;

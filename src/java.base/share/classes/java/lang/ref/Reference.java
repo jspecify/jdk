@@ -25,10 +25,8 @@
 
 package java.lang.ref;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.HotSpotIntrinsicCandidate;
@@ -46,9 +44,9 @@ import jdk.internal.ref.Cleaner;
  * @since    1.2
  */
 
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 @SuppressWarnings({"rawtypes"})
-public abstract class Reference<T> {
+public abstract class Reference<T extends @Nullable Object> {
 
     /* The state of a Reference object is characterized by two attributes.  It
      * may be either "active", "pending", or "inactive".  It may also be
@@ -336,9 +334,9 @@ public abstract class Reference<T> {
      * @return   The object to which this reference refers, or
      *           <code>null</code> if this reference object has been cleared
      */
-    @SideEffectFree
+    
     @HotSpotIntrinsicCandidate
-    public @Nullable T get(@GuardSatisfied Reference<T> this) {
+    public @Nullable T get() {
         return this.referent;
     }
 

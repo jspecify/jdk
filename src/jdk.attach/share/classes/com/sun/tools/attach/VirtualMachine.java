@@ -25,11 +25,7 @@
 
 package com.sun.tools.attach;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import com.sun.tools.attach.spi.AttachProvider;
 import java.util.ArrayList;
@@ -703,8 +699,8 @@ public abstract class VirtualMachine {
      *                a VirtualMachine that is equal to this
      *                VirtualMachine.
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object ob) {
         if (ob == this)
             return true;

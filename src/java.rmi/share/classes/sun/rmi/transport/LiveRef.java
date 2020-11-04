@@ -25,11 +25,7 @@
 
 package sun.rmi.transport;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -183,8 +179,8 @@ public class LiveRef implements Cloneable {
         return id.hashCode();
     }
 
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (obj != null && obj instanceof LiveRef) {
             LiveRef ref = (LiveRef) obj;

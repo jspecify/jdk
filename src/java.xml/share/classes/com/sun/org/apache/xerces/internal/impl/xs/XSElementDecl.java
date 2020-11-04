@@ -20,11 +20,7 @@
 
 package com.sun.org.apache.xerces.internal.impl.xs;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import com.sun.org.apache.xerces.internal.impl.dv.ValidatedInfo;
 import com.sun.org.apache.xerces.internal.impl.xs.identity.IdentityConstraint;
@@ -173,8 +169,8 @@ public class XSElementDecl implements XSElementDeclaration {
     /**
      * whether two decls are the same
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object o) {
         return o == this;
     }

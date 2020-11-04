@@ -24,11 +24,7 @@
  */
 package java.rmi.server;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -222,8 +218,8 @@ public final class ObjID implements Serializable {
      * @return  <code>true</code> if the given object is equivalent to
      * this one, and <code>false</code> otherwise
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof ObjID) {
             ObjID id = (ObjID) obj;

@@ -24,7 +24,8 @@
  */
 package java.util.function;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents an operation on a single operand that produces a result of the
@@ -39,9 +40,9 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see Function
  * @since 1.8
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 @FunctionalInterface
-public interface UnaryOperator<T> extends Function<T, T> {
+public interface UnaryOperator<T extends @Nullable Object> extends Function<T, T> {
 
     /**
      * Returns a unary operator that always returns its input argument.
@@ -49,7 +50,7 @@ public interface UnaryOperator<T> extends Function<T, T> {
      * @param <T> the type of the input and output of the operator
      * @return a unary operator that always returns its input argument
      */
-    static <T> UnaryOperator<T> identity() {
+    static <T extends @Nullable Object> UnaryOperator<T> identity() {
         return t -> t;
     }
 }

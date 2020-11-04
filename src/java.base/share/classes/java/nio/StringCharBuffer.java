@@ -25,11 +25,7 @@
 
 package java.nio;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 // ## If the sequence is a string, use reflection to share its array
 
@@ -136,8 +132,8 @@ class StringCharBuffer                                  // package-private
         return null;
     }
 
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object ob) {
         if (this == ob)
             return true;

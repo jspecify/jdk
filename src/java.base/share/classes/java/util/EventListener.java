@@ -25,12 +25,13 @@
 
 package java.util;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A tagging interface that all event listener interfaces must extend.
  * @since 1.1
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 public interface EventListener {
 }

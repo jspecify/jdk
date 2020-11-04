@@ -25,9 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The {@code Stack} class represents a last-in-first-out
@@ -49,10 +48,10 @@ import org.checkerframework.framework.qual.CFComment;
  * @author  Jonathan Payne
  * @since   1.0
  */
-@CFComment({"lock/nullness: permit null elements"})
-@AnnotatedFor({"lock", "nullness"})
+
+@DefaultNonNull
 public
-class Stack<E> extends Vector<E> {
+class Stack<E extends @Nullable Object> extends Vector<E> {
     /**
      * Creates an empty Stack.
      */
@@ -69,7 +68,7 @@ class Stack<E> extends Vector<E> {
      * @return  the {@code item} argument.
      * @see     java.util.Vector#addElement
      */
-    public E push(@GuardSatisfied Stack<E> this, E item) {
+    public E push(E item) {
         addElement(item);
 
         return item;
@@ -83,7 +82,7 @@ class Stack<E> extends Vector<E> {
      *          of the {@code Vector} object).
      * @throws  EmptyStackException  if this stack is empty.
      */
-    public synchronized E pop(@GuardSatisfied Stack<E> this) {
+    public synchronized E pop() {
         E       obj;
         int     len = size();
 

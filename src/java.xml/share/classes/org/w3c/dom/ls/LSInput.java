@@ -41,9 +41,8 @@
 
 package org.w3c.dom.ls;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  *  This interface represents an input source for data.
@@ -89,7 +88,7 @@ and Save Specification</a>.
  *
  * @since 1.5
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public interface LSInput {
     /**
      *  An attribute of a language and binding dependent type that represents
@@ -98,7 +97,7 @@ public interface LSInput {
      * using character streams. If an XML declaration is present, the value
      * of the encoding attribute will be ignored.
      */
-    @Pure
+    
     public java.io.@Nullable Reader getCharacterStream();
     /**
      *  An attribute of a language and binding dependent type that represents
@@ -117,7 +116,7 @@ public interface LSInput {
      * this way will override any encoding specified in an XML declaration
      * in the data.
      */
-    @Pure
+    
     public java.io.@Nullable InputStream getByteStream();
     /**
      *  An attribute of a language and binding dependent type that represents
@@ -136,7 +135,7 @@ public interface LSInput {
      * <code>stringData</code>. If an XML declaration is present, the value
      * of the encoding attribute will be ignored.
      */
-    @Pure
+    
     public @Nullable String getStringData();
     /**
      *  String data to parse. If provided, this will always be treated as a
@@ -165,7 +164,7 @@ public interface LSInput {
      * <code>baseURI</code> as the base, if that fails, the behavior is
      * implementation dependent.
      */
-    @Pure
+    
     public @Nullable String getSystemId();
     /**
      *  The system identifier, a URI reference [<a href='http://www.ietf.org/rfc/rfc2396.txt'>IETF RFC 2396</a>], for this
@@ -194,7 +193,7 @@ public interface LSInput {
      * may also be reported as part of the location information when errors
      * are reported.
      */
-    @Pure
+    
     public @Nullable String getPublicId();
     /**
      *  The public identifier for this input source. This may be mapped to an
@@ -211,7 +210,7 @@ public interface LSInput {
      * <br> If, when used, the base URI is itself a relative URI, an empty
      * string, or null, the behavior is implementation dependent.
      */
-    @Pure
+    
     public @Nullable String getBaseURI();
     /**
      *  The base URI to be used (see section 5.1.4 in [<a href='http://www.ietf.org/rfc/rfc2396.txt'>IETF RFC 2396</a>]) for
@@ -231,7 +230,7 @@ public interface LSInput {
      * encoding specified in the XML declaration or the Text declaration, or
      * an encoding obtained from a higher level protocol, such as HTTP [<a href='http://www.ietf.org/rfc/rfc2616.txt'>IETF RFC 2616</a>].
      */
-    @Pure
+    
     public @Nullable String getEncoding();
     /**
      *  The character encoding, if known. The encoding must be a string
@@ -250,7 +249,7 @@ public interface LSInput {
      * in [<a href='http://www.w3.org/TR/2004/REC-xml11-20040204/'>XML 1.1</a>]) when
      * parsing [<a href='http://www.w3.org/TR/2004/REC-xml11-20040204/'>XML 1.1</a>].
      */
-    @Pure
+    
     public boolean getCertifiedText();
     /**
      *  If set to true, assume that the input is certified (see section 2.13

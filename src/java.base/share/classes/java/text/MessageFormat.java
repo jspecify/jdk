@@ -38,13 +38,8 @@
 
 package java.text;
 
-import org.checkerframework.checker.i18nformatter.qual.I18nFormatFor;
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.InvalidObjectException;
 import java.io.IOException;
@@ -355,7 +350,7 @@ import java.util.Locale;
  * @since 1.1
  */
 
-@AnnotatedFor({"i18nformatter", "nullness"})
+@DefaultNonNull
 public class MessageFormat extends Format {
 
     private static final long serialVersionUID = 6479157306784022952L;
@@ -864,7 +859,7 @@ public class MessageFormat extends Format {
      *            that use it.
      * @exception NullPointerException if {@code pattern} is {@code null}
      */
-    public static String format(@I18nFormatFor("#2") String pattern, @Nullable Object ... arguments) {
+    public static String format( String pattern, @Nullable Object ... arguments) {
         MessageFormat temp = new MessageFormat(pattern);
         return temp.format(arguments);
     }
@@ -1129,8 +1124,8 @@ public class MessageFormat extends Format {
     /**
      * Equality comparison between two message format objects
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (this == obj)                      // quick check
             return true;

@@ -25,8 +25,8 @@
 
 package java.lang.annotation;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The common interface extended by all annotation types.  Note that an
@@ -44,7 +44,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  Josh Bloch
  * @since   1.5
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public interface Annotation {
     /**
      * Returns true if the specified object represents an annotation

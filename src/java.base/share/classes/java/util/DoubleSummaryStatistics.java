@@ -24,8 +24,8 @@
  */
 package java.util;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.DoubleConsumer;
 import java.util.stream.Collector;
@@ -64,7 +64,7 @@ import java.util.stream.DoubleStream;
  * safe and efficient parallel execution.
  * @since 1.8
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 public class DoubleSummaryStatistics implements DoubleConsumer {
     private long count;
     private double sum;
@@ -179,7 +179,7 @@ public class DoubleSummaryStatistics implements DoubleConsumer {
      *
      * @return the count of values
      */
-    public final long getCount(@GuardSatisfied DoubleSummaryStatistics this) {
+    public final long getCount() {
         return count;
     }
 
@@ -241,7 +241,7 @@ public class DoubleSummaryStatistics implements DoubleConsumer {
      *
      * @return the sum of values, or zero if none
      */
-    public final double getSum(@GuardSatisfied DoubleSummaryStatistics this) {
+    public final double getSum() {
         // Better error bounds to add both terms as the final sum
         double tmp =  sum + sumCompensation;
         if (Double.isNaN(tmp) && Double.isInfinite(simpleSum))
@@ -264,7 +264,7 @@ public class DoubleSummaryStatistics implements DoubleConsumer {
      * value was NaN or {@code Double.POSITIVE_INFINITY} if no values were
      * recorded
      */
-    public final double getMin(@GuardSatisfied DoubleSummaryStatistics this) {
+    public final double getMin() {
         return min;
     }
 
@@ -278,7 +278,7 @@ public class DoubleSummaryStatistics implements DoubleConsumer {
      * value was NaN or {@code Double.NEGATIVE_INFINITY} if no values were
      * recorded
      */
-    public final double getMax(@GuardSatisfied DoubleSummaryStatistics this) {
+    public final double getMax() {
         return max;
     }
 
@@ -295,7 +295,7 @@ public class DoubleSummaryStatistics implements DoubleConsumer {
      *
      * @return the arithmetic mean of values, or zero if none
      */
-    public final double getAverage(@GuardSatisfied DoubleSummaryStatistics this) {
+    public final double getAverage() {
         return getCount() > 0 ? getSum() / getCount() : 0.0d;
     }
 

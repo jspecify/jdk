@@ -25,8 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Indicates that one or more deserialized objects failed validation
@@ -38,7 +38,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since   1.1
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class InvalidObjectException extends ObjectStreamException {
 
     private static final long serialVersionUID = 3233174318281839583L;

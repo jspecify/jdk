@@ -25,9 +25,7 @@
 
 package javax.xml.parsers;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.Nullable;
 
 import com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl;
 import javax.xml.validation.Schema;
@@ -44,7 +42,7 @@ import org.xml.sax.SAXNotSupportedException;
  *
  * @since 1.4
  */
-@CFComment("nullness")
+
 public abstract class SAXParserFactory {
 
     /**
@@ -352,7 +350,7 @@ public abstract class SAXParserFactory {
      *
      * @since 1.5
      */
-    @CFComment("nullness: this.getClass().getPackage() is non-null as this class is in the `parsers` package")
+    
     @SuppressWarnings({"nullness"})
     public @Nullable Schema getSchema() {
         throw new UnsupportedOperationException(
@@ -410,7 +408,7 @@ public abstract class SAXParserFactory {
      *
      * @since 1.5
      */
-    @CFComment("nullness: this.getClass().getPackage() is non-null as this class is in the `parsers` package")
+    
     @SuppressWarnings({"nullness"})
     public void setSchema(@Nullable Schema schema) {
         throw new UnsupportedOperationException(
@@ -457,7 +455,7 @@ public abstract class SAXParserFactory {
      *
      * @since 1.5
      */
-    @CFComment("nullness: this.getClass().getPackage() is non-null as this class is in the `parsers` package")
+    
     @SuppressWarnings({"nullness"})
     public boolean isXIncludeAware() {
         throw new UnsupportedOperationException(

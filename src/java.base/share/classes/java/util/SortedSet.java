@@ -25,12 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link Set} that further provides a <i>total ordering</i> on its elements.
@@ -112,9 +108,9 @@ import org.checkerframework.framework.qual.CFComment;
  * @since 1.2
  */
 
-@CFComment({"lock/nullness: Subclasses of this interface/class may opt to prohibit null elements"})
-@AnnotatedFor({"lock", "nullness"})
-public interface SortedSet<E> extends Set<E> {
+
+@DefaultNonNull
+public interface SortedSet<E extends @Nullable Object> extends Set<E> {
     /**
      * Returns the comparator used to order the elements in this set,
      * or {@code null} if this set uses the {@linkplain Comparable
@@ -124,8 +120,8 @@ public interface SortedSet<E> extends Set<E> {
      *         or {@code null} if this set uses the natural ordering
      *         of its elements
      */
-    @Pure
-    @Nullable Comparator<? super E> comparator(@GuardSatisfied SortedSet<E> this);
+    
+    @Nullable Comparator<? super E> comparator();
 
     /**
      * Returns a view of the portion of this set whose elements range
@@ -158,8 +154,8 @@ public interface SortedSet<E> extends Set<E> {
      *         has a restricted range, and {@code fromElement} or
      *         {@code toElement} lies outside the bounds of the range
      */
-    @SideEffectFree
-    SortedSet<E> subSet(@GuardSatisfied SortedSet<E> this, @GuardSatisfied E fromElement, @GuardSatisfied E toElement);
+    
+    SortedSet<E> subSet( E fromElement,  E toElement);
 
     /**
      * Returns a view of the portion of this set whose elements are
@@ -186,8 +182,8 @@ public interface SortedSet<E> extends Set<E> {
      *         restricted range, and {@code toElement} lies outside the
      *         bounds of the range
      */
-    @SideEffectFree
-    SortedSet<E> headSet(@GuardSatisfied SortedSet<E> this, E toElement);
+    
+    SortedSet<E> headSet(E toElement);
 
     /**
      * Returns a view of the portion of this set whose elements are
@@ -214,8 +210,8 @@ public interface SortedSet<E> extends Set<E> {
      *         restricted range, and {@code fromElement} lies outside the
      *         bounds of the range
      */
-    @SideEffectFree
-    SortedSet<E> tailSet(@GuardSatisfied SortedSet<E> this, E fromElement);
+    
+    SortedSet<E> tailSet(E fromElement);
 
     /**
      * Returns the first (lowest) element currently in this set.
@@ -223,8 +219,8 @@ public interface SortedSet<E> extends Set<E> {
      * @return the first (lowest) element currently in this set
      * @throws NoSuchElementException if this set is empty
      */
-    @SideEffectFree
-    E first(@GuardSatisfied SortedSet<E> this);
+    
+    E first();
 
     /**
      * Returns the last (highest) element currently in this set.
@@ -232,8 +228,8 @@ public interface SortedSet<E> extends Set<E> {
      * @return the last (highest) element currently in this set
      * @throws NoSuchElementException if this set is empty
      */
-    @SideEffectFree
-    E last(@GuardSatisfied SortedSet<E> this);
+    
+    E last();
 
     /**
      * Creates a {@code Spliterator} over the elements in this sorted set.

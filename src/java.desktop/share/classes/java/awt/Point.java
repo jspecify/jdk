@@ -25,11 +25,7 @@
 
 package java.awt;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.geom.Point2D;
 import java.beans.Transient;
@@ -217,8 +213,8 @@ public class Point extends Point2D implements java.io.Serializable {
      *         an instance of {@code Point2D} and has
      *         the same values; {@code false} otherwise.
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof Point) {
             Point pt = (Point)obj;

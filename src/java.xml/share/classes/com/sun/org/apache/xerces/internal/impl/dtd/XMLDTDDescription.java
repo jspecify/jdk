@@ -20,11 +20,7 @@
 
 package com.sun.org.apache.xerces.internal.impl.dtd;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import com.sun.org.apache.xerces.internal.util.XMLResourceIdentifierImpl;
 import com.sun.org.apache.xerces.internal.xni.XMLResourceIdentifier;
@@ -112,8 +108,8 @@ public class XMLDTDDescription extends XMLResourceIdentifierImpl
      * @param desc The description of the grammar to be compared with
      * @return     True if they are equal, else false
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object desc) {
         if (!(desc instanceof XMLGrammarDescription)) return false;
         if (!getGrammarType().equals(((XMLGrammarDescription)desc).getGrammarType())) {

@@ -25,9 +25,8 @@
 
 package javax.net.ssl;
 
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.security.*;
 import java.util.Objects;
@@ -57,7 +56,7 @@ import sun.security.jca.GetInstance;
  *
  * @since 1.4
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public class SSLContext {
     private final Provider provider;
 
@@ -79,7 +78,7 @@ public class SSLContext {
         this.protocol = protocol;
     }
 
-    private static @MonotonicNonNull SSLContext defaultContext;
+    private static  SSLContext defaultContext;
 
     /**
      * Returns the default SSL context.

@@ -21,11 +21,7 @@
 
 package com.sun.org.apache.xerces.internal.impl.dtd;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 /**
  * ContentSpec really exists to aid the parser classes in implementing
@@ -253,8 +249,8 @@ public class XMLContentSpec {
     }
 
     /** Returns true if the two objects are equal. */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object object) {
         if (object != null && object instanceof XMLContentSpec) {
             XMLContentSpec contentSpec = (XMLContentSpec)object;

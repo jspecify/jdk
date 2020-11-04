@@ -24,9 +24,8 @@
  */
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown by the security manager to indicate a security violation.
@@ -35,7 +34,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see     java.lang.SecurityManager
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class SecurityException extends RuntimeException {
 
     private static final long serialVersionUID = 6878364983674394167L;
@@ -43,7 +42,7 @@ public class SecurityException extends RuntimeException {
     /**
      * Constructs a {@code SecurityException} with no detail message.
      */
-    @SideEffectFree
+    
     public SecurityException() {
         super();
     }
@@ -54,7 +53,7 @@ public class SecurityException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public SecurityException(@Nullable String s) {
         super(s);
     }
@@ -70,7 +69,7 @@ public class SecurityException extends RuntimeException {
      *        and indicates that the cause is nonexistent or unknown.)
      * @since 1.5
      */
-    @SideEffectFree
+    
     public SecurityException(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }
@@ -86,7 +85,7 @@ public class SecurityException extends RuntimeException {
      *        and indicates that the cause is nonexistent or unknown.)
      * @since 1.5
      */
-    @SideEffectFree
+    
     public SecurityException(@Nullable Throwable cause) {
         super(cause);
     }

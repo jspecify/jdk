@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An IllegalAccessException is thrown when an application tries
@@ -60,7 +59,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see     java.lang.reflect.Constructor#newInstance(Object[])
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class IllegalAccessException extends ReflectiveOperationException {
     private static final long serialVersionUID = 6616958222490762034L;
 
@@ -68,7 +67,7 @@ public class IllegalAccessException extends ReflectiveOperationException {
      * Constructs an <code>IllegalAccessException</code> without a
      * detail message.
      */
-    @SideEffectFree
+    
     public IllegalAccessException() {
         super();
     }
@@ -78,7 +77,7 @@ public class IllegalAccessException extends ReflectiveOperationException {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public IllegalAccessException(@Nullable String s) {
         super(s);
     }

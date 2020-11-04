@@ -25,11 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
@@ -79,7 +76,7 @@ import sun.nio.cs.StreamEncoder;
  * @since       1.1
  */
 
-@AnnotatedFor({"nullness", "index"})
+@DefaultNonNull
 public class OutputStreamWriter extends Writer {
 
     private final StreamEncoder se;
@@ -214,7 +211,7 @@ public class OutputStreamWriter extends Writer {
      *
      * @throws  IOException  If an I/O error occurs
      */
-    public void write(char cbuf[], @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
+    public void write(char cbuf[],  int off,   int len) throws IOException {
         se.write(cbuf, off, len);
     }
 
@@ -232,7 +229,7 @@ public class OutputStreamWriter extends Writer {
      *
      * @throws  IOException  If an I/O error occurs
      */
-    public void write(String str, @IndexOrHigh({"#1"}) int off, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int len) throws IOException {
+    public void write(String str,  int off,   int len) throws IOException {
         se.write(str, off, len);
     }
 

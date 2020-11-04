@@ -25,15 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.initialization.qual.UnknownInitialization;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.lock.qual.GuardedByUnknown;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.common.value.qual.PolyValue;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.Serializable;
 import java.io.IOException;
@@ -62,7 +55,7 @@ import java.io.ObjectStreamException;
  * @see     java.util.EnumMap
  * @since   1.5
  */
-@AnnotatedFor({"lock", "nullness", "index", "value"})
+@DefaultNonNull
 @SuppressWarnings("serial") // No serialVersionUID needed due to
                             // special-casing of enum types.
 public abstract class Enum<E extends Enum<E>>
@@ -86,7 +79,7 @@ public abstract class Enum<E extends Enum<E>>
      *
      * @return the name of this enum constant
      */
-    public final @PolyValue String name(@GuardedByUnknown @UnknownInitialization(java.lang.Enum.class) @PolyValue Enum<E> this) {
+    public final  String name() {
         return name;
     }
 
@@ -112,7 +105,7 @@ public abstract class Enum<E extends Enum<E>>
      *
      * @return the ordinal of this enumeration constant
      */
-    public final @NonNegative int ordinal() {
+    public final  int ordinal() {
         return ordinal;
     }
 
@@ -127,7 +120,7 @@ public abstract class Enum<E extends Enum<E>>
      *         in the enum declaration, where the initial constant is assigned
      *         an ordinal of zero).
      */
-    protected Enum(String name, @NonNegative int ordinal) {
+    protected Enum(String name,  int ordinal) {
         this.name = name;
         this.ordinal = ordinal;
     }
@@ -140,8 +133,8 @@ public abstract class Enum<E extends Enum<E>>
      *
      * @return the name of this enum constant
      */
-    @SideEffectFree
-    public String toString(@GuardSatisfied Enum<E> this) {
+    
+    public String toString() {
         return name;
     }
 
@@ -153,8 +146,8 @@ public abstract class Enum<E extends Enum<E>>
      * @return  true if the specified object is equal to this
      *          enum constant.
      */
-    @Pure
-    public final boolean equals(@GuardSatisfied Enum<E> this, @GuardSatisfied @Nullable Object other) {
+    
+    public final boolean equals( @Nullable Object other) {
         return this==other;
     }
 
@@ -163,8 +156,8 @@ public abstract class Enum<E extends Enum<E>>
      *
      * @return a hash code for this enum constant.
      */
-    @Pure
-    public final int hashCode(@GuardSatisfied Enum<E> this) {
+    
+    public final int hashCode() {
         return super.hashCode();
     }
 
@@ -175,8 +168,8 @@ public abstract class Enum<E extends Enum<E>>
      *
      * @return (never returns)
      */
-    @SideEffectFree
-    protected final Object clone(@GuardSatisfied Enum<E> this) throws CloneNotSupportedException {
+    
+    protected final Object clone() throws CloneNotSupportedException {
         throw new CloneNotSupportedException();
     }
 
@@ -245,8 +238,8 @@ public abstract class Enum<E extends Enum<E>>
      *         is null
      * @since 1.5
      */
-    public static <T extends Enum<T>> @PolyValue T valueOf(Class<T> enumType,
-                                                @PolyValue String name) {
+    public static <T extends Enum<T>>  T valueOf(Class<T> enumType,
+                                                 String name) {
         T result = enumType.enumConstantDirectory().get(name);
         if (result != null)
             return result;

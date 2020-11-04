@@ -25,8 +25,8 @@
 
 package java.lang.reflect;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.module.ModuleDescriptor;
 import java.security.AccessController;
@@ -285,7 +285,7 @@ import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
  * @revised 9
  * @spec JPMS
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class Proxy implements java.io.Serializable {
     private static final long serialVersionUID = -2222568056686623797L;
 

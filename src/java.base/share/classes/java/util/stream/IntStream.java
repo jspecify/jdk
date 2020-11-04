@@ -24,9 +24,8 @@
  */
 package java.util.stream;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.IntSummaryStatistics;
@@ -74,7 +73,7 @@ import java.util.function.Supplier;
  * @see Stream
  * @see <a href="package-summary.html">java.util.stream</a>
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 public interface IntStream extends BaseStream<Integer, IntStream> {
 
     /**
@@ -119,7 +118,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      *               function to apply to each element
      * @return the new stream
      */
-    <U> Stream<U> mapToObj(IntFunction<? extends U> mapper);
+    <U extends @Nullable Object> Stream<U> mapToObj(IntFunction<? extends U> mapper);
 
     /**
      * Returns a {@code LongStream} consisting of the results of applying the
@@ -453,7 +452,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      *
      * @return an array containing the elements of this stream
      */
-    @SideEffectFree
+    
     int[] toArray();
 
     /**
@@ -588,7 +587,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      * @return the result of the reduction
      * @see Stream#collect(Supplier, BiConsumer, BiConsumer)
      */
-    <R> R collect(Supplier<R> supplier,
+    <R extends @Nullable Object> R collect(Supplier<R> supplier,
                   ObjIntConsumer<R> accumulator,
                   BiConsumer<R, R> combiner);
 
@@ -840,11 +839,11 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
     @Override
     IntStream parallel();
 
-    @SideEffectFree
+    
     @Override
     PrimitiveIterator.OfInt iterator();
 
-    @SideEffectFree
+    
     @Override
     Spliterator.OfInt spliterator();
 
@@ -1163,7 +1162,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
          * @throws IllegalStateException if the builder has already transitioned
          * to the built state
          */
-        default Builder add(IntStream.@GuardSatisfied Builder this, int t) {
+        default Builder add(int t) {
             accept(t);
             return this;
         }

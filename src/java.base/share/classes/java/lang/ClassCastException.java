@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown to indicate that the code has attempted to cast an object
@@ -41,7 +40,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class ClassCastException extends RuntimeException {
     private static final long serialVersionUID = -9223365651070458532L;
@@ -49,7 +48,7 @@ class ClassCastException extends RuntimeException {
     /**
      * Constructs a <code>ClassCastException</code> with no detail message.
      */
-    @SideEffectFree
+    
     public ClassCastException() {
         super();
     }
@@ -60,7 +59,7 @@ class ClassCastException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public ClassCastException(@Nullable String s) {
         super(s);
     }

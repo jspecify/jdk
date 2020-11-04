@@ -26,14 +26,12 @@
 
 package javax.management.openmbean;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 
 // java import
 //
-import org.checkerframework.checker.nullness.qual.EnsuresKeyForIf;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Set;
 import java.util.TreeMap;
@@ -51,7 +49,7 @@ import java.util.Iterator;
  *
  * @since 1.5
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public class CompositeType extends OpenType<CompositeData> {
 
     /* Serial version */
@@ -69,9 +67,9 @@ public class CompositeType extends OpenType<CompositeData> {
 
     /* As this instance is immutable, following three values need only
      * be calculated once.  */
-    private transient @MonotonicNonNull Integer myHashCode = null;
-    private transient @MonotonicNonNull String  myToString = null;
-    private transient @MonotonicNonNull Set<String> myNamesSet = null;
+    private transient  Integer myHashCode = null;
+    private transient  String  myToString = null;
+    private transient  Set<String> myNamesSet = null;
 
 
     /* *** Constructor *** */
@@ -194,7 +192,7 @@ public class CompositeType extends OpenType<CompositeData> {
      *
      * @return true if an item of this name is present.
      */
-    @EnsuresKeyForIf(expression={"#1"}, result=true, map={"this"})
+    
     public boolean containsKey(@Nullable String itemName) {
 
         if (itemName == null) {

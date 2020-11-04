@@ -25,7 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A class implements the <code>Cloneable</code> interface to
@@ -52,6 +53,6 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see     java.lang.Object#clone()
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public interface Cloneable {
 }

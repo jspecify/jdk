@@ -24,8 +24,8 @@
  */
 package java.util.function;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.Covariant;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -43,10 +43,10 @@ import java.util.Objects;
  * @see Function
  * @since 1.8
  */
-@AnnotatedFor({"lock", "nullness"})
-@Covariant(2)
+@DefaultNonNull
+
 @FunctionalInterface
-public interface BiFunction<T, U, R> {
+public interface BiFunction<T extends @Nullable Object, U extends @Nullable Object, R extends @Nullable Object> {
 
     /**
      * Applies this function to the given arguments.
@@ -70,7 +70,7 @@ public interface BiFunction<T, U, R> {
      * applies the {@code after} function
      * @throws NullPointerException if after is null
      */
-    default <V> BiFunction<T, U, V> andThen(Function<? super R, ? extends V> after) {
+    default <V extends @Nullable Object> BiFunction<T, U, V> andThen(Function<? super R, ? extends V> after) {
         Objects.requireNonNull(after);
         return (T t, U u) -> after.apply(apply(t, u));
     }

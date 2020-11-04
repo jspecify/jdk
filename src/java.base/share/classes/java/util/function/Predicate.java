@@ -24,7 +24,8 @@
  */
 package java.util.function;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -38,9 +39,9 @@ import java.util.Objects;
  *
  * @since 1.8
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 @FunctionalInterface
-public interface Predicate<T> {
+public interface Predicate<T extends @Nullable Object> {
 
     /**
      * Evaluates this predicate on the given argument.
@@ -114,7 +115,7 @@ public interface Predicate<T> {
      * @return a predicate that tests if two arguments are equal according
      * to {@link Objects#equals(Object, Object)}
      */
-    static <T> Predicate<T> isEqual(Object targetRef) {
+    static <T extends @Nullable Object> Predicate<T> isEqual(Object targetRef) {
         return (null == targetRef)
                 ? Objects::isNull
                 : object -> targetRef.equals(object);
@@ -136,7 +137,7 @@ public interface Predicate<T> {
      * @since 11
      */
     @SuppressWarnings("unchecked")
-    static <T> Predicate<T> not(Predicate<? super T> target) {
+    static <T extends @Nullable Object> Predicate<T> not(Predicate<? super T> target) {
         Objects.requireNonNull(target);
         return (Predicate<T>)target.negate();
     }

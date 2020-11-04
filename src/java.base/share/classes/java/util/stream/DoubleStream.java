@@ -24,9 +24,8 @@
  */
 package java.util.stream;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.DoubleSummaryStatistics;
@@ -73,7 +72,7 @@ import java.util.function.Supplier;
  * @see Stream
  * @see <a href="package-summary.html">java.util.stream</a>
  */
-@AnnotatedFor({"lock", "nullness"})
+@DefaultNonNull
 public interface DoubleStream extends BaseStream<Double, DoubleStream> {
 
     /**
@@ -118,7 +117,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      *               function to apply to each element
      * @return the new stream
      */
-    <U> Stream<U> mapToObj(DoubleFunction<? extends U> mapper);
+    <U extends @Nullable Object> Stream<U> mapToObj(DoubleFunction<? extends U> mapper);
 
     /**
      * Returns an {@code IntStream} consisting of the results of applying the
@@ -457,7 +456,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      *
      * @return an array containing the elements of this stream
      */
-    @SideEffectFree
+    
     double[] toArray();
 
     /**
@@ -593,7 +592,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * @return the result of the reduction
      * @see Stream#collect(Supplier, BiConsumer, BiConsumer)
      */
-    <R> R collect(Supplier<R> supplier,
+    <R extends @Nullable Object> R collect(Supplier<R> supplier,
                   ObjDoubleConsumer<R> accumulator,
                   BiConsumer<R, R> combiner);
 
@@ -899,11 +898,11 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
     @Override
     DoubleStream parallel();
 
-    @SideEffectFree
+    
     @Override
     PrimitiveIterator.OfDouble iterator();
 
-    @SideEffectFree
+    
     @Override
     Spliterator.OfDouble spliterator();
 
@@ -1171,7 +1170,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
          * @throws IllegalStateException if the builder has already transitioned
          * to the built state
          */
-        default Builder add(DoubleStream.@GuardSatisfied Builder this, double t) {
+        default Builder add(double t) {
             accept(t);
             return this;
         }

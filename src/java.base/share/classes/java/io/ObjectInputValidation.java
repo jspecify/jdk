@@ -25,7 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Callback interface to allow validation of objects within a graph.
@@ -37,7 +38,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see     ObjectInputStream#registerValidation(java.io.ObjectInputValidation, int)
  * @since   1.1
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public interface ObjectInputValidation {
     /**
      * Validates the object.

@@ -25,10 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -90,7 +88,7 @@ import sun.security.util.SecurityConstants;
  * @serial exclude
  */
 
-@AnnotatedFor({"lock", "nullness", "index"})
+@DefaultNonNull
 public final class PropertyPermission extends BasicPermission {
 
     /**
@@ -212,9 +210,9 @@ public final class PropertyPermission extends BasicPermission {
      * @return true if obj is a PropertyPermission, and has the same name and
      * actions as this PropertyPermission object.
      */
-    @Pure
+    
     @Override
-    public boolean equals(@GuardSatisfied PropertyPermission this, @GuardSatisfied @Nullable Object obj) {
+    public boolean equals( @Nullable Object obj) {
         if (obj == this)
             return true;
 
@@ -235,9 +233,9 @@ public final class PropertyPermission extends BasicPermission {
      *
      * @return a hash code value for this object.
      */
-    @Pure
+    
     @Override
-    public int hashCode(@GuardSatisfied PropertyPermission this) {
+    public int hashCode() {
         return this.getName().hashCode();
     }
 

@@ -25,12 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.index.qual.Positive;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -81,9 +77,9 @@ import jdk.internal.misc.Unsafe;
  * @author  Frank Yellin
  * @since   1.0
  */
-@AnnotatedFor({"index", "interning", "lock", "nullness", "signedness"})
+@DefaultNonNull
 public
-@UsesObjectEquals class Random implements java.io.Serializable {
+ class Random implements java.io.Serializable {
     /** use serialVersionUID from JDK 1.1 for interoperability */
     static final long serialVersionUID = 3905348978240129619L;
 
@@ -174,7 +170,7 @@ public
      *
      * @param seed the initial seed
      */
-    public synchronized void setSeed(@GuardSatisfied Random this, long seed) {
+    public synchronized void setSeed(long seed) {
         this.seed.set(initialScramble(seed));
         haveNextNextGaussian = false;
     }
@@ -233,7 +229,7 @@ public
      * @throws NullPointerException if the byte array is null
      * @since  1.1
      */
-    public void nextBytes(@PolySigned byte[] bytes) {
+    public void nextBytes( byte[] bytes) {
         for (int i = 0, len = bytes.length; i < len; )
             for (int rnd = nextInt(),
                      n = Math.min(len - i, Integer.SIZE/Byte.SIZE);
@@ -392,7 +388,7 @@ public
      * @throws IllegalArgumentException if bound is not positive
      * @since 1.2
      */
-    public @NonNegative int nextInt(@Positive int bound) {
+    public  int nextInt( int bound) {
         if (bound <= 0)
             throw new IllegalArgumentException(BadBound);
 

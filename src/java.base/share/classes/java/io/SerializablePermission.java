@@ -25,8 +25,8 @@
 
 package java.io;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.security.*;
 import java.util.Enumeration;
@@ -102,7 +102,7 @@ import java.util.StringTokenizer;
 
 /* code was borrowed originally from java.lang.RuntimePermission. */
 
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public final class SerializablePermission extends BasicPermission {
 
     private static final long serialVersionUID = 8537212141160296410L;

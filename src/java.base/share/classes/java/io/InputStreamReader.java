@@ -25,13 +25,7 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTEqLengthOf;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.Nullable;
 
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
@@ -67,7 +61,7 @@ import sun.nio.cs.StreamDecoder;
  * @since       1.1
  */
 
-@AnnotatedFor({"index"})
+
 public class InputStreamReader extends Reader {
 
     private final StreamDecoder sd;
@@ -190,7 +184,7 @@ public class InputStreamReader extends Reader {
      * @exception  IOException  If an I/O error occurs
      * @exception  IndexOutOfBoundsException {@inheritDoc}
      */
-    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(char cbuf[], @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int length) throws IOException {
+    public   int read(char cbuf[],  int offset,   int length) throws IOException {
         return sd.read(cbuf, offset, length);
     }
 

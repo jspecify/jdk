@@ -25,15 +25,7 @@
 
 package java.util.logging;
 
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.signature.qual.BinaryName;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.ref.WeakReference;
 import java.security.AccessController;
@@ -229,13 +221,9 @@ import static jdk.internal.logger.DefaultLoggerFinder.isSystem;
  *
  * @since 1.4
  */
-@CFComment({"lock: inherited methods",
-            "public boolean isEmpty(@GuardSatisfied LinkedList<E> this) { throw new RuntimeException(\"skeleton method\"); }",
-            "public boolean containsAll(@GuardSatisfied LinkedList<E> this, Collection<?> c);",
-            "public int hashCode(@GuardSatisfied LinkedList<E> this);",
-            "public boolean equals(@GuardSatisfied LinkedList<E> this, Object o);"})
-@AnnotatedFor({"index", "interning", "lock", "signature"})
-public @UsesObjectEquals class Logger {
+
+
+public  class Logger {
     private static final Handler emptyHandlers[] = new Handler[0];
     private static final int offValue = Level.OFF.intValue();
 
@@ -482,7 +470,7 @@ public @UsesObjectEquals class Logger {
      *
      * @since 1.6
      */
-    public static final @Interned String GLOBAL_LOGGER_NAME = "global";
+    public static final  String GLOBAL_LOGGER_NAME = "global";
 
     /**
      * Return global logger object with the name Logger.GLOBAL_LOGGER_NAME.
@@ -490,7 +478,7 @@ public @UsesObjectEquals class Logger {
      * @return global logger object
      * @since 1.7
      */
-    @Pure
+    
     public static final Logger getGlobal() {
         // In order to break a cyclic dependence between the LogManager
         // and Logger static initializers causing deadlocks, the global
@@ -569,7 +557,7 @@ public @UsesObjectEquals class Logger {
      * @throws MissingResourceException if the resourceBundleName is non-null and
      *             no corresponding resource can be found.
      */
-    protected Logger(@Nullable String name, @Nullable @BinaryName String resourceBundleName) {
+    protected Logger(@Nullable String name, @Nullable  String resourceBundleName) {
         this(name, resourceBundleName, null, LogManager.getLogManager(), false);
     }
 
@@ -626,7 +614,7 @@ public @UsesObjectEquals class Logger {
 
     // It is called from LoggerContext.addLocalLogger() when the logger
     // is actually added to a LogManager.
-    void setLogManager(@GuardSatisfied Logger this, LogManager manager) {
+    void setLogManager(LogManager manager) {
         this.manager = manager;
     }
 
@@ -703,7 +691,7 @@ public @UsesObjectEquals class Logger {
 
     // Synchronization is not required here. All synchronization for
     // adding a new Logger object is handled by LogManager.addLogger().
-    @Pure
+    
     @CallerSensitive
     public static Logger getLogger(String name) {
         // This method is intentionally not a wrapper around a call
@@ -781,9 +769,9 @@ public @UsesObjectEquals class Logger {
 
     // Synchronization is not required here. All synchronization for
     // adding a new Logger object is handled by LogManager.addLogger().
-    @Pure
+    
     @CallerSensitive
-    public static Logger getLogger(String name, @Nullable @BinaryName String resourceBundleName) {
+    public static Logger getLogger(String name, @Nullable  String resourceBundleName) {
         return Logger.getLogger(name, resourceBundleName, Reflection.getCallerClass());
     }
 
@@ -857,7 +845,7 @@ public @UsesObjectEquals class Logger {
      *
      * @return a newly created private Logger
      */
-    @Pure
+    
     public static Logger getAnonymousLogger() {
         return getAnonymousLogger(null);
     }
@@ -891,9 +879,9 @@ public @UsesObjectEquals class Logger {
 
     // Synchronization is not required here. All synchronization for
     // adding a new anonymous Logger object is handled by doSetParent().
-    @Pure
+    
     @CallerSensitive
-    public static Logger getAnonymousLogger(@Nullable @BinaryName String resourceBundleName) {
+    public static Logger getAnonymousLogger(@Nullable  String resourceBundleName) {
         LogManager manager = LogManager.getLogManager();
         // cleanup some Loggers that have been GC'ed
         manager.drainLoggerRefQueueBounded();
@@ -922,8 +910,8 @@ public @UsesObjectEquals class Logger {
      *
      * @return localization bundle (may be {@code null})
      */
-    @Pure
-    public @Nullable ResourceBundle getResourceBundle(@GuardSatisfied Logger this) {
+    
+    public @Nullable ResourceBundle getResourceBundle() {
         return findResourceBundle(getResourceBundleName(), true);
     }
 
@@ -940,8 +928,8 @@ public @UsesObjectEquals class Logger {
      *
      * @return localization bundle name (may be {@code null})
      */
-    @Pure
-    public @Nullable @BinaryName String getResourceBundleName(@GuardSatisfied Logger this) {
+    
+    public @Nullable  String getResourceBundleName() {
         return loggerBundle.resourceBundleName;
     }
 
@@ -957,7 +945,7 @@ public @UsesObjectEquals class Logger {
      *          this logger is not anonymous, and the caller
      *          does not have LoggingPermission("control").
      */
-    public void setFilter(@GuardSatisfied Logger this, @Nullable Filter newFilter) throws SecurityException {
+    public void setFilter(@Nullable Filter newFilter) throws SecurityException {
         checkPermission();
         config.setFilter(newFilter);
     }
@@ -967,8 +955,8 @@ public @UsesObjectEquals class Logger {
      *
      * @return  a filter object (may be null)
      */
-    @Pure
-    public @Nullable Filter getFilter(@GuardSatisfied Logger this) {
+    
+    public @Nullable Filter getFilter() {
         return config.filter;
     }
 
@@ -981,8 +969,8 @@ public @UsesObjectEquals class Logger {
      *
      * @param record the LogRecord to be published
      */
-    @SideEffectFree
-    public void log(@GuardSatisfied Logger this, LogRecord record) {
+    
+    public void log(LogRecord record) {
         if (!isLoggable(record.getLevel())) {
             return;
         }
@@ -1019,8 +1007,8 @@ public @UsesObjectEquals class Logger {
     // private support method for logging.
     // We fill in the logger name, resource bundle name, and
     // resource bundle and then call "void log(LogRecord)".
-    @SideEffectFree
-    private void doLog(@GuardSatisfied Logger this, LogRecord lr) {
+    
+    private void doLog(LogRecord lr) {
         lr.setLoggerName(name);
         final LoggerBundle lb = getEffectiveLoggerBundle();
         final ResourceBundle  bundle = lb.userBundle;
@@ -1047,8 +1035,8 @@ public @UsesObjectEquals class Logger {
      * @param   level   One of the message level identifiers, e.g., SEVERE
      * @param   msg     The string message (or a key in the message catalog)
      */
-    @SideEffectFree
-    public void log(@GuardSatisfied Logger this, @GuardSatisfied Level level, @Nullable String msg) {
+    
+    public void log( Level level, @Nullable String msg) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1070,8 +1058,8 @@ public @UsesObjectEquals class Logger {
      *                        desired log message
      * @since 1.8
      */
-    @SideEffectFree
-    public void log(@GuardSatisfied Logger this, @GuardSatisfied Level level, @GuardSatisfied Supplier<String> msgSupplier) {
+    
+    public void log( Level level,  Supplier<String> msgSupplier) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1090,8 +1078,8 @@ public @UsesObjectEquals class Logger {
      * @param   msg     The string message (or a key in the message catalog)
      * @param   param1  parameter to the message
      */
-    @SideEffectFree
-    public void log(@GuardSatisfied Logger this, @GuardSatisfied Level level, @Nullable String msg, @GuardSatisfied @Nullable Object param1) {
+    
+    public void log( Level level, @Nullable String msg,  @Nullable Object param1) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1112,8 +1100,8 @@ public @UsesObjectEquals class Logger {
      * @param   msg     The string message (or a key in the message catalog)
      * @param   params  array of parameters to the message
      */
-    @SideEffectFree
-    public void log(@GuardSatisfied Logger this, @GuardSatisfied Level level, @Nullable String msg, @Nullable Object params @GuardSatisfied  @Nullable []) {
+    
+    public void log( Level level, @Nullable String msg, @Nullable Object params   @Nullable []) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1138,8 +1126,8 @@ public @UsesObjectEquals class Logger {
      * @param   msg     The string message (or a key in the message catalog)
      * @param   thrown  Throwable associated with log message.
      */
-    @SideEffectFree
-    public void log(@GuardSatisfied Logger this, @GuardSatisfied Level level, @Nullable String msg, @GuardSatisfied @Nullable Throwable thrown) {
+    
+    public void log( Level level, @Nullable String msg,  @Nullable Throwable thrown) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1167,8 +1155,8 @@ public @UsesObjectEquals class Logger {
      *                        desired log message
      * @since   1.8
      */
-    @SideEffectFree
-    public void log(@GuardSatisfied Logger this, @GuardSatisfied Level level, @GuardSatisfied @Nullable Throwable thrown, @GuardSatisfied Supplier<String> msgSupplier) {
+    
+    public void log( Level level,  @Nullable Throwable thrown,  Supplier<String> msgSupplier) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1194,8 +1182,8 @@ public @UsesObjectEquals class Logger {
      * @param   sourceMethod   name of method that issued the logging request
      * @param   msg     The string message (or a key in the message catalog)
      */
-    @SideEffectFree
-    public void logp(@GuardSatisfied Logger this, @GuardSatisfied Level level, @Nullable String sourceClass, @Nullable String sourceMethod, @Nullable String msg) {
+    
+    public void logp( Level level, @Nullable String sourceClass, @Nullable String sourceMethod, @Nullable String msg) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1221,8 +1209,8 @@ public @UsesObjectEquals class Logger {
      *                        desired log message
      * @since   1.8
      */
-    @SideEffectFree
-    public void logp(@GuardSatisfied Logger this, Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
+    
+    public void logp(Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
                      Supplier<String> msgSupplier) {
         if (!isLoggable(level)) {
             return;
@@ -1247,8 +1235,8 @@ public @UsesObjectEquals class Logger {
      * @param   msg      The string message (or a key in the message catalog)
      * @param   param1    Parameter to the log message.
      */
-    @SideEffectFree
-    public void logp(@GuardSatisfied Logger this, Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
+    
+    public void logp(Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
                                                 @Nullable String msg, @Nullable Object param1) {
         if (!isLoggable(level)) {
             return;
@@ -1275,8 +1263,8 @@ public @UsesObjectEquals class Logger {
      * @param   msg     The string message (or a key in the message catalog)
      * @param   params  Array of parameters to the message
      */
-    @SideEffectFree
-    public void logp(@GuardSatisfied Logger this, Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
+    
+    public void logp(Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
                                                 @Nullable String msg, @Nullable Object params @Nullable []) {
         if (!isLoggable(level)) {
             return;
@@ -1307,8 +1295,8 @@ public @UsesObjectEquals class Logger {
      * @param   msg     The string message (or a key in the message catalog)
      * @param   thrown  Throwable associated with log message.
      */
-    @SideEffectFree
-    public void logp(@GuardSatisfied Logger this, Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
+    
+    public void logp(Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
                      @Nullable String msg, @Nullable Throwable thrown) {
         if (!isLoggable(level)) {
             return;
@@ -1342,8 +1330,8 @@ public @UsesObjectEquals class Logger {
      *                        desired log message
      * @since   1.8
      */
-    @SideEffectFree
-    public void logp(@GuardSatisfied Logger this, Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
+    
+    public void logp(Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
                      @Nullable Throwable thrown, Supplier<String> msgSupplier) {
         if (!isLoggable(level)) {
             return;
@@ -1363,8 +1351,8 @@ public @UsesObjectEquals class Logger {
     // Private support method for logging for "logrb" methods.
     // We fill in the logger name, resource bundle name, and
     // resource bundle and then call "void log(LogRecord)".
-    @SideEffectFree
-    private void doLog(@GuardSatisfied Logger this, @GuardSatisfied LogRecord lr, @Nullable String rbname) {
+    
+    private void doLog( LogRecord lr, @Nullable String rbname) {
         lr.setLoggerName(name);
         if (rbname != null) {
             lr.setResourceBundleName(rbname);
@@ -1405,10 +1393,10 @@ public @UsesObjectEquals class Logger {
      * java.lang.String, java.util.ResourceBundle, java.lang.String,
      * java.lang.Object...)} instead.
      */
-    @SideEffectFree
+    
     @Deprecated
-    public void logrb(@GuardSatisfied Logger this, Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
-                                @Nullable @BinaryName String bundleName, @Nullable String msg) {
+    public void logrb(Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
+                                @Nullable  String bundleName, @Nullable String msg) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1441,10 +1429,10 @@ public @UsesObjectEquals class Logger {
      *   java.lang.String, java.util.ResourceBundle, java.lang.String,
      *   java.lang.Object...)} instead
      */
-    @SideEffectFree
+    
     @Deprecated
-    public void logrb(@GuardSatisfied Logger this, Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
-                                @Nullable @BinaryName String bundleName, @Nullable String msg, @Nullable Object param1) {
+    public void logrb(Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
+                                @Nullable  String bundleName, @Nullable String msg, @Nullable Object param1) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1479,10 +1467,10 @@ public @UsesObjectEquals class Logger {
      *      java.lang.String, java.util.ResourceBundle, java.lang.String,
      *      java.lang.Object...)} instead.
      */
-    @SideEffectFree
+    
     @Deprecated
-    public void logrb(@GuardSatisfied Logger this, Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
-                                @Nullable @BinaryName String bundleName, @Nullable String msg, @Nullable Object params @Nullable []) {
+    public void logrb(Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
+                                @Nullable  String bundleName, @Nullable String msg, @Nullable Object params @Nullable []) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1586,10 +1574,10 @@ public @UsesObjectEquals class Logger {
      *     java.lang.String, java.util.ResourceBundle, java.lang.String,
      *     java.lang.Throwable)} instead.
      */
-    @SideEffectFree
+    
     @Deprecated
-    public void logrb(@GuardSatisfied Logger this, Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
-                                        @Nullable @BinaryName String bundleName, @Nullable String msg, @Nullable Throwable thrown) {
+    public void logrb(Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
+                                        @Nullable  String bundleName, @Nullable String msg, @Nullable Throwable thrown) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1689,8 +1677,8 @@ public @UsesObjectEquals class Logger {
      * @param   sourceClass    name of class that issued the logging request
      * @param   sourceMethod   name of method that is being entered
      */
-    @SideEffectFree
-    public void entering(@GuardSatisfied Logger this, @Nullable String sourceClass, @Nullable String sourceMethod) {
+    
+    public void entering(@Nullable String sourceClass, @Nullable String sourceMethod) {
         logp(Level.FINER, sourceClass, sourceMethod, "ENTRY");
     }
 
@@ -1706,8 +1694,8 @@ public @UsesObjectEquals class Logger {
      * @param   sourceMethod   name of method that is being entered
      * @param   param1         parameter to the method being entered
      */
-    @SideEffectFree
-    public void entering(@GuardSatisfied Logger this, @Nullable String sourceClass, @Nullable String sourceMethod, @GuardSatisfied @Nullable Object param1) {
+    
+    public void entering(@Nullable String sourceClass, @Nullable String sourceMethod,  @Nullable Object param1) {
         logp(Level.FINER, sourceClass, sourceMethod, "ENTRY {0}", param1);
     }
 
@@ -1724,8 +1712,8 @@ public @UsesObjectEquals class Logger {
      * @param   sourceMethod   name of method that is being entered
      * @param   params         array of parameters to the method being entered
      */
-    @SideEffectFree
-    public void entering(@GuardSatisfied Logger this, @Nullable String sourceClass, @Nullable String sourceMethod, @Nullable Object params @GuardSatisfied  @Nullable []) {
+    
+    public void entering(@Nullable String sourceClass, @Nullable String sourceMethod, @Nullable Object params   @Nullable []) {
         String msg = "ENTRY";
         if (params == null ) {
            logp(Level.FINER, sourceClass, sourceMethod, msg);
@@ -1752,8 +1740,8 @@ public @UsesObjectEquals class Logger {
      * @param   sourceClass    name of class that issued the logging request
      * @param   sourceMethod   name of the method
      */
-    @SideEffectFree
-    public void exiting(@GuardSatisfied Logger this, @Nullable String sourceClass, @Nullable String sourceMethod) {
+    
+    public void exiting(@Nullable String sourceClass, @Nullable String sourceMethod) {
         logp(Level.FINER, sourceClass, sourceMethod, "RETURN");
     }
 
@@ -1770,8 +1758,8 @@ public @UsesObjectEquals class Logger {
      * @param   sourceMethod   name of the method
      * @param   result  Object that is being returned
      */
-    @SideEffectFree
-    public void exiting(@GuardSatisfied Logger this, @Nullable String sourceClass, @Nullable String sourceMethod, @GuardSatisfied @Nullable Object result) {
+    
+    public void exiting(@Nullable String sourceClass, @Nullable String sourceMethod,  @Nullable Object result) {
         logp(Level.FINER, sourceClass, sourceMethod, "RETURN {0}", result);
     }
 
@@ -1796,8 +1784,8 @@ public @UsesObjectEquals class Logger {
      * @param   sourceMethod  name of the method.
      * @param   thrown  The Throwable that is being thrown.
      */
-    @SideEffectFree
-    public void throwing(@GuardSatisfied Logger this, @Nullable String sourceClass, @Nullable String sourceMethod, @GuardSatisfied @Nullable Throwable thrown) {
+    
+    public void throwing(@Nullable String sourceClass, @Nullable String sourceMethod,  @Nullable Throwable thrown) {
         if (!isLoggable(Level.FINER)) {
             return;
         }
@@ -1821,8 +1809,8 @@ public @UsesObjectEquals class Logger {
      *
      * @param   msg     The string message (or a key in the message catalog)
      */
-    @SideEffectFree
-    public void severe(@GuardSatisfied Logger this, @Nullable String msg) {
+    
+    public void severe(@Nullable String msg) {
         log(Level.SEVERE, msg);
     }
 
@@ -1835,8 +1823,8 @@ public @UsesObjectEquals class Logger {
      *
      * @param   msg     The string message (or a key in the message catalog)
      */
-    @SideEffectFree
-    public void warning(@GuardSatisfied Logger this, @Nullable String msg) {
+    
+    public void warning(@Nullable String msg) {
         log(Level.WARNING, msg);
     }
 
@@ -1849,8 +1837,8 @@ public @UsesObjectEquals class Logger {
      *
      * @param   msg     The string message (or a key in the message catalog)
      */
-    @SideEffectFree
-    public void info(@GuardSatisfied Logger this, @Nullable String msg) {
+    
+    public void info(@Nullable String msg) {
         log(Level.INFO, msg);
     }
 
@@ -1863,8 +1851,8 @@ public @UsesObjectEquals class Logger {
      *
      * @param   msg     The string message (or a key in the message catalog)
      */
-    @SideEffectFree
-    public void config(@GuardSatisfied Logger this, @Nullable String msg) {
+    
+    public void config(@Nullable String msg) {
         log(Level.CONFIG, msg);
     }
 
@@ -1877,8 +1865,8 @@ public @UsesObjectEquals class Logger {
      *
      * @param   msg     The string message (or a key in the message catalog)
      */
-    @SideEffectFree
-    public void fine(@GuardSatisfied Logger this, @Nullable String msg) {
+    
+    public void fine(@Nullable String msg) {
         log(Level.FINE, msg);
     }
 
@@ -1891,8 +1879,8 @@ public @UsesObjectEquals class Logger {
      *
      * @param   msg     The string message (or a key in the message catalog)
      */
-    @SideEffectFree
-    public void finer(@GuardSatisfied Logger this, @Nullable String msg) {
+    
+    public void finer(@Nullable String msg) {
         log(Level.FINER, msg);
     }
 
@@ -1905,8 +1893,8 @@ public @UsesObjectEquals class Logger {
      *
      * @param   msg     The string message (or a key in the message catalog)
      */
-    @SideEffectFree
-    public void finest(@GuardSatisfied Logger this, @Nullable String msg) {
+    
+    public void finest(@Nullable String msg) {
         log(Level.FINEST, msg);
     }
 
@@ -1928,8 +1916,8 @@ public @UsesObjectEquals class Logger {
      *                        desired log message
      * @since   1.8
      */
-    @SideEffectFree
-    public void severe(@GuardSatisfied Logger this, Supplier<String> msgSupplier) {
+    
+    public void severe(Supplier<String> msgSupplier) {
         log(Level.SEVERE, msgSupplier);
     }
 
@@ -1946,8 +1934,8 @@ public @UsesObjectEquals class Logger {
      *                        desired log message
      * @since   1.8
      */
-    @SideEffectFree
-    public void warning(@GuardSatisfied Logger this, Supplier<String> msgSupplier) {
+    
+    public void warning(Supplier<String> msgSupplier) {
         log(Level.WARNING, msgSupplier);
     }
 
@@ -1964,8 +1952,8 @@ public @UsesObjectEquals class Logger {
      *                        desired log message
      * @since   1.8
      */
-    @SideEffectFree
-    public void info(@GuardSatisfied Logger this, Supplier<String> msgSupplier) {
+    
+    public void info(Supplier<String> msgSupplier) {
         log(Level.INFO, msgSupplier);
     }
 
@@ -1982,8 +1970,8 @@ public @UsesObjectEquals class Logger {
      *                        desired log message
      * @since   1.8
      */
-    @SideEffectFree
-    public void config(@GuardSatisfied Logger this, Supplier<String> msgSupplier) {
+    
+    public void config(Supplier<String> msgSupplier) {
         log(Level.CONFIG, msgSupplier);
     }
 
@@ -2000,8 +1988,8 @@ public @UsesObjectEquals class Logger {
      *                        desired log message
      * @since   1.8
      */
-    @SideEffectFree
-    public void fine(@GuardSatisfied Logger this, Supplier<String> msgSupplier) {
+    
+    public void fine(Supplier<String> msgSupplier) {
         log(Level.FINE, msgSupplier);
     }
 
@@ -2018,8 +2006,8 @@ public @UsesObjectEquals class Logger {
      *                        desired log message
      * @since   1.8
      */
-    @SideEffectFree
-    public void finer(@GuardSatisfied Logger this, Supplier<String> msgSupplier) {
+    
+    public void finer(Supplier<String> msgSupplier) {
         log(Level.FINER, msgSupplier);
     }
 
@@ -2036,8 +2024,8 @@ public @UsesObjectEquals class Logger {
      *                        desired log message
      * @since   1.8
      */
-    @SideEffectFree
-    public void finest(@GuardSatisfied Logger this, Supplier<String> msgSupplier) {
+    
+    public void finest(Supplier<String> msgSupplier) {
         log(Level.FINEST, msgSupplier);
     }
 
@@ -2060,7 +2048,7 @@ public @UsesObjectEquals class Logger {
      *          this logger is not anonymous, and the caller
      *          does not have LoggingPermission("control").
      */
-    public void setLevel(@GuardSatisfied Logger this, @Nullable Level newLevel) throws SecurityException {
+    public void setLevel(@Nullable Level newLevel) throws SecurityException {
         checkPermission();
         synchronized (treeLock) {
             config.setLevelObject(newLevel);
@@ -2079,8 +2067,8 @@ public @UsesObjectEquals class Logger {
      *
      * @return  this Logger's level
      */
-    @Pure
-    public @Nullable Level getLevel(@GuardSatisfied Logger this) {
+    
+    public @Nullable Level getLevel() {
         return config.levelObject;
     }
 
@@ -2092,7 +2080,7 @@ public @UsesObjectEquals class Logger {
      * @param   level   a message logging level
      * @return  true if the given message level is currently being logged.
      */
-    @Pure
+    
     public boolean isLoggable(Level level) {
         int levelValue = config.levelValue;
         if (level.intValue() < levelValue || levelValue == offValue) {
@@ -2105,8 +2093,8 @@ public @UsesObjectEquals class Logger {
      * Get the name for this logger.
      * @return logger name.  Will be null for anonymous Loggers.
      */
-    @Pure
-    public @Nullable String getName(@GuardSatisfied Logger this) {
+    
+    public @Nullable String getName() {
         return name;
     }
 
@@ -2122,7 +2110,7 @@ public @UsesObjectEquals class Logger {
      *          this logger is not anonymous, and the caller
      *          does not have LoggingPermission("control").
      */
-    public void addHandler(@GuardSatisfied Logger this, Handler handler) throws SecurityException {
+    public void addHandler(Handler handler) throws SecurityException {
         Objects.requireNonNull(handler);
         checkPermission();
         config.addHandler(handler);
@@ -2138,7 +2126,7 @@ public @UsesObjectEquals class Logger {
      *          this logger is not anonymous, and the caller
      *          does not have LoggingPermission("control").
      */
-    public void removeHandler(@GuardSatisfied Logger this, @Nullable Handler handler) throws SecurityException {
+    public void removeHandler(@Nullable Handler handler) throws SecurityException {
         checkPermission();
         if (handler == null) {
             return;
@@ -2151,8 +2139,8 @@ public @UsesObjectEquals class Logger {
      *
      * @return  an array of all registered Handlers
      */
-    @SideEffectFree
-    public Handler[] getHandlers(@GuardSatisfied Logger this) {
+    
+    public Handler[] getHandlers() {
         return accessCheckedHandlers();
     }
 
@@ -2174,7 +2162,7 @@ public @UsesObjectEquals class Logger {
      *          this logger is not anonymous, and the caller
      *          does not have LoggingPermission("control").
      */
-    public void setUseParentHandlers(@GuardSatisfied Logger this, boolean useParentHandlers) {
+    public void setUseParentHandlers(boolean useParentHandlers) {
         checkPermission();
         config.setUseParentHandlers(useParentHandlers);
     }
@@ -2185,8 +2173,8 @@ public @UsesObjectEquals class Logger {
      *
      * @return  true if output is to be sent to the logger's parent
      */
-    @Pure
-    public boolean getUseParentHandlers(@GuardSatisfied Logger this) {
+    
+    public boolean getUseParentHandlers() {
         return config.useParentHandlers;
     }
 
@@ -2308,7 +2296,7 @@ public @UsesObjectEquals class Logger {
         }
     }
 
-    private void setupResourceInfo(@GuardSatisfied Logger this, @Nullable String name, @Nullable Class<?> caller) {
+    private void setupResourceInfo(@Nullable String name, @Nullable Class<?> caller) {
         final Module module = caller == null ? null : caller.getModule();
         setupResourceInfo(name, module);
     }
@@ -2415,8 +2403,8 @@ public @UsesObjectEquals class Logger {
      *
      * @return nearest existing parent Logger
      */
-    @Pure
-    public @Nullable Logger getParent(@GuardSatisfied Logger this) {
+    
+    public @Nullable Logger getParent() {
         // Note: this used to be synchronized on treeLock.  However, this only
         // provided memory semantics, as there was no guarantee that the caller
         // would synchronize on treeLock (in fact, there is no way for external
@@ -2435,7 +2423,7 @@ public @UsesObjectEquals class Logger {
      * @throws  SecurityException  if a security manager exists and if
      *          the caller does not have LoggingPermission("control").
      */
-    public void setParent(@GuardSatisfied Logger this, @GuardSatisfied Logger parent) {
+    public void setParent( Logger parent) {
         if (parent == null) {
             throw new NullPointerException();
         }
@@ -2451,7 +2439,7 @@ public @UsesObjectEquals class Logger {
 
     // Private method to do the work for parenting a child
     // Logger onto a parent logger.
-    private void doSetParent(@GuardSatisfied Logger this, @GuardSatisfied Logger newParent) {
+    private void doSetParent( Logger newParent) {
 
         // System.err.println("doSetParent \"" + getName() + "\" \""
         //                              + newParent.getName() + "\"");
@@ -2498,7 +2486,7 @@ public @UsesObjectEquals class Logger {
     // Package-level method.
     // Remove the weak reference for the specified child Logger from the
     // kid list. We should only be called from LoggerWeakRef.dispose().
-    final void removeChildLogger(@GuardSatisfied Logger this, LogManager.LoggerWeakRef child) {
+    final void removeChildLogger(LogManager.LoggerWeakRef child) {
         synchronized (treeLock) {
             for (Iterator<LogManager.LoggerWeakRef> iter = kids.iterator(); iter.hasNext(); ) {
                 LogManager.LoggerWeakRef ref = iter.next();
@@ -2513,7 +2501,7 @@ public @UsesObjectEquals class Logger {
     // Recalculate the effective level for this node and
     // recursively for our children.
 
-    private void updateEffectiveLevel(@GuardSatisfied Logger this) {
+    private void updateEffectiveLevel() {
         // assert Thread.holdsLock(treeLock);
 
         // Figure out our current effective level.

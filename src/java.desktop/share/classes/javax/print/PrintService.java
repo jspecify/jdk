@@ -25,11 +25,7 @@
 
 package javax.print;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import javax.print.attribute.Attribute;
 import javax.print.attribute.AttributeSet;
@@ -431,8 +427,8 @@ public interface PrintService {
      * @return {@code true} if this service is the same as the obj argument,
      *         {@code false} otherwise
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object obj);
 
     /**

@@ -25,11 +25,8 @@
 
 package java.util.zip;
 
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 import static java.util.zip.ZipUtils.*;
 import java.nio.file.attribute.FileTime;
 import java.util.Objects;
@@ -46,9 +43,9 @@ import static java.util.zip.ZipConstants64.*;
  * @author      David Connelly
  * @since 1.1
  */
-@AnnotatedFor({"index", "interning", "nullness", "signedness"})
+@DefaultNonNull
 public
-@UsesObjectEquals class ZipEntry implements ZipConstants, Cloneable {
+ class ZipEntry implements ZipConstants, Cloneable {
 
     String name;        // entry name
     long xdostime = -1; // last modification time (in extended DOS time,
@@ -414,7 +411,7 @@ public
      *         or is less than 0 when ZIP64 is supported
      * @see #getSize()
      */
-    public void setSize(@NonNegative long size) {
+    public void setSize( long size) {
         if (size < 0) {
             throw new IllegalArgumentException("invalid entry size");
         }
@@ -427,7 +424,7 @@ public
      * @return the uncompressed size of the entry data, or -1 if not known
      * @see #setSize(long)
      */
-    public @NonNegative long getSize() {
+    public  long getSize() {
         return size;
     }
 
@@ -622,7 +619,7 @@ public
      *
      * @see #setExtra(byte[])
      */
-    @Pure
+    
     public byte @Nullable [] getExtra() {
         return extra;
     }

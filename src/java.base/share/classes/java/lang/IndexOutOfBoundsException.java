@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown to indicate that an index of some sort (such as to an array, to a
@@ -38,14 +37,14 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author Frank Yellin
  * @since 1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class IndexOutOfBoundsException extends RuntimeException {
     private static final long serialVersionUID = 234122996006267687L;
 
     /**
      * Constructs an {@code IndexOutOfBoundsException} with no detail message.
      */
-    @SideEffectFree
+    
     public IndexOutOfBoundsException() {
         super();
     }
@@ -56,7 +55,7 @@ public class IndexOutOfBoundsException extends RuntimeException {
      *
      * @param s the detail message
      */
-    @SideEffectFree
+    
     public IndexOutOfBoundsException(@Nullable String s) {
         super(s);
     }

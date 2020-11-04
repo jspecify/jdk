@@ -24,10 +24,8 @@
  */
 package java.util.stream;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -169,8 +167,8 @@ import java.util.function.UnaryOperator;
  * @see DoubleStream
  * @see <a href="package-summary.html">java.util.stream</a>
  */
-@AnnotatedFor({"lock", "nullness"})
-public interface Stream<T> extends BaseStream<T, Stream<T>> {
+@DefaultNonNull
+public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream<T>> {
 
     /**
      * Returns a stream consisting of the elements of this stream that match
@@ -200,7 +198,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               function to apply to each element
      * @return the new stream
      */
-    <R> Stream<R> map(Function<? super T, ? extends R> mapper);
+    <R extends @Nullable Object> Stream<R> map(Function<? super T, ? extends R> mapper);
 
     /**
      * Returns an {@code IntStream} consisting of the results of applying the
@@ -286,7 +284,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               of new values
      * @return the new stream
      */
-    <R> Stream<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper);
+    <R extends @Nullable Object> Stream<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper);
 
     /**
      * Returns an {@code IntStream} consisting of the results of replacing each
@@ -680,8 +678,8 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @return an array, whose {@linkplain Class#getComponentType runtime component
      * type} is {@code Object}, containing the elements of this stream
      */
-    @SideEffectFree
-    @PolyNull Object[] toArray(Stream<@PolyNull T> this);
+    
+    @Nullable Object[] toArray();
 
     /**
      * Returns an array containing the elements of this stream, using the
@@ -710,8 +708,8 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *         stream is not assignable to the {@linkplain Class#getComponentType
      *         runtime component type} of the generated array
      */
-    @SideEffectFree
-    <A> A[] toArray(IntFunction<A[]> generator);
+    
+    <A extends @Nullable Object> A[] toArray(IntFunction<A[]> generator);
 
     /**
      * Performs a <a href="package-summary.html#Reduction">reduction</a> on the
@@ -851,7 +849,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @see #reduce(BinaryOperator)
      * @see #reduce(Object, BinaryOperator)
      */
-    <U> U reduce(U identity,
+    <U extends @Nullable Object> U reduce(U identity,
                  BiFunction<U, ? super T, U> accumulator,
                  BinaryOperator<U> combiner);
 
@@ -910,7 +908,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *                    first result container.
      * @return the result of the reduction
      */
-    <R> R collect(Supplier<R> supplier,
+    <R extends @Nullable Object> R collect(Supplier<R> supplier,
                   BiConsumer<R, ? super T> accumulator,
                   BiConsumer<R, R> combiner);
 
@@ -966,7 +964,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @see #collect(Supplier, BiConsumer, BiConsumer)
      * @see Collectors
      */
-    <R, A> R collect(Collector<? super T, A, R> collector);
+    <R extends @Nullable Object, A extends @Nullable Object> R collect(Collector<? super T, A, R> collector);
 
     /**
      * Returns the minimum element of this stream according to the provided
@@ -1143,7 +1141,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @param <T> type of elements
      * @return a stream builder
      */
-    public static<T> Builder<T> builder() {
+    public static<T extends @Nullable Object> Builder<T> builder() {
         return new Streams.StreamBuilderImpl<>();
     }
 
@@ -1153,7 +1151,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @param <T> the type of stream elements
      * @return an empty sequential stream
      */
-    public static<T> Stream<T> empty() {
+    public static<T extends @Nullable Object> Stream<T> empty() {
         return StreamSupport.stream(Spliterators.<T>emptySpliterator(), false);
     }
 
@@ -1164,7 +1162,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @param <T> the type of stream elements
      * @return a singleton sequential stream
      */
-    public static<T> Stream<T> of(T t) {
+    public static<T extends @Nullable Object> Stream<T> of(T t) {
         return StreamSupport.stream(new Streams.StreamBuilderImpl<>(t), false);
     }
 
@@ -1178,7 +1176,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *         is non-null, otherwise an empty stream
      * @since 9
      */
-    public static<T> Stream<T> ofNullable(T t) {
+    public static<T extends @Nullable Object> Stream<T> ofNullable(T t) {
         return t == null ? Stream.empty()
                          : StreamSupport.stream(new Streams.StreamBuilderImpl<>(t), false);
     }
@@ -1192,7 +1190,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      */
     @SafeVarargs
     @SuppressWarnings("varargs") // Creating a stream from an array is safe
-    public static<T> Stream<T> of(T... values) {
+    public static<T extends @Nullable Object> Stream<T> of(T... values) {
         return Arrays.stream(values);
     }
 
@@ -1219,7 +1217,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *          a new element
      * @return a new sequential {@code Stream}
      */
-    public static<T> Stream<T> iterate(final T seed, final UnaryOperator<T> f) {
+    public static<T extends @Nullable Object> Stream<T> iterate(final T seed, final UnaryOperator<T> f) {
         Objects.requireNonNull(f);
         Spliterator<T> spliterator = new Spliterators.AbstractSpliterator<>(Long.MAX_VALUE,
                Spliterator.ORDERED | Spliterator.IMMUTABLE) {
@@ -1281,7 +1279,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @return a new sequential {@code Stream}
      * @since 9
      */
-    public static<T> Stream<T> iterate(T seed, Predicate<? super T> hasNext, UnaryOperator<T> next) {
+    public static<T extends @Nullable Object> Stream<T> iterate(T seed, Predicate<? super T> hasNext, UnaryOperator<T> next) {
         Objects.requireNonNull(next);
         Objects.requireNonNull(hasNext);
         Spliterator<T> spliterator = new Spliterators.AbstractSpliterator<>(Long.MAX_VALUE,
@@ -1336,7 +1334,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @param s the {@code Supplier} of generated elements
      * @return a new infinite sequential unordered {@code Stream}
      */
-    public static<T> Stream<T> generate(Supplier<? extends T> s) {
+    public static<T extends @Nullable Object> Stream<T> generate(Supplier<? extends T> s) {
         Objects.requireNonNull(s);
         return StreamSupport.stream(
                 new StreamSpliterators.InfiniteSupplyingSpliterator.OfRef<>(Long.MAX_VALUE, s), false);
@@ -1379,7 +1377,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @param b the second stream
      * @return the concatenation of the two input streams
      */
-    public static <T> Stream<T> concat(Stream<? extends T> a, Stream<? extends T> b) {
+    public static <T extends @Nullable Object> Stream<T> concat(Stream<? extends T> a, Stream<? extends T> b) {
         Objects.requireNonNull(a);
         Objects.requireNonNull(b);
 
@@ -1407,7 +1405,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @see Stream#builder()
      * @since 1.8
      */
-    public interface Builder<T> extends Consumer<T> {
+    public interface Builder<T extends @Nullable Object> extends Consumer<T> {
 
         /**
          * Adds an element to the stream being built.
@@ -1433,7 +1431,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
          * @throws IllegalStateException if the builder has already transitioned to
          * the built state
          */
-        default Builder<T> add(Stream.@GuardSatisfied Builder<T> this, T t) {
+        default Builder<T> add(T t) {
             accept(t);
             return this;
         }

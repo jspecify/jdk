@@ -25,11 +25,7 @@
 
 package javax.print.attribute;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Interface {@code AttributeSet} specifies the interface for a set of printing
@@ -255,8 +251,8 @@ public interface AttributeSet {
      * @return {@code true} if the specified object is equal to this attribute
      *         set
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object object);
 
     /**

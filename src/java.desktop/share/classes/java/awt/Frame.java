@@ -24,6 +24,8 @@
  */
 package java.awt;
 
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowEvent;
 import java.awt.peer.FramePeer;
@@ -40,8 +42,6 @@ import javax.accessibility.AccessibleState;
 import javax.accessibility.AccessibleStateSet;
 import javax.swing.WindowConstants;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import sun.awt.AWTAccessor;
 import sun.awt.SunToolkit;
@@ -138,7 +138,7 @@ import sun.awt.SunToolkit;
  * @see Window#addWindowListener
  * @since       1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class Frame extends Window implements MenuContainer {
 
     /* Note: These are being obsoleted;  programs should use the Cursor class

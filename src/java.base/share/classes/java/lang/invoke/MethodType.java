@@ -25,11 +25,7 @@
 
 package java.lang.invoke;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.vm.annotation.Stable;
 import sun.invoke.util.Wrapper;
@@ -793,8 +789,8 @@ class MethodType implements java.io.Serializable {
      * @see Object#equals(Object)
      */
     @Override
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object x) {
         return this == x || x instanceof MethodType && equals((MethodType)x);
     }

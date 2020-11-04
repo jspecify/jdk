@@ -24,8 +24,8 @@
  */
 package java.util.function;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.Covariant;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a function that accepts a long-valued argument and produces a
@@ -40,10 +40,10 @@ import org.checkerframework.framework.qual.Covariant;
  * @see Function
  * @since 1.8
  */
-@AnnotatedFor({"lock", "nullness"})
-@Covariant(0)
+@DefaultNonNull
+
 @FunctionalInterface
-public interface LongFunction<R> {
+public interface LongFunction<R extends @Nullable Object> {
 
     /**
      * Applies this function to the given argument.

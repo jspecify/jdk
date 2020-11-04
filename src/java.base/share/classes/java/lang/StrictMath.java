@@ -25,8 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Random;
 import jdk.internal.math.DoubleConsts;
@@ -82,8 +82,8 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @since   1.3
  */
 
-@AnnotatedFor({"interning", "nullness"})
-public final @UsesObjectEquals class StrictMath {
+@DefaultNonNull
+public final  class StrictMath {
 
     /**
      * Don't let anyone instantiate this class.

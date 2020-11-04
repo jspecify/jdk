@@ -25,20 +25,9 @@
 
 package java.lang;
 
-import org.checkerframework.checker.guieffect.qual.PolyUI;
-import org.checkerframework.checker.guieffect.qual.PolyUIType;
-import org.checkerframework.checker.guieffect.qual.SafeEffect;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.initialization.qual.UnknownInitialization;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.tainting.qual.Untainted;;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
-import org.checkerframework.common.aliasing.qual.Unique;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
+
 
 import jdk.internal.HotSpotIntrinsicCandidate;
 
@@ -51,8 +40,8 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @see     java.lang.Class
  * @since   1.0
  */
-@AnnotatedFor({"aliasing", "guieffect", "index", "lock", "nullness"})
-@PolyUIType
+@DefaultNonNull
+
 public class Object {
 
     private static native void registerNatives();
@@ -64,7 +53,7 @@ public class Object {
      * Constructs a new object.
      */
     @HotSpotIntrinsicCandidate
-    public @Unique @Untainted Object() {}
+    public   Object() {}
 
     /**
      * Returns the runtime class of this {@code Object}. The returned
@@ -85,10 +74,10 @@ public class Object {
      *         class of this object.
      * @jls 15.8.2 Class Literals
      */
-    @SafeEffect
-    @Pure
+    
+    
     @HotSpotIntrinsicCandidate
-    public final native Class<?> getClass(@PolyUI @GuardSatisfied @UnknownInitialization Object this);
+    public final native Class<?> getClass();
 
     /**
      * Returns a hash code value for the object. This method is
@@ -124,9 +113,9 @@ public class Object {
      * @see     java.lang.Object#equals(java.lang.Object)
      * @see     java.lang.System#identityHashCode
      */
-    @Pure
+    
     @HotSpotIntrinsicCandidate
-    public native int hashCode(@GuardSatisfied Object this);
+    public native int hashCode();
 
     /**
      * Indicates whether some other object is "equal to" this one.
@@ -174,9 +163,9 @@ public class Object {
      * @see     #hashCode()
      * @see     java.util.HashMap
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
-    public boolean equals(@GuardSatisfied Object this, @GuardSatisfied @Nullable Object obj) {
+    
+    
+    public boolean equals( @Nullable Object obj) {
         return (this == obj);
     }
 
@@ -240,9 +229,9 @@ public class Object {
      *               be cloned.
      * @see java.lang.Cloneable
      */
-    @SideEffectFree
+    
     @HotSpotIntrinsicCandidate
-    protected native Object clone(@GuardSatisfied Object this) throws CloneNotSupportedException;
+    protected native Object clone() throws CloneNotSupportedException;
 
     /**
      * Returns a string representation of the object. In general, the
@@ -265,11 +254,9 @@ public class Object {
      *
      * @return  a string representation of the object.
      */
-    @CFComment({"nullness: toString() is @SideEffectFree rather than @Pure because it returns a string",
-    "that differs according to ==, and @Deterministic requires that the results of",
-    "two calls of the method are ==."})
-    @SideEffectFree
-    public String toString(@GuardSatisfied Object this) {
+    
+    
+    public String toString() {
         return getClass().getName() + "@" + Integer.toHexString(hashCode());
     }
 
@@ -351,7 +338,7 @@ public class Object {
      * @see    #wait(long)
      * @see    #wait(long, int)
      */
-    public final void wait(@UnknownInitialization Object this) throws InterruptedException {
+    public final void wait() throws InterruptedException {
         wait(0L);
     }
 
@@ -376,7 +363,7 @@ public class Object {
      * @see    #wait()
      * @see    #wait(long, int)
      */
-    public final native void wait(@UnknownInitialization Object this, @NonNegative long timeoutMillis) throws InterruptedException;
+    public final native void wait( long timeoutMillis) throws InterruptedException;
 
     /**
      * Causes the current thread to wait until it is awakened, typically
@@ -472,7 +459,7 @@ public class Object {
      * @see    #wait()
      * @see    #wait(long)
      */
-    public final void wait(@UnknownInitialization Object this, long timeoutMillis, @NonNegative int nanos) throws InterruptedException {
+    public final void wait(long timeoutMillis,  int nanos) throws InterruptedException {
         if (timeoutMillis < 0) {
             throw new IllegalArgumentException("timeoutMillis value is negative");
         }

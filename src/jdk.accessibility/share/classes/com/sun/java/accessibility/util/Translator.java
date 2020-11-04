@@ -26,11 +26,7 @@
 
 package com.sun.java.accessibility.util;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import com.sun.java.accessibility.util.internal.*;
 import java.beans.*;
@@ -182,8 +178,8 @@ public class Translator extends AccessibleContext
      * @param o the {@code Object} to check against
      * @return true if this is the same object
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object o) {
         if (o instanceof Translator) {
             return java.util.Objects.equals(source, o);

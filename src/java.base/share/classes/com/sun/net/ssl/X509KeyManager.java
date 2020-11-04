@@ -29,7 +29,8 @@
 
 package com.sun.net.ssl;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.security.KeyManagementException;
 import java.security.PrivateKey;
@@ -44,7 +45,7 @@ import java.security.cert.X509Certificate;
  * @deprecated As of JDK 1.4, this implementation-specific class was
  *      replaced by {@link javax.net.ssl.X509KeyManager}.
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 @Deprecated(since="1.4")
 public interface X509KeyManager extends KeyManager {
     /**

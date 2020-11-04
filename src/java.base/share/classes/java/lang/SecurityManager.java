@@ -25,8 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleDescriptor.Exports;
@@ -231,8 +231,8 @@ import sun.security.util.SecurityConstants;
  *
  * @since   1.0
  */
-@AnnotatedFor({"interning", "nullness"})
-public @UsesObjectEquals class SecurityManager {
+@DefaultNonNull
+public  class SecurityManager {
 
     /*
      * Have we been initialized. Effective against finalizer attacks.

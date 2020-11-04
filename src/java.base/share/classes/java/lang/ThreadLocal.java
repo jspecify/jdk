@@ -25,14 +25,11 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.misc.TerminatingThreadLocal;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.lang.ref.*;
 import java.util.Objects;
@@ -81,14 +78,9 @@ import java.util.function.Supplier;
  * @author  Josh Bloch and Doug Lea
  * @since   1.2
  */
-@CFComment({"nullness: It is permitted to write a subclass that extends ThreadLocal<@NonNull MyType>",
-            "but in such a case:",
-            "* the subclass must override initialValue to return a non-null value",
-            "* the subclass needs to suppress a warning:",
-            "@SuppressWarnings(\"nullness:type.argument.type.incompatible\") // initialValue returns non-null"
-        })
-@AnnotatedFor({"interning", "nullness"})
-public @UsesObjectEquals class ThreadLocal<@Nullable T> {
+
+@DefaultNonNull
+public  class ThreadLocal< T extends @Nullable Object> {
     /**
      * ThreadLocals rely on per-thread linear-probe hash maps attached
      * to each thread (Thread.threadLocals and
@@ -154,7 +146,7 @@ public @UsesObjectEquals class ThreadLocal<@Nullable T> {
      * @throws NullPointerException if the specified supplier is null
      * @since 1.8
      */
-    public static <S> ThreadLocal<S> withInitial(Supplier<? extends S> supplier) {
+    public static <S extends @Nullable Object> ThreadLocal<S> withInitial(Supplier<? extends S> supplier) {
         return new SuppliedThreadLocal<>(supplier);
     }
 
@@ -307,7 +299,7 @@ public @UsesObjectEquals class ThreadLocal<@Nullable T> {
      * An extension of ThreadLocal that obtains its initial value from
      * the specified {@code Supplier}.
      */
-    static final class SuppliedThreadLocal<T> extends ThreadLocal<T> {
+    static final class SuppliedThreadLocal<T extends @Nullable Object> extends ThreadLocal<T> {
 
         private final Supplier<? extends T> supplier;
 

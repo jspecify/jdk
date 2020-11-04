@@ -25,15 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.initialization.qual.UnknownInitialization;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.EnsuresLockHeldIf;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.lock.qual.ReleasesNoLocks;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
@@ -149,9 +142,9 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @see     #stop()
  * @since   1.0
  */
-@AnnotatedFor({"interning", "lock", "nullness"})
+@DefaultNonNull
 public
-@UsesObjectEquals class Thread implements Runnable {
+ class Thread implements Runnable {
     /* Make sure registerNatives is the first thing <clinit> does. */
     private static native void registerNatives();
     static {
@@ -1045,8 +1038,8 @@ public
      * @see     #interrupted()
      * @revised 6.0
      */
-    @Pure
-    public boolean isInterrupted(@GuardSatisfied Thread this) {
+    
+    public boolean isInterrupted() {
         return isInterrupted(false);
     }
 
@@ -1065,8 +1058,8 @@ public
      * @return  {@code true} if this thread is alive;
      *          {@code false} otherwise.
      */
-    @Pure
-    public final native boolean isAlive(@GuardSatisfied Thread this);
+    
+    public final native boolean isAlive();
 
     /**
      * Suspends this thread.
@@ -1147,7 +1140,7 @@ public
      * @see        #MIN_PRIORITY
      * @see        ThreadGroup#getMaxPriority()
      */
-    public final void setPriority(@UnknownInitialization(java.lang.Thread.class) Thread this, int newPriority) {
+    public final void setPriority(int newPriority) {
         ThreadGroup g;
         checkAccess();
         if (newPriority > MAX_PRIORITY || newPriority < MIN_PRIORITY) {
@@ -1417,7 +1410,7 @@ public
      *          if {@link #checkAccess} determines that the current
      *          thread cannot modify this thread
      */
-    public final void setDaemon(@UnknownInitialization Thread this, boolean on) {
+    public final void setDaemon(boolean on) {
         checkAccess();
         if (isAlive()) {
             throw new IllegalThreadStateException();
@@ -1432,8 +1425,8 @@ public
      *          {@code false} otherwise.
      * @see     #setDaemon(boolean)
      */
-    @Pure
-    public final boolean isDaemon(@GuardSatisfied Thread this) {
+    
+    public final boolean isDaemon() {
         return daemon;
     }
 
@@ -1463,8 +1456,8 @@ public
      * @return  a string representation of this thread.
      */
     @Override
-    @SideEffectFree
-    public String toString(@GuardSatisfied Thread this) {
+    
+    public String toString() {
         ThreadGroup group = getThreadGroup();
         if (group != null) {
             return "Thread[" + getName() + "," + getPriority() + "," +
@@ -1556,8 +1549,8 @@ public
      *         the specified object.
      * @since 1.4
      */
-    @EnsuresLockHeldIf(expression={"#1"}, result=true)
-    @ReleasesNoLocks
+    
+    
     public static native boolean holdsLock(Object obj);
 
     private static final StackTraceElement[] EMPTY_STACK_TRACE

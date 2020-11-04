@@ -25,11 +25,7 @@
 
 package sun.security.jgss.spi;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 import org.ietf.jgss.*;
 import java.security.Provider;
@@ -69,8 +65,8 @@ public interface GSSNameSpi {
      * @return true if they both refer to the same entity, else false
      * @see #equals(GSSNameSpi)
      */
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object another);
 
     /**

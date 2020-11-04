@@ -24,9 +24,9 @@
  */
 package java.beans;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.lang.ref.Reference;
 import javax.swing.SwingContainer;
@@ -41,7 +41,7 @@ import javax.swing.SwingContainer;
  * @since 1.1
  */
 
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class BeanDescriptor extends FeatureDescriptor {
 
     private Reference<? extends Class<?>> beanClassRef;

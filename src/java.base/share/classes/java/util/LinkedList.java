@@ -25,16 +25,8 @@
 
 package java.util;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.lock.qual.ReleasesNoLocks;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.Consumer;
 
@@ -91,9 +83,9 @@ import java.util.function.Consumer;
  * @param <E> the type of elements held in this collection
  */
 
-@CFComment({"lock/nullness: This class permits null elements"})
-@AnnotatedFor({"lock", "nullness", "index"})
-public class LinkedList<E>
+
+@DefaultNonNull
+public class LinkedList<E extends @Nullable Object>
     extends AbstractSequentialList<E>
     implements List<E>, Deque<E>, Cloneable, java.io.Serializable
 {
@@ -255,7 +247,7 @@ public class LinkedList<E>
      * @return the first element in this list
      * @throws NoSuchElementException if this list is empty
      */
-    public E getFirst(@GuardSatisfied LinkedList<E> this) {
+    public E getFirst() {
         final Node<E> f = first;
         if (f == null)
             throw new NoSuchElementException();
@@ -268,7 +260,7 @@ public class LinkedList<E>
      * @return the last element in this list
      * @throws NoSuchElementException if this list is empty
      */
-    public E getLast(@GuardSatisfied LinkedList<E> this) {
+    public E getLast() {
         final Node<E> l = last;
         if (l == null)
             throw new NoSuchElementException();
@@ -281,7 +273,7 @@ public class LinkedList<E>
      * @return the first element from this list
      * @throws NoSuchElementException if this list is empty
      */
-    public E removeFirst(@GuardSatisfied LinkedList<E> this) {
+    public E removeFirst() {
         final Node<E> f = first;
         if (f == null)
             throw new NoSuchElementException();
@@ -294,7 +286,7 @@ public class LinkedList<E>
      * @return the last element from this list
      * @throws NoSuchElementException if this list is empty
      */
-    public E removeLast(@GuardSatisfied LinkedList<E> this) {
+    public E removeLast() {
         final Node<E> l = last;
         if (l == null)
             throw new NoSuchElementException();
@@ -306,7 +298,7 @@ public class LinkedList<E>
      *
      * @param e the element to add
      */
-    public void addFirst(@GuardSatisfied LinkedList<E> this, E e) {
+    public void addFirst(E e) {
         linkFirst(e);
     }
 
@@ -317,7 +309,7 @@ public class LinkedList<E>
      *
      * @param e the element to add
      */
-    public void addLast(@GuardSatisfied LinkedList<E> this, E e) {
+    public void addLast(E e) {
         linkLast(e);
     }
 
@@ -330,8 +322,8 @@ public class LinkedList<E>
      * @param o element whose presence in this list is to be tested
      * @return {@code true} if this list contains the specified element
      */
-    @Pure
-    public boolean contains(@GuardSatisfied LinkedList<E> this, @GuardSatisfied @Nullable Object o) {
+    
+    public boolean contains(@Nullable Object o) {
         return indexOf(o) >= 0;
     }
 
@@ -340,8 +332,8 @@ public class LinkedList<E>
      *
      * @return the number of elements in this list
      */
-    @Pure
-    public @NonNegative int size(@GuardSatisfied LinkedList<E> this) {
+    
+    public  int size() {
         return size;
     }
 
@@ -353,8 +345,8 @@ public class LinkedList<E>
      * @param e element to be appended to this list
      * @return {@code true} (as specified by {@link Collection#add})
      */
-    @ReleasesNoLocks
-    public boolean add(@GuardSatisfied LinkedList<E> this, E e) {
+    
+    public boolean add(E e) {
         linkLast(e);
         return true;
     }
@@ -372,8 +364,8 @@ public class LinkedList<E>
      * @param o element to be removed from this list, if present
      * @return {@code true} if this list contained the specified element
      */
-    @ReleasesNoLocks
-    public boolean remove(@GuardSatisfied LinkedList<E> this, @Nullable Object o) {
+    
+    public boolean remove(@Nullable Object o) {
         if (o == null) {
             for (Node<E> x = first; x != null; x = x.next) {
                 if (x.item == null) {
@@ -404,7 +396,7 @@ public class LinkedList<E>
      * @return {@code true} if this list changed as a result of the call
      * @throws NullPointerException if the specified collection is null
      */
-    public boolean addAll(@GuardSatisfied LinkedList<E> this, Collection<? extends E> c) {
+    public boolean addAll(Collection<? extends E> c) {
         return addAll(size, c);
     }
 
@@ -423,7 +415,7 @@ public class LinkedList<E>
      * @throws IndexOutOfBoundsException {@inheritDoc}
      * @throws NullPointerException if the specified collection is null
      */
-    public boolean addAll(@GuardSatisfied LinkedList<E> this, @NonNegative int index, Collection<? extends E> c) {
+    public boolean addAll( int index, Collection<? extends E> c) {
         checkPositionIndex(index);
 
         Object[] a = c.toArray();
@@ -466,7 +458,7 @@ public class LinkedList<E>
      * Removes all of the elements from this list.
      * The list will be empty after this call returns.
      */
-    public void clear(@GuardSatisfied LinkedList<E> this) {
+    public void clear() {
         // Clearing all of the links between nodes is "unnecessary", but:
         // - helps a generational GC if the discarded nodes inhabit
         //   more than one generation
@@ -493,8 +485,8 @@ public class LinkedList<E>
      * @return the element at the specified position in this list
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    @Pure
-    public E get(@GuardSatisfied LinkedList<E> this, @NonNegative int index) {
+    
+    public E get( int index) {
         checkElementIndex(index);
         return node(index).item;
     }
@@ -508,7 +500,7 @@ public class LinkedList<E>
      * @return the element previously at the specified position
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    public E set(@GuardSatisfied LinkedList<E> this, @NonNegative int index, E element) {
+    public E set( int index, E element) {
         checkElementIndex(index);
         Node<E> x = node(index);
         E oldVal = x.item;
@@ -525,7 +517,7 @@ public class LinkedList<E>
      * @param element element to be inserted
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    public void add(@GuardSatisfied LinkedList<E> this, @NonNegative int index, E element) {
+    public void add( int index, E element) {
         checkPositionIndex(index);
 
         if (index == size)
@@ -543,7 +535,7 @@ public class LinkedList<E>
      * @return the element previously at the specified position
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    public E remove(@GuardSatisfied LinkedList<E> this, @NonNegative int index) {
+    public E remove( int index) {
         checkElementIndex(index);
         return unlink(node(index));
     }
@@ -551,7 +543,7 @@ public class LinkedList<E>
     /**
      * Tells if the argument is the index of an existing element.
      */
-    private boolean isElementIndex(@NonNegative int index) {
+    private boolean isElementIndex( int index) {
         return index >= 0 && index < size;
     }
 
@@ -559,7 +551,7 @@ public class LinkedList<E>
      * Tells if the argument is the index of a valid position for an
      * iterator or an add operation.
      */
-    private boolean isPositionIndex(@NonNegative int index) {
+    private boolean isPositionIndex( int index) {
         return index >= 0 && index <= size;
     }
 
@@ -568,16 +560,16 @@ public class LinkedList<E>
      * Of the many possible refactorings of the error handling code,
      * this "outlining" performs best with both server and client VMs.
      */
-    private String outOfBoundsMsg(@NonNegative int index) {
+    private String outOfBoundsMsg( int index) {
         return "Index: "+index+", Size: "+size;
     }
 
-    private void checkElementIndex(@NonNegative int index) {
+    private void checkElementIndex( int index) {
         if (!isElementIndex(index))
             throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
     }
 
-    private void checkPositionIndex(@NonNegative int index) {
+    private void checkPositionIndex( int index) {
         if (!isPositionIndex(index))
             throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
     }
@@ -585,7 +577,7 @@ public class LinkedList<E>
     /**
      * Returns the (non-null) Node at the specified element index.
      */
-    Node<E> node(@NonNegative int index) {
+    Node<E> node( int index) {
         // assert isElementIndex(index);
 
         if (index < (size >> 1)) {
@@ -614,8 +606,8 @@ public class LinkedList<E>
      * @return the index of the first occurrence of the specified element in
      *         this list, or -1 if this list does not contain the element
      */
-    @Pure
-    public @GTENegativeOne int indexOf(@GuardSatisfied LinkedList<E> this, @GuardSatisfied @Nullable Object o) {
+    
+    public  int indexOf(@Nullable Object o) {
         int index = 0;
         if (o == null) {
             for (Node<E> x = first; x != null; x = x.next) {
@@ -644,8 +636,8 @@ public class LinkedList<E>
      * @return the index of the last occurrence of the specified element in
      *         this list, or -1 if this list does not contain the element
      */
-    @Pure
-    public @GTENegativeOne int lastIndexOf(@GuardSatisfied LinkedList<E> this, @GuardSatisfied @Nullable Object o) {
+    
+    public  int lastIndexOf(@Nullable Object o) {
         int index = size;
         if (o == null) {
             for (Node<E> x = last; x != null; x = x.prev) {
@@ -693,7 +685,7 @@ public class LinkedList<E>
      * @return the head of this list, or {@code null} if this list is empty
      * @since 1.5
      */
-    public @Nullable E poll(@GuardSatisfied LinkedList<E> this) {
+    public @Nullable E poll() {
         final Node<E> f = first;
         return (f == null) ? null : unlinkFirst(f);
     }
@@ -705,7 +697,7 @@ public class LinkedList<E>
      * @throws NoSuchElementException if this list is empty
      * @since 1.5
      */
-    public E remove(@GuardSatisfied LinkedList<E> this) {
+    public E remove() {
         return removeFirst();
     }
 
@@ -779,7 +771,7 @@ public class LinkedList<E>
      *     this list is empty
      * @since 1.6
      */
-    public @Nullable E pollFirst(@GuardSatisfied LinkedList<E> this) {
+    public @Nullable E pollFirst() {
         final Node<E> f = first;
         return (f == null) ? null : unlinkFirst(f);
     }
@@ -792,7 +784,7 @@ public class LinkedList<E>
      *     this list is empty
      * @since 1.6
      */
-    public @Nullable E pollLast(@GuardSatisfied LinkedList<E> this) {
+    public @Nullable E pollLast() {
         final Node<E> l = last;
         return (l == null) ? null : unlinkLast(l);
     }
@@ -806,7 +798,7 @@ public class LinkedList<E>
      * @param e the element to push
      * @since 1.6
      */
-    public void push(@GuardSatisfied LinkedList<E> this, E e) {
+    public void push(E e) {
         addFirst(e);
     }
 
@@ -821,7 +813,7 @@ public class LinkedList<E>
      * @throws NoSuchElementException if this list is empty
      * @since 1.6
      */
-    public E pop(@GuardSatisfied LinkedList<E> this) {
+    public E pop() {
         return removeFirst();
     }
 
@@ -834,7 +826,7 @@ public class LinkedList<E>
      * @return {@code true} if the list contained the specified element
      * @since 1.6
      */
-    public boolean removeFirstOccurrence(@GuardSatisfied LinkedList<E> this, @Nullable Object o) {
+    public boolean removeFirstOccurrence(@Nullable Object o) {
         return remove(o);
     }
 
@@ -847,7 +839,7 @@ public class LinkedList<E>
      * @return {@code true} if the list contained the specified element
      * @since 1.6
      */
-    public boolean removeLastOccurrence(@GuardSatisfied LinkedList<E> this, @Nullable Object o) {
+    public boolean removeLastOccurrence(@Nullable Object o) {
         if (o == null) {
             for (Node<E> x = last; x != null; x = x.prev) {
                 if (x.item == null) {
@@ -887,7 +879,7 @@ public class LinkedList<E>
      * @throws IndexOutOfBoundsException {@inheritDoc}
      * @see List#listIterator(int)
      */
-    public ListIterator<E> listIterator(@NonNegative int index) {
+    public ListIterator<E> listIterator( int index) {
         checkPositionIndex(index);
         return new ListItr(index);
     }
@@ -991,7 +983,7 @@ public class LinkedList<E>
         }
     }
 
-    private static class Node<E> {
+    private static class Node<E extends @Nullable Object> {
         E item;
         Node<E> next;
         Node<E> prev;
@@ -1041,8 +1033,8 @@ public class LinkedList<E>
      *
      * @return a shallow copy of this {@code LinkedList} instance
      */
-    @SideEffectFree
-    public Object clone(@GuardSatisfied LinkedList<E> this) {
+    
+    public Object clone() {
         LinkedList<E> clone = superClone();
 
         // Put clone into "virgin" state
@@ -1071,8 +1063,8 @@ public class LinkedList<E>
      * @return an array containing all of the elements in this list
      *         in proper sequence
      */
-    @SideEffectFree
-    public @PolyNull Object[] toArray(LinkedList<@PolyNull E> this) {
+    
+    public @Nullable Object[] toArray() {
         Object[] result = new Object[size];
         int i = 0;
         for (Node<E> x = first; x != null; x = x.next)
@@ -1118,9 +1110,9 @@ public class LinkedList<E>
      *         this list
      * @throws NullPointerException if the specified array is null
      */
-    @SideEffectFree
+    
     @SuppressWarnings("unchecked")
-    public <T> @Nullable T @PolyNull [] toArray(T @PolyNull [] a) {
+    public <T extends @Nullable Object> @Nullable T @Nullable [] toArray(T @Nullable [] a) {
         if (a.length < size)
             a = (T[])java.lang.reflect.Array.newInstance(
                                 a.getClass().getComponentType(), size);
@@ -1192,14 +1184,14 @@ public class LinkedList<E>
      * @return a {@code Spliterator} over the elements in this list
      * @since 1.8
      */
-    @SideEffectFree
+    
     @Override
     public Spliterator<E> spliterator() {
         return new LLSpliterator<>(this, -1, 0);
     }
 
     /** A customized variant of Spliterators.IteratorSpliterator */
-    static final class LLSpliterator<E> implements Spliterator<E> {
+    static final class LLSpliterator<E extends @Nullable Object> implements Spliterator<E> {
         static final int BATCH_UNIT = 1 << 10;  // batch array size increment
         static final int MAX_BATCH = 1 << 25;  // max batch array size;
         final LinkedList<E> list; // null OK unless traversed

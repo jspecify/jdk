@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown when the Java Virtual Machine cannot allocate an object
@@ -42,14 +41,14 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  unascribed
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public class OutOfMemoryError extends VirtualMachineError {
     private static final long serialVersionUID = 8228564086184010517L;
 
     /**
      * Constructs an {@code OutOfMemoryError} with no detail message.
      */
-    @SideEffectFree
+    
     public OutOfMemoryError() {
         super();
     }
@@ -60,7 +59,7 @@ public class OutOfMemoryError extends VirtualMachineError {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public OutOfMemoryError(@Nullable String s) {
         super(s);
     }

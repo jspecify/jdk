@@ -25,15 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.index.qual.LTEqLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.PrintStream;
 import java.util.Arrays;
@@ -63,9 +56,9 @@ import jdk.internal.misc.VM;
  * and working off of that snapshot, rather than holding the thread group locked
  * while we work on the children.
  */
-@AnnotatedFor({"index", "interning", "lock", "nullness"})
+@DefaultNonNull
 public
-@UsesObjectEquals class ThreadGroup implements Thread.UncaughtExceptionHandler {
+ class ThreadGroup implements Thread.UncaughtExceptionHandler {
     private final ThreadGroup parent;
     String name;
     int maxPriority;
@@ -73,10 +66,10 @@ public
     boolean daemon;
 
     int nUnstartedThreads = 0;
-    @LTEqLengthOf({"threads"}) @NonNegative int nthreads;
+      int nthreads;
     Thread threads[];
 
-    @LTEqLengthOf({"groups"}) @NonNegative int ngroups;
+      int ngroups;
     ThreadGroup groups[];
 
     /**
@@ -200,8 +193,8 @@ public
      *          {@code false} otherwise.
      * @since   1.0
      */
-    @Pure
-    public final boolean isDaemon(@GuardSatisfied ThreadGroup this) {
+    
+    public final boolean isDaemon() {
         return daemon;
     }
 
@@ -211,8 +204,8 @@ public
      * @return  true if this object is destroyed
      * @since   1.1
      */
-    @Pure
-    public synchronized boolean isDestroyed(@GuardSatisfied ThreadGroup this) {
+    
+    public synchronized boolean isDestroyed() {
         return destroyed;
     }
 
@@ -267,8 +260,7 @@ public
      * @see        java.lang.ThreadGroup#checkAccess()
      * @since      1.0
      */
-    @CFComment({"index: groupSnapshot.length = ngroupsSnapshot by #0.1",
-                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    
     @SuppressWarnings("index:array.access.unsafe.high")
     public final void setMaxPriority(int pri) {
         int ngroupsSnapshot;
@@ -347,10 +339,9 @@ public
      *
      * @since   1.0
      */
-    @CFComment({"index: groupSnapshot.length = ngroupsSnapshot by #0.1",
-                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    
     @SuppressWarnings("index:array.access.unsafe.high")
-    public @NonNegative int activeCount() {
+    public  int activeCount() {
         int result;
         // Snapshot sub-group data so we don't hold this lock
         // while our children are computing.
@@ -396,7 +387,7 @@ public
      *
      * @since   1.0
      */
-    public @NonNegative int enumerate(Thread list[]) {
+    public  int enumerate(Thread list[]) {
         checkAccess();
         return enumerate(list, 0, true);
     }
@@ -434,17 +425,14 @@ public
      *
      * @since   1.0
      */
-    public @NonNegative int enumerate(Thread list[], boolean recurse) {
+    public  int enumerate(Thread list[], boolean recurse) {
         checkAccess();
         return enumerate(list, 0, recurse);
     }
 
-    @CFComment({"index:", 
-    "#1: To enter this loop, nt has to be positive, i.c, list.length - n is @Positive, and n is @NonNegative, hence if this loop is entered, n is @LTLengthOf(\"list\")",
-    "#2: groupSnapshot.length = ngroupsSnapshot by #0.1, for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"
-    })
+    
     @SuppressWarnings({"index:array.access.unsafe.high","index:array.access.unsafe.high.range"})
-    private @NonNegative int enumerate(Thread list[], @NonNegative int n, boolean recurse) {
+    private  int enumerate(Thread list[],  int n, boolean recurse) {
         int ngroupsSnapshot = 0;
         ThreadGroup[] groupsSnapshot = null;
         synchronized (this) {
@@ -492,10 +480,9 @@ public
      *
      * @since   1.0
      */
-    @CFComment({"index: groupSnapshot.length = ngroupsSnapshot by #0.1", 
-                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    
     @SuppressWarnings("index:array.access.unsafe.high")
-    public @NonNegative int activeGroupCount() {
+    public  int activeGroupCount() {
         int ngroupsSnapshot;
         ThreadGroup[] groupsSnapshot;
         synchronized (this) {
@@ -538,7 +525,7 @@ public
      *
      * @since   1.0
      */
-    public @NonNegative int enumerate(ThreadGroup list[]) {
+    public  int enumerate(ThreadGroup list[]) {
         checkAccess();
         return enumerate(list, 0, true);
     }
@@ -576,15 +563,14 @@ public
      *
      * @since   1.0
      */
-    public @NonNegative int enumerate(ThreadGroup list[], boolean recurse) {
+    public  int enumerate(ThreadGroup list[], boolean recurse) {
         checkAccess();
         return enumerate(list, 0, recurse);
     }
 
-    @CFComment({"index: groupSnapshot.length = ngroupsSnapshot by #0.1",
-                "for the else case ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    
     @SuppressWarnings("index:array.access.unsafe.high")
-    private @NonNegative int enumerate(ThreadGroup list[], @NonNegative int n, boolean recurse) {
+    private  int enumerate(ThreadGroup list[],  int n, boolean recurse) {
         int ngroupsSnapshot = 0;
         ThreadGroup[] groupsSnapshot = null;
         synchronized (this) {
@@ -658,8 +644,7 @@ public
      * @see        java.lang.ThreadGroup#checkAccess()
      * @since      1.2
      */
-    @CFComment({" groupSnapshot.length = ngroupsSnapshot by #0.1",
-                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    
     @SuppressWarnings("index:array.access.unsafe.high")
     public final void interrupt() {
         int ngroupsSnapshot;
@@ -714,8 +699,7 @@ public
      * if (and only if) the current thread is found to be in this thread
      * group or one of its subgroups.
      */
-    @CFComment({"index: groupSnapshot.length = ngroupsSnapshot by #0.1",
-                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    
     @SuppressWarnings({"deprecation", "index:array.access.unsafe.high"})
     private boolean stopOrSuspend(boolean suspend) {
         boolean suicide = false;
@@ -765,8 +749,7 @@ public
      *       both of which have been deprecated, as they are inherently
      *       deadlock-prone.  See {@link Thread#suspend} for details.
      */
-    @CFComment({"index:  // groupSnapshot.length = ngroupsSnapshot by #0.1",
-                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    
     @Deprecated(since="1.2")
     @SuppressWarnings({"deprecation", "index:array.access.unsafe.high"})
     public final void resume() {
@@ -804,8 +787,7 @@ public
      * @see        java.lang.ThreadGroup#checkAccess()
      * @since      1.0
      */
-    @CFComment({"index: groupSnapshot.length = ngroupsSnapshot by #0.1",
-                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    
     @SuppressWarnings("index:array.access.unsafe.high")
     public final void destroy() {
         int ngroupsSnapshot;
@@ -842,7 +824,7 @@ public
      * @param g the specified Thread group to be added
      * @throws  IllegalThreadStateException If the Thread group has been destroyed.
      */
-    @CFComment({"index: #1: If ngroups = groups.length, length of group is doubled"})
+    
     @SuppressWarnings({"index:array.access.unsafe.high", "index:compound.assignment.type.incompatible"})
     private final void add(ThreadGroup g){
         synchronized (this) {
@@ -867,7 +849,7 @@ public
      * @param g the Thread group to be removed
      * @return if this Thread has already been destroyed.
      */
-    @CFComment({"index: #1: ngroups - i <= groups.length - i"})
+    
     @SuppressWarnings("index:argument.type.incompatible")
     private void remove(ThreadGroup g) {
         synchronized (this) {
@@ -925,7 +907,7 @@ public
      * @throws IllegalThreadStateException
      *          if the Thread group has been destroyed
      */
-    @CFComment({"index: #1: If nthreads = threads.length, length of threads is doubled"})
+    
     @SuppressWarnings({"index:array.access.unsafe.high", "index:compound.assignment.type.incompatible"})
     void add(Thread t) {
         synchronized (this) {
@@ -1003,7 +985,7 @@ public
      * @param  t
      *         the Thread to be removed
      */
-    @CFComment({"index: #1: --nthreads - i < threads.length - i, also, --nthreads - i is @NonNegative as --nthreads >= i"})
+    
     @SuppressWarnings("index:argument.type.incompatible")
     private void remove(Thread t) {
         synchronized (this) {
@@ -1028,8 +1010,7 @@ public
      *
      * @since   1.0
      */
-    @CFComment({"index: groupSnapshot.length = ngroupsSnapshot by #0.1",
-                "for the else case, ngroupsSnapshot will be null and it will never enter the group as nGroups will be 0"})
+    
     @SuppressWarnings("index:array.access.unsafe.high")
     public void list() {
         list(System.out, 0);
@@ -1133,8 +1114,8 @@ public
      * @return  a string representation of this thread group.
      * @since   1.0
      */
-    @SideEffectFree
-    public String toString(@GuardSatisfied ThreadGroup this) {
+    
+    public String toString() {
         return getClass().getName() + "[name=" + getName() + ",maxpri=" + maxPriority + "]";
     }
 }

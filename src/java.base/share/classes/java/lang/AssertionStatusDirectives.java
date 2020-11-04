@@ -25,8 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A collection of assertion status directives (such as "enable assertions
@@ -38,7 +38,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since  1.4
  * @author Josh Bloch
  */
-@AnnotatedFor({"interning", "nullness"})
+@DefaultNonNull
 class AssertionStatusDirectives {
     /**
      * The classes for which assertions are to be enabled or disabled.

@@ -21,11 +21,7 @@
 
 package com.sun.org.apache.xalan.internal.xsltc.compiler;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.jspecify.annotations.Nullable;
 
 /**
  * @author Jacek Ambroziak
@@ -63,8 +59,8 @@ final class QName {
         return _stringRep;
     }
 
-    @Pure
-    @EnsuresNonNullIf(expression="#1", result=true)
+    
+    
     public boolean equals(@Nullable Object other) {
         return (this == other)
                    || (other instanceof QName

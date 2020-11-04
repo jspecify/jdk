@@ -30,9 +30,8 @@
 
 package org.xml.sax;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 
@@ -94,7 +93,7 @@ import java.io.IOException;
  * @see org.xml.sax.XMLReader#setEntityResolver
  * @see org.xml.sax.InputSource
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface EntityResolver {
 
 
@@ -139,7 +138,7 @@ public interface EntityResolver {
      *            or Reader for the InputSource.
      * @see org.xml.sax.InputSource
      */
-    @Pure
+    
     public abstract @Nullable InputSource resolveEntity (@Nullable String publicId,
                                                String systemId)
         throws SAXException, IOException;

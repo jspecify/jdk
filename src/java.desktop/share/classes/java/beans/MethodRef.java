@@ -25,8 +25,8 @@
 
 package java.beans;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
@@ -34,7 +34,7 @@ import java.lang.reflect.Method;
 
 import static sun.reflect.misc.ReflectUtil.isPackageAccessible;
 
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 final class MethodRef {
     private @Nullable String signature;
     private @Nullable SoftReference<Method> methodRef;

@@ -25,8 +25,8 @@
 
 package java.lang.ref;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.Consumer;
 import jdk.internal.misc.VM;
@@ -39,9 +39,9 @@ import jdk.internal.misc.VM;
  * @since    1.2
  */
 
-@AnnotatedFor({"interning", "nullness"})
+@DefaultNonNull
 @SuppressWarnings({"rawtypes"})
-public @UsesObjectEquals class ReferenceQueue<T> {
+public  class ReferenceQueue<T extends @Nullable Object> {
 
     /**
      * Constructs a new reference-object queue.

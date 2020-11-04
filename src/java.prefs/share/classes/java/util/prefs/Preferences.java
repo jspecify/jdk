@@ -25,10 +25,8 @@
 
 package java.util.prefs;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.InputStream;
 import java.io.IOException;
@@ -226,8 +224,8 @@ import java.lang.Double;
  * @author  Josh Bloch
  * @since   1.4
  */
-@AnnotatedFor({"interning", "nullness"})
-public abstract @UsesObjectEquals class Preferences {
+@DefaultNonNull
+public abstract  class Preferences {
 
     private static final PreferencesFactory factory = factory();
 
@@ -526,7 +524,7 @@ public abstract @UsesObjectEquals class Preferences {
      * @throws IllegalArgumentException if key contains the null control
      *         character, code point U+0000.
      */
-    public abstract @PolyNull String get(String key, @PolyNull String def);
+    public abstract @Nullable String get(String key, @Nullable String def);
 
     /**
      * Removes the value associated with the specified key in this preference
@@ -904,7 +902,7 @@ public abstract @UsesObjectEquals class Preferences {
      * @see #get(String,String)
      * @see #putByteArray(String,byte[])
      */
-    public abstract byte @PolyNull[] getByteArray(String key, byte @PolyNull[] def);
+    public abstract byte @Nullable[] getByteArray(String key, byte @Nullable[] def);
 
     /**
      * Returns all of the keys that have an associated value in this

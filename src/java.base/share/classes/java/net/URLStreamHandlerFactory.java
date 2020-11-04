@@ -25,8 +25,8 @@
 
 package java.net;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This interface defines a factory for {@code URL} stream
@@ -40,7 +40,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see     java.net.URLStreamHandler
  * @since   1.0
  */
-@AnnotatedFor("nullness")
+@DefaultNonNull
 public interface URLStreamHandlerFactory {
     /**
      * Creates a new {@code URLStreamHandler} instance with the specified

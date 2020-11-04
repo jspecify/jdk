@@ -25,9 +25,8 @@
 
 package java.lang;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown when a thread is waiting, sleeping, or otherwise occupied,
@@ -50,7 +49,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see     java.lang.Thread#interrupted()
  * @since   1.0
  */
-@AnnotatedFor({"nullness"})
+@DefaultNonNull
 public
 class InterruptedException extends Exception {
     private static final long serialVersionUID = 6700697376100628473L;
@@ -58,7 +57,7 @@ class InterruptedException extends Exception {
     /**
      * Constructs an <code>InterruptedException</code> with no detail  message.
      */
-    @SideEffectFree
+    
     public InterruptedException() {
         super();
     }
@@ -69,7 +68,7 @@ class InterruptedException extends Exception {
      *
      * @param   s   the detail message.
      */
-    @SideEffectFree
+    
     public InterruptedException(@Nullable String s) {
         super(s);
     }
