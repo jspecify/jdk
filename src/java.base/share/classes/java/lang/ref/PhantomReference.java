@@ -50,7 +50,7 @@ import org.jspecify.annotations.Nullable;
  */
 
 @DefaultNonNull
-public class PhantomReference<T extends @Nullable Object> extends Reference<T> {
+public class PhantomReference<T> extends Reference<T> {
 
     /**
      * Returns this reference object's referent.  Because the referent of a

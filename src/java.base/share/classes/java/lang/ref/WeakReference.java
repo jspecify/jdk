@@ -49,7 +49,7 @@ import org.jspecify.annotations.Nullable;
  */
 
 @DefaultNonNull
-public class WeakReference<T extends @Nullable Object> extends Reference<T> {
+public class WeakReference<T> extends Reference<T> {
 
     /**
      * Creates a new weak reference that refers to the given object.  The new

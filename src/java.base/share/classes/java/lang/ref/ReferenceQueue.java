@@ -41,7 +41,7 @@ import jdk.internal.misc.VM;
 
 @DefaultNonNull
 @SuppressWarnings({"rawtypes"})
-public  class ReferenceQueue<T extends @Nullable Object> {
+public  class ReferenceQueue<T> {
 
     /**
      * Constructs a new reference-object queue.

@@ -46,7 +46,7 @@ import jdk.internal.ref.Cleaner;
 
 @DefaultNonNull
 @SuppressWarnings({"rawtypes"})
-public abstract class Reference<T extends @Nullable Object> {
+public abstract class Reference<T> {
 
     /* The state of a Reference object is characterized by two attributes.  It
      * may be either "active", "pending", or "inactive".  It may also be

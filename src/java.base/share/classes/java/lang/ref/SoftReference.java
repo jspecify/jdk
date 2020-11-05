@@ -64,7 +64,7 @@ import org.jspecify.annotations.Nullable;
  */
 
 @DefaultNonNull
-public class SoftReference<T extends @Nullable Object> extends Reference<T> {
+public class SoftReference<T> extends Reference<T> {
 
     /**
      * Timestamp clock, updated by the garbage collector
