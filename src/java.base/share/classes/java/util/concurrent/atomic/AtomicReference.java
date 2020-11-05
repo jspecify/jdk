@@ -35,6 +35,8 @@
 
 package java.util.concurrent.atomic;
 
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -52,7 +54,8 @@ import java.util.function.UnaryOperator;
  * @param <V> The type of object referred to by this reference
  */
 @AnnotatedFor({"interning"})
-public @UsesObjectEquals class AtomicReference<V> implements java.io.Serializable {
+@DefaultNonNull
+public @UsesObjectEquals class AtomicReference<V extends @Nullable Object> implements java.io.Serializable {
     private static final long serialVersionUID = -1848883965231344442L;
     private static final VarHandle VALUE;
     static {
