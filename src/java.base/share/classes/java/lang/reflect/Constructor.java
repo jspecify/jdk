@@ -67,7 +67,7 @@ import java.util.StringJoiner;
 
 @DefaultNonNull
 
-public final class Constructor<T extends @Nullable Object> extends Executable {
+public final class Constructor<T> extends Executable {
     private Class<T>            clazz;
     private int                 slot;
     private Class<?>[]          parameterTypes;
@@ -481,7 +481,7 @@ public final class Constructor<T extends @Nullable Object> extends Executable {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public  T newInstance(Object ... initargs)
+    public  T newInstance(@Nullable Object ... initargs)
         throws InstantiationException, IllegalAccessException,
                IllegalArgumentException, InvocationTargetException
     {

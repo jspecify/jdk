@@ -425,7 +425,7 @@ class Field extends AccessibleObject implements Member {
     
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public @Nullable Object get( Object obj)
+    public @Nullable Object get( @Nullable Object obj)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -460,7 +460,7 @@ class Field extends AccessibleObject implements Member {
     
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public boolean getBoolean( Object obj)
+    public boolean getBoolean( @Nullable Object obj)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -495,7 +495,7 @@ class Field extends AccessibleObject implements Member {
     
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public byte getByte( Object obj)
+    public byte getByte( @Nullable Object obj)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -532,7 +532,7 @@ class Field extends AccessibleObject implements Member {
     
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public char getChar( Object obj)
+    public char getChar( @Nullable Object obj)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -569,7 +569,7 @@ class Field extends AccessibleObject implements Member {
     
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public short getShort( Object obj)
+    public short getShort( @Nullable Object obj)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -606,7 +606,7 @@ class Field extends AccessibleObject implements Member {
     
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public int getInt( Object obj)
+    public int getInt( @Nullable Object obj)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -643,7 +643,7 @@ class Field extends AccessibleObject implements Member {
     
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public long getLong( Object obj)
+    public long getLong( @Nullable Object obj)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -680,7 +680,7 @@ class Field extends AccessibleObject implements Member {
     
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public float getFloat( Object obj)
+    public float getFloat( @Nullable Object obj)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -717,7 +717,7 @@ class Field extends AccessibleObject implements Member {
     
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public double getDouble( Object obj)
+    public double getDouble( @Nullable Object obj)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -795,8 +795,8 @@ class Field extends AccessibleObject implements Member {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public void set(  Object obj,
-              Object value)
+    public void set(  @Nullable Object obj,
+              @Nullable Object value)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -832,7 +832,7 @@ class Field extends AccessibleObject implements Member {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public void setBoolean(  Object obj, boolean z)
+    public void setBoolean(  @Nullable Object obj, boolean z)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -868,7 +868,7 @@ class Field extends AccessibleObject implements Member {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public void setByte(  Object obj, byte b)
+    public void setByte(  @Nullable Object obj, byte b)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -904,7 +904,7 @@ class Field extends AccessibleObject implements Member {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public void setChar(  Object obj, char c)
+    public void setChar(  @Nullable Object obj, char c)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -940,7 +940,7 @@ class Field extends AccessibleObject implements Member {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public void setShort(  Object obj, short s)
+    public void setShort(  @Nullable Object obj, short s)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -976,7 +976,7 @@ class Field extends AccessibleObject implements Member {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public void setInt(  Object obj, int i)
+    public void setInt(  @Nullable Object obj, int i)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -1012,7 +1012,7 @@ class Field extends AccessibleObject implements Member {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public void setLong(  Object obj, long l)
+    public void setLong(  @Nullable Object obj, long l)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -1048,7 +1048,7 @@ class Field extends AccessibleObject implements Member {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public void setFloat(  Object obj, float f)
+    public void setFloat(  @Nullable Object obj, float f)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {
@@ -1084,7 +1084,7 @@ class Field extends AccessibleObject implements Member {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public void setDouble(  Object obj, double d)
+    public void setDouble(  @Nullable Object obj, double d)
         throws IllegalArgumentException, IllegalAccessException
     {
         if (!override) {

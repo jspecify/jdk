@@ -25,6 +25,9 @@
 
 package java.lang.reflect;
 
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
+
 /**
  * {@code InvocationHandler} is the interface implemented by
  * the <i>invocation handler</i> of a proxy instance.
@@ -38,6 +41,7 @@ package java.lang.reflect;
  * @see         Proxy
  * @since       1.3
  */
+@DefaultNonNull
 public interface InvocationHandler {
 
     /**
@@ -90,6 +94,6 @@ public interface InvocationHandler {
      *
      * @see     UndeclaredThrowableException
      */
-    public Object invoke(Object proxy, Method method, Object[] args)
+    public @Nullable Object invoke(Object proxy, Method method, @Nullable Object @Nullable[] args)
         throws Throwable;
 }
