@@ -229,7 +229,7 @@ public final  class Objects {
      */
     
     
-    public static <T extends @Nullable Object>  T requireNonNull( T obj) {
+    public static <T>  T requireNonNull( @Nullable T obj) {
         if (obj == null)
             throw new NullPointerException();
         return obj;
@@ -256,7 +256,7 @@ public final  class Objects {
      */
     
     
-    public static <T extends @Nullable Object>  T requireNonNull(  T obj, @Nullable String message) {
+    public static <T>  T requireNonNull(  @Nullable T obj, @Nullable String message) {
         if (obj == null)
             throw new NullPointerException(message);
         return obj;
@@ -316,7 +316,7 @@ public final  class Objects {
      *        {@code defaultObj} is {@code null}
      * @since 9
      */
-    public static <T extends @Nullable Object>  T requireNonNullElse(@Nullable T obj,  T defaultObj) {
+    public static <T>  T requireNonNullElse(@Nullable T obj,  T defaultObj) {
         return (obj != null) ? obj : requireNonNull(defaultObj, "defaultObj");
     }
 
@@ -362,7 +362,7 @@ public final  class Objects {
      */
     
     
-    public static <T extends @Nullable Object>  T requireNonNull(  T obj,  Supplier<String> messageSupplier) {
+    public static <T>  T requireNonNull(  @Nullable T obj,  Supplier<String> messageSupplier) {
         if (obj == null)
             throw new NullPointerException(messageSupplier == null ?
                                            null : messageSupplier.get());
