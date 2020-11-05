@@ -1027,7 +1027,7 @@ public class WeakHashMap<K,V>
         }
 
         
-        public <T> T[] toArray(T[] a) {
+        public <T extends @Nullable Object> T[] toArray(T[] a) {
             return deepCopy().toArray(a);
         }
 

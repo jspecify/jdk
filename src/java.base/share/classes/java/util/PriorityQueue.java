@@ -471,7 +471,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      * @throws NullPointerException if the specified array is null
      */
     
-    public <T extends @Nullable Object> @Nullable T @Nullable [] toArray(T @Nullable [] a) {
+    public <T extends @Nullable Object> T[] toArray(T[] a) {
         final int size = this.size;
         if (a.length < size)
             // Make a new array of a's runtime type, but my contents:

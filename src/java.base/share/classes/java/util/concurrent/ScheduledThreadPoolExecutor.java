@@ -1296,7 +1296,7 @@ public class ScheduledThreadPoolExecutor
         }
 
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T extends @Nullable Object> T[] toArray(T[] a) {
             final ReentrantLock lock = this.lock;
             lock.lock();
             try {

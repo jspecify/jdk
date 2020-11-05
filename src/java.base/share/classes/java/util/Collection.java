@@ -353,7 +353,7 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      * @throws NullPointerException if the specified array is null
      */
     
-    <T extends @Nullable Object> @Nullable T @Nullable [] toArray(T @Nullable [] a);
+    <T extends @Nullable Object> T[] toArray(T[] a);
 
     /**
      * Returns an array containing all of the elements in this collection,

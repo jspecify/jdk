@@ -1112,7 +1112,7 @@ public class LinkedList<E extends @Nullable Object>
      */
     
     @SuppressWarnings("unchecked")
-    public <T extends @Nullable Object> @Nullable T @Nullable [] toArray(T @Nullable [] a) {
+    public <T extends @Nullable Object> T[] toArray(T[] a) {
         if (a.length < size)
             a = (T[])java.lang.reflect.Array.newInstance(
                                 a.getClass().getComponentType(), size);

@@ -370,7 +370,7 @@ public class CopyOnWriteArrayList<E>
      * @throws NullPointerException if the specified array is null
      */
     @SuppressWarnings("unchecked")
-    public <T> T[] toArray(T[] a) {
+    public <T extends @Nullable Object> T[] toArray(T[] a) {
         Object[] es = getArray();
         int len = es.length;
         if (a.length < len)
@@ -1235,7 +1235,7 @@ public class CopyOnWriteArrayList<E>
         }
 
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T extends @Nullable Object> T[] toArray(T[] a) {
             final Object[] es;
             final int offset;
             final int size;

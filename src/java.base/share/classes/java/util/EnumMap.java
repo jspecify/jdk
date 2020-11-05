@@ -524,7 +524,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
             "nullness:argument.type.incompatible",
             "nullness:override.param.invalid"
         })
-        public <T extends @Nullable Object> @Nullable T[] toArray(@Nullable T[] a) {
+        public <T extends @Nullable Object> T[] toArray(T[] a) {
             int size = size();
             if (a.length < size)
                 a = (T[])java.lang.reflect.Array

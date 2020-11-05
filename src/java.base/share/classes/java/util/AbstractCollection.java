@@ -192,7 +192,7 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
     @Override
     
     @SuppressWarnings("unchecked")
-    public <T extends @Nullable Object> @Nullable T @Nullable [] toArray(@Nullable T @Nullable [] a) {
+    public <T extends @Nullable Object> T[] toArray(T[] a) {
         // Estimate size of array; be prepared to see more or fewer elements
         int size = size();
         T[] r = a.length >= size ? a :

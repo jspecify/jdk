@@ -1136,7 +1136,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      */
     
     @SuppressWarnings("unchecked")
-    public <T extends @Nullable Object> @Nullable T @Nullable [] toArray(T @Nullable [] a) {
+    public <T extends @Nullable Object> T[] toArray(T[] a) {
         final int size;
         if ((size = size()) > a.length)
             return toArray((Class<T[]>) a.getClass());

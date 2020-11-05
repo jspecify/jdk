@@ -931,7 +931,7 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
      * @throws NullPointerException if the specified array is null
      */
     @SuppressWarnings("unchecked")
-    public <T> T[] toArray(T[] a) {
+    public <T extends @Nullable Object> T[] toArray(T[] a) {
         Objects.requireNonNull(a);
         return (T[]) toArrayInternal(a);
     }

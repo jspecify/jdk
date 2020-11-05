@@ -757,7 +757,7 @@ public class Vector<E extends @Nullable Object>
      */
     
     @SuppressWarnings("unchecked")
-    public synchronized <T extends @Nullable Object> @Nullable T @Nullable [] toArray(T @Nullable [] a) {
+    public synchronized <T extends @Nullable Object> T[] toArray(T[] a) {
         if (a.length < elementCount)
             return (T[]) Arrays.copyOf(elementData, elementCount, a.getClass());
 

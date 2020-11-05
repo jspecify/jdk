@@ -226,7 +226,7 @@ public interface Set<E extends @Nullable Object> extends Collection<E> {
      * @throws NullPointerException if the specified array is null
      */
     
-    <T extends @Nullable Object> @Nullable T @Nullable [] toArray(T @Nullable [] a);
+    <T extends @Nullable Object> T[] toArray(T[] a);
 
 
     // Modification Operations

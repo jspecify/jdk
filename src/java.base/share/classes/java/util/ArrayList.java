@@ -438,7 +438,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      */
     
     @SuppressWarnings("unchecked")
-    public <T extends @Nullable Object> @Nullable T @Nullable [] toArray(T @Nullable [] a) {
+    public <T extends @Nullable Object> T[] toArray(T[] a) {
         if (a.length < size)
             // Make a new array of a's runtime type, but my contents:
             return (T[]) Arrays.copyOf(elementData, size, a.getClass());
