@@ -56,7 +56,7 @@ import java.lang.ref.*;
 
 
 @DefaultNonNull
-public class InheritableThreadLocal< T extends @Nullable Object> extends ThreadLocal<T> {
+public class InheritableThreadLocal< T> extends ThreadLocal<T> {
     /**
      * Computes the child's initial value for this inheritable thread-local
      * variable as a function of the parent's value at the time the child
@@ -69,7 +69,7 @@ public class InheritableThreadLocal< T extends @Nullable Object> extends ThreadL
      * @param parentValue the parent thread's value
      * @return the child thread's initial value
      */
-    protected T childValue(T parentValue) {
+    protected @Nullable T childValue(@Nullable T parentValue) {
         return parentValue;
     }
 

@@ -80,7 +80,7 @@ import java.util.function.Supplier;
  */
 
 @DefaultNonNull
-public  class ThreadLocal< T extends @Nullable Object> {
+public  class ThreadLocal< T> {
     /**
      * ThreadLocals rely on per-thread linear-probe hash maps attached
      * to each thread (Thread.threadLocals and
@@ -132,7 +132,7 @@ public  class ThreadLocal< T extends @Nullable Object> {
      *
      * @return the initial value for this thread-local
      */
-    protected T initialValue() {
+    protected @Nullable T initialValue() {
         return null;
     }
 
@@ -165,7 +165,7 @@ public  class ThreadLocal< T extends @Nullable Object> {
      *
      * @return the current thread's value of this thread-local
      */
-    public T get() {
+    public @Nullable T get() {
         Thread t = Thread.currentThread();
         ThreadLocalMap map = getMap(t);
         if (map != null) {
@@ -222,7 +222,7 @@ public  class ThreadLocal< T extends @Nullable Object> {
      * @param value the value to be stored in the current thread's copy of
      *        this thread-local.
      */
-    public void set(T value) {
+    public void set(@Nullable T value) {
         Thread t = Thread.currentThread();
         ThreadLocalMap map = getMap(t);
         if (map != null) {
