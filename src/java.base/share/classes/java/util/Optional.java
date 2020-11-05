@@ -63,7 +63,7 @@ import java.util.stream.Stream;
 
 @DefaultNonNull
 
-public final  class Optional<T extends @Nullable Object> {
+public final  class Optional<T> {
     /**
      * Common instance for {@code empty()}.
      */
@@ -97,7 +97,7 @@ public final  class Optional<T extends @Nullable Object> {
      * @param <T> The type of the non-existent value
      * @return an empty {@code Optional}
      */
-    public static<T extends @Nullable Object> Optional<T> empty() {
+    public static<T> Optional<T> empty() {
         @SuppressWarnings("unchecked")
         Optional<T> t = (Optional<T>) EMPTY;
         return t;
@@ -122,7 +122,7 @@ public final  class Optional<T extends @Nullable Object> {
      * @return an {@code Optional} with the value present
      * @throws NullPointerException if value is {@code null}
      */
-    public static <T extends @Nullable Object>  Optional<T> of( T value) {
+    public static <T>  Optional<T> of( T value) {
         return new Optional<>(value);
     }
 
@@ -135,7 +135,7 @@ public final  class Optional<T extends @Nullable Object> {
      * @return an {@code Optional} with a present value if the specified value
      *         is non-{@code null}, otherwise an empty {@code Optional}
      */
-    public static <T extends @Nullable Object> Optional<T> ofNullable(@Nullable T value) {
+    public static <T> Optional<T> ofNullable(@Nullable T value) {
         return value == null ? empty() : of(value);
     }
 
@@ -265,7 +265,7 @@ public final  class Optional<T extends @Nullable Object> {
      *         present, otherwise an empty {@code Optional}
      * @throws NullPointerException if the mapping function is {@code null}
      */
-    public <U extends @Nullable Object> Optional<U> map(Function<? super T, ? extends @Nullable U> mapper) {
+    public <U> Optional<U> map(Function<? super T, ? extends @Nullable U> mapper) {
         Objects.requireNonNull(mapper);
         if (!isPresent()) {
             return empty();
@@ -293,7 +293,7 @@ public final  class Optional<T extends @Nullable Object> {
      * @throws NullPointerException if the mapping function is {@code null} or
      *         returns a {@code null} result
      */
-    public <U extends @Nullable Object> Optional<U> flatMap(Function<? super T, ? extends Optional<? extends U>> mapper) {
+    public <U> Optional<U> flatMap(Function<? super T, ? extends Optional<? extends U>> mapper) {
         Objects.requireNonNull(mapper);
         if (!isPresent()) {
             return empty();
@@ -359,7 +359,7 @@ public final  class Optional<T extends @Nullable Object> {
      *        May be {@code null}.
      * @return the value, if present, otherwise {@code other}
      */
-    public @Nullable T orElse(@Nullable T other) {
+    public T orElse(T other) {
         return value != null ? value : other;
     }
 
@@ -373,7 +373,7 @@ public final  class Optional<T extends @Nullable Object> {
      * @throws NullPointerException if no value is present and the supplying
      *         function is {@code null}
      */
-    public @Nullable T orElseGet(Supplier<? extends @Nullable T> supplier) {
+    public T orElseGet(Supplier<? extends T> supplier) {
         return value != null ? value : supplier.get();
     }
 
