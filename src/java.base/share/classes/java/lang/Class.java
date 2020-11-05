@@ -156,7 +156,7 @@ import sun.reflect.misc.ReflectUtil;
 
 @DefaultNonNull
 
-public final  class Class< T extends @Nullable Object> implements java.io.Serializable,
+public final  class Class< T> implements java.io.Serializable,
                               GenericDeclaration,
                               Type,
                               AnnotatedElement {
