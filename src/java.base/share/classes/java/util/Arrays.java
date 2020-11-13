@@ -4328,6 +4328,7 @@ public class Arrays {
      * @return a list view of the specified array
      */
     @SafeVarargs
+    @SideEffectFree
     @SuppressWarnings("varargs")
     public static <T> List<T> asList(T... a) {
         return new ArrayList<>(a);
