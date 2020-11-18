@@ -1222,7 +1222,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      */
     @Override
     public V compute(K key,
-                     BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+                     BiFunction<? super K, ? super @Nullable V, ? extends V> remappingFunction) {
         if (remappingFunction == null)
             throw new NullPointerException();
         int hash = hash(key);

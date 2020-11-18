@@ -418,7 +418,7 @@ public interface ConcurrentMap<K,V> extends Map<K,V> {
      */
     @Override
     default V compute(K key,
-                      BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+                      BiFunction<? super K, ? super @Nullable V, ? extends V> remappingFunction) {
         retry: for (;;) {
             V oldValue = get(key);
             // if putIfAbsent fails, opportunistically use its return value

@@ -1129,7 +1129,7 @@ public class Hashtable<K,V>
      * remapping function modified this map
      */
     @Override
-    public synchronized V compute(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+    public synchronized V compute(K key, BiFunction<? super K, ? super @Nullable V, ? extends V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
 
         Entry<?,?> tab[] = table;
