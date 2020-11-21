@@ -105,7 +105,7 @@ import java.lang.*;
  * @see     java.io.StreamTokenizer
  * @since   1.0
  */
-@AnnotatedFor({"indexs", "interning", "lock", "nullness"})
+@AnnotatedFor({"index", "interning", "lock", "nullness"})
 public
 @UsesObjectEquals class StringTokenizer implements Enumeration<Object> {
     private int currentPosition;
