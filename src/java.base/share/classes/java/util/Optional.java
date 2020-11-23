@@ -359,7 +359,7 @@ public final  class Optional<T> {
      *        May be {@code null}.
      * @return the value, if present, otherwise {@code other}
      */
-    public T orElse(T other) {
+    public @Nullable T orElse(@Nullable T other) {
         return value != null ? value : other;
     }
 
