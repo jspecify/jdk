@@ -70,7 +70,8 @@ class LinkageError extends Error {
      * @param cause the cause, may be {@code null}
      * @since 1.7
      */
-    public LinkageError(String s, Throwable cause) {
+    @SideEffectFree
+    public LinkageError(@Nullable String s, @Nullable Throwable cause) {
         super(s, cause);
     }
 }
