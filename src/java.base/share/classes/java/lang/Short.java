@@ -25,9 +25,12 @@
 
 package java.lang;
 
+import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.PolyIndex;
 import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.signedness.qual.SignedPositive;
+import org.checkerframework.checker.signedness.qual.Unsigned;
 import org.checkerframework.common.value.qual.ArrayLen;
 import org.checkerframework.common.value.qual.IntRange;
 import org.checkerframework.common.value.qual.IntVal;
@@ -54,7 +57,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @see     java.lang.Number
  * @since   1.1
  */
-@AnnotatedFor({"nullness", "index", "value"})
+@AnnotatedFor({"nullness", "index", "signedness", "value"})
 public final class Short extends Number implements Comparable<Short> {
 
     /**
@@ -548,7 +551,7 @@ public final class Short extends Number implements Comparable<Short> {
      */
     @Pure
     @StaticallyExecutable
-    public static int compareUnsigned(short x, short y) {
+    public static int compareUnsigned(@Unsigned short x, @Unsigned short y) {
         return Short.toUnsignedInt(x) - Short.toUnsignedInt(y);
     }
 
@@ -602,7 +605,7 @@ public final class Short extends Number implements Comparable<Short> {
      */
     @Pure
     @StaticallyExecutable
-    public static int toUnsignedInt(short x) {
+    public static @NonNegative @SignedPositive int toUnsignedInt(short x) {
         return ((int) x) & 0xffff;
     }
 
@@ -624,7 +627,7 @@ public final class Short extends Number implements Comparable<Short> {
      */
     @Pure
     @StaticallyExecutable
-    public static long toUnsignedLong(short x) {
+    public static @NonNegative @SignedPositive long toUnsignedLong(short x) {
         return ((long) x) & 0xffffL;
     }
 

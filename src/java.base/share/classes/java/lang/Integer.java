@@ -923,7 +923,7 @@ public final class Integer extends Number implements Comparable<Integer> {
      */
     @Pure
     @StaticallyExecutable
-    public static int parseUnsignedInt(CharSequence s, int beginIndex, int endIndex, @IntRange(from = 2, to = 36) int radix)
+    public static @Unsigned int parseUnsignedInt(CharSequence s, int beginIndex, int endIndex, @IntRange(from = 2, to = 36) int radix)
                 throws NumberFormatException {
         s = Objects.requireNonNull(s);
 

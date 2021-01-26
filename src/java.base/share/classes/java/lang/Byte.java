@@ -25,10 +25,13 @@
 
 package java.lang;
 
+import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.PolyIndex;
 import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.signedness.qual.SignedPositive;
+import org.checkerframework.checker.signedness.qual.Unsigned;
 import org.checkerframework.common.value.qual.ArrayLen;
 import org.checkerframework.common.value.qual.IntRange;
 import org.checkerframework.common.value.qual.IntVal;
@@ -56,7 +59,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @see     java.lang.Number
  * @since   1.1
  */
-@AnnotatedFor({"index", "interning", "nullness", "value"})
+@AnnotatedFor({"index", "interning", "nullness", "signedness", "value"})
 public final class Byte extends Number implements Comparable<Byte> {
 
     /**
@@ -540,7 +543,7 @@ public final class Byte extends Number implements Comparable<Byte> {
      */
     @Pure
     @StaticallyExecutable
-    public static int compareUnsigned(byte x, byte y) {
+    public static int compareUnsigned(@Unsigned byte x, @Unsigned byte y) {
         return Byte.toUnsignedInt(x) - Byte.toUnsignedInt(y);
     }
 
@@ -562,7 +565,7 @@ public final class Byte extends Number implements Comparable<Byte> {
      */
     @Pure
     @StaticallyExecutable
-    public static int toUnsignedInt(byte x) {
+    public static @SignedPositive @NonNegative int toUnsignedInt(byte x) {
         return ((int) x) & 0xff;
     }
 
@@ -584,7 +587,7 @@ public final class Byte extends Number implements Comparable<Byte> {
      */
     @Pure
     @StaticallyExecutable
-    public static long toUnsignedLong(byte x) {
+    public static @SignedPositive @NonNegative long toUnsignedLong(byte x) {
         return ((long) x) & 0xffL;
     }
 

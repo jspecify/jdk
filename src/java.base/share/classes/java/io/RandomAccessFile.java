@@ -33,6 +33,7 @@ import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.checkerframework.checker.signedness.qual.SignedPositive;
 import org.checkerframework.checker.signedness.qual.Unsigned;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -729,7 +730,7 @@ public @UsesObjectEquals class RandomAccessFile implements DataOutput, DataInput
      * @exception  EOFException  if this file has reached the end.
      * @exception  IOException   if an I/O error occurs.
      */
-    public final @NonNegative @Unsigned int readUnsignedByte() throws IOException {
+    public final @NonNegative @SignedPositive int readUnsignedByte() throws IOException {
         int ch = this.read();
         if (ch < 0)
             throw new EOFException();
@@ -784,7 +785,7 @@ public @UsesObjectEquals class RandomAccessFile implements DataOutput, DataInput
      *               two bytes.
      * @exception  IOException   if an I/O error occurs.
      */
-    public final @NonNegative @Unsigned int readUnsignedShort() throws IOException {
+    public final @NonNegative @SignedPositive int readUnsignedShort() throws IOException {
         int ch1 = this.read();
         int ch2 = this.read();
         if ((ch1 | ch2) < 0)
