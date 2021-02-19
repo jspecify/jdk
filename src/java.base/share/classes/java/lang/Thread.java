@@ -494,7 +494,7 @@ public
      *         is started. If {@code null}, this classes {@code run} method does
      *         nothing.
      */
-    public Thread(@Nullable Runnable target) {
+    public Thread(Runnable target) {
         this(null, target, "Thread-" + nextThreadNum(), 0);
     }
 
@@ -582,7 +582,7 @@ public
      * @param  name
      *         the name of the new thread
      */
-    public Thread(@Nullable Runnable target, String name) {
+    public Thread(Runnable target, String name) {
         this(null, target, name, 0);
     }
 
@@ -630,7 +630,7 @@ public
      *          if the current thread cannot create a thread in the specified
      *          thread group or cannot override the context class loader methods.
      */
-    public Thread(@Nullable ThreadGroup group, @Nullable Runnable target, String name) {
+    public Thread(@Nullable ThreadGroup group, Runnable target, String name) {
         this(group, target, name, 0);
     }
 
