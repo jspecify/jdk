@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.annotation.*;
@@ -80,7 +80,7 @@ import static java.lang.annotation.ElementType.*;
  * @since 1.5
  * @jls 9.6.4.6 @Deprecated
  */
-@DefaultNonNull
+@NullMarked
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(value={CONSTRUCTOR, FIELD, LOCAL_VARIABLE, METHOD, PACKAGE, MODULE, PARAMETER, TYPE})

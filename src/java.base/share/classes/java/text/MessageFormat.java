@@ -38,7 +38,7 @@
 
 package java.text;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.InvalidObjectException;
@@ -350,7 +350,7 @@ import java.util.Locale;
  * @since 1.1
  */
 
-@DefaultNonNull
+@NullMarked
 public class MessageFormat extends Format {
 
     private static final long serialVersionUID = 6479157306784022952L;

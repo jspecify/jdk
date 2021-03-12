@@ -35,7 +35,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -91,7 +91,7 @@ import org.jspecify.nullness.Nullable;
  * @since 1.6
  */
 
-@DefaultNonNull
+@NullMarked
 public interface NavigableSet<E extends @Nullable Object> extends SortedSet<E> {
     /**
      * Returns the greatest element in this set strictly less than the

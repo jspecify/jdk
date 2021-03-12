@@ -30,7 +30,7 @@
 
 package org.xml.sax.ext;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -84,7 +84,7 @@ import org.xml.sax.SAXException;
  * @since 1.5, SAX 2.0 (extensions 1.1 alpha)
  * @author David Brownell
  */
-@DefaultNonNull
+@NullMarked
 public interface EntityResolver2 extends EntityResolver
 {
     /**

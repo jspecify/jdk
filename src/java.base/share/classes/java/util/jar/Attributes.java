@@ -25,7 +25,7 @@
 
 package java.util.jar;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.DataOutputStream;
@@ -59,7 +59,7 @@ import sun.util.logging.PlatformLogger;
  * @since   1.2
  */
 
-@DefaultNonNull
+@NullMarked
 public class Attributes implements Map<Object,Object>, Cloneable {
     /**
      * The attribute name-value mappings.

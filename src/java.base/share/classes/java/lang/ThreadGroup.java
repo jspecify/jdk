@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.PrintStream;
@@ -56,7 +56,7 @@ import jdk.internal.misc.VM;
  * and working off of that snapshot, rather than holding the thread group locked
  * while we work on the children.
  */
-@DefaultNonNull
+@NullMarked
 public
  class ThreadGroup implements Thread.UncaughtExceptionHandler {
     private final ThreadGroup parent;

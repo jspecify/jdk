@@ -25,7 +25,7 @@
 
 package java.lang.reflect;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.module.ModuleDescriptor;
@@ -285,7 +285,7 @@ import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
  * @revised 9
  * @spec JPMS
  */
-@DefaultNonNull
+@NullMarked
 public class Proxy implements java.io.Serializable {
     private static final long serialVersionUID = -2222568056686623797L;
 

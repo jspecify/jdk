@@ -25,7 +25,7 @@
 
 package java.sql;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.math.BigDecimal;
@@ -62,7 +62,7 @@ import java.io.InputStream;
  * @since 1.1
  */
 
-@DefaultNonNull
+@NullMarked
 public interface PreparedStatement extends Statement {
 
     /**

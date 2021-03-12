@@ -25,7 +25,7 @@
 
 package java.util.regex;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.text.Normalizer;
@@ -776,7 +776,7 @@ import java.util.stream.StreamSupport;
  * @spec        JSR-51
  */
 
-@DefaultNonNull
+@NullMarked
 public final  class Pattern
     implements java.io.Serializable
 {

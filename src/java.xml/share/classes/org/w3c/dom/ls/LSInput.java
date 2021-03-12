@@ -41,7 +41,7 @@
 
 package org.w3c.dom.ls;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -88,7 +88,7 @@ and Save Specification</a>.
  *
  * @since 1.5
  */
-@DefaultNonNull
+@NullMarked
 public interface LSInput {
     /**
      *  An attribute of a language and binding dependent type that represents

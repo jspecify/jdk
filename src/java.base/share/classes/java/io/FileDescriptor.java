@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.ArrayList;
@@ -48,7 +48,7 @@ import jdk.internal.ref.PhantomCleanable;
  * @author  Pavani Diwanji
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public final class FileDescriptor {
 
     private int fd;

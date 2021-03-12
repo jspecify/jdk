@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -41,7 +41,7 @@ import org.jspecify.nullness.Nullable;
  */
 
 
-@DefaultNonNull
+@NullMarked
 public
 class InstantiationError extends IncompatibleClassChangeError {
     private static final long serialVersionUID = -4885810657349421204L;

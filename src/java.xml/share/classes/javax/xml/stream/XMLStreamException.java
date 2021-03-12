@@ -25,7 +25,7 @@
 
 package javax.xml.stream;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -37,7 +37,7 @@ import org.jspecify.nullness.Nullable;
  * @since 1.6
  */
 
-@DefaultNonNull
+@NullMarked
 public class XMLStreamException extends Exception {
   private static final long serialVersionUID = 2018819321811497362L;
 

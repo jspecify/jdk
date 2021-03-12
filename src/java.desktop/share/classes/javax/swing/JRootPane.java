@@ -24,7 +24,7 @@
  */
 package javax.swing;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 import java.applet.Applet;
 import java.awt.*;
@@ -206,7 +206,7 @@ import sun.security.action.GetBooleanAction;
  * @since 1.2
  */
 /// PENDING(klobad) Who should be opaque in this component?
-@DefaultNonNull
+@NullMarked
 @SuppressWarnings("serial")
 public class JRootPane extends JComponent implements Accessible {
 

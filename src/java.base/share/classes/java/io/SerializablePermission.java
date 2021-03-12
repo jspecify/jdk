@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.security.*;
@@ -102,7 +102,7 @@ import java.util.StringTokenizer;
 
 /* code was borrowed originally from java.lang.RuntimePermission. */
 
-@DefaultNonNull
+@NullMarked
 public final class SerializablePermission extends BasicPermission {
 
     private static final long serialVersionUID = 8537212141160296410L;

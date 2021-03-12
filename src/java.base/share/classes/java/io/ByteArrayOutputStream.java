@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.nio.charset.Charset;
@@ -47,7 +47,7 @@ import java.util.Objects;
  * @since   1.0
  */
 
-@DefaultNonNull
+@NullMarked
 public class ByteArrayOutputStream extends OutputStream {
 
     /**

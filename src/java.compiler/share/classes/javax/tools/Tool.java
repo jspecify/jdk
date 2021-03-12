@@ -25,7 +25,7 @@
 
 package javax.tools;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Set;
@@ -47,7 +47,7 @@ import javax.lang.model.SourceVersion;
  * @author Jonathan Gibbons
  * @since 1.6
  */
-@DefaultNonNull
+@NullMarked
 public interface Tool {
     /**
      * Returns the name of this tool, or an empty string if no name is provided.

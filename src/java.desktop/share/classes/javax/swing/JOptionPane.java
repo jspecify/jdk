@@ -24,7 +24,7 @@
  */
 package javax.swing;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.awt.BorderLayout;
@@ -308,7 +308,7 @@ import sun.awt.AWTAccessor;
  * @author Scott Violet
  * @since 1.2
  */
-@DefaultNonNull
+@NullMarked
 @JavaBean(defaultProperty = "UI", description = "A component which implements standard dialog box controls.")
 @SwingContainer
 @SuppressWarnings("serial") // Same-version serialization only

@@ -26,7 +26,7 @@
 package javax.swing;
 
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 import javax.swing.plaf.ComponentUI;
 
@@ -77,7 +77,7 @@ import sun.swing.SwingUtilities2;
  * @author Hans Muller
  * @since 1.2
  */
-@DefaultNonNull
+@NullMarked
 @SuppressWarnings("serial") // Same-version serialization only
 public class UIDefaults extends Hashtable<Object,Object>
 {

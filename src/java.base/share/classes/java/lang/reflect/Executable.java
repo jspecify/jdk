@@ -25,7 +25,7 @@
 
 package java.lang.reflect;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.annotation.*;
@@ -46,7 +46,7 @@ import sun.reflect.generics.repository.ConstructorRepository;
  *
  * @since 1.8
  */
-@DefaultNonNull
+@NullMarked
 public abstract class Executable extends AccessibleObject
     implements Member, GenericDeclaration {
     /*

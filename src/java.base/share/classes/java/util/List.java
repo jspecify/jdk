@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.function.UnaryOperator;
@@ -139,7 +139,7 @@ import java.util.function.UnaryOperator;
  */
 
 
-@DefaultNonNull
+@NullMarked
 public interface List<E extends @Nullable Object> extends Collection<E> {
     // Query Operations
 

@@ -24,7 +24,7 @@
  */
 package java.util.function;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Objects;
@@ -45,7 +45,7 @@ import java.util.Comparator;
  * @see UnaryOperator
  * @since 1.8
  */
-@DefaultNonNull
+@NullMarked
 @FunctionalInterface
 public interface BinaryOperator<T extends @Nullable Object> extends BiFunction<T,T,T> {
     /**

@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.*;
@@ -102,7 +102,7 @@ import java.lang.*;
  * @see     java.io.StreamTokenizer
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
  class StringTokenizer implements Enumeration<Object> {
     private int currentPosition;

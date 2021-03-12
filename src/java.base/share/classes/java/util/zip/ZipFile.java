@@ -25,7 +25,7 @@
 
 package java.util.zip;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.Closeable;
@@ -97,7 +97,7 @@ import static java.util.zip.ZipUtils.*;
  * @author      David Connelly
  * @since 1.1
  */
-@DefaultNonNull
+@NullMarked
 public
  class ZipFile implements ZipConstants, Closeable {
 

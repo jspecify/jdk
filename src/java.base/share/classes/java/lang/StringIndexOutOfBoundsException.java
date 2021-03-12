@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -37,7 +37,7 @@ import org.jspecify.nullness.Nullable;
  * @see java.lang.String#charAt(int)
  * @since 1.0
  */
-@DefaultNonNull
+@NullMarked
 public class StringIndexOutOfBoundsException extends IndexOutOfBoundsException {
     private static final long serialVersionUID = -6762910422159637258L;
 

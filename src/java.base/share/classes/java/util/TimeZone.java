@@ -38,7 +38,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.Serializable;
@@ -133,7 +133,7 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * @author       Mark Davis, David Goldsmith, Chen-Lieh Huang, Alan Liu
  * @since        1.1
  */
-@DefaultNonNull
+@NullMarked
 public abstract class TimeZone implements Serializable, Cloneable {
     /**
      * Sole constructor.  (For invocation by subclass constructors, typically

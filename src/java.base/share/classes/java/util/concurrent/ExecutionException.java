@@ -35,7 +35,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -47,7 +47,7 @@ import org.jspecify.nullness.Nullable;
  * @since 1.5
  * @author Doug Lea
  */
-@DefaultNonNull
+@NullMarked
 public class ExecutionException extends Exception {
     private static final long serialVersionUID = 7830266012832686185L;
 

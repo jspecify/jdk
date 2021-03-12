@@ -24,7 +24,7 @@
  */
 package java.awt;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.awt.peer.DialogPeer;
@@ -98,7 +98,7 @@ import java.security.AccessControlException;
  * @author      Arthur van Hoff
  * @since       1.0
  */
-@DefaultNonNull
+@NullMarked
 public class Dialog extends Window {
 
     static {

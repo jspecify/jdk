@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -39,7 +39,7 @@ import org.jspecify.nullness.Nullable;
  * @see     java.lang.Thread#suspend()
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public class IllegalThreadStateException extends IllegalArgumentException {
     private static final long serialVersionUID = -7626246362397460174L;
 

@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -40,7 +40,7 @@ import org.jspecify.nullness.Nullable;
  * @author  unascribed
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
 class NoSuchMethodError extends IncompatibleClassChangeError {
     private static final long serialVersionUID = -3765521442372831335L;

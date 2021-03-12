@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.annotation.Native;
@@ -59,7 +59,7 @@ import static java.lang.String.UTF16;
  * @author  Joseph D. Darcy
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public final class Long extends Number implements Comparable<Long> {
     /**
      * A constant holding the minimum value a {@code long} can

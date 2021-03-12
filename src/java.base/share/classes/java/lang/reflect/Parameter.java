@@ -24,7 +24,7 @@
  */
 package java.lang.reflect;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.annotation.*;
@@ -42,7 +42,7 @@ import sun.reflect.annotation.AnnotationSupport;
  *
  * @since 1.8
  */
-@DefaultNonNull
+@NullMarked
 public final class Parameter implements AnnotatedElement {
 
     private final String name;

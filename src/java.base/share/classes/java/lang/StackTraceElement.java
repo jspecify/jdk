@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.loader.BuiltinClassLoader;
@@ -53,7 +53,7 @@ import java.util.Set;
  * @since  1.4
  * @author Josh Bloch
  */
-@DefaultNonNull
+@NullMarked
 public final class StackTraceElement implements java.io.Serializable {
 
     // For Throwables and StackWalker, the VM initially sets this field to a

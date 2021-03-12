@@ -24,7 +24,7 @@
  */
 package java.beans;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.ref.Reference;
@@ -40,7 +40,7 @@ import sun.reflect.misc.ReflectUtil;
  * exports via a pair of accessor methods.
  * @since 1.1
  */
-@DefaultNonNull
+@NullMarked
 public class PropertyDescriptor extends FeatureDescriptor {
 
     private @Nullable Reference<? extends Class<?>> propertyTypeRef;

@@ -25,7 +25,7 @@
 
 package java.util.jar;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.misc.SharedSecrets;
@@ -148,7 +148,7 @@ import java.util.zip.ZipFile;
  * @see     java.util.jar.JarEntry
  * @since   1.2
  */
-@DefaultNonNull
+@NullMarked
 public
 class JarFile extends ZipFile {
     private final static Runtime.Version BASE_VERSION;

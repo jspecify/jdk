@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.misc.Unsafe;
@@ -51,7 +51,7 @@ import jdk.internal.misc.Unsafe;
  * @author  Arthur van Hoff
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
 class BufferedInputStream extends FilterInputStream {
 

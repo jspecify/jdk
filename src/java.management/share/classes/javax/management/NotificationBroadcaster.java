@@ -26,7 +26,7 @@
 
 package javax.management;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.concurrent.CopyOnWriteArrayList;  // for Javadoc
@@ -73,7 +73,7 @@ import java.util.concurrent.CopyOnWriteArrayList;  // for Javadoc
  *
  * @since 1.5
  */
-@DefaultNonNull
+@NullMarked
 public interface NotificationBroadcaster {
 
     /**

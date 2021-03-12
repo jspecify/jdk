@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.annotation.*;
@@ -55,7 +55,7 @@ import static java.lang.annotation.ElementType.*;
  * @jls 5.5.2 Checked Casts and Unchecked Casts
  * @jls 9.6.4.5 @SuppressWarnings
  */
-@DefaultNonNull
+@NullMarked
 @Target({TYPE, FIELD, METHOD, PARAMETER, CONSTRUCTOR, LOCAL_VARIABLE, MODULE})
 @Retention(RetentionPolicy.SOURCE)
 public @interface SuppressWarnings {

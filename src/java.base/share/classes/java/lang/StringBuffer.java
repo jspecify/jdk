@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Arrays;
@@ -106,7 +106,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @see     java.lang.String
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
  public final class StringBuffer
     extends AbstractStringBuilder
     implements java.io.Serializable, Comparable<StringBuffer>, CharSequence

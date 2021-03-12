@@ -25,7 +25,7 @@
 
 package java.awt;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.awt.dnd.DropTarget;
@@ -95,7 +95,7 @@ import sun.security.action.GetBooleanAction;
  * @see       LayoutManager
  * @since     1.0
  */
-@DefaultNonNull
+@NullMarked
 public  class Container extends Component {
 
     private static final PlatformLogger log = PlatformLogger.getLogger("java.awt.Container");

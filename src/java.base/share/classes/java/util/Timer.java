@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Date;
@@ -90,7 +90,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @since   1.3
  */
 
-@DefaultNonNull
+@NullMarked
 public  class Timer {
     /**
      * The timer task queue.  This data structure is shared with the timer

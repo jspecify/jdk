@@ -41,7 +41,7 @@
 
 package org.w3c.dom;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -69,7 +69,7 @@ import org.jspecify.nullness.Nullable;
  * an attribute.
  * <p>See also the <a href='http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407'>Document Object Model (DOM) Level 3 Core Specification</a>.
  */
-@DefaultNonNull
+@NullMarked
 public interface Text extends CharacterData {
     /**
      * Breaks this node into two nodes at the specified <code>offset</code>,

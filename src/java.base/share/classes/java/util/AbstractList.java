@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.function.Consumer;
@@ -74,7 +74,7 @@ import java.util.function.Consumer;
  */
 
 
-@DefaultNonNull
+@NullMarked
 public abstract class AbstractList<E extends @Nullable Object> extends AbstractCollection<E> implements List<E> {
     /**
      * Sole constructor.  (For invocation by subclass constructors, typically

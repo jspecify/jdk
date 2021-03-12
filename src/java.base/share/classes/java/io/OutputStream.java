@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Objects;
@@ -48,7 +48,7 @@ import java.util.Objects;
  * @see     java.io.OutputStream#write(int)
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public abstract  class OutputStream implements Closeable, Flushable {
     /**
      * Returns a new {@code OutputStream} which discards all bytes.  The

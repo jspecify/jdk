@@ -25,7 +25,7 @@
 
 package java.net;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -151,7 +151,7 @@ import sun.security.action.GetPropertyAction;
  * @author  James Gosling
  * @since 1.0
  */
-@DefaultNonNull
+@NullMarked
 public final class URL implements java.io.Serializable {
 
     static final String BUILTIN_HANDLERS_PREFIX = "sun.net.www.protocol";

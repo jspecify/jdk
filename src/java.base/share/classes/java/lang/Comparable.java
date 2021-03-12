@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.*;
@@ -97,7 +97,7 @@ import java.util.*;
  * @see java.util.Comparator
  * @since 1.2
  */
-@DefaultNonNull
+@NullMarked
 public interface Comparable<T> {
     /**
      * Compares this object with the specified object for order.  Returns a

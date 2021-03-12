@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.misc.SharedSecrets;
@@ -78,7 +78,7 @@ import jdk.internal.misc.SharedSecrets;
  * @see EnumSet
  * @since 1.5
  */
-@DefaultNonNull
+@NullMarked
 public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends AbstractMap<K, V>
     implements java.io.Serializable, Cloneable
 {

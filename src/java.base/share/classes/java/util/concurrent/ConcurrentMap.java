@@ -35,7 +35,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Map;
@@ -71,7 +71,7 @@ import java.util.function.Function;
  * @param <K> the type of keys maintained by this map
  * @param <V> the type of mapped values
  */
-@DefaultNonNull
+@NullMarked
 public interface ConcurrentMap<K,V> extends Map<K,V> {
 
     /**

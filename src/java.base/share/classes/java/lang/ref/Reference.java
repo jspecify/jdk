@@ -25,7 +25,7 @@
 
 package java.lang.ref;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.vm.annotation.ForceInline;
@@ -44,7 +44,7 @@ import jdk.internal.ref.Cleaner;
  * @since    1.2
  */
 
-@DefaultNonNull
+@NullMarked
 @SuppressWarnings({"rawtypes"})
 public abstract class Reference<T> {
 

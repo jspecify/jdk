@@ -25,7 +25,7 @@
 
 package java.beans;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.ref.SoftReference;
@@ -34,7 +34,7 @@ import java.lang.reflect.Method;
 
 import static sun.reflect.misc.ReflectUtil.isPackageAccessible;
 
-@DefaultNonNull
+@NullMarked
 final class MethodRef {
     private @Nullable String signature;
     private @Nullable SoftReference<Method> methodRef;

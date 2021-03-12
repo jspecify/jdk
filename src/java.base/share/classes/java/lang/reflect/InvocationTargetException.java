@@ -25,7 +25,7 @@
 
 package java.lang.reflect;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -43,7 +43,7 @@ import org.jspecify.nullness.Nullable;
  * @see Constructor
  * @since 1.1
  */
-@DefaultNonNull
+@NullMarked
 public class InvocationTargetException extends ReflectiveOperationException {
     /**
      * Use serialVersionUID from JDK 1.1.X for interoperability

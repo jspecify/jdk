@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.*;
@@ -136,7 +136,7 @@ import jdk.internal.misc.SharedSecrets;
  * @since 1.0
  */
 
-@DefaultNonNull
+@NullMarked
 public class Hashtable<K,V>
     extends Dictionary<K,V>
     implements Map<K,V>, Cloneable, java.io.Serializable {

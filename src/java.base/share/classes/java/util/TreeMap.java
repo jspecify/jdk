@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.Serializable;
@@ -112,7 +112,7 @@ import java.util.function.Consumer;
  */
 
 
-@DefaultNonNull
+@NullMarked
 public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
     extends AbstractMap<K,V>
     implements NavigableMap<K,V>, Cloneable, java.io.Serializable

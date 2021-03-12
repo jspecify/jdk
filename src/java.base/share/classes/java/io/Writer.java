@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Objects;
@@ -50,7 +50,7 @@ import java.util.Objects;
  * @since       1.1
  */
 
-@DefaultNonNull
+@NullMarked
 public abstract  class Writer implements Appendable, Closeable, Flushable {
 
     /**

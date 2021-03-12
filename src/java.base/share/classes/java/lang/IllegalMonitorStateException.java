@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -41,7 +41,7 @@ import org.jspecify.nullness.Nullable;
  * @see     java.lang.Object#wait(long, int)
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
 class IllegalMonitorStateException extends RuntimeException {
     private static final long serialVersionUID = 3713306369498869069L;

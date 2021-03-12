@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -53,7 +53,7 @@ import org.jspecify.nullness.Nullable;
  * @see     java.lang.ClassLoader#loadClass(java.lang.String, boolean)
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public class ClassNotFoundException extends ReflectiveOperationException {
     /**
      * use serialVersionUID from JDK 1.1.X for interoperability

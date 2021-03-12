@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -53,6 +53,6 @@ import org.jspecify.nullness.Nullable;
  * @see     java.lang.Object#clone()
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public interface Cloneable {
 }

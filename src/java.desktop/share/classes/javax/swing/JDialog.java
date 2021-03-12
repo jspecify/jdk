@@ -24,7 +24,7 @@
  */
 package javax.swing;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.awt.*;
@@ -96,7 +96,7 @@ import javax.accessibility.*;
  * @author Scott Violet
  * @since 1.2
  */
-@DefaultNonNull
+@NullMarked
 @JavaBean(defaultProperty = "JMenuBar", description = "A toplevel window for creating dialog boxes.")
 @SwingContainer(delegate = "getContentPane")
 @SuppressWarnings("serial") // Same-version serialization only

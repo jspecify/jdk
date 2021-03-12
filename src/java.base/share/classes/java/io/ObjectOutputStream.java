@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.ObjectStreamClass.WeakClassKey;
@@ -163,7 +163,7 @@ import sun.reflect.misc.ReflectUtil;
  *     Object Serialization Specification, Section 2, Object Output Classes</a>
  * @since       1.1
  */
-@DefaultNonNull
+@NullMarked
 public class ObjectOutputStream
     extends OutputStream implements ObjectOutput, ObjectStreamConstants
 {

@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.*;
@@ -94,7 +94,7 @@ import sun.nio.cs.StreamEncoder;
  * @since   1.6
  */
 
-@DefaultNonNull
+@NullMarked
 public final  class Console implements Flushable
 {
    /**

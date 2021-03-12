@@ -25,7 +25,7 @@
 
 package javax.xml.stream;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -37,7 +37,7 @@ import org.jspecify.nullness.Nullable;
  * @author Copyright (c) 2009 by Oracle Corporation. All Rights Reserved.
  * @since 1.6
  */
-@DefaultNonNull
+@NullMarked
 public interface XMLResolver {
 
   /**

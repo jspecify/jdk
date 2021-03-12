@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.File;
@@ -190,7 +190,7 @@ import sun.security.action.GetPropertyAction;
  * @since 1.5
  */
 
-@DefaultNonNull
+@NullMarked
 public final class ProcessBuilder
 {
     private List<String> command;

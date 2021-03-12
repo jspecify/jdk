@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.net.URI;
@@ -111,7 +111,7 @@ import sun.security.util.SecurityConstants;
  * @serial exclude
  */
 
-@DefaultNonNull
+@NullMarked
 public final class FilePermission extends Permission implements Serializable {
 
     /**

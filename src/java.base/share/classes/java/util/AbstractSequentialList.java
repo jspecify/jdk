@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -70,7 +70,7 @@ import org.jspecify.nullness.Nullable;
  */
 
 
-@DefaultNonNull
+@NullMarked
 public abstract class AbstractSequentialList<E extends @Nullable Object> extends AbstractList<E> {
     /**
      * Sole constructor.  (For invocation by subclass constructors, typically

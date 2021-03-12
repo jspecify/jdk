@@ -25,7 +25,7 @@
 
 package javax.xml.parsers;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -35,7 +35,7 @@ import org.jspecify.nullness.Nullable;
  * @since 1.4
  */
 
-@DefaultNonNull
+@NullMarked
 public class ParserConfigurationException extends Exception {
     private static final long serialVersionUID = -3688849216575373917L;
     /**

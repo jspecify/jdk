@@ -25,7 +25,7 @@
 
 package java.security;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.*;
@@ -105,7 +105,7 @@ import javax.crypto.SecretKey;
  * @see DigestOutputStream
  */
 
-@DefaultNonNull
+@NullMarked
 public abstract class MessageDigest extends MessageDigestSpi {
 
     private static final Debug pdebug =

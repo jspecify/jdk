@@ -38,7 +38,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -319,7 +319,7 @@ import sun.util.spi.CalendarProvider;
  * @author Mark Davis, David Goldsmith, Chen-Lieh Huang, Alan Liu
  * @since 1.1
  */
-@DefaultNonNull
+@NullMarked
 public abstract class Calendar implements Serializable, Cloneable, Comparable<Calendar> {
 
     // Data flow in Calendar

@@ -24,7 +24,7 @@
  */
 package java.util.function;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -38,7 +38,7 @@ import org.jspecify.nullness.Nullable;
  * @see Function
  * @since 1.8
  */
-@DefaultNonNull
+@NullMarked
 @FunctionalInterface
 public interface LongToIntFunction {
 

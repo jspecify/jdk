@@ -25,7 +25,7 @@
 
 package java.lang.ref;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.function.Consumer;
@@ -39,7 +39,7 @@ import jdk.internal.misc.VM;
  * @since    1.2
  */
 
-@DefaultNonNull
+@NullMarked
 @SuppressWarnings({"rawtypes"})
 public  class ReferenceQueue<T> {
 

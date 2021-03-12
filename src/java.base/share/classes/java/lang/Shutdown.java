@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.misc.VM;
@@ -42,7 +42,7 @@ import jdk.internal.misc.VM;
  * @see java.io.DeleteOnExitHook
  */
 
-@DefaultNonNull
+@NullMarked
  class Shutdown {
 
     // The system shutdown hooks are registered with a predefined slot.

@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.ObjectOutput;
@@ -66,7 +66,7 @@ import java.io.ObjectInput;
  * @see java.io.Serializable
  * @since   1.1
  */
-@DefaultNonNull
+@NullMarked
 public interface Externalizable extends java.io.Serializable {
     /**
      * The object implements the writeExternal method to save its contents

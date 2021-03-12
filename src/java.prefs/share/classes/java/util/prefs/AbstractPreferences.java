@@ -25,7 +25,7 @@
 
 package java.util.prefs;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.*;
@@ -122,7 +122,7 @@ import java.lang.Double;
  * @see     Preferences
  * @since   1.4
  */
-@DefaultNonNull
+@NullMarked
 public abstract class AbstractPreferences extends Preferences {
     /**
      * The code point U+0000, assigned to the null control character, is the

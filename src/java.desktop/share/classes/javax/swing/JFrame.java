@@ -24,7 +24,7 @@
  */
 package javax.swing;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.awt.AWTEvent;
@@ -121,7 +121,7 @@ import javax.accessibility.AccessibleStateSet;
  * @author David Kloba
  * @since 1.2
  */
-@DefaultNonNull
+@NullMarked
 @JavaBean(defaultProperty = "JMenuBar", description = "A toplevel window which can be minimized to an icon.")
 @SwingContainer(delegate = "getContentPane")
 @SuppressWarnings("serial") // Same-version serialization only

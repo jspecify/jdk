@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -35,7 +35,7 @@ import org.jspecify.nullness.Nullable;
  *
  * @since   1.2
  */
-@DefaultNonNull
+@NullMarked
 public
 class UnsupportedClassVersionError extends ClassFormatError {
     private static final long serialVersionUID = -7123279212883497373L;

@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -43,7 +43,7 @@ import org.jspecify.nullness.Nullable;
  * @jls 11.2 Compile-Time Checking of Exceptions
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public class RuntimeException extends Exception {
     static final long serialVersionUID = -7034897190745766939L;
 

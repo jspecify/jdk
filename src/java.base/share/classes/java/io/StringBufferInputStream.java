@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -45,7 +45,7 @@ import org.jspecify.nullness.Nullable;
  *             of JDK&nbsp;1.1, the preferred way to create a stream from a
  *             string is via the <code>StringReader</code> class.
  */
-@DefaultNonNull
+@NullMarked
 @Deprecated
 public
 class StringBufferInputStream extends InputStream {

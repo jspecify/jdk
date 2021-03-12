@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -43,7 +43,7 @@ import org.jspecify.nullness.Nullable;
  * @author  Frank Yellin
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 @Deprecated(since="9", forRemoval=true)
 public final  class Compiler  {
     private Compiler() {}               // don't make instances

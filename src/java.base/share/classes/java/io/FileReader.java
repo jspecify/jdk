@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.nio.charset.Charset;
@@ -46,7 +46,7 @@ import java.nio.charset.Charset;
  * @author      Mark Reinhold
  * @since       1.1
  */
-@DefaultNonNull
+@NullMarked
 public class FileReader extends InputStreamReader {
 
    /**

@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -38,7 +38,7 @@ import org.jspecify.nullness.Nullable;
  * @author  unascribed
  * @since   1.1
  */
-@DefaultNonNull
+@NullMarked
 public class InvalidObjectException extends ObjectStreamException {
 
     private static final long serialVersionUID = 3233174318281839583L;

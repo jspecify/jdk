@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -34,7 +34,7 @@ import org.jspecify.nullness.Nullable;
  * @author  unascribed
  * @since   1.1
  */
-@DefaultNonNull
+@NullMarked
 public abstract class ObjectStreamException extends IOException {
 
     private static final long serialVersionUID = 7260898174833392607L;

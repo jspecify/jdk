@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Arrays;
@@ -65,7 +65,7 @@ import java.util.Arrays;
  * @since   1.0
  */
 
-@DefaultNonNull
+@NullMarked
 public  class StreamTokenizer {
 
     /* Only one of these will be non-null */

@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Random;
@@ -82,7 +82,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @since   1.3
  */
 
-@DefaultNonNull
+@NullMarked
 public final  class StrictMath {
 
     /**

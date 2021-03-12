@@ -26,7 +26,7 @@
 
 package javax.management.openmbean;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 
@@ -49,7 +49,7 @@ import java.util.Iterator;
  *
  * @since 1.5
  */
-@DefaultNonNull
+@NullMarked
 public class CompositeType extends OpenType<CompositeData> {
 
     /* Serial version */

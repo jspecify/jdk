@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -37,7 +37,7 @@ import org.jspecify.nullness.Nullable;
  * @author  Arthur van Hoff
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public class BufferedOutputStream extends FilterOutputStream {
     /**
      * The internal buffer where data is stored.

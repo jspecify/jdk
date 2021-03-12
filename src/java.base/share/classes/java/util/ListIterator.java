@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -60,7 +60,7 @@ import org.jspecify.nullness.Nullable;
  * @see List#listIterator()
  * @since   1.2
  */
-@DefaultNonNull
+@NullMarked
 public interface ListIterator<E extends @Nullable Object> extends Iterator<E> {
     // Query Operations
 

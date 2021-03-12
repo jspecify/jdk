@@ -25,7 +25,7 @@
 
 package java.util.logging;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.time.Instant;
@@ -75,7 +75,7 @@ import static jdk.internal.logger.SurrogateLogger.isFilteredFrame;
  * @since 1.4
  */
 
-@DefaultNonNull
+@NullMarked
 public  class LogRecord implements java.io.Serializable {
     private static final AtomicLong globalSequenceNumber
         = new AtomicLong(0);

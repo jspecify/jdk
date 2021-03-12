@@ -25,7 +25,7 @@
 
 package java.util.jar;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.zip.*;
@@ -45,7 +45,7 @@ import jdk.internal.util.jar.JarIndex;
  * @see     java.util.zip.ZipInputStream
  * @since   1.2
  */
-@DefaultNonNull
+@NullMarked
 public
 class JarInputStream extends ZipInputStream {
     private @Nullable Manifest man;

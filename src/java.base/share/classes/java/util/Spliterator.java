@@ -24,7 +24,7 @@
  */
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.function.Consumer;
@@ -296,7 +296,7 @@ import java.util.function.LongConsumer;
  * @see Collection
  * @since 1.8
  */
-@DefaultNonNull
+@NullMarked
 public interface Spliterator<T extends @Nullable Object> {
     /**
      * If a remaining element exists, performs the given action on it,

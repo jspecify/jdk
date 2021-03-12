@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.function.Consumer;
@@ -86,7 +86,7 @@ import jdk.internal.misc.SharedSecrets;
  * @param <E> the type of elements held in this queue
  */
 
-@DefaultNonNull
+@NullMarked
 @SuppressWarnings("unchecked")
 public class PriorityQueue<E> extends AbstractQueue<E>
     implements java.io.Serializable {

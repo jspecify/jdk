@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.math.FloatingDecimal;
@@ -49,7 +49,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @author  Joseph D. Darcy
  * @since 1.0
  */
-@DefaultNonNull
+@NullMarked
 public final class Double extends Number implements Comparable<Double> {
     /**
      * A constant holding the positive infinity of type

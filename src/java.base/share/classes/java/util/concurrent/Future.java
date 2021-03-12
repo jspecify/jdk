@@ -35,7 +35,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -88,7 +88,7 @@ import org.jspecify.nullness.Nullable;
  * @author Doug Lea
  * @param <V> The result type returned by this Future's {@code get} method
  */
-@DefaultNonNull
+@NullMarked
 public interface Future<V extends @Nullable Object> {
 
     /**

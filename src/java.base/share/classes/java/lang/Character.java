@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Arrays;
@@ -124,7 +124,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @author  Ulf Zibis
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public final
 class Character implements java.io.Serializable, Comparable<Character> {
     /**

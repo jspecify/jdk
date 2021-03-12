@@ -41,7 +41,7 @@
 
 package org.w3c.dom;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -56,7 +56,7 @@ import org.jspecify.nullness.Nullable;
  * <p><code>NamedNodeMap</code> objects in the DOM are live.
  * <p>See also the <a href='http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407'>Document Object Model (DOM) Level 3 Core Specification</a>.
  */
-@DefaultNonNull
+@NullMarked
 public interface NamedNodeMap {
     /**
      * Retrieves a node specified by name.

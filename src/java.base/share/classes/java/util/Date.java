@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.text.DateFormat;
@@ -133,7 +133,7 @@ import sun.util.calendar.ZoneInfo;
  * @see     java.util.TimeZone
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public class Date
     implements java.io.Serializable, Cloneable, Comparable<Date>
 {

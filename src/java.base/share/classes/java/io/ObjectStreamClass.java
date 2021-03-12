@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.ref.Reference;
@@ -81,7 +81,7 @@ import static java.io.ObjectStreamField.*;
  *     Object Serialization Specification, Section 4, Class Descriptors</a>
  * @since   1.1
  */
-@DefaultNonNull
+@NullMarked
 public class ObjectStreamClass implements Serializable {
 
     /** serialPersistentFields value indicating no serializable fields */

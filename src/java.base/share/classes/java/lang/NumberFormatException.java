@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -37,7 +37,7 @@ import org.jspecify.nullness.Nullable;
  * @see     java.lang.Integer#parseInt(String)
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
 class NumberFormatException extends IllegalArgumentException {
     static final long serialVersionUID = -2848938806368998894L;

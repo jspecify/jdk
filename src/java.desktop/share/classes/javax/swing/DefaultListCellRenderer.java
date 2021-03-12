@@ -25,7 +25,7 @@
 
 package javax.swing;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import javax.swing.*;
@@ -74,7 +74,7 @@ import sun.swing.SwingUtilities2;
  * @author Hans Muller
  * @since 1.2
  */
-@DefaultNonNull
+@NullMarked
 @SuppressWarnings("serial") // Same-version serialization only
 public class DefaultListCellRenderer extends JLabel
     implements ListCellRenderer<Object>, Serializable

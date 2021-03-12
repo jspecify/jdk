@@ -40,7 +40,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 import sun.util.ResourceBundleEnumeration;
 
@@ -117,7 +117,7 @@ import sun.util.ResourceBundleEnumeration;
  * @see PropertyResourceBundle
  * @since 1.1
  */
-@DefaultNonNull
+@NullMarked
 public abstract class ListResourceBundle extends ResourceBundle {
     /**
      * Sole constructor.  (For invocation by subclass constructors, typically

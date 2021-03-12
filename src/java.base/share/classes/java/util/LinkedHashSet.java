@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -119,7 +119,7 @@ import org.jspecify.nullness.Nullable;
  */
 
 
-@DefaultNonNull
+@NullMarked
 public class LinkedHashSet<E extends @Nullable Object>
     extends HashSet<E>
     implements Set<E>, Cloneable, java.io.Serializable {

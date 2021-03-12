@@ -25,7 +25,7 @@
 
 package java.lang.annotation;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -44,7 +44,7 @@ import org.jspecify.nullness.Nullable;
  * @author  Josh Bloch
  * @since   1.5
  */
-@DefaultNonNull
+@NullMarked
 public interface Annotation {
     /**
      * Returns true if the specified object represents an annotation

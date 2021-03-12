@@ -25,7 +25,7 @@
 
 package java.lang.reflect;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 
@@ -47,7 +47,7 @@ import org.jspecify.nullness.Nullable;
  *
  * @since 1.5
  */
-@DefaultNonNull
+@NullMarked
 public interface ParameterizedType extends Type {
     /**
      * Returns an array of {@code Type} objects representing the actual type

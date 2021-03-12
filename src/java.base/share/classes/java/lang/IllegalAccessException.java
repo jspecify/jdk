@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -59,7 +59,7 @@ import org.jspecify.nullness.Nullable;
  * @see     java.lang.reflect.Constructor#newInstance(Object[])
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public class IllegalAccessException extends ReflectiveOperationException {
     private static final long serialVersionUID = 6616958222490762034L;
 

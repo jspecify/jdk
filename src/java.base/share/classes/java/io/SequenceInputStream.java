@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.InputStream;
@@ -45,7 +45,7 @@ import java.util.Vector;
  * @author  Author van Hoff
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
 class SequenceInputStream extends InputStream {
     Enumeration<? extends InputStream> e;

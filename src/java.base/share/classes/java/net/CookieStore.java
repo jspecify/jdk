@@ -25,7 +25,7 @@
 
 package java.net;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +42,7 @@ import java.util.Map;
  * @author Edward Wang
  * @since 1.6
  */
-@DefaultNonNull
+@NullMarked
 public interface CookieStore {
     /**
      * Adds one HTTP cookie to the store. This is called for every

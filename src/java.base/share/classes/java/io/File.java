@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.net.URI;
@@ -149,7 +149,7 @@ import sun.security.action.GetPropertyAction;
  */
 
 
-@DefaultNonNull
+@NullMarked
 public class File
     implements Serializable, Comparable<File>
 {

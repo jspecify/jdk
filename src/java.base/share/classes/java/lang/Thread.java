@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.ref.Reference;
@@ -142,7 +142,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @see     #stop()
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
  class Thread implements Runnable {
     /* Make sure registerNatives is the first thing <clinit> does. */

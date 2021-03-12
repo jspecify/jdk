@@ -24,7 +24,7 @@
  */
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.function.Consumer;
@@ -61,7 +61,7 @@ import java.util.stream.Stream;
  * @since 1.8
  */
 
-@DefaultNonNull
+@NullMarked
 
 public final  class Optional<T> {
     /**

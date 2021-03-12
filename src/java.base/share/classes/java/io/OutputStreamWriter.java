@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.nio.CharBuffer;
@@ -76,7 +76,7 @@ import sun.nio.cs.StreamEncoder;
  * @since       1.1
  */
 
-@DefaultNonNull
+@NullMarked
 public class OutputStreamWriter extends Writer {
 
     private final StreamEncoder se;

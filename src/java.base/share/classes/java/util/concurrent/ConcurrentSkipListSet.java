@@ -35,7 +35,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.reflect.Field;
@@ -95,7 +95,7 @@ import java.util.Spliterator;
  * @param <E> the type of elements maintained by this set
  * @since 1.6
  */
-@DefaultNonNull
+@NullMarked
 public class ConcurrentSkipListSet<E>
     extends AbstractSet<E>
     implements NavigableSet<E>, Cloneable, java.io.Serializable {

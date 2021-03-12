@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.ref.*;
@@ -55,7 +55,7 @@ import java.lang.ref.*;
  */
 
 
-@DefaultNonNull
+@NullMarked
 public class InheritableThreadLocal< T extends @Nullable Object> extends ThreadLocal<T> {
     /**
      * Computes the child's initial value for this inheritable thread-local

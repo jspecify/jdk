@@ -25,7 +25,7 @@
 
 package javax.net.ssl;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.security.Principal;
@@ -40,7 +40,7 @@ import java.security.Principal;
  * @since 1.5
  * @author Brad R. Wetmore
  */
-@DefaultNonNull
+@NullMarked
 public abstract class X509ExtendedKeyManager implements X509KeyManager {
 
     /**

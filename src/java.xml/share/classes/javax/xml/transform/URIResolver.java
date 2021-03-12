@@ -25,7 +25,7 @@
 
 package javax.xml.transform;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -34,7 +34,7 @@ import org.jspecify.nullness.Nullable;
  *
  * @since 1.4
  */
-@DefaultNonNull
+@NullMarked
 public interface URIResolver {
 
     /**

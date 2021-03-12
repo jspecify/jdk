@@ -25,7 +25,7 @@
 
 package javax.tools;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.Writer;
@@ -220,7 +220,7 @@ import javax.annotation.processing.Processor;
  * @see JavaFileManager
  * @since 1.6
  */
-@DefaultNonNull
+@NullMarked
 public interface JavaCompiler extends Tool, OptionChecker {
 
     /**

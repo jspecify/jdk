@@ -25,7 +25,7 @@
 
 package java.lang.reflect;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.misc.SharedSecrets;
@@ -66,7 +66,7 @@ import sun.reflect.annotation.TypeAnnotationParser;
  * @since 1.1
  */
 
-@DefaultNonNull
+@NullMarked
 public final
 class Field extends AccessibleObject implements Member {
 

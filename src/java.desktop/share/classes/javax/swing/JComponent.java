@@ -24,7 +24,7 @@
  */
 package javax.swing;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.beans.*;
@@ -174,7 +174,7 @@ import sun.swing.SwingUtilities2;
  * @author Arnaud Weber
  * @since 1.2
  */
-@DefaultNonNull
+@NullMarked
 
 @JavaBean(defaultProperty = "UIClassID")
 @SuppressWarnings("serial") // Same-version serialization only

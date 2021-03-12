@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.ObjectStreamClass.WeakClassKey;
@@ -230,7 +230,7 @@ import sun.reflect.misc.ReflectUtil;
  *     Object Serialization Specification, Section 3, Object Input Classes</a>
  * @since   1.1
  */
-@DefaultNonNull
+@NullMarked
 public class ObjectInputStream
     extends InputStream implements ObjectInput, ObjectStreamConstants
 {

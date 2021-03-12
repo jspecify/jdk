@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -44,7 +44,7 @@ import org.jspecify.nullness.Nullable;
  * @author  Frank Yellin
  * @since   1.1
  */
-@DefaultNonNull
+@NullMarked
 public class ExceptionInInitializerError extends LinkageError {
     /**
      * Use serialVersionUID from JDK 1.1.X for interoperability

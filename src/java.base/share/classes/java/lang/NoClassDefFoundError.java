@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -41,7 +41,7 @@ import org.jspecify.nullness.Nullable;
  * @author  unascribed
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
 class NoClassDefFoundError extends LinkageError {
     private static final long serialVersionUID = 9095859863287012458L;

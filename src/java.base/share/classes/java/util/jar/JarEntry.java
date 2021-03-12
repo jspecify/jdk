@@ -25,7 +25,7 @@
 
 package java.util.jar;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -38,7 +38,7 @@ import java.security.cert.Certificate;
  *
  * @since 1.2
  */
-@DefaultNonNull
+@NullMarked
 public
 class JarEntry extends ZipEntry {
     Attributes attr;

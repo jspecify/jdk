@@ -35,7 +35,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.invoke.MethodHandles;
@@ -96,7 +96,7 @@ import java.util.function.Predicate;
  * @author Martin Buchholz
  * @param <E> the type of elements held in this deque
  */
-@DefaultNonNull
+@NullMarked
 public class ConcurrentLinkedDeque<E>
     extends AbstractCollection<E>
     implements Deque<E>, java.io.Serializable {

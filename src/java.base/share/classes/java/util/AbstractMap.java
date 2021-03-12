@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Map.Entry;
@@ -70,7 +70,7 @@ import java.util.Map.Entry;
  */
 
 
-@DefaultNonNull
+@NullMarked
 public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable Object> implements Map<K,V> {
     /**
      * Sole constructor.  (For invocation by subclass constructors, typically

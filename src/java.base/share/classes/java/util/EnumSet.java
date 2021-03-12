@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.misc.SharedSecrets;
@@ -79,7 +79,7 @@ import jdk.internal.misc.SharedSecrets;
  * @since 1.5
  * @see EnumMap
  */
-@DefaultNonNull
+@NullMarked
 @SuppressWarnings("serial") // No serialVersionUID due to usage of
                             // serial proxy pattern
 public abstract class EnumSet<E extends Enum<E>> extends AbstractSet<E>

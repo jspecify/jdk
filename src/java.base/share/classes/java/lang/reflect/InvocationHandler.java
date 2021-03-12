@@ -25,7 +25,7 @@
 
 package java.lang.reflect;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -41,7 +41,7 @@ import org.jspecify.nullness.Nullable;
  * @see         Proxy
  * @since       1.3
  */
-@DefaultNonNull
+@NullMarked
 public interface InvocationHandler {
 
     /**

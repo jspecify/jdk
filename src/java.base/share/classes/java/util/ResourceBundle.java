@@ -40,7 +40,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -376,7 +376,7 @@ import static sun.security.util.SecurityConstants.GET_CLASSLOADER_PERMISSION;
  * @revised 9
  * @spec JPMS
  */
-@DefaultNonNull
+@NullMarked
 public abstract class ResourceBundle {
 
     /** initial size of the bundle cache */

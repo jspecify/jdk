@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 
@@ -41,7 +41,7 @@ import org.jspecify.nullness.Nullable;
  * @since       1.1
  */
 
-@DefaultNonNull
+@NullMarked
 public abstract class FilterReader extends Reader {
 
     /**

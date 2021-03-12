@@ -24,7 +24,7 @@
  */
 package java.util.stream;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.nio.file.Files;
@@ -167,7 +167,7 @@ import java.util.function.UnaryOperator;
  * @see DoubleStream
  * @see <a href="package-summary.html">java.util.stream</a>
  */
-@DefaultNonNull
+@NullMarked
 public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream<T>> {
 
     /**

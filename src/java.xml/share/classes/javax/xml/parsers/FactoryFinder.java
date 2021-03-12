@@ -25,7 +25,7 @@
 
 package javax.xml.parsers;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.File;
@@ -46,7 +46,7 @@ import jdk.xml.internal.SecuritySupport;
  *
  * @author Santiago PericasGeertsen
  */
-@DefaultNonNull
+@NullMarked
 class FactoryFinder {
     private static final String DEFAULT_PACKAGE = "com.sun.org.apache.xerces.internal";
     /**

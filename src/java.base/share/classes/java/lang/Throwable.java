@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 import  java.io.*;
 import  java.util.*;
@@ -114,7 +114,7 @@ import  java.util.*;
  * @jls 11.2 Compile-Time Checking of Exceptions
  * @since 1.0
  */
-@DefaultNonNull
+@NullMarked
 public  class Throwable implements Serializable {
     /** use serialVersionUID from JDK 1.0.2 for interoperability */
     private static final long serialVersionUID = -3042686055658047285L;

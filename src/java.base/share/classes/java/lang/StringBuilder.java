@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
@@ -85,7 +85,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @see         java.lang.String
  * @since       1.5
  */
-@DefaultNonNull
+@NullMarked
 public final class StringBuilder
     extends AbstractStringBuilder
     implements java.io.Serializable, Comparable<StringBuilder>, CharSequence

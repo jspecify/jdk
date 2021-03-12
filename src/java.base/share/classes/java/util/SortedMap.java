@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -114,7 +114,7 @@ import org.jspecify.nullness.Nullable;
  */
 
 
-@DefaultNonNull
+@NullMarked
 public interface SortedMap<K extends @Nullable Object,V extends @Nullable Object> extends Map<K,V> {
     /**
      * Returns the comparator used to order the keys in this map, or

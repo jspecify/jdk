@@ -35,7 +35,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -205,7 +205,7 @@ import org.jspecify.nullness.Nullable;
  * @param <E> the type of elements held in this deque
  */
 
-@DefaultNonNull
+@NullMarked
 public interface Deque<E extends @Nullable Object> extends Queue<E> {
     /**
      * Inserts the specified element at the front of this deque if it is

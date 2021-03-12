@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.function.Consumer;
@@ -163,7 +163,7 @@ import java.io.IOException;
  * @see     Hashtable
  * @since   1.4
  */
-@DefaultNonNull
+@NullMarked
 public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object>
     extends HashMap<K,V>
     implements Map<K,V>

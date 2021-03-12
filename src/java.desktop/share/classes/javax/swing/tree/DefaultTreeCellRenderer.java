@@ -25,7 +25,7 @@
 
 package javax.swing.tree;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.awt.Color;
@@ -130,7 +130,7 @@ import sun.swing.SwingUtilities2;
  * @author Ray Ryan
  * @author Scott Violet
  */
-@DefaultNonNull
+@NullMarked
 @SuppressWarnings("serial") // Same-version serialization only
 public class DefaultTreeCellRenderer extends JLabel implements TreeCellRenderer
 {

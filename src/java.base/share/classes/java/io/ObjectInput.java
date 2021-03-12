@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -39,7 +39,7 @@ import org.jspecify.nullness.Nullable;
  * @see java.io.ObjectInputStream
  * @since   1.1
  */
-@DefaultNonNull
+@NullMarked
 public interface ObjectInput extends DataInput, AutoCloseable {
     /**
      * Read and return an object. The class that implements this interface

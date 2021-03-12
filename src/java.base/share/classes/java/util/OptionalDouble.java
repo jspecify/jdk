@@ -24,7 +24,7 @@
  */
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.function.DoubleConsumer;
@@ -57,7 +57,7 @@ import java.util.stream.DoubleStream;
  *
  * @since 1.8
  */
-@DefaultNonNull
+@NullMarked
 public final class OptionalDouble {
     /**
      * Common instance for {@code empty()}.

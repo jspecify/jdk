@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -36,7 +36,7 @@ import org.jspecify.nullness.Nullable;
  *
  * @since  1.5
  */
-@DefaultNonNull
+@NullMarked
 public  class FormattableFlags {
 
     // Explicit instantiation of this class is prohibited.

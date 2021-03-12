@@ -25,7 +25,7 @@
 
 package java.net;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.Closeable;
@@ -83,7 +83,7 @@ import sun.security.util.SecurityConstants;
  * @author  David Connelly
  * @since   1.2
  */
-@DefaultNonNull
+@NullMarked
 public class URLClassLoader extends SecureClassLoader implements Closeable {
     /* The search path for classes and resources */
     private final URLClassPath ucp;

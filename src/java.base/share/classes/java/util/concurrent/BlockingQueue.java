@@ -35,7 +35,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Collection;
@@ -179,7 +179,7 @@ import java.util.Queue;
  * @author Doug Lea
  * @param <E> the type of elements held in this queue
  */
-@DefaultNonNull
+@NullMarked
 public interface BlockingQueue<E> extends Queue<E> {
     /**
      * Inserts the specified element into this queue if it is possible to do

@@ -24,7 +24,7 @@
  */
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.BufferedInputStream;
@@ -91,7 +91,7 @@ import sun.security.util.SecurityConstants;
  *
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public final  class System {
     /* Register the natives via the static initializer.
      *

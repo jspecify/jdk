@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.annotation.*;
@@ -51,7 +51,7 @@ import java.lang.annotation.*;
  * @jls 9.6.4.4 @Override
  * @since 1.5
  */
-@DefaultNonNull
+@NullMarked
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.SOURCE)
 public @interface Override {

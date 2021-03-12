@@ -25,7 +25,7 @@
 
 package javax.xml.parsers;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl;
@@ -41,7 +41,7 @@ import javax.xml.validation.Schema;
  * @since 1.4
  */
 
-@DefaultNonNull
+@NullMarked
 public abstract class DocumentBuilderFactory {
 
     private boolean validating = false;

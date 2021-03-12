@@ -24,7 +24,7 @@
  */
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.function.DoubleConsumer;
@@ -64,7 +64,7 @@ import java.util.stream.DoubleStream;
  * safe and efficient parallel execution.
  * @since 1.8
  */
-@DefaultNonNull
+@NullMarked
 public class DoubleSummaryStatistics implements DoubleConsumer {
     private long count;
     private double sum;

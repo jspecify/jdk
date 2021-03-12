@@ -24,7 +24,7 @@
  */
 package java.util.stream;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.AbstractMap;
@@ -104,7 +104,7 @@ import java.util.function.ToLongFunction;
  *
  * @since 1.8
  */
-@DefaultNonNull
+@NullMarked
 public final class Collectors {
 
     static final Set<Collector.Characteristics> CH_CONCURRENT_ID

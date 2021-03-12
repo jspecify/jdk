@@ -38,7 +38,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -331,7 +331,7 @@ import sun.util.calendar.ZoneInfo;
  * @author David Goldsmith, Mark Davis, Chen-Lieh Huang, Alan Liu
  * @since 1.1
  */
-@DefaultNonNull
+@NullMarked
 public class GregorianCalendar extends Calendar {
     /*
      * Implementation Notes

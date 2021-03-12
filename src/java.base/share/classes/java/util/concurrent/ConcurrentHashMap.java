@@ -35,7 +35,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.ObjectStreamField;
@@ -264,7 +264,7 @@ import jdk.internal.misc.Unsafe;
  * @param <K> the type of keys maintained by this map
  * @param <V> the type of mapped values
  */
-@DefaultNonNull
+@NullMarked
 public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     implements ConcurrentMap<K,V>, Serializable {
     private static final long serialVersionUID = 7249069246763182397L;

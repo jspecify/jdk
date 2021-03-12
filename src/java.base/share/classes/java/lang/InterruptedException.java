@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -49,7 +49,7 @@ import org.jspecify.nullness.Nullable;
  * @see     java.lang.Thread#interrupted()
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
 class InterruptedException extends Exception {
     private static final long serialVersionUID = 6700697376100628473L;

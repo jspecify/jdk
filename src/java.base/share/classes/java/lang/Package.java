@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.annotation.Annotation;
@@ -120,7 +120,7 @@ import jdk.internal.reflect.Reflection;
  * @revised 9
  * @spec JPMS
  */
-@DefaultNonNull
+@NullMarked
 public  class Package extends NamedPackage implements java.lang.reflect.AnnotatedElement {
     /**
      * Return the name of this package.

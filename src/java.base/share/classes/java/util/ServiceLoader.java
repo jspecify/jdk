@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.BufferedReader;
@@ -390,7 +390,7 @@ import jdk.internal.reflect.Reflection;
  * @spec JPMS
  */
 
-@DefaultNonNull
+@NullMarked
 public final  class ServiceLoader<S extends @Nullable Object>
     implements Iterable<S>
 {

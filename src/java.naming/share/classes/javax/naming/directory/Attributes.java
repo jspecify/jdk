@@ -26,7 +26,7 @@
 
 package javax.naming.directory;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Hashtable;
@@ -71,7 +71,7 @@ import javax.naming.NamingEnumeration;
   * @since 1.3
   */
 
-@DefaultNonNull
+@NullMarked
 public interface Attributes extends Cloneable, java.io.Serializable {
     /**
       * Determines whether the attribute set ignores the case of

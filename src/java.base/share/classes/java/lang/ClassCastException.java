@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -40,7 +40,7 @@ import org.jspecify.nullness.Nullable;
  * @author  unascribed
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
 class ClassCastException extends RuntimeException {
     private static final long serialVersionUID = -9223365651070458532L;

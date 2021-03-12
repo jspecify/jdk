@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -45,7 +45,7 @@ import org.jspecify.nullness.Nullable;
  * @author  Jonathan Payne
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
 class FilterInputStream extends InputStream {
     /**

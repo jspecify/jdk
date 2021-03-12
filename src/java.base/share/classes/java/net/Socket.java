@@ -25,7 +25,7 @@
 
 package java.net;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.InputStream;
@@ -55,7 +55,7 @@ import java.util.Collections;
  * @see     java.nio.channels.SocketChannel
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
  class Socket implements java.io.Closeable {
     /**

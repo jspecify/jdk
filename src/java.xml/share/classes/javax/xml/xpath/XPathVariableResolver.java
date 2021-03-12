@@ -25,7 +25,7 @@
 
 package javax.xml.xpath;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import javax.xml.namespace.QName;
@@ -44,7 +44,7 @@ import javax.xml.namespace.QName;
  * @author  Jeff Suttor
  * @since 1.5
  */
-@DefaultNonNull
+@NullMarked
 public interface XPathVariableResolver {
   /**
    * <p>Find a variable in the set of available variables.</p>

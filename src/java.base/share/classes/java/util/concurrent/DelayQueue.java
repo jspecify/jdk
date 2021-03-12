@@ -35,7 +35,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -76,7 +76,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author Doug Lea
  * @param <E> the type of elements held in this queue
  */
-@DefaultNonNull
+@NullMarked
 public class DelayQueue<E extends  Delayed> extends AbstractQueue<E>
     implements BlockingQueue<E> {
 

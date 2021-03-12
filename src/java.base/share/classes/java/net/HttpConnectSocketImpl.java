@@ -25,7 +25,7 @@
 
 package java.net;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -44,7 +44,7 @@ import java.util.Set;
  * @since 1.8
  */
 
-/*package*/@DefaultNonNull class HttpConnectSocketImpl extends PlainSocketImpl {
+/*package*/@NullMarked class HttpConnectSocketImpl extends PlainSocketImpl {
 
     private static final String httpURLClazzStr =
                                   "sun.net.www.protocol.http.HttpURLConnection";

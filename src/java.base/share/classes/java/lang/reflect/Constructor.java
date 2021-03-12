@@ -25,7 +25,7 @@
 
 package java.lang.reflect;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.misc.SharedSecrets;
@@ -65,7 +65,7 @@ import java.util.StringJoiner;
  * @since 1.1
  */
 
-@DefaultNonNull
+@NullMarked
 
 public final class Constructor<T> extends Executable {
     private Class<T>            clazz;

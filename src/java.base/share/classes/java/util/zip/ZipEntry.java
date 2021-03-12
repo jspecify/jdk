@@ -25,7 +25,7 @@
 
 package java.util.zip;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 import static java.util.zip.ZipUtils.*;
 import java.nio.file.attribute.FileTime;
@@ -43,7 +43,7 @@ import static java.util.zip.ZipConstants64.*;
  * @author      David Connelly
  * @since 1.1
  */
-@DefaultNonNull
+@NullMarked
 public
  class ZipEntry implements ZipConstants, Cloneable {
 

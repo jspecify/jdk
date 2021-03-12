@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.InputStream;
@@ -232,7 +232,7 @@ import sun.security.util.SecurityConstants;
  * @revised 9
  * @spec JPMS
  */
-@DefaultNonNull
+@NullMarked
 public abstract  class ClassLoader {
 
     private static native void registerNatives();

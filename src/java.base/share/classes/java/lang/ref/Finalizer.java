@@ -25,7 +25,7 @@
 
 package java.lang.ref;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.security.PrivilegedAction;
@@ -34,7 +34,7 @@ import jdk.internal.misc.JavaLangAccess;
 import jdk.internal.misc.SharedSecrets;
 import jdk.internal.misc.VM;
 
-@DefaultNonNull
+@NullMarked
 @SuppressWarnings({"rawtypes"})
 final class Finalizer extends FinalReference<Object> { /* Package-private; must be in
                                                           same package as the Reference

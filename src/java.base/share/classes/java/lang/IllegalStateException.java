@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -37,7 +37,7 @@ import org.jspecify.nullness.Nullable;
  * @author  Jonni Kanerva
  * @since   1.1
  */
-@DefaultNonNull
+@NullMarked
 public
 class IllegalStateException extends RuntimeException {
     /**

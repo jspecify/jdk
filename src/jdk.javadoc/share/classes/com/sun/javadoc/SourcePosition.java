@@ -25,7 +25,7 @@
 
 package com.sun.javadoc;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 import java.io.File;
 
@@ -42,7 +42,7 @@ import java.io.File;
  *   in the package {@code jdk.javadoc.doclet}.
  *   For more information, see the <i>Migration Guide</i> in the documentation for that package.
  */
-@DefaultNonNull
+@NullMarked
 @Deprecated(since="9", forRemoval=true)
 @SuppressWarnings("removal")
 public interface SourcePosition {

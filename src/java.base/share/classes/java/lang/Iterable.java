@@ -24,7 +24,7 @@
  */
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Iterator;
@@ -42,7 +42,7 @@ import java.util.function.Consumer;
  * @since 1.5
  * @jls 14.14.2 The enhanced {@code for} statement
  */
-@DefaultNonNull
+@NullMarked
 public interface Iterable<T extends @Nullable Object> {
     /**
      * Returns an iterator over elements of type {@code T}.

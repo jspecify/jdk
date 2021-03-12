@@ -34,7 +34,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.Serializable;
@@ -90,7 +90,7 @@ import jdk.internal.misc.SharedSecrets;
  * @param <E> the type of elements held in this deque
  * @since   1.6
  */
-@DefaultNonNull
+@NullMarked
 public class ArrayDeque<E> extends AbstractCollection<E>
                            implements Deque<E>, Cloneable, Serializable
 {

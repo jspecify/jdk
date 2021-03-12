@@ -24,7 +24,7 @@
  */
 package sun.swing;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 import java.awt.Color;
 import java.awt.Insets;
@@ -47,7 +47,7 @@ import sun.awt.AppContext;
  *
  * @author Scott Violet
  */
-@DefaultNonNull
+@NullMarked
 public class DefaultLookup {
     /**
      * Key used to store DefaultLookup for AppContext.

@@ -25,7 +25,7 @@
 
 package java.lang.reflect;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
@@ -68,7 +68,7 @@ import java.util.StringJoiner;
  * @author Nakul Saraiya
  * @since 1.1
  */
-@DefaultNonNull
+@NullMarked
 @SuppressWarnings({"rawtypes"})
 public final class Method extends Executable {
     private Class<?>            clazz;

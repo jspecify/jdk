@@ -24,7 +24,7 @@
  */
 package java.util.stream;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.nio.charset.Charset;
@@ -64,7 +64,7 @@ import java.util.function.Predicate;
  * @see DoubleStream
  * @see <a href="package-summary.html">java.util.stream</a>
  */
-@DefaultNonNull
+@NullMarked
 public interface BaseStream<T extends @Nullable Object, S extends BaseStream<T, S>>
         extends AutoCloseable {
     /**

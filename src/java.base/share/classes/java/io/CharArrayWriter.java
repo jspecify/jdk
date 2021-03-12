@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Arrays;
@@ -42,7 +42,7 @@ import java.util.Arrays;
  * @author      Herb Jellinek
  * @since       1.1
  */
-@DefaultNonNull
+@NullMarked
 public
 class CharArrayWriter extends Writer {
     /**

@@ -35,7 +35,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Deque;
@@ -198,7 +198,7 @@ import java.util.NoSuchElementException;
  * @author Doug Lea
  * @param <E> the type of elements held in this deque
  */
-@DefaultNonNull
+@NullMarked
 public interface BlockingDeque<E> extends BlockingQueue<E>, Deque<E> {
     /*
      * We have "diamond" multiple interface inheritance here, and that

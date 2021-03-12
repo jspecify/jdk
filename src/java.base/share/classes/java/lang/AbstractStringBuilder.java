@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.math.FloatingDecimal;
@@ -56,7 +56,7 @@ import static java.lang.String.checkOffset;
  * @author      Ulf Zibis
  * @since       1.5
  */
-@DefaultNonNull
+@NullMarked
 abstract  class AbstractStringBuilder implements Appendable, CharSequence {
     /**
      * The value is used for character storage.

@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -35,7 +35,7 @@ import org.jspecify.nullness.Nullable;
  * @author unascribed
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
 class UnknownError extends VirtualMachineError {
     private static final long serialVersionUID = 2524784860676771849L;

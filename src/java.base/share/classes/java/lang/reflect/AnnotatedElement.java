@@ -25,7 +25,7 @@
 
 package java.lang.reflect;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.annotation.Annotation;
@@ -254,7 +254,7 @@ import sun.reflect.annotation.AnnotationType;
  * @since 1.5
  * @author Josh Bloch
  */
-@DefaultNonNull
+@NullMarked
 public interface AnnotatedElement {
     /**
      * Returns true if an annotation for the specified type

@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -36,7 +36,7 @@ import org.jspecify.nullness.Nullable;
  * @author  unascribed
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
 class ClassFormatError extends LinkageError {
     private static final long serialVersionUID = -8420114879011949195L;

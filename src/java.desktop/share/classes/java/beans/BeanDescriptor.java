@@ -24,7 +24,7 @@
  */
 package java.beans;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 
@@ -41,7 +41,7 @@ import javax.swing.SwingContainer;
  * @since 1.1
  */
 
-@DefaultNonNull
+@NullMarked
 public class BeanDescriptor extends FeatureDescriptor {
 
     private Reference<? extends Class<?>> beanClassRef;

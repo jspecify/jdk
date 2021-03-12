@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -138,7 +138,7 @@ import jdk.internal.misc.SharedSecrets;
  * @see     Hashtable
  * @since   1.2
  */
-@DefaultNonNull
+@NullMarked
 public class HashMap<K extends @Nullable Object,V extends @Nullable Object> extends AbstractMap<K,V>
     implements Map<K,V>, Cloneable, Serializable {
 

@@ -24,7 +24,7 @@
  */
 package javax.swing;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import javax.swing.event.*;
@@ -87,7 +87,7 @@ import java.lang.ref.WeakReference;
  * @author Jeff Dinkins
  * @since 1.2
  */
-@DefaultNonNull
+@NullMarked
 @JavaBean(defaultProperty = "UI", description = "A component which allows for the interactive selection of a file.")
 @SwingContainer(false)
 @SuppressWarnings("serial") // Superclass is not serializable across versions

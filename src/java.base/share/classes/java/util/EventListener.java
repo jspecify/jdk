@@ -25,13 +25,13 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
  * A tagging interface that all event listener interfaces must extend.
  * @since 1.1
  */
-@DefaultNonNull
+@NullMarked
 public interface EventListener {
 }

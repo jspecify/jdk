@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -38,7 +38,7 @@ import org.jspecify.nullness.Nullable;
  * @since  1.4
  * @author Josh Bloch
  */
-@DefaultNonNull
+@NullMarked
 class AssertionStatusDirectives {
     /**
      * The classes for which assertions are to be enabled or disabled.

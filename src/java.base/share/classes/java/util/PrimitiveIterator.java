@@ -24,7 +24,7 @@
  */
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.function.Consumer;
@@ -68,7 +68,7 @@ import java.util.function.LongConsumer;
  *
  * @since 1.8
  */
-@DefaultNonNull
+@NullMarked
 public interface PrimitiveIterator<T extends @Nullable Object, T_CONS extends @Nullable Object> extends Iterator<T> {
 
     /**

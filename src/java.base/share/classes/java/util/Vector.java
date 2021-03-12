@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -91,7 +91,7 @@ import java.util.function.UnaryOperator;
  * @since   1.0
  */
 
-@DefaultNonNull
+@NullMarked
 public class Vector<E extends @Nullable Object>
     extends AbstractList<E>
     implements List<E>, RandomAccess, Cloneable, java.io.Serializable

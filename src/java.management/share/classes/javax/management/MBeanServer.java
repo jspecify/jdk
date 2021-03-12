@@ -25,7 +25,7 @@
 
 package javax.management;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 
@@ -261,7 +261,7 @@ import javax.management.loading.ClassLoaderRepository;
  * MBeanPermission#MBeanPermission(String,String,ObjectName,String)
  * MBeanPermission(null, null, name, "isRegistered")}.</p>
  */
-@DefaultNonNull
+@NullMarked
 public interface MBeanServer extends MBeanServerConnection {
 
     /**

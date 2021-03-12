@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.NoSuchElementException;
@@ -60,7 +60,7 @@ import java.util.stream.StreamSupport;
  * @spec JSR-51
  */
 
-@DefaultNonNull
+@NullMarked
 public interface CharSequence {
 
     /**

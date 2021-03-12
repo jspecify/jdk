@@ -38,7 +38,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.ObjectInputStream;
@@ -151,7 +151,7 @@ import sun.util.calendar.Gregorian;
  * @author   David Goldsmith, Mark Davis, Chen-Lieh Huang, Alan Liu
  */
 
-@DefaultNonNull
+@NullMarked
 public class SimpleTimeZone extends TimeZone {
     /**
      * Constructs a SimpleTimeZone with the given base time zone offset from GMT

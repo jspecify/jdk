@@ -25,13 +25,13 @@
 
 package java.lang.ref;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
  * Final references, used to implement finalization
  */
-@DefaultNonNull
+@NullMarked
 class FinalReference<T extends @Nullable Object> extends Reference<T> {
 
     public FinalReference(T referent, ReferenceQueue<? super T> q) {

@@ -24,7 +24,7 @@
  */
 package java.awt;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowEvent;
@@ -138,7 +138,7 @@ import sun.awt.SunToolkit;
  * @see Window#addWindowListener
  * @since       1.0
  */
-@DefaultNonNull
+@NullMarked
 public class Frame extends Window implements MenuContainer {
 
     /* Note: These are being obsoleted;  programs should use the Cursor class

@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.*;
@@ -92,7 +92,7 @@ import java.util.stream.Stream;
  *
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public abstract  class Process {
     /**
      * Default constructor for Process.

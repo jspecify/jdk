@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.annotation.Annotation;
@@ -154,7 +154,7 @@ import sun.reflect.misc.ReflectUtil;
  * @since   1.0
  */
 
-@DefaultNonNull
+@NullMarked
 
 public final  class Class< T> implements java.io.Serializable,
                               GenericDeclaration,

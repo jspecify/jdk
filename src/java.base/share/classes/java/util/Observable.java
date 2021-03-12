@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -76,7 +76,7 @@ import org.jspecify.nullness.Nullable;
  * {@link java.util.concurrent.Flow} API.
  */
 
-@DefaultNonNull
+@NullMarked
 @Deprecated(since="9")
 public  class Observable {
     private boolean changed = false;

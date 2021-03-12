@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.nio.CharBuffer;
@@ -53,7 +53,7 @@ import java.util.Objects;
  * @since       1.1
  */
 
-@DefaultNonNull
+@NullMarked
 public abstract  class Reader implements Readable, Closeable {
 
     private static final int TRANSFER_BUFFER_SIZE = 8192;

@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.nio.channels.FileChannel;
@@ -64,7 +64,7 @@ import sun.nio.ch.FileChannelImpl;
  * @see     java.nio.file.Files#newInputStream
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
 class FileInputStream extends InputStream
 {

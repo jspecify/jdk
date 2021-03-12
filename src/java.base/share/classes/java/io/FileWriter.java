@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.nio.charset.Charset;
@@ -54,7 +54,7 @@ import java.nio.charset.Charset;
  * @since       1.1
  */
 
-@DefaultNonNull
+@NullMarked
 public class FileWriter extends OutputStreamWriter {
 
     /**

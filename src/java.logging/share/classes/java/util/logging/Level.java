@@ -25,7 +25,7 @@
 
 package java.util.logging;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.ref.Reference;
@@ -78,7 +78,7 @@ import jdk.internal.misc.SharedSecrets;
  * @since 1.4
  */
 
-@DefaultNonNull
+@NullMarked
 public  class Level implements java.io.Serializable {
     private static final String defaultBundle =
         "sun.util.logging.resources.logging";

@@ -35,7 +35,7 @@
 
 package java.util.concurrent.atomic;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -57,7 +57,7 @@ import java.util.function.UnaryOperator;
  * @param <E> The base class of elements held in this array
  */
 @AnnotatedFor({"interning"})
-@DefaultNonNull
+@NullMarked
 public @UsesObjectEquals class AtomicReferenceArray<E extends @Nullable Object> implements java.io.Serializable {
     private static final long serialVersionUID = -6209656149925076980L;
     private static final VarHandle AA

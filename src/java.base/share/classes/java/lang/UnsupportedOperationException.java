@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -38,7 +38,7 @@ import org.jspecify.nullness.Nullable;
  * @author  Josh Bloch
  * @since   1.2
  */
-@DefaultNonNull
+@NullMarked
 public class UnsupportedOperationException extends RuntimeException {
     /**
      * Constructs an UnsupportedOperationException with no detail message.

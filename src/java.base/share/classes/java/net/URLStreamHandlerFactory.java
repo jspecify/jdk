@@ -25,7 +25,7 @@
 
 package java.net;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -40,7 +40,7 @@ import org.jspecify.nullness.Nullable;
  * @see     java.net.URLStreamHandler
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public interface URLStreamHandlerFactory {
     /**
      * Creates a new {@code URLStreamHandler} instance with the specified

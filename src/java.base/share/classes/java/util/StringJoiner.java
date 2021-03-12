@@ -24,7 +24,7 @@
  */
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -65,7 +65,7 @@ import org.jspecify.nullness.Nullable;
  * @see java.util.stream.Collectors#joining(CharSequence, CharSequence, CharSequence)
  * @since  1.8
 */
-@DefaultNonNull
+@NullMarked
 public final class StringJoiner {
     private final String prefix;
     private final String delimiter;

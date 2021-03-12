@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.reflect.Field;
@@ -42,7 +42,7 @@ import sun.reflect.misc.ReflectUtil;
  * @see ObjectStreamClass
  * @since 1.2
  */
-@DefaultNonNull
+@NullMarked
 public  class ObjectStreamField
     implements Comparable<Object>
 {

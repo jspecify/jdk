@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.BufferedWriter;
@@ -1915,7 +1915,7 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  * @author  Iris Clark
  * @since 1.5
  */
-@DefaultNonNull
+@NullMarked
 public final class Formatter implements Closeable, Flushable {
     private Appendable a;
     private final Locale l;

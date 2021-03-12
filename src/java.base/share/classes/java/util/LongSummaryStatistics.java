@@ -24,7 +24,7 @@
  */
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.function.IntConsumer;
@@ -66,7 +66,7 @@ import java.util.stream.Collector;
  * <p>This implementation does not check for overflow of the sum.
  * @since 1.8
  */
-@DefaultNonNull
+@NullMarked
 public class LongSummaryStatistics implements LongConsumer, IntConsumer {
     private long count;
     private long sum;

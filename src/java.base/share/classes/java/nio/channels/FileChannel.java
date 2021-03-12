@@ -25,7 +25,7 @@
 
 package java.nio.channels;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.*;
@@ -155,7 +155,7 @@ import java.util.Collections;
  * @since 1.4
  */
 
-@DefaultNonNull
+@NullMarked
 public abstract class FileChannel
     extends AbstractInterruptibleChannel
     implements SeekableByteChannel, GatheringByteChannel, ScatteringByteChannel

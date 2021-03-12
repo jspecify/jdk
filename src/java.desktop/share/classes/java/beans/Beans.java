@@ -25,7 +25,7 @@
 
 package java.beans;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import com.sun.beans.finder.ClassFinder;
@@ -60,7 +60,7 @@ import java.util.Vector;
  * @since 1.1
  */
 
-@DefaultNonNull
+@NullMarked
 public  class Beans {
 
     /**

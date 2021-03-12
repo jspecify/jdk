@@ -25,7 +25,7 @@
 
 package java.nio.file;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -37,7 +37,7 @@ import java.io.IOException;
  * @since 1.7
  */
 
-@DefaultNonNull
+@NullMarked
 public class FileSystemException
     extends IOException
 {

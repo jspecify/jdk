@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.ObjectStreamField;
@@ -125,7 +125,7 @@ import jdk.internal.vm.annotation.Stable;
  * @jls     15.18.1 String Concatenation Operator +
  */
 
-@DefaultNonNull
+@NullMarked
 public final class String
     implements java.io.Serializable, Comparable<String>, CharSequence {
 

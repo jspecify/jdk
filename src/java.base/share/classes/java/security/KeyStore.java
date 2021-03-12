@@ -25,7 +25,7 @@
 
 package java.security;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.*;
@@ -194,7 +194,7 @@ import sun.security.util.Debug;
  * @since 1.2
  */
 
-@DefaultNonNull
+@NullMarked
 public  class KeyStore {
 
     private static final Debug kdebug = Debug.getInstance("keystore");

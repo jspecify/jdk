@@ -25,7 +25,7 @@
 
 package javax.swing.table;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import javax.swing.*;
@@ -85,7 +85,7 @@ import sun.swing.SwingUtilities2;
  * @author Philip Milne
  * @see JTable
  */
-@DefaultNonNull
+@NullMarked
 @SuppressWarnings("serial") // Same-version serialization only
 public class DefaultTableCellRenderer extends JLabel
     implements TableCellRenderer, Serializable

@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
@@ -74,7 +74,7 @@ import java.util.stream.StreamSupport;
  * @author John Rose
  * @since  1.2
  */
-@DefaultNonNull
+@NullMarked
 public class Arrays {
 
     /**

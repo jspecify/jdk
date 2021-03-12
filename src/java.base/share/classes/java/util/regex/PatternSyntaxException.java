@@ -25,7 +25,7 @@
 
 package java.util.regex;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -37,7 +37,7 @@ import org.jspecify.nullness.Nullable;
  * @spec JSR-51
  */
 
-@DefaultNonNull
+@NullMarked
 public class PatternSyntaxException
     extends IllegalArgumentException
 {

@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -39,7 +39,7 @@ import org.jspecify.nullness.Nullable;
  * @see     java.lang.reflect.AnnotatedElement
  * @since   1.5
  */
-@DefaultNonNull
+@NullMarked
 @SuppressWarnings("rawtypes") /* rawtypes are part of the public api */
 public class EnumConstantNotPresentException extends RuntimeException {
     private static final long serialVersionUID = -6046998521960521108L;

@@ -30,7 +30,7 @@
 
 package org.xml.sax;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -93,7 +93,7 @@ import java.io.IOException;
  * @see org.xml.sax.XMLReader#setEntityResolver
  * @see org.xml.sax.InputSource
  */
-@DefaultNonNull
+@NullMarked
 public interface EntityResolver {
 
 

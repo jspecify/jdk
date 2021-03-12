@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -39,7 +39,7 @@ import org.jspecify.nullness.Nullable;
  * @since 1.1
  */
 
-@DefaultNonNull
+@NullMarked
 public  class EventObject implements java.io.Serializable {
 
     private static final long serialVersionUID = 5516075349620653480L;

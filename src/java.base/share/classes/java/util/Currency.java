@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.BufferedInputStream;
@@ -114,7 +114,7 @@ import sun.util.logging.PlatformLogger;
  * @see java.math.BigDecimal
  * @since 1.4
  */
-@DefaultNonNull
+@NullMarked
 public final  class Currency implements Serializable {
 
     private static final long serialVersionUID = -158308464356906721L;

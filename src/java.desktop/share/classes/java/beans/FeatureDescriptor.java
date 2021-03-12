@@ -25,7 +25,7 @@
 
 package java.beans;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 import com.sun.beans.TypeResolver;
 
@@ -52,7 +52,7 @@ import java.util.Map.Entry;
  * @since 1.1
  */
 
-@DefaultNonNull
+@NullMarked
 public  class FeatureDescriptor {
     private static final String TRANSIENT = "transient";
 

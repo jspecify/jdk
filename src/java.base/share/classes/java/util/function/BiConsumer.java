@@ -24,7 +24,7 @@
  */
 package java.util.function;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Objects;
@@ -44,7 +44,7 @@ import java.util.Objects;
  * @see Consumer
  * @since 1.8
  */
-@DefaultNonNull
+@NullMarked
 @FunctionalInterface
 public interface BiConsumer<T extends @Nullable Object, U extends @Nullable Object> {
 

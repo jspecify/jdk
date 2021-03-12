@@ -25,7 +25,7 @@
 
 package java.lang.reflect;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.annotation.Annotation;
@@ -75,7 +75,7 @@ import sun.security.util.SecurityConstants;
  * @revised 9
  * @spec JPMS
  */
-@DefaultNonNull
+@NullMarked
 public class AccessibleObject implements AnnotatedElement {
 
     static void checkPermission() {

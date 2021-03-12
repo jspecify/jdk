@@ -35,7 +35,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Collection;
@@ -138,7 +138,7 @@ import java.util.List;
  * @since 1.5
  * @author Doug Lea
  */
-@DefaultNonNull
+@NullMarked
 public interface ExecutorService extends Executor {
 
     /**

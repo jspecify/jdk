@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.*;
@@ -56,7 +56,7 @@ import jdk.internal.reflect.Reflection;
  * @since   1.0
  */
 
-@DefaultNonNull
+@NullMarked
 public  class Runtime {
     private static final Runtime currentRuntime = new Runtime();
 

@@ -25,7 +25,7 @@
 
 package java.lang.management;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Map;
@@ -124,7 +124,7 @@ import java.util.Map;
  * @since   1.5
  */
 
-@DefaultNonNull
+@NullMarked
 public interface ThreadMXBean extends PlatformManagedObject {
     /**
      * Returns the current number of live threads including both

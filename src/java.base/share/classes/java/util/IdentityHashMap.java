@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.reflect.Array;
@@ -140,7 +140,7 @@ import jdk.internal.misc.SharedSecrets;
  */
 
 
-@DefaultNonNull
+@NullMarked
 public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Object>
     extends AbstractMap<K,V>
     implements Map<K,V>, java.io.Serializable, Cloneable

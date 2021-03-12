@@ -25,7 +25,7 @@
 
 package javax.xml.parsers;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.File;
@@ -63,7 +63,7 @@ import org.xml.sax.SAXException;
  * @since 1.4
  */
 
-@DefaultNonNull
+@NullMarked
 public abstract class DocumentBuilder {
 
 

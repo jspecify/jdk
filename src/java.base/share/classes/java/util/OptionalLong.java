@@ -24,7 +24,7 @@
  */
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.function.LongConsumer;
@@ -57,7 +57,7 @@ import java.util.stream.LongStream;
  *
  * @since 1.8
  */
-@DefaultNonNull
+@NullMarked
 public final class OptionalLong {
     /**
      * Common instance for {@code empty()}.

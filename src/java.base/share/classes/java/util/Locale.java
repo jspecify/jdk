@@ -40,7 +40,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -485,7 +485,7 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * @author Mark Davis
  * @since 1.1
  */
-@DefaultNonNull
+@NullMarked
 public final class Locale implements Cloneable, Serializable {
 
     private static final  Cache LOCALECACHE = new Cache();

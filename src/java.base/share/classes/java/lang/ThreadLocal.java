@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.misc.TerminatingThreadLocal;
@@ -79,7 +79,7 @@ import java.util.function.Supplier;
  * @since   1.2
  */
 
-@DefaultNonNull
+@NullMarked
 public  class ThreadLocal< T extends @Nullable Object> {
     /**
      * ThreadLocals rely on per-thread linear-probe hash maps attached

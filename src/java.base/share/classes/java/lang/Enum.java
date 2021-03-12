@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.Serializable;
@@ -55,7 +55,7 @@ import java.io.ObjectStreamException;
  * @see     java.util.EnumMap
  * @since   1.5
  */
-@DefaultNonNull
+@NullMarked
 @SuppressWarnings("serial") // No serialVersionUID needed due to
                             // special-casing of enum types.
 public abstract class Enum<E extends Enum<E>>

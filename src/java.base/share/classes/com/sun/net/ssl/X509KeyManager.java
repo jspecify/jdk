@@ -29,7 +29,7 @@
 
 package com.sun.net.ssl;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.security.KeyManagementException;
@@ -45,7 +45,7 @@ import java.security.cert.X509Certificate;
  * @deprecated As of JDK 1.4, this implementation-specific class was
  *      replaced by {@link javax.net.ssl.X509KeyManager}.
  */
-@DefaultNonNull
+@NullMarked
 @Deprecated(since="1.4")
 public interface X509KeyManager extends KeyManager {
     /**

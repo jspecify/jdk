@@ -24,7 +24,7 @@
  */
 package javax.swing;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.awt.Component;
@@ -179,7 +179,7 @@ import sun.awt.AWTAccessor;
  * @author Hans Muller
  * @since 1.2
  */
-@DefaultNonNull
+@NullMarked
 
 @SuppressWarnings("serial") // Same-version serialization only
 public class UIManager implements Serializable

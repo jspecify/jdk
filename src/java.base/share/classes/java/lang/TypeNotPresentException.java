@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -46,7 +46,7 @@ import org.jspecify.nullness.Nullable;
  * @see     java.lang.reflect.AnnotatedElement
  * @since 1.5
  */
-@DefaultNonNull
+@NullMarked
 public class TypeNotPresentException extends RuntimeException {
     private static final long serialVersionUID = -5101214195716534496L;
 

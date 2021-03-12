@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
@@ -46,7 +46,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @see     java.lang.Number
  * @since   1.1
  */
-@DefaultNonNull
+@NullMarked
 public final class Byte extends Number implements Comparable<Byte> {
 
     /**

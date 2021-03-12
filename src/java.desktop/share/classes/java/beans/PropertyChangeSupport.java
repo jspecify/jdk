@@ -24,7 +24,7 @@
  */
 package java.beans;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.Serializable;
@@ -82,7 +82,7 @@ import java.util.Map.Entry;
  * @see VetoableChangeSupport
  * @since 1.1
  */
-@DefaultNonNull
+@NullMarked
 
 public  class PropertyChangeSupport implements Serializable {
     private PropertyChangeListenerMap map = new PropertyChangeListenerMap();

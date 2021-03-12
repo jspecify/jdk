@@ -36,7 +36,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.invoke.MethodHandles;
@@ -90,7 +90,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author Doug Lea and Bill Scherer and Michael Scott
  * @param <E> the type of elements held in this queue
  */
-@DefaultNonNull
+@NullMarked
 public class SynchronousQueue<E> extends AbstractQueue<E>
     implements BlockingQueue<E>, java.io.Serializable {
     private static final long serialVersionUID = -3223113410248163686L;

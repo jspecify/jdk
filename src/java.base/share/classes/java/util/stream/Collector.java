@@ -24,7 +24,7 @@
  */
 package java.util.stream;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Collections;
@@ -197,7 +197,7 @@ import java.util.function.Supplier;
  * @param <R> the result type of the reduction operation
  * @since 1.8
  */
-@DefaultNonNull
+@NullMarked
 public interface Collector<T extends @Nullable Object, A extends @Nullable Object, R extends @Nullable Object> {
     /**
      * A function that creates and returns a new mutable result container.

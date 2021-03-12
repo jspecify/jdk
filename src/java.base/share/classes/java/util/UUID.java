@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.security.*;
@@ -73,7 +73,7 @@ import jdk.internal.misc.SharedSecrets;
  *
  * @since   1.5
  */
-@DefaultNonNull
+@NullMarked
 public final class UUID implements java.io.Serializable, Comparable<UUID> {
 
     /**

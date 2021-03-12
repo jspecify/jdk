@@ -25,7 +25,7 @@
 
 package javax.net.ssl;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.security.*;
@@ -56,7 +56,7 @@ import sun.security.jca.GetInstance;
  *
  * @since 1.4
  */
-@DefaultNonNull
+@NullMarked
 public class SSLContext {
     private final Provider provider;
 

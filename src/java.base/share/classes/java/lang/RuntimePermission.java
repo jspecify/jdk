@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.security.*;
@@ -401,7 +401,7 @@ import java.lang.module.ModuleFinder;
  * @since 1.2
  */
 
-@DefaultNonNull
+@NullMarked
 public final class RuntimePermission extends BasicPermission {
 
     private static final long serialVersionUID = 7399184964622342223L;

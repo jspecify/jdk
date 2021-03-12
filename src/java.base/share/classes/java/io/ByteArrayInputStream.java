@@ -25,7 +25,7 @@
 
 package java.io;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.Arrays;
@@ -46,7 +46,7 @@ import java.util.Objects;
  * @see     java.io.StringBufferInputStream
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public class ByteArrayInputStream extends InputStream {
 
     /**

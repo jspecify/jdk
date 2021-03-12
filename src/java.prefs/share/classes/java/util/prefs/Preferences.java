@@ -25,7 +25,7 @@
 
 package java.util.prefs;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.InputStream;
@@ -224,7 +224,7 @@ import java.lang.Double;
  * @author  Josh Bloch
  * @since   1.4
  */
-@DefaultNonNull
+@NullMarked
 public abstract  class Preferences {
 
     private static final PreferencesFactory factory = factory();

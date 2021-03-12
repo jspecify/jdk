@@ -25,7 +25,7 @@
 
 package java.awt;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.applet.Applet;
@@ -216,7 +216,7 @@ import static sun.java2d.pipe.hw.ExtendedBufferCapabilities.VSyncType.VSYNC_ON;
  * @author      Arthur van Hoff
  * @author      Sami Shaio
  */
-@DefaultNonNull
+@NullMarked
 public abstract   class Component implements ImageObserver, MenuContainer,
                                            Serializable
 {

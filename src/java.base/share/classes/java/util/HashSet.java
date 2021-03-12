@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.InvalidObjectException;
@@ -90,7 +90,7 @@ import jdk.internal.misc.SharedSecrets;
  * @since   1.2
  */
 
-@DefaultNonNull
+@NullMarked
 public class HashSet<E extends @Nullable Object>
     extends AbstractSet<E>
     implements Set<E>, Cloneable, java.io.Serializable

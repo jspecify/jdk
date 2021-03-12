@@ -30,7 +30,7 @@
 
 package org.xml.sax;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -85,7 +85,7 @@ import java.io.InputStream;
  * @see java.io.InputStream
  * @see java.io.Reader
  */
-@DefaultNonNull
+@NullMarked
 public class InputSource {
 
     /**

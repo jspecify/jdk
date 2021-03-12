@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -55,7 +55,7 @@ import org.jspecify.nullness.Nullable;
  * @jls 5.1.3 Narrowing Primitive Conversions
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public abstract class Number implements java.io.Serializable {
     /**
      * Returns the value of the specified number as an {@code int}.

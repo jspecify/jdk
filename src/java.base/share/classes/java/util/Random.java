@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.*;
@@ -77,7 +77,7 @@ import jdk.internal.misc.Unsafe;
  * @author  Frank Yellin
  * @since   1.0
  */
-@DefaultNonNull
+@NullMarked
 public
  class Random implements java.io.Serializable {
     /** use serialVersionUID from JDK 1.1 for interoperability */

@@ -35,7 +35,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 /**
@@ -58,7 +58,7 @@ import org.jspecify.nullness.Nullable;
  * @param <V> the result type of method {@code call}
  */
 
-@DefaultNonNull
+@NullMarked
 @FunctionalInterface
 public interface Callable<V extends @Nullable Object> {
     /**
