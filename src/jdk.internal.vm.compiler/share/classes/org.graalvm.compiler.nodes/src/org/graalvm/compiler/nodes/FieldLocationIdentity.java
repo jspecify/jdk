@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.nodes;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import jdk.vm.ci.meta.JavaKind.FormatWithToString;
 

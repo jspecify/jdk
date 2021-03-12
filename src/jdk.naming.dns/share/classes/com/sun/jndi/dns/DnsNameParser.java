@@ -25,7 +25,7 @@
 
 package com.sun.jndi.dns;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 
 import javax.naming.*;

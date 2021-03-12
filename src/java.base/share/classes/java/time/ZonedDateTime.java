@@ -61,7 +61,7 @@
  */
 package java.time;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import static java.time.temporal.ChronoField.INSTANT_SECONDS;
 import static java.time.temporal.ChronoField.NANO_OF_SECOND;

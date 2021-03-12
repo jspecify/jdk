@@ -22,7 +22,7 @@
  */
 package jdk.vm.ci.meta;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Implementation of {@link JavaMethod} for unresolved HotSpot methods.

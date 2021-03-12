@@ -25,7 +25,7 @@
 
 package org.ietf.jgss;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * This interface encapsulates the GSS-API credentials for an entity.  A

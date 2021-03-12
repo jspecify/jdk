@@ -56,7 +56,7 @@
  */
 package java.time.chrono;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import static java.time.chrono.ThaiBuddhistChronology.YEARS_DIFFERENCE;
 import static java.time.temporal.ChronoField.DAY_OF_MONTH;

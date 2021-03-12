@@ -25,8 +25,8 @@
 
 package com.sun.javadoc;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Represents a type.  A type can be a class or interface, an

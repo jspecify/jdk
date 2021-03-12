@@ -25,7 +25,7 @@
 
 package com.sun.security.auth;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.security.Principal;
 import java.util.Objects;

@@ -35,8 +35,8 @@
 
 package java.util;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * A collection designed for holding elements prior to processing.

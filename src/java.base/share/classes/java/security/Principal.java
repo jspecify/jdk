@@ -25,7 +25,7 @@
 
 package java.security;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import javax.security.auth.Subject;
 

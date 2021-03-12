@@ -25,7 +25,7 @@
 
 package java.awt.datatransfer;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.util.Enumeration;
 import java.util.Hashtable;

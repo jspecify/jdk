@@ -20,7 +20,7 @@
 
 package com.sun.org.apache.xerces.internal.impl.xpath.regex;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.text.CharacterIterator;
 import java.util.Locale;

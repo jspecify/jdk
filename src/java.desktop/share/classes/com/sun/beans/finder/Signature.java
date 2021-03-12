@@ -24,7 +24,7 @@
  */
 package com.sun.beans.finder;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * This class is designed to be a key of a cache

@@ -22,7 +22,7 @@
  */
 package jdk.vm.ci.meta;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * This object holds probability information for a set of items that were profiled at a specific

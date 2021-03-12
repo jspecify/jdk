@@ -25,7 +25,7 @@
 
 package org.ietf.jgss;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.net.InetAddress;
 import java.util.Arrays;

@@ -25,7 +25,7 @@
 
 package java.awt.datatransfer;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.CharArrayReader;

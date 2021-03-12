@@ -25,8 +25,8 @@
 
 package java.util;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * The {@code Stack} class represents a last-in-first-out

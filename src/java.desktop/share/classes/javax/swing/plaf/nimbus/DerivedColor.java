@@ -24,7 +24,7 @@
  */
 package javax.swing.plaf.nimbus;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import javax.swing.UIManager;
 import java.awt.Color;

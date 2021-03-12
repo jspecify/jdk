@@ -25,8 +25,8 @@
 
 package java.util.regex;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Unchecked exception thrown to indicate a syntax error in a

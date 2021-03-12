@@ -41,8 +41,8 @@
 
 package org.w3c.dom;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Objects implementing the <code>NamedNodeMap</code> interface are used to

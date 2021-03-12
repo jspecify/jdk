@@ -31,7 +31,7 @@
 
 package sun.security.krb5.internal;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import sun.security.krb5.Config;
 import sun.security.krb5.Asn1Exception;

@@ -25,8 +25,8 @@
 
 package javax.xml.parsers;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Thrown when a problem with configuration with the Parser Factories

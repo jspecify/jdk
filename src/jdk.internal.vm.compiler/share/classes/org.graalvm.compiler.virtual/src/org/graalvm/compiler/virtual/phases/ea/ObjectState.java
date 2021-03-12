@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.virtual.phases.ea;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.util.Arrays;
 import java.util.List;

@@ -31,7 +31,7 @@
 
 package sun.security.krb5;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import sun.security.krb5.internal.Krb5;
 import sun.security.util.*;

@@ -25,8 +25,8 @@
 
 package javax.naming.ldap;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 import javax.naming.*;
 import javax.naming.directory.*;

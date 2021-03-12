@@ -61,7 +61,7 @@
  */
 package java.time;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import static java.time.LocalTime.SECONDS_PER_DAY;
 import static java.time.temporal.ChronoField.ALIGNED_DAY_OF_WEEK_IN_MONTH;

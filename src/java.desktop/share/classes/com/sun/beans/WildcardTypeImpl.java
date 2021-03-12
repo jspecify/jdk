@@ -24,7 +24,7 @@
  */
 package com.sun.beans;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;

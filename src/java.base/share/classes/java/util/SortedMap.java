@@ -25,8 +25,8 @@
 
 package java.util;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * A {@link Map} that further provides a <em>total ordering</em> on its keys.

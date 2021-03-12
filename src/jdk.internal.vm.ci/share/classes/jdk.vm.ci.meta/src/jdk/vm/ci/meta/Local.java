@@ -22,7 +22,7 @@
  */
 package jdk.vm.ci.meta;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Describes the type and bytecode index range in which a local variable is live.

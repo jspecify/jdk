@@ -25,7 +25,7 @@
 
 package jdk.javadoc.internal.doclets.toolkit.util;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;

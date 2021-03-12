@@ -25,7 +25,7 @@
 
 package sun.font;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.awt.FontFormatException;
 import java.awt.geom.GeneralPath;

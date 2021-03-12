@@ -25,8 +25,8 @@
 
 package java.util;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * A tagging interface that all event listener interfaces must extend.

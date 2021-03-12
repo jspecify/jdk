@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.java;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 public class JsrScope {
 

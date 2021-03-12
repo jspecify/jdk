@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.graph;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import org.graalvm.compiler.nodeinfo.InputType;
 

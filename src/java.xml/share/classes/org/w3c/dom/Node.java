@@ -41,8 +41,8 @@
 
 package org.w3c.dom;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * The <code>Node</code> interface is the primary datatype for the entire

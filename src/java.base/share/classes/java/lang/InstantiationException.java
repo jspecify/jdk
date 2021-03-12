@@ -25,8 +25,8 @@
 
 package java.lang;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Thrown when an application tries to create an instance of a class

@@ -25,7 +25,7 @@
 
 package sun.java2d.xr;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Simple MutableInteger implementation to be used as a reuseable HashMap key.

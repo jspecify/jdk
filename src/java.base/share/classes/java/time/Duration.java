@@ -61,7 +61,7 @@
  */
 package java.time;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import static java.time.LocalTime.MINUTES_PER_HOUR;
 import static java.time.LocalTime.NANOS_PER_MILLI;

@@ -25,8 +25,8 @@
 
 package javax.xml.stream;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * This interface is used to resolve resources during an XML parse.  If an application wishes to

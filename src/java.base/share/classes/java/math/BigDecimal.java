@@ -29,7 +29,7 @@
 
 package java.math;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import static java.math.BigInteger.LONG_MASK;
 import java.util.Arrays;

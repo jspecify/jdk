@@ -22,7 +22,7 @@
  */
 package jdk.vm.ci.code;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import jdk.vm.ci.meta.AllocatableValue;
 import jdk.vm.ci.meta.ValueKind;

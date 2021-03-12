@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.core.common;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import org.graalvm.compiler.core.common.alloc.RegisterAllocationConfig;
 

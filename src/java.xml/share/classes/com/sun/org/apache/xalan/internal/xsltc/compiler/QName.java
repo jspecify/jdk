@@ -21,7 +21,7 @@
 
 package com.sun.org.apache.xalan.internal.xsltc.compiler;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * @author Jacek Ambroziak

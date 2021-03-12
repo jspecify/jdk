@@ -25,7 +25,7 @@
 
 package com.sun.tools.jdi;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import com.sun.jdi.Type;
 import com.sun.jdi.VirtualMachine;

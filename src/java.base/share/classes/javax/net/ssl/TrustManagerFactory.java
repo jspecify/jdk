@@ -25,8 +25,8 @@
 
 package javax.net.ssl;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 import java.security.Security;
 import java.security.*;

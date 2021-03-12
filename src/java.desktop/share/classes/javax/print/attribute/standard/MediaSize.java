@@ -25,7 +25,7 @@
 
 package javax.print.attribute.standard;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.util.HashMap;
 import java.util.Vector;

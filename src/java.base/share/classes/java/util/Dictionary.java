@@ -25,8 +25,8 @@
 
 package java.util;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * The {@code Dictionary} class is the abstract parent of any

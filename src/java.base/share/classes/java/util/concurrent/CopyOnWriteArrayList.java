@@ -34,7 +34,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.lang.invoke.VarHandle;
 import java.lang.reflect.Field;

@@ -25,7 +25,7 @@
 
 package com.sun.tools.jdi;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;

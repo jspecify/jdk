@@ -24,8 +24,8 @@
  */
 package java.util.function;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Represents a supplier of {@code int}-valued results.  This is the

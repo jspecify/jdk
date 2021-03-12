@@ -35,7 +35,7 @@
 // package sun.net.www.protocol.https;
 package com.sun.net.ssl.internal.www.protocol.https;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.net.URL;
 import java.net.Proxy;

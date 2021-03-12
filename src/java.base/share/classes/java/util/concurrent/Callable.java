@@ -35,8 +35,8 @@
 
 package java.util.concurrent;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * A task that returns a result and may throw an exception.

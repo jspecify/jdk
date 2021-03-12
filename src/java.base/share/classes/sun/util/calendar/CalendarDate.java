@@ -25,7 +25,7 @@
 
 package sun.util.calendar;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.lang.Cloneable;
 import java.util.Locale;

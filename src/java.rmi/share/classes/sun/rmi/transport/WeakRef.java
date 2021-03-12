@@ -24,7 +24,7 @@
  */
 package sun.rmi.transport;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.lang.ref.*;
 import sun.rmi.runtime.Log;

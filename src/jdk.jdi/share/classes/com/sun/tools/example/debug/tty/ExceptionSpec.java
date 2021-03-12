@@ -34,7 +34,7 @@
 
 package com.sun.tools.example.debug.tty;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.request.*;

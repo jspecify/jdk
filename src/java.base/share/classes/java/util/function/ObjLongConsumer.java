@@ -24,8 +24,8 @@
  */
 package java.util.function;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Represents an operation that accepts an object-valued and a

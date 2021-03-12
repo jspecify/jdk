@@ -25,7 +25,7 @@
 
 package com.sun.tools.attach;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import com.sun.tools.attach.spi.AttachProvider;
 import java.util.ArrayList;

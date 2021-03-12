@@ -25,7 +25,7 @@
 
 package com.sun.tools.javac.file;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.nio.file.FileSystem;
 import java.nio.file.InvalidPathException;

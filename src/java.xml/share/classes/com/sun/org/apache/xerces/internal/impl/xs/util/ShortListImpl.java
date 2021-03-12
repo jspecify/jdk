@@ -20,7 +20,7 @@
 
 package com.sun.org.apache.xerces.internal.impl.xs.util;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import com.sun.org.apache.xerces.internal.xs.ShortList;
 import com.sun.org.apache.xerces.internal.xs.XSException;

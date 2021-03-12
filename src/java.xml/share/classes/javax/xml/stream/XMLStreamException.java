@@ -25,8 +25,8 @@
 
 package javax.xml.stream;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * The base exception for unexpected processing errors.  This Exception

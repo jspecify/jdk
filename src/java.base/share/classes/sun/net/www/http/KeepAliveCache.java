@@ -25,7 +25,7 @@
 
 package sun.net.www.http;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
 import java.io.NotSerializableException;

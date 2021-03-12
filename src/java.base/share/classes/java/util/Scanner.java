@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.io.*;
 import java.math.*;

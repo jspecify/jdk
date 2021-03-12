@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.graph;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import static org.graalvm.compiler.graph.NodeSourcePosition.Marker.None;
 import static org.graalvm.compiler.graph.NodeSourcePosition.Marker.Placeholder;

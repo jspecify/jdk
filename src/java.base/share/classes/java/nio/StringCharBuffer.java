@@ -25,7 +25,7 @@
 
 package java.nio;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 // ## If the sequence is a string, use reflection to share its array
 

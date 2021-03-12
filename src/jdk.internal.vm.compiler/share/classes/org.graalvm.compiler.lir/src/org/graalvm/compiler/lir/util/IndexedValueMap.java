@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.lir.util;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.util.EnumSet;
 import java.util.Objects;

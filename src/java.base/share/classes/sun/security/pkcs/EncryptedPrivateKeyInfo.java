@@ -25,7 +25,7 @@
 
 package sun.security.pkcs;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.io.*;
 import sun.security.x509.*;

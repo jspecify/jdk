@@ -14,7 +14,7 @@ package jdk.internal.jline.console;
 //import java.awt.datatransfer.Transferable;
 //import java.awt.datatransfer.UnsupportedFlavorException;
 //import java.awt.event.ActionListener;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.File;

@@ -25,8 +25,8 @@
 
 package java.lang.reflect;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * A common interface for all entities that declare type variables.

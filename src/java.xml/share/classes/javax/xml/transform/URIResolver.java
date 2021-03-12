@@ -25,8 +25,8 @@
 
 package javax.xml.transform;
 
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 /**
  * <p>An object that implements this interface that can be called by the processor

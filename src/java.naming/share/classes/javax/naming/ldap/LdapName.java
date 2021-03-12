@@ -25,7 +25,7 @@
 
 package javax.naming.ldap;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import javax.naming.Name;
 import javax.naming.InvalidNameException;

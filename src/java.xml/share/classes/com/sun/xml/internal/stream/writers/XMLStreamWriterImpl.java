@@ -25,7 +25,7 @@
 
 package com.sun.xml.internal.stream.writers;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import com.sun.org.apache.xerces.internal.impl.Constants;
 import com.sun.org.apache.xerces.internal.impl.PropertyManager;

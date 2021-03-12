@@ -25,7 +25,7 @@
 
 package javax.imageio;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.awt.Point;
 import java.awt.Transparency;
