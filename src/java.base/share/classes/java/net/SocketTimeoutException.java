@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Signals that a timeout has occurred on a socket read or accept.
  *
@@ -39,7 +42,7 @@ public class SocketTimeoutException extends java.io.InterruptedIOException {
      * message.
      * @param msg the detail message
      */
-    public SocketTimeoutException(String msg) {
+    public SocketTimeoutException(@Nullable String msg) {
         super(msg);
     }
 

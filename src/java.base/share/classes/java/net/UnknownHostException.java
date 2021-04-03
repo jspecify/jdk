@@ -27,6 +27,9 @@ package java.net;
 
 import java.io.IOException;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * Thrown to indicate that the IP address of a host could not be determined.
  *
@@ -43,7 +46,7 @@ class UnknownHostException extends IOException {
      *
      * @param   message   the detail message.
      */
-    public UnknownHostException(String message) {
+    public UnknownHostException(@Nullable String message) {
         super(message);
     }
 
