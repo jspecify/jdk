@@ -26,11 +26,15 @@ package java.io;
 
 import java.util.Objects;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 /**
  * Wraps an {@link IOException} with an unchecked exception.
  *
  * @since   1.8
  */
+@NullMarked
 public class UncheckedIOException extends RuntimeException {
     private static final long serialVersionUID = -8134305061645241065L;
 
@@ -45,7 +49,7 @@ public class UncheckedIOException extends RuntimeException {
      * @throws  NullPointerException
      *          if the cause is {@code null}
      */
-    public UncheckedIOException(String message, IOException cause) {
+    public UncheckedIOException(@Nullable String message, IOException cause) {
         super(message, Objects.requireNonNull(cause));
     }
 

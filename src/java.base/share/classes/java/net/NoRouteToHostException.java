@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 /**
  * Signals that an error occurred while attempting to connect a
  * socket to a remote address and port.  Typically, the remote
@@ -33,6 +36,7 @@ package java.net;
  *
  * @since   1.1
  */
+@NullMarked
 public class NoRouteToHostException extends SocketException {
     private static final long serialVersionUID = -1897550894873493790L;
 
@@ -43,7 +47,7 @@ public class NoRouteToHostException extends SocketException {
      * description of this error.
      * @param msg the detail message
      */
-    public NoRouteToHostException(String msg) {
+    public NoRouteToHostException(@Nullable String msg) {
         super(msg);
     }
 

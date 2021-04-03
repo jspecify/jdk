@@ -25,12 +25,15 @@
 
 package java.net;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 /**
  * Signals that a timeout has occurred on a socket read or accept.
  *
  * @since   1.4
  */
-
+@NullMarked
 public class SocketTimeoutException extends java.io.InterruptedIOException {
     private static final long serialVersionUID = -8846654841826352300L;
 
@@ -39,7 +42,7 @@ public class SocketTimeoutException extends java.io.InterruptedIOException {
      * message.
      * @param msg the detail message
      */
-    public SocketTimeoutException(String msg) {
+    public SocketTimeoutException(@Nullable String msg) {
         super(msg);
     }
 

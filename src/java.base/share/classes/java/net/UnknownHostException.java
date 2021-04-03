@@ -27,12 +27,16 @@ package java.net;
 
 import java.io.IOException;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 /**
  * Thrown to indicate that the IP address of a host could not be determined.
  *
  * @author  Jonathan Payne
  * @since   1.0
  */
+@NullMarked
 public
 class UnknownHostException extends IOException {
     private static final long serialVersionUID = -4639126076052875403L;
@@ -43,7 +47,7 @@ class UnknownHostException extends IOException {
      *
      * @param   message   the detail message.
      */
-    public UnknownHostException(String message) {
+    public UnknownHostException(@Nullable String message) {
         super(message);
     }
 
