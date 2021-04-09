@@ -38,6 +38,7 @@ package java.util.concurrent;
 import org.checkerframework.checker.nullness.qual.EnsuresKeyFor;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.util.Map;
@@ -89,6 +90,7 @@ public interface ConcurrentMap<K extends @NonNull Object,V extends @NonNull Obje
      * @since 1.8
      */
     @Override
+    @Pure
     default V getOrDefault(Object key, V defaultValue) {
         V v;
         return ((v = get(key)) != null) ? v : defaultValue;

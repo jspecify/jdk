@@ -913,6 +913,7 @@ public class Hashtable<K extends @NonNull Object,V extends @NonNull Object>
     }
 
     @Override
+    @Pure
     public synchronized V getOrDefault(Object key, V defaultValue) {
         V result = get(key);
         return (null == result) ? defaultValue : result;

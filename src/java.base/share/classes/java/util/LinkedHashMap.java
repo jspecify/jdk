@@ -458,6 +458,7 @@ public class LinkedHashMap<K,V>
     /**
      * {@inheritDoc}
      */
+    @Pure
     public V getOrDefault(@Nullable Object key, V defaultValue) {
        Node<K,V> e;
        if ((e = getNode(hash(key), key)) == null)

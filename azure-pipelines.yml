@@ -76,6 +76,7 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   container: mdernst/cf-ubuntu-jdk8:latest
+  timeoutInMinutes: 90
   steps:
   - checkout: self
     fetchDepth: 25
@@ -87,6 +88,7 @@ jobs:
     displayName: test-cftests-all.sh
 
 - job: test_cftests_all_jdk11
+  timeoutInMinutes: 90
   pool:
     vmImage: 'ubuntu-latest'
   container: mdernst/cf-ubuntu-jdk11:latest

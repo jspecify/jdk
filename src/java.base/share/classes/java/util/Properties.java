@@ -1430,6 +1430,7 @@ class Properties extends Hashtable<Object,Object> {
     }
 
     @Override
+    @Pure
     public Object getOrDefault(Object key, Object defaultValue) {
         return map.getOrDefault(key, defaultValue);
     }

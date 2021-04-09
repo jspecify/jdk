@@ -1523,6 +1523,7 @@ public class Collections {
         // Override default methods in Map
         @Override
         @SuppressWarnings("unchecked")
+        @Pure
         public V getOrDefault(Object k, V defaultValue) {
             // Safe cast as we don't change the value
             return ((Map<K, V>)m).getOrDefault(k, defaultValue);
@@ -2701,6 +2702,7 @@ public class Collections {
 
         // Override default methods in Map
         @Override
+        @Pure
         public V getOrDefault(Object k, V defaultValue) {
             synchronized (mutex) {return m.getOrDefault(k, defaultValue);}
         }
@@ -4730,6 +4732,7 @@ public class Collections {
         // Override default methods in Map
         @Override
         @SuppressWarnings("unchecked")
+        @Pure
         public V getOrDefault(Object k, V defaultValue) {
             return defaultValue;
         }
@@ -5065,6 +5068,7 @@ public class Collections {
 
         // Override default methods in Map
         @Override
+        @Pure
         public V getOrDefault(Object key, V defaultValue) {
             return eq(key, k) ? v : defaultValue;
         }

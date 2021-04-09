@@ -1329,6 +1329,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
      * @throws NullPointerException if the specified key is null
      * @since 1.8
      */
+    @Pure
     public V getOrDefault(Object key, V defaultValue) {
         V v;
         return (v = doGet(key)) == null ? defaultValue : v;
