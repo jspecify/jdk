@@ -560,7 +560,7 @@ public final class Method extends Executable {
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
     @HotSpotIntrinsicCandidate
-    public @Nullable Object invoke(@Nullable Object obj, @Nullable Object... args)
+    public @Nullable Object invoke(@Nullable Object obj, @Nullable Object @Nullable ... args)
         throws IllegalAccessException, IllegalArgumentException,
            InvocationTargetException
     {
