@@ -34,11 +34,12 @@ import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.tainting.qual.Untainted;
+import org.checkerframework.common.aliasing.qual.Unique;
+import org.checkerframework.common.reflection.qual.GetClass;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.CFComment;
-import org.checkerframework.common.aliasing.qual.Unique;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
 
@@ -85,6 +86,7 @@ public class Object {
      *         class of this object.
      * @jls 15.8.2 Class Literals
      */
+    @GetClass
     @SafeEffect
     @Pure
     @HotSpotIntrinsicCandidate

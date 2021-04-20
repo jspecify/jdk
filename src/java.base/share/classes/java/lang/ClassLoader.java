@@ -31,6 +31,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import org.checkerframework.checker.signature.qual.BinaryName;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
+import org.checkerframework.common.reflection.qual.ForName;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.CFComment;
 
@@ -527,6 +528,7 @@ public abstract @UsesObjectEquals class ClassLoader {
      * @throws  ClassNotFoundException
      *          If the class was not found
      */
+    @ForName
     public Class<?> loadClass(@BinaryName String name) throws ClassNotFoundException {
         return loadClass(name, false);
     }
@@ -572,6 +574,7 @@ public abstract @UsesObjectEquals class ClassLoader {
      * @throws  ClassNotFoundException
      *          If the class could not be found
      */
+    @ForName
     protected Class<?> loadClass(@BinaryName String name, boolean resolve)
         throws ClassNotFoundException
     {
@@ -635,7 +638,8 @@ public abstract @UsesObjectEquals class ClassLoader {
      * @return The resulting {@code Class} object in a module defined by
      *         this class loader, or {@code null} if the class could not be found.
      */
-    final Class<?> loadClass(Module module, String name) {
+    @ForName
+    final Class<?> loadClass(Module module, @BinaryName String name) {
         synchronized (getClassLoadingLock(name)) {
             // First, check if the class has already been loaded
             Class<?> c = findLoadedClass(name);

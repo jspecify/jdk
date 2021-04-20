@@ -25,7 +25,6 @@
 
 package java.lang;
 
-import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
@@ -33,9 +32,13 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.checker.signature.qual.ClassGetName;
 import org.checkerframework.checker.signature.qual.ClassGetSimpleName;
 import org.checkerframework.checker.signature.qual.DotSeparatedIdentifiers;
+import org.checkerframework.common.reflection.qual.ForName;
+import org.checkerframework.common.reflection.qual.GetConstructor;
+import org.checkerframework.common.reflection.qual.GetMethod;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -337,6 +340,7 @@ public final @Interned class Class<@UnknownKeyFor T> implements java.io.Serializ
      *            by this method fails
      * @exception ClassNotFoundException if the class cannot be located
      */
+    @ForName
     @CallerSensitive
     public static Class<?> forName(@ClassGetName String className)
                 throws ClassNotFoundException {
@@ -2148,6 +2152,7 @@ public final @Interned class Class<@UnknownKeyFor T> implements java.io.Serializ
      * @since 1.1
      */
     @Pure
+    @GetMethod
     @CallerSensitive
     public Method getMethod(String name, Class<?> @Nullable ... parameterTypes)
         throws NoSuchMethodException, SecurityException {
@@ -2192,6 +2197,7 @@ public final @Interned class Class<@UnknownKeyFor T> implements java.io.Serializ
      *
      * @since 1.1
      */
+    @GetConstructor
     @Pure
     @CallerSensitive
     public Constructor<T> getConstructor(Class<?>... parameterTypes)
@@ -2516,6 +2522,7 @@ public final @Interned class Class<@UnknownKeyFor T> implements java.io.Serializ
      * @jls 8.4 Method Declarations
      * @since 1.1
      */
+    @GetMethod
     @CallerSensitive
     public Method getDeclaredMethod(String name, Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException {

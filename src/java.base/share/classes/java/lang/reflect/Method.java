@@ -28,6 +28,7 @@ package java.lang.reflect;
 import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.common.reflection.qual.Invoke;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -566,6 +567,7 @@ public final class Method extends Executable {
     "Therefore, the Nullness Checker should conservatively issue a",
     "warning whenever null is passed, in order to give a guarantee that",
     "no nullness-related exception will be thrown by the invoked method."})
+    @Invoke
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
     @HotSpotIntrinsicCandidate

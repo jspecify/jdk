@@ -28,6 +28,7 @@ package java.lang.reflect;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.common.reflection.qual.NewInstance;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -489,6 +490,7 @@ public final class Constructor<T> extends Executable {
      * @exception ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      */
+    @NewInstance
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
     public @NonNull T newInstance(Object ... initargs)
