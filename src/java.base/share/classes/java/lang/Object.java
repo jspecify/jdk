@@ -64,6 +64,7 @@ public class Object {
     /**
      * Constructs a new object.
      */
+    @Pure
     @HotSpotIntrinsicCandidate
     public @Unique @Untainted Object() {}
 
