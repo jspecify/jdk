@@ -50,8 +50,8 @@ Pull request merge conflicts
 ----------------------------
 
 If a pull request is failing with a merge conflict in `jdk11u`, first
-update jdk11u from its upstreams, using the directions in section "The
-typetools/jdk11u repository" below.
+update jdk11u from its upstreams, using the directions in section
+"The typetools/jdk11u repository" below.
 
 If that does not resolve the issue, then do the following in a clone of the
 branch of `jdk` whose pull request is failing.
