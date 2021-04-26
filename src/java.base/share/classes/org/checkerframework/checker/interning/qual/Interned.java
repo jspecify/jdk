@@ -24,9 +24,6 @@ import org.checkerframework.framework.qual.TypeKind;
  * This is equivalent to annotating every use of MyInternedClass, in a declaration or elsewhere. For
  * example, enum classes are implicitly so annotated.
  *
- * <p>This annotation is associated with the {@link
- * org.checkerframework.checker.interning.InterningChecker}.
- *
  * @see org.checkerframework.checker.interning.InterningChecker
  * @checker_framework.manual #interning-checker Interning Checker
  */
@@ -36,14 +33,14 @@ import org.checkerframework.framework.qual.TypeKind;
 @SubtypeOf(UnknownInterned.class)
 @QualifierForLiterals({LiteralKind.PRIMITIVE, LiteralKind.STRING}) // everything but NULL
 @DefaultFor(
-        typeKinds = {
-            TypeKind.BOOLEAN,
-            TypeKind.BYTE,
-            TypeKind.CHAR,
-            TypeKind.DOUBLE,
-            TypeKind.FLOAT,
-            TypeKind.INT,
-            TypeKind.LONG,
-            TypeKind.SHORT
-        })
+    typeKinds = {
+      TypeKind.BOOLEAN,
+      TypeKind.BYTE,
+      TypeKind.CHAR,
+      TypeKind.DOUBLE,
+      TypeKind.FLOAT,
+      TypeKind.INT,
+      TypeKind.LONG,
+      TypeKind.SHORT
+    })
 public @interface Interned {}

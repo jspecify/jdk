@@ -15,14 +15,15 @@ import org.checkerframework.framework.qual.SubtypeOf;
  * <p>For example, the receiver parameter of {@link StringBuffer#append(String s)} is annotated as
  * {@code @LeakedToResult}, because the method returns the updated receiver.
  *
+ * <p>This annotation is currently trusted, not checked.
+ *
  * @see NonLeaked
  * @checker_framework.manual #aliasing-checker Aliasing Checker
- *     <p>TODO: This annotation is currently trusted. A verification must be implemented.
  */
 
-// This is a type qualifier because of a checker framework limitation (Issue 383), but its
-// hierarchy is ignored. Once the stub parser gets updated to read non-type-qualifiers
-// annotations on stub files, this annotation won't be a type qualifier anymore.
+// This is a type qualifier because of a checker framework limitation (Issue 383), but its hierarchy
+// is ignored. Once the stub parser gets updated to read non-type-qualifiers annotations on stub
+// files, this annotation won't be a type qualifier anymore.
 
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

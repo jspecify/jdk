@@ -11,9 +11,9 @@ import org.checkerframework.framework.qual.SubtypeOf;
  * This is a string that is a valid {@linkplain
  * org.checkerframework.checker.signature.qual.FullyQualifiedName fully qualified name} and a valid
  * {@linkplain org.checkerframework.checker.signature.qual.BinaryName binary name}. It represents a
- * non-array, non-inner class: dot-separated identifiers.
+ * non-array, non-inner, non-primitive class: dot-separated identifiers.
  *
- * <p>Examples: int, MyClass, java.lang.Integer
+ * <p>Examples: int, MyClass, java.lang, java.lang.Integer
  *
  * @checker_framework.manual #signature-checker Signature Checker
  */

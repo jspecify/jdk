@@ -16,20 +16,22 @@ import org.checkerframework.framework.qual.UpperBoundFor;
 
 /**
  * If an expression's type is qualified by {@code @NonNull}, then the expression never evaluates to
- * {@code null}.
+ * {@code null}. (Unless the program has a bug; annotations specify intended behavior.)
  *
  * <p>For fields of a class, the {@link NonNull} annotation indicates that this field is never
  * {@code null} <em>after the class has been fully initialized</em>. For static fields, the {@link
  * NonNull} annotation indicates that this field is never {@code null} <em>after the containing
- * class is initialized</em>. See {@link
- * org.checkerframework.checker.initialization.InitializationChecker} for more details.
+ * class is initialized</em>. "Fully initialized" essentially means that the Java constructor has
+ * completed. See the <a
+ * href="https://checkerframework.org/manual/#initialization-checker">Initialization Checker
+ * documentation</a> for more details.
  *
  * <p>This annotation is rarely written in source code, because it is the default.
  *
  * @see Nullable
  * @see MonotonicNonNull
- * @see org.checkerframework.checker.nullness.NullnessChecker
  * @checker_framework.manual #nullness-checker Nullness Checker
+ * @checker_framework.manual #initialization-checker Initialization Checker
  * @checker_framework.manual #bottom-type the bottom type
  */
 @Documented
@@ -40,15 +42,15 @@ import org.checkerframework.framework.qual.UpperBoundFor;
 @DefaultQualifierInHierarchy
 @DefaultFor(TypeUseLocation.EXCEPTION_PARAMETER)
 @UpperBoundFor(
-        typeKinds = {
-            TypeKind.PACKAGE,
-            TypeKind.INT,
-            TypeKind.BOOLEAN,
-            TypeKind.CHAR,
-            TypeKind.DOUBLE,
-            TypeKind.FLOAT,
-            TypeKind.LONG,
-            TypeKind.SHORT,
-            TypeKind.BYTE
-        })
+    typeKinds = {
+      TypeKind.PACKAGE,
+      TypeKind.INT,
+      TypeKind.BOOLEAN,
+      TypeKind.CHAR,
+      TypeKind.DOUBLE,
+      TypeKind.FLOAT,
+      TypeKind.LONG,
+      TypeKind.SHORT,
+      TypeKind.BYTE
+    })
 public @interface NonNull {}

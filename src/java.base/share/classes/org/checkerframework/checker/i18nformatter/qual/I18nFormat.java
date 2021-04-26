@@ -14,10 +14,11 @@ import org.checkerframework.framework.qual.SubtypeOf;
  * <p>The annotation's value represents the valid arguments that may be passed to the format method.
  * For example:
  *
- * <pre>{@literal @}I18nFormat({I18nConversionCategory.GENERAL, I18nConversionCategory.NUMBER})
- * String f = "{0}{1, number}"; // valid
- * String f = "{0} {1} {2}"; // error, the format string is stronger (more restrictive) than the specifiers.
- * String f = "{0, number} {1, number}"; // error, the format string is stronger (NUMBER is a subtype of GENERAL).
+ * <pre>{@literal @}I18nFormat({GENERAL, NUMBER}) String f;
+ *
+ * f = "{0}{1, number}"; // valid
+ * f = "{0} {1} {2}"; // error, the format string is stronger (more restrictive) than the specifiers.
+ * f = "{0, number} {1, number}"; // error, the format string is stronger (NUMBER is a subtype of GENERAL).
  * </pre>
  *
  * The annotation indicates that the format string requires any object as the first parameter
@@ -32,10 +33,10 @@ import org.checkerframework.framework.qual.SubtypeOf;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf(I18nUnknownFormat.class)
 public @interface I18nFormat {
-    /**
-     * An array of {@link I18nConversionCategory}, indicating the types of legal remaining arguments
-     * when a value of the annotated type is used as the first argument to {@link
-     * java.text.MessageFormat#format(String, Object...) Message.format}.
-     */
-    I18nConversionCategory[] value();
+  /**
+   * An array of {@link I18nConversionCategory}, indicating the types of legal remaining arguments
+   * when a value of the annotated type is used as the first argument to {@link
+   * java.text.MessageFormat#format(String, Object...) Message.format}.
+   */
+  I18nConversionCategory[] value();
 }

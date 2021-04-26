@@ -76,31 +76,28 @@
  */
 module java.base {
 
+    exports org.checkerframework.checker.builder.qual;
+    exports org.checkerframework.checker.calledmethods.qual;
     exports org.checkerframework.checker.compilermsgs.qual;
     exports org.checkerframework.checker.fenum.qual;
-    exports org.checkerframework.checker.formatter;
     exports org.checkerframework.checker.formatter.qual;
     exports org.checkerframework.checker.guieffect.qual;
-    exports org.checkerframework.checker.i18nformatter;
     exports org.checkerframework.checker.i18nformatter.qual;
     exports org.checkerframework.checker.i18n.qual;
     exports org.checkerframework.checker.index.qual;
     exports org.checkerframework.checker.initialization.qual;
     exports org.checkerframework.checker.interning.qual;
     exports org.checkerframework.checker.lock.qual;
-    exports org.checkerframework.checker.nullness;
     exports org.checkerframework.checker.nullness.qual;
     exports org.checkerframework.checker.optional.qual;
     exports org.checkerframework.checker.propkey.qual;
-    exports org.checkerframework.checker.regex;
     exports org.checkerframework.checker.regex.qual;
     exports org.checkerframework.checker.signature.qual;
-    exports org.checkerframework.checker.signedness;
     exports org.checkerframework.checker.signedness.qual;
     exports org.checkerframework.checker.tainting.qual;
-    exports org.checkerframework.checker.units;
     exports org.checkerframework.checker.units.qual;
     exports org.checkerframework.common.aliasing.qual;
+    exports org.checkerframework.common.initializedfields.qual;
     exports org.checkerframework.common.reflection.qual;
     exports org.checkerframework.common.returnsreceiver.qual;
     exports org.checkerframework.common.subtyping.qual;
@@ -108,7 +105,6 @@ module java.base {
     exports org.checkerframework.common.value.qual;
     exports org.checkerframework.dataflow.qual;
     exports org.checkerframework.framework.qual;
-    exports org.checkerframework.framework.util;
 
     exports java.io;
     exports java.lang;

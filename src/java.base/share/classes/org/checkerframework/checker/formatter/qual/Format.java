@@ -17,8 +17,8 @@ import org.checkerframework.framework.qual.SubtypeOf;
  * <blockquote>
  *
  * <pre>
- * {@literal @}Format({ConversionCategory.GENERAL, ConversionCategory.INT})
- *  String f = "String '%s' has length %d";
+ * {@literal @}Format({GENERAL, INT}) String f = "String '%s' has length %d";
+ *
  *  String.format(f, "Example", 7);
  * </pre>
  *
@@ -26,7 +26,8 @@ import org.checkerframework.framework.qual.SubtypeOf;
  *
  * The annotation indicates that the format string requires any Object as the first parameter
  * ({@link ConversionCategory#GENERAL}) and an integer as the second parameter ({@link
- * ConversionCategory#INT}).
+ * ConversionCategory#INT}). The format string accepts any values as additional parameters (because
+ * it ignores them).
  *
  * @see ConversionCategory
  * @checker_framework.manual #formatter-checker Format String Checker
@@ -36,12 +37,12 @@ import org.checkerframework.framework.qual.SubtypeOf;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf(UnknownFormat.class)
 public @interface Format {
-    /**
-     * An array of {@link ConversionCategory}, indicating the types of legal remaining arguments
-     * when a value of the annotated type is used as the first argument to {@link
-     * java.util.Formatter#format(String, Object...) Formatter.format} and similar methods.
-     *
-     * @return types that can be used as values when a value of this type is the format string
-     */
-    ConversionCategory[] value();
+  /**
+   * An array of {@link ConversionCategory}, indicating the types of legal remaining arguments when
+   * a value of the annotated type is used as the first argument to {@link
+   * java.util.Formatter#format(String, Object...) Formatter.format} and similar methods.
+   *
+   * @return types that can be used as values when a value of this type is the format string
+   */
+  ConversionCategory[] value();
 }
