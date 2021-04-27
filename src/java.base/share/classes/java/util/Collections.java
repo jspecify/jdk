@@ -30,6 +30,7 @@ import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.nullness.qual.EnsuresKeyFor;
 import org.checkerframework.checker.nullness.qual.EnsuresKeyForIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.common.value.qual.ArrayLen;
@@ -1561,25 +1562,25 @@ public class Collections {
         }
 
         @Override
-        public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
+        public @PolyNull V computeIfAbsent(K key, Function<? super K, ? extends @PolyNull V> mappingFunction) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public V computeIfPresent(K key,
-                BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V computeIfPresent(K key,
+                BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public V compute(K key,
-                BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V compute(K key,
+                BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public V merge(K key, V value,
-                BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V merge(K key, @NonNull V value,
+                BiFunction<? super V, ? super V, ? extends @PolyNull V> remappingFunction) {
             throw new UnsupportedOperationException();
         }
 
@@ -2732,23 +2733,23 @@ public class Collections {
             synchronized (mutex) {return m.replace(key, value);}
         }
         @Override
-        public V computeIfAbsent(K key,
-                Function<? super K, ? extends V> mappingFunction) {
+        public @PolyNull V computeIfAbsent(K key,
+                Function<? super K, ? extends @PolyNull V> mappingFunction) {
             synchronized (mutex) {return m.computeIfAbsent(key, mappingFunction);}
         }
         @Override
-        public V computeIfPresent(K key,
-                BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V computeIfPresent(K key,
+                BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
             synchronized (mutex) {return m.computeIfPresent(key, remappingFunction);}
         }
         @Override
-        public V compute(K key,
-                BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V compute(K key,
+                BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
             synchronized (mutex) {return m.compute(key, remappingFunction);}
         }
         @Override
-        public V merge(K key, V value,
-                BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V merge(K key, @NonNull V value,
+                BiFunction<? super V, ? super V, ? extends @PolyNull V> remappingFunction) {
             synchronized (mutex) {return m.merge(key, value, remappingFunction);}
         }
 
@@ -3783,8 +3784,8 @@ public class Collections {
         }
 
         @Override
-        public V computeIfAbsent(K key,
-                Function<? super K, ? extends V> mappingFunction) {
+        public @PolyNull V computeIfAbsent(K key,
+                Function<? super K, ? extends @PolyNull V> mappingFunction) {
             Objects.requireNonNull(mappingFunction);
             return m.computeIfAbsent(key, k -> {
                 V value = mappingFunction.apply(k);
@@ -3794,20 +3795,20 @@ public class Collections {
         }
 
         @Override
-        public V computeIfPresent(K key,
-                BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V computeIfPresent(K key,
+                BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
             return m.computeIfPresent(key, typeCheck(remappingFunction));
         }
 
         @Override
-        public V compute(K key,
-                BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V compute(K key,
+                BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
             return m.compute(key, typeCheck(remappingFunction));
         }
 
         @Override
-        public V merge(K key, V value,
-                BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V merge(K key, @NonNull V value,
+                BiFunction<? super V, ? super V, ? extends @PolyNull V> remappingFunction) {
             Objects.requireNonNull(remappingFunction);
             return m.merge(key, value, (v1, v2) -> {
                 V newValue = remappingFunction.apply(v1, v2);
@@ -4769,26 +4770,26 @@ public class Collections {
         }
 
         @Override
-        public V computeIfAbsent(K key,
-                Function<? super K, ? extends V> mappingFunction) {
+        public @PolyNull V computeIfAbsent(K key,
+                Function<? super K, ? extends @PolyNull V> mappingFunction) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public V computeIfPresent(K key,
-                BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V computeIfPresent(K key,
+                BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public V compute(K key,
-                BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V compute(K key,
+                BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public V merge(K key, V value,
-                BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V merge(K key, @NonNull V value,
+                BiFunction<? super V, ? super V, ? extends @PolyNull V> remappingFunction) {
             throw new UnsupportedOperationException();
         }
 
@@ -5105,26 +5106,26 @@ public class Collections {
         }
 
         @Override
-        public V computeIfAbsent(K key,
-                Function<? super K, ? extends V> mappingFunction) {
+        public @PolyNull V computeIfAbsent(K key,
+                Function<? super K, ? extends @PolyNull V> mappingFunction) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public V computeIfPresent(K key,
-                BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V computeIfPresent(K key,
+                BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public V compute(K key,
-                BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V compute(K key,
+                BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public V merge(K key, V value,
-                BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+        public @PolyNull V merge(K key, @NonNull V value,
+                BiFunction<? super V, ? super V, ? extends @PolyNull V> remappingFunction) {
             throw new UnsupportedOperationException();
         }
 

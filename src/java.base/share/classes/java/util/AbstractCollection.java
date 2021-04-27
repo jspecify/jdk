@@ -74,6 +74,7 @@ public abstract class AbstractCollection<E> implements Collection<E> {
      * Sole constructor.  (For invocation by subclass constructors, typically
      * implicit.)
      */
+    @SideEffectFree
     protected AbstractCollection() {
     }
 

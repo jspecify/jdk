@@ -24,6 +24,9 @@
  */
 package java.lang;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
+
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -148,8 +151,8 @@ final class WeakPairMap<K1, K2, V> {
      * @throws RuntimeException      or Error if the mappingFunction does so, in
      *                               which case the mapping is left unestablished
      */
-    public V computeIfAbsent(K1 k1, K2 k2,
-                             BiFunction<? super K1, ? super K2, ? extends V>
+    public @PolyNull V computeIfAbsent(K1 k1, K2 k2,
+                             BiFunction<? super K1, ? super K2, ? extends @PolyNull V>
                                  mappingFunction) {
         expungeStaleAssociations();
         try {

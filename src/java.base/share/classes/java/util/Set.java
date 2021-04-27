@@ -232,7 +232,7 @@ public interface Set<E> extends Collection<E> {
      * @throws NullPointerException if the specified array is null
      */
     @SideEffectFree
-    <T> @Nullable T @PolyNull [] toArray(T @PolyNull [] a);
+    <T> @Nullable T [] toArray(@PolyNull T[] a);
 
 
     // Modification Operations

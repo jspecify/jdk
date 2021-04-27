@@ -25,6 +25,8 @@
 
 package jdk.internal.loader;
 
+import org.checkerframework.checker.nullness.qual.PolyNull;
+
 import jdk.internal.misc.JavaLangAccess;
 import jdk.internal.misc.SharedSecrets;
 
@@ -180,11 +182,11 @@ public abstract class AbstractClassLoaderValue<CLV extends AbstractClassLoaderVa
      *                               {@link #computeIfAbsent}
      *                               for the same association is attempted.
      */
-    public V computeIfAbsent(ClassLoader cl,
+    public @PolyNull V computeIfAbsent(ClassLoader cl,
                              BiFunction<
                                  ? super ClassLoader,
                                  ? super CLV,
-                                 ? extends V
+                                 ? extends @PolyNull V
                                  > mappingFunction) throws IllegalStateException {
         ConcurrentHashMap<CLV, Object> map = map(cl);
         @SuppressWarnings("unchecked")

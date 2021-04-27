@@ -38,6 +38,7 @@ package java.util.concurrent;
 import org.checkerframework.checker.nullness.qual.EnsuresKeyFor;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -331,8 +332,8 @@ public interface ConcurrentMap<K extends @NonNull Object,V extends @NonNull Obje
      * @since 1.8
      */
     @Override
-    default V computeIfAbsent(K key,
-            Function<? super K, ? extends V> mappingFunction) {
+    default @PolyNull V computeIfAbsent(K key,
+            Function<? super K, ? extends @PolyNull V> mappingFunction) {
         Objects.requireNonNull(mappingFunction);
         V oldValue, newValue;
         return ((oldValue = get(key)) == null
@@ -373,8 +374,8 @@ public interface ConcurrentMap<K extends @NonNull Object,V extends @NonNull Obje
      * @since 1.8
      */
     @Override
-    default V computeIfPresent(K key,
-            BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+    default @PolyNull V computeIfPresent(K key,
+            BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         for (V oldValue; (oldValue = get(key)) != null; ) {
             V newValue = remappingFunction.apply(key, oldValue);
@@ -421,8 +422,8 @@ public interface ConcurrentMap<K extends @NonNull Object,V extends @NonNull Obje
      * @since 1.8
      */
     @Override
-    default V compute(K key,
-                      BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+    default @PolyNull V compute(K key,
+                      BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
         retry: for (;;) {
             V oldValue = get(key);
             // if putIfAbsent fails, opportunistically use its return value
@@ -481,8 +482,8 @@ public interface ConcurrentMap<K extends @NonNull Object,V extends @NonNull Obje
      * @since 1.8
      */
     @Override
-    default V merge(K key, V value,
-            BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+    default @PolyNull V merge(K key, @NonNull V value,
+            BiFunction<? super V, ? super V, ? extends @PolyNull V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         Objects.requireNonNull(value);
         retry: for (;;) {

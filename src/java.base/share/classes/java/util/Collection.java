@@ -362,7 +362,7 @@ public interface Collection<E> extends Iterable<E> {
      * @throws NullPointerException if the specified array is null
      */
     @SideEffectFree
-    <T> @Nullable T @PolyNull [] toArray(T @PolyNull [] a);
+    <T> @Nullable T [] toArray(@PolyNull T[] a);
 
     /**
      * Returns an array containing all of the elements in this collection,
