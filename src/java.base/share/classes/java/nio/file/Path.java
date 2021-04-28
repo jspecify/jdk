@@ -25,6 +25,9 @@
 
 package java.nio.file;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -96,6 +99,7 @@ import java.util.NoSuchElementException;
  * @since 1.7
  */
 
+@NullMarked
 public interface Path
     extends Comparable<Path>, Iterable<Path>, Watchable
 {
@@ -143,6 +147,7 @@ public interface Path
      *
      * @since 11
      */
+    
     public static Path of(String first, String... more) {
         return FileSystems.getDefault().getPath(first, more);
     }
@@ -193,6 +198,7 @@ public interface Path
      *
      * @since 11
      */
+    
     public static Path of(URI uri) {
         String scheme =  uri.getScheme();
         if (scheme == null)
@@ -217,6 +223,7 @@ public interface Path
      *
      * @return  the file system that created this object
      */
+    
     FileSystem getFileSystem();
 
     /**
@@ -227,6 +234,7 @@ public interface Path
      *
      * @return  {@code true} if, and only if, this path is absolute
      */
+    
     boolean isAbsolute();
 
     /**
@@ -236,7 +244,8 @@ public interface Path
      * @return  a path representing the root component of this path,
      *          or {@code null}
      */
-    Path getRoot();
+    
+    @Nullable Path getRoot();
 
     /**
      * Returns the name of the file or directory denoted by this path as a
@@ -246,7 +255,8 @@ public interface Path
      * @return  a path representing the name of the file or directory, or
      *          {@code null} if this path has zero elements
      */
-    Path getFileName();
+    
+    @Nullable Path getFileName();
 
     /**
      * Returns the <em>parent path</em>, or {@code null} if this path does not
@@ -271,7 +281,8 @@ public interface Path
      *
      * @return  a path representing the path's parent
      */
-    Path getParent();
+    
+    @Nullable Path getParent();
 
     /**
      * Returns the number of name elements in the path.
@@ -279,6 +290,7 @@ public interface Path
      * @return  the number of elements in the path, or {@code 0} if this path
      *          only represents a root component
      */
+    
     int getNameCount();
 
     /**
@@ -299,6 +311,7 @@ public interface Path
      *          equal to the number of elements, or this path has zero name
      *          elements
      */
+    
     Path getName(int index);
 
     /**
@@ -326,6 +339,7 @@ public interface Path
      *          the number of elements. If {@code endIndex} is less than or
      *          equal to {@code beginIndex}, or larger than the number of elements.
      */
+    
     Path subpath(int beginIndex, int endIndex);
 
     /**
@@ -351,6 +365,7 @@ public interface Path
      * @return  {@code true} if this path starts with the given path; otherwise
      *          {@code false}
      */
+    
     boolean startsWith(Path other);
 
     /**
@@ -375,6 +390,7 @@ public interface Path
      * @throws  InvalidPathException
      *          If the path string cannot be converted to a Path.
      */
+    
     default boolean startsWith(String other) {
         return startsWith(getFileSystem().getPath(other));
     }
@@ -404,6 +420,7 @@ public interface Path
      * @return  {@code true} if this path ends with the given path; otherwise
      *          {@code false}
      */
+    
     boolean endsWith(Path other);
 
     /**
@@ -431,6 +448,7 @@ public interface Path
      * @throws  InvalidPathException
      *          If the path string cannot be converted to a Path.
      */
+    
     default boolean endsWith(String other) {
         return endsWith(getFileSystem().getPath(other));
     }
@@ -460,6 +478,7 @@ public interface Path
      * @see #getParent
      * @see #toRealPath
      */
+    
     Path normalize();
 
     // -- resolution and relativization --
@@ -485,6 +504,7 @@ public interface Path
      *
      * @see #relativize
      */
+    
     Path resolve(Path other);
 
     /**
@@ -511,6 +531,7 @@ public interface Path
      *
      * @see FileSystem#getPath
      */
+    
     default Path resolve(String other) {
         return resolve(getFileSystem().getPath(other));
     }
@@ -542,6 +563,7 @@ public interface Path
      *
      * @see #resolve(Path)
      */
+    
     default Path resolveSibling(Path other) {
         if (other == null)
             throw new NullPointerException();
@@ -570,6 +592,7 @@ public interface Path
      *
      * @see FileSystem#getPath
      */
+    
     default Path resolveSibling(String other) {
         return resolveSibling(getFileSystem().getPath(other));
     }
@@ -615,6 +638,7 @@ public interface Path
      *          if {@code other} is not a {@code Path} that can be relativized
      *          against this path
      */
+    
     Path relativize(Path other);
 
     /**
@@ -668,6 +692,7 @@ public interface Path
      *          is installed, the {@link #toAbsolutePath toAbsolutePath} method
      *          throws a security exception.
      */
+    
     URI toUri();
 
     /**
@@ -691,6 +716,7 @@ public interface Path
      *          checkPropertyAccess} method is invoked to check access to the
      *          system property {@code user.dir}
      */
+    
     Path toAbsolutePath();
 
     /**
@@ -737,6 +763,7 @@ public interface Path
      *          checkPropertyAccess} method is invoked to check access to the
      *          system property {@code user.dir}
      */
+    
     Path toRealPath(LinkOption... options) throws IOException;
 
     /**
@@ -764,6 +791,7 @@ public interface Path
      * @throws  UnsupportedOperationException
      *          if this {@code Path} is not associated with the default provider
      */
+    
     default File toFile() {
         if (getFileSystem() == FileSystems.getDefault()) {
             return new File(toString());
@@ -913,6 +941,7 @@ public interface Path
      *
      * @return  an iterator over the name elements of this path.
      */
+    
     @Override
     default Iterator<Path> iterator() {
         return new Iterator<>() {
@@ -957,6 +986,7 @@ public interface Path
      * @throws  ClassCastException
      *          if the paths are associated with different providers
      */
+    
     @Override
     int compareTo(Path other);
 
@@ -982,7 +1012,8 @@ public interface Path
      * @return  {@code true} if, and only if, the given object is a {@code Path}
      *          that is identical to this {@code Path}
      */
-    boolean equals(Object other);
+    
+    boolean equals(@Nullable Object other);
 
     /**
      * Computes a hash code for this path.
@@ -993,6 +1024,7 @@ public interface Path
      *
      * @return  the hash-code value for this path
      */
+    
     int hashCode();
 
     /**
@@ -1007,5 +1039,6 @@ public interface Path
      *
      * @return  the string representation of this path
      */
+    
     String toString();
 }
