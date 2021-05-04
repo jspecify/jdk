@@ -35,6 +35,9 @@
 
 package java.util.concurrent;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 /**
  * An {@link ExecutorService} that can schedule commands to run after a given
  * delay, or to execute periodically.
@@ -88,6 +91,7 @@ package java.util.concurrent;
  * @since 1.5
  * @author Doug Lea
  */
+@NullMarked
 public interface ScheduledExecutorService extends ExecutorService {
 
     /**
