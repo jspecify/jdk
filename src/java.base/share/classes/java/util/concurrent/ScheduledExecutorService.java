@@ -123,7 +123,7 @@ public interface ScheduledExecutorService extends ExecutorService {
      *         scheduled for execution
      * @throws NullPointerException if callable or unit is null
      */
-    public <V> ScheduledFuture<V> schedule(Callable<V> callable,
+    public <V extends @Nullable Object> ScheduledFuture<V> schedule(Callable<V> callable,
                                            long delay, TimeUnit unit);
 
     /**
