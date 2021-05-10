@@ -35,6 +35,9 @@
 
 package java.util.concurrent;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * An {@link ExecutorService} that can schedule commands to run after a given
  * delay, or to execute periodically.
@@ -88,6 +91,7 @@ package java.util.concurrent;
  * @since 1.5
  * @author Doug Lea
  */
+@AnnotatedFor({"nullness"})
 public interface ScheduledExecutorService extends ExecutorService {
 
     /**
@@ -103,7 +107,7 @@ public interface ScheduledExecutorService extends ExecutorService {
      *         scheduled for execution
      * @throws NullPointerException if command or unit is null
      */
-    public ScheduledFuture<?> schedule(Runnable command,
+    public ScheduledFuture<@Nullable ?> schedule(Runnable command,
                                        long delay, TimeUnit unit);
 
     /**
@@ -161,7 +165,7 @@ public interface ScheduledExecutorService extends ExecutorService {
      * @throws NullPointerException if command or unit is null
      * @throws IllegalArgumentException if period less than or equal to zero
      */
-    public ScheduledFuture<?> scheduleAtFixedRate(Runnable command,
+    public ScheduledFuture<@Nullable ?> scheduleAtFixedRate(Runnable command,
                                                   long initialDelay,
                                                   long period,
                                                   TimeUnit unit);
@@ -201,7 +205,7 @@ public interface ScheduledExecutorService extends ExecutorService {
      * @throws NullPointerException if command or unit is null
      * @throws IllegalArgumentException if delay less than or equal to zero
      */
-    public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command,
+    public ScheduledFuture<@Nullable ?> scheduleWithFixedDelay(Runnable command,
                                                      long initialDelay,
                                                      long delay,
                                                      TimeUnit unit);
