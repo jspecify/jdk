@@ -32,6 +32,7 @@ import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -78,7 +79,7 @@ import java.util.stream.StreamSupport;
  * @since       1.1
  */
 
-@AnnotatedFor({"lock", "nullness", "index"})
+@AnnotatedFor({"index", "lock", "mustcall", "nullness"})
 public class BufferedReader extends Reader {
 
     private Reader in;
@@ -109,7 +110,7 @@ public class BufferedReader extends Reader {
      *
      * @exception  IllegalArgumentException  If {@code sz <= 0}
      */
-    public BufferedReader(Reader in, @Positive int sz) {
+    public @MustCallAlias BufferedReader(@MustCallAlias Reader in, @Positive int sz) {
         super(in);
         if (sz <= 0)
             throw new IllegalArgumentException("Buffer size <= 0");
@@ -124,7 +125,7 @@ public class BufferedReader extends Reader {
      *
      * @param  in   A Reader
      */
-    public BufferedReader(Reader in) {
+    public @MustCallAlias BufferedReader(@MustCallAlias Reader in) {
         this(in, defaultCharBufferSize);
     }
 

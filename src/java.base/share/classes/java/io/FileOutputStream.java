@@ -28,6 +28,7 @@ package java.io;
 import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -72,7 +73,7 @@ import sun.nio.ch.FileChannelImpl;
  * @see     java.nio.file.Files#newOutputStream
  * @since   1.0
  */
-@AnnotatedFor({"nullness", "index", "signedness"})
+@AnnotatedFor({"index", "mustcall", "nullness", "signedness"})
 public
 class FileOutputStream extends OutputStream
 {
@@ -271,7 +272,7 @@ class FileOutputStream extends OutputStream
      *               write access to the file descriptor
      * @see        java.lang.SecurityManager#checkWrite(java.io.FileDescriptor)
      */
-    public FileOutputStream(FileDescriptor fdObj) {
+    public @MustCallAlias FileOutputStream(@MustCallAlias FileDescriptor fdObj) {
         SecurityManager security = System.getSecurityManager();
         if (fdObj == null) {
             throw new NullPointerException();
@@ -417,7 +418,7 @@ class FileOutputStream extends OutputStream
      * @exception  IOException  if an I/O error occurs.
      * @see        java.io.FileDescriptor
      */
-     public final FileDescriptor getFD()  throws IOException {
+     public final @MustCallAlias FileDescriptor getFD(@MustCallAlias FileOutputStream this)  throws IOException {
         if (fd != null) {
             return fd;
         }
@@ -441,7 +442,7 @@ class FileOutputStream extends OutputStream
      * @since 1.4
      * @spec JSR-51
      */
-    public FileChannel getChannel() {
+    public @MustCallAlias FileChannel getChannel(@MustCallAlias FileOutputStream this) {
         FileChannel fc = this.channel;
         if (fc == null) {
             synchronized (this) {

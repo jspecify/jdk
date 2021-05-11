@@ -29,6 +29,7 @@ import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -42,7 +43,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see     java.io.DataInputStream
  * @since   1.0
  */
-@AnnotatedFor({"lock", "nullness", "index", "signedness"})
+@AnnotatedFor({"index", "lock", "mustcall", "nullness", "signedness"})
 public
 class DataOutputStream extends FilterOutputStream implements DataOutput {
     /**
@@ -65,7 +66,7 @@ class DataOutputStream extends FilterOutputStream implements DataOutput {
      *                use.
      * @see     java.io.FilterOutputStream#out
      */
-    public DataOutputStream(OutputStream out) {
+    public @MustCallAlias DataOutputStream(@MustCallAlias OutputStream out) {
         super(out);
     }
 

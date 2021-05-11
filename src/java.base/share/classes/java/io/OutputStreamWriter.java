@@ -28,6 +28,7 @@ package java.io;
 import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -79,7 +80,7 @@ import sun.nio.cs.StreamEncoder;
  * @since       1.1
  */
 
-@AnnotatedFor({"nullness", "index"})
+@AnnotatedFor({"index", "mustcall", "nullness"})
 public class OutputStreamWriter extends Writer {
 
     private final StreamEncoder se;
@@ -97,7 +98,7 @@ public class OutputStreamWriter extends Writer {
      * @exception  UnsupportedEncodingException
      *             If the named encoding is not supported
      */
-    public OutputStreamWriter(OutputStream out, String charsetName)
+    public @MustCallAlias OutputStreamWriter(@MustCallAlias OutputStream out, String charsetName)
         throws UnsupportedEncodingException
     {
         super(out);
@@ -111,7 +112,7 @@ public class OutputStreamWriter extends Writer {
      *
      * @param  out  An OutputStream
      */
-    public OutputStreamWriter(OutputStream out) {
+    public @MustCallAlias OutputStreamWriter(@MustCallAlias OutputStream out) {
         super(out);
         try {
             se = StreamEncoder.forOutputStreamWriter(out, this, (String)null);
@@ -132,7 +133,7 @@ public class OutputStreamWriter extends Writer {
      * @since 1.4
      * @spec JSR-51
      */
-    public OutputStreamWriter(OutputStream out, Charset cs) {
+    public @MustCallAlias OutputStreamWriter(@MustCallAlias OutputStream out, Charset cs) {
         super(out);
         if (cs == null)
             throw new NullPointerException("charset");
@@ -151,7 +152,7 @@ public class OutputStreamWriter extends Writer {
      * @since 1.4
      * @spec JSR-51
      */
-    public OutputStreamWriter(OutputStream out, CharsetEncoder enc) {
+    public @MustCallAlias OutputStreamWriter(@MustCallAlias OutputStream out, CharsetEncoder enc) {
         super(out);
         if (enc == null)
             throw new NullPointerException("charset encoder");
@@ -237,13 +238,13 @@ public class OutputStreamWriter extends Writer {
     }
 
     @Override
-    public Writer append(CharSequence csq, int start, int end) throws IOException {
+    public @MustCallAlias Writer append(@MustCallAlias OutputStreamWriter this, CharSequence csq, int start, int end) throws IOException {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }
 
     @Override
-    public Writer append(CharSequence csq) throws IOException {
+    public @MustCallAlias Writer append(@MustCallAlias OutputStreamWriter this, CharSequence csq) throws IOException {
         if (csq instanceof CharBuffer) {
             se.write((CharBuffer) csq);
         } else {

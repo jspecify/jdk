@@ -25,6 +25,7 @@
 
 package java.security;
 
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -56,7 +57,7 @@ import java.io.ByteArrayOutputStream;
  * @author Benjamin Renaud
  * @since 1.2
  */
-@AnnotatedFor({"signedness"})
+@AnnotatedFor({"mustcall", "signedness"})
 public class DigestOutputStream extends FilterOutputStream {
 
     private boolean on = true;
@@ -74,7 +75,7 @@ public class DigestOutputStream extends FilterOutputStream {
      *
      * @param digest the message digest to associate with this stream.
      */
-    public DigestOutputStream(OutputStream stream, MessageDigest digest) {
+    public @MustCallAlias DigestOutputStream(@MustCallAlias OutputStream stream, MessageDigest digest) {
         super(stream);
         setMessageDigest(digest);
     }

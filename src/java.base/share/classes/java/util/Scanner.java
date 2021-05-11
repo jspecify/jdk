@@ -29,6 +29,8 @@ import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.mustcall.qual.MustCall;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.common.value.qual.IntRange;
@@ -317,7 +319,7 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  *
  * @since   1.5
  */
-@AnnotatedFor({"index", "interning", "lock", "signedness"})
+@AnnotatedFor({"index", "interning", "lock", "mustcall", "signedness"})
 public final @UsesObjectEquals class Scanner implements Iterator<String>, Closeable {
 
     // Internal buffer used to hold input
@@ -561,7 +563,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @param  source A character source implementing the {@link Readable}
      *         interface
      */
-    public Scanner(Readable source) {
+    public @MustCallAlias Scanner(@MustCallAlias Readable source) {
         this(Objects.requireNonNull(source, "source"), WHITESPACE_PATTERN);
     }
 
@@ -573,7 +575,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *
      * @param  source An input stream to be scanned
      */
-    public Scanner(InputStream source) {
+    public @MustCallAlias Scanner(@MustCallAlias InputStream source) {
         this(new InputStreamReader(source), WHITESPACE_PATTERN);
     }
 
@@ -588,7 +590,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalArgumentException if the specified character set
      *         does not exist
      */
-    public Scanner(InputStream source, String charsetName) {
+    public @MustCallAlias Scanner(@MustCallAlias InputStream source, String charsetName) {
         this(source, toCharset(charsetName));
     }
 
@@ -602,7 +604,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *         into characters to be scanned
      * @since  10
      */
-    public Scanner(InputStream source, Charset charset) {
+    public @MustCallAlias Scanner(@MustCallAlias InputStream source, Charset charset) {
         this(makeReadable(Objects.requireNonNull(source, "source"), charset),
              WHITESPACE_PATTERN);
     }
@@ -773,7 +775,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *
      * @param  source A string to scan
      */
-    public Scanner(String source) {
+    public @MustCall({}) Scanner(String source) {
         this(new StringReader(source), WHITESPACE_PATTERN);
     }
 
@@ -785,7 +787,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *
      * @param  source A channel to scan
      */
-    public Scanner(ReadableByteChannel source) {
+    public @MustCallAlias Scanner(@MustCallAlias ReadableByteChannel source) {
         this(makeReadable(Objects.requireNonNull(source, "source")),
              WHITESPACE_PATTERN);
     }
@@ -805,7 +807,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      * @throws IllegalArgumentException if the specified character set
      *         does not exist
      */
-    public Scanner(ReadableByteChannel source, String charsetName) {
+    public @MustCallAlias Scanner(@MustCallAlias ReadableByteChannel source, String charsetName) {
         this(makeReadable(Objects.requireNonNull(source, "source"), toDecoder(charsetName)),
              WHITESPACE_PATTERN);
     }
@@ -820,7 +822,7 @@ public final @UsesObjectEquals class Scanner implements Iterator<String>, Closea
      *        channel into characters to be scanned
      * @since 10
      */
-    public Scanner(ReadableByteChannel source, Charset charset) {
+    public @MustCallAlias Scanner(@MustCallAlias ReadableByteChannel source, Charset charset) {
         this(makeReadable(Objects.requireNonNull(source, "source"), charset),
              WHITESPACE_PATTERN);
     }

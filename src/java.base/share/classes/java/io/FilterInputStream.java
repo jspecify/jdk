@@ -30,6 +30,7 @@ import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTEqLengthOf;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -50,7 +51,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  Jonathan Payne
  * @since   1.0
  */
-@AnnotatedFor({"nullness", "index"})
+@AnnotatedFor({"index", "mustcall", "nullness"})
 public
 class FilterInputStream extends InputStream {
     /**
@@ -67,7 +68,7 @@ class FilterInputStream extends InputStream {
      * @param   in   the underlying input stream, or <code>null</code> if
      *          this instance is to be created without an underlying stream.
      */
-    protected FilterInputStream(@Nullable InputStream in) {
+    protected @MustCallAlias FilterInputStream(@MustCallAlias @Nullable InputStream in) {
         this.in = in;
     }
 

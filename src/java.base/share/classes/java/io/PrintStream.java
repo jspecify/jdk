@@ -31,6 +31,8 @@ import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
+import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -72,7 +74,7 @@ import java.nio.charset.UnsupportedCharsetException;
  */
 
 @CFComment({"lock: TODO: Should parameters be @GuardSatisfied, or is the default of @GuardedBy({}) appropriate? (@GuardedBy({}) is more conservative.)"})
-@AnnotatedFor({"formatter", "i18n", "index", "lock", "nullness", "signedness"})
+@AnnotatedFor({"formatter", "i18n", "index", "lock", "mustcall", "nullness", "signedness"})
 public class PrintStream extends FilterOutputStream
     implements Appendable, Closeable
 {
@@ -141,7 +143,7 @@ public class PrintStream extends FilterOutputStream
      *
      * @see java.io.PrintWriter#PrintWriter(java.io.OutputStream)
      */
-    public PrintStream(OutputStream out) {
+    public @MustCallAlias PrintStream(@MustCallAlias OutputStream out) {
         this(out, false);
     }
 
@@ -157,7 +159,7 @@ public class PrintStream extends FilterOutputStream
      *
      * @see java.io.PrintWriter#PrintWriter(java.io.OutputStream, boolean)
      */
-    public PrintStream(OutputStream out, boolean autoFlush) {
+    public @MustCallAlias PrintStream(@MustCallAlias OutputStream out, boolean autoFlush) {
         this(autoFlush, requireNonNull(out, "Null output stream"));
     }
 
@@ -179,7 +181,7 @@ public class PrintStream extends FilterOutputStream
      *
      * @since  1.4
      */
-    public PrintStream(OutputStream out, boolean autoFlush, String encoding)
+    public @MustCallAlias PrintStream(@MustCallAlias OutputStream out, boolean autoFlush, String encoding)
         throws UnsupportedEncodingException
     {
         this(requireNonNull(out, "Null output stream"), autoFlush, toCharset(encoding));
@@ -201,7 +203,7 @@ public class PrintStream extends FilterOutputStream
      *
      * @since  10
      */
-    public PrintStream(OutputStream out, boolean autoFlush, Charset charset) {
+    public @MustCallAlias PrintStream(@MustCallAlias OutputStream out, boolean autoFlush, Charset charset) {
         super(out);
         this.autoFlush = autoFlush;
         this.charOut = new OutputStreamWriter(this, charset);
@@ -960,7 +962,7 @@ public class PrintStream extends FilterOutputStream
      */
     @CFComment({"lock/nullness: The vararg arrays can actually be null, but let's not annotate them because passing null is bad style; see whether this annotation is useful."})
     @FormatMethod
-    public PrintStream printf(@GuardSatisfied PrintStream this, String format, @Nullable Object ... args) {
+    public @NotOwning PrintStream printf(@GuardSatisfied PrintStream this, String format, @Nullable Object ... args) {
         return format(format, args);
     }
 
@@ -1013,7 +1015,7 @@ public class PrintStream extends FilterOutputStream
      * @since  1.5
      */
     @FormatMethod
-    public PrintStream printf(@GuardSatisfied PrintStream this, @Nullable Locale l, String format, @Nullable Object ... args) {
+    public @NotOwning PrintStream printf(@GuardSatisfied PrintStream this, @Nullable Locale l, String format, @Nullable Object ... args) {
         return format(l, format, args);
     }
 
@@ -1059,7 +1061,7 @@ public class PrintStream extends FilterOutputStream
      * @since  1.5
      */
     @FormatMethod
-    public PrintStream format(@GuardSatisfied PrintStream this, String format, @Nullable Object ... args) {
+    public @NotOwning PrintStream format(@GuardSatisfied PrintStream this, String format, @Nullable Object ... args) {
         try {
             synchronized (this) {
                 ensureOpen();
@@ -1119,7 +1121,7 @@ public class PrintStream extends FilterOutputStream
      * @since  1.5
      */
     @FormatMethod
-    public PrintStream format(@GuardSatisfied PrintStream this, @Nullable Locale l, String format, @Nullable Object ... args) {
+    public @NotOwning PrintStream format(@GuardSatisfied PrintStream this, @Nullable Locale l, String format, @Nullable Object ... args) {
         try {
             synchronized (this) {
                 ensureOpen();
@@ -1161,7 +1163,7 @@ public class PrintStream extends FilterOutputStream
      *
      * @since  1.5
      */
-    public PrintStream append(@Nullable CharSequence csq) {
+    public @MustCallAlias PrintStream append(@MustCallAlias PrintStream this, @Nullable CharSequence csq) {
         print(String.valueOf(csq));
         return this;
     }
@@ -1201,7 +1203,7 @@ public class PrintStream extends FilterOutputStream
      *
      * @since  1.5
      */
-    public PrintStream append(@Nullable CharSequence csq, @IndexOrHigh({"#1"}) int start, @IndexOrHigh({"#1"}) int end) {
+    public @MustCallAlias PrintStream append(@MustCallAlias PrintStream this, @Nullable CharSequence csq, @IndexOrHigh({"#1"}) int start, @IndexOrHigh({"#1"}) int end) {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }
@@ -1223,7 +1225,7 @@ public class PrintStream extends FilterOutputStream
      *
      * @since  1.5
      */
-    public PrintStream append(char c) {
+    public @MustCallAlias PrintStream append(@MustCallAlias PrintStream this, char c) {
         print(c);
         return this;
     }

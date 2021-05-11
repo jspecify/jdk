@@ -30,6 +30,7 @@ import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTEqLengthOf;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.nio.channels.FileChannel;
@@ -68,7 +69,7 @@ import sun.nio.ch.FileChannelImpl;
  * @see     java.nio.file.Files#newInputStream
  * @since   1.0
  */
-@AnnotatedFor({"nullness","index"})
+@AnnotatedFor({"index", "mustcall", "nullness"})
 public
 class FileInputStream extends InputStream
 {
@@ -193,7 +194,7 @@ class FileInputStream extends InputStream
      *                 file descriptor.
      * @see        SecurityManager#checkRead(java.io.FileDescriptor)
      */
-    public FileInputStream(FileDescriptor fdObj) {
+    public @MustCallAlias FileInputStream(@MustCallAlias FileDescriptor fdObj) {
         SecurityManager security = System.getSecurityManager();
         if (fdObj == null) {
             throw new NullPointerException();
@@ -395,7 +396,7 @@ class FileInputStream extends InputStream
      * @exception  IOException  if an I/O error occurs.
      * @see        java.io.FileDescriptor
      */
-    public final FileDescriptor getFD() throws IOException {
+    public final @MustCallAlias FileDescriptor getFD(@MustCallAlias FileInputStream this) throws IOException {
         if (fd != null) {
             return fd;
         }
@@ -418,7 +419,7 @@ class FileInputStream extends InputStream
      * @since 1.4
      * @spec JSR-51
      */
-    public FileChannel getChannel() {
+    public @MustCallAlias FileChannel getChannel(@MustCallAlias FileInputStream this) {
         FileChannel fc = this.channel;
         if (fc == null) {
             synchronized (this) {

@@ -26,6 +26,7 @@
 package java.util.zip;
 
 import org.checkerframework.checker.index.qual.IndexOrHigh;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -42,7 +43,7 @@ import java.io.IOException;
  * @author      David Connelly
  * @since 1.1
  */
-@AnnotatedFor({"index", "signedness"})
+@AnnotatedFor({"index", "mustcall", "signedness"})
 public
 class CheckedOutputStream extends FilterOutputStream {
     private Checksum cksum;
@@ -52,7 +53,7 @@ class CheckedOutputStream extends FilterOutputStream {
      * @param out the output stream
      * @param cksum the checksum
      */
-    public CheckedOutputStream(OutputStream out, Checksum cksum) {
+    public @MustCallAlias CheckedOutputStream(@MustCallAlias OutputStream out, Checksum cksum) {
         super(out);
         this.cksum = cksum;
     }

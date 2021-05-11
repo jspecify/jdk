@@ -30,6 +30,7 @@ import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTEqLengthOf;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -67,7 +68,7 @@ import sun.nio.cs.StreamDecoder;
  * @since       1.1
  */
 
-@AnnotatedFor({"index"})
+@AnnotatedFor({"index", "mustcall"})
 public class InputStreamReader extends Reader {
 
     private final StreamDecoder sd;
@@ -77,7 +78,7 @@ public class InputStreamReader extends Reader {
      *
      * @param  in   An InputStream
      */
-    public InputStreamReader(InputStream in) {
+    public @MustCallAlias InputStreamReader(@MustCallAlias InputStream in) {
         super(in);
         try {
             sd = StreamDecoder.forInputStreamReader(in, this, (String)null); // ## check lock object
@@ -100,7 +101,7 @@ public class InputStreamReader extends Reader {
      * @exception  UnsupportedEncodingException
      *             If the named charset is not supported
      */
-    public InputStreamReader(InputStream in, String charsetName)
+    public @MustCallAlias InputStreamReader(@MustCallAlias InputStream in, String charsetName)
         throws UnsupportedEncodingException
     {
         super(in);
@@ -118,7 +119,7 @@ public class InputStreamReader extends Reader {
      * @since 1.4
      * @spec JSR-51
      */
-    public InputStreamReader(InputStream in, Charset cs) {
+    public @MustCallAlias InputStreamReader(@MustCallAlias InputStream in, Charset cs) {
         super(in);
         if (cs == null)
             throw new NullPointerException("charset");
@@ -134,7 +135,7 @@ public class InputStreamReader extends Reader {
      * @since 1.4
      * @spec JSR-51
      */
-    public InputStreamReader(InputStream in, CharsetDecoder dec) {
+    public @MustCallAlias InputStreamReader(@MustCallAlias InputStream in, CharsetDecoder dec) {
         super(in);
         if (dec == null)
             throw new NullPointerException("charset decoder");

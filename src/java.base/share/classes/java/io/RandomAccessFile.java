@@ -31,6 +31,7 @@ import org.checkerframework.checker.index.qual.LTEqLengthOf;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.checker.signedness.qual.SignedPositive;
@@ -71,7 +72,7 @@ import sun.nio.ch.FileChannelImpl;
  * @since   1.0
  */
 
-@AnnotatedFor({"index", "interning", "nullness", "signedness"})
+@AnnotatedFor({"index", "interning", "mustcall", "nullness", "signedness"})
 public @UsesObjectEquals class RandomAccessFile implements DataOutput, DataInput, Closeable {
 
     private FileDescriptor fd;
@@ -281,7 +282,7 @@ public @UsesObjectEquals class RandomAccessFile implements DataOutput, DataInput
      * @exception  IOException  if an I/O error occurs.
      * @see        java.io.FileDescriptor
      */
-    public final FileDescriptor getFD() throws IOException {
+    public final @MustCallAlias FileDescriptor getFD(@MustCallAlias RandomAccessFile this) throws IOException {
         if (fd != null) {
             return fd;
         }
@@ -306,7 +307,7 @@ public @UsesObjectEquals class RandomAccessFile implements DataOutput, DataInput
      * @since 1.4
      * @spec JSR-51
      */
-    public final FileChannel getChannel() {
+    public final @MustCallAlias FileChannel getChannel(@MustCallAlias RandomAccessFile this) {
         FileChannel fc = this.channel;
         if (fc == null) {
             synchronized (this) {

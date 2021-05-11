@@ -30,6 +30,7 @@ import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTEqLengthOf;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.mustcall.qual.InheritableMustCall;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.util.Arrays;
@@ -50,7 +51,8 @@ import java.util.Objects;
  * @see     java.io.StringBufferInputStream
  * @since   1.0
  */
-@AnnotatedFor({"nullness", "index"})
+@AnnotatedFor({"index", "mustcall", "nullness"})
+@InheritableMustCall({})
 public class ByteArrayInputStream extends InputStream {
 
     /**

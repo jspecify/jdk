@@ -28,6 +28,7 @@ package java.util.zip;
 import org.checkerframework.checker.index.qual.GTENegativeOne;
 import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTEqLengthOf;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.io.FilterInputStream;
@@ -42,7 +43,7 @@ import java.io.IOException;
  * @author      David Connelly
  * @since 1.1
  */
-@AnnotatedFor({"index"})
+@AnnotatedFor({"index", "mustcall"})
 public
 class CheckedInputStream extends FilterInputStream {
     private Checksum cksum;
@@ -52,7 +53,7 @@ class CheckedInputStream extends FilterInputStream {
      * @param in the input stream
      * @param cksum the Checksum
      */
-    public CheckedInputStream(InputStream in, Checksum cksum) {
+    public @MustCallAlias CheckedInputStream(@MustCallAlias InputStream in, Checksum cksum) {
         super(in);
         this.cksum = cksum;
     }

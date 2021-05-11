@@ -31,6 +31,7 @@ import org.checkerframework.checker.index.qual.LTEqLengthOf;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import jdk.internal.misc.Unsafe;
@@ -56,7 +57,7 @@ import jdk.internal.misc.Unsafe;
  * @author  Arthur van Hoff
  * @since   1.0
  */
-@AnnotatedFor({"nullness", "index"})
+@AnnotatedFor({"index", "nullness", "mustcall"})
 public
 class BufferedInputStream extends FilterInputStream {
 
@@ -194,7 +195,7 @@ class BufferedInputStream extends FilterInputStream {
      *
      * @param   in   the underlying input stream.
      */
-    public BufferedInputStream(InputStream in) {
+    public @MustCallAlias BufferedInputStream(@MustCallAlias InputStream in) {
         this(in, DEFAULT_BUFFER_SIZE);
     }
 
@@ -210,7 +211,7 @@ class BufferedInputStream extends FilterInputStream {
      * @param   size   the buffer size.
      * @exception IllegalArgumentException if {@code size <= 0}.
      */
-    public BufferedInputStream(InputStream in, @Positive int size) {
+    public @MustCallAlias BufferedInputStream(@MustCallAlias InputStream in, @Positive int size) {
         super(in);
         if (size <= 0) {
             throw new IllegalArgumentException("Buffer size <= 0");

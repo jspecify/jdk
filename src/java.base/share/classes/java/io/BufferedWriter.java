@@ -29,6 +29,7 @@ import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 
@@ -69,7 +70,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since       1.1
  */
 
-@AnnotatedFor({"nullness", "index"})
+@AnnotatedFor({"index", "mustcall", "nullness"})
 public class BufferedWriter extends Writer {
 
     private Writer out;
@@ -85,7 +86,7 @@ public class BufferedWriter extends Writer {
      *
      * @param  out  A Writer
      */
-    public BufferedWriter(Writer out) {
+    public @MustCallAlias BufferedWriter(@MustCallAlias Writer out) {
         this(out, defaultCharBufferSize);
     }
 
@@ -98,7 +99,7 @@ public class BufferedWriter extends Writer {
      *
      * @exception  IllegalArgumentException  If {@code sz <= 0}
      */
-    public BufferedWriter(Writer out, @Positive int sz) {
+    public @MustCallAlias BufferedWriter(@MustCallAlias Writer out, @Positive int sz) {
         super(out);
         if (sz <= 0)
             throw new IllegalArgumentException("Buffer size <= 0");

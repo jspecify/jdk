@@ -27,6 +27,7 @@ package java.util.zip;
 
 import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -42,7 +43,7 @@ import org.checkerframework.framework.qual.CFComment;
  * @since 1.1
  *
  */
-@AnnotatedFor({"index", "signedness"})
+@AnnotatedFor({"index", "mustcall", "signedness"})
 public
 class GZIPOutputStream extends DeflaterOutputStream {
     /**
@@ -72,7 +73,7 @@ class GZIPOutputStream extends DeflaterOutputStream {
      * @exception IOException If an I/O error has occurred.
      * @exception IllegalArgumentException if {@code size <= 0}
      */
-    public GZIPOutputStream(OutputStream out, @Positive int size) throws IOException {
+    public @MustCallAlias GZIPOutputStream(@MustCallAlias OutputStream out, @Positive int size) throws IOException {
         this(out, size, false);
     }
 
@@ -93,7 +94,7 @@ class GZIPOutputStream extends DeflaterOutputStream {
      *
      * @since 1.7
      */
-    public GZIPOutputStream(OutputStream out, @Positive int size, boolean syncFlush)
+    public @MustCallAlias GZIPOutputStream(@MustCallAlias OutputStream out, @Positive int size, boolean syncFlush)
         throws IOException
     {
         super(out, new Deflater(Deflater.DEFAULT_COMPRESSION, true),
@@ -114,7 +115,7 @@ class GZIPOutputStream extends DeflaterOutputStream {
      * @param out the output stream
      * @exception IOException If an I/O error has occurred.
      */
-    public GZIPOutputStream(OutputStream out) throws IOException {
+    public @MustCallAlias GZIPOutputStream(@MustCallAlias OutputStream out) throws IOException {
         this(out, 512, false);
     }
 
@@ -134,7 +135,7 @@ class GZIPOutputStream extends DeflaterOutputStream {
      *
      * @since 1.7
      */
-    public GZIPOutputStream(OutputStream out, boolean syncFlush)
+    public @MustCallAlias GZIPOutputStream(@MustCallAlias OutputStream out, boolean syncFlush)
         throws IOException
     {
         this(out, 512, syncFlush);

@@ -28,6 +28,7 @@ package java.nio.channels;
 import org.checkerframework.checker.index.qual.GTENegativeOne;
 import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -158,7 +159,7 @@ import java.util.Collections;
  * @since 1.4
  */
 
-@AnnotatedFor({"nullness", "index"})
+@AnnotatedFor({"index", "mustcall", "nullness"})
 public abstract class FileChannel
     extends AbstractInterruptibleChannel
     implements SeekableByteChannel, GatheringByteChannel, ScatteringByteChannel
@@ -475,7 +476,7 @@ public abstract class FileChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
-    public abstract FileChannel position(@NonNegative long newPosition) throws IOException;
+    public abstract @NotOwning FileChannel position(@NonNegative long newPosition) throws IOException;
 
     /**
      * Returns the current size of this channel's file.
@@ -518,7 +519,7 @@ public abstract class FileChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
-    public abstract FileChannel truncate(@NonNegative long size) throws IOException;
+    public abstract @NotOwning FileChannel truncate(@NonNegative long size) throws IOException;
 
     /**
      * Forces any updates to this channel's file to be written to the storage

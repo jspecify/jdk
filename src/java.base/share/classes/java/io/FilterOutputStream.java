@@ -29,6 +29,7 @@ import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -51,7 +52,7 @@ import org.checkerframework.framework.qual.CFComment;
  * @since   1.0
  */
 @CFComment({"lock: Note that the @GuardSatisfied is for locks that are external to the implementation class."})
-@AnnotatedFor({"lock", "nullness", "index", "signedness"})
+@AnnotatedFor({"index", "lock", "mustcall", "nullness", "signedness"})
 public class FilterOutputStream extends OutputStream {
     /**
      * The underlying output stream to be filtered.
@@ -77,7 +78,7 @@ public class FilterOutputStream extends OutputStream {
      *                <code>null</code> if this instance is to be
      *                created without an underlying stream.
      */
-    public FilterOutputStream(@Nullable OutputStream out) {
+    public @MustCallAlias FilterOutputStream(@Nullable @MustCallAlias OutputStream out) {
         this.out = out;
     }
 

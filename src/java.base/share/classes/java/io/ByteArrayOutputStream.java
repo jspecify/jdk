@@ -29,6 +29,7 @@ import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.mustcall.qual.InheritableMustCall;
 import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
@@ -53,7 +54,8 @@ import java.util.Objects;
  * @since   1.0
  */
 
-@AnnotatedFor({"lock", "nullness", "index", "signedness"})
+@AnnotatedFor({"index", "lock", "mustcall", "nullness", "signedness"})
+@InheritableMustCall({})
 public class ByteArrayOutputStream extends OutputStream {
 
     /**

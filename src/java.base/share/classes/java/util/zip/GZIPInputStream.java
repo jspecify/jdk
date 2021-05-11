@@ -29,6 +29,7 @@ import org.checkerframework.checker.index.qual.GTENegativeOne;
 import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTEqLengthOf;
 import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.io.SequenceInputStream;
@@ -47,7 +48,7 @@ import java.io.EOFException;
  * @since 1.1
  *
  */
-@AnnotatedFor({"index"})
+@AnnotatedFor({"index", "mustcall"})
 public
 class GZIPInputStream extends InflaterInputStream {
     /**
@@ -81,7 +82,7 @@ class GZIPInputStream extends InflaterInputStream {
      * @exception IOException if an I/O error has occurred
      * @exception IllegalArgumentException if {@code size <= 0}
      */
-    public GZIPInputStream(InputStream in, @Positive int size) throws IOException {
+    public @MustCallAlias GZIPInputStream(@MustCallAlias InputStream in, @Positive int size) throws IOException {
         super(in, new Inflater(true), size);
         usesDefaultInflater = true;
         readHeader(in);
@@ -95,7 +96,7 @@ class GZIPInputStream extends InflaterInputStream {
      *                         compression method used is unsupported
      * @exception IOException if an I/O error has occurred
      */
-    public GZIPInputStream(InputStream in) throws IOException {
+    public @MustCallAlias GZIPInputStream(@MustCallAlias InputStream in) throws IOException {
         this(in, 512);
     }
 

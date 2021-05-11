@@ -31,6 +31,7 @@ import org.checkerframework.checker.index.qual.LTEqLengthOf;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -55,7 +56,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since       1.1
  */
 
-@AnnotatedFor({"lock", "nullness", "index"})
+@AnnotatedFor({"index", "lock", "mustcall", "nullness"})
 public class LineNumberReader extends BufferedReader {
 
     /** The current line number */
@@ -77,7 +78,7 @@ public class LineNumberReader extends BufferedReader {
      * @param  in
      *         A Reader object to provide the underlying stream
      */
-    public LineNumberReader(Reader in) {
+    public @MustCallAlias LineNumberReader(@MustCallAlias Reader in) {
         super(in);
     }
 
@@ -91,7 +92,7 @@ public class LineNumberReader extends BufferedReader {
      * @param  sz
      *         An int specifying the size of the buffer
      */
-    public LineNumberReader(Reader in, @NonNegative int sz) {
+    public @MustCallAlias LineNumberReader(@MustCallAlias Reader in, @NonNegative int sz) {
         super(in, sz);
     }
 

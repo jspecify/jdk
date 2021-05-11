@@ -29,6 +29,7 @@ import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -41,7 +42,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  Arthur van Hoff
  * @since   1.0
  */
-@AnnotatedFor({"nullness", "index", "signedness"})
+@AnnotatedFor({"index", "nullness", "mustcall", "signedness"})
 public class BufferedOutputStream extends FilterOutputStream {
     /**
      * The internal buffer where data is stored.
@@ -62,7 +63,7 @@ public class BufferedOutputStream extends FilterOutputStream {
      *
      * @param   out   the underlying output stream.
      */
-    public BufferedOutputStream(OutputStream out) {
+    public @MustCallAlias BufferedOutputStream(@MustCallAlias OutputStream out) {
         this(out, 8192);
     }
 
@@ -75,7 +76,7 @@ public class BufferedOutputStream extends FilterOutputStream {
      * @param   size   the buffer size.
      * @exception IllegalArgumentException if size &lt;= 0.
      */
-    public BufferedOutputStream(OutputStream out, @Positive int size) {
+    public @MustCallAlias BufferedOutputStream(@MustCallAlias OutputStream out, @Positive int size) {
         super(out);
         if (size <= 0) {
             throw new IllegalArgumentException("Buffer size <= 0");

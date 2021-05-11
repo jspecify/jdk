@@ -26,6 +26,7 @@
 package java.nio.channels;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -102,7 +103,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * @see Selector
  */
 
-@AnnotatedFor({"interning"})
+@AnnotatedFor({"interning", "mustcall"})
 public abstract @UsesObjectEquals class SelectionKey {
 
     /**
@@ -119,7 +120,7 @@ public abstract @UsesObjectEquals class SelectionKey {
      *
      * @return  This key's channel
      */
-    public abstract SelectableChannel channel();
+    public abstract @NotOwning SelectableChannel channel();
 
     /**
      * Returns the selector for which this key was created.  This method will

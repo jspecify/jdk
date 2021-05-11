@@ -31,6 +31,7 @@ import org.checkerframework.checker.index.qual.LTEqLengthOf;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
@@ -57,7 +58,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  Jonathan Payne
  * @since   1.0
  */
-@AnnotatedFor({"nullness", "index"})
+@AnnotatedFor({"index", "mustcall", "nullness"})
 public
 class PushbackInputStream extends FilterInputStream {
     /**
@@ -96,7 +97,7 @@ class PushbackInputStream extends FilterInputStream {
      * @exception IllegalArgumentException if {@code size <= 0}
      * @since  1.1
      */
-    public PushbackInputStream(InputStream in, @Positive int size) {
+    public @MustCallAlias PushbackInputStream(@MustCallAlias InputStream in, @Positive int size) {
         super(in);
         if (size <= 0) {
             throw new IllegalArgumentException("size <= 0");
@@ -113,7 +114,7 @@ class PushbackInputStream extends FilterInputStream {
      *
      * @param   in   the input stream from which bytes will be read.
      */
-    public PushbackInputStream(InputStream in) {
+    public @MustCallAlias PushbackInputStream(@MustCallAlias InputStream in) {
         this(in, 1);
     }
 

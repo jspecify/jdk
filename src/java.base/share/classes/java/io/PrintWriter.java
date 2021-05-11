@@ -30,6 +30,7 @@ import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -66,7 +67,7 @@ import java.nio.charset.UnsupportedCharsetException;
  * @since       1.1
  */
 
-@AnnotatedFor({"formatter", "index", "lock", "nullness"})
+@AnnotatedFor({"formatter", "index", "lock", "mustcall", "nullness"})
 public class PrintWriter extends Writer {
 
     /**
@@ -104,7 +105,7 @@ public class PrintWriter extends Writer {
      *
      * @param  out        A character-output stream
      */
-    public PrintWriter (Writer out) {
+    public @MustCallAlias PrintWriter (@MustCallAlias Writer out) {
         this(out, false);
     }
 
@@ -116,7 +117,7 @@ public class PrintWriter extends Writer {
      *                    {@code printf}, or {@code format} methods will
      *                    flush the output buffer
      */
-    public PrintWriter(Writer out,
+    public @MustCallAlias PrintWriter(@MustCallAlias Writer out,
                        boolean autoFlush) {
         super(out);
         this.out = out;
@@ -133,7 +134,7 @@ public class PrintWriter extends Writer {
      *
      * @see java.io.OutputStreamWriter#OutputStreamWriter(java.io.OutputStream)
      */
-    public PrintWriter(OutputStream out) {
+    public @MustCallAlias PrintWriter(@MustCallAlias OutputStream out) {
         this(out, false);
     }
 
@@ -150,7 +151,7 @@ public class PrintWriter extends Writer {
      *
      * @see java.io.OutputStreamWriter#OutputStreamWriter(java.io.OutputStream)
      */
-    public PrintWriter(OutputStream out, boolean autoFlush) {
+    public @MustCallAlias PrintWriter(@MustCallAlias OutputStream out, boolean autoFlush) {
         this(out, autoFlush, Charset.defaultCharset());
     }
 
@@ -169,7 +170,7 @@ public class PrintWriter extends Writer {
      *
      * @since 10
      */
-    public PrintWriter(OutputStream out, boolean autoFlush, Charset charset) {
+    public @MustCallAlias PrintWriter(@MustCallAlias OutputStream out, boolean autoFlush, Charset charset) {
         this(new BufferedWriter(new OutputStreamWriter(out, charset)), autoFlush);
 
         // save print stream for error propagation
@@ -895,7 +896,7 @@ public class PrintWriter extends Writer {
      * @since  1.5
      */
     @FormatMethod
-    public PrintWriter printf(@GuardSatisfied PrintWriter this, String format, @Nullable Object ... args) {
+    public @MustCallAlias PrintWriter printf(@GuardSatisfied @MustCallAlias PrintWriter this, String format, @Nullable Object ... args) {
         return format(format, args);
     }
 
@@ -949,7 +950,7 @@ public class PrintWriter extends Writer {
      * @since  1.5
      */
     @FormatMethod
-    public PrintWriter printf(@GuardSatisfied PrintWriter this, @Nullable Locale l, String format, @Nullable Object ... args) {
+    public @MustCallAlias PrintWriter printf(@GuardSatisfied @MustCallAlias PrintWriter this, @Nullable Locale l, String format, @Nullable Object ... args) {
         return format(l, format, args);
     }
 
@@ -994,7 +995,7 @@ public class PrintWriter extends Writer {
      * @since  1.5
      */
     @FormatMethod
-    public PrintWriter format(@GuardSatisfied PrintWriter this, String format, @Nullable Object ... args) {
+    public @MustCallAlias PrintWriter format(@GuardSatisfied @MustCallAlias PrintWriter this, String format, @Nullable Object ... args) {
         try {
             synchronized (lock) {
                 ensureOpen();
@@ -1055,7 +1056,7 @@ public class PrintWriter extends Writer {
      * @since  1.5
      */
     @FormatMethod
-    public PrintWriter format(@GuardSatisfied PrintWriter this, @Nullable Locale l, String format, @Nullable Object ... args) {
+    public @MustCallAlias PrintWriter format(@GuardSatisfied @MustCallAlias PrintWriter this, @Nullable Locale l, String format, @Nullable Object ... args) {
         try {
             synchronized (lock) {
                 ensureOpen();
@@ -1098,7 +1099,7 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    public PrintWriter append(@GuardSatisfied PrintWriter this, @Nullable CharSequence csq) {
+    public @MustCallAlias PrintWriter append(@GuardSatisfied @MustCallAlias PrintWriter this, @Nullable CharSequence csq) {
         write(String.valueOf(csq));
         return this;
     }
@@ -1137,7 +1138,7 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    public PrintWriter append(@GuardSatisfied PrintWriter this, @Nullable CharSequence csq, @IndexOrHigh({"#1"}) int start, @IndexOrHigh({"#1"}) int end) {
+    public @MustCallAlias PrintWriter append(@GuardSatisfied @MustCallAlias PrintWriter this, @Nullable CharSequence csq, @IndexOrHigh({"#1"}) int start, @IndexOrHigh({"#1"}) int end) {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }
@@ -1159,7 +1160,7 @@ public class PrintWriter extends Writer {
      *
      * @since 1.5
      */
-    public PrintWriter append(@GuardSatisfied PrintWriter this, char c) {
+    public @MustCallAlias PrintWriter append(@GuardSatisfied @MustCallAlias PrintWriter this, char c) {
         write(c);
         return this;
     }

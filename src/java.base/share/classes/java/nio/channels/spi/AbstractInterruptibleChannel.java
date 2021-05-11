@@ -28,6 +28,7 @@
 
 package java.nio.channels.spi;
 
+import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsIf;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -84,7 +85,7 @@ import sun.nio.ch.Interruptible;
  * @since 1.4
  */
 
-@AnnotatedFor({"interning"})
+@AnnotatedFor({"calledmethods", "interning"})
 public abstract @UsesObjectEquals class AbstractInterruptibleChannel
     implements Channel, InterruptibleChannel
 {
@@ -135,6 +136,7 @@ public abstract @UsesObjectEquals class AbstractInterruptibleChannel
      */
     protected abstract void implCloseChannel() throws IOException;
 
+    @EnsuresCalledMethodsIf(expression="this", result=false, methods={"close"})
     public final boolean isOpen() {
         return !closed;
     }

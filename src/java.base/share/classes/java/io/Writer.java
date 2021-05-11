@@ -29,6 +29,7 @@ import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -54,7 +55,7 @@ import java.util.Objects;
  * @since       1.1
  */
 
-@AnnotatedFor({"index", "interning", "nullness"})
+@AnnotatedFor({"index", "interning", "mustcall", "nullness"})
 public abstract @UsesObjectEquals class Writer implements Appendable, Closeable, Flushable {
 
     /**
@@ -325,7 +326,7 @@ public abstract @UsesObjectEquals class Writer implements Appendable, Closeable,
      *
      * @since  1.5
      */
-    public Writer append(@Nullable CharSequence csq) throws IOException {
+    public @MustCallAlias Writer append(@MustCallAlias Writer this, @Nullable CharSequence csq) throws IOException {
         write(String.valueOf(csq));
         return this;
     }
@@ -368,7 +369,7 @@ public abstract @UsesObjectEquals class Writer implements Appendable, Closeable,
      *
      * @since  1.5
      */
-    public Writer append(@Nullable CharSequence csq, @IndexOrHigh({"#1"}) int start, @IndexOrHigh({"#1"}) int end) throws IOException {
+    public @MustCallAlias Writer append(@MustCallAlias Writer this, @Nullable CharSequence csq, @IndexOrHigh({"#1"}) int start, @IndexOrHigh({"#1"}) int end) throws IOException {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }
@@ -392,7 +393,7 @@ public abstract @UsesObjectEquals class Writer implements Appendable, Closeable,
      *
      * @since 1.5
      */
-    public Writer append(char c) throws IOException {
+    public @MustCallAlias Writer append(@MustCallAlias Writer this, char c) throws IOException {
         write(c);
         return this;
     }
