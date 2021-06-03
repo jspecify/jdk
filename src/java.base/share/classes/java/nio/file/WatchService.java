@@ -29,6 +29,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import org.checkerframework.checker.mustcall.qual.InheritableMustCall;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 /**
  * A watch service that <em>watches</em> registered objects for changes and
  * events. For example a file manager may use a watch service to monitor a
@@ -102,7 +105,8 @@ import java.util.concurrent.TimeUnit;
  *
  * @see FileSystem#newWatchService
  */
-
+@AnnotatedFor({"mustcall"})
+@InheritableMustCall({})
 public interface WatchService
     extends Closeable
 {
