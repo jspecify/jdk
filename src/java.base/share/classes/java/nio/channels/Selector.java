@@ -26,6 +26,7 @@
 package java.nio.channels;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.io.Closeable;
@@ -610,7 +611,7 @@ public abstract @UsesObjectEquals class Selector implements Closeable {
      *
      * @return  This selector
      */
-    public abstract Selector wakeup();
+    public abstract @MustCallAlias Selector wakeup(@MustCallAlias Selector this);
 
     /**
      * Closes this selector.
