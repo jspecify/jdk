@@ -275,7 +275,7 @@ import java.util.function.Consumer;
  * @see SelectionKey
  */
 
-@AnnotatedFor({"interning"})
+@AnnotatedFor({"interning", "mustcall"})
 public abstract @UsesObjectEquals class Selector implements Closeable {
 
     /**
