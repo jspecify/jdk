@@ -41,7 +41,7 @@ JAVAC_WARNINGS ?= -Xlint:all
 
 # The BOOT_JAVAC setup uses the boot jdk compiler to compile the tools
 # and the interim javac, to be run by the boot jdk.
-# (Checker Framework Comment: Temporarily removed -Werror.)
+# (Checker Framework Comment: Temporarily removed -Werror.  Old line follows.)
 #       -Xlint:all$(COMMA)-deprecation$(COMMA)-options -Werror, BACKSLASH
 $(eval $(call SetupJavaCompiler,BOOT_JAVAC, \
     JAVAC := $(JAVAC), \
