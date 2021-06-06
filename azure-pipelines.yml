@@ -99,8 +99,17 @@ jobs:
     displayName: clone plume-scripts
   - bash: /tmp/$USER/plume-scripts/git-clone-related typetools checker-framework
     displayName: clone checker-framework
-  - bash: (cd ../checker-framework && checker/bin-devel/test-cftests-all.sh)
-    displayName: test-cftests-all.sh
+# test-cftests-all.sh sometimes runs out of memory, but running its component parts in sequence does not.
+#   - bash: (cd ../checker-framework && checker/bin-devel/test-cftests-all.sh)
+#     displayName: test-cftests-all.sh
+  - bash: (cd ../checker-framework && checker/bin-devel/test-cftests-junit.sh)
+    displayName: test-cftests-junit.sh
+  - bash: (cd ../checker-framework && checker/bin-devel/test-cftests-nonjunit.sh)
+    displayName: test-cftests-nonjunit.sh
+  - bash: (cd ../checker-framework && checker/bin-devel/test-cftests-inference.sh)
+    displayName: test-cftests-inference.sh
+  - bash: (cd ../checker-framework && checker/bin-devel/test-typecheck.sh)
+    displayName: test-typecheck.sh
 ## Here is how to create artifacts that can be downloaded.
 #   - bash: (cd ../checker-framework/checker/build/jtregJdk11/ && tar -czvf all.tgz all)
 #     condition: succeededOrFailed()
