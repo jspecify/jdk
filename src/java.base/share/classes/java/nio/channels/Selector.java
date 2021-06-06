@@ -25,6 +25,7 @@
 
 package java.nio.channels;
 
+import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsIf;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -274,7 +275,7 @@ import java.util.function.Consumer;
  * @see SelectionKey
  */
 
-@AnnotatedFor({"interning"})
+@AnnotatedFor({"interning", "mustcall"})
 public abstract @UsesObjectEquals class Selector implements Closeable {
 
     /**
@@ -304,6 +305,7 @@ public abstract @UsesObjectEquals class Selector implements Closeable {
      *
      * @return {@code true} if, and only if, this selector is open
      */
+    @EnsuresCalledMethodsIf(expression="this", result=false, methods={"close"})
     public abstract boolean isOpen();
 
     /**

@@ -25,6 +25,9 @@
 
 package java.nio.channels.spi;
 
+import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsIf;
+import org.checkerframework.framework.qual.AnnotatedFor;
+
 import java.io.IOException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -66,6 +69,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @since 1.4
  */
 
+@AnnotatedFor({"mustcall"})
 public abstract class AbstractSelector
     extends Selector
 {
@@ -129,6 +133,7 @@ public abstract class AbstractSelector
      */
     protected abstract void implCloseSelector() throws IOException;
 
+    @EnsuresCalledMethodsIf(expression="this", result=false, methods={"close"})
     public final boolean isOpen() {
         return selectorOpen.get();
     }

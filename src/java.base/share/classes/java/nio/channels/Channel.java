@@ -25,6 +25,7 @@
 
 package java.nio.channels;
 
+import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsIf;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.io.IOException;
@@ -55,7 +56,7 @@ import java.io.Closeable;
  * @since 1.4
  */
 
-@AnnotatedFor({"index"})
+@AnnotatedFor({"index", "mustcall"})
 public interface Channel extends Closeable {
 
     /**
@@ -63,6 +64,7 @@ public interface Channel extends Closeable {
      *
      * @return {@code true} if, and only if, this channel is open
      */
+    @EnsuresCalledMethodsIf(expression="this", result=false, methods={"close"})
     public boolean isOpen();
 
     /**
