@@ -26,6 +26,7 @@
 package java.nio.file;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.checker.mustcall.qual.InheritableMustCall;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.nio.file.attribute.*;
@@ -98,7 +99,9 @@ import java.io.IOException;
  * @since 1.7
  */
 
-@AnnotatedFor({"interning"})
+@AnnotatedFor({"interning", "mustcall"})
+// FileSystem_s cannot leak - their close() method is a convenience for closing the channels/files/etc that they wrap
+@InheritableMustCall({})
 public abstract @UsesObjectEquals class FileSystem
     implements Closeable
 {
