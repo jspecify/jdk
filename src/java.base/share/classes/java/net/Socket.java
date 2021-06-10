@@ -27,7 +27,7 @@ package java.net;
 
 import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsIf;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.mustcall.qual.CreatesObligation;
+import org.checkerframework.checker.mustcall.qual.CreatesMustCallFor;
 import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -544,7 +544,7 @@ public
      * @since 1.4
      * @spec JSR-51
      */
-    @CreatesObligation
+    @CreatesMustCallFor
     public void connect(SocketAddress endpoint) throws IOException {
         connect(endpoint, 0);
     }
@@ -566,7 +566,7 @@ public
      * @since 1.4
      * @spec JSR-51
      */
-    @CreatesObligation
+    @CreatesMustCallFor
     public void connect(SocketAddress endpoint, int timeout) throws IOException {
         if (endpoint == null)
             throw new IllegalArgumentException("connect: The address can't be null");
@@ -632,7 +632,7 @@ public
      * @since   1.4
      * @see #isBound
      */
-    @CreatesObligation
+    @CreatesMustCallFor
     public void bind(@Nullable SocketAddress bindpoint) throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");

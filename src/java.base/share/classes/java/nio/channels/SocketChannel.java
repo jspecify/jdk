@@ -25,7 +25,7 @@
 
 package java.nio.channels;
 
-import org.checkerframework.checker.mustcall.qual.CreatesObligation;
+import org.checkerframework.checker.mustcall.qual.CreatesMustCallFor;
 import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -246,7 +246,7 @@ public abstract class SocketChannel
      * @since 1.7
      */
     @Override
-    @CreatesObligation
+    @CreatesMustCallFor
     public abstract SocketChannel bind(SocketAddress local)
         throws IOException;
 
@@ -398,7 +398,7 @@ public abstract class SocketChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
-    @CreatesObligation
+    @CreatesMustCallFor
     public abstract boolean connect(SocketAddress remote) throws IOException;
 
     /**

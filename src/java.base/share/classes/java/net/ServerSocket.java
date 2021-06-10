@@ -27,7 +27,7 @@ package java.net;
 
 import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsIf;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.mustcall.qual.CreatesObligation;
+import org.checkerframework.checker.mustcall.qual.CreatesMustCallFor;
 import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -338,7 +338,7 @@ public
      *          SocketAddress subclass not supported by this socket
      * @since 1.4
      */
-    @CreatesObligation
+    @CreatesMustCallFor
     public void bind(SocketAddress endpoint) throws IOException {
         bind(endpoint, 50);
     }
@@ -368,7 +368,7 @@ public
      *          SocketAddress subclass not supported by this socket
      * @since 1.4
      */
-    @CreatesObligation
+    @CreatesMustCallFor
     public void bind(SocketAddress endpoint, int backlog) throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");

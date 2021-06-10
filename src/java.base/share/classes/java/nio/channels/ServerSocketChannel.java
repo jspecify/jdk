@@ -25,7 +25,7 @@
 
 package java.nio.channels;
 
-import org.checkerframework.checker.mustcall.qual.CreatesObligation;
+import org.checkerframework.checker.mustcall.qual.CreatesMustCallFor;
 import org.checkerframework.checker.mustcall.qual.MustCallAlias;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
@@ -161,7 +161,7 @@ public abstract class ServerSocketChannel
      *
      * @since 1.7
      */
-    @CreatesObligation
+    @CreatesMustCallFor
     public final @MustCallAlias ServerSocketChannel bind(@MustCallAlias ServerSocketChannel this, SocketAddress local)
         throws IOException
     {
@@ -206,7 +206,7 @@ public abstract class ServerSocketChannel
      *
      * @since 1.7
      */
-    @CreatesObligation
+    @CreatesMustCallFor
     public abstract @MustCallAlias ServerSocketChannel bind(@MustCallAlias ServerSocketChannel this, SocketAddress local, int backlog)
         throws IOException;
 
