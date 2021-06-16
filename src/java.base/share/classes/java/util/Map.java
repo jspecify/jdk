@@ -635,7 +635,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      * @since 1.8
      */
-    default V getOrDefault(@Nullable Object key, V defaultValue) {
+    default @Nullable V getOrDefault(@Nullable Object key, @Nullable V defaultValue) {
         V v;
         return (((v = get(key)) != null) || containsKey(key))
             ? v

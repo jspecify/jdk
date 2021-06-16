@@ -87,7 +87,7 @@ public interface ConcurrentMap<K,V> extends Map<K,V> {
      * @since 1.8
      */
     @Override
-    default V getOrDefault(@Nullable Object key, V defaultValue) {
+    default @Nullable V getOrDefault(@Nullable Object key, @Nullable V defaultValue) {
         V v;
         return ((v = get(key)) != null) ? v : defaultValue;
     }

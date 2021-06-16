@@ -1606,7 +1606,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @return the mapping for the key, if present; else the default value
      * @throws NullPointerException if the specified key is null
      */
-    public V getOrDefault(Object key, V defaultValue) {
+    public @Nullable V getOrDefault(Object key, @Nullable V defaultValue) {
         V v;
         return (v = get(key)) == null ? defaultValue : v;
     }

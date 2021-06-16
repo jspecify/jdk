@@ -904,7 +904,7 @@ public class Hashtable<K,V>
     }
 
     @Override
-    public synchronized V getOrDefault(Object key, V defaultValue) {
+    public synchronized @Nullable V getOrDefault(Object key, @Nullable V defaultValue) {
         V result = get(key);
         return (null == result) ? defaultValue : result;
     }

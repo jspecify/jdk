@@ -1071,7 +1071,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
     // Overrides of JDK8 Map extension methods
 
     @Override
-    public V getOrDefault(@Nullable Object key, V defaultValue) {
+    public @Nullable V getOrDefault(@Nullable Object key, @Nullable V defaultValue) {
         Node<K,V> e;
         return (e = getNode(hash(key), key)) == null ? defaultValue : e.value;
     }
