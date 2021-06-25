@@ -1145,7 +1145,7 @@ class Properties extends Hashtable<Object,Object> {
      * @see     java.util.Properties#defaults
      * @see     #stringPropertyNames
      */
-    public Enumeration<?> propertyNames() {
+    public Enumeration<? extends Object> propertyNames() {
         Hashtable<String,Object> h = new Hashtable<>();
         enumerate(h);
         return h.keys();
