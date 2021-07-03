@@ -7928,7 +7928,7 @@ class Character implements java.io.Serializable, Comparable<Character> {
     @Pure
     @StaticallyExecutable
     @Deprecated(since="9")
-    public Character(char value) {
+    public @PolyValue Character(@PolyValue char value) {
         this.value = value;
     }
 

@@ -121,7 +121,7 @@ public final class Byte extends Number implements Comparable<Byte> {
     @Pure
     @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public static @PolyIndex @Interned @PolyValue Byte valueOf(@PolyIndex @PolyValue byte b) {
+    public static @Interned @PolyIndex @PolyValue Byte valueOf(@PolyIndex @PolyValue byte b) {
         final int offset = 128;
         return ByteCache.cache[(int)b + offset];
     }
@@ -335,7 +335,7 @@ public final class Byte extends Number implements Comparable<Byte> {
      */
     @StaticallyExecutable
     @Deprecated(since="9")
-    public @PolyIndex Byte(@PolyIndex byte value) {
+    public @PolyIndex @PolyValue Byte(@PolyIndex @PolyValue byte value) {
         this.value = value;
     }
 

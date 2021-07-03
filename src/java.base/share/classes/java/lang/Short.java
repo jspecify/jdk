@@ -341,7 +341,7 @@ public final class Short extends Number implements Comparable<Short> {
     @SideEffectFree
     @StaticallyExecutable
     @Deprecated(since="9")
-    public @PolyIndex Short(@PolyIndex short value) {
+    public @PolyIndex @PolyValue Short(@PolyIndex @PolyValue short value) {
         this.value = value;
     }
 

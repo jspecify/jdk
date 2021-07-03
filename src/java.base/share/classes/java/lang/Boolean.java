@@ -101,7 +101,7 @@ public final class Boolean implements java.io.Serializable,
      */
     @StaticallyExecutable
     @Deprecated(since="9")
-    public Boolean(boolean value) {
+    public @PolyValue Boolean(@PolyValue boolean value) {
         this.value = value;
     }
 

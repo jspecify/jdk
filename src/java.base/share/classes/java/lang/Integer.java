@@ -77,7 +77,7 @@ import static java.lang.String.UTF16;
  * @author  Joseph D. Darcy
  * @since 1.0
  */
-@AnnotatedFor({"nullness", "index", "signedness", "value"})
+@AnnotatedFor({"index", "nullness", "signedness", "value"})
 public final class Integer extends Number implements Comparable<Integer> {
     /**
      * A constant holding the minimum value an {@code int} can
@@ -1130,7 +1130,7 @@ public final class Integer extends Number implements Comparable<Integer> {
     @SideEffectFree
     @StaticallyExecutable
     @Deprecated(since="9")
-    public @PolyIndex Integer(@PolyIndex int value) {
+    public @PolyIndex @PolyValue Integer(@PolyIndex @PolyValue int value) {
         this.value = value;
     }
 

@@ -538,7 +538,7 @@ public final class Float extends Number implements Comparable<Float> {
      */
     @StaticallyExecutable
     @Deprecated(since="9")
-    public Float(float value) {
+    public @PolyValue Float(@PolyValue float value) {
         this.value = value;
     }
 
@@ -555,7 +555,7 @@ public final class Float extends Number implements Comparable<Float> {
      */
     @StaticallyExecutable
     @Deprecated(since="9")
-    public Float(double value) {
+    public @PolyValue Float(@PolyValue double value) {
         this.value = (float)value;
     }
 

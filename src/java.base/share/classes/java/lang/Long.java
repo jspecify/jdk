@@ -1348,7 +1348,7 @@ public final class Long extends Number implements Comparable<Long> {
     @SideEffectFree
     @StaticallyExecutable
     @Deprecated(since="9")
-    public @PolyIndex Long(@PolyIndex long value) {
+    public @PolyIndex @PolyValue Long(@PolyIndex @PolyValue long value) {
         this.value = value;
     }
 
