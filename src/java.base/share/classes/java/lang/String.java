@@ -38,6 +38,7 @@ import org.checkerframework.checker.index.qual.SameLen;
 import org.checkerframework.checker.index.qual.SubstringIndexFor;
 import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.lock.qual.NewObject;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.regex.qual.PolyRegex;
@@ -3135,7 +3136,7 @@ public final class String
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static String valueOf(@GuardSatisfied @Nullable Object obj) {
+    public static @NewObject String valueOf(@GuardSatisfied @Nullable Object obj) {
         return (obj == null) ? "null" : obj.toString();
     }
 
@@ -3151,7 +3152,7 @@ public final class String
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static @SameLen({"#1"}) @PolyValue String valueOf(char data @GuardSatisfied @PolyValue []) {
+    public static @NewObject @SameLen({"#1"}) @PolyValue String valueOf(char data @GuardSatisfied @PolyValue []) {
         return new String(data);
     }
 
@@ -3177,7 +3178,7 @@ public final class String
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static String valueOf(char data @GuardSatisfied [], @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int count) {
+    public static @NewObject String valueOf(char data @GuardSatisfied [], @IndexOrHigh({"#1"}) int offset, @LTLengthOf(value={"#1"}, offset={"#2 - 1"}) @NonNegative int count) {
         return new String(data, offset, count);
     }
 
@@ -3223,7 +3224,7 @@ public final class String
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static @StringVal({"true", "false"}) String valueOf(boolean b) {
+    public static @NewObject @StringVal({"true", "false"}) String valueOf(boolean b) {
         return b ? "true" : "false";
     }
 
@@ -3237,7 +3238,7 @@ public final class String
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static @ArrayLen(1) String valueOf(char c) {
+    public static @NewObject @ArrayLen(1) String valueOf(char c) {
         if (COMPACT_STRINGS && StringLatin1.canEncode(c)) {
             return new String(StringLatin1.toBytes(c), LATIN1);
         }
@@ -3256,7 +3257,7 @@ public final class String
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static @ArrayLenRange(from = 1, to = 11) String valueOf(int i) {
+    public static @NewObject @ArrayLenRange(from = 1, to = 11) String valueOf(int i) {
         return Integer.toString(i);
     }
 
@@ -3272,7 +3273,7 @@ public final class String
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static @ArrayLenRange(from = 1, to = 20) String valueOf(long l) {
+    public static @NewObject @ArrayLenRange(from = 1, to = 20) String valueOf(long l) {
         return Long.toString(l);
     }
 
@@ -3288,7 +3289,7 @@ public final class String
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static String valueOf(float f) {
+    public static @NewObject String valueOf(float f) {
         return Float.toString(f);
     }
 
@@ -3304,7 +3305,7 @@ public final class String
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static String valueOf(double d) {
+    public static @NewObject String valueOf(double d) {
         return Double.toString(d);
     }
 

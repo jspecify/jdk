@@ -29,6 +29,7 @@ import org.checkerframework.checker.index.qual.GTENegativeOne;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.PolyIndex;
 import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.checker.lock.qual.NewObject;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.checker.signedness.qual.PolySigned;
@@ -1163,7 +1164,7 @@ public final class Long extends Number implements Comparable<Long> {
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static Long valueOf(String s, @Positive @IntRange(from = 2, to = 36) int radix) throws NumberFormatException {
+    public static @NewObject Long valueOf(String s, @Positive @IntRange(from = 2, to = 36) int radix) throws NumberFormatException {
         return Long.valueOf(parseLong(s, radix));
     }
 
@@ -1191,7 +1192,7 @@ public final class Long extends Number implements Comparable<Long> {
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static Long valueOf(String s) throws NumberFormatException
+    public static @NewObject Long valueOf(String s) throws NumberFormatException
     {
         return Long.valueOf(parseLong(s, 10));
     }
@@ -1226,7 +1227,7 @@ public final class Long extends Number implements Comparable<Long> {
     @SideEffectFree
     @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public static @PolyValue Long valueOf(@PolyValue long l) {
+    public static @NewObject @PolyValue Long valueOf(@PolyValue long l) {
         final int offset = 128;
         if (l >= -128 && l <= 127) { // will cache
             return LongCache.cache[(int)l + offset];

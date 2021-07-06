@@ -25,6 +25,7 @@
 
 package java.lang;
 
+import org.checkerframework.checker.lock.qual.NewObject;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.value.qual.DoubleVal;
 import org.checkerframework.common.value.qual.IntVal;
@@ -518,7 +519,7 @@ public final class Double extends Number implements Comparable<Double> {
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static Double valueOf(String s) throws NumberFormatException {
+    public static @NewObject Double valueOf(String s) throws NumberFormatException {
         return new Double(parseDouble(s));
     }
 
@@ -538,7 +539,7 @@ public final class Double extends Number implements Comparable<Double> {
     @SideEffectFree
     @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public static @PolyValue Double valueOf(@PolyValue double d) {
+    public static @NewObject @PolyValue Double valueOf(@PolyValue double d) {
         return new Double(d);
     }
 

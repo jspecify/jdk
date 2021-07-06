@@ -25,6 +25,7 @@
 
 package java.lang;
 
+import org.checkerframework.checker.lock.qual.NewObject;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.value.qual.IntVal;
 import org.checkerframework.common.value.qual.PolyValue;
@@ -430,7 +431,7 @@ public final class Float extends Number implements Comparable<Float> {
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static Float valueOf(String s) throws NumberFormatException {
+    public static @NewObject Float valueOf(String s) throws NumberFormatException {
         return new Float(parseFloat(s));
     }
 
@@ -450,7 +451,7 @@ public final class Float extends Number implements Comparable<Float> {
     @SideEffectFree
     @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public static @PolyValue Float valueOf(@PolyValue float f) {
+    public static @NewObject @PolyValue Float valueOf(@PolyValue float f) {
         return new Float(f);
     }
 

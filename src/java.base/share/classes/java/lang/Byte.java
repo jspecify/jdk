@@ -29,6 +29,8 @@ import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.PolyIndex;
 import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.lock.qual.NewObject;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signedness.qual.SignedPositive;
 import org.checkerframework.checker.signedness.qual.Unsigned;
@@ -121,7 +123,7 @@ public final class Byte extends Number implements Comparable<Byte> {
     @Pure
     @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public static @Interned @PolyIndex @PolyValue Byte valueOf(@PolyIndex @PolyValue byte b) {
+    public static @Interned @NewObject @PolyIndex @PolyValue Byte valueOf(@PolyIndex @PolyValue byte b) {
         final int offset = 128;
         return ByteCache.cache[(int)b + offset];
     }
@@ -229,7 +231,7 @@ public final class Byte extends Number implements Comparable<Byte> {
      */
     @Pure
     @StaticallyExecutable
-    public static @Interned Byte valueOf(String s, @Positive @IntRange(from = 2, to = 36) int radix)
+    public static @Interned @NewObject Byte valueOf(String s, @Positive @IntRange(from = 2, to = 36) int radix)
         throws NumberFormatException {
         return valueOf(parseByte(s, radix));
     }
@@ -258,7 +260,7 @@ public final class Byte extends Number implements Comparable<Byte> {
      */
     @Pure
     @StaticallyExecutable
-    public static @Interned Byte valueOf(String s) throws NumberFormatException {
+    public static @Interned @NewObject Byte valueOf(String s) throws NumberFormatException {
         return valueOf(s, 10);
     }
 
@@ -306,7 +308,7 @@ public final class Byte extends Number implements Comparable<Byte> {
      */
     @Pure
     @StaticallyExecutable
-    public static Byte decode(String nm) throws NumberFormatException {
+    public static @NewObject Byte decode(String nm) throws NumberFormatException {
         int i = Integer.decode(nm);
         if (i < MIN_VALUE || i > MAX_VALUE)
             throw new NumberFormatException(

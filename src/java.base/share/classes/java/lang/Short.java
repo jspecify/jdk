@@ -28,6 +28,7 @@ package java.lang;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.PolyIndex;
 import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.checker.lock.qual.NewObject;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signedness.qual.SignedPositive;
 import org.checkerframework.checker.signedness.qual.Unsigned;
@@ -195,7 +196,7 @@ public final class Short extends Number implements Comparable<Short> {
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static Short valueOf(String s, @Positive @IntRange(from = 2, to = 36) int radix)
+    public static @NewObject Short valueOf(String s, @Positive @IntRange(from = 2, to = 36) int radix)
         throws NumberFormatException {
         return valueOf(parseShort(s, radix));
     }
@@ -224,7 +225,7 @@ public final class Short extends Number implements Comparable<Short> {
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static Short valueOf(String s) throws NumberFormatException {
+    public static @NewObject Short valueOf(String s) throws NumberFormatException {
         return valueOf(s, 10);
     }
 
@@ -258,7 +259,7 @@ public final class Short extends Number implements Comparable<Short> {
     @SideEffectFree
     @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public static @PolyIndex @PolyValue Short valueOf(@PolyIndex @PolyValue short s) {
+    public static @NewObject @PolyIndex @PolyValue Short valueOf(@PolyIndex @PolyValue short s) {
         final int offset = 128;
         int sAsInt = s;
         if (sAsInt >= -128 && sAsInt <= 127) { // must cache
@@ -311,7 +312,7 @@ public final class Short extends Number implements Comparable<Short> {
      */
     @SideEffectFree
     @StaticallyExecutable
-    public static Short decode(String nm) throws NumberFormatException {
+    public static @NewObject Short decode(String nm) throws NumberFormatException {
         int i = Integer.decode(nm);
         if (i < MIN_VALUE || i > MAX_VALUE)
             throw new NumberFormatException(
