@@ -368,7 +368,7 @@ public final class Collectors {
      * @return a {@code Collector} that concatenates the input elements into a
      * {@code String}, in encounter order
      */
-    public static Collector<CharSequence, ?, String> joining() {
+    public static Collector<@Nullable CharSequence, ?, String> joining() {
         return new CollectorImpl<CharSequence, StringBuilder, String>(
                 StringBuilder::new, StringBuilder::append,
                 (r1, r2) -> { r1.append(r2); return r1; },
@@ -383,7 +383,7 @@ public final class Collectors {
      * @return A {@code Collector} which concatenates CharSequence elements,
      * separated by the specified delimiter, in encounter order
      */
-    public static Collector<CharSequence, ?, String> joining(CharSequence delimiter) {
+    public static Collector<@Nullable CharSequence, ?, String> joining(CharSequence delimiter) {
         return joining(delimiter, "", "");
     }
 
@@ -400,7 +400,7 @@ public final class Collectors {
      * @return A {@code Collector} which concatenates CharSequence elements,
      * separated by the specified delimiter, in encounter order
      */
-    public static Collector<CharSequence, ?, String> joining(CharSequence delimiter,
+    public static Collector<@Nullable CharSequence, ?, String> joining(CharSequence delimiter,
                                                              CharSequence prefix,
                                                              CharSequence suffix) {
         return new CollectorImpl<>(
