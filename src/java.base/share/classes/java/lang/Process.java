@@ -26,6 +26,7 @@
 package java.lang;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.CFComment;
 
@@ -120,6 +121,7 @@ public abstract @UsesObjectEquals class Process {
     @CFComment({"nullness: These three methods return @NonNull values despite being documented as",
     "possibly returning a \"null stream\".  A \"null stream\" is a non-null",
     "Stream with particular behavior, not a @Nullable Stream reference."})
+    @SideEffectFree
     public abstract OutputStream getOutputStream();
 
     /**
@@ -146,6 +148,7 @@ public abstract @UsesObjectEquals class Process {
      * @return the input stream connected to the normal output of the
      *         process
      */
+    @SideEffectFree
     public abstract InputStream getInputStream();
 
     /**
@@ -167,6 +170,7 @@ public abstract @UsesObjectEquals class Process {
      * @return the input stream connected to the error output of
      *         the process
      */
+    @SideEffectFree
     public abstract InputStream getErrorStream();
 
     /**
