@@ -183,7 +183,7 @@ public final  class Objects {
      * @see Objects#toString(Object)
      */
     
-    public static String toString( @Nullable Object o, String nullDefault) {
+    public static @Nullable String toString( @Nullable Object o, @Nullable String nullDefault) {
         return (o != null) ? o.toString() : nullDefault;
     }
 
