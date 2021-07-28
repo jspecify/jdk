@@ -25,6 +25,7 @@
 
 package java.util;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.ref.WeakReference;
@@ -137,7 +138,8 @@ import java.util.function.Consumer;
  */
 
 
-public class WeakHashMap<K,V>
+@NullMarked
+public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
     extends AbstractMap<K,V>
     implements Map<K,V> {
 

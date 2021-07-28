@@ -25,6 +25,7 @@
 
 package java.io;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.nio.charset.Charset;
@@ -61,7 +62,7 @@ import sun.nio.cs.StreamDecoder;
  * @since       1.1
  */
 
-
+@NullMarked
 public class InputStreamReader extends Reader {
 
     private final StreamDecoder sd;

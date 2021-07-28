@@ -25,6 +25,7 @@
 
 package java.util;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.*;
@@ -309,7 +310,7 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  *
  * @since   1.5
  */
-
+@NullMarked
 public final  class Scanner implements Iterator<String>, Closeable {
 
     // Internal buffer used to hold input
@@ -1677,7 +1678,7 @@ public final  class Scanner implements Iterator<String>, Closeable {
      * @return the text that matched the specified pattern
      * @throws IllegalStateException if this scanner is closed
      */
-    public String findInLine(String pattern) {
+    public @Nullable String findInLine(String pattern) {
         return findInLine(patternCache.forName(pattern));
     }
 
@@ -1699,7 +1700,7 @@ public final  class Scanner implements Iterator<String>, Closeable {
      * @return the text that matched the specified pattern
      * @throws IllegalStateException if this scanner is closed
      */
-    public String findInLine(Pattern pattern) {
+    public @Nullable String findInLine(Pattern pattern) {
         ensureOpen();
         if (pattern == null)
             throw new NullPointerException();
@@ -1746,7 +1747,7 @@ public final  class Scanner implements Iterator<String>, Closeable {
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if horizon is negative
      */
-    public String findWithinHorizon(String pattern,  int horizon) {
+    public @Nullable String findWithinHorizon(String pattern,  int horizon) {
         return findWithinHorizon(patternCache.forName(pattern), horizon);
     }
 
@@ -1781,7 +1782,7 @@ public final  class Scanner implements Iterator<String>, Closeable {
      * @throws IllegalStateException if this scanner is closed
      * @throws IllegalArgumentException if horizon is negative
      */
-    public String findWithinHorizon(Pattern pattern,  int horizon) {
+    public @Nullable String findWithinHorizon(Pattern pattern,  int horizon) {
         ensureOpen();
         if (pattern == null)
             throw new NullPointerException();

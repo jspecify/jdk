@@ -35,6 +35,7 @@
 
 package java.util.concurrent;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.util.AbstractSet;
@@ -97,7 +98,8 @@ import java.util.function.Predicate;
  * @author Doug Lea
  * @param <E> the type of elements held in this set
  */
-public class CopyOnWriteArraySet<E> extends AbstractSet<E>
+@NullMarked
+public class CopyOnWriteArraySet<E extends @Nullable Object> extends AbstractSet<E>
         implements java.io.Serializable {
     private static final long serialVersionUID = 5457747651344034263L;
 

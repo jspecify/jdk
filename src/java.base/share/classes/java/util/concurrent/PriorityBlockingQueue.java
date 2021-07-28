@@ -35,6 +35,7 @@
 
 package java.util.concurrent;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.invoke.MethodHandles;
@@ -112,6 +113,7 @@ import jdk.internal.misc.SharedSecrets;
  * @author Doug Lea
  * @param <E> the type of elements held in this queue
  */
+@NullMarked
 @SuppressWarnings("unchecked")
 public class PriorityBlockingQueue<E> extends AbstractQueue<E>
     implements BlockingQueue<E>, java.io.Serializable {
@@ -530,7 +532,7 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
         return offer(e); // never need to block
     }
 
-    public E poll() {
+    public @Nullable E poll() {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
@@ -553,7 +555,7 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
         return result;
     }
 
-    public E poll(long timeout, TimeUnit unit) throws InterruptedException {
+    public @Nullable E poll(long timeout, TimeUnit unit) throws InterruptedException {
         long nanos = unit.toNanos(timeout);
         final ReentrantLock lock = this.lock;
         lock.lockInterruptibly();
@@ -567,7 +569,7 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
         return result;
     }
 
-    public E peek() {
+    public @Nullable E peek() {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {

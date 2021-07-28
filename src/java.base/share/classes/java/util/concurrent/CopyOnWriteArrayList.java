@@ -34,6 +34,7 @@
 
 package java.util.concurrent;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.invoke.VarHandle;
@@ -92,7 +93,8 @@ import jdk.internal.misc.SharedSecrets;
  * @author Doug Lea
  * @param <E> the type of elements held in this list
  */
-public class CopyOnWriteArrayList<E>
+@NullMarked
+public class CopyOnWriteArrayList<E extends @Nullable Object>
     implements List<E>, RandomAccess, Cloneable, java.io.Serializable {
     private static final long serialVersionUID = 8673264195747942595L;
 
