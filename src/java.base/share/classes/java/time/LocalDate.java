@@ -61,6 +61,7 @@
  */
 package java.time;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import static java.time.LocalTime.SECONDS_PER_DAY;
@@ -138,6 +139,7 @@ import java.util.stream.Stream;
  *
  * @since 1.8
  */
+@NullMarked
 public final class LocalDate
         implements Temporal, TemporalAdjuster, ChronoLocalDate, Serializable {
 

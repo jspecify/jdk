@@ -61,6 +61,9 @@
  */
 package java.time.temporal;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import java.time.DateTimeException;
 
 /**
@@ -100,7 +103,8 @@ import java.time.DateTimeException;
  * @since 1.8
  */
 @FunctionalInterface
-public interface TemporalQuery<R> {
+@NullMarked
+public interface TemporalQuery<R extends @Nullable Object> {
 
     /**
      * Queries the specified temporal object.

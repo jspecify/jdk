@@ -61,6 +61,9 @@
  */
 package java.time.temporal;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import java.time.DateTimeException;
 import java.util.Objects;
 
@@ -100,6 +103,7 @@ import java.util.Objects;
  *
  * @since 1.8
  */
+@NullMarked
 public interface TemporalAccessor {
 
     /**
@@ -305,7 +309,7 @@ public interface TemporalAccessor {
      * @throws DateTimeException if unable to query
      * @throws ArithmeticException if numeric overflow occurs
      */
-    default <R> R query(TemporalQuery<R> query) {
+    default <R extends @Nullable Object> R query(TemporalQuery<R> query) {
         if (query == TemporalQueries.zoneId()
                 || query == TemporalQueries.chronology()
                 || query == TemporalQueries.precision()) {

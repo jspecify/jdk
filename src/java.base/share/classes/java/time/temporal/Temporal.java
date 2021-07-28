@@ -61,6 +61,9 @@
  */
 package java.time.temporal;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import java.time.DateTimeException;
 
 /**
@@ -126,6 +129,7 @@ import java.time.DateTimeException;
  *
  * @since 1.8
  */
+@NullMarked
 public interface Temporal extends TemporalAccessor {
 
     /**

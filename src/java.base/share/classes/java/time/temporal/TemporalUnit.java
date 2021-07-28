@@ -61,6 +61,9 @@
  */
 package java.time.temporal;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.LocalTime;
@@ -94,6 +97,7 @@ import java.time.chrono.ChronoZonedDateTime;
  *
  * @since 1.8
  */
+@NullMarked
 public interface TemporalUnit {
 
     /**

@@ -61,6 +61,7 @@
  */
 package java.time;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import static java.time.temporal.ChronoUnit.DAYS;
@@ -132,6 +133,7 @@ import java.util.regex.Pattern;
  *
  * @since 1.8
  */
+@NullMarked
 public final class Period
         implements ChronoPeriod, Serializable {
 

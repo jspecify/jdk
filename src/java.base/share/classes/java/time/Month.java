@@ -64,6 +64,9 @@ package java.time;
 import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
 import static java.time.temporal.ChronoUnit.MONTHS;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import java.time.chrono.Chronology;
 import java.time.chrono.IsoChronology;
 import java.time.format.DateTimeFormatterBuilder;
@@ -103,6 +106,7 @@ import java.util.Locale;
  *
  * @since 1.8
  */
+@NullMarked
 public enum Month implements TemporalAccessor, TemporalAdjuster {
 
     /**

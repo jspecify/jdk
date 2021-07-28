@@ -61,6 +61,9 @@
  */
 package java.time.temporal;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import static java.time.temporal.ChronoField.EPOCH_DAY;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.FOREVER;
@@ -87,6 +90,7 @@ import java.util.Map;
  *
  * @since 1.8
  */
+@NullMarked
 public final class JulianFields {
 
     /**

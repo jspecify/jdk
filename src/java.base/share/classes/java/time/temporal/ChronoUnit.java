@@ -56,6 +56,9 @@
  */
 package java.time.temporal;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import java.time.Duration;
 
 /**
@@ -74,6 +77,7 @@ import java.time.Duration;
  *
  * @since 1.8
  */
+@NullMarked
 public enum ChronoUnit implements TemporalUnit {
 
     /**

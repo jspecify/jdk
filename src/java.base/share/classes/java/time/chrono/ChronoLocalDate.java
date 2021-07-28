@@ -61,6 +61,9 @@
  */
 package java.time.chrono;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import static java.time.temporal.ChronoField.EPOCH_DAY;
 import static java.time.temporal.ChronoField.ERA;
 import static java.time.temporal.ChronoField.YEAR;
@@ -238,6 +241,7 @@ import java.util.Objects;
  *
  * @since 1.8
  */
+@NullMarked
 public interface ChronoLocalDate
         extends Temporal, TemporalAdjuster, Comparable<ChronoLocalDate> {
 
@@ -778,7 +782,7 @@ public interface ChronoLocalDate
      * @return true if this is equal to the other date
      */
     @Override
-    boolean equals(Object obj);
+    boolean equals(@Nullable Object obj);
 
     /**
      * A hash code for this date.

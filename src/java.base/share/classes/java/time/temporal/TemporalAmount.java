@@ -61,6 +61,9 @@
  */
 package java.time.temporal;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Period;
@@ -96,6 +99,7 @@ import java.util.List;
  *
  * @since 1.8
  */
+@NullMarked
 public interface TemporalAmount {
 
     /**

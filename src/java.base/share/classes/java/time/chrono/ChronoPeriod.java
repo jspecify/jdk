@@ -61,6 +61,9 @@
  */
 package java.time.chrono;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import java.time.DateTimeException;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.Temporal;
@@ -91,6 +94,7 @@ import java.util.Objects;
  *
  * @since 1.8
  */
+@NullMarked
 public interface ChronoPeriod
         extends TemporalAmount {
 
@@ -341,7 +345,7 @@ public interface ChronoPeriod
      * @return true if this is equal to the other period
      */
     @Override
-    boolean equals(Object obj);
+    boolean equals(@Nullable Object obj);
 
     /**
      * A hash code for this period.

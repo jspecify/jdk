@@ -66,6 +66,9 @@ import static java.time.LocalTime.SECONDS_PER_HOUR;
 import static java.time.LocalTime.SECONDS_PER_MINUTE;
 import static java.time.temporal.ChronoField.OFFSET_SECONDS;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -127,6 +130,7 @@ import java.util.concurrent.ConcurrentMap;
  *
  * @since 1.8
  */
+@NullMarked
 public final class ZoneOffset
         extends ZoneId
         implements TemporalAccessor, TemporalAdjuster, Comparable<ZoneOffset>, Serializable {
@@ -716,7 +720,7 @@ public final class ZoneOffset
      * @return true if this is equal to the other offset
      */
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
         if (this == obj) {
            return true;
         }

@@ -64,6 +64,9 @@ package java.time;
 import static java.time.temporal.ChronoField.DAY_OF_WEEK;
 import static java.time.temporal.ChronoUnit.DAYS;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoField;
@@ -106,6 +109,7 @@ import java.util.Locale;
  *
  * @since 1.8
  */
+@NullMarked
 public enum DayOfWeek implements TemporalAccessor, TemporalAdjuster {
 
     /**

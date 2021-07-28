@@ -61,6 +61,7 @@
  */
 package java.time;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.DataOutput;
@@ -177,6 +178,7 @@ import static java.util.Map.entry;
  *
  * @since 1.8
  */
+@NullMarked
 public abstract class ZoneId implements Serializable {
 
     /**

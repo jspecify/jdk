@@ -61,6 +61,9 @@
  */
 package java.time.chrono;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import static java.time.temporal.ChronoField.INSTANT_SECONDS;
 import static java.time.temporal.ChronoField.OFFSET_SECONDS;
 import static java.time.temporal.ChronoUnit.FOREVER;
@@ -119,6 +122,7 @@ import java.util.Objects;
  * @param <D> the concrete type for the date of this date-time
  * @since 1.8
  */
+@NullMarked
 public interface ChronoZonedDateTime<D extends ChronoLocalDate>
         extends Temporal, Comparable<ChronoZonedDateTime<?>> {
 
@@ -660,7 +664,7 @@ public interface ChronoZonedDateTime<D extends ChronoLocalDate>
      * @return true if this is equal to the other date-time
      */
     @Override
-    boolean equals(Object obj);
+    boolean equals(@Nullable Object obj);
 
     /**
      * A hash code for this date-time.

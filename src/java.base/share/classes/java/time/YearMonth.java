@@ -61,6 +61,7 @@
  */
 package java.time;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import static java.time.temporal.ChronoField.ERA;
@@ -130,6 +131,7 @@ import java.util.Objects;
  *
  * @since 1.8
  */
+@NullMarked
 public final class YearMonth
         implements Temporal, TemporalAdjuster, Comparable<YearMonth>, Serializable {
 

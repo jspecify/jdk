@@ -61,6 +61,7 @@
  */
 package java.time;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -139,6 +140,7 @@ import jdk.internal.misc.VM;
  *
  * @since 1.8
  */
+@NullMarked
 public abstract class Clock {
 
     /**

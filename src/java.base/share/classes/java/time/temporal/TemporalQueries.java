@@ -61,6 +61,9 @@
  */
 package java.time.temporal;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import static java.time.temporal.ChronoField.EPOCH_DAY;
 import static java.time.temporal.ChronoField.NANO_OF_DAY;
 import static java.time.temporal.ChronoField.OFFSET_SECONDS;
@@ -115,6 +118,7 @@ import java.time.chrono.Chronology;
  *
  * @since 1.8
  */
+@NullMarked
 public final class TemporalQueries {
     // note that it is vital that each method supplies a constant, not a
     // calculated value, as they will be checked for using ==
@@ -164,7 +168,7 @@ public final class TemporalQueries {
      *
      * @return a query that can obtain the zone ID of a temporal, not null
      */
-    public static TemporalQuery<ZoneId> zoneId() {
+    public static TemporalQuery<@Nullable ZoneId> zoneId() {
         return TemporalQueries.ZONE_ID;
     }
 
@@ -203,7 +207,7 @@ public final class TemporalQueries {
      *
      * @return a query that can obtain the chronology of a temporal, not null
      */
-    public static TemporalQuery<Chronology> chronology() {
+    public static TemporalQuery<@Nullable Chronology> chronology() {
         return TemporalQueries.CHRONO;
     }
 
@@ -240,7 +244,7 @@ public final class TemporalQueries {
      *
      * @return a query that can obtain the precision of a temporal, not null
      */
-    public static TemporalQuery<TemporalUnit> precision() {
+    public static TemporalQuery<@Nullable TemporalUnit> precision() {
         return TemporalQueries.PRECISION;
     }
 
@@ -264,7 +268,7 @@ public final class TemporalQueries {
      *
      * @return a query that can obtain the zone ID or offset of a temporal, not null
      */
-    public static TemporalQuery<ZoneId> zone() {
+    public static TemporalQuery<@Nullable ZoneId> zone() {
         return TemporalQueries.ZONE;
     }
 
@@ -287,7 +291,7 @@ public final class TemporalQueries {
      *
      * @return a query that can obtain the offset of a temporal, not null
      */
-    public static TemporalQuery<ZoneOffset> offset() {
+    public static TemporalQuery<@Nullable ZoneOffset> offset() {
         return TemporalQueries.OFFSET;
     }
 
@@ -310,7 +314,7 @@ public final class TemporalQueries {
      *
      * @return a query that can obtain the date of a temporal, not null
      */
-    public static TemporalQuery<LocalDate> localDate() {
+    public static TemporalQuery<@Nullable LocalDate> localDate() {
         return TemporalQueries.LOCAL_DATE;
     }
 
@@ -333,7 +337,7 @@ public final class TemporalQueries {
      *
      * @return a query that can obtain the time of a temporal, not null
      */
-    public static TemporalQuery<LocalTime> localTime() {
+    public static TemporalQuery<@Nullable LocalTime> localTime() {
         return TemporalQueries.LOCAL_TIME;
     }
 
@@ -341,9 +345,9 @@ public final class TemporalQueries {
     /**
      * A strict query for the {@code ZoneId}.
      */
-    static final TemporalQuery<ZoneId> ZONE_ID = new TemporalQuery<>() {
+    static final TemporalQuery<@Nullable ZoneId> ZONE_ID = new TemporalQuery<@Nullable ZoneId>() {
         @Override
-        public ZoneId queryFrom(TemporalAccessor temporal) {
+        public @Nullable ZoneId queryFrom(TemporalAccessor temporal) {
             return temporal.query(TemporalQueries.ZONE_ID);
         }
 
@@ -356,9 +360,9 @@ public final class TemporalQueries {
     /**
      * A query for the {@code Chronology}.
      */
-    static final TemporalQuery<Chronology> CHRONO = new TemporalQuery<>() {
+    static final TemporalQuery<@Nullable Chronology> CHRONO = new TemporalQuery<@Nullable Chronology>() {
         @Override
-        public Chronology queryFrom(TemporalAccessor temporal) {
+        public @Nullable Chronology queryFrom(TemporalAccessor temporal) {
             return temporal.query(TemporalQueries.CHRONO);
         }
 
@@ -372,9 +376,9 @@ public final class TemporalQueries {
     /**
      * A query for the smallest supported unit.
      */
-    static final TemporalQuery<TemporalUnit> PRECISION = new TemporalQuery<>() {
+    static final TemporalQuery<@Nullable TemporalUnit> PRECISION = new TemporalQuery<@Nullable TemporalUnit>() {
         @Override
-        public TemporalUnit queryFrom(TemporalAccessor temporal) {
+        public @Nullable TemporalUnit queryFrom(TemporalAccessor temporal) {
             return temporal.query(TemporalQueries.PRECISION);
         }
 
@@ -388,9 +392,9 @@ public final class TemporalQueries {
     /**
      * A query for {@code ZoneOffset} returning null if not found.
      */
-    static final TemporalQuery<ZoneOffset> OFFSET = new TemporalQuery<>() {
+    static final TemporalQuery<@Nullable ZoneOffset> OFFSET = new TemporalQuery<@Nullable ZoneOffset>() {
         @Override
-        public ZoneOffset queryFrom(TemporalAccessor temporal) {
+        public @Nullable ZoneOffset queryFrom(TemporalAccessor temporal) {
             if (temporal.isSupported(OFFSET_SECONDS)) {
                 return ZoneOffset.ofTotalSeconds(temporal.get(OFFSET_SECONDS));
             }
@@ -406,9 +410,9 @@ public final class TemporalQueries {
     /**
      * A lenient query for the {@code ZoneId}, falling back to the {@code ZoneOffset}.
      */
-    static final TemporalQuery<ZoneId> ZONE = new TemporalQuery<>() {
+    static final TemporalQuery<@Nullable ZoneId> ZONE = new TemporalQuery<@Nullable ZoneId>() {
         @Override
-        public ZoneId queryFrom(TemporalAccessor temporal) {
+        public @Nullable ZoneId queryFrom(TemporalAccessor temporal) {
             ZoneId zone = temporal.query(ZONE_ID);
             return (zone != null ? zone : temporal.query(OFFSET));
         }
@@ -422,9 +426,9 @@ public final class TemporalQueries {
     /**
      * A query for {@code LocalDate} returning null if not found.
      */
-    static final TemporalQuery<LocalDate> LOCAL_DATE = new TemporalQuery<>() {
+    static final TemporalQuery<@Nullable LocalDate> LOCAL_DATE = new TemporalQuery<@Nullable LocalDate>() {
         @Override
-        public LocalDate queryFrom(TemporalAccessor temporal) {
+        public @Nullable LocalDate queryFrom(TemporalAccessor temporal) {
             if (temporal.isSupported(EPOCH_DAY)) {
                 return LocalDate.ofEpochDay(temporal.getLong(EPOCH_DAY));
             }
@@ -440,9 +444,9 @@ public final class TemporalQueries {
     /**
      * A query for {@code LocalTime} returning null if not found.
      */
-    static final TemporalQuery<LocalTime> LOCAL_TIME = new TemporalQuery<>() {
+    static final TemporalQuery<@Nullable LocalTime> LOCAL_TIME = new TemporalQuery<@Nullable LocalTime>() {
         @Override
-        public LocalTime queryFrom(TemporalAccessor temporal) {
+        public @Nullable LocalTime queryFrom(TemporalAccessor temporal) {
             if (temporal.isSupported(NANO_OF_DAY)) {
                 return LocalTime.ofNanoOfDay(temporal.getLong(NANO_OF_DAY));
             }

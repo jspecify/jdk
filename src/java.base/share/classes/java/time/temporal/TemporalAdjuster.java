@@ -63,6 +63,9 @@ package java.time.temporal;
 
 import java.time.DateTimeException;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 /**
  * Strategy for adjusting a temporal object.
  * <p>
@@ -103,6 +106,7 @@ import java.time.DateTimeException;
  * @since 1.8
  */
 @FunctionalInterface
+@NullMarked
 public interface TemporalAdjuster {
 
     /**

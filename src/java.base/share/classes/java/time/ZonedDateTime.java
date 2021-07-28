@@ -61,6 +61,7 @@
  */
 package java.time;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import static java.time.temporal.ChronoField.INSTANT_SECONDS;
@@ -163,6 +164,7 @@ import java.util.Objects;
  *
  * @since 1.8
  */
+@NullMarked
 public final class ZonedDateTime
         implements Temporal, ChronoZonedDateTime<LocalDate>, Serializable {
 
@@ -365,7 +367,7 @@ public final class ZonedDateTime
      * @param preferredOffset  the zone offset, null if no preference
      * @return the zoned date-time, not null
      */
-    public static ZonedDateTime ofLocal(LocalDateTime localDateTime, ZoneId zone, ZoneOffset preferredOffset) {
+    public static ZonedDateTime ofLocal(LocalDateTime localDateTime, ZoneId zone, @Nullable ZoneOffset preferredOffset) {
         Objects.requireNonNull(localDateTime, "localDateTime");
         Objects.requireNonNull(zone, "zone");
         if (zone instanceof ZoneOffset) {

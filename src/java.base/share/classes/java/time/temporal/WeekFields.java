@@ -61,6 +61,7 @@
  */
 package java.time.temporal;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import static java.time.temporal.ChronoField.DAY_OF_MONTH;
@@ -186,6 +187,7 @@ import sun.util.locale.provider.LocaleResources;
  *
  * @since 1.8
  */
+@NullMarked
 public final class WeekFields implements Serializable {
     // implementation notes
     // querying week-of-month or week-of-year should return the week value bound within the month/year

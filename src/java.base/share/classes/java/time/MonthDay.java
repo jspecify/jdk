@@ -61,6 +61,7 @@
  */
 package java.time;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import static java.time.temporal.ChronoField.DAY_OF_MONTH;
@@ -126,6 +127,7 @@ import java.util.Objects;
  *
  * @since 1.8
  */
+@NullMarked
 public final class MonthDay
         implements TemporalAccessor, TemporalAdjuster, Comparable<MonthDay>, Serializable {
 
