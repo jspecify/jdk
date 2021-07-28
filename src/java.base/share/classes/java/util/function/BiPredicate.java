@@ -24,6 +24,9 @@
  */
 package java.util.function;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 import java.util.Objects;
 
 /**
@@ -40,7 +43,8 @@ import java.util.Objects;
  * @since 1.8
  */
 @FunctionalInterface
-public interface BiPredicate<T, U> {
+@NullMarked
+public interface BiPredicate<T extends @Nullable Object, U extends @Nullable Object> {
 
     /**
      * Evaluates this predicate on the given arguments.

@@ -24,6 +24,7 @@
  */
 package java.util.function;
 
+import org.jspecify.nullness.NullMarked;
 
 /**
  * Represents a supplier of {@code boolean}-valued results.  This is the
@@ -39,6 +40,7 @@ package java.util.function;
  * @since 1.8
  */
 @FunctionalInterface
+@NullMarked
 public interface BooleanSupplier {
 
     /**

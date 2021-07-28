@@ -24,6 +24,9 @@
  */
 package java.util.function;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 /**
  * Represents a function that accepts two arguments and produces a double-valued
  * result.  This is the {@code double}-producing primitive specialization for
@@ -39,7 +42,8 @@ package java.util.function;
  * @since 1.8
  */
 @FunctionalInterface
-public interface ToDoubleBiFunction<T, U> {
+@NullMarked
+public interface ToDoubleBiFunction<T extends @Nullable Object, U extends @Nullable Object> {
 
     /**
      * Applies this function to the given arguments.
