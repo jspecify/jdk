@@ -31,6 +31,7 @@ import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -191,7 +192,7 @@ public final @UsesObjectEquals class Objects {
      * @see Objects#toString(Object)
      */
     @SideEffectFree
-    public static String toString(@GuardSatisfied @Nullable Object o, String nullDefault) {
+    public static @PolyNull String toString(@GuardSatisfied @PolyNull Object o, @PolyNull String nullDefault) {
         return (o != null) ? o.toString() : nullDefault;
     }
 
