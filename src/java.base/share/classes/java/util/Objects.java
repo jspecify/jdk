@@ -192,7 +192,7 @@ public final @UsesObjectEquals class Objects {
      * @see Objects#toString(Object)
      */
     @SideEffectFree
-    public static @PolyNull String toString(@GuardSatisfied @PolyNull Object o, @PolyNull String nullDefault) {
+    public static @PolyNull String toString(@GuardSatisfied @Nullable Object o, @PolyNull String nullDefault) {
         return (o != null) ? o.toString() : nullDefault;
     }
 
