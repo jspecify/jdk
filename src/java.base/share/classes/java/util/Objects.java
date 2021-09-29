@@ -82,6 +82,9 @@ public final  class Objects {
         return (a == b) || (a != null && a.equals(b));
     }
 
+    // Define and annotate an overload that is unique to j2cl: b/201433789
+    public static boolean equals( @Nullable String a,  @Nullable String b);
+
    /**
     * Returns {@code true} if the arguments are deeply equal to each other
     * and {@code false} otherwise.
