@@ -37,6 +37,8 @@ package java.util.concurrent;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 import static java.lang.ref.Reference.reachabilityFence;
 import java.security.AccessControlContext;
@@ -75,6 +77,7 @@ import sun.security.util.SecurityConstants;
  * @author Doug Lea
  */
 @AnnotatedFor({"interning"})
+@NullMarked
 public @UsesObjectEquals class Executors {
 
     /**
@@ -409,7 +412,7 @@ public @UsesObjectEquals class Executors {
      * @return a callable object
      * @throws NullPointerException if task null
      */
-    public static <T> Callable<T> callable(Runnable task, T result) {
+    public static <T extends @Nullable Object> Callable<T> callable(Runnable task, T result) {
         if (task == null)
             throw new NullPointerException();
         return new RunnableAdapter<T>(task, result);
@@ -422,7 +425,7 @@ public @UsesObjectEquals class Executors {
      * @return a callable object
      * @throws NullPointerException if task null
      */
-    public static Callable<Object> callable(Runnable task) {
+    public static Callable<@Nullable Object> callable(Runnable task) {
         if (task == null)
             throw new NullPointerException();
         return new RunnableAdapter<Object>(task, null);
@@ -435,7 +438,7 @@ public @UsesObjectEquals class Executors {
      * @return a callable object
      * @throws NullPointerException if action null
      */
-    public static Callable<Object> callable(final PrivilegedAction<?> action) {
+    public static Callable<@Nullable Object> callable(final PrivilegedAction<?> action) {
         if (action == null)
             throw new NullPointerException();
         return new Callable<Object>() {
@@ -450,7 +453,7 @@ public @UsesObjectEquals class Executors {
      * @return a callable object
      * @throws NullPointerException if action null
      */
-    public static Callable<Object> callable(final PrivilegedExceptionAction<?> action) {
+    public static Callable<@Nullable Object> callable(final PrivilegedExceptionAction<?> action) {
         if (action == null)
             throw new NullPointerException();
         return new Callable<Object>() {
@@ -471,7 +474,7 @@ public @UsesObjectEquals class Executors {
      * @return a callable object
      * @throws NullPointerException if callable null
      */
-    public static <T> Callable<T> privilegedCallable(Callable<T> callable) {
+    public static <T extends @Nullable Object> Callable<T> privilegedCallable(Callable<T> callable) {
         if (callable == null)
             throw new NullPointerException();
         return new PrivilegedCallable<T>(callable);
@@ -497,7 +500,7 @@ public @UsesObjectEquals class Executors {
      * context does not have permission to both set and get context
      * class loader
      */
-    public static <T> Callable<T> privilegedCallableUsingCurrentClassLoader(Callable<T> callable) {
+    public static <T extends @Nullable Object> Callable<T> privilegedCallableUsingCurrentClassLoader(Callable<T> callable) {
         if (callable == null)
             throw new NullPointerException();
         return new PrivilegedCallableUsingCurrentClassLoader<T>(callable);
