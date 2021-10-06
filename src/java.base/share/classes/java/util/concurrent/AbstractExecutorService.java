@@ -37,6 +37,8 @@ package java.util.concurrent;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -78,6 +80,7 @@ import java.util.List;
  * @author Doug Lea
  */
 @AnnotatedFor({"interning"})
+@NullMarked
 public abstract @UsesObjectEquals class AbstractExecutorService implements ExecutorService {
 
     /**
@@ -93,7 +96,7 @@ public abstract @UsesObjectEquals class AbstractExecutorService implements Execu
      * the underlying task
      * @since 1.6
      */
-    protected <T> RunnableFuture<T> newTaskFor(Runnable runnable, T value) {
+    protected <T extends @Nullable Object> RunnableFuture<T> newTaskFor(Runnable runnable, T value) {
         return new FutureTask<T>(runnable, value);
     }
 
@@ -108,7 +111,7 @@ public abstract @UsesObjectEquals class AbstractExecutorService implements Execu
      * cancellation of the underlying task
      * @since 1.6
      */
-    protected <T> RunnableFuture<T> newTaskFor(Callable<T> callable) {
+    protected <T extends @Nullable Object> RunnableFuture<T> newTaskFor(Callable<T> callable) {
         return new FutureTask<T>(callable);
     }
 
@@ -127,7 +130,7 @@ public abstract @UsesObjectEquals class AbstractExecutorService implements Execu
      * @throws RejectedExecutionException {@inheritDoc}
      * @throws NullPointerException       {@inheritDoc}
      */
-    public <T> Future<T> submit(Runnable task, T result) {
+    public <T extends @Nullable Object> Future<T> submit(Runnable task, T result) {
         if (task == null) throw new NullPointerException();
         RunnableFuture<T> ftask = newTaskFor(task, result);
         execute(ftask);
@@ -138,7 +141,7 @@ public abstract @UsesObjectEquals class AbstractExecutorService implements Execu
      * @throws RejectedExecutionException {@inheritDoc}
      * @throws NullPointerException       {@inheritDoc}
      */
-    public <T> Future<T> submit(Callable<T> task) {
+    public <T extends @Nullable Object> Future<T> submit(Callable<T> task) {
         if (task == null) throw new NullPointerException();
         RunnableFuture<T> ftask = newTaskFor(task);
         execute(ftask);
@@ -218,7 +221,7 @@ public abstract @UsesObjectEquals class AbstractExecutorService implements Execu
         }
     }
 
-    public <T> T invokeAny(Collection<? extends Callable<T>> tasks)
+    public <T extends @Nullable Object> T invokeAny(Collection<? extends Callable<T>> tasks)
         throws InterruptedException, ExecutionException {
         try {
             return doInvokeAny(tasks, false, 0);
@@ -228,13 +231,13 @@ public abstract @UsesObjectEquals class AbstractExecutorService implements Execu
         }
     }
 
-    public <T> T invokeAny(Collection<? extends Callable<T>> tasks,
+    public <T extends @Nullable Object> T invokeAny(Collection<? extends Callable<T>> tasks,
                            long timeout, TimeUnit unit)
         throws InterruptedException, ExecutionException, TimeoutException {
         return doInvokeAny(tasks, true, unit.toNanos(timeout));
     }
 
-    public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks)
+    public <T extends @Nullable Object> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks)
         throws InterruptedException {
         if (tasks == null)
             throw new NullPointerException();
@@ -259,7 +262,7 @@ public abstract @UsesObjectEquals class AbstractExecutorService implements Execu
         }
     }
 
-    public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks,
+    public <T extends @Nullable Object> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks,
                                          long timeout, TimeUnit unit)
         throws InterruptedException {
         if (tasks == null)
