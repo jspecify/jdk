@@ -1185,7 +1185,7 @@ public final class Collectors {
      * @see #groupingByConcurrent(Function, Collector)
      * @see #groupingByConcurrent(Function, Supplier, Collector)
      */
-    public static <T extends @Nullable Object, K extends @Nullable Object>
+    public static <T extends @Nullable Object, K>
     Collector<T, ?, ConcurrentMap<K, List<T>>>
     groupingByConcurrent(Function<? super T, ? extends K> classifier) {
         return groupingByConcurrent(classifier, ConcurrentHashMap::new, toList());
@@ -1231,7 +1231,7 @@ public final class Collectors {
      * @see #groupingByConcurrent(Function)
      * @see #groupingByConcurrent(Function, Supplier, Collector)
      */
-    public static <T extends @Nullable Object, K extends @Nullable Object, A extends @Nullable Object, D extends @Nullable Object>
+    public static <T extends @Nullable Object, K, A extends @Nullable Object, D>
     Collector<T, ?, ConcurrentMap<K, D>> groupingByConcurrent(Function<? super T, ? extends K> classifier,
                                                               Collector<? super T, A, D> downstream) {
         return groupingByConcurrent(classifier, ConcurrentHashMap::new, downstream);
@@ -1279,7 +1279,7 @@ public final class Collectors {
      * @see #groupingByConcurrent(Function, Collector)
      * @see #groupingBy(Function, Supplier, Collector)
      */
-    public static <T extends @Nullable Object, K extends @Nullable Object, A extends @Nullable Object, D extends @Nullable Object, M extends ConcurrentMap<K, D>>
+    public static <T extends @Nullable Object, K, A extends @Nullable Object, D, M extends ConcurrentMap<K, D>>
     Collector<T, ?, M> groupingByConcurrent(Function<? super T, ? extends K> classifier,
                                             Supplier<M> mapFactory,
                                             Collector<? super T, A, D> downstream) {
@@ -1457,7 +1457,7 @@ public final class Collectors {
      * @see #toMap(Function, Function, BinaryOperator, Supplier)
      * @see #toConcurrentMap(Function, Function)
      */
-    public static <T extends @Nullable Object, K extends @Nullable Object, U extends @Nullable Object>
+    public static <T extends @Nullable Object, K extends @Nullable Object, U>
     Collector<T, ?, Map<K,U>> toMap(Function<? super T, ? extends K> keyMapper,
                                     Function<? super T, ? extends U> valueMapper) {
         return new CollectorImpl<>(HashMap::new,
@@ -1495,7 +1495,7 @@ public final class Collectors {
      * @since 10
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public static <T extends @Nullable Object, K extends @Nullable Object, U extends @Nullable Object>
+    public static <T extends @Nullable Object, K, U>
     Collector<T, ?, Map<K,U>> toUnmodifiableMap(Function<? super T, ? extends K> keyMapper,
                                                 Function<? super T, ? extends U> valueMapper) {
         Objects.requireNonNull(keyMapper, "keyMapper");
@@ -1561,7 +1561,7 @@ public final class Collectors {
      * @see #toMap(Function, Function, BinaryOperator, Supplier)
      * @see #toConcurrentMap(Function, Function, BinaryOperator)
      */
-    public static <T extends @Nullable Object, K extends @Nullable Object, U extends @Nullable Object>
+    public static <T extends @Nullable Object, K extends @Nullable Object, U>
     Collector<T, ?, Map<K,U>> toMap(Function<? super T, ? extends K> keyMapper,
                                     Function<? super T, ? extends U> valueMapper,
                                     BinaryOperator<U> mergeFunction) {
@@ -1601,7 +1601,7 @@ public final class Collectors {
      * @since 10
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public static <T extends @Nullable Object, K extends @Nullable Object, U extends @Nullable Object>
+    public static <T extends @Nullable Object, K, U>
     Collector<T, ?, Map<K,U>> toUnmodifiableMap(Function<? super T, ? extends K> keyMapper,
                                                 Function<? super T, ? extends U> valueMapper,
                                                 BinaryOperator<U> mergeFunction) {
@@ -1653,7 +1653,7 @@ public final class Collectors {
      * @see #toMap(Function, Function, BinaryOperator)
      * @see #toConcurrentMap(Function, Function, BinaryOperator, Supplier)
      */
-    public static <T extends @Nullable Object, K extends @Nullable Object, U extends @Nullable Object, M extends Map<K, U>>
+    public static <T extends @Nullable Object, K extends @Nullable Object, U, M extends Map<K, U>>
     Collector<T, ?, M> toMap(Function<? super T, ? extends K> keyMapper,
                              Function<? super T, ? extends U> valueMapper,
                              BinaryOperator<U> mergeFunction,
@@ -1716,7 +1716,7 @@ public final class Collectors {
      * @see #toConcurrentMap(Function, Function, BinaryOperator)
      * @see #toConcurrentMap(Function, Function, BinaryOperator, Supplier)
      */
-    public static <T extends @Nullable Object, K extends @Nullable Object, U extends @Nullable Object>
+    public static <T extends @Nullable Object, K, U>
     Collector<T, ?, ConcurrentMap<K,U>> toConcurrentMap(Function<? super T, ? extends K> keyMapper,
                                                         Function<? super T, ? extends U> valueMapper) {
         return new CollectorImpl<>(ConcurrentHashMap::new,
@@ -1775,7 +1775,7 @@ public final class Collectors {
      * @see #toConcurrentMap(Function, Function, BinaryOperator, Supplier)
      * @see #toMap(Function, Function, BinaryOperator)
      */
-    public static <T extends @Nullable Object, K extends @Nullable Object, U extends @Nullable Object>
+    public static <T extends @Nullable Object, K, U>
     Collector<T, ?, ConcurrentMap<K,U>>
     toConcurrentMap(Function<? super T, ? extends K> keyMapper,
                     Function<? super T, ? extends U> valueMapper,
@@ -1817,7 +1817,7 @@ public final class Collectors {
      * @see #toConcurrentMap(Function, Function, BinaryOperator)
      * @see #toMap(Function, Function, BinaryOperator, Supplier)
      */
-    public static <T extends @Nullable Object, K extends @Nullable Object, U extends @Nullable Object, M extends ConcurrentMap<K, U>>
+    public static <T extends @Nullable Object, K, U, M extends ConcurrentMap<K, U>>
     Collector<T, ?, M> toConcurrentMap(Function<? super T, ? extends K> keyMapper,
                                        Function<? super T, ? extends U> valueMapper,
                                        BinaryOperator<U> mergeFunction,
