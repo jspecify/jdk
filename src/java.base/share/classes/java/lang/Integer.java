@@ -1103,7 +1103,7 @@ public final class Integer extends Number implements Comparable<Integer> {
     @SideEffectFree
     @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public static @NewObject @PolyIndex @PolyValue Integer valueOf(@PolyIndex @PolyValue int i) {
+    public static @NewObject @PolyIndex @PolyValue @PolySigned Integer valueOf(@PolyIndex @PolyValue @PolySigned int i) {
         if (i >= IntegerCache.low && i <= IntegerCache.high)
             return IntegerCache.cache[i + (-IntegerCache.low)];
         return new Integer(i);
@@ -1131,7 +1131,7 @@ public final class Integer extends Number implements Comparable<Integer> {
     @SideEffectFree
     @StaticallyExecutable
     @Deprecated(since="9")
-    public @PolyIndex @PolyValue Integer(@PolyIndex @PolyValue int value) {
+    public @PolyIndex @PolyValue @PolySigned Integer(@PolyIndex @PolyValue @PolySigned int value) {
         this.value = value;
     }
 
@@ -1188,7 +1188,7 @@ public final class Integer extends Number implements Comparable<Integer> {
     @Pure
     @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public @PolyIndex @PolyValue int intValue(@PolyIndex @PolyValue Integer this) {
+    public @PolyIndex @PolyValue @PolySigned int intValue(@PolyIndex @PolyValue @PolySigned Integer this) {
         return value;
     }
 
@@ -1200,7 +1200,7 @@ public final class Integer extends Number implements Comparable<Integer> {
      */
     @Pure
     @StaticallyExecutable
-    public @PolyIndex @PolyValue long longValue(@PolyIndex @PolyValue Integer this) {
+    public @PolyIndex @PolyValue @PolySigned long longValue(@PolyIndex @PolyValue @PolySigned Integer this) {
         return (long)value;
     }
 

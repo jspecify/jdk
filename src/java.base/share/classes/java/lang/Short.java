@@ -30,6 +30,7 @@ import org.checkerframework.checker.index.qual.PolyIndex;
 import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.checker.lock.qual.NewObject;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.checker.signedness.qual.SignedPositive;
 import org.checkerframework.checker.signedness.qual.Unsigned;
 import org.checkerframework.common.value.qual.ArrayLen;
@@ -259,7 +260,7 @@ public final class Short extends Number implements Comparable<Short> {
     @SideEffectFree
     @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public static @NewObject @PolyIndex @PolyValue Short valueOf(@PolyIndex @PolyValue short s) {
+    public static @NewObject @PolyIndex @PolyValue @PolySigned Short valueOf(@PolyIndex @PolyValue @PolySigned short s) {
         final int offset = 128;
         int sAsInt = s;
         if (sAsInt >= -128 && sAsInt <= 127) { // must cache
@@ -342,7 +343,7 @@ public final class Short extends Number implements Comparable<Short> {
     @SideEffectFree
     @StaticallyExecutable
     @Deprecated(since="9")
-    public @PolyIndex @PolyValue Short(@PolyIndex @PolyValue short value) {
+    public @PolyIndex @PolyValue @PolySigned Short(@PolyIndex @PolyValue @PolySigned short value) {
         this.value = value;
     }
 
@@ -389,7 +390,7 @@ public final class Short extends Number implements Comparable<Short> {
     @Pure
     @StaticallyExecutable
     @HotSpotIntrinsicCandidate
-    public @PolyIndex @PolyValue short shortValue(@PolyIndex @PolyValue Short this) {
+    public @PolyIndex @PolyValue @PolySigned short shortValue(@PolyIndex @PolyValue @PolySigned Short this) {
         return value;
     }
 
@@ -400,7 +401,7 @@ public final class Short extends Number implements Comparable<Short> {
      */
     @Pure
     @StaticallyExecutable
-    public @PolyIndex @PolyValue int intValue(@PolyIndex @PolyValue Short this) {
+    public @PolyIndex @PolyValue @PolySigned int intValue(@PolyIndex @PolyValue @PolySigned Short this) {
         return (int)value;
     }
 
@@ -411,7 +412,7 @@ public final class Short extends Number implements Comparable<Short> {
      */
     @Pure
     @StaticallyExecutable
-    public @PolyIndex @PolyValue long longValue(@PolyIndex @PolyValue Short this) {
+    public @PolyIndex @PolyValue @PolySigned long longValue(@PolyIndex @PolyValue @PolySigned Short this) {
         return (long)value;
     }
 
