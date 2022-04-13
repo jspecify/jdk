@@ -115,7 +115,7 @@ public interface Predicate<T extends @Nullable Object> {
      * @return a predicate that tests if two arguments are equal according
      * to {@link Objects#equals(Object, Object)}
      */
-    static <T extends @Nullable Object> Predicate<T> isEqual(Object targetRef) {
+    static <T extends @Nullable Object> Predicate<T> isEqual(@Nullable Object targetRef) {
         return (null == targetRef)
                 ? Objects::isNull
                 : object -> targetRef.equals(object);
