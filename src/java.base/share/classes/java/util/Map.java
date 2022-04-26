@@ -1328,7 +1328,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @since 9
      */
-    static <K extends @Nullable Object, V extends @Nullable Object> Map<K, V> of(K k1, V v1) {
+    static <K, V> Map<K, V> of(K k1, V v1) {
         return new ImmutableCollections.Map1<>(k1, v1);
     }
 
@@ -1348,7 +1348,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @since 9
      */
-    static <K extends @Nullable Object, V extends @Nullable Object> Map<K, V> of(K k1, V v1, K k2, V v2) {
+    static <K, V> Map<K, V> of(K k1, V v1, K k2, V v2) {
         return new ImmutableCollections.MapN<>(k1, v1, k2, v2);
     }
 
@@ -1370,7 +1370,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @since 9
      */
-    static <K extends @Nullable Object, V extends @Nullable Object> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3) {
+    static <K, V> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3) {
         return new ImmutableCollections.MapN<>(k1, v1, k2, v2, k3, v3);
     }
 
@@ -1394,7 +1394,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @since 9
      */
-    static <K extends @Nullable Object, V extends @Nullable Object> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4) {
+    static <K, V> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4) {
         return new ImmutableCollections.MapN<>(k1, v1, k2, v2, k3, v3, k4, v4);
     }
 
@@ -1420,7 +1420,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @since 9
      */
-    static <K extends @Nullable Object, V extends @Nullable Object> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5) {
+    static <K, V> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5) {
         return new ImmutableCollections.MapN<>(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5);
     }
 
@@ -1448,7 +1448,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @since 9
      */
-    static <K extends @Nullable Object, V extends @Nullable Object> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5,
+    static <K, V> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5,
                                K k6, V v6) {
         return new ImmutableCollections.MapN<>(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5,
                                                k6, v6);
@@ -1480,7 +1480,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @since 9
      */
-    static <K extends @Nullable Object, V extends @Nullable Object> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5,
+    static <K, V> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5,
                                K k6, V v6, K k7, V v7) {
         return new ImmutableCollections.MapN<>(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5,
                                                k6, v6, k7, v7);
@@ -1514,7 +1514,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @since 9
      */
-    static <K extends @Nullable Object, V extends @Nullable Object> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5,
+    static <K, V> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5,
                                K k6, V v6, K k7, V v7, K k8, V v8) {
         return new ImmutableCollections.MapN<>(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5,
                                                k6, v6, k7, v7, k8, v8);
@@ -1550,7 +1550,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @since 9
      */
-    static <K extends @Nullable Object, V extends @Nullable Object> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5,
+    static <K, V> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5,
                                K k6, V v6, K k7, V v7, K k8, V v8, K k9, V v9) {
         return new ImmutableCollections.MapN<>(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5,
                                                k6, v6, k7, v7, k8, v8, k9, v9);
@@ -1588,7 +1588,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @since 9
      */
-    static <K extends @Nullable Object, V extends @Nullable Object> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5,
+    static <K, V> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5,
                                K k6, V v6, K k7, V v7, K k8, V v8, K k9, V v9, K k10, V v10) {
         return new ImmutableCollections.MapN<>(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5,
                                                k6, v6, k7, v7, k8, v8, k9, v9, k10, v10);
@@ -1627,7 +1627,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      */
     @SafeVarargs
     @SuppressWarnings("varargs")
-    static <K extends @Nullable Object, V extends @Nullable Object> Map<K, V> ofEntries(Entry<? extends K, ? extends V>... entries) {
+    static <K, V> Map<K, V> ofEntries(Entry<? extends K, ? extends V>... entries) {
         if (entries.length == 0) { // implicit null check of entries array
             return ImmutableCollections.emptyMap();
         } else if (entries.length == 1) {
@@ -1679,7 +1679,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      * @see Map#ofEntries Map.ofEntries()
      * @since 9
      */
-    static <K extends @Nullable Object, V extends @Nullable Object> Entry<K, V> entry(K k, V v) {
+    static <K, V> Entry<K, V> entry(K k, V v) {
         // KeyValueHolder checks for nulls
         return new KeyValueHolder<>(k, v);
     }
@@ -1702,7 +1702,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      * @since 10
      */
     @SuppressWarnings({"rawtypes","unchecked"})
-    static <K extends @Nullable Object, V extends @Nullable Object> Map<K, V> copyOf(Map<? extends K, ? extends V> map) {
+    static <K, V> Map<K, V> copyOf(Map<? extends K, ? extends V> map) {
         if (map instanceof ImmutableCollections.AbstractImmutableMap) {
             return (Map<K,V>)map;
         } else {
