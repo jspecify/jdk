@@ -29,6 +29,8 @@ import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
 import java.util.function.LongConsumer;
 
+import org.jspecify.nullness.Nullable;
+
 /**
  * Static classes and methods for operating on or creating instances of
  * {@link Spliterator} and its primitive specializations
@@ -1292,7 +1294,7 @@ public final class Spliterators {
          * This implementation permits limited parallelism.
          */
         @Override
-        public Spliterator<T> trySplit() {
+        public @Nullable Spliterator<T> trySplit() {
             /*
              * Split into arrays of arithmetically increasing batch
              * sizes.  This will only improve parallel performance if
@@ -1415,7 +1417,7 @@ public final class Spliterators {
          * This implementation permits limited parallelism.
          */
         @Override
-        public Spliterator.OfInt trySplit() {
+        public Spliterator.@Nullable OfInt trySplit() {
             HoldingIntConsumer holder = new HoldingIntConsumer();
             long s = est;
             if (s > 1 && tryAdvance(holder)) {
@@ -1525,7 +1527,7 @@ public final class Spliterators {
          * This implementation permits limited parallelism.
          */
         @Override
-        public Spliterator.OfLong trySplit() {
+        public Spliterator.@Nullable OfLong trySplit() {
             HoldingLongConsumer holder = new HoldingLongConsumer();
             long s = est;
             if (s > 1 && tryAdvance(holder)) {
@@ -1635,7 +1637,7 @@ public final class Spliterators {
          * This implementation permits limited parallelism.
          */
         @Override
-        public Spliterator.OfDouble trySplit() {
+        public Spliterator.@Nullable OfDouble trySplit() {
             HoldingDoubleConsumer holder = new HoldingDoubleConsumer();
             long s = est;
             if (s > 1 && tryAdvance(holder)) {
