@@ -37,6 +37,8 @@ package java.util.concurrent;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -66,8 +68,8 @@ import java.util.concurrent.locks.LockSupport;
  * @author Doug Lea
  * @param <V> The result type returned by this FutureTask's {@code get} methods
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class FutureTask<V> implements RunnableFuture<V> {
+@NullMarked
+public class FutureTask<V extends @Nullable Object> implements RunnableFuture<V> {
     /*
      * Revision notes: This differs from previous versions of this
      * class that relied on AbstractQueuedSynchronizer, mainly to
