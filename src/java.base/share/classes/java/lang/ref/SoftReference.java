@@ -98,7 +98,7 @@ public class SoftReference<T> extends Reference<T> {
      *          or {@code null} if registration is not required
      *
      */
-    public SoftReference(@Nullable T referent, ReferenceQueue<? super T> q) {
+    public SoftReference(@Nullable T referent, @Nullable ReferenceQueue<? super T> q) {
         super(referent, q);
         this.timestamp = clock;
     }
