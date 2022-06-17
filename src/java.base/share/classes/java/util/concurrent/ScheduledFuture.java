@@ -35,6 +35,9 @@
 
 package java.util.concurrent;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 /**
  * A delayed result-bearing action that can be cancelled.
  * Usually a scheduled future is the result of scheduling
@@ -44,5 +47,6 @@ package java.util.concurrent;
  * @author Doug Lea
  * @param <V> The result type returned by this Future
  */
-public interface ScheduledFuture<V> extends Delayed, Future<V> {
+@NullMarked
+public interface ScheduledFuture<V extends @Nullable Object> extends Delayed, Future<V> {
 }

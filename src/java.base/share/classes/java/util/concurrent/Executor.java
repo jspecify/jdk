@@ -35,6 +35,8 @@
 
 package java.util.concurrent;
 
+import org.jspecify.nullness.NullMarked;
+
 /**
  * An object that executes submitted {@link Runnable} tasks. This
  * interface provides a way of decoupling task submission from the
@@ -121,6 +123,7 @@ package java.util.concurrent;
  * @since 1.5
  * @author Doug Lea
  */
+@NullMarked
 public interface Executor {
 
     /**
