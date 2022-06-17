@@ -25,6 +25,7 @@
 
 package java.util.logging;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.lang.ref.WeakReference;
@@ -223,6 +224,7 @@ import static jdk.internal.logger.DefaultLoggerFinder.isSystem;
  */
 
 
+@NullMarked
 public  class Logger {
     private static final Handler emptyHandlers[] = new Handler[0];
     private static final int offValue = Level.OFF.intValue();
@@ -794,7 +796,7 @@ public  class Logger {
      *                          not {@code null}.
      * @return a suitable Logger for {@code callerClass}.
      */
-    private static Logger getLogger(String name, String resourceBundleName,
+    private static Logger getLogger(String name, @Nullable String resourceBundleName,
                                     Class<?> callerClass) {
         Logger result = demandLogger(name, resourceBundleName, callerClass);
 
@@ -1059,7 +1061,7 @@ public  class Logger {
      * @since 1.8
      */
     
-    public void log( Level level,  Supplier<String> msgSupplier) {
+    public void log( Level level,  Supplier<@Nullable String> msgSupplier) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1156,7 +1158,7 @@ public  class Logger {
      * @since   1.8
      */
     
-    public void log( Level level,  @Nullable Throwable thrown,  Supplier<String> msgSupplier) {
+    public void log( Level level,  @Nullable Throwable thrown,  Supplier<@Nullable String> msgSupplier) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1211,7 +1213,7 @@ public  class Logger {
      */
     
     public void logp(Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
-                     Supplier<String> msgSupplier) {
+                     Supplier<@Nullable String> msgSupplier) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1332,7 +1334,7 @@ public  class Logger {
      */
     
     public void logp(Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
-                     @Nullable Throwable thrown, Supplier<String> msgSupplier) {
+                     @Nullable Throwable thrown, Supplier<@Nullable String> msgSupplier) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1502,8 +1504,8 @@ public  class Logger {
      * @param   params  Parameters to the message (optional, may be none).
      * @since 1.8
      */
-    public void logrb(Level level, String sourceClass, String sourceMethod,
-                      ResourceBundle bundle, String msg, Object... params) {
+    public void logrb(Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
+                      @Nullable ResourceBundle bundle, @Nullable String msg, @Nullable Object @Nullable... params) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1535,7 +1537,7 @@ public  class Logger {
      * @param   params  Parameters to the message (optional, may be none).
      * @since 9
      */
-    public void logrb(Level level, ResourceBundle bundle, String msg, Object... params) {
+    public void logrb(Level level, @Nullable ResourceBundle bundle, @Nullable String msg, @Nullable Object @Nullable... params) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1615,8 +1617,8 @@ public  class Logger {
      * @param   thrown  Throwable associated with the log message.
      * @since 1.8
      */
-    public void logrb(Level level, String sourceClass, String sourceMethod,
-                      ResourceBundle bundle, String msg, Throwable thrown) {
+    public void logrb(Level level, @Nullable String sourceClass, @Nullable String sourceMethod,
+                      @Nullable ResourceBundle bundle, @Nullable String msg, @Nullable Throwable thrown) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1653,8 +1655,8 @@ public  class Logger {
      * @param   thrown  Throwable associated with the log message.
      * @since 9
      */
-    public void logrb(Level level, ResourceBundle bundle, String msg,
-            Throwable thrown) {
+    public void logrb(Level level, @Nullable ResourceBundle bundle, @Nullable String msg,
+            @Nullable Throwable thrown) {
         if (!isLoggable(level)) {
             return;
         }
@@ -1917,7 +1919,7 @@ public  class Logger {
      * @since   1.8
      */
     
-    public void severe(Supplier<String> msgSupplier) {
+    public void severe(Supplier<@Nullable String> msgSupplier) {
         log(Level.SEVERE, msgSupplier);
     }
 
@@ -1935,7 +1937,7 @@ public  class Logger {
      * @since   1.8
      */
     
-    public void warning(Supplier<String> msgSupplier) {
+    public void warning(Supplier<@Nullable String> msgSupplier) {
         log(Level.WARNING, msgSupplier);
     }
 
@@ -1953,7 +1955,7 @@ public  class Logger {
      * @since   1.8
      */
     
-    public void info(Supplier<String> msgSupplier) {
+    public void info(Supplier<@Nullable String> msgSupplier) {
         log(Level.INFO, msgSupplier);
     }
 
@@ -1971,7 +1973,7 @@ public  class Logger {
      * @since   1.8
      */
     
-    public void config(Supplier<String> msgSupplier) {
+    public void config(Supplier<@Nullable String> msgSupplier) {
         log(Level.CONFIG, msgSupplier);
     }
 
@@ -1989,7 +1991,7 @@ public  class Logger {
      * @since   1.8
      */
     
-    public void fine(Supplier<String> msgSupplier) {
+    public void fine(Supplier<@Nullable String> msgSupplier) {
         log(Level.FINE, msgSupplier);
     }
 
@@ -2007,7 +2009,7 @@ public  class Logger {
      * @since   1.8
      */
     
-    public void finer(Supplier<String> msgSupplier) {
+    public void finer(Supplier<@Nullable String> msgSupplier) {
         log(Level.FINER, msgSupplier);
     }
 
@@ -2025,7 +2027,7 @@ public  class Logger {
      * @since   1.8
      */
     
-    public void finest(Supplier<String> msgSupplier) {
+    public void finest(Supplier<@Nullable String> msgSupplier) {
         log(Level.FINEST, msgSupplier);
     }
 
