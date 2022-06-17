@@ -48,6 +48,8 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * A named mapping between sequences of sixteen-bit Unicode <a
@@ -275,6 +277,7 @@ import java.util.TreeMap;
  * @see java.lang.Character
  */
 
+@NullMarked
 public abstract class Charset
     implements Comparable<Charset>
 {
@@ -635,7 +638,7 @@ public abstract class Charset
      * @throws IllegalCharsetNameException
      *         If the canonical name or any of the aliases are illegal
      */
-    protected Charset(String canonicalName, String[] aliases) {
+    protected Charset(String canonicalName, String @Nullable [] aliases) {
         String[] as = Objects.requireNonNullElse(aliases, zeroAliases);
 
         // Skip checks for the standard, built-in Charsets we always load
@@ -904,7 +907,7 @@ public abstract class Charset
      * @return  {@code true} if, and only if, this charset is equal to the
      *          given object
      */
-    public final boolean equals(Object ob) {
+    public final boolean equals(@Nullable Object ob) {
         if (!(ob instanceof Charset))
             return false;
         if (this == ob)
