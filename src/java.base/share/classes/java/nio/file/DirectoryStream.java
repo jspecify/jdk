@@ -25,6 +25,8 @@
 
 package java.nio.file;
 
+import org.jspecify.nullness.NullMarked;
+
 import java.util.Iterator;
 import java.io.Closeable;
 import java.io.IOException;
@@ -115,7 +117,7 @@ import java.io.IOException;
  *
  * @see Files#newDirectoryStream(Path)
  */
-
+@NullMarked
 public interface DirectoryStream<T>
     extends Closeable, Iterable<T> {
     /**
