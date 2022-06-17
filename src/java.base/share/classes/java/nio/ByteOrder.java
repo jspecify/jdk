@@ -25,8 +25,8 @@
 
 package java.nio;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 import jdk.internal.misc.Unsafe;
 
@@ -38,8 +38,8 @@ import jdk.internal.misc.Unsafe;
  * @since 1.4
  */
 
-@AnnotatedFor({"interning"})
-public final @UsesObjectEquals class ByteOrder {
+@NullMarked
+public final  class ByteOrder {
 
     private String name;
 
