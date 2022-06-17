@@ -27,6 +27,9 @@ package java.nio;
 
 import jdk.internal.util.ArraysSupport;
 
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
+
 /**
  * $A$ $type$ buffer.
  *
@@ -247,7 +250,7 @@ import jdk.internal.util.ArraysSupport;
  * @author JSR-51 Expert Group
  * @since 1.4
  */
-
+@NullMarked
 public abstract class ByteBuffer
     extends Buffer
     implements Comparable<ByteBuffer>
@@ -1060,7 +1063,7 @@ public abstract class ByteBuffer
      * @return  {@code true} if, and only if, this buffer is equal to the
      *           given object
      */
-    public boolean equals(Object ob) {
+    public boolean equals(@Nullable Object ob) {
         if (this == ob)
             return true;
         if (!(ob instanceof ByteBuffer))
