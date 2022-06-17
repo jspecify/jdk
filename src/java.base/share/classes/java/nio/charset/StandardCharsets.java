@@ -24,6 +24,8 @@
  */
 package java.nio.charset;
 
+import org.jspecify.nullness.NullMarked;
+
 /**
  * Constant definitions for the standard {@link Charset Charsets}. These
  * charsets are guaranteed to be available on every implementation of the Java
@@ -32,6 +34,7 @@ package java.nio.charset;
  * @see <a href="Charset.html#standard">Standard Charsets</a>
  * @since 1.7
  */
+@NullMarked
 public final class StandardCharsets {
 
     // To avoid accidental eager initialization of often unused Charsets
