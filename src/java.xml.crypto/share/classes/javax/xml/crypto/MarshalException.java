@@ -27,6 +27,8 @@
  */
 package javax.xml.crypto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import javax.xml.crypto.dsig.Manifest;
@@ -117,7 +119,7 @@ public class MarshalException extends Exception {
      * @return the cause of this {@code MarshalException} or
      *         {@code null} if the cause is nonexistent or unknown.
      */
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return cause;
     }
 

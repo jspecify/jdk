@@ -26,6 +26,8 @@
 
 package javax.xml.stream;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * An error class for reporting factory configuration errors.
  *
@@ -97,7 +99,7 @@ public class FactoryConfigurationError extends Error {
      * use the exception chaining mechanism of JDK1.4
     */
     @Override
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return nested;
     }
 

@@ -21,6 +21,8 @@
 
 package com.sun.org.apache.xerces.internal.xni;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * This exception is the base exception of all XNI exceptions. It
  * can be constructed with an error message or used to wrap another
@@ -90,7 +92,7 @@ public class XNIException
         return fException;
     } // getException():Exception
 
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
        return fException;
     }
 } // class QName

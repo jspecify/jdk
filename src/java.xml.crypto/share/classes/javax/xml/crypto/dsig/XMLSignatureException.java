@@ -27,6 +27,8 @@
  */
 package javax.xml.crypto.dsig;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.PrintStream;
 import java.io.PrintWriter;
 
@@ -110,7 +112,7 @@ public class XMLSignatureException extends Exception {
      * @return the cause of this {@code XMLSignatureException} or
      *         {@code null} if the cause is nonexistent or unknown.
      */
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return cause;
     }
 

@@ -768,7 +768,7 @@ public abstract class ResourceBundle {
             }
         }
 
-        private Throwable getCause() {
+        private @Nullable Throwable getCause() {
             return cause;
         }
 

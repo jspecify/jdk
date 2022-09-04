@@ -20,6 +20,8 @@
 
 package com.sun.org.apache.xalan.internal.xsltc.compiler.util;
 
+import org.jspecify.annotations.Nullable;
+
 import com.sun.org.apache.xalan.internal.xsltc.compiler.Stylesheet;
 import com.sun.org.apache.xalan.internal.xsltc.compiler.SyntaxTreeNode;
 import java.text.MessageFormat;
@@ -247,7 +249,7 @@ public final class ErrorMsg {
         _params[1] = param2;
     }
 
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return _cause;
     }
 

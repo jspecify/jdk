@@ -27,6 +27,8 @@
  */
 package javax.xml.crypto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.PrintStream;
 import java.io.PrintWriter;
 
@@ -111,7 +113,7 @@ public class KeySelectorException extends Exception {
      * @return the cause of this {@code KeySelectorException} or
      *         {@code null} if the cause is nonexistent or unknown.
      */
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return cause;
     }
 

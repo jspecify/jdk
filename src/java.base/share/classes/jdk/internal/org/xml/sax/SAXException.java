@@ -30,6 +30,8 @@
 
 package jdk.internal.org.xml.sax;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.io.InvalidClassException;
 import java.io.ObjectInputStream;
@@ -153,7 +155,7 @@ public class SAXException extends Exception {
      *
      * @return Return the cause of the exception
      */
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return super.getCause();
     }
 
