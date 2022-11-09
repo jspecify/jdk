@@ -28,6 +28,7 @@
  */
 
 package java.math;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.*;
@@ -54,7 +55,7 @@ import java.io.*;
  * @author  Joseph D. Darcy
  * @since 1.5
  */
-
+@NullMarked
 public final class MathContext implements Serializable {
 
     /* ----- Constants ----- */

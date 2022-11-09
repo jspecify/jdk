@@ -29,6 +29,7 @@
 
 package java.math;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import static java.math.BigInteger.LONG_MASK;
@@ -226,6 +227,7 @@ import java.util.Arrays;
  * @author  Sergey V. Kuksenko
  * @since 1.1
  */
+@NullMarked
 public class BigDecimal extends Number implements Comparable<BigDecimal> {
     /**
      * The unscaled value of this BigDecimal, as returned by {@link

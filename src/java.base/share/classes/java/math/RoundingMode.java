@@ -28,6 +28,8 @@
  */
 package java.math;
 
+import org.jspecify.nullness.NullMarked;
+
 /**
  * Specifies a <i>rounding behavior</i> for numerical operations
  * capable of discarding precision. Each rounding mode indicates how
@@ -95,6 +97,7 @@ package java.math;
  * @since 1.5
  */
 @SuppressWarnings("deprecation") // Legacy rounding mode constants in BigDecimal
+@NullMarked
 public enum RoundingMode {
 
         /**

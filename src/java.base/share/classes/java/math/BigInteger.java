@@ -29,6 +29,7 @@
 
 package java.math;
 
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
@@ -129,7 +130,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @since 1.1
  */
 
-
+@NullMarked
 public class BigInteger extends Number implements Comparable<BigInteger> {
     /**
      * The signum of this BigInteger: -1 for negative, 0 for zero, or
