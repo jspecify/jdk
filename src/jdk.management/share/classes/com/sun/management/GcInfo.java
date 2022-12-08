@@ -25,7 +25,7 @@
 
 package com.sun.management;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.management.MemoryUsage;
 import javax.management.openmbean.CompositeData;

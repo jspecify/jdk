@@ -25,7 +25,7 @@
 
 package com.sun.crypto.provider;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.ref.Reference;
 import java.security.MessageDigest;

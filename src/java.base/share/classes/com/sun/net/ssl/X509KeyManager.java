@@ -29,8 +29,8 @@
 
 package com.sun.net.ssl;
 
-import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.security.KeyManagementException;
 import java.security.PrivateKey;

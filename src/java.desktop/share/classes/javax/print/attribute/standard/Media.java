@@ -25,7 +25,7 @@
 
 package javax.print.attribute.standard;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import javax.print.attribute.Attribute;
 import javax.print.attribute.DocAttribute;

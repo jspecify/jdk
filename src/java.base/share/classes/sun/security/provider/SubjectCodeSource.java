@@ -25,7 +25,7 @@
 
 package sun.security.provider;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.net.URL;
 import java.util.*;

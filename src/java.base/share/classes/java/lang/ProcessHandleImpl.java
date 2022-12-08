@@ -24,7 +24,7 @@
  */
 package java.lang;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.Native;
 import java.security.PrivilegedAction;

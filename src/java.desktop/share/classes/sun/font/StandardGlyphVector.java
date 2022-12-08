@@ -25,7 +25,7 @@
 
 package sun.font;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.Font;
 import java.awt.Graphics2D;

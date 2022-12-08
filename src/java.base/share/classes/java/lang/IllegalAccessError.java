@@ -25,8 +25,8 @@
 
 package java.lang;
 
-import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown if an application attempts to access or modify a field, or

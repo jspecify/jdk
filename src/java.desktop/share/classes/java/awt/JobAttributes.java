@@ -25,7 +25,7 @@
 
 package java.awt;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A set of attributes which control a print job.

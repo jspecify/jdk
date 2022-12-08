@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.core.common;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A compact representation of the different encoding strategies for Objects and metadata.

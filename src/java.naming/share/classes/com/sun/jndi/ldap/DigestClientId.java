@@ -25,7 +25,7 @@
 
 package com.sun.jndi.ldap;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays; // JDK 1.2
 import java.util.Hashtable;

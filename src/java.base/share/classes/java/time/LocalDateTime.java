@@ -61,8 +61,8 @@
  */
 package java.time;
 
-import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import static java.time.LocalTime.HOURS_PER_DAY;
 import static java.time.LocalTime.MICROS_PER_DAY;

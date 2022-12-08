@@ -25,7 +25,7 @@
 
 package java.nio.file;
 
-import org.jspecify.nullness.NullMarked;
+import org.jspecify.annotations.NullMarked;
 
 import java.util.Iterator;
 import java.io.Closeable;

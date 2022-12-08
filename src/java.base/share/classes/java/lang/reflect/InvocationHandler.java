@@ -25,8 +25,8 @@
 
 package java.lang.reflect;
 
-import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * {@code InvocationHandler} is the interface implemented by

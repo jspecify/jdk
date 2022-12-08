@@ -25,7 +25,7 @@
 
 package sun.security.krb5.internal.rcache;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import sun.security.action.GetPropertyAction;
 

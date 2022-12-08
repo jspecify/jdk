@@ -31,7 +31,7 @@
 
 package sun.font;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.font.FontRenderContext;
 import java.awt.font.LineMetrics;

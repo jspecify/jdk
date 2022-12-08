@@ -29,7 +29,7 @@
 
 package java.awt.font;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.RenderingHints;
 import static java.awt.RenderingHints.*;

@@ -25,7 +25,7 @@
 
 package javax.net.ssl;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.net.IDN;
 import java.nio.ByteBuffer;

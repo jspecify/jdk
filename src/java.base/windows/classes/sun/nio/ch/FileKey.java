@@ -25,7 +25,7 @@
 
 package sun.nio.ch;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.io.FileDescriptor;
 import java.io.IOException;

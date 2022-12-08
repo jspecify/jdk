@@ -22,7 +22,7 @@
  */
 package jdk.vm.ci.code.site;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Map;
 import java.util.Objects;

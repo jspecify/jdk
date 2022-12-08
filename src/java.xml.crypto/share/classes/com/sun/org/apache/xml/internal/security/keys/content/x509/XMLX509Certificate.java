@@ -22,7 +22,7 @@
  */
 package com.sun.org.apache.xml.internal.security.keys.content.x509;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;

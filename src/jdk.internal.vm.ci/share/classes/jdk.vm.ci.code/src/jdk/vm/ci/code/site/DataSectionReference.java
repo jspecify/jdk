@@ -22,7 +22,7 @@
  */
 package jdk.vm.ci.code.site;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a pointer to some location in the data section that should be {@link DataPatch

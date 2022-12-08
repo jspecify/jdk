@@ -25,7 +25,7 @@
 
 package com.sun.media.sound;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class stores the identity of source and destinations in connection

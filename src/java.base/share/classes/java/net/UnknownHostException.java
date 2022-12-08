@@ -27,8 +27,8 @@ package java.net;
 
 import java.io.IOException;
 
-import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown to indicate that the IP address of a host could not be determined.

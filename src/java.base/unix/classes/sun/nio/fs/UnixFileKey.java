@@ -25,7 +25,7 @@
 
 package sun.nio.fs;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Container for device/inode to uniquely identify file.

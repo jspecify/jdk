@@ -24,8 +24,8 @@
  */
 package java.util.function;
 
-import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a supplier of {@code long}-valued results.  This is the

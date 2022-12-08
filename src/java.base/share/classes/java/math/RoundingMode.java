@@ -28,7 +28,7 @@
  */
 package java.math;
 
-import org.jspecify.nullness.NullMarked;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Specifies a <i>rounding behavior</i> for numerical operations

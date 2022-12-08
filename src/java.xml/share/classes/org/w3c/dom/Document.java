@@ -41,8 +41,8 @@
 
 package org.w3c.dom;
 
-import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The <code>Document</code> interface represents the entire HTML or XML

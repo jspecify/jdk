@@ -25,7 +25,7 @@
 
 package java.sql;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.util.Calendar;

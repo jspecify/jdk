@@ -26,7 +26,7 @@
 
 package com.sun.java.accessibility.util;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.sun.java.accessibility.util.internal.*;
 import java.beans.*;

@@ -23,7 +23,7 @@
 
 package jdk.tools.jaotc.binformat;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 

@@ -25,7 +25,7 @@
 
 package com.sun.tools.sjavac.comp;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.io.*;
 import java.net.URI;

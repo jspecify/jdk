@@ -21,7 +21,7 @@
 
 package com.sun.org.apache.xerces.internal.impl.dtd.models;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 
 /**

@@ -25,7 +25,7 @@
 
 package javax.naming;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
   * This class represents the address of a communications end-point.

@@ -25,7 +25,7 @@
 
 package com.sun.jndi.ldap.pool;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a description of PooledConnection in Connections.

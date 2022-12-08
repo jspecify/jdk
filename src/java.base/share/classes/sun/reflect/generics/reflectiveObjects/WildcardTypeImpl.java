@@ -25,7 +25,7 @@
 
 package sun.reflect.generics.reflectiveObjects;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;

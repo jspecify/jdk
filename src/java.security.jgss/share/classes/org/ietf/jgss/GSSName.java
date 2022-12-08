@@ -25,7 +25,7 @@
 
 package org.ietf.jgss;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This interface encapsulates a single GSS-API principal entity. The
