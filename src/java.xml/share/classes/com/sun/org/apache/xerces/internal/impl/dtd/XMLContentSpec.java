@@ -21,7 +21,7 @@
 
 package com.sun.org.apache.xerces.internal.impl.dtd;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * ContentSpec really exists to aid the parser classes in implementing

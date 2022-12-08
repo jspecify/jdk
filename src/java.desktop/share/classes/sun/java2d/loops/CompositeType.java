@@ -25,7 +25,7 @@
 
 package sun.java2d.loops;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.AlphaComposite;
 import java.util.HashMap;

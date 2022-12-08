@@ -25,7 +25,7 @@
 
 package java.security;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.io.*;
 import java.security.cert.CertPath;

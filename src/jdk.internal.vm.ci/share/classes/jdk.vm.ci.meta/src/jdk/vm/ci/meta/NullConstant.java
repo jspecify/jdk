@@ -22,7 +22,7 @@
  */
 package jdk.vm.ci.meta;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The implementation type of the {@link JavaConstant#NULL_POINTER null constant}.

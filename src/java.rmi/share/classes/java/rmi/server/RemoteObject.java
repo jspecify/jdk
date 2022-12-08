@@ -25,7 +25,7 @@
 
 package java.rmi.server;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.rmi.Remote;
 import java.rmi.NoSuchObjectException;

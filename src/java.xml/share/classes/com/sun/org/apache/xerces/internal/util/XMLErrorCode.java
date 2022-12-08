@@ -21,7 +21,7 @@
 
 package com.sun.org.apache.xerces.internal.util;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * <p>A structure that represents an error code, characterized by

@@ -41,8 +41,8 @@
 
 package org.w3c.dom.ls;
 
-import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  *  This interface represents an input source for data.

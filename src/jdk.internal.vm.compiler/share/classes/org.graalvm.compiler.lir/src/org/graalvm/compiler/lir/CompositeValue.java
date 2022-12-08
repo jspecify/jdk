@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.lir;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

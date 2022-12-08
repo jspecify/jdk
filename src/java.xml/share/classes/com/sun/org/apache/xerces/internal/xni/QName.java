@@ -21,7 +21,7 @@
 
 package com.sun.org.apache.xerces.internal.xni;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A structure that holds the components of an XML Namespaces qualified

@@ -25,7 +25,7 @@
 
 package sun.management.jmxremote;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.net.InetAddress;

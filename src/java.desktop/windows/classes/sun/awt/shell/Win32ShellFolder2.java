@@ -25,7 +25,7 @@
 
 package sun.awt.shell;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.Image;
 import java.awt.Toolkit;

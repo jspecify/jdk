@@ -25,8 +25,8 @@
 
 package java.lang;
 
-import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A collection of assertion status directives (such as "enable assertions

@@ -24,7 +24,7 @@
 
 package sun.jvm.hotspot.debugger.linux;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import sun.jvm.hotspot.debugger.*;
 

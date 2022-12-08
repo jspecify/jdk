@@ -28,7 +28,7 @@
  */
 package org.jcp.xml.dsig.internal.dom;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;

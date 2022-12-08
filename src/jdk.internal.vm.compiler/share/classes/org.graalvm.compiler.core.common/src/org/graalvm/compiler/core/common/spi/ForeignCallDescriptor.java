@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.core.common.spi;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 

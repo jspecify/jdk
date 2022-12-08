@@ -25,7 +25,7 @@
 
 package javax.xml.parsers;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl;
 import javax.xml.validation.Schema;

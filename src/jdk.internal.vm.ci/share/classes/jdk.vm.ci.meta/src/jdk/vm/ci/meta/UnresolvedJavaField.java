@@ -22,7 +22,7 @@
  */
 package jdk.vm.ci.meta;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A implementation of {@link JavaField} for an unresolved field.

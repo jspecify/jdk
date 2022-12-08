@@ -26,7 +26,7 @@
 
 package javax.management.openmbean;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 
 // java import

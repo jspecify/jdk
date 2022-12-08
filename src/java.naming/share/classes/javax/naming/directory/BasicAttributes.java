@@ -26,7 +26,7 @@
 
 package javax.naming.directory;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Hashtable;
 import java.util.Enumeration;

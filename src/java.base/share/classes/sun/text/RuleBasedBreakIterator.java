@@ -40,7 +40,7 @@
 
 package sun.text;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;

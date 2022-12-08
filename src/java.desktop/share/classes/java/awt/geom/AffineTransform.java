@@ -25,7 +25,7 @@
 
 package java.awt.geom;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.Shape;
 import java.beans.ConstructorProperties;

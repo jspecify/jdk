@@ -25,7 +25,7 @@
 
 package sun.util.calendar;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;

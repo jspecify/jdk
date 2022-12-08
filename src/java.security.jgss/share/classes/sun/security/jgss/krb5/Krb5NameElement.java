@@ -25,7 +25,7 @@
 
 package sun.security.jgss.krb5;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.ietf.jgss.*;
 import sun.security.jgss.spi.*;

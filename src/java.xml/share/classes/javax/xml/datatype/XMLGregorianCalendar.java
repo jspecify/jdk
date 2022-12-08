@@ -25,7 +25,7 @@
 
 package javax.xml.datatype;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import javax.xml.namespace.QName;
 import java.math.BigDecimal;

@@ -24,7 +24,7 @@
  */
 package java.util.function;
 
-import org.jspecify.nullness.NullMarked;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Represents a supplier of {@code boolean}-valued results.  This is the

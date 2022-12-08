@@ -26,7 +26,7 @@
 
 package javax.management.remote;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 
 import com.sun.jmx.remote.util.ClassLogger;

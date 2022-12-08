@@ -28,7 +28,7 @@
  */
 package org.jcp.xml.dsig.internal.dom;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import javax.xml.crypto.*;
 import javax.xml.crypto.dsig.*;

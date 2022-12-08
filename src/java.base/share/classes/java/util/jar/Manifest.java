@@ -25,7 +25,7 @@
 
 package java.util.jar;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.io.FilterInputStream;
 import java.io.DataOutputStream;

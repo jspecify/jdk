@@ -25,7 +25,7 @@
 
 package java.rmi.dgc;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.rmi.server.UID;
 import java.security.SecureRandom;

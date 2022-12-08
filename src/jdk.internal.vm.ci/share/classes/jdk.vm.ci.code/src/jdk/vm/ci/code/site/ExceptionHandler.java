@@ -22,7 +22,7 @@
  */
 package jdk.vm.ci.code.site;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents exception handler information for a specific code position. It includes the catch code

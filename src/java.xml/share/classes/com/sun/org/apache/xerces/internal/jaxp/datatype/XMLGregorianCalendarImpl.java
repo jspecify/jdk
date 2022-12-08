@@ -25,7 +25,7 @@
 
 package com.sun.org.apache.xerces.internal.jaxp.datatype;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.sun.org.apache.xerces.internal.util.DatatypeMessageFormatter;
 import java.io.IOException;

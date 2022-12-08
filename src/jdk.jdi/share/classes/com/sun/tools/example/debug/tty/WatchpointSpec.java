@@ -34,7 +34,7 @@
 
 package com.sun.tools.example.debug.tty;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 abstract class WatchpointSpec extends EventRequestSpec {
     final String fieldId;

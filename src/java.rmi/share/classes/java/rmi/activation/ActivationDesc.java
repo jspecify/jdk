@@ -25,7 +25,7 @@
 
 package java.rmi.activation;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.io.Serializable;
 import java.rmi.MarshalledObject;

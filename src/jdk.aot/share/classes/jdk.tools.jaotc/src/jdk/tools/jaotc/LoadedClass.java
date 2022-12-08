@@ -23,7 +23,7 @@
 
 package jdk.tools.jaotc;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public class LoadedClass {
     private final String name;

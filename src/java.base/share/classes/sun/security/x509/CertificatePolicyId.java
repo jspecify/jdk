@@ -25,7 +25,7 @@
 
 package sun.security.x509;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import sun.security.util.*;

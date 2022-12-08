@@ -25,7 +25,7 @@
 
 package jdk.internal.jshell.tool;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;

@@ -25,7 +25,7 @@
 
 package java.awt.image;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.awt.color.ColorSpace;
 import java.awt.color.ICC_ColorSpace;

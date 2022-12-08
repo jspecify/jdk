@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.core.common.type;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;

@@ -35,8 +35,8 @@
 
 package java.util;
 
-import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class provides skeletal implementations of some {@link Queue}

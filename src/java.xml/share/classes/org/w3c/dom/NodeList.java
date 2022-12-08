@@ -41,8 +41,8 @@
 
 package org.w3c.dom;
 
-import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The <code>NodeList</code> interface provides the abstraction of an ordered

@@ -25,7 +25,7 @@
 
 package com.sun.security.auth;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class abstracts an NT security token

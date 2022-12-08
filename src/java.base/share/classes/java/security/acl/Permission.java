@@ -25,7 +25,7 @@
 
 package java.security.acl;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 
 /**

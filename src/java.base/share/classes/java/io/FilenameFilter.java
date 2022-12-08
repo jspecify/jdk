@@ -25,8 +25,8 @@
 
 package java.io;
 
-import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Instances of classes that implement this interface are used to

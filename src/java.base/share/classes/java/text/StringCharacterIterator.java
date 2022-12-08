@@ -40,7 +40,7 @@
 
 package java.text;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * <code>StringCharacterIterator</code> implements the

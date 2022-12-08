@@ -24,7 +24,7 @@
 
 package jdk.internal.vm.compiler.collections;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 

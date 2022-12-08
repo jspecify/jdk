@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.code;
 
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import static jdk.vm.ci.meta.MetaUtil.identityHashCodeString;
 

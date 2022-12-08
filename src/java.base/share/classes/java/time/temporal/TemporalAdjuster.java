@@ -63,8 +63,8 @@ package java.time.temporal;
 
 import java.time.DateTimeException;
 
-import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Strategy for adjusting a temporal object.
