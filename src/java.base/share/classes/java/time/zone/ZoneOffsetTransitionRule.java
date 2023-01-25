@@ -79,6 +79,9 @@ import java.time.ZoneOffset;
 import java.time.chrono.IsoChronology;
 import java.util.Objects;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * A rule expressing how to create a transition.
  * <p>
@@ -97,6 +100,7 @@ import java.util.Objects;
  *
  * @since 1.8
  */
+@NullMarked
 public final class ZoneOffsetTransitionRule implements Serializable {
 
     /**
@@ -172,7 +176,7 @@ public final class ZoneOffsetTransitionRule implements Serializable {
     public static ZoneOffsetTransitionRule of(
             Month month,
             int dayOfMonthIndicator,
-            DayOfWeek dayOfWeek,
+            @Nullable DayOfWeek dayOfWeek,
             LocalTime time,
             boolean timeEndOfDay,
             TimeDefinition timeDefnition,
@@ -217,7 +221,7 @@ public final class ZoneOffsetTransitionRule implements Serializable {
     ZoneOffsetTransitionRule(
             Month month,
             int dayOfMonthIndicator,
-            DayOfWeek dayOfWeek,
+            @Nullable DayOfWeek dayOfWeek,
             LocalTime time,
             boolean timeEndOfDay,
             TimeDefinition timeDefnition,
@@ -409,7 +413,7 @@ public final class ZoneOffsetTransitionRule implements Serializable {
      *
      * @return the day-of-week that the transition occurs, null if the rule defines an exact date
      */
-    public DayOfWeek getDayOfWeek() {
+    public @Nullable DayOfWeek getDayOfWeek() {
         return dow;
     }
 
@@ -515,7 +519,7 @@ public final class ZoneOffsetTransitionRule implements Serializable {
      * @return true if equal
      */
     @Override
-    public boolean equals(Object otherRule) {
+    public boolean equals(@Nullable Object otherRule) {
         if (otherRule == this) {
             return true;
         }
