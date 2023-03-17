@@ -2610,7 +2610,7 @@ public final class Formatter implements Closeable, Flushable {
      * @return  This formatter
      */
     
-    public Formatter format(String format, Object ... args) {
+    public Formatter format(String format, @Nullable Object ... args) {
         return format(l, format, args);
     }
 
