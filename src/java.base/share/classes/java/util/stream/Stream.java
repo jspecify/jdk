@@ -1176,7 +1176,7 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      *         is non-null, otherwise an empty stream
      * @since 9
      */
-    public static<T extends @Nullable Object> Stream<T> ofNullable(T t) {
+    public static<T extends @Nullable Object> Stream<T> ofNullable(@Nullable T t) {
         return t == null ? Stream.empty()
                          : StreamSupport.stream(new Streams.StreamBuilderImpl<>(t), false);
     }
