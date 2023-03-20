@@ -391,7 +391,7 @@ import jdk.internal.reflect.Reflection;
  */
 
 @NullMarked
-public final  class ServiceLoader<S extends @Nullable Object>
+public final  class ServiceLoader<S>
     implements Iterable<S>
 {
     // The class or interface representing the service being loaded
@@ -440,7 +440,7 @@ public final  class ServiceLoader<S extends @Nullable Object>
      * @since 9
      * @spec JPMS
      */
-    public static interface Provider<S extends @Nullable Object> extends Supplier<S> {
+    public static interface Provider<S> extends Supplier<S> {
         /**
          * Returns the provider type. There is no guarantee that this type is
          * accessible or that it has a public no-args constructor. The {@link
@@ -683,7 +683,7 @@ public final  class ServiceLoader<S extends @Nullable Object>
      * permissions, the static factory to obtain the provider or the
      * provider's no-arg constructor.
      */
-    private static class ProviderImpl<S extends @Nullable Object> implements Provider<S> {
+    private static class ProviderImpl<S> implements Provider<S> {
         final Class<S> service;
         final Class<? extends S> type;
         final Method factoryMethod;  // factory method or null
@@ -907,7 +907,7 @@ public final  class ServiceLoader<S extends @Nullable Object>
      * Implements lazy service provider lookup of service providers that
      * are provided by modules in a module layer (or parent layers)
      */
-    private final class LayerLookupIterator<T extends @Nullable Object>
+    private final class LayerLookupIterator<T>
         implements Iterator<Provider<T>>
     {
         Deque<ModuleLayer> stack = new ArrayDeque<>();
@@ -984,7 +984,7 @@ public final  class ServiceLoader<S extends @Nullable Object>
      * are provided by modules defined to a class loader or to modules in
      * layers with a module defined to the class loader.
      */
-    private final class ModuleServicesLookupIterator<T extends @Nullable Object>
+    private final class ModuleServicesLookupIterator<T>
         implements Iterator<Provider<T>>
     {
         ClassLoader currentLoader;
@@ -1109,7 +1109,7 @@ public final  class ServiceLoader<S extends @Nullable Object>
      * configured via service configuration files. Service providers in named
      * modules are silently ignored by this lookup iterator.
      */
-    private final class LazyClassPathLookupIterator<T extends @Nullable Object>
+    private final class LazyClassPathLookupIterator<T>
         implements Iterator<Provider<T>>
     {
         static final String PREFIX = "META-INF/services/";
@@ -1463,7 +1463,7 @@ public final  class ServiceLoader<S extends @Nullable Object>
         return StreamSupport.stream(s, false);
     }
 
-    private class ProviderSpliterator<T extends @Nullable Object> implements Spliterator<Provider<T>> {
+    private class ProviderSpliterator<T> implements Spliterator<Provider<T>> {
         final int expectedReloadCount = ServiceLoader.this.reloadCount;
         final Iterator<Provider<T>> iterator;
         int index;
@@ -1534,7 +1534,7 @@ public final  class ServiceLoader<S extends @Nullable Object>
      *
      * @return A new service loader
      */
-    static <S extends @Nullable Object> ServiceLoader<S> load(Class<S> service,
+    static <S> ServiceLoader<S> load(Class<S> service,
                                      ClassLoader loader,
                                      Module callerModule)
     {
@@ -1645,7 +1645,7 @@ public final  class ServiceLoader<S extends @Nullable Object>
      * @spec JPMS
      */
     @CallerSensitive
-    public static <S extends @Nullable Object> ServiceLoader<S> load(Class<S> service,
+    public static <S> ServiceLoader<S> load(Class<S> service,
                                             @Nullable ClassLoader loader)
     {
         return new ServiceLoader<>(Reflection.getCallerClass(), service, loader);
@@ -1691,7 +1691,7 @@ public final  class ServiceLoader<S extends @Nullable Object>
      * @spec JPMS
      */
     @CallerSensitive
-    public static <S extends @Nullable Object> ServiceLoader<S> load(Class<S> service) {
+    public static <S> ServiceLoader<S> load(Class<S> service) {
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         return new ServiceLoader<>(Reflection.getCallerClass(), service, cl);
     }
@@ -1727,7 +1727,7 @@ public final  class ServiceLoader<S extends @Nullable Object>
      * @spec JPMS
      */
     @CallerSensitive
-    public static <S extends @Nullable Object> ServiceLoader<S> loadInstalled(Class<S> service) {
+    public static <S> ServiceLoader<S> loadInstalled(Class<S> service) {
         ClassLoader cl = ClassLoader.getPlatformClassLoader();
         return new ServiceLoader<>(Reflection.getCallerClass(), service, cl);
     }
@@ -1780,7 +1780,7 @@ public final  class ServiceLoader<S extends @Nullable Object>
      * @spec JPMS
      */
     @CallerSensitive
-    public static <S extends @Nullable Object> ServiceLoader<S> load(ModuleLayer layer, Class<S> service) {
+    public static <S> ServiceLoader<S> load(ModuleLayer layer, Class<S> service) {
         return new ServiceLoader<>(Reflection.getCallerClass(), layer, service);
     }
 
