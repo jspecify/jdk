@@ -25,6 +25,8 @@
 
 package java.lang.annotation;
 
+import org.jspecify.annotations.NullMarked;
+
 /**
  * Annotation retention policy.  The constants of this enumerated type
  * describe the various policies for retaining annotations.  They are used
@@ -34,6 +36,7 @@ package java.lang.annotation;
  * @author  Joshua Bloch
  * @since 1.5
  */
+@NullMarked
 public enum RetentionPolicy {
     /**
      * Annotations are to be discarded by the compiler.

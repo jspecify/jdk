@@ -25,6 +25,7 @@
 
 package java.lang.annotation;
 
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Indicates that a field defining a constant value may be referenced
@@ -39,5 +40,6 @@ package java.lang.annotation;
 @Documented
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.SOURCE)
+@NullMarked
 public @interface Native {
 }

@@ -25,6 +25,8 @@
 
 package java.lang.annotation;
 
+import org.jspecify.annotations.NullMarked;
+
 /**
  * Indicates that an annotation type is automatically inherited.  If
  * an Inherited meta-annotation is present on an annotation type
@@ -49,5 +51,6 @@ package java.lang.annotation;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.ANNOTATION_TYPE)
+@NullMarked
 public @interface Inherited {
 }

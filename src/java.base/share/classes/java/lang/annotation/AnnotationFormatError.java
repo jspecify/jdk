@@ -25,6 +25,9 @@
 
 package java.lang.annotation;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * Thrown when the annotation parser attempts to read an annotation
  * from a class file and determines that the annotation is malformed.
@@ -36,6 +39,7 @@ package java.lang.annotation;
  * @see     java.lang.reflect.AnnotatedElement
  * @since   1.5
  */
+@NullMarked
 public class AnnotationFormatError extends Error {
     private static final long serialVersionUID = -4256701562333669892L;
 
@@ -45,7 +49,7 @@ public class AnnotationFormatError extends Error {
      *
      * @param   message   the detail message.
      */
-    public AnnotationFormatError(String message) {
+    public AnnotationFormatError(@Nullable String message) {
         super(message);
     }
 
@@ -59,7 +63,7 @@ public class AnnotationFormatError extends Error {
      * @param  cause the cause (A {@code null} value is permitted, and
      *     indicates that the cause is nonexistent or unknown.)
      */
-    public AnnotationFormatError(String message, Throwable cause) {
+    public AnnotationFormatError(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }
 
@@ -73,7 +77,7 @@ public class AnnotationFormatError extends Error {
      * @param  cause the cause (A {@code null} value is permitted, and
      *     indicates that the cause is nonexistent or unknown.)
      */
-    public AnnotationFormatError(Throwable cause) {
+    public AnnotationFormatError(@Nullable Throwable cause) {
         super(cause);
     }
 }
