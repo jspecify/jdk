@@ -25,6 +25,8 @@
 
 package java.lang.annotation;
 
+import org.jspecify.annotations.NullMarked;
+
 /**
  * If the annotation {@code @Documented} is present on the declaration
  * of an annotation type <i>A</i>, then any {@code @A} annotation on
@@ -51,5 +53,6 @@ package java.lang.annotation;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.ANNOTATION_TYPE)
+@NullMarked
 public @interface Documented {
 }

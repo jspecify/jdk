@@ -25,6 +25,8 @@
 
 package java.lang.annotation;
 
+import org.jspecify.annotations.NullMarked;
+
 /**
  * Indicates how long annotations with the annotated type are to
  * be retained.  If no Retention annotation is present on
@@ -43,6 +45,7 @@ package java.lang.annotation;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.ANNOTATION_TYPE)
+@NullMarked
 public @interface Retention {
     /**
      * Returns the retention policy.

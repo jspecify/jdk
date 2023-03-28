@@ -25,6 +25,8 @@
 
 package java.lang.annotation;
 import java.lang.reflect.Method;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown to indicate that a program has attempted to access an element of
@@ -38,6 +40,7 @@ import java.lang.reflect.Method;
  * @see     java.lang.reflect.AnnotatedElement
  * @since 1.5
  */
+@NullMarked
 public class AnnotationTypeMismatchException extends RuntimeException {
     private static final long serialVersionUID = 8125925355765570191L;
 
@@ -64,7 +67,7 @@ public class AnnotationTypeMismatchException extends RuntimeException {
      *        as well.  The exact format of the string is unspecified,
      *        may be {@code null}.
      */
-    public AnnotationTypeMismatchException(Method element, String foundType) {
+    public AnnotationTypeMismatchException(@Nullable Method element, @Nullable String foundType) {
         super("Incorrectly typed data found for annotation element " + element
               + " (Found data of type " + foundType + ")");
         this.element = element;
@@ -79,7 +82,7 @@ public class AnnotationTypeMismatchException extends RuntimeException {
      * @return the {@code Method} object for the incorrectly typed
      * element, or {@code null} if unavailable
      */
-    public Method element() {
+    public @Nullable Method element() {
         return this.element;
     }
 
@@ -91,7 +94,7 @@ public class AnnotationTypeMismatchException extends RuntimeException {
      *
      * @return the type of data found in the incorrectly typed element
      */
-    public String foundType() {
+    public @Nullable String foundType() {
         return this.foundType;
     }
 }

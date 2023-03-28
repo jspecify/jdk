@@ -25,6 +25,8 @@
 
 package java.lang.annotation;
 
+import org.jspecify.annotations.NullMarked;
+
 /**
  * The constants of this enumerated type provide a simple classification of the
  * syntactic locations where annotations may appear in a Java program. These
@@ -70,6 +72,7 @@ package java.lang.annotation;
  * @jls 9.6.4.1 @Target
  * @jls 4.1 The Kinds of Types and Values
  */
+@NullMarked
 public enum ElementType {
     /** Class, interface (including annotation type), or enum declaration */
     TYPE,

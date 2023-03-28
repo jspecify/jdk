@@ -25,6 +25,8 @@
 
 package java.lang.annotation;
 
+import org.jspecify.annotations.NullMarked;
+
 /**
  * Thrown to indicate that a program has attempted to access an element of
  * an annotation type that was added to the annotation type definition after
@@ -38,6 +40,7 @@ package java.lang.annotation;
  * @see     java.lang.reflect.AnnotatedElement
  * @since 1.5
  */
+@NullMarked
 public class IncompleteAnnotationException extends RuntimeException {
     private static final long serialVersionUID = 8445097402741811912L;
 

@@ -25,6 +25,8 @@
 
 package java.lang.annotation;
 
+import org.jspecify.annotations.NullMarked;
+
 /**
  * The annotation type {@code java.lang.annotation.Repeatable} is
  * used to indicate that the annotation type whose declaration it
@@ -39,6 +41,7 @@ package java.lang.annotation;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.ANNOTATION_TYPE)
+@NullMarked
 public @interface Repeatable {
     /**
      * Indicates the <em>containing annotation type</em> for the
