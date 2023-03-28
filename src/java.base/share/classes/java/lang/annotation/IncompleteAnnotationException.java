@@ -26,7 +26,6 @@
 package java.lang.annotation;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown to indicate that a program has attempted to access an element of
