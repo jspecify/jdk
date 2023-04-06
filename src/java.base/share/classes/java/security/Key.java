@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * The Key interface is the top-level interface for all keys. It
  * defines the functionality shared by all key objects. All keys
@@ -99,7 +102,7 @@ package java.security;
  * @author Benjamin Renaud
  * @since 1.1
  */
-
+@NullMarked
 public interface Key extends java.io.Serializable {
 
     // Declare serialVersionUID to be compatible with JDK1.1
@@ -140,7 +143,7 @@ public interface Key extends java.io.Serializable {
      *
      * @return the primary encoding format of the key.
      */
-    public String getFormat();
+    public @Nullable String getFormat();
 
     /**
      * Returns the key in its primary encoding format, or null
@@ -149,5 +152,5 @@ public interface Key extends java.io.Serializable {
      * @return the encoded key, or null if the key does not support
      * encoding.
      */
-    public byte[] getEncoded();
+    public byte @Nullable [] getEncoded();
 }
