@@ -33,6 +33,8 @@ import java.util.Objects;
 import java.io.UnsupportedEncodingException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@code Handler} object takes log messages from a {@code Logger} and
@@ -53,6 +55,7 @@ import java.security.PrivilegedAction;
  */
 
 @AnnotatedFor({"interning"})
+@NullMarked
 public abstract @UsesObjectEquals class Handler {
     private static final int offValue = Level.OFF.intValue();
     private final LogManager manager = LogManager.getLogManager();
@@ -137,7 +140,7 @@ public abstract @UsesObjectEquals class Handler {
      * @param  record  description of the log event. A null record is
      *                 silently ignored and is not published
      */
-    public abstract void publish(LogRecord record);
+    public abstract void publish(@Nullable LogRecord record);
 
     /**
      * Flush any buffered output.
@@ -177,7 +180,7 @@ public abstract @UsesObjectEquals class Handler {
      * Return the {@code Formatter} for this {@code Handler}.
      * @return the {@code Formatter} (may be null).
      */
-    public Formatter getFormatter() {
+    public @Nullable Formatter getFormatter() {
         return formatter;
     }
 
@@ -194,7 +197,7 @@ public abstract @UsesObjectEquals class Handler {
      * @exception  UnsupportedEncodingException if the named encoding is
      *          not supported.
      */
-    public synchronized void setEncoding(String encoding)
+    public synchronized void setEncoding(@Nullable String encoding)
                         throws SecurityException, java.io.UnsupportedEncodingException {
         checkPermission();
         if (encoding != null) {
@@ -215,7 +218,7 @@ public abstract @UsesObjectEquals class Handler {
      * @return  The encoding name.  May be null, which indicates the
      *          default encoding should be used.
      */
-    public String getEncoding() {
+    public @Nullable String getEncoding() {
         return encoding;
     }
 
@@ -230,7 +233,7 @@ public abstract @UsesObjectEquals class Handler {
      * @exception  SecurityException  if a security manager exists and if
      *             the caller does not have {@code LoggingPermission("control")}.
      */
-    public synchronized void setFilter(Filter newFilter) throws SecurityException {
+    public synchronized void setFilter(@Nullable Filter newFilter) throws SecurityException {
         checkPermission();
         filter = newFilter;
     }
@@ -240,7 +243,7 @@ public abstract @UsesObjectEquals class Handler {
      *
      * @return  a {@code Filter} object (may be null)
      */
-    public Filter getFilter() {
+    public @Nullable Filter getFilter() {
         return filter;
     }
 
@@ -284,7 +287,7 @@ public abstract @UsesObjectEquals class Handler {
      * @param ex     an exception (may be null)
      * @param code   an error code defined in ErrorManager
      */
-    protected void reportError(String msg, Exception ex, int code) {
+    protected void reportError(@Nullable String msg, @Nullable Exception ex, int code) {
         try {
             errorManager.error(msg, ex, code);
         } catch (Exception ex2) {
@@ -337,7 +340,8 @@ public abstract @UsesObjectEquals class Handler {
      * @return true if the {@code LogRecord} would be logged.
      *
      */
-    public boolean isLoggable(LogRecord record) {
+    // JDK11 has a bug which makes null records cause NPE, despite the spec. Later versions fix it.
+    public boolean isLoggable(@Nullable LogRecord record) {
         final int levelValue = getLevel().intValue();
         if (record.getLevel().intValue() < levelValue || levelValue == offValue) {
             return false;
