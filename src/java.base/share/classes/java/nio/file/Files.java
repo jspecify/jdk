@@ -81,6 +81,8 @@ import java.util.function.BiPredicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.jspecify.annotations.Nullable;
+
 import sun.nio.ch.FileChannelImpl;
 import sun.nio.fs.AbstractFileSystemProvider;
 
@@ -864,8 +866,8 @@ public final @UsesObjectEquals class Files {
      *          method is invoked to check write access to the file.
      */
     public static Path createTempFile(Path dir,
-                                      String prefix,
-                                      String suffix,
+                                      @Nullable String prefix,
+                                      @Nullable String suffix,
                                       FileAttribute<?>... attrs)
         throws IOException
     {
@@ -909,8 +911,8 @@ public final @UsesObjectEquals class Files {
      *          installed, the {@link SecurityManager#checkWrite(String) checkWrite}
      *          method is invoked to check write access to the file.
      */
-    public static Path createTempFile(String prefix,
-                                      String suffix,
+    public static Path createTempFile(@Nullable String prefix,
+                                      @Nullable String suffix,
                                       FileAttribute<?>... attrs)
         throws IOException
     {
@@ -963,7 +965,7 @@ public final @UsesObjectEquals class Files {
      *          directory.
      */
     public static Path createTempDirectory(Path dir,
-                                           String prefix,
+                                           @Nullable String prefix,
                                            FileAttribute<?>... attrs)
         throws IOException
     {
@@ -1004,7 +1006,7 @@ public final @UsesObjectEquals class Files {
      *          method is invoked to check write access when creating the
      *          directory.
      */
-    public static Path createTempDirectory(String prefix,
+    public static Path createTempDirectory(@Nullable String prefix,
                                            FileAttribute<?>... attrs)
         throws IOException
     {
@@ -1640,7 +1642,7 @@ public final @UsesObjectEquals class Files {
      *          If a security manager is installed and it denies an unspecified
      *          permission required by a file type detector implementation.
      */
-    public static String probeContentType(Path path)
+    public static @Nullable String probeContentType(Path path)
         throws IOException
     {
         // try installed file type detectors
@@ -1698,7 +1700,7 @@ public final @UsesObjectEquals class Files {
      * @return  a file attribute view of the specified type, or {@code null} if
      *          the attribute view type is not available
      */
-    public static <V extends FileAttributeView> V getFileAttributeView(Path path,
+    public static <V extends FileAttributeView> @Nullable V getFileAttributeView(Path path,
                                                                        Class<V> type,
                                                                        LinkOption... options)
     {
