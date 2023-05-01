@@ -81,6 +81,8 @@ import java.util.function.BiPredicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.NullUnmarked;
 import org.jspecify.annotations.Nullable;
 
 import sun.nio.ch.FileChannelImpl;
@@ -96,7 +98,7 @@ import sun.nio.fs.AbstractFileSystemProvider;
  * @since 1.7
  */
 
-@AnnotatedFor({"interning", "signedness"})
+@NullMarked
 public final @UsesObjectEquals class Files {
     private Files() { }
 
@@ -1892,6 +1894,7 @@ public final @UsesObjectEquals class Files {
      *          to read security sensitive attributes then the security manager
      *          may be invoked to check for additional permissions.
      */
+    @NullUnmarked
     public static Object getAttribute(Path path, String attribute,
                                       LinkOption... options)
         throws IOException
@@ -1996,6 +1999,7 @@ public final @UsesObjectEquals class Files {
      *          to read security sensitive attributes then the security manager
      *          may be invoke to check for additional permissions.
      */
+    @NullUnmarked
     public static Map<String,Object> readAttributes(Path path, String attributes,
                                                     LinkOption... options)
         throws IOException
