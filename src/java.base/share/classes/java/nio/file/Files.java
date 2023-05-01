@@ -81,6 +81,10 @@ import java.util.function.BiPredicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.NullUnmarked;
+import org.jspecify.annotations.Nullable;
+
 import sun.nio.ch.FileChannelImpl;
 import sun.nio.fs.AbstractFileSystemProvider;
 
@@ -94,7 +98,7 @@ import sun.nio.fs.AbstractFileSystemProvider;
  * @since 1.7
  */
 
-@AnnotatedFor({"interning", "signedness"})
+@NullMarked
 public final @UsesObjectEquals class Files {
     private Files() { }
 
@@ -864,8 +868,8 @@ public final @UsesObjectEquals class Files {
      *          method is invoked to check write access to the file.
      */
     public static Path createTempFile(Path dir,
-                                      String prefix,
-                                      String suffix,
+                                      @Nullable String prefix,
+                                      @Nullable String suffix,
                                       FileAttribute<?>... attrs)
         throws IOException
     {
@@ -909,8 +913,8 @@ public final @UsesObjectEquals class Files {
      *          installed, the {@link SecurityManager#checkWrite(String) checkWrite}
      *          method is invoked to check write access to the file.
      */
-    public static Path createTempFile(String prefix,
-                                      String suffix,
+    public static Path createTempFile(@Nullable String prefix,
+                                      @Nullable String suffix,
                                       FileAttribute<?>... attrs)
         throws IOException
     {
@@ -963,7 +967,7 @@ public final @UsesObjectEquals class Files {
      *          directory.
      */
     public static Path createTempDirectory(Path dir,
-                                           String prefix,
+                                           @Nullable String prefix,
                                            FileAttribute<?>... attrs)
         throws IOException
     {
@@ -1004,7 +1008,7 @@ public final @UsesObjectEquals class Files {
      *          method is invoked to check write access when creating the
      *          directory.
      */
-    public static Path createTempDirectory(String prefix,
+    public static Path createTempDirectory(@Nullable String prefix,
                                            FileAttribute<?>... attrs)
         throws IOException
     {
@@ -1640,7 +1644,7 @@ public final @UsesObjectEquals class Files {
      *          If a security manager is installed and it denies an unspecified
      *          permission required by a file type detector implementation.
      */
-    public static String probeContentType(Path path)
+    public static @Nullable String probeContentType(Path path)
         throws IOException
     {
         // try installed file type detectors
@@ -1698,7 +1702,7 @@ public final @UsesObjectEquals class Files {
      * @return  a file attribute view of the specified type, or {@code null} if
      *          the attribute view type is not available
      */
-    public static <V extends FileAttributeView> V getFileAttributeView(Path path,
+    public static <V extends FileAttributeView> @Nullable V getFileAttributeView(Path path,
                                                                        Class<V> type,
                                                                        LinkOption... options)
     {
@@ -1890,6 +1894,7 @@ public final @UsesObjectEquals class Files {
      *          to read security sensitive attributes then the security manager
      *          may be invoked to check for additional permissions.
      */
+    @NullUnmarked
     public static Object getAttribute(Path path, String attribute,
                                       LinkOption... options)
         throws IOException
@@ -1994,6 +1999,7 @@ public final @UsesObjectEquals class Files {
      *          to read security sensitive attributes then the security manager
      *          may be invoke to check for additional permissions.
      */
+    @NullUnmarked
     public static Map<String,Object> readAttributes(Path path, String attributes,
                                                     LinkOption... options)
         throws IOException
