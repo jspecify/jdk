@@ -36,6 +36,8 @@
 package java.util.concurrent;
 
 import org.checkerframework.dataflow.qual.Pure;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
@@ -50,9 +52,6 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link ThreadPoolExecutor} that can additionally schedule
@@ -410,7 +409,7 @@ public class ScheduledThreadPoolExecutor
      * @return a task that can execute the runnable
      * @since 1.6
      */
-    protected <V> RunnableScheduledFuture<V> decorateTask(
+    protected <V extends @Nullable Object> RunnableScheduledFuture<V> decorateTask(
         Runnable runnable, RunnableScheduledFuture<V> task) {
         return task;
     }
@@ -427,7 +426,7 @@ public class ScheduledThreadPoolExecutor
      * @return a task that can execute the callable
      * @since 1.6
      */
-    protected <V> RunnableScheduledFuture<V> decorateTask(
+    protected <V extends @Nullable Object> RunnableScheduledFuture<V> decorateTask(
         Callable<V> callable, RunnableScheduledFuture<V> task) {
         return task;
     }
