@@ -637,7 +637,7 @@ public final class Collectors {
      * @param comparator a {@code Comparator} for comparing elements
      * @return a {@code Collector} that produces the minimal value
      */
-    public static <T extends @Nullable Object> Collector<T, ?, Optional<T>>
+    public static <T> Collector<T, ?, Optional<T>>
     minBy(Comparator<? super T> comparator) {
         return reducing(BinaryOperator.minBy(comparator));
     }
@@ -656,7 +656,7 @@ public final class Collectors {
      * @param comparator a {@code Comparator} for comparing elements
      * @return a {@code Collector} that produces the maximal value
      */
-    public static <T extends @Nullable Object> Collector<T, ?, Optional<T>>
+    public static <T> Collector<T, ?, Optional<T>>
     maxBy(Comparator<? super T> comparator) {
         return reducing(BinaryOperator.maxBy(comparator));
     }
@@ -910,7 +910,7 @@ public final class Collectors {
      * @see #reducing(Object, BinaryOperator)
      * @see #reducing(Object, Function, BinaryOperator)
      */
-    public static <T extends @Nullable Object> Collector<T, ?, Optional<T>>
+    public static <T> Collector<T, ?, Optional<T>>
     reducing(BinaryOperator<T> op) {
         class OptionalBox implements Consumer<T> {
             T value = null;

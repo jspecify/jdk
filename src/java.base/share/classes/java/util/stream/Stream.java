@@ -24,6 +24,7 @@
  */
 package java.util.stream;
 
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -800,7 +801,7 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      * @see #min(Comparator)
      * @see #max(Comparator)
      */
-    Optional<T> reduce(BinaryOperator<T> accumulator);
+    Optional<@NonNull T> reduce(BinaryOperator<T> accumulator);
 
     /**
      * Performs a <a href="package-summary.html#Reduction">reduction</a> on the
@@ -980,7 +981,7 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      * or an empty {@code Optional} if the stream is empty
      * @throws NullPointerException if the minimum element is null
      */
-    Optional<T> min(Comparator<? super T> comparator);
+    Optional<@NonNull T> min(Comparator<? super T> comparator);
 
     /**
      * Returns the maximum element of this stream according to the provided
@@ -997,7 +998,7 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      * or an empty {@code Optional} if the stream is empty
      * @throws NullPointerException if the maximum element is null
      */
-    Optional<T> max(Comparator<? super T> comparator);
+    Optional<@NonNull T> max(Comparator<? super T> comparator);
 
     /**
      * Returns the count of elements in this stream.  This is a special case of
@@ -1111,7 +1112,7 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      * or an empty {@code Optional} if the stream is empty
      * @throws NullPointerException if the element selected is null
      */
-    Optional<T> findFirst();
+    Optional<@NonNull T> findFirst();
 
     /**
      * Returns an {@link Optional} describing some element of the stream, or an
@@ -1131,7 +1132,7 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      * @throws NullPointerException if the element selected is null
      * @see #findFirst()
      */
-    Optional<T> findAny();
+    Optional<@NonNull T> findAny();
 
     // Static factories
 

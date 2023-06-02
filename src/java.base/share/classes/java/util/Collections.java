@@ -25,6 +25,7 @@
 
 package java.util;
 
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -3079,7 +3080,7 @@ public class Collections {
      * @since 1.5
      */
     public static <E extends @Nullable Object> Collection<E> checkedCollection(Collection<E> c,
-                                                      Class<E> type) {
+                                                      Class<@NonNull E> type) {
         return new CheckedCollection<>(c, type);
     }
 
@@ -3236,7 +3237,7 @@ public class Collections {
      * @return a dynamically typesafe view of the specified queue
      * @since 1.8
      */
-    public static <E extends @Nullable Object> Queue<E> checkedQueue(Queue<E> queue, Class<E> type) {
+    public static <E extends @Nullable Object> Queue<E> checkedQueue(Queue<E> queue, Class<@NonNull E> type) {
         return new CheckedQueue<>(queue, type);
     }
 
@@ -3291,7 +3292,7 @@ public class Collections {
      * @return a dynamically typesafe view of the specified set
      * @since 1.5
      */
-    public static <E extends @Nullable Object> Set<E> checkedSet(Set<E> s, Class<E> type) {
+    public static <E extends @Nullable Object> Set<E> checkedSet(Set<E> s, Class<@NonNull E> type) {
         return new CheckedSet<>(s, type);
     }
 
@@ -3338,7 +3339,7 @@ public class Collections {
      * @since 1.5
      */
     public static <E extends @Nullable Object> SortedSet<E> checkedSortedSet(SortedSet<E> s,
-                                                    Class<E> type) {
+                                                    Class<@NonNull E> type) {
         return new CheckedSortedSet<>(s, type);
     }
 
@@ -3401,7 +3402,7 @@ public class Collections {
      * @since 1.8
      */
     public static <E extends @Nullable Object> NavigableSet<E> checkedNavigableSet(NavigableSet<E> s,
-                                                    Class<E> type) {
+                                                    Class<@NonNull E> type) {
         return new CheckedNavigableSet<>(s, type);
     }
 
@@ -3481,7 +3482,7 @@ public class Collections {
      * @return a dynamically typesafe view of the specified list
      * @since 1.5
      */
-    public static <E extends @Nullable Object> List<E> checkedList(List<E> list, Class<E> type) {
+    public static <E extends @Nullable Object> List<E> checkedList(List<E> list, Class<@NonNull E> type) {
         return (list instanceof RandomAccess ?
                 new CheckedRandomAccessList<>(list, type) :
                 new CheckedList<>(list, type));
@@ -3628,8 +3629,8 @@ public class Collections {
      * @since 1.5
      */
     public static <K extends @Nullable Object, V extends @Nullable Object> Map<K, V> checkedMap(Map<K, V> m,
-                                              Class<K> keyType,
-                                              Class<V> valueType) {
+                                              Class<@NonNull K> keyType,
+                                              Class<@NonNull V> valueType) {
         return new CheckedMap<>(m, keyType, valueType);
     }
 
@@ -4038,8 +4039,8 @@ public class Collections {
      * @since 1.5
      */
     public static <K extends @Nullable Object,V extends @Nullable Object> SortedMap<K,V> checkedSortedMap(SortedMap<K, V> m,
-                                                        Class<K> keyType,
-                                                        Class<V> valueType) {
+                                                        Class<@NonNull K> keyType,
+                                                        Class<@NonNull V> valueType) {
         return new CheckedSortedMap<>(m, keyType, valueType);
     }
 
@@ -4115,8 +4116,8 @@ public class Collections {
      * @since 1.8
      */
     public static <K extends @Nullable Object,V extends @Nullable Object> NavigableMap<K,V> checkedNavigableMap(NavigableMap<K, V> m,
-                                                        Class<K> keyType,
-                                                        Class<V> valueType) {
+                                                        Class<@NonNull K> keyType,
+                                                        Class<@NonNull V> valueType) {
         return new CheckedNavigableMap<>(m, keyType, valueType);
     }
 
