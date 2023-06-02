@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.code;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;

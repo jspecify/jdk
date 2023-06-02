@@ -25,7 +25,7 @@
 
 package java.lang.annotation;
 
-import org.jspecify.annotations.NullMarked;
+import org.jspecify.nullness.NullMarked;
 
 /**
  * Indicates how long annotations with the annotated type are to

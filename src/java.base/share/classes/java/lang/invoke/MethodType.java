@@ -25,7 +25,7 @@
 
 package java.lang.invoke;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import jdk.internal.vm.annotation.Stable;
 import sun.invoke.util.Wrapper;

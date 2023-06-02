@@ -25,7 +25,7 @@
 
 package jdk.nio.zipfs;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.io.*;
 import java.net.URI;

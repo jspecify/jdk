@@ -25,8 +25,8 @@
 
 package java.lang.annotation;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * The common interface extended by all annotation types.  Note that an

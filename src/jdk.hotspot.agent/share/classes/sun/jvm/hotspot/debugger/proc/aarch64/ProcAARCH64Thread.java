@@ -25,7 +25,7 @@
 
 package sun.jvm.hotspot.debugger.proc.aarch64;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.debugger.aarch64.*;

@@ -25,8 +25,8 @@
 
 package java.lang;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * The abstract class {@code Number} is the superclass of platform

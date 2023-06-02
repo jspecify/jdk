@@ -25,8 +25,8 @@
 
 package java.util.zip;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 import java.io.FilterInputStream;
 import java.io.InputStream;

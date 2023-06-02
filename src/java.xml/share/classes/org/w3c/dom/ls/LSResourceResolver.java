@@ -41,8 +41,8 @@
 
 package org.w3c.dom.ls;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  *  <code>LSResourceResolver</code> provides a way for applications to

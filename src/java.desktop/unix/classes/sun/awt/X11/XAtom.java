@@ -25,7 +25,7 @@
 
 package sun.awt.X11;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * XAtom is a class that allows you to create and modify X Window properties.

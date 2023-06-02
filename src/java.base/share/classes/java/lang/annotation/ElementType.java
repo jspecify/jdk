@@ -25,7 +25,7 @@
 
 package java.lang.annotation;
 
-import org.jspecify.annotations.NullMarked;
+import org.jspecify.nullness.NullMarked;
 
 /**
  * The constants of this enumerated type provide a simple classification of the

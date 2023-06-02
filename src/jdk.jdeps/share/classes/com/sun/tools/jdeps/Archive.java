@@ -25,7 +25,7 @@
 
 package com.sun.tools.jdeps;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import com.sun.tools.classfile.Dependency.Location;
 

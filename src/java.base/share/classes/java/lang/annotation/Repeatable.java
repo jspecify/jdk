@@ -25,7 +25,7 @@
 
 package java.lang.annotation;
 
-import org.jspecify.annotations.NullMarked;
+import org.jspecify.nullness.NullMarked;
 
 /**
  * The annotation type {@code java.lang.annotation.Repeatable} is

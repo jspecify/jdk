@@ -35,8 +35,8 @@
 
 package java.util.concurrent;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Exception indicating that the result of a value-producing task,

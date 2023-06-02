@@ -25,7 +25,7 @@
 
 package java.net;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.util.NavigableSet;
 import java.util.ArrayList;

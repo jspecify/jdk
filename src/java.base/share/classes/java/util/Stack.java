@@ -25,8 +25,8 @@
 
 package java.util;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * The {@code Stack} class represents a last-in-first-out

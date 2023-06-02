@@ -35,7 +35,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.annotations.NullMarked;
+import org.jspecify.nullness.NullMarked;
 
 /**
  * An object that executes submitted {@link Runnable} tasks. This

@@ -25,7 +25,7 @@
 
 package sun.security.jgss.spi;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import org.ietf.jgss.*;
 import java.security.Provider;

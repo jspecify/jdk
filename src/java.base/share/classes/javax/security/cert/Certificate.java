@@ -26,7 +26,7 @@
 
 package javax.security.cert;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.security.PublicKey;
 import java.security.NoSuchAlgorithmException;

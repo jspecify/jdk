@@ -25,7 +25,7 @@
 
 package javax.naming;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.util.Vector;
 import java.util.Enumeration;

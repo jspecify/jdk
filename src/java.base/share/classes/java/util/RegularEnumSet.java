@@ -25,7 +25,7 @@
 
 package java.util;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Private implementation class for EnumSet, for "regular sized" enum types

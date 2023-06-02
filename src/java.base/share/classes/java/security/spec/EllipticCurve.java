@@ -25,7 +25,7 @@
 
 package java.security.spec;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.math.BigInteger;
 import java.util.Arrays;

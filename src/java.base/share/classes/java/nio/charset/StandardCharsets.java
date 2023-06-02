@@ -24,7 +24,7 @@
  */
 package java.nio.charset;
 
-import org.jspecify.annotations.NullMarked;
+import org.jspecify.nullness.NullMarked;
 
 /**
  * Constant definitions for the standard {@link Charset Charsets}. These

@@ -25,7 +25,7 @@
 
 package com.sun.jmx.mbeanserver;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import javax.management.* ;
 

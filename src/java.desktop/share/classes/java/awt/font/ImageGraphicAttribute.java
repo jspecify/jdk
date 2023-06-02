@@ -40,7 +40,7 @@
 
 package java.awt.font;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.awt.Image;
 import java.awt.Graphics2D;

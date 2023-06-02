@@ -61,7 +61,7 @@
  */
 package java.time.format;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.text.DecimalFormatSymbols;
 import java.util.Collections;

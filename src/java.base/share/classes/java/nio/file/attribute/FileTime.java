@@ -25,7 +25,7 @@
 
 package java.nio.file.attribute;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.time.Instant;
 import java.time.LocalDateTime;

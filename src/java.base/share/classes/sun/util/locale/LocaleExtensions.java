@@ -31,7 +31,7 @@
  */
 package sun.util.locale;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.util.Collections;
 import java.util.Map;

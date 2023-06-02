@@ -61,8 +61,8 @@
  */
 package java.time;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Exception used to indicate a problem while calculating a date-time.

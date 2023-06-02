@@ -25,7 +25,7 @@
 
 package java.lang.annotation;
 
-import org.jspecify.annotations.NullMarked;
+import org.jspecify.nullness.NullMarked;
 
 /**
  * If the annotation {@code @Documented} is present on the declaration

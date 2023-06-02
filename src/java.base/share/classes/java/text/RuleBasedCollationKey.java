@@ -38,7 +38,7 @@
 
 package java.text;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * A RuleBasedCollationKey is a concrete implementation of CollationKey class.

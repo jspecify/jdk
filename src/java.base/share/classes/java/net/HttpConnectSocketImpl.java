@@ -25,8 +25,8 @@
 
 package java.net;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
 import java.lang.reflect.Field;

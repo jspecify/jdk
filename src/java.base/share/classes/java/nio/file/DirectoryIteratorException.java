@@ -25,7 +25,7 @@
 
 package java.nio.file;
 
-import org.jspecify.annotations.NullMarked;
+import org.jspecify.nullness.NullMarked;
 
 import java.util.ConcurrentModificationException;
 import java.util.Objects;

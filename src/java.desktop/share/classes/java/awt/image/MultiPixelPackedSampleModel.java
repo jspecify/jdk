@@ -35,7 +35,7 @@
 
 package java.awt.image;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * The {@code MultiPixelPackedSampleModel} class represents

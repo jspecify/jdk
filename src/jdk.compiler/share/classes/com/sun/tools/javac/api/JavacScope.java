@@ -25,7 +25,7 @@
 
 package com.sun.tools.javac.api;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 
 import javax.lang.model.element.Element;

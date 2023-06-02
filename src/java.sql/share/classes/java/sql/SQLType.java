@@ -24,8 +24,8 @@
  */
 package java.sql;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * An object that is used to identify a generic SQL type, called a JDBC type or

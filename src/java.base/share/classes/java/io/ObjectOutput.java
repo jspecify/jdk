@@ -25,8 +25,8 @@
 
 package java.io;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * ObjectOutput extends the DataOutput interface to include writing of objects.

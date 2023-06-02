@@ -26,8 +26,8 @@ package java.io;
 
 import java.util.Objects;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Wraps an {@link IOException} with an unchecked exception.

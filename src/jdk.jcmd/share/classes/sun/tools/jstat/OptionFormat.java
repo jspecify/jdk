@@ -25,7 +25,7 @@
 
 package sun.tools.jstat;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.util.*;
 import sun.jvmstat.monitor.MonitorException;

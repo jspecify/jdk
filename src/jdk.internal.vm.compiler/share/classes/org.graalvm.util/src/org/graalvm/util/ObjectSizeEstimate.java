@@ -24,7 +24,7 @@
 
 package org.graalvm.util;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;

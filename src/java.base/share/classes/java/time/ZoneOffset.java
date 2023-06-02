@@ -66,8 +66,8 @@ import static java.time.LocalTime.SECONDS_PER_HOUR;
 import static java.time.LocalTime.SECONDS_PER_MINUTE;
 import static java.time.temporal.ChronoField.OFFSET_SECONDS;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 import java.io.DataInput;
 import java.io.DataOutput;

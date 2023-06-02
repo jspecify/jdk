@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.core.common.util;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 public final class UnsignedLong {
     private final long value;

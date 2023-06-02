@@ -25,7 +25,7 @@
 
 package javax.rmi.ssl;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.io.IOException;
 import java.net.ServerSocket;

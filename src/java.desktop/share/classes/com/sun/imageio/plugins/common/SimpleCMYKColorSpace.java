@@ -24,7 +24,7 @@
  */
 package com.sun.imageio.plugins.common;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.awt.color.ColorSpace;
 

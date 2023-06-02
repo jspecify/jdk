@@ -25,8 +25,8 @@
 
 package java.security;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * The Key interface is the top-level interface for all keys. It

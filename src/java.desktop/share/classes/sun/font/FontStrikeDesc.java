@@ -25,7 +25,7 @@
 
 package sun.font;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.awt.Font;
 import java.awt.font.FontRenderContext;

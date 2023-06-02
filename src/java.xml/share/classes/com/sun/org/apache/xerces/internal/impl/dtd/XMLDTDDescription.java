@@ -20,7 +20,7 @@
 
 package com.sun.org.apache.xerces.internal.impl.dtd;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import com.sun.org.apache.xerces.internal.util.XMLResourceIdentifierImpl;
 import com.sun.org.apache.xerces.internal.xni.XMLResourceIdentifier;

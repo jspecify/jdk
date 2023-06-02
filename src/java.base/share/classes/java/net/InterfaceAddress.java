@@ -25,7 +25,7 @@
 
 package java.net;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * This class represents a Network Interface address. In short it's an

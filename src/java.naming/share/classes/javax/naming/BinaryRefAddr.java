@@ -25,7 +25,7 @@
 
 package javax.naming;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
   * This class represents the binary form of the address of

@@ -25,7 +25,7 @@
 
 package com.sun.rmi.rmid;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.security.*;
 import java.io.*;

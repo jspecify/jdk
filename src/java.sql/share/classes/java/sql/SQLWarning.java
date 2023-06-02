@@ -25,7 +25,7 @@
 
 package java.sql;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * <P>An exception that provides information on  database access

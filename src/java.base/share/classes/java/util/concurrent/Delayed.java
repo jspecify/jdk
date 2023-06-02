@@ -35,7 +35,7 @@
 
 package java.util.concurrent;
 
-import org.jspecify.annotations.NullMarked;
+import org.jspecify.nullness.NullMarked;
 
 /**
  * A mix-in style interface for marking objects that should be

@@ -25,7 +25,7 @@
 
 package javax.management;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import com.sun.jmx.mbeanserver.Introspector;
 import java.lang.annotation.Annotation;

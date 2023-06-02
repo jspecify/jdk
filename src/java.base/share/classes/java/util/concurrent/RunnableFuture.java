@@ -35,8 +35,8 @@
 
 package java.util.concurrent;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * A {@link Future} that is {@link Runnable}. Successful execution of

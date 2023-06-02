@@ -25,8 +25,8 @@
 
 package java.lang;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Thrown when an application tries to use the Java <code>new</code>

@@ -20,7 +20,7 @@
 
 package com.sun.org.apache.xerces.internal.impl.xs;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import com.sun.org.apache.xerces.internal.impl.dv.ValidatedInfo;
 import com.sun.org.apache.xerces.internal.impl.xs.identity.IdentityConstraint;

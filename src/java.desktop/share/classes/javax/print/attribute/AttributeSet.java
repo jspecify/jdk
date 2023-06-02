@@ -25,7 +25,7 @@
 
 package javax.print.attribute;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Interface {@code AttributeSet} specifies the interface for a set of printing

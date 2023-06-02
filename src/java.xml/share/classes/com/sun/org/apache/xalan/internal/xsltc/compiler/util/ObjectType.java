@@ -20,7 +20,7 @@
 
 package com.sun.org.apache.xalan.internal.xsltc.compiler.util;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import com.sun.org.apache.bcel.internal.generic.ALOAD;
 import com.sun.org.apache.bcel.internal.generic.ASTORE;

@@ -38,7 +38,7 @@
 
 package sun.text;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * class CompactATypeArray : use only on primitive data types

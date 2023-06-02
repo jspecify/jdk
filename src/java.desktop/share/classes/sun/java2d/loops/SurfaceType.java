@@ -25,7 +25,7 @@
 
 package sun.java2d.loops;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.awt.image.ColorModel;
 import sun.awt.image.PixelConverter;

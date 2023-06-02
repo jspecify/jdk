@@ -25,7 +25,7 @@
 
 package javax.print.attribute.standard;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import javax.print.DocFlavor;
 import javax.print.PrintService;

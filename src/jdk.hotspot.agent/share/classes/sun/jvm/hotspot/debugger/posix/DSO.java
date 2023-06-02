@@ -23,7 +23,7 @@
  */
 package sun.jvm.hotspot.debugger.posix;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.debugger.cdbg.*;

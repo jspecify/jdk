@@ -25,7 +25,7 @@
 
 package sun.security.jgss.wrapper;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.util.Hashtable;
 import org.ietf.jgss.Oid;

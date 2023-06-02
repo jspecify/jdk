@@ -24,7 +24,7 @@
 
 package sun.jvm.hotspot.debugger.bsd;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import sun.jvm.hotspot.debugger.*;
 

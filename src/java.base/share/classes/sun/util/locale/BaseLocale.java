@@ -32,7 +32,7 @@
 
 package sun.util.locale;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.lang.ref.SoftReference;
 import java.util.StringJoiner;

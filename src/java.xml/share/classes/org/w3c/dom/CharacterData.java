@@ -41,8 +41,8 @@
 
 package org.w3c.dom;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * The <code>CharacterData</code> interface extends Node with a set of

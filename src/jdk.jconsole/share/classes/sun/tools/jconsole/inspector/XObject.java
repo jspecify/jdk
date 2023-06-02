@@ -25,7 +25,7 @@
 
 package sun.tools.jconsole.inspector;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 // java import
 import javax.swing.*;

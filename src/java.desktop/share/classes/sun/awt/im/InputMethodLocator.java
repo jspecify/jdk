@@ -25,7 +25,7 @@
 
 package sun.awt.im;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.awt.AWTException;
 import java.awt.im.spi.InputMethodDescriptor;

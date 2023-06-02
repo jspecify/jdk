@@ -25,7 +25,7 @@
 
 package jdk.tools.jlink.internal;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import jdk.internal.jimage.ImageLocation;
 import jdk.internal.jimage.ImageStream;

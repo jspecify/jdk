@@ -25,8 +25,8 @@
 
 package java.io;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Indicates that one or more deserialized objects failed validation

@@ -25,7 +25,7 @@
 
 package sun.misc;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.util.Objects;
 

@@ -25,8 +25,8 @@
 
 package javax.swing.tree;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 import java.awt.Color;
 import java.awt.Component;

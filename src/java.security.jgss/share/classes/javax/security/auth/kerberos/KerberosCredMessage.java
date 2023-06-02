@@ -25,7 +25,7 @@
 
 package javax.security.auth.kerberos;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import javax.security.auth.Destroyable;
 import java.util.Arrays;

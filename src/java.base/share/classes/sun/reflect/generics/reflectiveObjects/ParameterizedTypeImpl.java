@@ -25,7 +25,7 @@
 
 package sun.reflect.generics.reflectiveObjects;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import sun.reflect.generics.tree.FieldTypeSignature;
 

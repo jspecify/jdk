@@ -25,7 +25,7 @@
 
 package sun.nio.fs;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 import java.nio.file.*;
 import java.nio.file.attribute.*;

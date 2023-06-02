@@ -25,7 +25,7 @@
 
 package java.awt;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.Nullable;
 
 /**
  * An {@code Insets} object is a representation of the borders

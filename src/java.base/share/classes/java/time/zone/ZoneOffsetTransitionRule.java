@@ -79,8 +79,8 @@ import java.time.ZoneOffset;
 import java.time.chrono.IsoChronology;
 import java.util.Objects;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * A rule expressing how to create a transition.

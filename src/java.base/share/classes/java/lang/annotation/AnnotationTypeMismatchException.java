@@ -25,8 +25,8 @@
 
 package java.lang.annotation;
 import java.lang.reflect.Method;
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Thrown to indicate that a program has attempted to access an element of

@@ -25,8 +25,8 @@
 
 package java.lang;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Signals that the class doesn't have a field of a specified name.

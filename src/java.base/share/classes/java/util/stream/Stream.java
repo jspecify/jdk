@@ -24,9 +24,9 @@
  */
 package java.util.stream;
 
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NonNull;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 import java.nio.file.Files;
 import java.nio.file.Path;

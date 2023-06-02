@@ -25,8 +25,8 @@
 
 package java.lang.ref;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.NullMarked;
+import org.jspecify.nullness.Nullable;
 
 /**
  * Soft reference objects, which are cleared at the discretion of the garbage
