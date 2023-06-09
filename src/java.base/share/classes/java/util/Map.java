@@ -25,6 +25,7 @@
 
 package java.util;
 
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -1283,8 +1284,8 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *         null
      * @since 1.8
      */
-    default @Nullable V merge(K key, V value,
-            BiFunction<? super V, ? super V, ? extends @Nullable V> remappingFunction) {
+    default @Nullable V merge(K key, @NonNull V value,
+            BiFunction<? super @NonNull V, ? super @NonNull V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         Objects.requireNonNull(value);
         V oldValue = get(key);
