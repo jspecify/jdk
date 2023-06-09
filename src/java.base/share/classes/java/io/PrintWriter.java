@@ -70,7 +70,7 @@ public class PrintWriter extends Writer {
      *
      * @since 1.2
      */
-    protected Writer out;
+    protected @Nullable Writer out;
 
     private final boolean autoFlush;
     private boolean trouble = false;
