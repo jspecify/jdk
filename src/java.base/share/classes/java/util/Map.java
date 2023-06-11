@@ -25,6 +25,7 @@
 
 package java.util;
 
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -1283,11 +1284,8 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *         null
      * @since 1.8
      */
-    // It would be more flexible to make the return type of remappingFunction be `@Nullable V`.  A
-    // remappingFunction that returns null is is probably rare, and these annotations accommodate
-    // the majority of uses that don't return null.
-    default V merge(K key, V value,
-            BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+    default @Nullable V merge(K key, @NonNull V value,
+            BiFunction<? super @NonNull V, ? super @NonNull V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         Objects.requireNonNull(value);
         V oldValue = get(key);
