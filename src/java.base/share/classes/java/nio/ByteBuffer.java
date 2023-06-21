@@ -31,24 +31,24 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 /**
- * $A$ $type$ buffer.
+ * A byte buffer.
  *
  * <p> This class defines {#if[byte]?six:four} categories of operations upon
- * $type$ buffers:
+ * byte buffers:
  *
  * <ul>
  *
  *   <li><p> Absolute and relative {@link #get() <i>get</i>} and
- *   {@link #put($type$) <i>put</i>} methods that read and write
- *   single $type$s; </p></li>
+ *   {@link #put(byte) <i>put</i>} methods that read and write
+ *   single bytes; </p></li>
  *
- *   <li><p> Relative {@link #get($type$[]) <i>bulk get</i>}
- *   methods that transfer contiguous sequences of $type$s from this buffer
+ *   <li><p> Relative {@link #get(byte[]) <i>bulk get</i>}
+ *   methods that transfer contiguous sequences of bytes from this buffer
  *   into an array; {#if[!byte]?and}</p></li>
  *
- *   <li><p> Relative {@link #put($type$[]) <i>bulk put</i>}
- *   methods that transfer contiguous sequences of $type$s from $a$
- *   $type$ array{#if[char]?,&#32;a&#32;string,} or some other $type$
+ *   <li><p> Relative {@link #put(byte[]) <i>bulk put</i>}
+ *   methods that transfer contiguous sequences of bytes from a
+ *   byte array{#if[char]?,&#32;a&#32;string,} or some other byte
  *   buffer into this buffer;{#if[!byte]?&#32;and} </p></li>
  *
 #if[byte]
@@ -65,7 +65,7 @@ import org.jspecify.annotations.Nullable;
 #end[byte]
  *
  *   <li><p> A method for {@link #compact compacting}
- *   $a$ $type$ buffer.  </p></li>
+ *   a byte buffer.  </p></li>
  *
  * </ul>
  *
@@ -74,13 +74,13 @@ import org.jspecify.annotations.Nullable;
  *
 #if[byte]
  *
- * content, or by {@link #wrap($type$[]) <i>wrapping</i>} an
- * existing $type$ array {#if[char]?or&#32;string} into a buffer.
+ * content, or by {@link #wrap(byte[]) <i>wrapping</i>} an
+ * existing byte array {#if[char]?or&#32;string} into a buffer.
  *
 #else[byte]
  *
- * content, by {@link #wrap($type$[]) <i>wrapping</i>} an existing
- * $type$ array {#if[char]?or&#32;string} into a buffer, or by creating a
+ * content, by {@link #wrap(byte[]) <i>wrapping</i>} an existing
+ * byte array {#if[char]?or&#32;string} into a buffer, or by creating a
  * <a href="ByteBuffer.html#views"><i>view</i></a> of an existing byte buffer.
  *
 #end[byte]
@@ -186,12 +186,12 @@ import org.jspecify.annotations.Nullable;
 *
 #if[!byte]
  *
- * <p> Like a byte buffer, $a$ $type$ buffer is either <a
+ * <p> Like a byte buffer, a byte buffer is either <a
  * href="ByteBuffer.html#direct"><i>direct</i> or <i>non-direct</i></a>.  A
- * $type$ buffer created via the {@code wrap} methods of this class will
- * be non-direct.  $A$ $type$ buffer created as a view of a byte buffer will
+ * byte buffer created via the {@code wrap} methods of this class will
+ * be non-direct.  A byte buffer created as a view of a byte buffer will
  * be direct if, and only if, the byte buffer itself is direct.  Whether or not
- * $a$ $type$ buffer is direct may be determined by invoking the {@link
+ * a byte buffer is direct may be determined by invoking the {@link
  * #isDirect isDirect} method.  </p>
  *
 #end[!byte]
@@ -260,7 +260,7 @@ public abstract class ByteBuffer
     // reduce the number of virtual method invocations needed to access these
     // values, which is especially costly when coding small buffers.
     //
-    final $type$[] hb;                  // Non-null only for heap buffers
+    final byte[] hb;                  // Non-null only for heap buffers
     final int offset;
     boolean isReadOnly;
 
@@ -268,7 +268,7 @@ public abstract class ByteBuffer
     // backing array, and array offset
     //
     ByteBuffer(int mark, int pos, int lim, int cap,   // package-private
-                 $type$[] hb, int offset)
+                 byte[] hb, int offset)
     {
         super(mark, pos, lim, cap);
         this.hb = hb;
@@ -288,7 +288,7 @@ public abstract class ByteBuffer
 
 
     /**
-     * Allocates a new direct $type$ buffer.
+     * Allocates a new direct byte buffer.
      *
      * <p> The new buffer's position will be zero, its limit will be its
      * capacity, its mark will be undefined, each of its elements will be
@@ -297,9 +297,9 @@ public abstract class ByteBuffer
      * {@link #hasArray backing array} is unspecified.
      *
      * @param  capacity
-     *         The new buffer's capacity, in $type$s
+     *         The new buffer's capacity, in bytes
      *
-     * @return  The new $type$ buffer
+     * @return  The new byte buffer
      *
      * @throws  IllegalArgumentException
      *          If the {@code capacity} is a negative integer
@@ -310,7 +310,7 @@ public abstract class ByteBuffer
 
 
     /**
-     * Allocates a new $type$ buffer.
+     * Allocates a new byte buffer.
      *
      * <p> The new buffer's position will be zero, its limit will be its
      * capacity, its mark will be undefined, each of its elements will be
@@ -325,9 +325,9 @@ public abstract class ByteBuffer
      * {@link #arrayOffset array offset} will be zero.
      *
      * @param  capacity
-     *         The new buffer's capacity, in $type$s
+     *         The new buffer's capacity, in bytes
      *
-     * @return  The new $type$ buffer
+     * @return  The new byte buffer
      *
      * @throws  IllegalArgumentException
      *          If the {@code capacity} is a negative integer
@@ -339,9 +339,9 @@ public abstract class ByteBuffer
     }
 
     /**
-     * Wraps $a$ $type$ array into a buffer.
+     * Wraps a byte array into a buffer.
      *
-     * <p> The new buffer will be backed by the given $type$ array;
+     * <p> The new buffer will be backed by the given byte array;
      * that is, modifications to the buffer will cause the array to be modified
      * and vice versa.  The new buffer's capacity will be
      * {@code array.length}, its position will be {@code offset}, its limit
@@ -370,13 +370,13 @@ public abstract class ByteBuffer
      *         {@code array.length - offset}.
      *         The new buffer's limit will be set to {@code offset + length}.
      *
-     * @return  The new $type$ buffer
+     * @return  The new byte buffer
      *
      * @throws  IndexOutOfBoundsException
      *          If the preconditions on the {@code offset} and {@code length}
      *          parameters do not hold
      */
-    public static ByteBuffer wrap($type$[] array,
+    public static ByteBuffer wrap(byte[] array,
                                     int offset, int length)
     {
         try {
@@ -387,9 +387,9 @@ public abstract class ByteBuffer
     }
 
     /**
-     * Wraps $a$ $type$ array into a buffer.
+     * Wraps a byte array into a buffer.
      *
-     * <p> The new buffer will be backed by the given $type$ array;
+     * <p> The new buffer will be backed by the given byte array;
      * that is, modifications to the buffer will cause the array to be modified
      * and vice versa.  The new buffer's capacity and limit will be
      * {@code array.length}, its position will be zero, its mark will be
@@ -406,15 +406,15 @@ public abstract class ByteBuffer
      * @param  array
      *         The array that will back this buffer
      *
-     * @return  The new $type$ buffer
+     * @return  The new byte buffer
      */
-    public static ByteBuffer wrap($type$[] array) {
+    public static ByteBuffer wrap(byte[] array) {
         return wrap(array, 0, array.length);
     }
 
 
     /**
-     * Creates a new $type$ buffer whose content is a shared subsequence of
+     * Creates a new byte buffer whose content is a shared subsequence of
      * this buffer's content.
      *
      * <p> The content of the new buffer will start at this buffer's current
@@ -423,7 +423,7 @@ public abstract class ByteBuffer
      * values will be independent.
      *
      * <p> The new buffer's position will be zero, its capacity and its limit
-     * will be the number of $type$s remaining in this buffer, its mark will be
+     * will be the number of bytes remaining in this buffer, its mark will be
      * undefined, and its byte order will be
 #if[byte]
      * {@link ByteOrder#BIG_ENDIAN BIG_ENDIAN}.
@@ -433,7 +433,7 @@ public abstract class ByteBuffer
      * The new buffer will be direct if, and only if, this buffer is direct, and
      * it will be read-only if, and only if, this buffer is read-only.  </p>
      *
-     * @return  The new $type$ buffer
+     * @return  The new byte buffer
 #if[byte]
      *
      * @see #alignedSlice(int)
@@ -443,7 +443,7 @@ public abstract class ByteBuffer
     public abstract ByteBuffer slice();
 
     /**
-     * Creates a new $type$ buffer that shares this buffer's content.
+     * Creates a new byte buffer that shares this buffer's content.
      *
      * <p> The content of the new buffer will be that of this buffer.  Changes
      * to this buffer's content will be visible in the new buffer, and vice
@@ -460,13 +460,13 @@ public abstract class ByteBuffer
      * The new buffer will be direct if, and only if, this buffer is direct, and
      * it will be read-only if, and only if, this buffer is read-only.  </p>
      *
-     * @return  The new $type$ buffer
+     * @return  The new byte buffer
      */
     @Override
     public abstract ByteBuffer duplicate();
 
     /**
-     * Creates a new, read-only $type$ buffer that shares this buffer's
+     * Creates a new, read-only byte buffer that shares this buffer's
      * content.
      *
      * <p> The content of the new buffer will be that of this buffer.  Changes
@@ -486,7 +486,7 @@ public abstract class ByteBuffer
      * <p> If this buffer is itself read-only then this method behaves in
      * exactly the same way as the {@link #duplicate duplicate} method.  </p>
      *
-     * @return  The new, read-only $type$ buffer
+     * @return  The new, read-only byte buffer
      */
     public abstract ByteBuffer asReadOnlyBuffer();
 
@@ -494,24 +494,24 @@ public abstract class ByteBuffer
     // -- Singleton get/put methods --
 
     /**
-     * Relative <i>get</i> method.  Reads the $type$ at this buffer's
+     * Relative <i>get</i> method.  Reads the byte at this buffer's
      * current position, and then increments the position.
      *
-     * @return  The $type$ at the buffer's current position
+     * @return  The byte at the buffer's current position
      *
      * @throws  BufferUnderflowException
      *          If the buffer's current position is not smaller than its limit
      */
-    public abstract $type$ get();
+    public abstract byte get();
 
     /**
      * Relative <i>put</i> method&nbsp;&nbsp;<i>(optional operation)</i>.
      *
-     * <p> Writes the given $type$ into this buffer at the current
+     * <p> Writes the given byte into this buffer at the current
      * position, and then increments the position. </p>
      *
      * @param  $x$
-     *         The $type$ to be written
+     *         The byte to be written
      *
      * @return  This buffer
      *
@@ -521,35 +521,35 @@ public abstract class ByteBuffer
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
-    public abstract ByteBuffer put($type$ $x$);
+    public abstract ByteBuffer put(byte $x$);
 
     /**
-     * Absolute <i>get</i> method.  Reads the $type$ at the given
+     * Absolute <i>get</i> method.  Reads the byte at the given
      * index.
      *
      * @param  index
-     *         The index from which the $type$ will be read
+     *         The index from which the byte will be read
      *
-     * @return  The $type$ at the given index
+     * @return  The byte at the given index
      *
      * @throws  IndexOutOfBoundsException
      *          If {@code index} is negative
      *          or not smaller than the buffer's limit
      */
-    public abstract $type$ get(int index);
+    public abstract byte get(int index);
 
 
     /**
      * Absolute <i>put</i> method&nbsp;&nbsp;<i>(optional operation)</i>.
      *
-     * <p> Writes the given $type$ into this buffer at the given
+     * <p> Writes the given byte into this buffer at the given
      * index. </p>
      *
      * @param  index
-     *         The index at which the $type$ will be written
+     *         The index at which the byte will be written
      *
      * @param  $x$
-     *         The $type$ value to be written
+     *         The byte value to be written
      *
      * @return  This buffer
      *
@@ -560,7 +560,7 @@ public abstract class ByteBuffer
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
-    public abstract ByteBuffer put(int index, $type$ $x$);
+    public abstract ByteBuffer put(int index, byte $x$);
 
 
     // -- Bulk get operations --
@@ -568,14 +568,14 @@ public abstract class ByteBuffer
     /**
      * Relative bulk <i>get</i> method.
      *
-     * <p> This method transfers $type$s from this buffer into the given
-     * destination array.  If there are fewer $type$s remaining in the
+     * <p> This method transfers bytes from this buffer into the given
+     * destination array.  If there are fewer bytes remaining in the
      * buffer than are required to satisfy the request, that is, if
      * {@code length}&nbsp;{@code >}&nbsp;{@code remaining()}, then no
-     * $type$s are transferred and a {@link BufferUnderflowException} is
+     * bytes are transferred and a {@link BufferUnderflowException} is
      * thrown.
      *
-     * <p> Otherwise, this method copies {@code length} $type$s from this
+     * <p> Otherwise, this method copies {@code length} bytes from this
      * buffer into the given array, starting at the current position of this
      * buffer and at the given offset in the array.  The position of this
      * buffer is then incremented by {@code length}.
@@ -589,33 +589,33 @@ public abstract class ByteBuffer
      *         dst[i] = src.get();
      * }</pre>
      *
-     * except that it first checks that there are sufficient $type$s in
+     * except that it first checks that there are sufficient bytes in
      * this buffer and it is potentially much more efficient.
      *
      * @param  dst
-     *         The array into which $type$s are to be written
+     *         The array into which bytes are to be written
      *
      * @param  offset
-     *         The offset within the array of the first $type$ to be
+     *         The offset within the array of the first byte to be
      *         written; must be non-negative and no larger than
      *         {@code dst.length}
      *
      * @param  length
-     *         The maximum number of $type$s to be written to the given
+     *         The maximum number of bytes to be written to the given
      *         array; must be non-negative and no larger than
      *         {@code dst.length - offset}
      *
      * @return  This buffer
      *
      * @throws  BufferUnderflowException
-     *          If there are fewer than {@code length} $type$s
+     *          If there are fewer than {@code length} bytes
      *          remaining in this buffer
      *
      * @throws  IndexOutOfBoundsException
      *          If the preconditions on the {@code offset} and {@code length}
      *          parameters do not hold
      */
-    public ByteBuffer get($type$[] dst, int offset, int length) {
+    public ByteBuffer get(byte[] dst, int offset, int length) {
         checkBounds(offset, length, dst.length);
         if (length > remaining())
             throw new BufferUnderflowException();
@@ -628,7 +628,7 @@ public abstract class ByteBuffer
     /**
      * Relative bulk <i>get</i> method.
      *
-     * <p> This method transfers $type$s from this buffer into the given
+     * <p> This method transfers bytes from this buffer into the given
      * destination array.  An invocation of this method of the form
      * {@code src.get(a)} behaves in exactly the same way as the invocation
      *
@@ -641,10 +641,10 @@ public abstract class ByteBuffer
      * @return  This buffer
      *
      * @throws  BufferUnderflowException
-     *          If there are fewer than {@code length} $type$s
+     *          If there are fewer than {@code length} bytes
      *          remaining in this buffer
      */
-    public ByteBuffer get($type$[] dst) {
+    public ByteBuffer get(byte[] dst) {
         return get(dst, 0, dst.length);
     }
 
@@ -654,15 +654,15 @@ public abstract class ByteBuffer
     /**
      * Relative bulk <i>put</i> method&nbsp;&nbsp;<i>(optional operation)</i>.
      *
-     * <p> This method transfers the $type$s remaining in the given source
-     * buffer into this buffer.  If there are more $type$s remaining in the
+     * <p> This method transfers the bytes remaining in the given source
+     * buffer into this buffer.  If there are more bytes remaining in the
      * source buffer than in this buffer, that is, if
      * {@code src.remaining()}&nbsp;{@code >}&nbsp;{@code remaining()},
-     * then no $type$s are transferred and a {@link
+     * then no bytes are transferred and a {@link
      * BufferOverflowException} is thrown.
      *
      * <p> Otherwise, this method copies
-     * <i>n</i>&nbsp;=&nbsp;{@code src.remaining()} $type$s from the given
+     * <i>n</i>&nbsp;=&nbsp;{@code src.remaining()} bytes from the given
      * buffer into this buffer, starting at each buffer's current position.
      * The positions of both buffers are then incremented by <i>n</i>.
      *
@@ -677,14 +677,14 @@ public abstract class ByteBuffer
      * buffer and it is potentially much more efficient.
      *
      * @param  src
-     *         The source buffer from which $type$s are to be read;
+     *         The source buffer from which bytes are to be read;
      *         must not be this buffer
      *
      * @return  This buffer
      *
      * @throws  BufferOverflowException
      *          If there is insufficient space in this buffer
-     *          for the remaining $type$s in the source buffer
+     *          for the remaining bytes in the source buffer
      *
      * @throws  IllegalArgumentException
      *          If the source buffer is this buffer
@@ -708,14 +708,14 @@ public abstract class ByteBuffer
     /**
      * Relative bulk <i>put</i> method&nbsp;&nbsp;<i>(optional operation)</i>.
      *
-     * <p> This method transfers $type$s into this buffer from the given
-     * source array.  If there are more $type$s to be copied from the array
+     * <p> This method transfers bytes into this buffer from the given
+     * source array.  If there are more bytes to be copied from the array
      * than remain in this buffer, that is, if
      * {@code length}&nbsp;{@code >}&nbsp;{@code remaining()}, then no
-     * $type$s are transferred and a {@link BufferOverflowException} is
+     * bytes are transferred and a {@link BufferOverflowException} is
      * thrown.
      *
-     * <p> Otherwise, this method copies {@code length} $type$s from the
+     * <p> Otherwise, this method copies {@code length} bytes from the
      * given array into this buffer, starting at the given offset in the array
      * and at the current position of this buffer.  The position of this buffer
      * is then incremented by {@code length}.
@@ -733,14 +733,14 @@ public abstract class ByteBuffer
      * buffer and it is potentially much more efficient.
      *
      * @param  src
-     *         The array from which $type$s are to be read
+     *         The array from which bytes are to be read
      *
      * @param  offset
-     *         The offset within the array of the first $type$ to be read;
+     *         The offset within the array of the first byte to be read;
      *         must be non-negative and no larger than {@code array.length}
      *
      * @param  length
-     *         The number of $type$s to be read from the given array;
+     *         The number of bytes to be read from the given array;
      *         must be non-negative and no larger than
      *         {@code array.length - offset}
      *
@@ -756,7 +756,7 @@ public abstract class ByteBuffer
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
-    public ByteBuffer put($type$[] src, int offset, int length) {
+    public ByteBuffer put(byte[] src, int offset, int length) {
         checkBounds(offset, length, src.length);
         if (length > remaining())
             throw new BufferOverflowException();
@@ -770,7 +770,7 @@ public abstract class ByteBuffer
      * Relative bulk <i>put</i> method&nbsp;&nbsp;<i>(optional operation)</i>.
      *
      * <p> This method transfers the entire content of the given source
-     * $type$ array into this buffer.  An invocation of this method of the
+     * byte array into this buffer.  An invocation of this method of the
      * form {@code dst.put(a)} behaves in exactly the same way as the
      * invocation
      *
@@ -788,7 +788,7 @@ public abstract class ByteBuffer
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
-    public final ByteBuffer put($type$[] src) {
+    public final ByteBuffer put(byte[] src) {
         return put(src, 0, src.length);
     }
 
@@ -797,7 +797,7 @@ public abstract class ByteBuffer
     // -- Other stuff --
 
     /**
-     * Tells whether or not this buffer is backed by an accessible $type$
+     * Tells whether or not this buffer is backed by an accessible byte
      * array.
      *
      * <p> If this method returns {@code true} then the {@link #array() array}
@@ -812,7 +812,7 @@ public abstract class ByteBuffer
     }
 
     /**
-     * Returns the $type$ array that backs this
+     * Returns the byte array that backs this
      * buffer&nbsp;&nbsp;<i>(optional operation)</i>.
      *
      * <p> Modifications to this buffer's content will cause the returned
@@ -830,7 +830,7 @@ public abstract class ByteBuffer
      * @throws  UnsupportedOperationException
      *          If this buffer is not backed by an accessible array
      */
-    public final $type$[] array() {
+    public final byte[] array() {
         if (hb == null)
             throw new UnsupportedOperationException();
         if (isReadOnly)
@@ -941,17 +941,17 @@ public abstract class ByteBuffer
     /**
      * Compacts this buffer&nbsp;&nbsp;<i>(optional operation)</i>.
      *
-     * <p> The $type$s between the buffer's current position and its limit,
+     * <p> The bytes between the buffer's current position and its limit,
      * if any, are copied to the beginning of the buffer.  That is, the
-     * $type$ at index <i>p</i>&nbsp;=&nbsp;{@code position()} is copied
-     * to index zero, the $type$ at index <i>p</i>&nbsp;+&nbsp;1 is copied
-     * to index one, and so forth until the $type$ at index
+     * byte at index <i>p</i>&nbsp;=&nbsp;{@code position()} is copied
+     * to index zero, the byte at index <i>p</i>&nbsp;+&nbsp;1 is copied
+     * to index one, and so forth until the byte at index
      * {@code limit()}&nbsp;-&nbsp;1 is copied to index
      * <i>n</i>&nbsp;=&nbsp;{@code limit()}&nbsp;-&nbsp;{@code 1}&nbsp;-&nbsp;<i>p</i>.
      * The buffer's position is then set to <i>n+1</i> and its limit is set to
      * its capacity.  The mark, if defined, is discarded.
      *
-     * <p> The buffer's position is set to the number of $type$s copied,
+     * <p> The buffer's position is set to the number of bytes copied,
      * rather than to zero, so that an invocation of this method can be
      * followed immediately by an invocation of another relative <i>put</i>
      * method. </p>
@@ -981,7 +981,7 @@ public abstract class ByteBuffer
     public abstract ByteBuffer compact();
 
     /**
-     * Tells whether or not this $type$ buffer is direct.
+     * Tells whether or not this byte buffer is direct.
      *
      * @return  {@code true} if, and only if, this buffer is direct
      */
@@ -1013,7 +1013,7 @@ public abstract class ByteBuffer
     /**
      * Returns the current hash code of this buffer.
      *
-     * <p> The hash code of a $type$ buffer depends only upon its remaining
+     * <p> The hash code of a byte buffer depends only upon its remaining
      * elements; that is, upon the elements from {@code position()} up to, and
      * including, the element at {@code limit()}&nbsp;-&nbsp;{@code 1}.
      *
@@ -1034,7 +1034,7 @@ public abstract class ByteBuffer
     /**
      * Tells whether or not this buffer is equal to another object.
      *
-     * <p> Two $type$ buffers are equal if, and only if,
+     * <p> Two byte buffers are equal if, and only if,
      *
      * <ol>
      *
@@ -1046,17 +1046,17 @@ public abstract class ByteBuffer
      *   <li><p> The two sequences of remaining elements, considered
      *   independently of their starting positions, are pointwise equal.
 #if[floatingPointType]
-     *   This method considers two $type$ elements {@code a} and {@code b}
+     *   This method considers two byte elements {@code a} and {@code b}
      *   to be equal if
-     *   {@code (a == b) || ($Fulltype$.isNaN(a) && $Fulltype$.isNaN(b))}.
+     *   {@code (a == b) || (Byte.isNaN(a) && Byte.isNaN(b))}.
      *   The values {@code -0.0} and {@code +0.0} are considered to be
-     *   equal, unlike {@link $Fulltype$#equals(Object)}.
+     *   equal, unlike {@link Byte#equals(Object)}.
 #end[floatingPointType]
      *   </p></li>
      *
      * </ol>
      *
-     * <p> A $type$ buffer is not equal to any other type of object.  </p>
+     * <p> A byte buffer is not equal to any other type of object.  </p>
      *
      * @param  ob  The object to which this buffer is to be compared
      *
@@ -1079,22 +1079,22 @@ public abstract class ByteBuffer
     /**
      * Compares this buffer to another.
      *
-     * <p> Two $type$ buffers are compared by comparing their sequences of
+     * <p> Two byte buffers are compared by comparing their sequences of
      * remaining elements lexicographically, without regard to the starting
      * position of each sequence within its corresponding buffer.
 #if[floatingPointType]
-     * Pairs of {@code $type$} elements are compared as if by invoking
-     * {@link $Fulltype$#compare($type$,$type$)}, except that
+     * Pairs of {@code byte} elements are compared as if by invoking
+     * {@link Byte#compare(byte,byte)}, except that
      * {@code -0.0} and {@code 0.0} are considered to be equal.
-     * {@code $Fulltype$.NaN} is considered by this method to be equal
-     * to itself and greater than all other {@code $type$} values
-     * (including {@code $Fulltype$.POSITIVE_INFINITY}).
+     * {@code Byte.NaN} is considered by this method to be equal
+     * to itself and greater than all other {@code byte} values
+     * (including {@code Byte.POSITIVE_INFINITY}).
 #else[floatingPointType]
-     * Pairs of {@code $type$} elements are compared as if by invoking
-     * {@link $Fulltype$#compare($type$,$type$)}.
+     * Pairs of {@code byte} elements are compared as if by invoking
+     * {@link Byte#compare(byte,byte)}.
 #end[floatingPointType]
      *
-     * <p> A $type$ buffer is not comparable to any other type of object.
+     * <p> A byte buffer is not comparable to any other type of object.
      *
      * @return  A negative integer, zero, or a positive integer as this buffer
      *          is less than, equal to, or greater than the given buffer
@@ -1109,8 +1109,8 @@ public abstract class ByteBuffer
         return this.remaining() - that.remaining();
     }
 
-    private static int compare($type$ x, $type$ y) {
-        return $Fulltype$.compare(x, y);
+    private static int compare(byte x, byte y) {
+        return Byte.compare(x, y);
     }
 
     /**
