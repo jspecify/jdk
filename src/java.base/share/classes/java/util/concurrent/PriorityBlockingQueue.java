@@ -226,7 +226,7 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
      *         than 1
      */
     public PriorityBlockingQueue(int initialCapacity,
-                                 Comparator<? super E> comparator) {
+                                 @Nullable Comparator<? super E> comparator) {
         if (initialCapacity < 1)
             throw new IllegalArgumentException();
         this.comparator = comparator;
@@ -588,7 +588,7 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
      *         or {@code null} if this queue uses the natural
      *         ordering of its elements
      */
-    public Comparator<? super E> comparator() {
+    public @Nullable Comparator<? super E> comparator() {
         return comparator;
     }
 
@@ -782,7 +782,7 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
      *
      * @return an array containing all of the elements in this queue
      */
-    public @Nullable Object[] toArray() {
+    public Object[] toArray() {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {

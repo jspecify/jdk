@@ -319,7 +319,7 @@ public final  class Objects {
      *        {@code defaultObj} is {@code null}
      * @since 9
      */
-    public static <T>  T requireNonNullElse(@Nullable T obj,  T defaultObj) {
+    public static <T>  T requireNonNullElse(@Nullable T obj,  @Nullable T defaultObj) {
         return (obj != null) ? obj : requireNonNull(defaultObj, "defaultObj");
     }
 

@@ -25,6 +25,7 @@
 
 package java.util;
 
+import org.jspecify.nullness.NonNull;
 import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
@@ -1286,8 +1287,8 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * remapping function modified this map
      */
     @Override
-    public V merge(K key, V value,
-                   BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+    public @Nullable V merge(K key, @NonNull V value,
+                   BiFunction<? super @NonNull V, ? super @NonNull V, ? extends @Nullable V> remappingFunction) {
         if (value == null)
             throw new NullPointerException();
         if (remappingFunction == null)

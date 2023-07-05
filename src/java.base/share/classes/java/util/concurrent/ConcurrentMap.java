@@ -35,6 +35,7 @@
 
 package java.util.concurrent;
 
+import org.jspecify.nullness.NonNull;
 import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
@@ -477,8 +478,8 @@ public interface ConcurrentMap<K,V> extends Map<K,V> {
      * @since 1.8
      */
     @Override
-    default V merge(K key, V value,
-            BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+    default @Nullable V merge(K key, V value,
+            BiFunction<? super V, ? super V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         Objects.requireNonNull(value);
         retry: for (;;) {

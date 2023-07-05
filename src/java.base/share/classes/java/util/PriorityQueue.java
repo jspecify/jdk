@@ -153,7 +153,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      *         natural ordering} of the elements will be used.
      * @since 1.8
      */
-    public PriorityQueue(Comparator<? super E> comparator) {
+    public PriorityQueue(@Nullable Comparator<? super E> comparator) {
         this(DEFAULT_INITIAL_CAPACITY, comparator);
     }
 
@@ -169,7 +169,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      *         less than 1
      */
     public PriorityQueue( int initialCapacity,
-                         Comparator<? super E> comparator) {
+                         @Nullable Comparator<? super E> comparator) {
         // Note: This restriction of at least one is not actually needed,
         // but continues for 1.5 compatibility
         if (initialCapacity < 1)
@@ -430,7 +430,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      * @return an array containing all of the elements in this queue
      */
     
-    public @Nullable Object[] toArray() {
+    public Object[] toArray() {
         return Arrays.copyOf(queue, size);
     }
 
