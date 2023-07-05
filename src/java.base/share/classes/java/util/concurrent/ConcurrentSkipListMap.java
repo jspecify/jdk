@@ -35,7 +35,6 @@
 
 package java.util.concurrent;
 
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -1555,8 +1554,8 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
      *         or the remappingFunction is null
      * @since 1.8
      */
-    public @Nullable V merge(K key, @NonNull V value,
-                   BiFunction<? super @NonNull V, ? super @NonNull V, ? extends @Nullable V> remappingFunction) {
+    public @Nullable V merge(K key, V value,
+                   BiFunction<? super V, ? super V, ? extends @Nullable V> remappingFunction) {
         if (key == null || value == null || remappingFunction == null)
             throw new NullPointerException();
         for (;;) {
