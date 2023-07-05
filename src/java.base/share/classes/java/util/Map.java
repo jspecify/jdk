@@ -1095,7 +1095,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      * @since 1.8
      */
     default V computeIfPresent(K key,
-            BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+            BiFunction<? super K, ? super @NonNull V, ? extends V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         V oldValue;
         if ((oldValue = get(key)) != null) {
