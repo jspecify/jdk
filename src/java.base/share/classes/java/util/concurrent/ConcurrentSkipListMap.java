@@ -1516,7 +1516,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
      * @since 1.8
      */
     public V compute(K key,
-                     BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+                     BiFunction<? super K, ? super @Nullable V, ? extends V> remappingFunction) {
         if (key == null || remappingFunction == null)
             throw new NullPointerException();
         for (;;) {
