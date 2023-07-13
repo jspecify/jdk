@@ -248,7 +248,7 @@ public interface Node {
      *   NO_MODIFICATION_ALLOWED_ERR: Raised when the node is readonly and if
      *   it is not defined to be <code>null</code>.
      */
-    public void setNodeValue(String nodeValue)
+    public void setNodeValue(@Nullable String nodeValue)
                               throws DOMException;
 
     /**
