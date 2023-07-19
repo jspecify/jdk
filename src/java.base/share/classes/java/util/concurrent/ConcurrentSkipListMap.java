@@ -1991,7 +1991,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
      * @throws ClassCastException {@inheritDoc}
      * @throws NullPointerException if the specified key is null
      */
-    public @Nullable Map.Entry<K,V> floorEntry(K key) {
+    public Map.@Nullable Entry<K,V> floorEntry(K key) {
         return findNearEntry(key, LT|EQ, comparator);
     }
 
