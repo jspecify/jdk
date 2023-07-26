@@ -387,7 +387,7 @@ public
      *
      * @since   1.0
      */
-    public  int enumerate(Thread list[]) {
+    public  int enumerate(@Nullable Thread[] list) {
         checkAccess();
         return enumerate(list, 0, true);
     }
@@ -425,7 +425,7 @@ public
      *
      * @since   1.0
      */
-    public  int enumerate(Thread list[], boolean recurse) {
+    public  int enumerate(@Nullable Thread[] list, boolean recurse) {
         checkAccess();
         return enumerate(list, 0, recurse);
     }
@@ -525,7 +525,7 @@ public
      *
      * @since   1.0
      */
-    public  int enumerate(ThreadGroup list[]) {
+    public  int enumerate(@Nullable ThreadGroup[] list) {
         checkAccess();
         return enumerate(list, 0, true);
     }
@@ -563,7 +563,7 @@ public
      *
      * @since   1.0
      */
-    public  int enumerate(ThreadGroup list[], boolean recurse) {
+    public  int enumerate(@Nullable ThreadGroup[] list, boolean recurse) {
         checkAccess();
         return enumerate(list, 0, recurse);
     }
