@@ -576,7 +576,7 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>
      *
      * @return an array containing all of the elements in this queue
      */
-    public @Nullable Object[] toArray() {
+    public Object[] toArray() {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {

@@ -1291,7 +1291,7 @@ public class ConcurrentLinkedDeque<E>
      * @return an array containing all of the elements in this deque
      */
     
-    public @Nullable Object[] toArray() {
+    public Object[] toArray() {
         return toArrayInternal(null);
     }
 

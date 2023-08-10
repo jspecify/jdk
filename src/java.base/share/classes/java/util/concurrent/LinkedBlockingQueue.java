@@ -589,7 +589,7 @@ public class LinkedBlockingQueue<E> extends AbstractQueue<E>
      *
      * @return an array containing all of the elements in this queue
      */
-    public @Nullable Object[] toArray() {
+    public Object[] toArray() {
         fullyLock();
         try {
             int size = count.get();

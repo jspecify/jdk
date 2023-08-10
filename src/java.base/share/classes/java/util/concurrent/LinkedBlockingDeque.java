@@ -903,7 +903,7 @@ public class LinkedBlockingDeque<E>
      * @return an array containing all of the elements in this deque
      */
     @SuppressWarnings("unchecked")
-    public @Nullable Object[] toArray() {
+    public Object[] toArray() {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {

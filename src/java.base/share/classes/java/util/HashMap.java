@@ -1190,7 +1190,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      */
     @Override
     public V computeIfPresent(K key,
-                              BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+                              BiFunction<? super K, ? super @NonNull V, ? extends V> remappingFunction) {
         if (remappingFunction == null)
             throw new NullPointerException();
         Node<K,V> e; V oldValue;

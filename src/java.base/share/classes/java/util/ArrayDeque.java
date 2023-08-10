@@ -1077,7 +1077,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      * @return an array containing all of the elements in this deque
      */
     
-    public @Nullable Object[] toArray() {
+    public Object[] toArray() {
         return toArray(Object[].class);
     }
 
