@@ -53,5 +53,5 @@ public interface Observer {
      * @param   arg   an argument passed to the {@code notifyObservers}
      *                 method.
      */
-    void update(Observable o, Object arg);
+    void update(Observable o, @Nullable Object arg);
 }
