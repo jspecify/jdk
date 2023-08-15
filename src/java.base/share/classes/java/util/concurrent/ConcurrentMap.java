@@ -370,8 +370,8 @@ public interface ConcurrentMap<K,V> extends Map<K,V> {
      * @since 1.8
      */
     @Override
-    default V computeIfPresent(K key,
-            BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+    default @Nullable V computeIfPresent(K key,
+            BiFunction<? super K, ? super V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         for (V oldValue; (oldValue = get(key)) != null; ) {
             V newValue = remappingFunction.apply(key, oldValue);
@@ -418,8 +418,8 @@ public interface ConcurrentMap<K,V> extends Map<K,V> {
      * @since 1.8
      */
     @Override
-    default V compute(K key,
-                      BiFunction<? super K, ? super @Nullable V, ? extends V> remappingFunction) {
+    default @Nullable V compute(K key,
+                      BiFunction<? super K, ? super @Nullable V, ? extends @Nullable V> remappingFunction) {
         retry: for (;;) {
             V oldValue = get(key);
             // if putIfAbsent fails, opportunistically use its return value
