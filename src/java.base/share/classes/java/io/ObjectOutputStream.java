@@ -373,7 +373,7 @@ public class ObjectOutputStream
      * @see #writeObject(Object)
      * @since 1.2
      */
-    protected void writeObjectOverride(Object obj) throws IOException {
+    protected void writeObjectOverride(@Nullable Object obj) throws IOException {
     }
 
     /**
