@@ -30,6 +30,9 @@ import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTEqLengthOf;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.EOFException;
@@ -48,6 +51,7 @@ import static java.util.zip.ZipUtils.*;
  * @since 1.1
  */
 @AnnotatedFor({"index"})
+@NullMarked
 public
 class ZipInputStream extends InflaterInputStream implements ZipConstants {
     private ZipEntry entry;
@@ -119,7 +123,7 @@ class ZipInputStream extends InflaterInputStream implements ZipConstants {
      * @exception ZipException if a ZIP file error has occurred
      * @exception IOException if an I/O error has occurred
      */
-    public ZipEntry getNextEntry() throws IOException {
+    public @Nullable ZipEntry getNextEntry() throws IOException {
         ensureOpen();
         if (entry != null) {
             closeEntry();
