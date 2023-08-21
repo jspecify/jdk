@@ -806,7 +806,7 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    public void setTextContent(String textContent)
+    public void setTextContent(@Nullable String textContent)
                                          throws DOMException;
 
     /**
