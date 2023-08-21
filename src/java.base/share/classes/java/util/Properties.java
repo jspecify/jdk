@@ -155,7 +155,7 @@ class Properties extends Hashtable<Object,Object> {
      *
      * @serial
      */
-    protected volatile Properties defaults;
+    protected volatile @Nullable Properties defaults;
 
     /**
      * Properties does not store values in its inherited Hashtable, but instead
@@ -197,7 +197,7 @@ class Properties extends Hashtable<Object,Object> {
      *
      * @param   defaults   the defaults.
      */
-    public Properties(Properties defaults) {
+    public Properties(@Nullable Properties defaults) {
         this(defaults, 8);
     }
 
@@ -1317,22 +1317,22 @@ class Properties extends Hashtable<Object,Object> {
     }
 
     @Override
-    public Object get(Object key) {
+    public @Nullable Object get(Object key) {
         return map.get(key);
     }
 
     @Override
-    public synchronized Object put(Object key, Object value) {
+    public synchronized @Nullable Object put(Object key, Object value) {
         return map.put(key, value);
     }
 
     @Override
-    public synchronized Object remove(Object key) {
+    public synchronized @Nullable Object remove(Object key) {
         return map.remove(key);
     }
 
     @Override
-    public synchronized void putAll(Map<?, ?> t) {
+    public synchronized void putAll(Map<? extends Object, ? extends Object> t) {
         map.putAll(t);
     }
 
@@ -1424,7 +1424,7 @@ class Properties extends Hashtable<Object,Object> {
     }
 
     @Override
-    public Object getOrDefault(Object key, Object defaultValue) {
+    public @Nullable Object getOrDefault(Object key, @Nullable Object defaultValue) {
         return map.getOrDefault(key, defaultValue);
     }
 
@@ -1434,12 +1434,12 @@ class Properties extends Hashtable<Object,Object> {
     }
 
     @Override
-    public synchronized void replaceAll(BiFunction<? super Object, ? super Object, ?> function) {
+    public synchronized void replaceAll(BiFunction<? super Object, ? super Object, ? extends Object> function) {
         map.replaceAll(function);
     }
 
     @Override
-    public synchronized Object putIfAbsent(Object key, Object value) {
+    public synchronized @Nullable Object putIfAbsent(Object key, Object value) {
         return map.putIfAbsent(key, value);
     }
 
@@ -1454,30 +1454,30 @@ class Properties extends Hashtable<Object,Object> {
     }
 
     @Override
-    public synchronized Object replace(Object key, Object value) {
+    public synchronized @Nullable Object replace(Object key, Object value) {
         return map.replace(key, value);
     }
 
     @Override
     public synchronized Object computeIfAbsent(Object key,
-            Function<? super Object, ?> mappingFunction) {
+            Function<? super Object, ? extends Object> mappingFunction) {
         return map.computeIfAbsent(key, mappingFunction);
     }
 
     @Override
-    public synchronized Object computeIfPresent(Object key,
+    public synchronized @Nullable Object computeIfPresent(Object key,
             BiFunction<? super Object, ? super Object, ?> remappingFunction) {
         return map.computeIfPresent(key, remappingFunction);
     }
 
     @Override
-    public synchronized Object compute(Object key,
-            BiFunction<? super Object, ? super Object, ?> remappingFunction) {
+    public synchronized @Nullable Object compute(Object key,
+            BiFunction<? super Object, ?, ?> remappingFunction) {
         return map.compute(key, remappingFunction);
     }
 
     @Override
-    public synchronized Object merge(Object key, Object value,
+    public synchronized @Nullable Object merge(Object key, Object value,
             BiFunction<? super Object, ? super Object, ?> remappingFunction) {
         return map.merge(key, value, remappingFunction);
     }
