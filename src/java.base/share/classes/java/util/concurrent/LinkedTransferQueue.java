@@ -35,6 +35,7 @@
 
 package java.util.concurrent;
 
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.invoke.MethodHandles;
@@ -90,6 +91,7 @@ import java.util.function.Predicate;
  * @author Doug Lea
  * @param <E> the type of elements held in this queue
  */
+@NullMarked
 public class LinkedTransferQueue<E> extends AbstractQueue<E>
     implements TransferQueue<E>, java.io.Serializable {
     private static final long serialVersionUID = -3223113410248163686L;
@@ -1372,14 +1374,14 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
         throw new InterruptedException();
     }
 
-    public E poll(long timeout, TimeUnit unit) throws InterruptedException {
+    public @Nullable E poll(long timeout, TimeUnit unit) throws InterruptedException {
         E e = xfer(null, false, TIMED, unit.toNanos(timeout));
         if (e != null || !Thread.interrupted())
             return e;
         throw new InterruptedException();
     }
 
-    public E poll() {
+    public @Nullable E poll() {
         return xfer(null, false, NOW, 0);
     }
 
@@ -1424,7 +1426,7 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
         return new Itr();
     }
 
-    public E peek() {
+    public @Nullable E peek() {
         restartFromHead: for (;;) {
             for (Node p = head; p != null;) {
                 Object item = p.item;
