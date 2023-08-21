@@ -1088,7 +1088,7 @@ public class Hashtable<K,V>
      * remapping function modified this map
      */
     @Override
-    public synchronized V computeIfPresent(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+    public synchronized @Nullable V computeIfPresent(K key, BiFunction<? super K, ? super V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
 
         Entry<?,?> tab[] = table;
@@ -1130,7 +1130,7 @@ public class Hashtable<K,V>
      * remapping function modified this map
      */
     @Override
-    public synchronized V compute(K key, BiFunction<? super K, ? super @Nullable V, ? extends V> remappingFunction) {
+    public synchronized @Nullable V compute(K key, BiFunction<? super K, ? super @Nullable V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
 
         Entry<?,?> tab[] = table;

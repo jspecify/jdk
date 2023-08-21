@@ -1812,7 +1812,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @throws RuntimeException or Error if the remappingFunction does so,
      *         in which case the mapping is unchanged
      */
-    public V computeIfPresent(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+    public @Nullable V computeIfPresent(K key, BiFunction<? super K, ? super V, ? extends @Nullable V> remappingFunction) {
         if (key == null || remappingFunction == null)
             throw new NullPointerException();
         int h = spread(key.hashCode());
@@ -1904,8 +1904,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @throws RuntimeException or Error if the remappingFunction does so,
      *         in which case the mapping is unchanged
      */
-    public V compute(K key,
-                     BiFunction<? super K, ? super @Nullable V, ? extends V> remappingFunction) {
+    public @Nullable V compute(K key,
+                     BiFunction<? super K, ? super @Nullable V, ? extends @Nullable V> remappingFunction) {
         if (key == null || remappingFunction == null)
             throw new NullPointerException();
         int h = spread(key.hashCode());
