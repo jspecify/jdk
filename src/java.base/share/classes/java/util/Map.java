@@ -1094,8 +1094,8 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      * @since 1.8
      */
-    default V computeIfPresent(K key,
-            BiFunction<? super K, ? super @NonNull V, ? extends V> remappingFunction) {
+    default @Nullable V computeIfPresent(K key,
+            BiFunction<? super K, ? super @NonNull V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         V oldValue;
         if ((oldValue = get(key)) != null) {
@@ -1186,8 +1186,8 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      * @since 1.8
      */
-    default V compute(K key,
-            BiFunction<? super K, ? super @Nullable V, ? extends V> remappingFunction) {
+    default @Nullable V compute(K key,
+            BiFunction<? super K, ? super @Nullable V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         V oldValue = get(key);
 

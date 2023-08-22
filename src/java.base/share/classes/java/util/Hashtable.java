@@ -953,7 +953,7 @@ public class Hashtable<K,V>
 
     
     @Override
-    public synchronized V putIfAbsent(K key, V value) {
+    public synchronized @Nullable V putIfAbsent(K key, V value) {
         Objects.requireNonNull(value);
 
         // Makes sure the key is not already in the hashtable.
@@ -1024,7 +1024,7 @@ public class Hashtable<K,V>
     }
 
     @Override
-    public synchronized V replace(K key, V value) {
+    public synchronized @Nullable V replace(K key, V value) {
         Objects.requireNonNull(value);
         Entry<?,?> tab[] = table;
         int hash = key.hashCode();
@@ -1088,7 +1088,7 @@ public class Hashtable<K,V>
      * remapping function modified this map
      */
     @Override
-    public synchronized V computeIfPresent(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+    public synchronized @Nullable V computeIfPresent(K key, BiFunction<? super K, ? super V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
 
         Entry<?,?> tab[] = table;
@@ -1130,7 +1130,7 @@ public class Hashtable<K,V>
      * remapping function modified this map
      */
     @Override
-    public synchronized V compute(K key, BiFunction<? super K, ? super @Nullable V, ? extends V> remappingFunction) {
+    public synchronized @Nullable V compute(K key, BiFunction<? super K, ? super @Nullable V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
 
         Entry<?,?> tab[] = table;

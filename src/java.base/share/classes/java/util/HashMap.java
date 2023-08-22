@@ -1189,8 +1189,8 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * remapping function modified this map
      */
     @Override
-    public V computeIfPresent(K key,
-                              BiFunction<? super K, ? super @NonNull V, ? extends V> remappingFunction) {
+    public @Nullable V computeIfPresent(K key,
+                              BiFunction<? super K, ? super @NonNull V, ? extends @Nullable V> remappingFunction) {
         if (remappingFunction == null)
             throw new NullPointerException();
         Node<K,V> e; V oldValue;
@@ -1222,8 +1222,8 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * remapping function modified this map
      */
     @Override
-    public V compute(K key,
-                     BiFunction<? super K, ? super @Nullable V, ? extends V> remappingFunction) {
+    public @Nullable V compute(K key,
+                     BiFunction<? super K, ? super @Nullable V, ? extends @Nullable V> remappingFunction) {
         if (remappingFunction == null)
             throw new NullPointerException();
         int hash = hash(key);

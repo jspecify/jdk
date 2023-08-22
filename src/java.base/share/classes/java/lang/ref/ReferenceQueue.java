@@ -120,7 +120,7 @@ public  class ReferenceQueue<T> {
      * @return  A reference object, if one was immediately available,
      *          otherwise {@code null}
      */
-    public Reference<? extends T> poll() {
+    public @Nullable Reference<? extends T> poll() {
         if (head == null)
             return null;
         synchronized (lock) {
@@ -148,7 +148,7 @@ public  class ReferenceQueue<T> {
      * @throws  InterruptedException
      *          If the timeout wait is interrupted
      */
-    public Reference<? extends T> remove(long timeout)
+    public @Nullable Reference<? extends T> remove(long timeout)
         throws IllegalArgumentException, InterruptedException
     {
         if (timeout < 0) {

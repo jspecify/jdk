@@ -421,7 +421,7 @@ public class ObjectInputStream
      *          stream instead of objects.
      * @throws  IOException Any of the usual Input/Output related exceptions.
      */
-    public final Object readObject()
+    public final @Nullable Object readObject()
         throws IOException, ClassNotFoundException
     {
         if (enableOverride) {
@@ -467,7 +467,7 @@ public class ObjectInputStream
      * @see #readObject()
      * @since 1.2
      */
-    protected Object readObjectOverride()
+    protected @Nullable Object readObjectOverride()
         throws IOException, ClassNotFoundException
     {
         return null;
@@ -522,7 +522,7 @@ public class ObjectInputStream
      * @throws  IOException if an I/O error occurs during deserialization
      * @since   1.4
      */
-    public Object readUnshared() throws IOException, ClassNotFoundException {
+    public @Nullable Object readUnshared() throws IOException, ClassNotFoundException {
         // if nested read, passHandle contains handle of enclosing object
         int outerHandle = passHandle;
         try {
@@ -1167,7 +1167,7 @@ public class ObjectInputStream
      * @return the serialization filter for the stream; may be null
      * @since 9
      */
-    public final ObjectInputFilter getObjectInputFilter() {
+    public final @Nullable ObjectInputFilter getObjectInputFilter() {
         return serialFilter;
     }
 
@@ -1240,7 +1240,7 @@ public class ObjectInputStream
      *       is not {@code null} and is not the process-wide filter
      * @since 9
      */
-    public final void setObjectInputFilter(ObjectInputFilter filter) {
+    public final void setObjectInputFilter(@Nullable ObjectInputFilter filter) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(ObjectStreamConstants.SERIAL_FILTER_PERMISSION);

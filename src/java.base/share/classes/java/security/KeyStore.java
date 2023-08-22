@@ -1162,8 +1162,8 @@ public  class KeyStore {
      * (loaded), the given key cannot be protected, or this operation fails
      * for some other reason
      */
-    public final void setKeyEntry(String alias, Key key, char[] password,
-                                  Certificate[] chain)
+    public final void setKeyEntry(String alias, Key key, char @Nullable [] password,
+                                  Certificate @Nullable [] chain)
         throws KeyStoreException
     {
         if (!initialized) {
@@ -1203,7 +1203,7 @@ public  class KeyStore {
      * (loaded), or if this operation fails for some other reason.
      */
     public final void setKeyEntry(String alias, byte[] key,
-                                  Certificate[] chain)
+                                  Certificate @Nullable [] chain)
         throws KeyStoreException
     {
         if (!initialized) {
