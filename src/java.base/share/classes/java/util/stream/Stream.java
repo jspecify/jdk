@@ -285,7 +285,7 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      *               of new values
      * @return the new stream
      */
-    <R extends @Nullable Object> Stream<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper);
+    <R extends @Nullable Object> Stream<R> flatMap(Function<? super T, ? extends @Nullable Stream<? extends R>> mapper);
 
     /**
      * Returns an {@code IntStream} consisting of the results of replacing each
@@ -305,7 +305,7 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      * @return the new stream
      * @see #flatMap(Function)
      */
-    IntStream flatMapToInt(Function<? super T, ? extends IntStream> mapper);
+    IntStream flatMapToInt(Function<? super T, ? extends @Nullable IntStream> mapper);
 
     /**
      * Returns an {@code LongStream} consisting of the results of replacing each
@@ -325,7 +325,7 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      * @return the new stream
      * @see #flatMap(Function)
      */
-    LongStream flatMapToLong(Function<? super T, ? extends LongStream> mapper);
+    LongStream flatMapToLong(Function<? super T, ? extends @Nullable LongStream> mapper);
 
     /**
      * Returns an {@code DoubleStream} consisting of the results of replacing
@@ -345,7 +345,7 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      * @return the new stream
      * @see #flatMap(Function)
      */
-    DoubleStream flatMapToDouble(Function<? super T, ? extends DoubleStream> mapper);
+    DoubleStream flatMapToDouble(Function<? super T, ? extends @Nullable DoubleStream> mapper);
 
     /**
      * Returns a stream consisting of the distinct elements (according to
