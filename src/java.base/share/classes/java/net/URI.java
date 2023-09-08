@@ -25,6 +25,7 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
@@ -475,6 +476,7 @@ import java.lang.NullPointerException;  // for javadoc
  * href="URISyntaxException.html">URISyntaxException</a>
  */
 
+@NullMarked
 public final class URI
     implements Comparable<URI>, Serializable
 {
@@ -675,9 +677,9 @@ public final class URI
      *         RFC&nbsp;2396, or if the authority component of the string is
      *         present but cannot be parsed as a server-based authority
      */
-    public URI(String scheme,
-               String userInfo, String host, int port,
-               String path, String query, String fragment)
+    public URI(@Nullable String scheme,
+               @Nullable String userInfo, @Nullable String host, int port,
+               @Nullable String path, @Nullable String query, @Nullable String fragment)
         throws URISyntaxException
     {
         String s = toString(scheme, null,
@@ -748,9 +750,9 @@ public final class URI
      *         RFC&nbsp;2396, or if the authority component of the string is
      *         present but cannot be parsed as a server-based authority
      */
-    public URI(String scheme,
-               String authority,
-               String path, String query, String fragment)
+    public URI(@Nullable String scheme,
+               @Nullable String authority,
+               @Nullable String path, @Nullable String query, @Nullable String fragment)
         throws URISyntaxException
     {
         String s = toString(scheme, null,
@@ -782,7 +784,7 @@ public final class URI
      *          If the URI string constructed from the given components
      *          violates RFC&nbsp;2396
      */
-    public URI(String scheme, String host, String path, String fragment)
+    public URI(@Nullable String scheme, @Nullable String host, @Nullable String path, @Nullable String fragment)
         throws URISyntaxException
     {
         this(scheme, null, host, -1, path, null, fragment);
@@ -825,7 +827,7 @@ public final class URI
      *          If the URI string constructed from the given components
      *          violates RFC&nbsp;2396
      */
-    public URI(String scheme, String ssp, String fragment)
+    public URI(@Nullable String scheme, @Nullable String ssp, @Nullable String fragment)
         throws URISyntaxException
     {
         new Parser(toString(scheme, ssp,
@@ -838,7 +840,7 @@ public final class URI
      * Constructs a simple URI consisting of only a scheme and a pre-validated
      * path. Provides a fast-path for some internal cases.
      */
-    URI(String scheme, String path) {
+    URI(@Nullable String scheme, @Nullable String path) {
         assert validSchemeAndPath(scheme, path);
         this.scheme = scheme;
         this.path = path;
@@ -1133,7 +1135,7 @@ public final class URI
      * @return  The scheme component of this URI,
      *          or {@code null} if the scheme is undefined
      */
-    public String getScheme() {
+    public @Nullable String getScheme() {
         return scheme;
     }
 
@@ -1235,7 +1237,7 @@ public final class URI
      * @return  The raw authority component of this URI,
      *          or {@code null} if the authority is undefined
      */
-    public String getRawAuthority() {
+    public @Nullable String getRawAuthority() {
         return authority;
     }
 
@@ -1249,7 +1251,7 @@ public final class URI
      * @return  The decoded authority component of this URI,
      *          or {@code null} if the authority is undefined
      */
-    public String getAuthority() {
+    public @Nullable String getAuthority() {
         String auth = decodedAuthority;
         if ((auth == null) && (authority != null)) {
             decodedAuthority = auth = decode(authority);
@@ -1267,7 +1269,7 @@ public final class URI
      * @return  The raw user-information component of this URI,
      *          or {@code null} if the user information is undefined
      */
-    public String getRawUserInfo() {
+    public @Nullable String getRawUserInfo() {
         return userInfo;
     }
 
@@ -1281,7 +1283,7 @@ public final class URI
      * @return  The decoded user-information component of this URI,
      *          or {@code null} if the user information is undefined
      */
-    public String getUserInfo() {
+    public @Nullable String getUserInfo() {
         String user = decodedUserInfo;
         if ((user == null) && (userInfo != null)) {
             decodedUserInfo = user = decode(userInfo);
@@ -1325,7 +1327,7 @@ public final class URI
      * @return  The host component of this URI,
      *          or {@code null} if the host is undefined
      */
-    public String getHost() {
+    public @Nullable String getHost() {
         return host;
     }
 
@@ -1353,7 +1355,7 @@ public final class URI
      * @return  The path component of this URI,
      *          or {@code null} if the path is undefined
      */
-    public String getRawPath() {
+    public @Nullable String getRawPath() {
         return path;
     }
 
@@ -1367,7 +1369,7 @@ public final class URI
      * @return  The decoded path component of this URI,
      *          or {@code null} if the path is undefined
      */
-    public String getPath() {
+    public @Nullable String getPath() {
         String decoded = decodedPath;
         if ((decoded == null) && (path != null)) {
             decodedPath = decoded = decode(path);
@@ -1384,7 +1386,7 @@ public final class URI
      * @return  The raw query component of this URI,
      *          or {@code null} if the query is undefined
      */
-    public String getRawQuery() {
+    public @Nullable String getRawQuery() {
         return query;
     }
 
@@ -1398,7 +1400,7 @@ public final class URI
      * @return  The decoded query component of this URI,
      *          or {@code null} if the query is undefined
      */
-    public String getQuery() {
+    public @Nullable String getQuery() {
         String decoded = decodedQuery;
         if ((decoded == null) && (query != null)) {
             decodedQuery = decoded = decode(query, false);
@@ -1415,7 +1417,7 @@ public final class URI
      * @return  The raw fragment component of this URI,
      *          or {@code null} if the fragment is undefined
      */
-    public String getRawFragment() {
+    public @Nullable String getRawFragment() {
         return fragment;
     }
 
@@ -1429,7 +1431,7 @@ public final class URI
      * @return  The decoded fragment component of this URI,
      *          or {@code null} if the fragment is undefined
      */
-    public String getFragment() {
+    public @Nullable String getFragment() {
         String decoded = decodedFragment;
         if ((decoded == null) && (fragment != null)) {
             decodedFragment = decoded = decode(fragment, false);
