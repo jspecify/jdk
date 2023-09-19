@@ -26,6 +26,8 @@
 package java.nio.file.attribute;
 
 import java.io.IOException;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A file attribute view that provides a view of a <em>basic set</em> of file
@@ -100,7 +102,7 @@ import java.io.IOException;
  *
  * @since 1.7
  */
-
+@NullMarked
 public interface BasicFileAttributeView
     extends FileAttributeView
 {
@@ -176,7 +178,7 @@ public interface BasicFileAttributeView
      *
      * @see java.nio.file.Files#setLastModifiedTime
      */
-    void setTimes(FileTime lastModifiedTime,
-                  FileTime lastAccessTime,
-                  FileTime createTime) throws IOException;
+    void setTimes(@Nullable FileTime lastModifiedTime,
+                  @Nullable FileTime lastAccessTime,
+                  @Nullable FileTime createTime) throws IOException;
 }
