@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import org.jspecify.annotations.Nullable;
 
 import sun.security.util.Debug;
 
@@ -41,6 +42,7 @@ import sun.security.util.Debug;
  * @author  Roland Schemers
  * @since 1.2
  */
+@NullMarked
 public class SecureClassLoader extends ClassLoader {
     /*
      * If initialization succeed this is set to true and security checks will
@@ -79,7 +81,7 @@ public class SecureClassLoader extends ClassLoader {
      *             creation of a class loader.
      * @see SecurityManager#checkCreateClassLoader
      */
-    protected SecureClassLoader(ClassLoader parent) {
+    protected SecureClassLoader(@Nullable ClassLoader parent) {
         super(parent);
         // this is to make the stack depth consistent with 1.1
         SecurityManager security = System.getSecurityManager();
@@ -128,7 +130,7 @@ public class SecureClassLoader extends ClassLoader {
      * @since 9
      * @spec JPMS
      */
-    protected SecureClassLoader(String name, ClassLoader parent) {
+    protected SecureClassLoader(@Nullable String name, @Nullable ClassLoader parent) {
         super(name, parent);
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
@@ -169,7 +171,7 @@ public class SecureClassLoader extends ClassLoader {
      */
     protected final Class<?> defineClass(String name,
                                          byte[] b, int off, int len,
-                                         CodeSource cs)
+                                         @Nullable CodeSource cs)
     {
         return defineClass(name, b, off, len, getProtectionDomain(cs));
     }
@@ -201,7 +203,7 @@ public class SecureClassLoader extends ClassLoader {
      * @since  1.5
      */
     protected final Class<?> defineClass(String name, java.nio.ByteBuffer b,
-                                         CodeSource cs)
+                                         @Nullable CodeSource cs)
     {
         return defineClass(name, b, getProtectionDomain(cs));
     }
