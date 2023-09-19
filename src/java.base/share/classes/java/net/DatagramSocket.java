@@ -27,6 +27,8 @@ package java.net;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.channels.DatagramChannel;
@@ -68,7 +70,7 @@ import java.util.Collections;
  * @see     java.nio.channels.DatagramChannel
  * @since 1.0
  */
-@AnnotatedFor({"interning"})
+@NullMarked
 public
 @UsesObjectEquals class DatagramSocket implements java.io.Closeable {
     /**
@@ -240,7 +242,7 @@ public
      * @see SecurityManager#checkListen
      * @since   1.4
      */
-    public DatagramSocket(SocketAddress bindaddr) throws SocketException {
+    public DatagramSocket(@Nullable SocketAddress bindaddr) throws SocketException {
         // create a datagram socket.
         createImpl();
         if (bindaddr != null) {
@@ -301,7 +303,7 @@ public
      * @see SecurityManager#checkListen
      * @since   1.1
      */
-    public DatagramSocket(int port, InetAddress laddr) throws SocketException {
+    public DatagramSocket(int port, @Nullable InetAddress laddr) throws SocketException {
         this(new InetSocketAddress(laddr, port));
     }
 
@@ -375,7 +377,7 @@ public
      *         not supported by this socket.
      * @since 1.4
      */
-    public synchronized void bind(SocketAddress addr) throws SocketException {
+    public synchronized void bind(@Nullable SocketAddress addr) throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         if (isBound())
@@ -558,7 +560,7 @@ public
      *
      * @return the address to which this socket is connected.
      */
-    public InetAddress getInetAddress() {
+    public @Nullable InetAddress getInetAddress() {
         return connectedAddress;
     }
 
@@ -592,7 +594,7 @@ public
      * @see #connect(SocketAddress)
      * @since 1.4
      */
-    public SocketAddress getRemoteSocketAddress() {
+    public @Nullable SocketAddress getRemoteSocketAddress() {
         if (!isConnected())
             return null;
         return new InetSocketAddress(getInetAddress(), getPort());
@@ -609,7 +611,7 @@ public
      * @since 1.4
      */
 
-    public SocketAddress getLocalSocketAddress() {
+    public @Nullable SocketAddress getLocalSocketAddress() {
         if (isClosed())
             return null;
         if (!isBound())
@@ -850,7 +852,7 @@ public
      *          method does not allow the operation
      * @since   1.1
      */
-    public InetAddress getLocalAddress() {
+    public @Nullable InetAddress getLocalAddress() {
         if (isClosed())
             return null;
         InetAddress in = null;
@@ -1267,7 +1269,7 @@ public
      * @since 1.4
      * @spec JSR-51
      */
-    public DatagramChannel getChannel() {
+    public @Nullable DatagramChannel getChannel() {
         return null;
     }
 
@@ -1344,7 +1346,7 @@ public
      *
      * @since 9
      */
-    public <T> DatagramSocket setOption(SocketOption<T> name, T value)
+    public <T extends @Nullable Object> DatagramSocket setOption(SocketOption<T> name, T value)
         throws IOException
     {
         getImpl().setOption(name, value);
@@ -1374,7 +1376,7 @@ public
      *
      * @since 9
      */
-    public <T> T getOption(SocketOption<T> name) throws IOException {
+    public <T extends @Nullable Object> T getOption(SocketOption<T> name) throws IOException {
         return getImpl().getOption(name);
     }
 

@@ -27,6 +27,8 @@ package java.net;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.misc.JavaNetSocketAccess;
 import jdk.internal.misc.SharedSecrets;
@@ -58,7 +60,7 @@ import java.util.Collections;
  * @see     java.nio.channels.ServerSocketChannel
  * @since   1.0
  */
-@AnnotatedFor({"interning"})
+@NullMarked
 public
 @UsesObjectEquals class ServerSocket implements java.io.Closeable {
     /**
@@ -236,7 +238,7 @@ public
      * @see SecurityManager#checkListen
      * @since   1.1
      */
-    public ServerSocket(int port, int backlog, InetAddress bindAddr) throws IOException {
+    public ServerSocket(int port, int backlog, @Nullable InetAddress bindAddr) throws IOException {
         setImpl();
         if (port < 0 || port > 0xFFFF)
             throw new IllegalArgumentException(
@@ -335,7 +337,7 @@ public
      *          SocketAddress subclass not supported by this socket
      * @since 1.4
      */
-    public void bind(SocketAddress endpoint) throws IOException {
+    public void bind(@Nullable SocketAddress endpoint) throws IOException {
         bind(endpoint, 50);
     }
 
@@ -364,7 +366,7 @@ public
      *          SocketAddress subclass not supported by this socket
      * @since 1.4
      */
-    public void bind(SocketAddress endpoint, int backlog) throws IOException {
+    public void bind(@Nullable SocketAddress endpoint, int backlog) throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         if (!oldImpl && isBound())
@@ -412,7 +414,7 @@ public
      *
      * @see SecurityManager#checkConnect
      */
-    public InetAddress getInetAddress() {
+    public @Nullable InetAddress getInetAddress() {
         if (!isBound())
             return null;
         try {
@@ -480,7 +482,7 @@ public
      * @since 1.4
      */
 
-    public SocketAddress getLocalSocketAddress() {
+    public @Nullable SocketAddress getLocalSocketAddress() {
         if (!isBound())
             return null;
         return new InetSocketAddress(getInetAddress(), getLocalPort());
@@ -614,7 +616,7 @@ public
      * @since 1.4
      * @spec JSR-51
      */
-    public ServerSocketChannel getChannel() {
+    public @Nullable ServerSocketChannel getChannel() {
         return null;
     }
 
@@ -958,7 +960,7 @@ public
      *
      * @since 9
      */
-    public <T> ServerSocket setOption(SocketOption<T> name, T value)
+    public <T extends @Nullable Object> ServerSocket setOption(SocketOption<T> name, T value)
         throws IOException
     {
         getImpl().setOption(name, value);
@@ -988,7 +990,7 @@ public
      *
      * @since 9
      */
-    public <T> T getOption(SocketOption<T> name) throws IOException {
+    public <T extends @Nullable Object> T getOption(SocketOption<T> name) throws IOException {
         return getImpl().getOption(name);
     }
 

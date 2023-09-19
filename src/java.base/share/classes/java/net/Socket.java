@@ -167,7 +167,7 @@ public
      * such as a TCP error.
      * @since   1.1
      */
-    protected Socket(SocketImpl impl) throws SocketException {
+    protected Socket(@Nullable SocketImpl impl) throws SocketException {
         this.impl = impl;
         if (impl != null) {
             checkOldImpl();
