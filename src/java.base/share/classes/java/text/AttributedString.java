@@ -25,6 +25,7 @@
 
 package java.text;
 
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.util.*;
@@ -48,7 +49,7 @@ import java.text.AttributedCharacterIterator.Attribute;
  * @see Annotation
  * @since 1.2
  */
-
+@NullMarked
 public class AttributedString {
     // field holding the text
     String text;
@@ -230,7 +231,7 @@ public class AttributedString {
     public AttributedString(AttributedCharacterIterator text,
                             int beginIndex,
                             int endIndex,
-                            Attribute[] attributes) {
+                            Attribute @Nullable [] attributes) {
         if (text == null) {
             throw new NullPointerException();
         }
@@ -313,7 +314,7 @@ public class AttributedString {
      * @exception IllegalArgumentException if the AttributedString has length 0
      * (attributes cannot be applied to a 0-length range).
      */
-    public void addAttribute(Attribute attribute, Object value) {
+    public void addAttribute(Attribute attribute, @Nullable Object value) {
 
         if (attribute == null) {
             throw new NullPointerException();
@@ -338,7 +339,7 @@ public class AttributedString {
      * greater than the length of the string, or beginIndex and endIndex together don't
      * define a non-empty subrange of the string.
      */
-    public void addAttribute(Attribute attribute, Object value,
+    public void addAttribute(Attribute attribute, @Nullable Object value,
             int beginIndex, int endIndex) {
 
         if (attribute == null) {
@@ -566,7 +567,7 @@ public class AttributedString {
      * @param attributes a list of attributes that the client is interested in
      * @return an iterator providing access to the entire text and its selected attributes
      */
-    public AttributedCharacterIterator getIterator(Attribute[] attributes) {
+    public AttributedCharacterIterator getIterator(Attribute @Nullable [] attributes) {
         return getIterator(attributes, 0, length());
     }
 
@@ -586,7 +587,7 @@ public class AttributedString {
      * endIndex is greater than the length of the string, or beginIndex is
      * greater than endIndex.
      */
-    public AttributedCharacterIterator getIterator(Attribute[] attributes, int beginIndex, int endIndex) {
+    public AttributedCharacterIterator getIterator(Attribute @Nullable [] attributes, int beginIndex, int endIndex) {
         return new AttributedStringIterator(attributes, beginIndex, endIndex);
     }
 
