@@ -25,6 +25,7 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.util.NavigableSet;
@@ -196,6 +197,7 @@ import sun.net.util.IPAddressUtil;
  * @see     java.net.InetAddress#getLocalHost()
  * @since 1.0
  */
+@NullMarked
 public
 class InetAddress implements java.io.Serializable {
 
@@ -536,7 +538,7 @@ class InetAddress implements java.io.Serializable {
      * @throws IOException if a network error occurs
      * @since 1.5
      */
-    public boolean isReachable(NetworkInterface netif, int ttl,
+    public boolean isReachable(@Nullable NetworkInterface netif, int ttl,
                                int timeout) throws IOException {
         if (ttl < 0)
             throw new IllegalArgumentException("ttl can't be negative");
@@ -704,6 +706,8 @@ class InetAddress implements java.io.Serializable {
      *
      * @return  the raw IP address of this object.
      */
+    // NOTE: This should *not* be annotated @Nullable:
+    // Both concrete implementations override it to return a non-null value.
     public byte[] getAddress() {
         return null;
     }
@@ -714,6 +718,8 @@ class InetAddress implements java.io.Serializable {
      * @return  the raw IP address in a string format.
      * @since   1.0.2
      */
+    // NOTE: This should *not* be annotated @Nullable:
+    // Both concrete implementations override it to return a non-null value.
     public String getHostAddress() {
         return null;
      }
@@ -1188,7 +1194,7 @@ class InetAddress implements java.io.Serializable {
      * @exception  UnknownHostException  if IP address is of illegal length
      * @since 1.4
      */
-    public static InetAddress getByAddress(String host, byte[] addr)
+    public static InetAddress getByAddress(@Nullable String host, byte[] addr)
         throws UnknownHostException {
         if (host != null && host.length() > 0 && host.charAt(0) == '[') {
             if (host.charAt(host.length()-1) == ']') {
@@ -1246,7 +1252,7 @@ class InetAddress implements java.io.Serializable {
      * @exception  SecurityException if a security manager exists
      *             and its checkConnect method doesn't allow the operation
      */
-    public static InetAddress getByName(String host)
+    public static InetAddress getByName(@Nullable String host)
         throws UnknownHostException {
         return InetAddress.getAllByName(host)[0];
     }
@@ -1296,7 +1302,7 @@ class InetAddress implements java.io.Serializable {
      *
      * @see SecurityManager#checkConnect
      */
-    public static InetAddress[] getAllByName(String host)
+    public static InetAddress[] getAllByName(@Nullable String host)
         throws UnknownHostException {
         return getAllByName(host, null);
     }
