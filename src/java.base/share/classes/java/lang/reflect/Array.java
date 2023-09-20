@@ -31,7 +31,8 @@ import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.common.value.qual.StaticallyExecutable;
 import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
 
@@ -46,7 +47,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @author Nakul Saraiya
  * @since 1.1
  */
-@AnnotatedFor({"index", "interning"})
+@NullMarked
 public final
 @UsesObjectEquals class Array {
 
@@ -152,7 +153,7 @@ public final
      * argument is negative, or if it is greater than or equal to the
      * length of the specified array
      */
-    public static native @Pure Object get(Object array, @IndexFor({"#1"}) int index)
+    public static native @Pure @Nullable Object get(Object array, @IndexFor({"#1"}) int index)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
     /**
@@ -332,7 +333,7 @@ public final
      * argument is negative, or if it is greater than or equal to
      * the length of the specified array
      */
-    public static native void set(Object array, @IndexFor({"#1"}) int index, Object value)
+    public static native void set(Object array, @IndexFor({"#1"}) int index, @Nullable Object value)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
     /**
