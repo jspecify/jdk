@@ -706,8 +706,13 @@ class InetAddress implements java.io.Serializable {
      *
      * @return  the raw IP address of this object.
      */
-    // NOTE: This should *not* be annotated @Nullable:
-    // Both concrete implementations override it to return a non-null value.
+    /*
+     * NOTE: This return type is probably best *not* annotated @Nullable: InetAddress has a
+     * package-private constructor (and is `sealed` in recent releases), so the only subclasses that
+     * are exist are the 2 in this package, both of which override the method to return a non-null
+     * value. While there are obscure parts of the JDK that create a plain InetAddress instance, it
+     * is unlikely that any code would choose to call this method on such an instance.
+     */
     public byte[] getAddress() {
         return null;
     }
@@ -718,8 +723,13 @@ class InetAddress implements java.io.Serializable {
      * @return  the raw IP address in a string format.
      * @since   1.0.2
      */
-    // NOTE: This should *not* be annotated @Nullable:
-    // Both concrete implementations override it to return a non-null value.
+    /*
+     * NOTE: This return type is probably best *not* annotated @Nullable: InetAddress has a
+     * package-private constructor (and is `sealed` in recent releases), so the only subclasses that
+     * are exist are the 2 in this package, both of which override the method to return a non-null
+     * value. While there are obscure parts of the JDK that create a plain InetAddress instance, it
+     * is unlikely that any code would choose to call this method on such an instance.
+     */
     public String getHostAddress() {
         return null;
      }
