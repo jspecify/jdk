@@ -26,7 +26,8 @@
 package java.nio.channels;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -102,7 +103,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * @see Selector
  */
 
-@AnnotatedFor({"interning"})
+@NullMarked
 public abstract @UsesObjectEquals class SelectionKey {
 
     /**
@@ -453,7 +454,7 @@ public abstract @UsesObjectEquals class SelectionKey {
      * @return  The previously-attached object, if any,
      *          otherwise {@code null}
      */
-    public final Object attach(Object ob) {
+    public final @Nullable Object attach(@Nullable Object ob) {
         return attachmentUpdater.getAndSet(this, ob);
     }
 
@@ -463,7 +464,7 @@ public abstract @UsesObjectEquals class SelectionKey {
      * @return  The object currently attached to this key,
      *          or {@code null} if there is no attachment
      */
-    public final Object attachment() {
+    public final @Nullable Object attachment() {
         return attachment;
     }
 
