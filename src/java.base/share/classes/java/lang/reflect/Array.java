@@ -31,7 +31,6 @@ import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.common.value.qual.StaticallyExecutable;
 import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
