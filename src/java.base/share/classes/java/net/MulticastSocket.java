@@ -85,6 +85,7 @@ import java.util.Set;
  * @author Pavani Diwanji
  * @since  1.1
  */
+@NullMarked
 public
 class MulticastSocket extends DatagramSocket {
 
