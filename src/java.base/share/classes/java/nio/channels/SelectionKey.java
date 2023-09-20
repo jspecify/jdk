@@ -454,7 +454,7 @@ public abstract @UsesObjectEquals class SelectionKey {
      * @return  The previously-attached object, if any,
      *          otherwise {@code null}
      */
-    public final Object attach(@Nullable Object ob) {
+    public final @Nullable Object attach(@Nullable Object ob) {
         return attachmentUpdater.getAndSet(this, ob);
     }
 
