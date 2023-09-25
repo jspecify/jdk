@@ -25,6 +25,10 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+import org.jspecify.annotations.NullUnmarked;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -81,6 +85,7 @@ import java.util.Set;
  * @author Pavani Diwanji
  * @since  1.1
  */
+@NullMarked
 public
 class MulticastSocket extends DatagramSocket {
 
@@ -164,7 +169,7 @@ class MulticastSocket extends DatagramSocket {
      *
      * @since 1.4
      */
-    public MulticastSocket(SocketAddress bindaddr) throws IOException {
+    public MulticastSocket(@Nullable SocketAddress bindaddr) throws IOException {
         super((SocketAddress) null);
 
         // Enable SO_REUSEADDR before binding
@@ -388,7 +393,7 @@ class MulticastSocket extends DatagramSocket {
      * @see SecurityManager#checkMulticast(InetAddress)
      * @since 1.4
      */
-    public void joinGroup(SocketAddress mcastaddr, NetworkInterface netIf)
+    public void joinGroup(SocketAddress mcastaddr, @Nullable NetworkInterface netIf)
         throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");
@@ -435,7 +440,7 @@ class MulticastSocket extends DatagramSocket {
      * @see SecurityManager#checkMulticast(InetAddress)
      * @since 1.4
      */
-    public void leaveGroup(SocketAddress mcastaddr, NetworkInterface netIf)
+    public void leaveGroup(SocketAddress mcastaddr, @Nullable NetworkInterface netIf)
         throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");
@@ -468,6 +473,7 @@ class MulticastSocket extends DatagramSocket {
      * the underlying protocol, such as a TCP error.
      * @see #getInterface()
      */
+    @NullUnmarked // TODO(cpovirk): @Nullable parameter or not?
     public void setInterface(InetAddress inf) throws SocketException {
         if (isClosed()) {
             throw new SocketException("Socket is closed");
@@ -553,6 +559,7 @@ class MulticastSocket extends DatagramSocket {
      * @see #getNetworkInterface()
      * @since 1.4
      */
+    @NullUnmarked // TODO(cpovirk): @Nullable parameter or not?
     public void setNetworkInterface(NetworkInterface netIf)
         throws SocketException {
 

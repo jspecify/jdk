@@ -25,6 +25,10 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 /**
  * A socket option associated with a socket.
  *
@@ -40,8 +44,8 @@ package java.net;
  *
  * @see StandardSocketOptions
  */
-
-public interface SocketOption<T> {
+@NullMarked
+public interface SocketOption<T extends @Nullable Object> {
 
     /**
      * Returns the name of the socket option.
@@ -55,5 +59,5 @@ public interface SocketOption<T> {
      *
      * @return the type of the socket option value
      */
-    Class<T> type();
+    Class<@NonNull T> type();
 }
