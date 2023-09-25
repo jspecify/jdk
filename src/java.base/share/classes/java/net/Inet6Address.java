@@ -25,6 +25,7 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 
@@ -175,7 +176,7 @@ import java.util.Arrays;
  * @since 1.4
  */
 
-
+@NullMarked
 public final
  class Inet6Address extends InetAddress {
     static final int INADDRSZ = 16;
@@ -433,8 +434,8 @@ public final
      *
      * @since 1.5
      */
-    public static Inet6Address getByAddress(String host, byte[] addr,
-                                            NetworkInterface nif)
+    public static Inet6Address getByAddress(@Nullable String host, byte[] addr,
+                                            @Nullable NetworkInterface nif)
         throws UnknownHostException
     {
         if (host != null && host.length() > 0 && host.charAt(0) == '[') {
@@ -466,7 +467,7 @@ public final
      *
      * @since 1.5
      */
-    public static Inet6Address getByAddress(String host, byte[] addr,
+    public static Inet6Address getByAddress(@Nullable String host, byte[] addr,
                                             int scope_id)
         throws UnknownHostException
     {
@@ -830,7 +831,7 @@ public final
      * @return the scoped interface, or null if not set.
      * @since 1.5
      */
-     public NetworkInterface getScopedInterface() {
+     public @Nullable NetworkInterface getScopedInterface() {
         return holder6.scope_ifname;
      }
 

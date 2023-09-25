@@ -25,6 +25,7 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 
@@ -85,7 +86,7 @@ import java.io.ObjectStreamException;
  * @since 1.4
  */
 
-
+@NullMarked
 public final
  class Inet4Address extends InetAddress {
     static final int INADDRSZ = 4;

@@ -24,6 +24,9 @@
  */
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -49,6 +52,7 @@ import java.io.ObjectStreamField;
  * @see java.net.ServerSocket
  * @since 1.4
  */
+@NullMarked
 public class InetSocketAddress
     extends SocketAddress
 {
@@ -181,7 +185,7 @@ public class InetSocketAddress
      * @throws IllegalArgumentException if the port parameter is outside the specified
      * range of valid port values.
      */
-    public InetSocketAddress(InetAddress addr, int port) {
+    public InetSocketAddress(@Nullable InetAddress addr, int port) {
         holder = new InetSocketAddressHolder(
                         null,
                         addr == null ? InetAddress.anyLocalAddress() : addr,
@@ -321,7 +325,7 @@ public class InetSocketAddress
      *
      * @return the InetAddress or {@code null} if it is unresolved.
      */
-    public final InetAddress getAddress() {
+    public final @Nullable InetAddress getAddress() {
         return holder.getAddress();
     }
 
@@ -392,7 +396,7 @@ public class InetSocketAddress
      * @see java.net.InetAddress#equals(java.lang.Object)
      */
     @Override
-    public final boolean equals(Object obj) {
+    public final boolean equals(@Nullable Object obj) {
         if (obj == null || !(obj instanceof InetSocketAddress))
             return false;
         return holder.equals(((InetSocketAddress) obj).holder);
