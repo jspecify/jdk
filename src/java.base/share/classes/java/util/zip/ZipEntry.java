@@ -320,7 +320,7 @@ public
      * @see #setLastModifiedTime(FileTime)
      * @since 1.8
      */
-    public FileTime getLastModifiedTime() {
+    public @Nullable FileTime getLastModifiedTime() {
         if (mtime != null)
             return mtime;
         if (xdostime == -1)
@@ -360,7 +360,7 @@ public
      * @see #setLastAccessTime(FileTime)
      * @since 1.8
      */
-    public FileTime getLastAccessTime() {
+    public @Nullable FileTime getLastAccessTime() {
         return atime;
     }
 
@@ -396,7 +396,7 @@ public
      * @see #setCreationTime(FileTime)
      * @since 1.8
      */
-    public FileTime getCreationTime() {
+    public @Nullable FileTime getCreationTime() {
         return ctime;
     }
 
@@ -524,7 +524,7 @@ public
      *
      * @see #getExtra()
      */
-    public void setExtra(byte[] extra) {
+    public void setExtra(byte @Nullable [] extra) {
         setExtra0(extra, false);
     }
 
@@ -635,7 +635,7 @@ public
      *
      * @see #getComment()
      */
-    public void setComment(String comment) {
+    public void setComment(@Nullable String comment) {
         this.comment = comment;
     }
 
