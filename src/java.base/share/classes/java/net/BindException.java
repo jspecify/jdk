@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * Signals that an error occurred while attempting to bind a
  * socket to a local address and port.  Typically, the port is
@@ -32,7 +35,7 @@ package java.net;
  *
  * @since   1.1
  */
-
+@NullMarked
 public class BindException extends SocketException {
     private static final long serialVersionUID = -5945005768251722951L;
 
@@ -43,7 +46,7 @@ public class BindException extends SocketException {
      * description of this error.
      * @param msg the detail message
      */
-    public BindException(String msg) {
+    public BindException(@Nullable String msg) {
         super(msg);
     }
 

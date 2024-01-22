@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -34,6 +37,7 @@ import java.io.IOException;
  * @author  Chris Warth
  * @since   1.0
  */
+@NullMarked
 public
 class ProtocolException extends IOException {
     private static final long serialVersionUID = -6098449442062388080L;
@@ -44,7 +48,7 @@ class ProtocolException extends IOException {
      *
      * @param   message   the detail message.
      */
-    public ProtocolException(String message) {
+    public ProtocolException(@Nullable String message) {
         super(message);
     }
 
