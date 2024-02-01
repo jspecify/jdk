@@ -25,13 +25,16 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * Signals that an ICMP Port Unreachable message has been
  * received on a connected datagram.
  *
  * @since   1.4
  */
-
+@NullMarked
 public class PortUnreachableException extends SocketException {
     private static final long serialVersionUID = 8462541992376507323L;
 
@@ -40,7 +43,7 @@ public class PortUnreachableException extends SocketException {
      * detail message.
      * @param msg the detail message
      */
-    public PortUnreachableException(String msg) {
+    public PortUnreachableException(@Nullable String msg) {
         super(msg);
     }
 

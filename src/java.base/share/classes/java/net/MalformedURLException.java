@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -35,6 +38,7 @@ import java.io.IOException;
  * @author  Arthur van Hoff
  * @since   1.0
  */
+@NullMarked
 public class MalformedURLException extends IOException {
     private static final long serialVersionUID = -182787522200415866L;
 
@@ -50,7 +54,7 @@ public class MalformedURLException extends IOException {
      *
      * @param   msg   the detail message.
      */
-    public MalformedURLException(String msg) {
+    public MalformedURLException(@Nullable String msg) {
         super(msg);
     }
 }

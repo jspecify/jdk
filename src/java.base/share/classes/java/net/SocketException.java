@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -33,6 +36,7 @@ import java.io.IOException;
  * @author  Jonathan Payne
  * @since   1.0
  */
+@NullMarked
 public
 class SocketException extends IOException {
     private static final long serialVersionUID = -5935874303556886934L;
@@ -43,7 +47,7 @@ class SocketException extends IOException {
      *
      * @param msg the detail message.
      */
-    public SocketException(String msg) {
+    public SocketException(@Nullable String msg) {
         super(msg);
     }
 

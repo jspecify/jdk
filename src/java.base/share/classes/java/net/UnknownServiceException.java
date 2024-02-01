@@ -25,6 +25,9 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -36,6 +39,7 @@ import java.io.IOException;
  * @author  unascribed
  * @since   1.0
  */
+@NullMarked
 public class UnknownServiceException extends IOException {
     private static final long serialVersionUID = -4169033248853639508L;
 
@@ -52,7 +56,7 @@ public class UnknownServiceException extends IOException {
      *
      * @param   msg   the detail message.
      */
-    public UnknownServiceException(String msg) {
+    public UnknownServiceException(@Nullable String msg) {
         super(msg);
     }
 }
