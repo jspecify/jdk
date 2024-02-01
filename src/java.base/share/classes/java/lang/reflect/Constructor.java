@@ -481,7 +481,7 @@ public final class Constructor<T> extends Executable {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public  T newInstance(@Nullable Object ... initargs)
+    public  T newInstance(@Nullable Object @Nullable ... initargs)
         throws InstantiationException, IllegalAccessException,
                IllegalArgumentException, InvocationTargetException
     {
