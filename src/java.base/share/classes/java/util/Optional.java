@@ -359,6 +359,7 @@ public final  class Optional<T> {
      *        May be {@code null}.
      * @return the value, if present, otherwise {@code other}
      */
+    // We would use an annotation like @PolyNull here if JSpecify offered one.
     public @Nullable T orElse(@Nullable T other) {
         return value != null ? value : other;
     }
@@ -373,6 +374,7 @@ public final  class Optional<T> {
      * @throws NullPointerException if no value is present and the supplying
      *         function is {@code null}
      */
+    // We would use an annotation like @PolyNull here if JSpecify offered one.
     public @Nullable T orElseGet(Supplier<? extends @Nullable T> supplier) {
         return value != null ? value : supplier.get();
     }
