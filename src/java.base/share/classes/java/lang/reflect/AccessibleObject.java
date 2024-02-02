@@ -449,7 +449,7 @@ public class AccessibleObject implements AnnotatedElement {
      */
     @CallerSensitive
     
-    public final boolean canAccess(Object obj) {
+    public final boolean canAccess(@Nullable Object obj) {
         if (!Member.class.isInstance(this)) {
             return override;
         }
