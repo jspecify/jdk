@@ -2944,19 +2944,19 @@ public final  class Class< T> implements java.io.Serializable,
         private static final long annotationDataOffset
                 = unsafe.objectFieldOffset(Class.class, "annotationData");
 
-        static <T extends @Nullable Object> boolean casReflectionData(Class<?> clazz,
+        static <T> boolean casReflectionData(Class<?> clazz,
                                              SoftReference<ReflectionData<T>> oldData,
                                              SoftReference<ReflectionData<T>> newData) {
             return unsafe.compareAndSetObject(clazz, reflectionDataOffset, oldData, newData);
         }
 
-        static <T extends @Nullable Object> boolean casAnnotationType(Class<?> clazz,
+        static <T> boolean casAnnotationType(Class<?> clazz,
                                              AnnotationType oldType,
                                              AnnotationType newType) {
             return unsafe.compareAndSetObject(clazz, annotationTypeOffset, oldType, newType);
         }
 
-        static <T extends @Nullable Object> boolean casAnnotationData(Class<?> clazz,
+        static <T> boolean casAnnotationData(Class<?> clazz,
                                              AnnotationData oldData,
                                              AnnotationData newData) {
             return unsafe.compareAndSetObject(clazz, annotationDataOffset, oldData, newData);
