@@ -7383,7 +7383,7 @@ public class Arrays {
      *         lexicographically greater than the second array
      * @since 9
      */
-    public static <T extends Comparable<? super T>> int compare(T @Nullable [] a, T @Nullable [] b) {
+    public static <T extends Comparable<? super T>> int compare(@Nullable T @Nullable [] a, @Nullable T @Nullable [] b) {
         if (a == b)
             return 0;
         // A null array is less than a non-null array
