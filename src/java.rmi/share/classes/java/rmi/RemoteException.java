@@ -25,6 +25,8 @@
 
 package java.rmi;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * A {@code RemoteException} is the common superclass for a number of
  * communication-related exceptions that may occur during the execution of a
@@ -116,7 +118,7 @@ public class RemoteException extends java.io.IOException {
      * @return  the cause, which may be {@code null}.
      * @since   1.4
      */
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return detail;
     }
 }

@@ -26,6 +26,8 @@
 
 package javax.management.remote;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -70,7 +72,7 @@ public class JMXProviderException extends IOException {
         this.cause = cause;
     }
 
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return cause;
     }
 

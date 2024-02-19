@@ -25,6 +25,8 @@
 
 package java.rmi.server;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * A {@code ServerCloneException} is thrown if a remote exception occurs
  * during the cloning of a {@code UnicastRemoteObject}.
@@ -106,7 +108,7 @@ public class ServerCloneException extends CloneNotSupportedException {
      * @return  the cause, which may be {@code null}.
      * @since   1.4
      */
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return detail;
     }
 }

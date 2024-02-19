@@ -27,6 +27,8 @@
  */
 package javax.xml.crypto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import javax.xml.crypto.dsig.Manifest;
@@ -119,7 +121,7 @@ public class NoSuchMechanismException extends RuntimeException {
      * @return the cause of this {@code NoSuchMechanismException} or
      *         {@code null} if the cause is nonexistent or unknown.
      */
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return cause;
     }
 

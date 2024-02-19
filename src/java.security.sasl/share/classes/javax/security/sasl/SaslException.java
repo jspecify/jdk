@@ -25,6 +25,8 @@
 
 package javax.security.sasl;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -90,7 +92,7 @@ public class SaslException extends IOException {
      * Override Throwable.getCause() to ensure deserialized object from
      * JSR 28 would return same value for getCause() (i.e., _exception).
      */
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return _exception;
     }
 
