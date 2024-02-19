@@ -650,7 +650,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      * @see Object#equals(Object)
      */
     
-    public boolean equals( Object o) {
+    public boolean equals(@Nullable Object o) {
         if (o == this) {
             return true;
         } else if (o instanceof IdentityHashMap) {
