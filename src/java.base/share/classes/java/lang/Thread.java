@@ -764,7 +764,7 @@ public
      *
      * @since 9
      */
-    public Thread(ThreadGroup group, Runnable target, String name,
+    public Thread(@Nullable ThreadGroup group, @Nullable Runnable target, String name,
                   long stackSize, boolean inheritThreadLocals) {
         this(group, target, name, stackSize, null, inheritThreadLocals);
     }
