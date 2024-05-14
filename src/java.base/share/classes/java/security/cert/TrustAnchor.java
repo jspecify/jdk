@@ -25,8 +25,8 @@
 
 package java.security.cert;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.security.PublicKey;
@@ -63,8 +63,8 @@ import sun.security.x509.X500Name;
  * @since       1.4
  * @author      Sean Mullan
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class TrustAnchor {
+@NullMarked
+public class TrustAnchor {
 
     private final PublicKey pubKey;
     private final String caName;
@@ -124,7 +124,7 @@ public @UsesObjectEquals class TrustAnchor {
      * @throws NullPointerException if the specified
      * {@code X509Certificate} is {@code null}
      */
-    public TrustAnchor(X509Certificate trustedCert, byte[] nameConstraints)
+    public TrustAnchor(X509Certificate trustedCert, byte @Nullable [] nameConstraints)
     {
         if (trustedCert == null)
             throw new NullPointerException("the trustedCert parameter must " +
@@ -164,7 +164,7 @@ public @UsesObjectEquals class TrustAnchor {
      * @since 1.5
      */
     public TrustAnchor(X500Principal caPrincipal, PublicKey pubKey,
-            byte[] nameConstraints) {
+            byte @Nullable [] nameConstraints) {
         if ((caPrincipal == null) || (pubKey == null)) {
             throw new NullPointerException();
         }
@@ -206,7 +206,7 @@ public @UsesObjectEquals class TrustAnchor {
      * @throws NullPointerException if the specified {@code caName} or
      * {@code pubKey} parameter is {@code null}
      */
-    public TrustAnchor(String caName, PublicKey pubKey, byte[] nameConstraints)
+    public TrustAnchor(String caName, PublicKey pubKey, byte @Nullable [] nameConstraints)
     {
         if (pubKey == null)
             throw new NullPointerException("the pubKey parameter must be " +
@@ -231,7 +231,7 @@ public @UsesObjectEquals class TrustAnchor {
      * @return a trusted {@code X509Certificate} or {@code null}
      * if the trust anchor was not specified as a trusted certificate
      */
-    public final X509Certificate getTrustedCert() {
+    public final @Nullable X509Certificate getTrustedCert() {
         return this.trustedCert;
     }
 
@@ -243,7 +243,7 @@ public @UsesObjectEquals class TrustAnchor {
      * public key and name or X500Principal pair
      * @since 1.5
      */
-    public final X500Principal getCA() {
+    public final @Nullable X500Principal getCA() {
         return this.caPrincipal;
     }
 
@@ -255,7 +255,7 @@ public @UsesObjectEquals class TrustAnchor {
      * {@code null} if the trust anchor was not specified as a trusted
      * public key and name or X500Principal pair
      */
-    public final String getCAName() {
+    public final @Nullable String getCAName() {
         return this.caName;
     }
 
@@ -266,7 +266,7 @@ public @UsesObjectEquals class TrustAnchor {
      * if the trust anchor was not specified as a trusted public key and name
      * or X500Principal pair
      */
-    public final PublicKey getCAPublicKey() {
+    public final @Nullable PublicKey getCAPublicKey() {
         return this.pubKey;
     }
 
@@ -311,7 +311,7 @@ public @UsesObjectEquals class TrustAnchor {
      *         a NameConstraints extension used for checking name constraints,
      *         or {@code null} if not set.
      */
-    public final byte [] getNameConstraints() {
+    public final byte @Nullable [] getNameConstraints() {
         return ncBytes == null ? null : ncBytes.clone();
     }
 
