@@ -29,6 +29,7 @@ import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
 import java.util.function.LongConsumer;
 
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -40,6 +41,7 @@ import org.jspecify.annotations.Nullable;
  * @see Spliterator
  * @since 1.8
  */
+@NullMarked
 public final class Spliterators {
 
     // Suppresses default constructor, ensuring non-instantiability.
@@ -58,7 +60,7 @@ public final class Spliterators {
      * @return An empty spliterator
      */
     @SuppressWarnings("unchecked")
-    public static <T> Spliterator<T> emptySpliterator() {
+    public static <T extends @Nullable Object> Spliterator<T> emptySpliterator() {
         return (Spliterator<T>) EMPTY_SPLITERATOR;
     }
 
@@ -139,7 +141,7 @@ public final class Spliterators {
      * @throws NullPointerException if the given array is {@code null}
      * @see Arrays#spliterator(Object[])
      */
-    public static <T> Spliterator<T> spliterator(Object[] array,
+    public static <T extends @Nullable Object> Spliterator<T> spliterator(@Nullable Object[] array,
                                                  int additionalCharacteristics) {
         return new ArraySpliterator<>(Objects.requireNonNull(array),
                                       additionalCharacteristics);
@@ -174,7 +176,7 @@ public final class Spliterators {
      *         {@code toIndex} is greater than the array size
      * @see Arrays#spliterator(Object[], int, int)
      */
-    public static <T> Spliterator<T> spliterator(Object[] array, int fromIndex, int toIndex,
+    public static <T extends @Nullable Object> Spliterator<T> spliterator(@Nullable Object[] array, int fromIndex, int toIndex,
                                                  int additionalCharacteristics) {
         checkFromToBounds(Objects.requireNonNull(array).length, fromIndex, toIndex);
         return new ArraySpliterator<>(array, fromIndex, toIndex, additionalCharacteristics);
@@ -417,7 +419,7 @@ public final class Spliterators {
      * @return A spliterator from an iterator
      * @throws NullPointerException if the given collection is {@code null}
      */
-    public static <T> Spliterator<T> spliterator(Collection<? extends T> c,
+    public static <T extends @Nullable Object> Spliterator<T> spliterator(Collection<? extends T> c,
                                                  int characteristics) {
         return new IteratorSpliterator<>(Objects.requireNonNull(c),
                                          characteristics);
@@ -447,7 +449,7 @@ public final class Spliterators {
      * @return A spliterator from an iterator
      * @throws NullPointerException if the given iterator is {@code null}
      */
-    public static <T> Spliterator<T> spliterator(Iterator<? extends T> iterator,
+    public static <T extends @Nullable Object> Spliterator<T> spliterator(Iterator<? extends T> iterator,
                                                  long size,
                                                  int characteristics) {
         return new IteratorSpliterator<>(Objects.requireNonNull(iterator), size,
@@ -475,7 +477,7 @@ public final class Spliterators {
      * @return A spliterator from an iterator
      * @throws NullPointerException if the given iterator is {@code null}
      */
-    public static <T> Spliterator<T> spliteratorUnknownSize(Iterator<? extends T> iterator,
+    public static <T extends @Nullable Object> Spliterator<T> spliteratorUnknownSize(Iterator<? extends T> iterator,
                                                             int characteristics) {
         return new IteratorSpliterator<>(Objects.requireNonNull(iterator), characteristics);
     }
@@ -665,7 +667,7 @@ public final class Spliterators {
      * @return An iterator
      * @throws NullPointerException if the given spliterator is {@code null}
      */
-    public static<T> Iterator<T> iterator(Spliterator<? extends T> spliterator) {
+    public static<T extends @Nullable Object> Iterator<T> iterator(Spliterator<? extends T> spliterator) {
         Objects.requireNonNull(spliterator);
         class Adapter implements Iterator<T>, Consumer<T> {
             boolean valueReady = false;
@@ -1255,7 +1257,7 @@ public final class Spliterators {
      * @see #spliterator(Iterator, long, int)
      * @since 1.8
      */
-    public abstract static class AbstractSpliterator<T> implements Spliterator<T> {
+    public abstract static class AbstractSpliterator<T extends @Nullable Object> implements Spliterator<T> {
         static final int BATCH_UNIT = 1 << 10;  // batch array size increment
         static final int MAX_BATCH = 1 << 25;  // max batch array size;
         private final int characteristics;
