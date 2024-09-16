@@ -81,6 +81,43 @@ public interface MatchResult {
     public int start(int group);
 
     /**
+     * Returns the input subsequence captured by the given
+     * <a href="Pattern.html#groupname">named-capturing group</a> during the
+     * previous match operation.
+     *
+     * <p> If the match was successful but the group specified failed to match
+     * any part of the input sequence, then {@code null} is returned. Note
+     * that some groups, for example {@code (a*)}, match the empty string.
+     * This method will return the empty string when such a group successfully
+     * matches the empty string in the input.  </p>
+     *
+     * @param  name
+     *         The name of a named-capturing group in this matcher's pattern
+     *
+     * @return  The (possibly empty) subsequence captured by the named group
+     *          during the previous match, or {@code null} if the group
+     *          failed to match part of the input
+     *
+     * @throws  IllegalStateException
+     *          If no match has yet been attempted,
+     *          or if the previous match operation failed
+     *
+     * @throws  IllegalArgumentException
+     *          If there is no capturing group in the pattern
+     *          with the given name
+     *
+     * @implSpec
+     * The default implementation of this method invokes {@link #namedGroups()}
+     * to obtain the group number from the {@code name} argument, and uses it
+     * as argument to an invocation of {@link #group(int)}.
+     *
+     * @since 20
+     */
+    default @Nullable String group(String name) {
+        return group(groupNumber(name));
+    }
+
+    /**
      * Returns the offset after the last character matched.
      *
      * @return  The offset after the last character matched
