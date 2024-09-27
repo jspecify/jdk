@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,13 +33,8 @@
 
 /* Routines to convert back and forth between Platform Encoding and UTF-8 */
 
-/* Use THIS_FILE when it is available. */
-#ifndef THIS_FILE
-    #define THIS_FILE __FILE__
-#endif
-
 /* Error and assert macros */
-#define UTF_ERROR(m) utfError(THIS_FILE, __LINE__,  m)
+#define UTF_ERROR(m) utfError(__FILE__, __LINE__,  m)
 #define UTF_ASSERT(x) ( (x)==0 ? UTF_ERROR("ASSERT ERROR " #x) : (void)0 )
 #define UTF_DEBUG(x)
 
@@ -63,8 +58,9 @@ utfError(char *file, int line, char *message)
 static void
 utfInitialize(void)
 {
-    char *codeset;
+    const char* codeset;
 
+#ifndef MACOSX
     /* Set the locale from the environment */
     (void)setlocale(LC_ALL, "");
 
@@ -74,6 +70,10 @@ utfInitialize(void)
         UTF_DEBUG(("NO codeset returned by nl_langinfo(CODESET)\n"));
         return;
     }
+#else /* MACOSX */
+    /* On Mac, platform string (i.e., sun.jnu.encoding value) is always UTF-8 */
+    codeset = "UTF-8";
+#endif
 
     UTF_DEBUG(("Codeset = %s\n", codeset));
 
@@ -92,22 +92,6 @@ utfInitialize(void)
     if ( iconvFromPlatform == (iconv_t)-1 ) {
         UTF_ERROR("Failed to complete iconv_open() setup");
     }
-}
-
-/*
- * Terminate all utf processing
- */
-static void
-utfTerminate(void)
-{
-    if ( iconvFromPlatform!=(iconv_t)-1 ) {
-        (void)iconv_close(iconvFromPlatform);
-    }
-    if ( iconvToPlatform!=(iconv_t)-1 ) {
-        (void)iconv_close(iconvToPlatform);
-    }
-    iconvToPlatform   = (iconv_t)-1;
-    iconvFromPlatform = (iconv_t)-1;
 }
 
 /*
@@ -146,6 +130,7 @@ iconvConvert(iconv_t ic, char *bytes, int len, char *output, int outputMaxLen)
         }
 
         /* Failed to do the conversion */
+        UTF_DEBUG(("iconv() failed to do the conversion\n"));
         return -1;
     }
 
@@ -166,18 +151,8 @@ utf8ToPlatform(char *utf8, int len, char *output, int outputMaxLen)
     return iconvConvert(iconvToPlatform, utf8, len, output, outputMaxLen);
 }
 
-/*
- * Convert Platform Encoding to UTF-8.
- *    Returns length or -1 if output overflows.
- */
-static int
-platformToUtf8(char *str, int len, char *output, int outputMaxLen)
-{
-    return iconvConvert(iconvFromPlatform, str, len, output, outputMaxLen);
-}
-
 int
-convertUft8ToPlatformString(char* utf8_str, int utf8_len, char* platform_str, int platform_len) {
+convertUtf8ToPlatformString(char* utf8_str, int utf8_len, char* platform_str, int platform_len) {
     if (iconvToPlatform ==  (iconv_t)-1) {
         utfInitialize();
     }

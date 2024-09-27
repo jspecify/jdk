@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,28 +28,27 @@
 #include "jvm.h"
 #include "jlong.h"
 
+#include "nio.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <dlfcn.h>
 #include <errno.h>
 #include <mntent.h>
+#include <fcntl.h>
+
+#include <sys/sendfile.h>
 
 #include "sun_nio_fs_LinuxNativeDispatcher.h"
-
-typedef size_t fgetxattr_func(int fd, const char* name, void* value, size_t size);
-typedef int fsetxattr_func(int fd, const char* name, void* value, size_t size, int flags);
-typedef int fremovexattr_func(int fd, const char* name);
-typedef int flistxattr_func(int fd, char* list, size_t size);
-
-fgetxattr_func* my_fgetxattr_func = NULL;
-fsetxattr_func* my_fsetxattr_func = NULL;
-fremovexattr_func* my_fremovexattr_func = NULL;
-flistxattr_func* my_flistxattr_func = NULL;
 
 static jfieldID entry_name;
 static jfieldID entry_dir;
 static jfieldID entry_fstype;
 static jfieldID entry_options;
+
+typedef ssize_t copy_file_range_func(int, loff_t*, int, loff_t*, size_t,
+                                     unsigned int);
+static copy_file_range_func* my_copy_file_range_func = NULL;
 
 static void throwUnixException(JNIEnv* env, int errnum) {
     jobject x = JNU_NewObjectByName(env, "sun/nio/fs/UnixException",
@@ -62,11 +61,6 @@ static void throwUnixException(JNIEnv* env, int errnum) {
 JNIEXPORT void JNICALL
 Java_sun_nio_fs_LinuxNativeDispatcher_init(JNIEnv *env, jclass clazz)
 {
-    my_fgetxattr_func = (fgetxattr_func*)dlsym(RTLD_DEFAULT, "fgetxattr");
-    my_fsetxattr_func = (fsetxattr_func*)dlsym(RTLD_DEFAULT, "fsetxattr");
-    my_fremovexattr_func = (fremovexattr_func*)dlsym(RTLD_DEFAULT, "fremovexattr");
-    my_flistxattr_func = (flistxattr_func*)dlsym(RTLD_DEFAULT, "flistxattr");
-
     clazz = (*env)->FindClass(env, "sun/nio/fs/UnixMountEntry");
     CHECK_NULL(clazz);
     entry_name = (*env)->GetFieldID(env, clazz, "name", "[B");
@@ -77,78 +71,9 @@ Java_sun_nio_fs_LinuxNativeDispatcher_init(JNIEnv *env, jclass clazz)
     CHECK_NULL(entry_fstype);
     entry_options = (*env)->GetFieldID(env, clazz, "opts", "[B");
     CHECK_NULL(entry_options);
-}
 
-JNIEXPORT jint JNICALL
-Java_sun_nio_fs_LinuxNativeDispatcher_fgetxattr0(JNIEnv* env, jclass clazz,
-    jint fd, jlong nameAddress, jlong valueAddress, jint valueLen)
-{
-    size_t res = -1;
-    const char* name = jlong_to_ptr(nameAddress);
-    void* value = jlong_to_ptr(valueAddress);
-
-    if (my_fgetxattr_func == NULL) {
-        errno = ENOTSUP;
-    } else {
-        /* EINTR not documented */
-        res = (*my_fgetxattr_func)(fd, name, value, valueLen);
-    }
-    if (res == (size_t)-1)
-        throwUnixException(env, errno);
-    return (jint)res;
-}
-
-JNIEXPORT void JNICALL
-Java_sun_nio_fs_LinuxNativeDispatcher_fsetxattr0(JNIEnv* env, jclass clazz,
-    jint fd, jlong nameAddress, jlong valueAddress, jint valueLen)
-{
-    int res = -1;
-    const char* name = jlong_to_ptr(nameAddress);
-    void* value = jlong_to_ptr(valueAddress);
-
-    if (my_fsetxattr_func == NULL) {
-        errno = ENOTSUP;
-    } else {
-        /* EINTR not documented */
-        res = (*my_fsetxattr_func)(fd, name, value, valueLen, 0);
-    }
-    if (res == -1)
-        throwUnixException(env, errno);
-}
-
-JNIEXPORT void JNICALL
-Java_sun_nio_fs_LinuxNativeDispatcher_fremovexattr0(JNIEnv* env, jclass clazz,
-    jint fd, jlong nameAddress)
-{
-    int res = -1;
-    const char* name = jlong_to_ptr(nameAddress);
-
-    if (my_fremovexattr_func == NULL) {
-        errno = ENOTSUP;
-    } else {
-        /* EINTR not documented */
-        res = (*my_fremovexattr_func)(fd, name);
-    }
-    if (res == -1)
-        throwUnixException(env, errno);
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_fs_LinuxNativeDispatcher_flistxattr(JNIEnv* env, jclass clazz,
-    jint fd, jlong listAddress, jint size)
-{
-    size_t res = -1;
-    char* list = jlong_to_ptr(listAddress);
-
-    if (my_flistxattr_func == NULL) {
-        errno = ENOTSUP;
-    } else {
-        /* EINTR not documented */
-        res = (*my_flistxattr_func)(fd, list, (size_t)size);
-    }
-    if (res == (size_t)-1)
-        throwUnixException(env, errno);
-    return (jint)res;
+    my_copy_file_range_func =
+        (copy_file_range_func*) dlsym(RTLD_DEFAULT, "copy_file_range");
 }
 
 JNIEXPORT jlong JNICALL
@@ -169,12 +94,11 @@ Java_sun_nio_fs_LinuxNativeDispatcher_setmntent0(JNIEnv* env, jclass this, jlong
 }
 
 JNIEXPORT jint JNICALL
-Java_sun_nio_fs_LinuxNativeDispatcher_getmntent(JNIEnv* env, jclass this,
-    jlong value, jobject entry)
+Java_sun_nio_fs_LinuxNativeDispatcher_getmntent0(JNIEnv* env, jclass this,
+    jlong value, jobject entry, jlong buffer, jint bufLen)
 {
     struct mntent ent;
-    char buf[1024];
-    int buflen = sizeof(buf);
+    char * buf = (char*)jlong_to_ptr(buffer);
     struct mntent* m;
     FILE* fp = jlong_to_ptr(value);
     jsize len;
@@ -184,7 +108,7 @@ Java_sun_nio_fs_LinuxNativeDispatcher_getmntent(JNIEnv* env, jclass this,
     char* fstype;
     char* options;
 
-    m = getmntent_r(fp, &ent, (char*)&buf, buflen);
+    m = getmntent_r(fp, &ent, buf, (int)bufLen);
     if (m == NULL)
         return -1;
     name = m->mnt_fsname;
@@ -227,6 +151,80 @@ JNIEXPORT void JNICALL
 Java_sun_nio_fs_LinuxNativeDispatcher_endmntent(JNIEnv* env, jclass this, jlong stream)
 {
     FILE* fp = jlong_to_ptr(stream);
-    /* FIXME - man page doesn't explain how errors are returned */
+    // The endmntent() function always returns 1.
     endmntent(fp);
+}
+
+JNIEXPORT jint JNICALL
+Java_sun_nio_fs_LinuxNativeDispatcher_posix_1fadvise(JNIEnv* env, jclass this,
+    jint fd, jlong offset, jlong len, jint advice)
+{
+    return posix_fadvise((int)fd, (off_t)offset, (off_t)len, (int)advice);
+}
+
+// Copy all bytes from src to dst, within the kernel if possible,
+// and return zero, otherwise return the appropriate status code.
+//
+// Return value
+//   0 on success
+//   IOS_UNAVAILABLE if the platform function would block
+//   IOS_UNSUPPORTED_CASE if the call does not work with the given parameters
+//   IOS_UNSUPPORTED if direct copying is not supported on this platform
+//   IOS_THROWN if a Java exception is thrown
+//
+JNIEXPORT jint JNICALL
+Java_sun_nio_fs_LinuxNativeDispatcher_directCopy0
+    (JNIEnv* env, jclass this, jint dst, jint src, jlong cancelAddress)
+{
+    volatile jint* cancel = (jint*)jlong_to_ptr(cancelAddress);
+
+    // Transfer within the kernel
+    const size_t count = cancel != NULL ?
+        1048576 :   // 1 MB to give cancellation a chance
+        0x7ffff000; // maximum number of bytes that sendfile() can transfer
+
+    ssize_t bytes_sent;
+    if (my_copy_file_range_func != NULL) {
+        do {
+            RESTARTABLE(my_copy_file_range_func(src, NULL, dst, NULL, count, 0),
+                                                bytes_sent);
+            if (bytes_sent < 0) {
+                switch (errno) {
+                    case EINVAL:
+                    case ENOSYS:
+                    case EXDEV:
+                        // ignore and try sendfile()
+                        break;
+                    default:
+                        JNU_ThrowIOExceptionWithLastError(env, "Copy failed");
+                        return IOS_THROWN;
+                }
+            }
+            if (cancel != NULL && *cancel != 0) {
+                throwUnixException(env, ECANCELED);
+                return IOS_THROWN;
+            }
+        } while (bytes_sent > 0);
+
+        if (bytes_sent == 0)
+            return 0;
+    }
+
+    do {
+        RESTARTABLE(sendfile(dst, src, NULL, count), bytes_sent);
+        if (bytes_sent < 0) {
+            if (errno == EAGAIN)
+                return IOS_UNAVAILABLE;
+            if (errno == EINVAL || errno == ENOSYS)
+                return IOS_UNSUPPORTED_CASE;
+            throwUnixException(env, errno);
+            return IOS_THROWN;
+        }
+        if (cancel != NULL && *cancel != 0) {
+            throwUnixException(env, ECANCELED);
+            return IOS_THROWN;
+        }
+    } while (bytes_sent > 0);
+
+    return 0;
 }

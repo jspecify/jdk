@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,6 +60,11 @@ public abstract @UsesObjectEquals class MessageDigestSpi {
     private byte[] tempArray;
 
     /**
+     * Constructor for subclasses to call.
+     */
+    public MessageDigestSpi() {}
+
+    /**
      * Returns the digest length in bytes.
      *
      * <p>This concrete method has been added to this previously-defined
@@ -109,7 +114,7 @@ public abstract @UsesObjectEquals class MessageDigestSpi {
      * @since 1.5
      */
     protected void engineUpdate(ByteBuffer input) {
-        if (input.hasRemaining() == false) {
+        if (!input.hasRemaining()) {
             return;
         }
         if (input.hasArray()) {
@@ -162,17 +167,18 @@ public abstract @UsesObjectEquals class MessageDigestSpi {
      *
      * @param offset offset to start from in the output buffer
      *
-     * @param len number of bytes within buf allotted for the digest.
+     * @param len number of bytes within {@code buf} allotted for the digest.
      * Both this default implementation and the SUN provider do not
      * return partial digests.  The presence of this parameter is solely
      * for consistency in our API's.  If the value of this parameter is less
-     * than the actual digest length, the method will throw a DigestException.
+     * than the actual digest length, the method will throw a
+     * {@code DigestException}.
      * This parameter is ignored if its value is greater than or equal to
      * the actual digest length.
      *
      * @return the length of the digest stored in the output buffer.
      *
-     * @exception DigestException if an error occurs.
+     * @throws    DigestException if an error occurs.
      *
      * @since 1.2
      */
@@ -199,12 +205,20 @@ public abstract @UsesObjectEquals class MessageDigestSpi {
      *
      * @return a clone if the implementation is cloneable.
      *
-     * @exception CloneNotSupportedException if this is called on an
+     * @throws    CloneNotSupportedException if this is called on an
      * implementation that does not support {@code Cloneable}.
      */
     public Object clone() throws CloneNotSupportedException {
         if (this instanceof Cloneable) {
-            return super.clone();
+            MessageDigestSpi o = (MessageDigestSpi)super.clone();
+            if (o.tempArray != null) {
+                // New byte arrays are allocated when the ByteBuffer argument
+                // to engineUpdate is not backed by a byte array.
+                // Here, the newly allocated byte array must also be cloned
+                // to prevent threads from sharing the same memory.
+                o.tempArray = tempArray.clone();
+            }
+            return o;
         } else {
             throw new CloneNotSupportedException();
         }

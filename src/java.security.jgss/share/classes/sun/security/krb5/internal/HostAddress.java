@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,9 +31,6 @@
 
 package sun.security.krb5.internal;
 
-import org.jspecify.annotations.Nullable;
-
-import sun.security.krb5.Config;
 import sun.security.krb5.Asn1Exception;
 import sun.security.util.*;
 import java.net.InetAddress;
@@ -43,6 +40,7 @@ import java.net.UnknownHostException;
 import java.io.IOException;
 import java.util.Arrays;
 
+import static sun.security.krb5.internal.Krb5.DEBUG;
 /**
  * Implements the ASN.1 HostAddress type.
  *
@@ -65,7 +63,6 @@ public class HostAddress implements Cloneable {
     byte[] address = null;
 
     private static InetAddress localInetAddress; //caches local inet address
-    private static final boolean DEBUG = sun.security.krb5.internal.Krb5.DEBUG;
     private volatile int hashCode = 0;
 
     private HostAddress(int dummy) {}
@@ -80,45 +77,27 @@ public class HostAddress implements Cloneable {
     }
 
 
+    @Override
     public int hashCode() {
-        if (hashCode == 0) {
-            int result = 17;
-            result = 37*result + addrType;
-            if (address != null) {
-                for (int i=0; i < address.length; i++)  {
-                    result = 37*result + address[i];
-                }
-            }
-            hashCode = result;
+        int h = hashCode;
+        if (h == 0) {
+            hashCode = h = (37 * addrType + Arrays.hashCode(address));
         }
-        return hashCode;
-
+        return h;
     }
 
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }
 
-        if (!(obj instanceof HostAddress)) {
+        if (!(obj instanceof HostAddress h)) {
             return false;
         }
 
-        HostAddress h = (HostAddress)obj;
-        if (addrType != h.addrType ||
-            (address != null && h.address == null) ||
-            (address == null && h.address != null))
-            return false;
-        if (address != null && h.address != null) {
-            if (address.length != h.address.length)
-                return false;
-            for (int i = 0; i < address.length; i++)
-                if (address[i] != h.address[i])
-                    return false;
-        }
-        return true;
+        return addrType == h.addrType
+                && Arrays.equals(address, h.address);
     }
 
     private static synchronized InetAddress getLocalInetAddress()
@@ -137,7 +116,6 @@ public class HostAddress implements Cloneable {
      * Gets the InetAddress of this HostAddress.
      * @return the IP address for this specified host.
      * @exception UnknownHostException if no IP address for the host could be found.
-     *
      */
     public InetAddress getInetAddress() throws UnknownHostException {
         // the type of internet addresses is 2.
@@ -169,12 +147,13 @@ public class HostAddress implements Cloneable {
     /**
      * Creates a HostAddress from the specified address and address type.
      *
+     * Warning: called by nativeccache.c.
+     *
      * @param new_addrType the value of the address type which matches the defined
      *                       address family constants in the Berkeley Standard
      *                       Distributions of Unix.
      * @param new_address network address.
      * @exception KrbApErrException if address type and address length do not match defined value.
-     *
      */
     public HostAddress(int new_addrType, byte[] new_address)
         throws KrbApErrException, UnknownHostException {
@@ -211,10 +190,10 @@ public class HostAddress implements Cloneable {
         if (new_address != null) {
            address = new_address.clone();
         }
-        if (DEBUG) {
+        if (DEBUG != null) {
             if (addrType == Krb5.ADDRTYPE_INET ||
-                addrType == Krb5.ADDRTYPE_INET6) {
-                System.out.println("Host address is " +
+                    addrType == Krb5.ADDRTYPE_INET6) {
+                DEBUG.println("Host address is " +
                         InetAddress.getByAddress(address));
             }
         }
@@ -230,7 +209,6 @@ public class HostAddress implements Cloneable {
      * @param encoding a single DER-encoded value.
      * @exception Asn1Exception if an error occurs while decoding an ASN1 encoded data.
      * @exception IOException if an I/O error occurs while reading encoded data.
-     *
      */
     public HostAddress(DerValue encoding) throws Asn1Exception, IOException {
         DerValue der = encoding.getData().getDerValue();
@@ -250,13 +228,11 @@ public class HostAddress implements Cloneable {
     }
 
     /**
-         * Encodes a HostAddress object.
-         * @return a byte array of encoded HostAddress object.
-         * @exception Asn1Exception if an error occurs while decoding an ASN1 encoded data.
-         * @exception IOException if an I/O error occurs while reading encoded data.
-         *
-         */
-
+     * Encodes a HostAddress object.
+     * @return a byte array of encoded HostAddress object.
+     * @exception Asn1Exception if an error occurs while decoding an ASN1 encoded data.
+     * @exception IOException if an I/O error occurs while reading encoded data.
+     */
     public byte[] asn1Encode() throws Asn1Exception, IOException {
         DerOutputStream bytes = new DerOutputStream();
         DerOutputStream temp = new DerOutputStream();
@@ -273,7 +249,7 @@ public class HostAddress implements Cloneable {
     /**
      * Parses (unmarshal) a host address from a DER input stream.  This form
      * parsing might be used when expanding a value which is part of
-         * a constructed sequence and uses explicitly tagged type.
+     * a constructed sequence and uses explicitly tagged type.
      *
      * @exception Asn1Exception on error.
      * @exception IOException if an I/O error occurs while reading encoded data.
@@ -281,7 +257,6 @@ public class HostAddress implements Cloneable {
      * @param explicitTag tag number.
      * @param optional indicates if this data field is optional
      * @return an instance of HostAddress.
-     *
      */
     public static HostAddress parse(DerInputStream data, byte explicitTag,
                                     boolean optional)

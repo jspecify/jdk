@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,43 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package javax.swing;
 
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.AWTEvent;
+import java.awt.EventQueue;
+import java.awt.event.ActionEvent;
+import java.awt.event.FocusEvent;
+import java.awt.event.InputMethodEvent;
 import java.awt.im.InputContext;
 import java.beans.BeanProperty;
 import java.beans.JavaBean;
-import java.io.*;
-import java.text.*;
-import java.util.*;
-import javax.swing.event.*;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.io.Serializable;
+import java.text.AttributedCharacterIterator;
+import java.text.DateFormat;
+import java.text.DecimalFormat;
+import java.text.Format;
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.util.Date;
+
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.plaf.UIResource;
-import javax.swing.text.*;
+import javax.swing.text.AbstractDocument;
+import javax.swing.text.DateFormatter;
+import javax.swing.text.DefaultFormatter;
+import javax.swing.text.DefaultFormatterFactory;
+import javax.swing.text.Document;
+import javax.swing.text.DocumentFilter;
+import javax.swing.text.InternationalFormatter;
+import javax.swing.text.JTextComponent;
+import javax.swing.text.NavigationFilter;
+import javax.swing.text.NumberFormatter;
+import javax.swing.text.TextAction;
 
 /**
  * <code>JFormattedTextField</code> extends <code>JTextField</code> adding
@@ -120,7 +144,7 @@ import javax.swing.text.*;
  * Alternatively, you could invoke <code>commitEdit</code>, which would also
  * commit the value.
  * <p>
- * <code>JFormattedTextField</code> does not do the formatting it self,
+ * <code>JFormattedTextField</code> does not do the formatting itself,
  * rather formatting is done through an instance of
  * <code>JFormattedTextField.AbstractFormatter</code> which is obtained from
  * an instance of <code>JFormattedTextField.AbstractFormatterFactory</code>.
@@ -128,7 +152,7 @@ import javax.swing.text.*;
  * notified when they become active by way of the
  * <code>install</code> method, at which point the
  * <code>JFormattedTextField.AbstractFormatter</code> can install whatever
- * it needs to, typically a <code>DocumentFilter</code>. Similarly when
+ * it needs to, typically a <code>DocumentFilter</code>. Similarly, when
  * <code>JFormattedTextField</code> no longer
  * needs the <code>AbstractFormatter</code>, it will invoke
  * <code>uninstall</code>.
@@ -140,7 +164,7 @@ import javax.swing.text.*;
  * policy is <code>JFormattedTextField.PERSIST</code>
  * and the <code>JFormattedTextField</code> has been edited, the
  * <code>AbstractFormatterFactory</code> will not be queried until the
- * value has been committed. Similarly if the focus lost policy is
+ * value has been committed. Similarly, if the focus lost policy is
  * <code>JFormattedTextField.COMMIT</code> and an exception
  * is thrown from <code>stringToValue</code>, the
  * <code>AbstractFormatterFactory</code> will not be queried when focus is
@@ -185,7 +209,7 @@ import javax.swing.text.*;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -264,10 +288,6 @@ public class JFormattedTextField extends JTextField {
      * Used to set the dirty state.
      */
     private DocumentListener documentListener;
-    /**
-     * Masked used to set the AbstractFormatterFactory.
-     */
-    private Object mask;
     /**
      * ActionMap that the TextFormatter Actions are added to.
      */
@@ -725,6 +745,7 @@ public class JFormattedTextField extends JTextField {
      *
      * @param s Stream to write to
      */
+    @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         s.defaultWriteObject();
         if (getUIClassID().equals(uiClassID)) {
@@ -843,11 +864,11 @@ public class JFormattedTextField extends JTextField {
             return new DefaultFormatterFactory(new DateFormatter());
         }
         if (type instanceof Number) {
-            AbstractFormatter displayFormatter = new NumberFormatter();
-            ((NumberFormatter)displayFormatter).setValueClass(type.getClass());
-            AbstractFormatter editFormatter = new NumberFormatter(
+            NumberFormatter displayFormatter = new NumberFormatter();
+            displayFormatter.setValueClass(type.getClass());
+            NumberFormatter editFormatter = new NumberFormatter(
                                   new DecimalFormat("#.#"));
-            ((NumberFormatter)editFormatter).setValueClass(type.getClass());
+            editFormatter.setValueClass(type.getClass());
 
             return new DefaultFormatterFactory(displayFormatter,
                                                displayFormatter,editFormatter);
@@ -869,6 +890,11 @@ public class JFormattedTextField extends JTextField {
      * @since 1.4
      */
     public abstract static class AbstractFormatterFactory {
+        /**
+         * Constructor for subclasses to call.
+         */
+        protected AbstractFormatterFactory() {}
+
         /**
          * Returns an <code>AbstractFormatter</code> that can handle formatting
          * of the passed in <code>JFormattedTextField</code>.
@@ -913,6 +939,11 @@ public class JFormattedTextField extends JTextField {
      */
     public abstract static class AbstractFormatter implements Serializable {
         private JFormattedTextField ftf;
+
+        /**
+         * Constructor for subclasses to call.
+         */
+        protected AbstractFormatter() {}
 
         /**
          * Installs the <code>AbstractFormatter</code> onto a particular
@@ -1056,6 +1087,8 @@ public class JFormattedTextField extends JTextField {
          * <code>install</code> will install the returned value onto
          * the <code>JFormattedTextField</code>.
          *
+         * @implSpec The default implementation returns <code>null</code>.
+         *
          * @return DocumentFilter to restrict edits
          */
         protected DocumentFilter getDocumentFilter() {
@@ -1067,6 +1100,8 @@ public class JFormattedTextField extends JTextField {
          * where the user can navigate to.
          * <code>install</code> will install the returned value onto
          * the <code>JFormattedTextField</code>.
+         *
+         * @implSpec The default implementation returns <code>null</code>.
          *
          * @return NavigationFilter to restrict navigation
          */

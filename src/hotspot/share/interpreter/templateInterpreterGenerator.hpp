@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,13 @@
  *
  */
 
-#ifndef SHARE_VM_INTERPRETER_TEMPLATEINTERPRETERGENERATOR_HPP
-#define SHARE_VM_INTERPRETER_TEMPLATEINTERPRETERGENERATOR_HPP
+#ifndef SHARE_INTERPRETER_TEMPLATEINTERPRETERGENERATOR_HPP
+#define SHARE_INTERPRETER_TEMPLATEINTERPRETERGENERATOR_HPP
 
 // This file contains the platform-independent parts
 // of the template interpreter generator.
 
-#ifndef CC_INTERP
+#ifndef ZERO
 
 class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
  protected:
@@ -47,14 +47,14 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
     return generate_exception_handler_common(name, message, false);
   }
   address generate_klass_exception_handler(const char* name) {
-    return generate_exception_handler_common(name, NULL, true);
+    return generate_exception_handler_common(name, nullptr, true);
   }
   address generate_exception_handler_common(const char* name, const char* message, bool pass_oop);
   address generate_ClassCastException_handler();
   address generate_ArrayIndexOutOfBounds_handler();
   address generate_return_entry_for(TosState state, int step, size_t index_size);
   address generate_earlyret_entry_for(TosState state);
-  address generate_deopt_entry_for(TosState state, int step, address continuation = NULL);
+  address generate_deopt_entry_for(TosState state, int step, address continuation = nullptr);
   address generate_safept_entry_for(TosState state, address runtime_entry);
   void    generate_throw_exception();
 
@@ -84,7 +84,10 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
   void generate_all();
 
   // entry point generator
-  address generate_method_entry(AbstractInterpreter::MethodKind kind);
+  address generate_method_entry(AbstractInterpreter::MethodKind kind, bool native);
+
+  // generate intrinsic method entries
+  address generate_intrinsic_entry(AbstractInterpreter::MethodKind kind);
 
   address generate_normal_entry(bool synchronized);
   address generate_native_entry(bool synchronized);
@@ -94,29 +97,31 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
   address generate_CRC32_update_entry();
   address generate_CRC32_updateBytes_entry(AbstractInterpreter::MethodKind kind);
   address generate_CRC32C_updateBytes_entry(AbstractInterpreter::MethodKind kind);
-#ifdef IA32
+  address generate_currentThread();
   address generate_Float_intBitsToFloat_entry();
   address generate_Float_floatToRawIntBits_entry();
   address generate_Double_longBitsToDouble_entry();
   address generate_Double_doubleToRawLongBits_entry();
-#endif // IA32
+  address generate_Float_float16ToFloat_entry();
+  address generate_Float_floatToFloat16_entry();
+
   // Some platforms don't need registers, other need two. Unused function is
   // left unimplemented.
   void generate_stack_overflow_check(void);
   void generate_stack_overflow_check(Register Rframe_size, Register Rscratch);
 
-  void generate_counter_incr(Label* overflow, Label* profile_method, Label* profile_method_continue);
+  void generate_counter_incr(Label* overflow);
   void generate_counter_overflow(Label& continue_entry);
 
   void generate_fixed_frame(bool native_call);
-#ifdef SPARC
-  void save_native_result(void);
-  void restore_native_result(void);
-#endif // SPARC
 
 #ifdef AARCH64
   void generate_transcendental_entry(AbstractInterpreter::MethodKind kind, int fpargs);
 #endif // AARCH64
+
+#ifdef ARM32
+  void generate_math_runtime_call(AbstractInterpreter::MethodKind kind);
+#endif // ARM32
 
 #ifdef PPC
   void lock_method(Register Rflags, Register Rscratch1, Register Rscratch2, bool flags_preloaded=false);
@@ -124,9 +129,9 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
 #endif // PPC
 
  public:
-  TemplateInterpreterGenerator(StubQueue* _code);
+  TemplateInterpreterGenerator();
 };
 
-#endif // !CC_INTERP
+#endif // !ZERO
 
-#endif // SHARE_VM_INTERPRETER_TEMPLATEINTERPRETERGENERATOR_HPP
+#endif // SHARE_INTERPRETER_TEMPLATEINTERPRETERGENERATOR_HPP

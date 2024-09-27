@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1REGIONMARKSTATSCACHE_HPP
-#define SHARE_VM_GC_G1_G1REGIONMARKSTATSCACHE_HPP
+#ifndef SHARE_GC_G1_G1REGIONMARKSTATSCACHE_HPP
+#define SHARE_GC_G1_G1REGIONMARKSTATSCACHE_HPP
 
 #include "memory/allocation.hpp"
+#include "oops/oop.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/pair.hpp"
@@ -34,8 +35,8 @@
 //
 // This includes
 // * the number of live words gathered during marking for the area from bottom
-// to ntams. This is an exact measure.
-// The code corrects later for the live data between ntams and top.
+// to tams. This is an exact measure.
+// The code corrects later for the live data between tams and top.
 struct G1RegionMarkStats {
   size_t _live_words;
 
@@ -47,8 +48,6 @@ struct G1RegionMarkStats {
   // are updated by the atomic mark. We do not remark objects after overflow.
   void clear_during_overflow() {
   }
-
-  bool is_clear() const { return _live_words == 0; }
 };
 
 // Per-marking thread cache for the region mark statistics.
@@ -63,21 +62,15 @@ class G1RegionMarkStatsCache {
 private:
   // The array of statistics entries to evict to; the global array.
   G1RegionMarkStats* _target;
-  // Number of entries in the eviction target.
-  uint _num_stats;
 
   // An entry of the statistics cache.
   struct G1RegionMarkStatsCacheEntry {
     uint _region_idx;
     G1RegionMarkStats _stats;
 
-    void clear() {
-      _region_idx = 0;
+    void clear(uint idx = 0) {
+      _region_idx = idx;
       _stats.clear();
-    }
-
-    bool is_clear() const {
-      return _region_idx == 0 && _stats.is_clear();
     }
   };
 
@@ -100,10 +93,15 @@ private:
 
   G1RegionMarkStatsCacheEntry* find_for_add(uint region_idx);
 public:
-  G1RegionMarkStatsCache(G1RegionMarkStats* target, uint max_regions, uint num_cache_entries);
+  // Number of entries in the per-task stats entry. This value seems enough
+  // to have a very low cache miss rate.
+  static const uint RegionMarkStatsCacheSize = 1024;
+
+  G1RegionMarkStatsCache(G1RegionMarkStats* target, uint num_cache_entries);
 
   ~G1RegionMarkStatsCache();
 
+  void add_live_words(oop obj);
   void add_live_words(uint region_idx, size_t live_words) {
     G1RegionMarkStatsCacheEntry* const cur = find_for_add(region_idx);
     cur->_stats._live_words += live_words;
@@ -120,11 +118,12 @@ public:
   // Evict all remaining statistics, returning cache hits and misses.
   Pair<size_t, size_t> evict_all();
 
-  // Reset all cache entries to their default values.
+  // Reset liveness of all cache entries to their default values,
+  // initialize _region_idx to avoid initial cache miss.
   void reset();
 
   size_t hits() const { return _cache_hits; }
   size_t misses() const { return _cache_misses; }
 };
 
-#endif // SHARE_VM_GC_G1_G1REGIONMARKSTATSCACHE_HPP
+#endif // SHARE_GC_G1_G1REGIONMARKSTATSCACHE_HPP

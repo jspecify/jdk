@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_STATSAMPLER_HPP
-#define SHARE_VM_RUNTIME_STATSAMPLER_HPP
+#ifndef SHARE_RUNTIME_STATSAMPLER_HPP
+#define SHARE_RUNTIME_STATSAMPLER_HPP
 
 #include "runtime/perfData.hpp"
 #include "runtime/task.hpp"
@@ -51,7 +51,10 @@ class StatSampler : AllStatic {
     static void create_misc_perfdata();
     static void create_sampled_perfdata();
     static void sample_data(PerfDataList* list);
-    static const char* get_system_property(const char* name, TRAPS);
+    static void assert_system_property(const char* name, const char* value, TRAPS);
+    static void add_property_constant(CounterNS name_space, const char* name, TRAPS);
+    static void add_optional_property_constant(CounterNS name_space, const char* name, TRAPS);
+    static void add_property_constant(CounterNS name_space, const char* name, const char* value, TRAPS);
     static void create_system_property_instrumentation(TRAPS);
 
   public:
@@ -59,12 +62,10 @@ class StatSampler : AllStatic {
     static void engage();
     static void disengage();
 
-    static bool is_active() { return _task != NULL; }
+    static bool is_active() { return _task != nullptr; }
 
     static void initialize();
     static void destroy();
 };
 
-void statSampler_exit();
-
-#endif // SHARE_VM_RUNTIME_STATSAMPLER_HPP
+#endif // SHARE_RUNTIME_STATSAMPLER_HPP

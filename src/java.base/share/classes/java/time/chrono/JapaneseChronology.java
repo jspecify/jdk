@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,6 +76,7 @@ import java.time.Year;
 import java.time.ZoneId;
 import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoField;
+import java.time.temporal.IsoFields;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalAdjusters;
 import java.time.temporal.TemporalField;
@@ -124,7 +125,7 @@ public final class JapaneseChronology extends AbstractChronology implements Seri
     static final LocalGregorianCalendar JCAL =
         (LocalGregorianCalendar) CalendarSystem.forName("japanese");
 
-    // Locale for creating a JapaneseImpericalCalendar.
+    // Locale for creating a JapaneseImperialCalendar.
     static final Locale LOCALE = Locale.forLanguageTag("ja-JP-u-ca-japanese");
 
     /**
@@ -135,6 +136,7 @@ public final class JapaneseChronology extends AbstractChronology implements Seri
     /**
      * Serialization version.
      */
+    @java.io.Serial
     private static final long serialVersionUID = 459996390165777884L;
 
     //-----------------------------------------------------------------------
@@ -201,10 +203,10 @@ public final class JapaneseChronology extends AbstractChronology implements Seri
      */
     @Override
     public JapaneseDate date(Era era, int yearOfEra, int month, int dayOfMonth) {
-        if (era instanceof JapaneseEra == false) {
+        if (!(era instanceof JapaneseEra jera)) {
             throw new ClassCastException("Era must be JapaneseEra");
         }
-        return JapaneseDate.of((JapaneseEra) era, yearOfEra, month, dayOfMonth);
+        return JapaneseDate.of(jera, yearOfEra, month, dayOfMonth);
     }
 
     /**
@@ -363,9 +365,8 @@ public final class JapaneseChronology extends AbstractChronology implements Seri
     /**
      * Returns the calendar system era object from the given numeric value.
      *
-     * See the description of each Era for the numeric values of:
-     * {@link JapaneseEra#HEISEI}, {@link JapaneseEra#SHOWA},{@link JapaneseEra#TAISHO},
-     * {@link JapaneseEra#MEIJI}), only Meiji and later eras are supported.
+     * The numeric values supported by this method are the same as the
+     * numeric values supported by {@link JapaneseEra#of(int)}.
      *
      * @param eraValue  the era value
      * @return the Japanese {@code Era} for the given numeric era value
@@ -506,8 +507,22 @@ public final class JapaneseChronology extends AbstractChronology implements Seri
 
     //-----------------------------------------------------------------------
     /**
+     * {@code JapaneseChronology} is an ISO based chronology, which supports fields
+     * in {@link IsoFields}, such as {@link IsoFields#DAY_OF_QUARTER DAY_OF_QUARTER}
+     * and {@link IsoFields#QUARTER_OF_YEAR QUARTER_OF_YEAR}.
+     * @see IsoFields
+     * @return {@code true}
+     * @since 19
+     */
+    @Override
+    public boolean isIsoBased() {
+        return true;
+    }
+
+    //-----------------------------------------------------------------------
+    /**
      * Writes the Chronology using a
-     * <a href="../../../serialized-form.html#java.time.chrono.Ser">dedicated serialized form</a>.
+     * <a href="{@docRoot}/serialized-form.html#java.time.chrono.Ser">dedicated serialized form</a>.
      * @serialData
      * <pre>
      *  out.writeByte(1);     // identifies a Chronology
@@ -517,6 +532,7 @@ public final class JapaneseChronology extends AbstractChronology implements Seri
      * @return the instance of {@code Ser}, not null
      */
     @Override
+    @java.io.Serial
     Object writeReplace() {
         return super.writeReplace();
     }
@@ -527,6 +543,7 @@ public final class JapaneseChronology extends AbstractChronology implements Seri
      * @param s the stream to read
      * @throws InvalidObjectException always
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream s) throws InvalidObjectException {
         throw new InvalidObjectException("Deserialization via serialization delegate");
     }

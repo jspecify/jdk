@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1ROOTCLOSURESET_HPP
-#define SHARE_VM_GC_G1_G1ROOTCLOSURESET_HPP
+#ifndef SHARE_GC_G1_G1ROOTCLOSURES_HPP
+#define SHARE_GC_G1_G1ROOTCLOSURES_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
@@ -33,36 +33,25 @@ class G1ParScanThreadState;
 
 class G1RootClosures : public CHeapObj<mtGC> {
 public:
-  virtual ~G1RootClosures() {}
-
-// Closures to process raw oops in the root set.
-  virtual OopClosure* weak_oops() = 0;
+  // Closures to process raw oops in the root set.
   virtual OopClosure* strong_oops() = 0;
 
   // Closures to process CLDs in the root set.
   virtual CLDClosure* weak_clds() = 0;
   virtual CLDClosure* strong_clds() = 0;
 
-  // Applied to code blobs reachable as strong roots.
-  virtual CodeBlobClosure* strong_codeblobs() = 0;
+  // Applied to nmethods reachable as strong roots.
+  virtual NMethodClosure* strong_nmethods() = 0;
 };
 
 class G1EvacuationRootClosures : public G1RootClosures {
 public:
-  // Applied to the weakly reachable CLDs when all strongly reachable
-  // CLDs are guaranteed to have been processed.
-  virtual CLDClosure* second_pass_weak_clds() = 0;
+  // Applied to nmethods treated as weak roots.
+  virtual NMethodClosure* weak_nmethods() = 0;
 
-  // Get a raw oop closure for processing oops, bypassing the flushing above.
-  virtual OopClosure* raw_strong_oops() = 0;
-
-  // Applied to code blobs treated as weak roots.
-  virtual CodeBlobClosure* weak_codeblobs() = 0;
-
-  // Is this closure used for tracing metadata?
-  virtual bool trace_metadata() = 0;
-
-  static G1EvacuationRootClosures* create_root_closures(G1ParScanThreadState* pss, G1CollectedHeap* g1h);
+  static G1EvacuationRootClosures* create_root_closures(G1CollectedHeap* g1h,
+                                                        G1ParScanThreadState* pss,
+                                                        bool process_only_dirty_klasses);
 };
 
-#endif // SHARE_VM_GC_G1_G1ROOTCLOSURESET_HPP
+#endif // SHARE_GC_G1_G1ROOTCLOSURES_HPP

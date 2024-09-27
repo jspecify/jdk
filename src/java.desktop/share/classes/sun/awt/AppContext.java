@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,8 +44,8 @@ import java.beans.PropertyChangeSupport;
 import java.beans.PropertyChangeListener;
 import java.lang.ref.SoftReference;
 
-import jdk.internal.misc.JavaAWTAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaAWTAccess;
+import jdk.internal.access.SharedSecrets;
 import sun.util.logging.PlatformLogger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -123,17 +123,6 @@ import java.util.function.Supplier;
  * therefore safely invoke any of its methods without worry of being
  * blocked.
  *
- * Note: If a SecurityManager is installed which derives from
- * sun.awt.AWTSecurityManager, it may override the
- * AWTSecurityManager.getAppContext() method to return the proper
- * AppContext based on the execution context, in the case where
- * the default ThreadGroup-based AppContext indexing would return
- * the main "system" AppContext.  For example, in an applet situation,
- * if a system thread calls into an applet, rather than returning the
- * main "system" AppContext (the one corresponding to the system thread),
- * an installed AWTSecurityManager may return the applet's AppContext
- * based on the execution context.
- *
  * @author  Thomas Ball
  * @author  Fred Ecks
  */
@@ -172,9 +161,9 @@ public final class AppContext {
        contained in another AppContext. It is implicitly created for
        standalone apps only (i.e. not applets)
      */
-    private static volatile AppContext mainAppContext = null;
+    private static volatile AppContext mainAppContext;
 
-    private static class GetAppContextLock {};
+    private static class GetAppContextLock {}
     private static final Object getAppContextLock = new GetAppContextLock();
 
     /*
@@ -204,7 +193,7 @@ public final class AppContext {
         VALID,
         BEING_DISPOSED,
         DISPOSED
-    };
+    }
 
     private volatile State state = State.VALID;
 
@@ -219,7 +208,7 @@ public final class AppContext {
      * number is 1.  If so, it returns the sole AppContext without
      * checking Thread.currentThread().
      */
-    private static final AtomicInteger numAppContexts = new AtomicInteger(0);
+    private static final AtomicInteger numAppContexts = new AtomicInteger();
 
 
     /*
@@ -240,6 +229,7 @@ public final class AppContext {
      * @see     sun.awt.SunToolkit
      * @since   1.2
      */
+    @SuppressWarnings("removal")
     AppContext(ThreadGroup threadGroup) {
         numAppContexts.incrementAndGet();
 
@@ -264,6 +254,7 @@ public final class AppContext {
     private static final ThreadLocal<AppContext> threadAppContext =
             new ThreadLocal<AppContext>();
 
+    @SuppressWarnings("removal")
     private static void initMainAppContext() {
         // On the main Thread, we get the ThreadGroup, make a corresponding
         // AppContext, and instantiate the Java EventQueue.  This way, legacy
@@ -287,15 +278,13 @@ public final class AppContext {
 
     /**
      * Returns the appropriate AppContext for the caller,
-     * as determined by its ThreadGroup.  If the main "system" AppContext
-     * would be returned and there's an AWTSecurityManager installed, it
-     * is called to get the proper AppContext based on the execution
-     * context.
+     * as determined by its ThreadGroup.
      *
      * @return  the AppContext for the caller.
      * @see     java.lang.ThreadGroup
      * @since   1.2
      */
+    @SuppressWarnings("removal")
     public static AppContext getAppContext() {
         // we are standalone app, return the main app context
         if (numAppContexts.get() == 1 && mainAppContext != null) {
@@ -384,18 +373,6 @@ public final class AppContext {
         return (ctx != null && ctx == mainAppContext);
     }
 
-    private static AppContext getExecutionAppContext() {
-        SecurityManager securityManager = System.getSecurityManager();
-        if ((securityManager != null) &&
-            (securityManager instanceof AWTSecurityManager))
-        {
-            AWTSecurityManager awtSecMgr = (AWTSecurityManager) securityManager;
-            AppContext secAppContext = awtSecMgr.getAppContext();
-            return secAppContext; // Return what we're told
-        }
-        return null;
-    }
-
     private long DISPOSAL_TIMEOUT = 5000;  // Default to 5-second timeout
                                            // for disposal of all Frames
                                            // (we wait for this time twice,
@@ -414,12 +391,19 @@ public final class AppContext {
      * This method must be called from a Thread which is not contained
      * within this AppContext.
      *
-     * @exception  IllegalThreadStateException  if the current thread is
+     * @throws  IllegalThreadStateException  if the current thread is
      *                                    contained within this AppContext
      * @since      1.2
      */
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "removal"})
     public void dispose() throws IllegalThreadStateException {
+        System.err.println(
+            """
+            WARNING: sun.awt.AppContext.dispose() no longer stops threads.
+            Additionally AppContext will be removed in a future release.
+            Remove all uses of this internal class as soon as possible.
+            There is no replacement.
+            """);
         // Check to be sure that the current Thread isn't in this AppContext
         if (this.threadGroup.parentOf(Thread.currentThread().getThreadGroup())) {
             throw new IllegalThreadStateException(
@@ -525,24 +509,6 @@ public final class AppContext {
             } catch (InterruptedException e) { }
         }
 
-        // Then, we stop any remaining Threads
-        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
-            threadGroup.stop();
-            return null;
-        });
-
-        // Next, we sleep 10ms at a time, waiting for all of the active
-        // Threads in the ThreadGroup to die.
-
-        startTime = System.currentTimeMillis();
-        endTime = startTime + THREAD_INTERRUPT_TIMEOUT;
-        while ((this.threadGroup.activeCount() > 0) &&
-               (System.currentTimeMillis() < endTime)) {
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) { }
-        }
-
         // Next, we remove this and all subThreadGroups from threadGroup2appContext
         int numSubGroups = this.threadGroup.activeGroupCount();
         if (numSubGroups > 0) {
@@ -555,13 +521,6 @@ public final class AppContext {
         threadGroup2appContext.remove(this.threadGroup);
 
         threadAppContext.set(null);
-
-        // Finally, we destroy the ThreadGroup entirely.
-        try {
-            this.threadGroup.destroy();
-        } catch (IllegalThreadStateException e) {
-            // Fired if not all the Threads died, ignore it and proceed
-        }
 
         synchronized (table) {
             this.table.clear(); // Clear out the Hashtable to ease garbage collection
@@ -618,6 +577,7 @@ public final class AppContext {
                 // Create a thread that belongs to the thread group associated
                 // with the AppContext and invokes EventQueue.postEvent.
                 PrivilegedAction<Thread> action = new CreateThreadAction(appContext, r);
+                @SuppressWarnings("removal")
                 Thread thread = AccessController.doPrivileged(action);
                 thread.start();
             } else {
@@ -682,7 +642,7 @@ public final class AppContext {
      * @param      value   the value.
      * @return     the previous value of the specified key in this
      *             AppContext, or {@code null} if it did not have one.
-     * @exception  NullPointerException  if the key or value is
+     * @throws  NullPointerException  if the key or value is
      *               {@code null}.
      * @see     #get(Object)
      * @since   1.2
@@ -846,6 +806,7 @@ public final class AppContext {
     // Set up JavaAWTAccess in SharedSecrets
     static {
         SharedSecrets.setJavaAWTAccess(new JavaAWTAccess() {
+            @SuppressWarnings("removal")
             private boolean hasRootThreadGroup(final AppContext ecx) {
                 return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
                     @Override
@@ -872,8 +833,7 @@ public final class AppContext {
                 // context since we don't need it.
                 if (numAppContexts.get() == 0) return null;
 
-                // Get the context from the security manager
-                AppContext ecx = getExecutionAppContext();
+                AppContext ecx = null;
 
                 // Not sure we really need to re-check numAppContexts here.
                 // If all applets have gone away then we could have a

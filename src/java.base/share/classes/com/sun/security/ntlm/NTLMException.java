@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ import java.security.GeneralSecurityException;
  * An NTLM-related Exception
  */
 public final class NTLMException extends GeneralSecurityException {
+    @java.io.Serial
     private static final long serialVersionUID = -3298539507906689430L;
 
     /**
@@ -43,12 +44,6 @@ public final class NTLMException extends GeneralSecurityException {
      * caller has not provided one.
      */
     public static final int NO_DOMAIN_INFO = 2;
-
-    /**
-     * If the domain provided by the client does not match the one received
-     * from server.
-     */
-    //public final static int DOMAIN_UNMATCH = 3;
 
     /**
      * If the client name is not found on server's user database.
@@ -70,13 +65,18 @@ public final class NTLMException extends GeneralSecurityException {
      */
     public static final int PROTOCOL = 6;
 
+    /**
+     * If an invalid input is provided.
+     */
+    public static final int INVALID_INPUT = 7;
+
     private int errorCode;
 
     /**
      * Constructs an NTLMException object.
      * @param errorCode the error code, which can be retrieved by
      * the {@link #errorCode() } method.
-     * @param msg the string message, which can be retrived by
+     * @param msg the string message, which can be retrieved by
      * the {@link Exception#getMessage() } method.
      */
     public NTLMException(int errorCode, String msg) {

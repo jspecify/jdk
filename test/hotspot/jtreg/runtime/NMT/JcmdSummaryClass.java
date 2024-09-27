@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,6 @@
  /*
  * @test
  * @bug 8193184
- * @key nmt
  * @summary Check class counters in summary report
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
@@ -49,11 +48,10 @@ public class JcmdSummaryClass {
 
         // Run 'jcmd <pid> VM.native_memory baseline=true'
         pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.native_memory"});
-        pb.start().waitFor();
+        output = new OutputAnalyzer(pb.start());
 
         String classes_line = "classes #\\d+";
         String instance_array_classes_line = "instance classes #\\d+, array classes #\\d+";
-        output = new OutputAnalyzer(pb.start());
         output.shouldMatch(classes_line);
         output.shouldMatch(instance_array_classes_line);
     }

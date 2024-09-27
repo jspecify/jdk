@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /* @test
  * @summary Binary data and view tests for byte buffers
- * @bug 8159257
+ * @bug 8159257 8258955
  * @run testng ByteBufferViews
  */
 
@@ -64,6 +64,8 @@ public class ByteBufferViews {
                       size -> ByteBuffer.allocate(size).position(8).slice()),
             Map.entry("ByteBuffer.allocate(size).position(8).slice().duplicate()",
                       size -> ByteBuffer.allocate(size).position(8).slice().duplicate()),
+            Map.entry("ByteBuffer.allocate(size).slice(8,size-8)",
+                      size -> ByteBuffer.allocate(size).slice(8,size-8)),
             // Unaligned
             Map.entry("ByteBuffer.allocate(size).position(1)",
                       size -> ByteBuffer.allocate(size).position(1)),
@@ -71,6 +73,8 @@ public class ByteBufferViews {
                       size -> ByteBuffer.allocate(size).position(1).slice()),
             Map.entry("ByteBuffer.allocate(size).position(1).slice().duplicate()",
                       size -> ByteBuffer.allocate(size).position(1).slice().duplicate()),
+            Map.entry("ByteBuffer.allocate(size).slice(1,size-1)",
+                      size -> ByteBuffer.allocate(size).slice(1,size-1)),
 
             // Off-heap
             Map.entry("ByteBuffer.allocateDirect(size)",
@@ -82,13 +86,17 @@ public class ByteBufferViews {
                       size -> ByteBuffer.allocateDirect(size).position(8).slice()),
             Map.entry("ByteBuffer.allocateDirect(size).position(8).slice().duplicate()",
                       size -> ByteBuffer.allocateDirect(size).position(8).slice().duplicate()),
+            Map.entry("ByteBuffer.allocateDirect(size).slice(8,size-8)",
+                      size -> ByteBuffer.allocateDirect(size).slice(8,size-8)),
             // Unaligned
             Map.entry("ByteBuffer.allocateDirect(size).position(1)",
                       size -> ByteBuffer.allocateDirect(size).position(1)),
             Map.entry("ByteBuffer.allocateDirect(size).position(1).slice()",
                       size -> ByteBuffer.allocateDirect(size).position(1).slice()),
             Map.entry("ByteBuffer.allocateDirect(size).position(1).slice().duplicate()",
-                      size -> ByteBuffer.allocateDirect(size).position(1).slice().duplicate())
+                      size -> ByteBuffer.allocateDirect(size).position(1).slice().duplicate()),
+            Map.entry("ByteBuffer.allocateDirect(size).slice(1,size-1)",
+                      size -> ByteBuffer.allocateDirect(size).slice(1,size-1))
     );
 
     // List of buffer byte order functions
@@ -166,6 +174,11 @@ public class ByteBufferViews {
                           bb -> bb.asShortBuffer()),
                 Map.entry("bb.asShortBuffer().slice()",
                           bb -> bb.asShortBuffer().slice()),
+                Map.entry("bb.asShortBuffer().slice(index,length)",
+                          bb -> { var sb = bb.asShortBuffer();
+                                  sb =  sb.slice(1, sb.limit() - 1);
+                                  bb.position(bb.position() + 2);
+                                  return sb; }),
                 Map.entry("bb.asShortBuffer().slice().duplicate()",
                           bb -> bb.asShortBuffer().slice().duplicate())
         );
@@ -265,6 +278,11 @@ public class ByteBufferViews {
                           bb -> bb.asCharBuffer()),
                 Map.entry("bb.asCharBuffer().slice()",
                           bb -> bb.asCharBuffer().slice()),
+                Map.entry("bb.asCharBuffer().slice(index,length)",
+                          bb -> { var cb = bb.asCharBuffer();
+                                  cb =  cb.slice(1, cb.limit() - 1);
+                                  bb.position(bb.position() + 2);
+                                  return cb; }),
                 Map.entry("bb.asCharBuffer().slice().duplicate()",
                           bb -> bb.asCharBuffer().slice().duplicate())
         );
@@ -357,6 +375,11 @@ public class ByteBufferViews {
                           bb -> bb.asIntBuffer()),
                 Map.entry("bb.asIntBuffer().slice()",
                           bb -> bb.asIntBuffer().slice()),
+                Map.entry("bb.asIntBuffer().slice(index,length)",
+                          bb -> { var ib = bb.asIntBuffer();
+                                  ib =  ib.slice(1, ib.limit() - 1);
+                                  bb.position(bb.position() + 4);
+                                  return ib; }),
                 Map.entry("bb.asIntBuffer().slice().duplicate()",
                           bb -> bb.asIntBuffer().slice().duplicate())
         );
@@ -459,6 +482,11 @@ public class ByteBufferViews {
                           bb -> bb.asLongBuffer()),
                 Map.entry("bb.asLongBuffer().slice()",
                           bb -> bb.asLongBuffer().slice()),
+                Map.entry("bb.asLongBuffer().slice(index,length)",
+                          bb -> { var lb = bb.asLongBuffer();
+                                  lb =  lb.slice(1, lb.limit() - 1);
+                                  bb.position(bb.position() + 8);
+                                  return lb; }),
                 Map.entry("bb.asLongBuffer().slice().duplicate()",
                           bb -> bb.asLongBuffer().slice().duplicate())
         );
@@ -567,6 +595,11 @@ public class ByteBufferViews {
                           bb -> bb.asFloatBuffer()),
                 Map.entry("bb.asFloatBuffer().slice()",
                           bb -> bb.asFloatBuffer().slice()),
+                Map.entry("bb.asFloatBuffer().slice(index,length)",
+                        bb -> { var fb = bb.asFloatBuffer();
+                            fb =  fb.slice(1, fb.limit() - 1);
+                            bb.position(bb.position() + 4);
+                            return fb; }),
                 Map.entry("bb.asFloatBuffer().slice().duplicate()",
                           bb -> bb.asFloatBuffer().slice().duplicate())
         );
@@ -660,6 +693,11 @@ public class ByteBufferViews {
                           bb -> bb.asDoubleBuffer()),
                 Map.entry("bb.asDoubleBuffer().slice()",
                           bb -> bb.asDoubleBuffer().slice()),
+                Map.entry("bb.asDoubleBuffer().slice(index,length)",
+                        bb -> { var db = bb.asDoubleBuffer();
+                            db =  db.slice(1, db.limit() - 1);
+                            bb.position(bb.position() + 8);
+                            return db; }),
                 Map.entry("bb.asDoubleBuffer().slice().duplicate()",
                           bb -> bb.asDoubleBuffer().slice().duplicate())
         );

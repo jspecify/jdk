@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,8 @@
 
 package sun.jvm.hotspot.utilities;
 
-import java.util.*;
 import sun.jvm.hotspot.debugger.*;
-import sun.jvm.hotspot.memory.*;
 import sun.jvm.hotspot.oops.Metadata;
-import sun.jvm.hotspot.oops.Klass;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
 
@@ -74,9 +71,8 @@ public class RobustOopDeterminator {
       } else {
         Metadata.instantiateWrapperFor(klassField.getValue(oop));
       }
-          return true;
-        }
-    catch (AddressException e) {
+      return true;
+    } catch (AddressException | WrongTypeException e) {
       return false;
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@
 #include "Sctp.h"
 
 #include "jni.h"
-#include "nio_util.h"
 #include "nio.h"
 #include "net_util.h"
 #include "net_util_md.h"
@@ -69,12 +68,6 @@ static jmethodID ss_ctrID;     /* sun.nio.ch.sctp.Shutdown.<init>            */
 
 /* defined in SctpNet.c */
 jobject SockAddrToInetSocketAddress(JNIEnv* env, struct sockaddr* addr);
-
-jint handleSocketError(JNIEnv *env, jint errorValue);
-
-/* use SocketChannelImpl's checkConnect implementation */
-extern jint Java_sun_nio_ch_SocketChannelImpl_checkConnect(JNIEnv* env,
-    jobject this, jobject fdo, jboolean block, jboolean ready);
 
 /*
  * Class:     sun_nio_ch_sctp_SctpChannelImpl
@@ -233,7 +226,10 @@ void handleSendFailed
         msg->msg_iovlen = 1;
 
         bufferObj = (*env)->NewDirectByteBuffer(env, addressP, dataLength);
-        CHECK_NULL(bufferObj);
+        if (bufferObj == NULL) {
+            free(addressP);
+            return;
+        }
 
         alreadyRead = read - dataOffset;
         if (alreadyRead > 0) {
@@ -247,12 +243,14 @@ void handleSendFailed
 
         if (remaining > 0) {
             if ((rv = recvmsg(fd, msg, 0)) < 0) {
-                handleSocketError(env, errno);
+                free(addressP);
+                sctpHandleSocketError(env, errno);
                 return;
             }
 
             if (rv != (dataLength - alreadyRead) || !(msg->msg_flags & MSG_EOR)) {
                 //TODO: assert false: "should not reach here";
+                free(addressP);
                 return;
             }
             // TODO: Set and document (in API) buffers position.
@@ -262,7 +260,10 @@ void handleSendFailed
     /* create SendFailed */
     resultObj = (*env)->NewObject(env, ssf_class, ssf_ctrID, ssf->ssf_assoc_id,
             isaObj, bufferObj, ssf->ssf_error, sri->sinfo_stream);
-    CHECK_NULL(resultObj);
+    if (resultObj == NULL) {
+        if (bufferObj != NULL) free(addressP);
+        return;
+    }
     (*env)->SetObjectField(env, resultContainerObj, src_valueID, resultObj);
     (*env)->SetIntField(env, resultContainerObj, src_typeID,
             sun_nio_ch_sctp_ResultContainer_SEND_FAILED);
@@ -330,10 +331,11 @@ void handlePeerAddrChange
             break;
         case SCTP_ADDR_MADE_PRIM :
             event = sun_nio_ch_sctp_PeerAddrChange_SCTP_ADDR_MADE_PRIM;
-#ifdef __linux__  /* Solaris currently doesn't support SCTP_ADDR_CONFIRMED */
             break;
+#ifdef __linux__
         case SCTP_ADDR_CONFIRMED :
             event = sun_nio_ch_sctp_PeerAddrChange_SCTP_ADDR_CONFIRMED;
+            break;
 #endif  /* __linux__ */
     }
 
@@ -453,7 +455,7 @@ JNIEXPORT jint JNICALL Java_sun_nio_ch_sctp_SctpChannelImpl_receive0
 #endif /* __linux__ */
 
             } else {
-                handleSocketError(env, errno);
+                sctpHandleSocketError(env, errno);
                 return 0;
             }
         }
@@ -477,26 +479,13 @@ JNIEXPORT jint JNICALL Java_sun_nio_ch_sctp_SctpChannelImpl_receive0
                 iov->iov_base = newBuf + rv;
                 iov->iov_len = SCTP_NOTIFICATION_SIZE - rv;
                 if ((rv = recvmsg(fd, msg, flags)) < 0) {
-                    handleSocketError(env, errno);
+                    sctpHandleSocketError(env, errno);
+                    free(newBuf);
                     return 0;
                 }
                 bufp = newBuf;
                 rv += rvSAVE;
             }
-#ifdef __sparc
-              else if ((intptr_t)addr & 0x3) {
-                /* the given buffer is not 4 byte aligned */
-                char* newBuf;
-                if ((newBuf = malloc(SCTP_NOTIFICATION_SIZE)) == NULL) {
-                    JNU_ThrowOutOfMemoryError(env, "Out of native heap space.");
-                    return -1;
-                }
-                allocated = JNI_TRUE;
-
-                memcpy(newBuf, addr, rv);
-                bufp = newBuf;
-            }
-#endif
             snp = (union sctp_notification *) bufp;
             if (handleNotification(env, fd, resultContainerObj, snp, rv,
                                    (msg->msg_flags & MSG_EOR),
@@ -590,7 +579,7 @@ JNIEXPORT jint JNICALL Java_sun_nio_ch_sctp_SctpChannelImpl_send0
             JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException",
                             "Socket is shutdown for writing");
         } else {
-            handleSocketError(env, errno);
+            sctpHandleSocketError(env, errno);
             return 0;
         }
     }
@@ -598,13 +587,3 @@ JNIEXPORT jint JNICALL Java_sun_nio_ch_sctp_SctpChannelImpl_send0
     return rv;
 }
 
-/*
- * Class:     sun_nio_ch_sctp_SctpChannelImpl
- * Method:    checkConnect
- * Signature: (Ljava/io/FileDescriptor;ZZ)I
- */
-JNIEXPORT jint JNICALL Java_sun_nio_ch_sctp_SctpChannelImpl_checkConnect
-  (JNIEnv* env, jobject this, jobject fdo, jboolean block, jboolean ready) {
-    return Java_sun_nio_ch_SocketChannelImpl_checkConnect(env, this,
-                                                          fdo, block, ready);
-}

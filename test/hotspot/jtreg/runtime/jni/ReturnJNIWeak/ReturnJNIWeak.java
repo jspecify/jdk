@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
  * @bug 8166188
  * @requires vm.opt.ExplicitGCInvokesConcurrent != true
  * @summary Test return of JNI weak global refs from native calls.
- * @modules java.base
  * @run main/othervm/native -Xint ReturnJNIWeak
  * @run main/othervm/native -Xcomp ReturnJNIWeak
  */
@@ -124,9 +123,19 @@ public final class ReturnJNIWeak {
         }
     }
 
+    // Verify passing a null value returns null and doesn't throw.
+    private static void testNullValue() {
+        System.out.println("running testNullValue");
+        registerObject(null);
+        if (getObject() != null) {
+            throw new RuntimeException("expected null");
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         testSanity();
         testSurvival();
         testClear();
+        testNullValue();
     }
 }

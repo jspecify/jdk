@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_CPU_WINDOWS_X86_VM_ORDERACCESS_WINDOWS_X86_HPP
-#define OS_CPU_WINDOWS_X86_VM_ORDERACCESS_WINDOWS_X86_HPP
+#ifndef OS_CPU_WINDOWS_X86_ORDERACCESS_WINDOWS_X86_HPP
+#define OS_CPU_WINDOWS_X86_ORDERACCESS_WINDOWS_X86_HPP
 
 // Included in orderAccess.hpp header file.
 
@@ -38,17 +38,6 @@
 inline void compiler_barrier() {
   _ReadWriteBarrier();
 }
-
-// Note that in MSVC, volatile memory accesses are explicitly
-// guaranteed to have acquire release semantics (w.r.t. compiler
-// reordering) and therefore does not even need a compiler barrier
-// for normal acquire release accesses. And all generalized
-// bound calls like release_store go through OrderAccess::load
-// and OrderAccess::store which do volatile memory accesses.
-template<> inline void ScopedFence<X_ACQUIRE>::postfix()       { }
-template<> inline void ScopedFence<RELEASE_X>::prefix()        { }
-template<> inline void ScopedFence<RELEASE_X_FENCE>::prefix()  { }
-template<> inline void ScopedFence<RELEASE_X_FENCE>::postfix() { OrderAccess::fence(); }
 
 inline void OrderAccess::loadload()   { compiler_barrier(); }
 inline void OrderAccess::storestore() { compiler_barrier(); }
@@ -69,45 +58,22 @@ inline void OrderAccess::fence() {
   compiler_barrier();
 }
 
-#ifndef AMD64
-template<>
-struct OrderAccess::PlatformOrderedStore<1, RELEASE_X_FENCE>
+inline void OrderAccess::cross_modify_fence_impl()
+#if _MSC_VER >= 1928
 {
-  template <typename T>
-  void operator()(T v, volatile T* p) const {
-    __asm {
-      mov edx, p;
-      mov al, v;
-      xchg al, byte ptr [edx];
-    }
+//_serialize() intrinsic is supported starting from VS2019-16.7.2
+  if (VM_Version::supports_serialize()) {
+    _serialize();
+  } else {
+    int regs[4];
+    __cpuid(regs, 0);
   }
-};
-
-template<>
-struct OrderAccess::PlatformOrderedStore<2, RELEASE_X_FENCE>
+}
+#else
 {
-  template <typename T>
-  void operator()(T v, volatile T* p) const {
-    __asm {
-      mov edx, p;
-      mov ax, v;
-      xchg ax, word ptr [edx];
-    }
-  }
-};
+  int regs[4];
+  __cpuid(regs, 0);
+}
+#endif
 
-template<>
-struct OrderAccess::PlatformOrderedStore<4, RELEASE_X_FENCE>
-{
-  template <typename T>
-  void operator()(T v, volatile T* p) const {
-    __asm {
-      mov edx, p;
-      mov eax, v;
-      xchg eax, dword ptr [edx];
-    }
-  }
-};
-#endif // AMD64
-
-#endif // OS_CPU_WINDOWS_X86_VM_ORDERACCESS_WINDOWS_X86_HPP
+#endif // OS_CPU_WINDOWS_X86_ORDERACCESS_WINDOWS_X86_HPP

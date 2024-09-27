@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,24 +32,31 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
+import java.net.URL;
+import java.nio.file.Path;
+import java.util.MissingResourceException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import javax.tools.DocumentationTool;
 import javax.tools.FileObject;
 import javax.tools.JavaFileManager.Location;
 import javax.tools.StandardLocation;
 
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
+import jdk.javadoc.internal.doclets.toolkit.Resources;
 
 /**
  * Abstraction for handling files, which may be specified directly
  * (e.g. via a path on the command line) or relative to a Location.
- *
- *  <p><b>This is NOT part of any supported API.
- *  If you write code that depends on this, you do so at your own risk.
- *  This code and its internal interfaces are subject to change or
- *  deletion without notice.</b>
- *
  */
 public abstract class DocFile {
+
+    /**
+     * The line separator for the current platform.
+     * Use this when writing to external files.
+     */
+    public static final String PLATFORM_LINE_SEPARATOR = System.getProperty("line.separator");
 
     /** Create a DocFile for a directory. */
     public static DocFile createFileForDirectory(BaseConfiguration configuration, String file) {
@@ -58,6 +65,11 @@ public abstract class DocFile {
 
     /** Create a DocFile for a file that will be opened for reading. */
     public static DocFile createFileForInput(BaseConfiguration configuration, String file) {
+        return DocFileFactory.getFactory(configuration).createFileForInput(file);
+    }
+
+    /** Create a DocFile for a file that will be opened for reading. */
+    public static DocFile createFileForInput(BaseConfiguration configuration, Path file) {
         return DocFileFactory.getFactory(configuration).createFileForInput(file);
     }
 
@@ -165,8 +177,8 @@ public abstract class DocFile {
     /**
      * Copy the contents of a resource file to this file.
      *
-     * @param resource the path of the resource, relative to the package of this class
-     * @param overwrite whether or not to overwrite the file if it already exists
+     * @param resource the path of the resource
+     * @param url the URL of the resource
      * @param replaceNewLine if false, the file is copied as a binary file;
      *     if true, the file is written line by line, using the platform line
      *     separator
@@ -174,24 +186,38 @@ public abstract class DocFile {
      * @throws DocFileIOException if there is a problem while writing the copy
      * @throws ResourceIOException if there is a problem while reading the resource
      */
-    public void copyResource(DocPath resource, boolean overwrite, boolean replaceNewLine)
+    public void copyResource(DocPath resource, URL url, boolean replaceNewLine)
+            throws DocFileIOException, ResourceIOException {
+        copyResource(resource, url, replaceNewLine, null);
+    }
+
+    /**
+     * Copy the contents of a resource file to this file.
+     *
+     * @param resource the path of the resource
+     * @param url the URL of the resource
+     * @param resources if not {@code null}, substitute occurrences of {@code ##REPLACE:key##}
+     *
+     * @throws DocFileIOException if there is a problem while writing the copy
+     * @throws ResourceIOException if there is a problem while reading the resource
+     */
+    public void copyResource(DocPath resource, URL url, Resources resources) throws DocFileIOException, ResourceIOException {
+        copyResource(resource, url, true, resources);
+    }
+
+    private void copyResource(DocPath resource, URL url, boolean replaceNewLine, Resources resources)
                 throws DocFileIOException, ResourceIOException {
-        if (exists() && !overwrite)
-            return;
-
         try {
-            InputStream in = BaseConfiguration.class.getResourceAsStream(resource.getPath());
-            if (in == null)
-                return;
+            InputStream in = url.openStream();
 
-            try {
+            try (in) {
                 if (replaceNewLine) {
                     try (BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
                         try (Writer writer = openWriter()) {
                             String line;
                             while ((line = readResourceLine(resource, reader)) != null) {
-                                write(this, writer, line);
-                                write(this, writer, DocletConstants.NL);
+                                write(this, writer, resources == null ? line : localize(line, resources));
+                                write(this, writer, PLATFORM_LINE_SEPARATOR);
                             }
                         } catch (IOException e) {
                             throw new DocFileIOException(this, DocFileIOException.Mode.WRITE, e);
@@ -208,11 +234,35 @@ public abstract class DocFile {
                         throw new DocFileIOException(this, DocFileIOException.Mode.WRITE, e);
                     }
                 }
-            } finally {
-                in.close();
             }
         } catch (IOException e) {
             throw new ResourceIOException(resource, e);
+        }
+    }
+
+    private static final Pattern replacePtn = Pattern.compile("##REPLACE:(?<key>[A-Za-z0-9._]+)##");
+
+    private String localize(String line, Resources resources) {
+        Matcher m = replacePtn.matcher(line);
+        StringBuilder sb = null;
+        int start = 0;
+        while (m.find()) {
+            if (sb == null) {
+                sb = new StringBuilder();
+            }
+            sb.append(line, start, m.start());
+            try {
+                sb.append(resources.getText(m.group("key")));
+            } catch (MissingResourceException e) {
+                sb.append(m.group());
+            }
+            start = m.end();
+        }
+        if (sb == null) {
+            return line;
+        } else {
+            sb.append(line.substring(start));
+            return sb.toString();
         }
     }
 
@@ -279,11 +329,12 @@ public abstract class DocFile {
 
     /**
      * Reads from an input stream opened from a given file into a given buffer.
-     * If an IOException occurs, it is wrapped in a DocFileIOException.
+     * If an {@code IOException} occurs, it is wrapped in a {@code DocFileIOException}.
      *
      * @param inFile the file for the stream
-     * @param input the stream
-     * @param buf the buffer
+     * @param input  the stream
+     * @param buf    the buffer
+     *
      * @return the number of bytes read, or -1 if at end of file
      * @throws DocFileIOException if an exception occurred while reading the stream
      */
@@ -297,11 +348,12 @@ public abstract class DocFile {
 
     /**
      * Writes to an output stream for a given file from a given buffer.
-     * If an IOException occurs, it is wrapped in a DocFileIOException.
+     * If an {@code IOException} occurs, it is wrapped in a {@code DocFileIOException}.
      *
      * @param outFile the file for the stream
-     * @param out the stream
-     * @param buf the buffer
+     * @param out     the stream
+     * @param buf     the buffer
+     *
      * @throws DocFileIOException if an exception occurred while writing the stream
      */
     private static void write(DocFile outFile, OutputStream out, byte[] buf, int len) throws DocFileIOException {
@@ -314,11 +366,12 @@ public abstract class DocFile {
 
     /**
      * Writes text to an output stream for a given file from a given buffer.
-     * If an IOException occurs, it is wrapped in a DocFileIOException.
+     * If an {@code IOException} occurs, it is wrapped in a {@code DocFileIOException}.
      *
      * @param outFile the file for the stream
-     * @param out the stream
-     * @param text the text to be written
+     * @param out     the stream
+     * @param text    the text to be written
+     *
      * @throws DocFileIOException if an exception occurred while writing the stream
      */
     private static void write(DocFile outFile, Writer out, String text) throws DocFileIOException {
@@ -331,28 +384,30 @@ public abstract class DocFile {
 
     /**
      * Reads from an input stream opened from a given resource into a given buffer.
-     * If an IOException occurs, it is wrapped in a ResourceIOException.
+     * If an {@code IOException} occurs, it is wrapped in a {@code ResourceIOException}.
      *
-     * @param resource the resource for the stream
-     * @param in the stream
-     * @param buf the buffer
+     * @param docPath the resource for the stream
+     * @param in      the stream
+     * @param buf     the buffer
+     *
      * @return the number of bytes read, or -1 if at end of file
      * @throws ResourceIOException if an exception occurred while reading the stream
      */
-    private static int readResource(DocPath resource, InputStream in, byte[] buf) throws ResourceIOException {
+    private static int readResource(DocPath docPath, InputStream in, byte[] buf) throws ResourceIOException {
         try {
             return in.read(buf);
         } catch (IOException e) {
-            throw new ResourceIOException(resource, e);
+            throw new ResourceIOException(docPath, e);
         }
     }
 
     /**
      * Reads a line of characters from an input stream opened from a given resource.
-     * If an IOException occurs, it is wrapped in a ResourceIOException.
+     * If an {@code IOException} occurs, it is wrapped in a {@code ResourceIOException}.
      *
-     * @param resource the resource for the stream
-     * @param in the stream
+     * @param docPath the resource for the stream
+     * @param in      the stream
+     *
      * @return the line of text, or {@code null} if at end of stream
      * @throws ResourceIOException if an exception occurred while reading the stream
      */

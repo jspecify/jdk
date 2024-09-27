@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,7 +54,7 @@ import org.xml.sax.InputSource;
  * no further attempt will be made. Only if there is no match in the current
  * catalog, will alternate catalogs including delegate and next catalogs be considered.
  *
- * <h3>Search Order</h3>
+ * <h2>Search Order</h2>
  * The resolver will first search the system-type of entries with the specified
  * {@code systemId}. The system entries include {@code system},
  * {@code rewriteSystem} and {@code systemSuffix} entries.
@@ -75,7 +75,7 @@ import org.xml.sax.InputSource;
  * with the specified {@code systemId} or {@code href}. The {@code uri} entries
  * include {@code uri}, {@code rewriteURI}, and {@code uriSuffix} entries.
  *
- * <h3>Error Handling</h3>
+ * <h2>Error Handling</h2>
  * The interfaces that the CatalogResolver extend specified checked exceptions, including:
  * <ul>
  * <li>
@@ -235,4 +235,55 @@ public interface CatalogResolver extends EntityResolver, XMLResolver,
     public LSInput resolveResource(String type, String namespaceUri,
             String publicId, String systemId, String baseUri);
 
+    /**
+     * Defines the actions that a CatalogResolver may take when it is unable to
+     * resolve an external reference. The actions are mapped to the string values
+     * of the {@link CatalogFeatures.Feature#RESOLVE RESOLVE} property.
+     *
+     * @since 22
+     */
+    public static enum NotFoundAction {
+        /**
+         * Indicates that the processing should continue as defined by the
+         * {@link CatalogFeatures.Feature#RESOLVE RESOLVE} property.
+         */
+        CONTINUE {
+            @Override
+            public String toString() { return "continue"; }
+        },
+        /**
+         * Indicates that the reference is skipped as defined by the
+         * {@link CatalogFeatures.Feature#RESOLVE RESOLVE} property.
+         */
+        IGNORE {
+            @Override
+            public String toString() { return "ignore"; }
+        },
+        /**
+         * Indicates that the resolver should throw a CatalogException as defined
+         * by the {@link CatalogFeatures.Feature#RESOLVE RESOLVE} property.
+         */
+        STRICT {
+            @Override
+            public String toString() { return "strict"; }
+        };
+
+        /**
+         * Returns the action type mapped to the specified
+         * {@link CatalogFeatures.Feature#RESOLVE resolve} property.
+         *
+         * @param resolve the value of the RESOLVE property
+         * @return the action type
+         */
+        static public NotFoundAction getType(String resolve) {
+            for (NotFoundAction type : NotFoundAction.values()) {
+                if (type.toString().equals(resolve)) {
+                    return type;
+                }
+            }
+            CatalogMessages.reportIAE(CatalogMessages.ERR_INVALID_ARGUMENT,
+                    new Object[]{resolve, "RESOLVE"}, null);
+            return null;
+        }
+    }
 }

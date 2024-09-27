@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -102,41 +102,23 @@ public class RMIConnectorServer extends JMXConnectorServer {
         "jmx.remote.rmi.server.socket.factory";
 
     /**
-     * Name of the attribute that specifies a list of class names acceptable
-     * as parameters to the {@link RMIServer#newClient(java.lang.Object) RMIServer.newClient()}
+     * Name of the attribute that specifies an
+     * {@link ObjectInputFilter} pattern string to filter classes acceptable
+     * for {@link RMIServer#newClient(java.lang.Object) RMIServer.newClient()}
      * remote method call.
      * <p>
-     * This list of classes should correspond to the transitive closure of the
-     * credentials class (or classes) used by the installed {@linkplain JMXAuthenticator}
-     * associated with the {@linkplain RMIServer} implementation.
+     * The filter pattern must be in same format as used in
+     * {@link java.io.ObjectInputFilter.Config#createFilter}
      * <p>
-     * If the attribute is not set, or is null, then any class is
-     * deemed acceptable.
+     * This list of classes allowed by filter should correspond to the
+     * transitive closure of the credentials class (or classes) used by the
+     * installed {@linkplain JMXAuthenticator} associated with the
+     * {@linkplain RMIServer} implementation.
+     * If the attribute is not set then any class is deemed acceptable.
+     * @see ObjectInputFilter
      *
-     * @deprecated Use {@link #CREDENTIALS_FILTER_PATTERN} with a
-     * {@linkplain java.io.ObjectInputFilter.Config#createFilter
-     * filter pattern} string instead.
+     * @since 10
      */
-    @Deprecated(since="10", forRemoval=true)
-    public static final String CREDENTIAL_TYPES =
-            "jmx.remote.rmi.server.credential.types";
-
-    /**
-    * Name of the attribute that specifies an
-    * {@link ObjectInputFilter} pattern string to filter classes acceptable
-    * for {@link RMIServer#newClient(java.lang.Object) RMIServer.newClient()}
-    * remote method call.
-    * <p>
-    * The filter pattern must be in same format as used in
-    * {@link java.io.ObjectInputFilter.Config#createFilter}
-    * <p>
-    * This list of classes allowed by filter should correspond to the
-    * transitive closure of the credentials class (or classes) used by the
-    * installed {@linkplain JMXAuthenticator} associated with the
-    * {@linkplain RMIServer} implementation.
-    * If the attribute is not set then any class is deemed acceptable.
-    * @see ObjectInputFilter
-    */
     public static final String CREDENTIALS_FILTER_PATTERN =
         "jmx.remote.rmi.server.credentials.filter.pattern";
 
@@ -152,7 +134,7 @@ public class RMIConnectorServer extends JMXConnectorServer {
      * the serial form of any deserialized object.
      * The pattern must be in same format as used in
      * {@link java.io.ObjectInputFilter.Config#createFilter}.
-     * It may define a white list of permitted classes, a black list of
+     * It may define an allow-list of permitted classes, a reject-list of
      * rejected classes, a maximum depth for the deserialized objects,
      * etc.
      * <p>
@@ -169,9 +151,11 @@ public class RMIConnectorServer extends JMXConnectorServer {
      * classes they use in their serial form.
      * <p>
      * Care must be taken when defining such a filter, as defining
-     * a white list too restrictive or a too wide a black list may
+     * an allow-list that is too narrow or a reject-list that is too wide may
      * prevent legitimate clients from interoperating with the
      * {@code JMXConnectorServer}.
+     *
+     * @since 10
      */
     public static final String SERIAL_FILTER_PATTERN =
        "jmx.remote.rmi.server.serial.filter.pattern";
@@ -289,7 +273,7 @@ public class RMIConnectorServer extends JMXConnectorServer {
                 throw new MalformedURLException(msg);
             }
             final String urlPath = url.getURLPath();
-            if (!urlPath.equals("")
+            if (!urlPath.isEmpty()
                 && !urlPath.equals("/")
                 && !urlPath.startsWith("/jndi/")) {
                 final String msg = "URL path must be empty or start with " +
@@ -440,8 +424,7 @@ public class RMIConnectorServer extends JMXConnectorServer {
                 try {
                     mbsf = new MBeanServerFileAccessController(accessFile);
                 } catch (IOException e) {
-                    throw EnvHelp.initCause(
-                        new IllegalArgumentException(e.getMessage()), e);
+                    throw new IllegalArgumentException(e.getMessage(), e);
                 }
                 // Set the MBeanServerForwarder
                 //
@@ -454,9 +437,7 @@ public class RMIConnectorServer extends JMXConnectorServer {
             defaultClassLoader = EnvHelp.resolveServerClassLoader(
                     attributes, getMBeanServer());
         } catch (InstanceNotFoundException infc) {
-            IllegalArgumentException x = new
-                IllegalArgumentException("ClassLoader not found: "+infc);
-            throw EnvHelp.initCause(x,infc);
+            throw new IllegalArgumentException("ClassLoader not found: " + infc, infc);
         }
 
         if (tracing) logger.trace("start", "setting RMIServer object");
@@ -746,7 +727,7 @@ public class RMIConnectorServer extends JMXConnectorServer {
             port = 0;
         } else {
             protocol = address.getProtocol();
-            host = (address.getHost().equals("")) ? null : address.getHost();
+            host = (address.getHost().isEmpty()) ? null : address.getHost();
             port = address.getPort();
         }
 
@@ -851,8 +832,7 @@ public class RMIConnectorServer extends JMXConnectorServer {
      */
     private static IOException newIOException(String message,
                                               Throwable cause) {
-        final IOException x = new IOException(message);
-        return EnvHelp.initCause(x,cause);
+        return new IOException(message, cause);
     }
 
 
@@ -875,6 +855,6 @@ public class RMIConnectorServer extends JMXConnectorServer {
     private static final int STOPPED = 2;
 
     private int state = CREATED;
-    private final static Set<RMIConnectorServer> openedServers =
+    private static final Set<RMIConnectorServer> openedServers =
             new HashSet<RMIConnectorServer>();
 }

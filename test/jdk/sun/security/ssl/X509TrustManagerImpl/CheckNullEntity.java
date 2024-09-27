@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@
  * @summary unspecified exceptions in X509TrustManager.checkClient[Server]Truste
 d
  * @author Xuelei Fan
- * @modules java.base/com.sun.net.ssl.internal.ssl
  */
 
 import java.io.*;
@@ -36,8 +35,6 @@ import javax.net.ssl.*;
 import java.security.cert.X509Certificate;
 import java.security.*;
 import java.util.Enumeration;
-
-import com.sun.net.ssl.internal.ssl.X509ExtendedTrustManager;
 
 public class CheckNullEntity {
 
@@ -68,8 +65,7 @@ public class CheckNullEntity {
                 "/" + trustStoreFile;
         char[] passphrase = "passphrase".toCharArray();
 
-        KeyStore ks = KeyStore.getInstance("JKS");
-        ks.load(new FileInputStream(trustFilename), passphrase);
+        KeyStore ks = KeyStore.getInstance(new File(trustFilename), passphrase);
 
         for (Enumeration e = ks.aliases() ; e.hasMoreElements() ;) {
             String alias = (String)e.nextElement();
@@ -157,7 +153,7 @@ public class CheckNullEntity {
             if (trustManager instanceof X509ExtendedTrustManager) {
                 try {
                     ((X509ExtendedTrustManager)trustManager).checkClientTrusted(
-                        certChain, (String)null, "localhost", null);
+                        certChain, (String)null, (Socket)null);
                 } catch (IllegalArgumentException iae) {
                     // get the right exception
                     extFailed >>= 1;
@@ -165,7 +161,7 @@ public class CheckNullEntity {
 
                 try {
                     ((X509ExtendedTrustManager)trustManager).checkServerTrusted(
-                        certChain, (String)null, "localhost", null);
+                        certChain, (String)null, (Socket)null);
                 } catch (IllegalArgumentException iae) {
                     // get the right exception
                     extFailed >>= 1;
@@ -173,7 +169,7 @@ public class CheckNullEntity {
 
                 try {
                     ((X509ExtendedTrustManager)trustManager).checkClientTrusted(
-                        certChain, "", "localhost", null);
+                        certChain, "", (Socket)null);
                 } catch (IllegalArgumentException iae) {
                     // get the right exception
                     extFailed >>= 1;
@@ -181,7 +177,7 @@ public class CheckNullEntity {
 
                 try {
                     ((X509ExtendedTrustManager)trustManager).checkServerTrusted(
-                        certChain, "", "localhost", null);
+                        certChain, "", (Socket)null);
                 } catch (IllegalArgumentException iae) {
                     // get the right exception
                     extFailed >>= 1;
@@ -189,7 +185,7 @@ public class CheckNullEntity {
 
                 try {
                     ((X509ExtendedTrustManager)trustManager).checkClientTrusted(
-                        null, authType, "localhost", null);
+                        null, authType, (Socket)null);
                 } catch (IllegalArgumentException iae) {
                     // get the right exception
                     extFailed >>= 1;
@@ -197,7 +193,7 @@ public class CheckNullEntity {
 
                 try {
                     ((X509ExtendedTrustManager)trustManager).checkServerTrusted(
-                        null, authType, "localhost", null);
+                        null, authType, (Socket)null);
                 } catch (IllegalArgumentException iae) {
                     // get the right exception
                     extFailed >>= 1;

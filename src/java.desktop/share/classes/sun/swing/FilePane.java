@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,31 +22,107 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package sun.swing;
 
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.ComponentOrientation;
+import java.awt.Container;
+import java.awt.Cursor;
+import java.awt.DefaultKeyboardFocusManager;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Insets;
+import java.awt.KeyboardFocusManager;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.io.*;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.text.DateFormat;
 import java.text.MessageFormat;
-import java.util.*;
+import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Callable;
 
 import javax.accessibility.AccessibleContext;
-import javax.swing.*;
-import javax.swing.border.*;
-import javax.swing.event.*;
-import javax.swing.filechooser.*;
-import javax.swing.plaf.basic.*;
-import javax.swing.table.*;
-import javax.swing.text.*;
+import javax.swing.AbstractAction;
+import javax.swing.AbstractListModel;
+import javax.swing.Action;
+import javax.swing.ActionMap;
+import javax.swing.ButtonGroup;
+import javax.swing.DefaultCellEditor;
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.DefaultListSelectionModel;
+import javax.swing.Icon;
+import javax.swing.InputMap;
+import javax.swing.JComponent;
+import javax.swing.JFileChooser;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JMenu;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.ListModel;
+import javax.swing.ListSelectionModel;
+import javax.swing.LookAndFeel;
+import javax.swing.RowSorter;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.TransferHandler;
+import javax.swing.UIManager;
+import javax.swing.border.Border;
+import javax.swing.event.ListDataEvent;
+import javax.swing.event.ListDataListener;
+import javax.swing.event.ListSelectionListener;
+import javax.swing.event.RowSorterEvent;
+import javax.swing.event.RowSorterListener;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
+import javax.swing.filechooser.FileSystemView;
+import javax.swing.plaf.basic.BasicDirectoryModel;
+import javax.swing.table.AbstractTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableColumnModel;
+import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
+import javax.swing.table.TableModel;
+import javax.swing.table.TableRowSorter;
+import javax.swing.text.Position;
 
 import sun.awt.AWTAccessor;
 import sun.awt.AWTAccessor.MouseEventAccessor;
-import sun.awt.shell.*;
+import sun.awt.shell.ShellFolder;
+import sun.awt.shell.ShellFolderColumnInfo;
 
 /**
  * <b>WARNING:</b> This class is an implementation detail and is only
@@ -54,8 +130,8 @@ import sun.awt.shell.*;
  * this public API.
  * <p>
  * This component is intended to be used in a subclass of
- * javax.swing.plaf.basic.BasicFileChooserUI. It realies heavily on the
- * implementation of BasicFileChooserUI, and is intended to be API compatible
+ * javax.swing.plaf.basic.BasicFileChooserUI. It relies heavily on the
+ * implementation of BasicFileChooserUI and is intended to be API compatible
  * with earlier implementations of MetalFileChooserUI and WindowsFileChooserUI.
  *
  * @author Leif Samuelsson
@@ -694,8 +770,8 @@ public class FilePane extends JPanel implements PropertyChangeListener {
 
     @SuppressWarnings("serial") // JDK-implementation class
     class DetailsTableModel extends AbstractTableModel implements ListDataListener {
-        JFileChooser chooser;
-        BasicDirectoryModel directoryModel;
+        private final JFileChooser chooser;
+        private final BasicDirectoryModel directoryModel;
 
         ShellFolderColumnInfo[] columns;
         int[] columnMap;
@@ -806,7 +882,7 @@ public class FilePane extends JPanel implements PropertyChangeListener {
                             JOptionPane.showMessageDialog(chooser, MessageFormat.format(renameErrorFileExistsText,
                                     oldFileName), renameErrorTitleText, JOptionPane.ERROR_MESSAGE);
                         } else {
-                            if (FilePane.this.getModel().renameFile(f, f2)) {
+                            if (directoryModel.renameFile(f, f2)) {
                                 if (fsv.isParent(chooser.getCurrentDirectory(), f2)) {
                                     // The setSelectedFile method produces a new setValueAt invocation while the JTable
                                     // is editing. Postpone file selection to be sure that edit mode of the JTable
@@ -849,7 +925,7 @@ public class FilePane extends JPanel implements PropertyChangeListener {
             int i0 = e.getIndex0();
             int i1 = e.getIndex1();
             if (i0 == i1) {
-                File file = (File)getModel().getElementAt(i0);
+                File file = (File)directoryModel.getElementAt(i0);
                 if (file.equals(newFolderFile)) {
                     new DelayedSelectionUpdater(file);
                     newFolderFile = null;
@@ -1046,13 +1122,17 @@ public class FilePane extends JPanel implements PropertyChangeListener {
 
     @SuppressWarnings("serial") // JDK-implementation class
     class DetailsTableCellRenderer extends DefaultTableCellRenderer {
-        JFileChooser chooser;
-        DateFormat df;
+        private final JFileChooser chooser;
+        private final DateFormat df;
+        private final MessageFormat mf = new MessageFormat("");
+        private final NumberFormat nf = NumberFormat.getNumberInstance();
+        private static final double baseFileSize = 1000.0;
 
         DetailsTableCellRenderer(JFileChooser chooser) {
             this.chooser = chooser;
             df = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT,
                                                 chooser.getLocale());
+            nf.setMinimumFractionDigits(1);
         }
 
         public void setBounds(int x, int y, int width, int height) {
@@ -1114,21 +1194,38 @@ public class FilePane extends JPanel implements PropertyChangeListener {
                 Icon icon = chooser.getIcon(file);
                 setIcon(icon);
 
-            } else if (value instanceof Long) {
-                long len = ((Long) value) / 1024L;
+            } else if (value instanceof final Long len) {
+                /*
+                 * This code block is relevant to Linux.
+                 * File size is displayed up to 1 decimal precision.
+                 * Base-10 number system is used for formatting file size
+                 * similar to how it's formatted in file managers on Linux.
+                 * Empty file size is shown as 0.0 KB,
+                 * 1-100-byte files are shown as 0.1 KB,
+                 * 101-200-byte files are shown as 0.2 KB and so on.
+                 */
+                Object[] displayedFileSize = new Object[1];
+
                 if (listViewWindowsStyle) {
-                    text = MessageFormat.format(kiloByteString, len + 1);
-                } else if (len < 1024L) {
-                    text = MessageFormat.format(kiloByteString, (len == 0L) ? 1L : len);
+                    updateMessageFormatPattern(kiloByteString);
+                    displayedFileSize[0] = roundToOneDecimalPlace(len);
                 } else {
-                    len /= 1024L;
-                    if (len < 1024L) {
-                        text = MessageFormat.format(megaByteString, len);
+                    double kbVal = roundToOneDecimalPlace(len);
+                    if (kbVal < baseFileSize) {
+                        updateMessageFormatPattern(kiloByteString);
+                        displayedFileSize[0] = kbVal;
                     } else {
-                        len /= 1024L;
-                        text = MessageFormat.format(gigaByteString, len);
+                        double mbVal = roundToOneDecimalPlace(Math.ceil(kbVal));
+                        if (mbVal < baseFileSize) {
+                            updateMessageFormatPattern(megaByteString);
+                            displayedFileSize[0] = mbVal;
+                        } else {
+                            updateMessageFormatPattern(gigaByteString);
+                            displayedFileSize[0] = roundToOneDecimalPlace(Math.ceil(mbVal));
+                        }
                     }
                 }
+                text = mf.format(displayedFileSize);
 
             } else if (value instanceof Date) {
                 text = df.format((Date)value);
@@ -1140,6 +1237,23 @@ public class FilePane extends JPanel implements PropertyChangeListener {
             setText(text);
 
             return this;
+        }
+
+        private void updateMessageFormatPattern(String pattern) {
+            mf.applyPattern(pattern);
+            mf.setFormat(0, nf);
+        }
+
+        /**
+         * Rounds a value to one decimal place. It's used to format
+         * file size similar to how it's formatted in file managers on Linux.
+         * For example, the file size of 1200 bytes is rounded to 1.2 KB.
+         *
+         * @param fileSize the file size to round to one decimal place
+         * @return file size rounded to one decimal place
+         */
+        private static double roundToOneDecimalPlace(double fileSize) {
+            return Math.ceil(fileSize / 100.0d) / 10.0d;
         }
     }
 
@@ -1203,13 +1317,6 @@ public class FilePane extends JPanel implements PropertyChangeListener {
             detailsTable.addFocusListener(repaintListener);
         }
 
-        // TAB/SHIFT-TAB should transfer focus and ENTER should select an item.
-        // We don't want them to navigate within the table
-        ActionMap am = SwingUtilities.getUIActionMap(detailsTable);
-        am.remove("selectNextRowCell");
-        am.remove("selectPreviousRowCell");
-        am.remove("selectNextColumnCell");
-        am.remove("selectPreviousColumnCell");
         detailsTable.setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS,
                      null);
         detailsTable.setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS,
@@ -1676,11 +1783,12 @@ public class FilePane extends JPanel implements PropertyChangeListener {
     }
 
     private void doMultiSelectionChanged(PropertyChangeEvent e) {
+        clearSelection();
         if (getFileChooser().isMultiSelectionEnabled()) {
             listSelectionModel.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+            getFileChooser().setSelectedFile(null);
         } else {
             listSelectionModel.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-            clearSelection();
             getFileChooser().setSelectedFiles(null);
         }
     }
@@ -1817,6 +1925,8 @@ public class FilePane extends JPanel implements PropertyChangeListener {
         if (viewMenu != null) {
             viewMenu.getPopupMenu().setInvoker(viewMenu);
         }
+
+        contextMenu.applyComponentOrientation(getFileChooser().getComponentOrientation());
         return contextMenu;
     }
 
@@ -1836,6 +1946,10 @@ public class FilePane extends JPanel implements PropertyChangeListener {
         @SuppressWarnings("deprecation")
         public void mouseClicked(MouseEvent evt) {
             JComponent source = (JComponent)evt.getSource();
+
+            if (!source.isEnabled()) {
+                return;
+            }
 
             int index;
             if (source instanceof JList) {

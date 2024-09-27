@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,7 +21,7 @@
  * questions.
  */
 
-/**
+/*
  * @test
  * @bug 8175346 8175277
  * @summary Test release option interactions
@@ -58,7 +58,7 @@ public class ReleaseOptions extends ModuleTestBase {
         Task.Result result = execNegativeTask("--release", "8",
                 "--patch-module", "m=" + mpath.toString(),
                 "p");
-        assertMessagePresent(".*not allowed with target 1.8.*");
+        assertMessagePresent(".*not allowed with target 8.*");
         assertMessageNotPresent(".*Exception*");
         assertMessageNotPresent(".java.lang.AssertionError.*");
     }
@@ -92,7 +92,7 @@ public class ReleaseOptions extends ModuleTestBase {
         Task.Result result = execNegativeTask("--release", "8",
                 "--module-source-path", src.toString(),
                 "--module", "m");
-        assertMessagePresent(".*not allowed with target 1.8.*");
+        assertMessagePresent(".*not allowed with target 8.*");
         assertMessageNotPresent(".*Exception*");
         assertMessageNotPresent(".java.lang.AssertionError.*");
     }

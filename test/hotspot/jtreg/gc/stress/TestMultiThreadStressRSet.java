@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,16 +21,19 @@
  * questions.
  */
 
+package gc.stress;
+
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
+import jdk.test.lib.Utils;
 
 /*
  * @test TestMultiThreadStressRSet.java
- * @key stress
+ * @key stress randomness
  * @requires vm.gc.G1
  * @requires os.maxMemory > 2G
  * @requires vm.opt.MaxGCPauseMillis == "null"
@@ -38,24 +41,22 @@ import sun.hotspot.WhiteBox;
  * @summary Stress G1 Remembered Set using multiple threads
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                              sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *   -XX:+UseG1GC -XX:G1SummarizeRSetStatsPeriod=1 -Xlog:gc
- *   -Xmx500m -XX:G1HeapRegionSize=1m -XX:MaxGCPauseMillis=1000 TestMultiThreadStressRSet 10 4
+ *   -Xmx500m -XX:G1HeapRegionSize=1m -XX:MaxGCPauseMillis=1000 gc.stress.TestMultiThreadStressRSet 10 4
  *
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *   -XX:+UseG1GC -XX:G1SummarizeRSetStatsPeriod=100 -Xlog:gc
- *   -Xmx1G -XX:G1HeapRegionSize=8m -XX:MaxGCPauseMillis=1000 TestMultiThreadStressRSet 60 16
+ *   -Xmx1G -XX:G1HeapRegionSize=8m -XX:MaxGCPauseMillis=1000 gc.stress.TestMultiThreadStressRSet 60 16
  *
  * @run main/othervm/timeout=700 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *   -XX:+UseG1GC -XX:G1SummarizeRSetStatsPeriod=100 -Xlog:gc
- *   -Xmx500m -XX:G1HeapRegionSize=1m -XX:MaxGCPauseMillis=1000 TestMultiThreadStressRSet 600 32
+ *   -Xmx500m -XX:G1HeapRegionSize=1m -XX:MaxGCPauseMillis=1000 gc.stress.TestMultiThreadStressRSet 600 32
  */
 public class TestMultiThreadStressRSet {
 
-    private static final Random RND = new Random(2015 * 2016);
     private static final WhiteBox WB = WhiteBox.getWhiteBox();
     private static final int REF_SIZE = WB.getHeapOopSize();
     private static final int REGION_SIZE = WB.g1RegionSize();
@@ -110,7 +111,7 @@ public class TestMultiThreadStressRSet {
         }
         long time = Long.parseLong(args[0]);
         int threads = Integer.parseInt(args[1]);
-        new TestMultiThreadStressRSet().test(time * 1000, threads);
+        new TestMultiThreadStressRSet().test(time * 1_000_000_000L, threads);
     }
 
     /**
@@ -146,23 +147,23 @@ public class TestMultiThreadStressRSet {
      * <li> stops the Shifter thread
      * </ul>
      *
-     * @param timeInMillis how long to stress
+     * @param timeInNanos how long to stress
      * @param maxThreads the maximum number of Worker thread working together.
      */
-    public void test(long timeInMillis, int maxThreads) {
-        if (timeInMillis <= 0 || maxThreads <= 0) {
+    public void test(long timeInNanos, int maxThreads) {
+        if (timeInNanos <= 0 || maxThreads <= 0) {
             throw new IllegalArgumentException("TEST BUG: be positive!");
         }
-        System.out.println("%% Time to work: " + timeInMillis / 1000 + "s");
+        System.out.println("%% Time to work: " + timeInNanos / 1_000_000_000L + "s");
         System.out.println("%% Number of threads: " + maxThreads);
-        long finish = System.currentTimeMillis() + timeInMillis;
+        long finishNanos = System.nanoTime() + timeInNanos;
         Shifter shift = new Shifter(this, 1000, (int) (windowSize * 0.9));
         shift.start();
         for (int i = 0; i < maxThreads; i++) {
             new Worker(this, 100).start();
         }
         try {
-            while (System.currentTimeMillis() < finish && errorMessage == null) {
+            while (System.nanoTime() - finishNanos < 0 && errorMessage == null) {
                 Thread.sleep(100);
             }
         } catch (Throwable t) {
@@ -212,8 +213,8 @@ public class TestMultiThreadStressRSet {
      *
      * @return a random element from the current window within the storage.
      */
-    private Object getRandomObject() {
-        int index = (windowStart + RND.nextInt(windowSize)) % N;
+    private Object getRandomObject(Random rnd) {
+        int index = (windowStart + rnd.nextInt(windowSize)) % N;
         return STORAGE.get(index);
     }
 
@@ -231,7 +232,7 @@ public class TestMultiThreadStressRSet {
      * Thread to create a number of references from BUFFER to STORAGE.
      */
     private static class Worker extends Thread {
-
+        final Random rnd;
         final TestMultiThreadStressRSet boss;
         final int refs; // number of refs to OldGen
 
@@ -242,6 +243,7 @@ public class TestMultiThreadStressRSet {
         Worker(TestMultiThreadStressRSet boss, int refsToOldGen) {
             this.boss = boss;
             this.refs = refsToOldGen;
+            this.rnd = new Random(Utils.getRandomInstance().nextLong());
         }
 
         @Override
@@ -251,7 +253,7 @@ public class TestMultiThreadStressRSet {
                     Object[] objs = boss.getFromBuffer();
                     int step = objs.length / refs;
                     for (int i = 0; i < refs; i += step) {
-                        objs[i] = boss.getRandomObject();
+                        objs[i] = boss.getRandomObject(rnd);
                     }
                     boss.counter++;
                 }
@@ -268,6 +270,9 @@ public class TestMultiThreadStressRSet {
      */
     private static class Shifter extends Thread {
 
+        // Only one thread at a time can be controlling concurrent GC.
+        static final Object concGCMonitor = new Object();
+        static Shifter concGCController = null;
         final TestMultiThreadStressRSet boss;
         final int sleepTime;
         final int shift;
@@ -290,9 +295,28 @@ public class TestMultiThreadStressRSet {
                             objs[j] = null;
                         }
                     }
-                    if (!WB.g1InConcurrentMark()) {
+                    // If no currently controlling thread and no concurrent GC
+                    // in progress, then claim control.
+                    synchronized (concGCMonitor) {
+                        if ((concGCController == null) && !WB.g1InConcurrentMark()) {
+                            concGCController = this;
+                        }
+                    }
+                    if (concGCController == this) {
+                        // If we've claimed control then take control, start a
+                        // concurrent GC, and release control and the claim,
+                        // letting the GC run to completion while we continue
+                        // doing work.
                         System.out.println("%% start CMC");
-                        WB.g1StartConcMarkCycle();
+                        WB.concurrentGCAcquireControl();
+                        try {
+                            WB.concurrentGCRunTo(WB.AFTER_MARKING_STARTED, false);
+                        } finally {
+                            WB.concurrentGCReleaseControl();
+                            synchronized (concGCMonitor) {
+                                concGCController = null;
+                            }
+                        }
                     } else {
                         System.out.println("%% CMC is already in progress");
                     }
@@ -304,4 +328,3 @@ public class TestMultiThreadStressRSet {
         }
     }
 }
-

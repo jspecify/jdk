@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_CONSTANTTAG_HPP
-#define SHARE_VM_UTILITIES_CONSTANTTAG_HPP
+#ifndef SHARE_UTILITIES_CONSTANTTAG_HPP
+#define SHARE_UTILITIES_CONSTANTTAG_HPP
 
-#include "jvm.h"
 #include "utilities/globalDefinitions.hpp"
 
-// constant tags in Java .class files
 
+class outputStream;
+
+// constant tags in Java .class files
 
 enum {
   // See jvm.h for shared JVM_CONSTANT_XXX tags
@@ -85,6 +86,13 @@ class constantTag {
     return _tag == JVM_CONSTANT_DynamicInError;
   }
 
+  bool is_in_error() const {
+    return is_unresolved_klass_in_error() ||
+           is_method_handle_in_error()    ||
+           is_method_type_in_error()      ||
+           is_dynamic_constant_in_error();
+  }
+
   bool is_klass_index() const       { return _tag == JVM_CONSTANT_ClassIndex; }
   bool is_string_index() const      { return _tag == JVM_CONSTANT_StringIndex; }
 
@@ -97,6 +105,12 @@ class constantTag {
   bool is_method_handle() const     { return _tag == JVM_CONSTANT_MethodHandle; }
   bool is_dynamic_constant() const  { return _tag == JVM_CONSTANT_Dynamic; }
   bool is_invoke_dynamic() const    { return _tag == JVM_CONSTANT_InvokeDynamic; }
+
+  bool has_bootstrap() const {
+    return (_tag == JVM_CONSTANT_Dynamic ||
+            _tag == JVM_CONSTANT_DynamicInError ||
+            _tag == JVM_CONSTANT_InvokeDynamic);
+  }
 
   bool is_loadable_constant() const {
     return ((_tag >= JVM_CONSTANT_Integer && _tag <= JVM_CONSTANT_String) ||
@@ -114,18 +128,24 @@ class constantTag {
     _tag = tag;
   }
 
-  static constantTag ofBasicType(BasicType bt) {
-    if (is_subword_type(bt))  bt = T_INT;
-    switch (bt) {
-      case T_OBJECT: return constantTag(JVM_CONSTANT_String);
-      case T_INT:    return constantTag(JVM_CONSTANT_Integer);
-      case T_LONG:   return constantTag(JVM_CONSTANT_Long);
-      case T_FLOAT:  return constantTag(JVM_CONSTANT_Float);
-      case T_DOUBLE: return constantTag(JVM_CONSTANT_Double);
-      default:       break;
+  static jbyte type2tag(BasicType bt) {
+    if (is_subword_type(bt)) {
+      bt = T_INT;
     }
-    assert(false, "bad basic type for tag");
-    return constantTag();
+    if (bt == T_ARRAY) {
+      bt = T_OBJECT;
+    }
+    switch (bt) {
+      case T_INT:    return JVM_CONSTANT_Integer;
+      case T_LONG:   return JVM_CONSTANT_Long;
+      case T_FLOAT:  return JVM_CONSTANT_Float;
+      case T_DOUBLE: return JVM_CONSTANT_Double;
+      case T_OBJECT: return JVM_CONSTANT_String;
+
+      default:
+        assert(false, "not supported: %s", type2name(bt));
+        return JVM_CONSTANT_Invalid;
+    }
   }
 
   jbyte value() const                { return _tag; }
@@ -139,4 +159,4 @@ class constantTag {
   void print_on(outputStream* st) const PRODUCT_RETURN;
 };
 
-#endif // SHARE_VM_UTILITIES_CONSTANTTAG_HPP
+#endif // SHARE_UTILITIES_CONSTANTTAG_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,6 +53,12 @@ public class SynthProgressBarUI extends BasicProgressBarUI
     private int glowWidth; // Glow around the bar foreground
 
     /**
+     *
+     * Constructs a {@code SynthProgressBarUI}.
+     */
+    public SynthProgressBarUI() {}
+
+    /**
      * Creates a new UI object for the given component.
      *
      * @param x component to create UI object for
@@ -102,7 +108,7 @@ public class SynthProgressBarUI extends BasicProgressBarUI
                 "ProgressBar.rotateText", false);
         tileWhenIndeterminate = style.getBoolean(context, "ProgressBar.tileWhenIndeterminate", false);
         tileWidth = style.getInt(context, "ProgressBar.tileWidth", 15);
-        // handle scaling for sizeVarients for special case components. The
+        // handle scaling for sizeVariants for special case components. The
         // key "JComponent.sizeVariant" scales for large/small/mini
         // components are based on Apples LAF
         String scaleKey = (String)progressBar.getClientProperty(
@@ -209,9 +215,12 @@ public class SynthProgressBarUI extends BasicProgressBarUI
         SynthContext context = getContext(c);
 
         SynthLookAndFeel.update(context, g);
-        context.getPainter().paintProgressBarBackground(context,
-                          g, 0, 0, c.getWidth(), c.getHeight(),
-                          progressBar.getOrientation());
+
+        if (((JProgressBar) c).isBorderPainted()) {
+            context.getPainter().paintProgressBarBackground(context,
+                    g, 0, 0, c.getWidth(), c.getHeight(),
+                    progressBar.getOrientation());
+        }
         paint(context, g);
     }
 
@@ -450,7 +459,7 @@ public class SynthProgressBarUI extends BasicProgressBarUI
             }
         }
 
-        // handle scaling for sizeVarients for special case components. The
+        // handle scaling for sizeVariants for special case components. The
         // key "JComponent.sizeVariant" scales for large/small/mini
         // components are based on Apples LAF
         String scaleKey = (String)progressBar.getClientProperty(

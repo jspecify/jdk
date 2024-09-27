@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -137,7 +137,7 @@ AwtChoice* AwtChoice::Create(jobject peer, jobject parent) {
 
             /*
              * In OWNER_DRAW, the size of the edit control part of the
-             * choice must be determinded in its creation, when the parent
+             * choice must be determined in its creation, when the parent
              * cannot get the choice's instance from its handle.  So
              * record the pair of the ID and the instance of the choice.
              */
@@ -177,8 +177,8 @@ AwtChoice* AwtChoice::Create(jobject peer, jobject parent) {
              * Fix: Set the Choice to its actual size in the component.
              */
             ::GetClientRect(c->GetHWnd(), &rc);
-            env->SetIntField(target, AwtComponent::widthID,  (jint) rc.right);
-            env->SetIntField(target, AwtComponent::heightID, (jint) rc.bottom);
+            env->SetIntField(target, AwtComponent::widthID, c->ScaleDownX(rc.right));
+            env->SetIntField(target, AwtComponent::heightID, c->ScaleDownY(rc.bottom));
 
             if (IS_WINXP) {
                 ::SendMessage(c->GetHWnd(), CB_SETMINVISIBLE, (WPARAM) MINIMUM_NUMBER_OF_VISIBLE_ITEMS, 0);
@@ -228,13 +228,11 @@ int AwtChoice::GetTotalHeight()
 {
     int dropHeight = GetDropDownHeight();
     int fieldHeight = GetFieldHeight();
-    int totalHeight;
 
     // border on drop-down portion is always non-3d (so don't use SM_CYEDGE)
-    int borderHeight = ::GetSystemMetrics(SM_CYBORDER);
+    int borderHeight = ScaleDownY(::GetSystemMetrics(SM_CYBORDER));
     // total height = drop down height + field height + top+bottom drop down border lines
-    totalHeight = dropHeight + fieldHeight +borderHeight*2;
-    return totalHeight;
+    return dropHeight + fieldHeight + borderHeight * 2;
 }
 
 // Recalculate and set the drop-down height for the Choice.
@@ -244,7 +242,7 @@ void AwtChoice::ResetDropDownHeight()
 
     ::GetWindowRect(GetHWnd(), &rcWindow);
     // resize the drop down to accommodate added/removed items
-    int     totalHeight = GetTotalHeight();
+    int totalHeight = ScaleUpY(GetTotalHeight());
     ::SetWindowPos(GetHWnd(), NULL,
                     0, 0, rcWindow.right - rcWindow.left, totalHeight,
                     SWP_NOACTIVATE|SWP_NOMOVE|SWP_NOZORDER);
@@ -305,11 +303,11 @@ void AwtChoice::Reshape(int x, int y, int w, int h)
     BOOL bReshape = true;
     if (awtParent != NULL) {
         ::GetWindowRect(GetHWnd(), &rc);
-        int oldW = rc.right - rc.left;
+        int oldW = ScaleDownX(rc.right - rc.left);
         RECT parentRc;
         ::GetWindowRect(awtParent->GetHWnd(), &parentRc);
-        int oldX = rc.left - parentRc.left;
-        int oldY = rc.top - parentRc.top;
+        int oldX = ScaleDownX(rc.left - parentRc.left);
+        int oldY = ScaleDownY(rc.top - parentRc.top);
         bReshape = (x != oldX || y != oldY || w != oldW);
     }
 
@@ -513,7 +511,7 @@ MsgRouting AwtChoice::HandleEvent(MSG *msg, BOOL synthetic)
         return mrConsume;
     }
     // To simulate the native behavior, we close the list on WM_LBUTTONUP if
-    // WM_MOUSEMOVE has been dedected on the list since it has been dropped down.
+    // WM_MOUSEMOVE has been detected on the list since it has been dropped down.
     if (msg->message == WM_LBUTTONUP && SendMessage(CB_GETDROPPEDSTATE, 0, 0) &&
         sm_isMouseMoveInList)
     {

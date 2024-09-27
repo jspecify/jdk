@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,156 +25,222 @@
 
 package jdk.jfr.internal;
 
-import static jdk.jfr.internal.LogLevel.DEBUG;
-import static jdk.jfr.internal.LogTag.JFR_SYSTEM;
-
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import jdk.jfr.AnnotationElement;
 import jdk.jfr.Event;
 import jdk.jfr.EventType;
+import jdk.jfr.Name;
 import jdk.jfr.Period;
-import jdk.jfr.StackTrace;
-import jdk.jfr.Threshold;
 import jdk.jfr.ValueDescriptor;
-import jdk.jfr.internal.RequestEngine.RequestHook;
-import jdk.jfr.internal.handlers.EventHandler;
+import jdk.jfr.internal.consumer.RepositoryFiles;
+import jdk.jfr.internal.event.EventConfiguration;
+import jdk.jfr.internal.management.HiddenWait;
+import jdk.jfr.internal.periodic.PeriodicEvents;
+import jdk.jfr.internal.util.Utils;
 
 public final class MetadataRepository {
 
-    private static final JVM jvm = JVM.getJVM();
-    private static final MetadataRepository instace = new MetadataRepository();
+    private static final MetadataRepository instance = new MetadataRepository();
 
-    private final List<EventType> nativeEventTypes = new ArrayList<>(100);
-    private final List<EventControl> nativeControls = new ArrayList<EventControl>(100);
-    private final TypeLibrary typeLibrary = TypeLibrary.getInstance();
+    private final Map<String, EventType> nativeEventTypes = LinkedHashMap.newHashMap(150);
+    private final Map<String, EventControl> nativeControls = LinkedHashMap.newHashMap(150);
     private final SettingsManager settingsManager = new SettingsManager();
+    private final HiddenWait threadSleeper = new HiddenWait();
+    private Constructor<EventConfiguration> cachedEventConfigurationConstructor;
     private boolean staleMetadata = true;
     private boolean unregistered;
     private long lastUnloaded = -1;
+
+    private long lastMillis;
 
     public MetadataRepository() {
         initializeJVMEventTypes();
     }
 
     private void initializeJVMEventTypes() {
-        List<RequestHook> requestHooks = new ArrayList<>();
-        for (Type type : typeLibrary.getTypes()) {
-            if (type instanceof PlatformEventType) {
-                PlatformEventType pEventType = (PlatformEventType) type;
+        TypeLibrary.initialize();
+        for (Type type : TypeLibrary.getTypes()) {
+            if (type instanceof PlatformEventType pEventType) {
                 EventType eventType = PrivateAccess.getInstance().newEventType(pEventType);
-                pEventType.setHasDuration(eventType.getAnnotation(Threshold.class) != null);
-                pEventType.setHasStackTrace(eventType.getAnnotation(StackTrace.class) != null);
-                pEventType.setHasCutoff(eventType.getAnnotation(Cutoff.class) != null);
-                pEventType.setHasPeriod(eventType.getAnnotation(Period.class) != null);
+                pEventType.setHasCutoff(type.hasAnnotation(Cutoff.class));
+                pEventType.setHasThrottle(type.hasAnnotation(Throttle.class));
+                pEventType.setHasLevel(type.hasAnnotation(Level.class));
+                pEventType.setHasPeriod(type.hasAnnotation(Period.class));
                 // Must add hook before EventControl is created as it removes
                 // annotations, such as Period and Threshold.
                 if (pEventType.hasPeriod()) {
                     pEventType.setEventHook(true);
-                    if (!(Type.EVENT_NAME_PREFIX + "ExecutionSample").equals(type.getName())) {
-                        requestHooks.add(new RequestHook(pEventType));
+                    if (!pEventType.isMethodSampling()) {
+                        PeriodicEvents.addJVMEvent(pEventType);
                     }
                 }
-                nativeControls.add(new EventControl(pEventType));
-                nativeEventTypes.add(eventType);
+                String name = eventType.getName();
+                nativeControls.put(name, new EventControl(pEventType));
+                nativeEventTypes.put(name,eventType);
             }
         }
-        RequestEngine.addHooks(requestHooks);
     }
 
     public static MetadataRepository getInstance() {
-        return instace;
+        return instance;
     }
 
     public synchronized List<EventType> getRegisteredEventTypes() {
-        List<EventHandler> handlers = getEventHandlers();
-        List<EventType> eventTypes = new ArrayList<>(handlers.size() + nativeEventTypes.size());
-        for (EventHandler h : handlers) {
-            if (h.isRegistered()) {
-                eventTypes.add(h.getEventType());
+        List<EventConfiguration> configurations = getEventConfigurations();
+        List<EventType> eventTypes = new ArrayList<>(configurations.size() + nativeEventTypes.size());
+        for (EventConfiguration ec : configurations) {
+            if (ec.isRegistered()) {
+                eventTypes.add(ec.getEventType());
             }
         }
-        eventTypes.addAll(nativeEventTypes);
+        for (EventType t : nativeEventTypes.values()) {
+            if (PrivateAccess.getInstance().isVisible(t)) {
+                eventTypes.add(t);
+            }
+        }
         return eventTypes;
     }
 
-    public synchronized EventType getEventType(Class<? extends Event> eventClass) {
-        EventHandler h = getHandler(eventClass);
-        if (h != null && h.isRegistered()) {
-            return h.getEventType();
+    public synchronized EventType getEventType(Class<? extends jdk.internal.event.Event> eventClass) {
+        EventConfiguration ec = getConfiguration(eventClass, false);
+        if (ec != null && ec.isRegistered()) {
+            return ec.getEventType();
         }
         throw new IllegalStateException("Event class " + eventClass.getName() + " is not registered");
     }
 
     public synchronized void unregister(Class<? extends Event> eventClass) {
-        Utils.checkRegisterPermission();
-        EventHandler handler = getHandler(eventClass);
-        if (handler != null) {
-            handler.setRegistered(false);
+        SecuritySupport.checkRegisterPermission();
+        EventConfiguration configuration = getConfiguration(eventClass, false);
+        if (configuration != null) {
+            configuration.getPlatformEventType().setRegistered(false);
         }
         // never registered, ignore call
     }
-    public synchronized EventType register(Class<? extends Event> eventClass) {
+    public synchronized EventType register(Class<? extends jdk.internal.event.Event> eventClass) {
         return register(eventClass, Collections.emptyList(), Collections.emptyList());
     }
 
-    public synchronized EventType register(Class<? extends Event> eventClass, List<AnnotationElement> dynamicAnnotations, List<ValueDescriptor> dynamicFields) {
-        Utils.checkRegisterPermission();
-        EventHandler handler = getHandler(eventClass);
-        if (handler == null) {
-            handler = makeHandler(eventClass, dynamicAnnotations, dynamicFields);
+    public synchronized EventType register(Class<? extends jdk.internal.event.Event> eventClass, List<AnnotationElement> dynamicAnnotations, List<ValueDescriptor> dynamicFields) {
+        SecuritySupport.checkRegisterPermission();
+        if (JVM.isExcluded(eventClass)) {
+            // Event classes are marked as excluded during class load
+            // if they override methods in the jdk.jfr.Event class, i.e. commit().
+            // An excluded class lacks a configuration field and can't be used by JFR.
+            // The Event::commit() is marked as final, so javac won't
+            // compile an override, but it can be constructed by other means.
+            throw new IllegalArgumentException("Must not override methods declared in jdk.jfr.Event");
         }
-        handler.setRegistered(true);
-        typeLibrary.addType(handler.getPlatformEventType());
-        if (jvm.isRecording()) {
-            storeDescriptorInJVM(); // needed for emergency dump
-            settingsManager.setEventControl(handler.getEventControl());
+        EventConfiguration configuration = getConfiguration(eventClass, true);
+        if (configuration == null) {
+            PlatformEventType pe = findMirrorType(eventClass);
+            configuration = makeConfiguration(eventClass, pe, dynamicAnnotations, dynamicFields);
+        }
+        configuration.getPlatformEventType().setRegistered(true);
+        TypeLibrary.addType(configuration.getPlatformEventType());
+        if (JVM.isRecording()) {
+            settingsManager.setEventControl(configuration.getEventControl(), true, JVM.counterTime());
             settingsManager.updateRetransform(Collections.singletonList((eventClass)));
-        } else {
-            setStaleMetadata();
-        }
-        return handler.getEventType();
+       }
+       setStaleMetadata();
+       return configuration.getEventType();
     }
 
-    private EventHandler getHandler(Class<? extends Event> eventClass) {
+    private PlatformEventType findMirrorType(Class<? extends jdk.internal.event.Event> eventClass) throws InternalError {
+        Class<? extends MirrorEvent> mirrorClass = MirrorEvents.find(eventClass);
+        if (mirrorClass == null) {
+            return null; // not a mirror
+        }
+        Utils.verifyMirror(mirrorClass, eventClass);
+        PlatformEventType et = (PlatformEventType) TypeLibrary.createType(mirrorClass);
+        TypeLibrary.removeType(et.getId());
+        long id = Type.getTypeId(eventClass);
+        et.setId(id);
+        return et;
+    }
+
+    private EventConfiguration getConfiguration(Class<? extends jdk.internal.event.Event> eventClass, boolean ensureInitialized) {
         Utils.ensureValidEventSubclass(eventClass);
         SecuritySupport.makeVisibleToJFR(eventClass);
-        Utils.ensureInitialized(eventClass);
-        return Utils.getHandler(eventClass);
+        if (ensureInitialized) {
+            Utils.ensureInitialized(eventClass);
+        }
+        return JVMSupport.getConfiguration(eventClass);
     }
 
-    private EventHandler makeHandler(Class<? extends Event> eventClass, List<AnnotationElement> dynamicAnnotations, List<ValueDescriptor> dynamicFields) throws InternalError {
-        SecuritySupport.addHandlerExport(eventClass);
-        PlatformEventType pEventType = (PlatformEventType) TypeLibrary.createType(eventClass, dynamicAnnotations, dynamicFields);
+    private EventConfiguration newEventConfiguration(EventType eventType, EventControl ec) {
+        try {
+            if (cachedEventConfigurationConstructor == null) {
+                var argClasses = new Class<?>[] { EventType.class, EventControl.class};
+                Constructor<EventConfiguration> c = EventConfiguration.class.getDeclaredConstructor(argClasses);
+                SecuritySupport.setAccessible(c);
+                cachedEventConfigurationConstructor = c;
+            }
+            return cachedEventConfigurationConstructor.newInstance(eventType, ec);
+        } catch (NoSuchMethodException | SecurityException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+            throw new InternalError(e);
+        }
+    }
+
+    private EventConfiguration makeConfiguration(Class<? extends jdk.internal.event.Event> eventClass, PlatformEventType pEventType, List<AnnotationElement> dynamicAnnotations, List<ValueDescriptor> dynamicFields) throws InternalError {
+        SecuritySupport.addInternalEventExport(eventClass);
+        if (pEventType == null) {
+            pEventType = (PlatformEventType) TypeLibrary.createType(eventClass, dynamicAnnotations, dynamicFields);
+        }
+        // Check for native mirror.
+        // Note, defining an event in metadata.xml is not a generic mechanism to emit
+        // native data in Java. For example, calling JVM.getStackTraceId(int, long)
+        // and assign the result to a long field is not enough to always get a proper
+        // stack trace. Purpose of the mechanism is to transfer metadata, such as
+        // native type IDs, without specialized Java logic for each type.
+        if (Utils.isJDKClass(eventClass)) {
+            Name name = eventClass.getAnnotation(Name.class);
+            if (name != null) {
+                String n = name.value();
+                EventType nativeType = nativeEventTypes.get(n);
+                if (nativeType != null) {
+                    var nativeFields = nativeType.getFields();
+                    var eventFields = pEventType.getFields();
+                    var comparator = Comparator.comparing(ValueDescriptor::getName);
+                    if (!Utils.compareLists(nativeFields, eventFields, comparator)) {
+                        throw new InternalError("Field for native mirror event " + n + " doesn't match Java event");
+                    }
+                    nativeEventTypes.remove(n);
+                    nativeControls.remove(n);
+                    TypeLibrary.removeType(nativeType.getId());
+                    pEventType.setAnnotations(nativeType.getAnnotationElements());
+                    pEventType.setFields(nativeType.getFields());
+                }
+            }
+        }
         EventType eventType = PrivateAccess.getInstance().newEventType(pEventType);
         EventControl ec = new EventControl(pEventType, eventClass);
-        Class<? extends EventHandler> handlerClass = null;
-        try {
-            String eventHandlerName = EventHandlerCreator.makeEventHandlerName(eventType.getId());
-            handlerClass = Class.forName(eventHandlerName, false, Event.class.getClassLoader()).asSubclass(EventHandler.class);
-            // Created eagerly on class load, tag as instrumented
-            pEventType.setInstrumented();
-            Logger.log(JFR_SYSTEM, DEBUG, "Found existing event handler for " + eventType.getName());
-       } catch (ClassNotFoundException cne) {
-           EventHandlerCreator ehc = new EventHandlerCreator(eventType.getId(),  ec.getSettingInfos(), eventType, eventClass);
-           handlerClass = ehc.makeEventHandlerClass();
-           Logger.log(LogTag.JFR_SYSTEM, DEBUG, "Created event handler for " + eventType.getName());
-       }
-        EventHandler handler = EventHandlerCreator.instantiateEventHandler(handlerClass, true, eventType, ec);
-        Utils.setHandler(eventClass, handler);
-        return handler;
+        EventConfiguration configuration = newEventConfiguration(eventType, ec);
+        PlatformEventType pe = configuration.getPlatformEventType();
+        pe.setRegistered(true);
+        // If class is instrumented or should not be instrumented, mark as instrumented.
+        if (JVM.isInstrumented(eventClass) || !JVMSupport.shouldInstrument(pe.isJDK(), pe.getName())) {
+            pe.setInstrumented();
+        }
+        JVMSupport.setConfiguration(eventClass, configuration);
+        return configuration;
     }
 
-
-    public synchronized void setSettings(List<Map<String, String>> list) {
-        settingsManager.setSettings(list);
+    public synchronized void setSettings(List<Map<String, String>> list, boolean writeSettingEvents) {
+        settingsManager.setSettings(list, writeSettingEvents);
     }
 
     synchronized void disableEvents() {
@@ -184,36 +250,46 @@ public final class MetadataRepository {
     }
 
     public synchronized List<EventControl> getEventControls() {
-        List<EventControl> controls = new ArrayList<>();
-        controls.addAll(nativeControls);
-        for (EventHandler eh : getEventHandlers()) {
-            controls.add(eh.getEventControl());
+        List<Class<? extends jdk.internal.event.Event>> eventClasses = JVM.getAllEventClasses();
+        ArrayList<EventControl> controls = new ArrayList<>(eventClasses.size() + nativeControls.size());
+        controls.addAll(nativeControls.values());
+        for (Class<? extends jdk.internal.event.Event> clazz : eventClasses) {
+            EventConfiguration eh = JVMSupport.getConfiguration(clazz);
+            if (eh != null) {
+                controls.add(eh.getEventControl());
+            }
         }
         return controls;
     }
 
     private void storeDescriptorInJVM() throws InternalError {
-        jvm.storeMetadataDescriptor(getBinaryRepresentation());
+        JVM.storeMetadataDescriptor(getBinaryRepresentation());
         staleMetadata = false;
     }
 
-    private static List<EventHandler> getEventHandlers() {
-        List<Class<? extends Event>> allEventClasses = jvm.getAllEventClasses();
-        List<EventHandler> eventHandlers = new ArrayList<>(allEventClasses.size());
-        for (Class<? extends Event> clazz : allEventClasses) {
-            EventHandler eh = Utils.getHandler(clazz);
-            if (eh != null) {
-                eventHandlers.add(eh);
+    private static List<EventConfiguration> getEventConfigurations() {
+        List<Class<? extends jdk.internal.event.Event>> allEventClasses = JVM.getAllEventClasses();
+        List<EventConfiguration> eventConfigurations = new ArrayList<>(allEventClasses.size());
+        for (Class<? extends jdk.internal.event.Event> clazz : allEventClasses) {
+            EventConfiguration ec = JVMSupport.getConfiguration(clazz);
+            if (ec != null) {
+                eventConfigurations.add(ec);
             }
         }
-        return eventHandlers;
+        return eventConfigurations;
     }
 
     private byte[] getBinaryRepresentation() {
         ByteArrayOutputStream baos = new ByteArrayOutputStream(40000);
         DataOutputStream daos = new DataOutputStream(baos);
         try {
-            List<Type> types = typeLibrary.getTypes();
+            List<Type> types = TypeLibrary.getVisibleTypes();
+            if (Logger.shouldLog(LogTag.JFR_METADATA, LogLevel.DEBUG)) {
+                Collections.sort(types,Comparator.comparing(Type::getName));
+                for (Type t: types) {
+                    Logger.log(LogTag.JFR_METADATA, LogLevel.INFO, "Serialized type: " + t.getName() + " id=" + t.getId());
+                }
+            }
             Collections.sort(types);
             MetadataDescriptor.write(types, daos);
             daos.flush();
@@ -232,37 +308,62 @@ public final class MetadataRepository {
         staleMetadata = true;
     }
 
-    // Lock around setOutput ensures that other threads dosn't
-    // emit event after setOutput and unregister the event class, before a call
+    // Lock around setOutput ensures that other threads don't
+    // emit events after setOutput and unregister the event class, before a call
     // to storeDescriptorInJVM
-    synchronized void setOutput(String filename) {
-        jvm.setOutput(filename);
-
-        unregisterUnloaded();
-        if (unregistered) {
-            staleMetadata = typeLibrary.clearUnregistered();
-            unregistered = false;
-        }
+    synchronized Instant setOutput(String filename) {
         if (staleMetadata) {
             storeDescriptorInJVM();
+        }
+        // Each chunk needs a unique timestamp. If two chunks get the same
+        // timestamp, the parser may stop prematurely at an earlier chunk.
+        // The resolution needs to be measured in milliseconds as this
+        // is what RecordingInfo:getStopTime() returns.
+        awaitEpochMilliShift();
+        JVM.setOutput(filename);
+        long chunkStart = JVMSupport.getChunkStartNanos();
+        if (filename != null) {
+            RepositoryFiles.notifyNewFile();
+        }
+        unregisterUnloaded();
+        if (unregistered) {
+            if (TypeLibrary.clearUnregistered()) {
+                storeDescriptorInJVM();
+            }
+            unregistered = false;
+        }
+        return Utils.epochNanosToInstant(chunkStart);
+    }
+
+    private void awaitEpochMilliShift() {
+        while (true) {
+            long nanos = JVM.nanosNow();
+            long millis = Utils.epochNanosToInstant(nanos).toEpochMilli();
+            if (millis != lastMillis) {
+                lastMillis = millis;
+                return;
+            }
+            threadSleeper.takeNap(1);
         }
     }
 
     private void unregisterUnloaded() {
-        long unloaded = jvm.getUnloadedEventClassCount();
+        long unloaded = JVM.getUnloadedEventClassCount();
         if (this.lastUnloaded != unloaded) {
             this.lastUnloaded = unloaded;
-            List<Class<? extends Event>> eventClasses = jvm.getAllEventClasses();
+            List<Class<? extends jdk.internal.event.Event>> eventClasses = JVM.getAllEventClasses();
             HashSet<Long> knownIds = new HashSet<>(eventClasses.size());
-            for (Class<? extends Event>  ec: eventClasses) {
+            for (Class<? extends jdk.internal.event.Event>  ec: eventClasses) {
                 knownIds.add(Type.getTypeId(ec));
             }
-            for (Type type : typeLibrary.getTypes()) {
-                if (type instanceof PlatformEventType) {
-                    if (!knownIds.contains(type.getId())) {
-                        PlatformEventType pe = (PlatformEventType) type;
+            for (Type type : TypeLibrary.getTypes()) {
+                if (type instanceof PlatformEventType pe) {
+                    if (!knownIds.contains(pe.getId())) {
                         if (!pe.isJVM()) {
                             pe.setRegistered(false);
+                            if (pe.hasStackFilters()) {
+                                JVM.unregisterStackFilter(pe.getStackFilterId());
+                            }
                         }
                     }
                 }
@@ -270,8 +371,35 @@ public final class MetadataRepository {
         }
     }
 
-    synchronized public void setUnregistered() {
+    synchronized void setUnregistered() {
        unregistered = true;
     }
 
+    public synchronized void flush() {
+        if (staleMetadata) {
+            storeDescriptorInJVM();
+        }
+        JVM.flush();
+    }
+
+    static void unhideInternalTypes() {
+        for (Type t : TypeLibrary.getTypes()) {
+            if (t.isInternal()) {
+                t.setVisible(true);
+                Logger.log(LogTag.JFR_METADATA, LogLevel.DEBUG, "Unhiding internal type " + t.getName());
+            }
+        }
+        // Singleton should have been initialized here.
+        // It's not possible to call MetadataRepository().getInstance(),
+        // because it will deadlock with Java thread calling flush() or setOutput();
+        instance.storeDescriptorInJVM();
+    }
+
+    public synchronized List<Type> getVisibleTypes() {
+        return TypeLibrary.getVisibleTypes();
+    }
+
+    public synchronized long registerStackFilter(String[] typeArray, String[] methodArray) {
+        return JVM.registerStackFilter(typeArray, methodArray);
+    }
 }

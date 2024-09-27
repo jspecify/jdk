@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CIKLASS_HPP
-#define SHARE_VM_CI_CIKLASS_HPP
+#ifndef SHARE_CI_CIKLASS_HPP
+#define SHARE_CI_CIKLASS_HPP
 
 #include "ci/ciType.hpp"
 #include "oops/klass.hpp"
@@ -44,6 +44,7 @@ class ciKlass : public ciType {
   friend class ciMethod;
   friend class ciMethodData;
   friend class ciObjArrayKlass;
+  friend class ciSignature;
   friend class ciReceiverTypeData;
 
 private:
@@ -56,16 +57,16 @@ protected:
 
   Klass* get_Klass() const {
     Klass* k = (Klass*)_metadata;
-    assert(k != NULL, "illegal use of unloaded klass");
+    assert(k != nullptr, "illegal use of unloaded klass");
     return k;
   }
 
   // Certain subklasses have an associated class loader.
-  virtual oop loader()             { return NULL; }
-  virtual jobject loader_handle()  { return NULL; }
+  virtual oop loader()             { return nullptr; }
+  virtual jobject loader_handle()  { return nullptr; }
 
-  virtual oop protection_domain()             { return NULL; }
-  virtual jobject protection_domain_handle()  { return NULL; }
+  virtual oop protection_domain()             { return nullptr; }
+  virtual jobject protection_domain_handle()  { return nullptr; }
 
   const char* type_string() { return "ciKlass"; }
 
@@ -85,7 +86,6 @@ public:
   juint super_depth();
   juint super_check_offset();
   ciKlass* super_of_depth(juint i);
-  bool can_be_primary_super();
   static juint primary_super_limit() { return Klass::primary_super_limit(); }
 
   // Is this ciObject the ciInstanceKlass representing java.lang.Object()?
@@ -107,6 +107,13 @@ public:
     return false;
   }
 
+  bool is_in_encoding_range() {
+    Klass* k = get_Klass();
+    bool is_in_encoding_range = CompressedKlassPointers::is_encodable(k);
+    assert(is_in_encoding_range || k->is_interface() || k->is_abstract(), "sanity");
+    return is_in_encoding_range;
+  }
+
   // Attempt to get a klass using this ciKlass's loader.
   ciKlass* find_klass(ciSymbol* klass_name);
   // Note:  To find a class from its name string, use ciSymbol::make,
@@ -121,6 +128,9 @@ public:
   // Fetch Klass::access_flags.
   jint                   access_flags();
 
+  // Fetch Klass::misc_flags.
+  klass_flags_t          misc_flags();
+
   // What kind of ciObject is this?
   bool is_klass() const { return true; }
 
@@ -131,4 +141,4 @@ public:
   const char* external_name() const;
 };
 
-#endif // SHARE_VM_CI_CIKLASS_HPP
+#endif // SHARE_CI_CIKLASS_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2009, 2010 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_ZERO_VM_STUBROUTINES_ZERO_HPP
-#define CPU_ZERO_VM_STUBROUTINES_ZERO_HPP
+#ifndef CPU_ZERO_STUBROUTINES_ZERO_HPP
+#define CPU_ZERO_STUBROUTINES_ZERO_HPP
 
   // This file holds the platform specific parts of the StubRoutines
   // definition. See stubRoutines.hpp for a description on how to
@@ -40,12 +40,16 @@
   }
 
   enum platform_dependent_constants {
-    code_size1 = 0,      // The assembler will fail with a guarantee
-    code_size2 = 0       // if these are too small.  Simply increase
-  };                     // them if that happens.
+    // The assembler will fail with a guarantee if these are too small.
+    // Simply increase them if that happens.
+    _initial_stubs_code_size      = 0,
+    _continuation_stubs_code_size = 0,
+    _compiler_stubs_code_size     = 0,
+    _final_stubs_code_size        = 0
+  };
 
   enum method_handles_platform_dependent_constants {
     method_handles_adapters_code_size = 0
   };
 
-#endif // CPU_ZERO_VM_STUBROUTINES_ZERO_HPP
+#endif // CPU_ZERO_STUBROUTINES_ZERO_HPP

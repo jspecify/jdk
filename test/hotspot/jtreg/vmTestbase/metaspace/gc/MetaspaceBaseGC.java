@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -101,7 +101,6 @@ public abstract class MetaspaceBaseGC {
 
     protected void configure(String args[]) {
         vmArgs.addAll(ManagementFactory.getRuntimeMXBean().getInputArguments());
-        useLargepages = PAGE_SIZE > 1_000_000 && !vmArgs.contains("-XX:-UseLargePagesInMetaspace");
 
         System.out.println(vmArgs);
 
@@ -142,7 +141,7 @@ public abstract class MetaspaceBaseGC {
                 }
             } catch (java.net.MalformedURLException badThing) {
                 // should never occur
-                System.err.println("Unexpeted error: " + badThing);
+                System.err.println("Unexpected error: " + badThing);
                 throw new RuntimeException(badThing);
             }
         }

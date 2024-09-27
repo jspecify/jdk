@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,10 @@
 
 package javax.imageio.metadata;
 
+import java.io.Serial;
+
 import javax.imageio.IIOException;
+
 import org.w3c.dom.Node;
 
 /**
@@ -44,12 +47,18 @@ import org.w3c.dom.Node;
  *
  */
 public class IIOInvalidTreeException extends IIOException {
+
+    /**
+     * Use serialVersionUID from JDK 9 for interoperability.
+     */
+    @Serial
     private static final long serialVersionUID = -1314083172544132777L;
 
     /**
      * The {@code Node} that led to the parsing error, or
      * {@code null}.
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     protected Node offendingNode = null;
 
     /**

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
- Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -82,6 +82,9 @@
       </uiColor>
       <uiColor name="nimbusDisabledText">
          <matte red="142" green="143" blue="145" alpha="255" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0"/>
+      </uiColor>
+      <uiColor name="nimbusTabbedPaneContentArea">
+         <matte red="238" green="238" blue="238" alpha="255" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0"/>
       </uiColor>
       <uiColor name="nimbusLightBackground">
          <matte red="255" green="255" blue="255" alpha="255" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0"/>
@@ -15193,7 +15196,7 @@
             <maxHozCachedImgScaling>INF</maxHozCachedImgScaling>
             <maxVertCachedImgScaling>INF</maxVertCachedImgScaling>
             <uiproperties>
-               <uiProperty name="consumeEventOnClose" type="BOOLEAN" value="true"/>
+               <uiProperty name="consumeEventOnClose" type="BOOLEAN" value="false"/>
             </uiproperties>
          </style>
          <backgroundStates>
@@ -16238,7 +16241,7 @@
                <uiProperty name="tileWidth" type="INT" value="27"/>
                <uiProperty name="paintOutsideClip" type="BOOLEAN" value="true"/>
                <uiProperty name="rotateText" type="BOOLEAN" value="true"/>
-               <uiProperty name="vertictalSize" type="DIMENSION">
+               <uiProperty name="verticalSize" type="DIMENSION">
                   <dimension width="19" height="150"/>
                </uiProperty>
                <uiProperty name="horizontalSize" type="DIMENSION">
@@ -21646,6 +21649,11 @@
                <uiProperty name="tabOverlap" type="INT" value="-1"/>
                <uiProperty name="extendTabsToBase" type="BOOLEAN" value="true"/>
                <uiProperty name="useBasicArrows" type="BOOLEAN" value="true"/>
+               <uiProperty name="contentOpaque" type="BOOLEAN" value="true"/>
+               <uiProperty name="tabsOpaque" type="BOOLEAN" value="true"/>
+               <uiProperty name="contentAreaColor" type="COLOR">
+                  <matte red="238" green="238" blue="238" alpha="255" uiDefaultParentName="nimbusTabbedPaneContentArea" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0"/>
+               </uiProperty>
                <uiProperty name="shadow" type="COLOR">
                   <matte red="142" green="143" blue="145" alpha="255" uiDefaultParentName="nimbusDisabledText" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0"/>
                </uiProperty>
@@ -25751,7 +25759,7 @@
                      <visible>true</visible>
                      <shapes>
                         <rectangle x1="0.0" x2="100.0" y1="0.0" y2="30.0" rounding="0.0">
-                           <matte red="255" green="255" blue="255" alpha="255" uiDefaultParentName="nimbusLightBackground" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0"/>
+                           <matte red="255" green="255" blue="255" alpha="255" componentPropertyName="background" uiDefaultParentName="nimbusLightBackground" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0"/>
                            <paintPoints x1="0.25" y1="0.0" x2="0.2" y2="0.1"/>
                         </rectangle>
                      </shapes>
@@ -25857,7 +25865,7 @@
                      <visible>true</visible>
                      <shapes>
                         <rectangle x1="0.0" x2="100.0" y1="0.0" y2="30.0" rounding="0.0">
-                           <matte red="255" green="255" blue="255" alpha="255" uiDefaultParentName="nimbusLightBackground" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0"/>
+                           <matte red="255" green="255" blue="255" alpha="255" componentPropertyName="background" uiDefaultParentName="nimbusLightBackground" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0"/>
                            <paintPoints x1="0.25" y1="0.0" x2="0.2" y2="0.1"/>
                         </rectangle>
                      </shapes>
@@ -27248,7 +27256,7 @@
          <borderStates/>
          <regions/>
       </uiComponent>
-      <uiComponent opaque="false" type="javax.swing.JToolTip" name="ToolTip" ui="ToolTipUI" subregion="false">
+      <uiComponent opaque="true" type="javax.swing.JToolTip" name="ToolTip" ui="ToolTipUI" subregion="false">
          <stateTypes/>
          <contentMargins top="4" bottom="4" left="4" right="4"/>
          <style>
@@ -27352,10 +27360,10 @@
          <contentMargins top="0" bottom="0" left="0" right="0"/>
          <style>
             <textForeground>
-               <matte red="0" green="0" blue="0" alpha="0" uiDefaultParentName="text" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0" uiResource="false"/>
+               <matte red="0" green="0" blue="0" alpha="0" uiDefaultParentName="text" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0" uiResource="true"/>
             </textForeground>
             <textBackground>
-               <matte red="255" green="255" blue="255" alpha="255" uiDefaultParentName="nimbusLightBackground" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0" uiResource="false"/>
+               <matte red="255" green="255" blue="255" alpha="255" uiDefaultParentName="nimbusLightBackground" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0" uiResource="true"/>
             </textBackground>
             <background>
                <matte red="255" green="255" blue="255" alpha="255" uiDefaultParentName="nimbusLightBackground" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0"/>
@@ -27379,10 +27387,10 @@
                    <insets top="2" left="0" bottom="1" right="5"/>
                </uiProperty>
                <uiProperty name="selectionForeground" type="COLOR">
-                  <matte red="255" green="255" blue="255" alpha="255" uiDefaultParentName="nimbusSelectedText" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0" uiResource="false"/>
+                  <matte red="255" green="255" blue="255" alpha="255" uiDefaultParentName="nimbusSelectedText" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0" uiResource="true"/>
                </uiProperty>
                <uiProperty name="selectionBackground" type="COLOR">
-                  <matte red="57" green="105" blue="138" alpha="255" uiDefaultParentName="nimbusSelectionBackground" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0" uiResource="false"/>
+                  <matte red="57" green="105" blue="138" alpha="255" uiDefaultParentName="nimbusSelectionBackground" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0" uiResource="true"/>
                </uiProperty>
                <uiProperty name="dropLineColor" type="COLOR">
                   <matte red="242" green="242" blue="242" alpha="255" uiDefaultParentName="nimbusFocus" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0" alphaOffset="0"/>
@@ -27621,7 +27629,9 @@
                <stateTypes/>
                <contentMargins top="0" bottom="0" left="0" right="0"/>
                <style>
-                  <textForeground/>
+                  <textForeground>
+                    <matte red="255" green="255" blue="255" alpha="255" uiDefaultParentName="nimbusSelectedText" hueOffset="0.0" saturationOffset="0.0" brightnessOffset="0.0" alphaOffset="0" uiResource="true"/>
+                  </textForeground>
                   <textBackground/>
                   <background/>
                   <uiproperties/>

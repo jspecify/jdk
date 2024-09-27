@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -143,70 +143,13 @@ public abstract class SchemaFactory {
     }
 
     /**
-     * Lookup an implementation of the {@code SchemaFactory} that supports the specified
-     * schema language and return it.
+     * Obtains a new instance of a {@code SchemaFactory} that supports
+     * the specified schema language. This method uses the
+     * <a href="../../../module-summary.html#LookupMechanism">JAXP Lookup Mechanism</a>
+     * to determine and load the {@code SchemaFactory} implementation that supports
+     * the specified schema language.
      *
-     * <p>To find a {@code SchemaFactory} object for a given schema language,
-     * this method looks the following places in the following order
-     * where "the class loader" refers to the context class loader:
-     * <ol>
-     *  <li>
-     *     <p>
-     *     If the system property
-     *     {@code "javax.xml.validation.SchemaFactory:<i>schemaLanguage</i>"}
-     *     is present (where <i>schemaLanguage</i> is the parameter
-     *     to this method), then its value is read
-     *     as a class name. The method will try to
-     *     create a new instance of this class by using the class loader,
-     *     and returns it if it is successfully created.
-     *   </li>
-     *   <li>
-     *     <p>
-     *     Use the configuration file "jaxp.properties". The file is in standard
-     *     {@link java.util.Properties} format and typically located in the
-     *     conf directory of the Java installation. It contains the fully qualified
-     *     name of the implementation class with the key being the system property
-     *     defined above.
-     *     <p>
-     *     The jaxp.properties file is read only once by the JAXP implementation
-     *     and its values are then cached for future use.  If the file does not exist
-     *     when the first attempt is made to read from it, no further attempts are
-     *     made to check for its existence.  It is not possible to change the value
-     *     of any property in jaxp.properties after it has been read for the first time.
-     *   </li>
-     *   <li>
-     *   <p>
-     *   Use the service-provider loading facility, defined by the
-     *   {@link java.util.ServiceLoader} class, to attempt to locate and load an
-     *   implementation of the service using the {@linkplain
-     *   java.util.ServiceLoader#load(java.lang.Class) default loading mechanism}:
-     *   the service-provider loading facility will use the {@linkplain
-     *   java.lang.Thread#getContextClassLoader() current thread's context class loader}
-     *   to attempt to load the service. If the context class
-     *   loader is null, the {@linkplain
-     *   ClassLoader#getSystemClassLoader() system class loader} will be used.
-     *   <br>
-     *   Each potential service provider is required to implement the method
-     *        {@link #isSchemaLanguageSupported(String schemaLanguage)}.
-     *   <br>
-     *   The first service provider found that supports the specified schema
-     *   language is returned.
-     *   <br>
-     *   In case of {@link java.util.ServiceConfigurationError} a
-     *   {@link SchemaFactoryConfigurationError} will be thrown.
-     *   </li>
-     *   <li>
-     *     <p>
-     *     Platform default {@code SchemaFactory} is located
-     *     in an implementation specific way. There must be a
-     *     {@linkplain #newDefaultInstance() platform default}
-     *     {@code SchemaFactory} for W3C XML Schema.
-     *   </li>
-     * </ol>
-     *
-     * <p>If everything fails, {@link IllegalArgumentException} will be thrown.
-     *
-     * <p><strong>Tip for Trouble-shooting:</strong>
+     * <h4>Tip for Trouble-shooting:</h4>
      * <p>See {@link java.util.Properties#load(java.io.InputStream)} for
      * exactly how a property file is parsed. In particular, colons ':'
      * need to be escaped in a property file, so make sure schema language
@@ -259,7 +202,7 @@ public abstract class SchemaFactory {
      * It gives more control to the application as it can specify which provider
      * should be loaded.
      *
-     * <h2>Tip for Trouble-shooting</h2>
+     * <h4>Tip for Trouble-shooting</h4>
      * <p>Setting the {@code jaxp.debug} system property will cause
      * this method to print a lot of debug messages
      * to {@code System.err} about what it is doing and where it is looking at.
@@ -717,7 +660,7 @@ public abstract class SchemaFactory {
      * to abort the further processing by throwing it. If an error handler is not set,
      * the callee will throw the first error it finds in the sources.
      *
-     * <h2>W3C XML Schema 1.0</h2>
+     * <h4>W3C XML Schema 1.0</h4>
      * <p>
      * The resulting schema contains components from the specified sources.
      * The same result would be achieved if all these sources were
@@ -737,7 +680,7 @@ public abstract class SchemaFactory {
      * specified in the section 5.1 of the XML Schema spec, then
      * the error must be reported to the {@link ErrorHandler}.
      *
-     * <h2>RELAX NG</h2>
+     * <h4>RELAX NG</h4>
      *
      * <p>For RELAX NG, this method must throw {@link UnsupportedOperationException}
      * if {@code schemas.length!=1}.
@@ -797,7 +740,7 @@ public abstract class SchemaFactory {
      * make sure that features, such as secure processing, are explicitly
      * set in both places.
      *
-     * <h2>W3C XML Schema 1.0</h2>
+     * <h4>W3C XML Schema 1.0</h4>
      * <p>
      * For XML Schema, this method creates a {@link Schema} object that
      * performs validation by using location hints specified in documents.
@@ -815,7 +758,7 @@ public abstract class SchemaFactory {
      * vulnerability to denial-of-service attacks.
      *
      *
-     * <h2>RELAX NG</h2>
+     * <h4>RELAX NG</h4>
      * <p>
      * RELAX NG does not support this operation.
      *

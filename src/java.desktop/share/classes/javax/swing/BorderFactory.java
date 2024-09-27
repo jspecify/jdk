@@ -35,7 +35,7 @@ import javax.swing.border.*;
  * possible, this factory will hand out references to shared
  * <code>Border</code> instances.
  * For further information and examples see
- * <a href="http://docs.oracle.com/javase/tutorial/uiswing/components/border.html">How
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/border.html">How
  to Use Borders</a>,
  * a section in <em>The Java Tutorial</em>.
  *
@@ -332,7 +332,7 @@ public class BorderFactory
      * @param type      one of <code>EtchedBorder.RAISED</code>, or
      *                  <code>EtchedBorder.LOWERED</code>
      * @return the <code>Border</code> object
-     * @exception IllegalArgumentException if type is not either
+     * @throws IllegalArgumentException if type is not either
      *                  <code>EtchedBorder.RAISED</code> or
      *                  <code>EtchedBorder.LOWERED</code>
      * @since 1.3

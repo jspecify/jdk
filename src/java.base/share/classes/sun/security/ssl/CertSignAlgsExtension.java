@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,9 +56,10 @@ final class CertSignAlgsExtension {
     private static final
             class CertSignatureSchemesStringizer implements SSLStringizer {
         @Override
-        public String toString(ByteBuffer buffer) {
+        public String toString(HandshakeContext hc, ByteBuffer buffer) {
             try {
-                return (new SignatureSchemesSpec(buffer)).toString();
+                return (new SignatureSchemesSpec(hc, buffer))
+                        .toString();
             } catch (IOException ioe) {
                 // For debug logging only, so please swallow exceptions.
                 return ioe.getMessage();
@@ -99,6 +100,7 @@ final class CertSignAlgsExtension {
             if (chc.localSupportedSignAlgs == null) {
                 chc.localSupportedSignAlgs =
                     SignatureScheme.getSupportedAlgorithms(
+                            chc.sslConfig,
                             chc.algorithmConstraints, chc.activeProtocols);
             }
 
@@ -149,13 +151,7 @@ final class CertSignAlgsExtension {
             }
 
             // Parse the extension.
-            SignatureSchemesSpec spec;
-            try {
-                spec = new SignatureSchemesSpec(buffer);
-            } catch (IOException ioe) {
-                shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
-                return;     // fatal() always throws, make the compiler happy.
-            }
+            SignatureSchemesSpec spec = new SignatureSchemesSpec(shc, buffer);
 
             // Update the context.
             shc.handshakeExtensions.put(
@@ -193,6 +189,7 @@ final class CertSignAlgsExtension {
             // update the context
             List<SignatureScheme> schemes =
                     SignatureScheme.getSupportedAlgorithms(
+                            shc.sslConfig,
                             shc.algorithmConstraints, shc.negotiatedProtocol,
                             spec.signatureSchemes);
             shc.peerRequestedCertSignSchemes = schemes;
@@ -243,18 +240,17 @@ final class CertSignAlgsExtension {
             }
 
             // Produce the extension.
-            if (shc.localSupportedSignAlgs == null) {
-                shc.localSupportedSignAlgs =
+            List<SignatureScheme> sigAlgs =
                     SignatureScheme.getSupportedAlgorithms(
-                            shc.algorithmConstraints, shc.activeProtocols);
-            }
+                            shc.sslConfig,
+                            shc.algorithmConstraints,
+                            List.of(shc.negotiatedProtocol));
 
-            int vectorLen = SignatureScheme.sizeInRecord() *
-                    shc.localSupportedSignAlgs.size();
+            int vectorLen = SignatureScheme.sizeInRecord() * sigAlgs.size();
             byte[] extData = new byte[vectorLen + 2];
             ByteBuffer m = ByteBuffer.wrap(extData);
             Record.putInt16(m, vectorLen);
-            for (SignatureScheme ss : shc.localSupportedSignAlgs) {
+            for (SignatureScheme ss : sigAlgs) {
                 Record.putInt16(m, ss.id);
             }
 
@@ -295,13 +291,7 @@ final class CertSignAlgsExtension {
             }
 
             // Parse the extension.
-            SignatureSchemesSpec spec;
-            try {
-                spec = new SignatureSchemesSpec(buffer);
-            } catch (IOException ioe) {
-                chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
-                return;     // fatal() always throws, make the compiler happy.
-            }
+            SignatureSchemesSpec spec = new SignatureSchemesSpec(chc, buffer);
 
             // Update the context.
             chc.handshakeExtensions.put(
@@ -339,6 +329,7 @@ final class CertSignAlgsExtension {
             // update the context
             List<SignatureScheme> schemes =
                     SignatureScheme.getSupportedAlgorithms(
+                            chc.sslConfig,
                             chc.algorithmConstraints, chc.negotiatedProtocol,
                             spec.signatureSchemes);
             chc.peerRequestedCertSignSchemes = schemes;

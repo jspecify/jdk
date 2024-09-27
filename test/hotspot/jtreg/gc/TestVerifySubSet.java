@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,12 +21,18 @@
  * questions.
  */
 
+package gc;
+
 /* @test TestVerifySubSet.java
- * @key gc
  * @bug 8072725
  * @summary Test VerifySubSet option
+ * @comment Generational ZGC can't use the generic Universe::verify
+ *          because there's no guarantee that we will ever have
+ *          a stable snapshot where all roots can be verified.
+ * @requires vm.gc != "Z"
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
+ * @run main gc.TestVerifySubSet
  */
 
 import jdk.test.lib.process.ProcessTools;
@@ -35,7 +41,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import jdk.test.lib.Utils;
 
-class RunSystemGC {
+class TestVerifySubSetRunSystemGC {
     public static void main(String args[]) throws Exception {
         System.gc();
     }
@@ -44,7 +50,7 @@ class RunSystemGC {
 public class TestVerifySubSet {
 
     private static OutputAnalyzer runTest(String subset) throws Exception {
-        ArrayList<String> vmOpts = new ArrayList();
+        ArrayList<String> vmOpts = new ArrayList<>();
 
         Collections.addAll(vmOpts, Utils.getFilteredTestJavaOpts("-Xlog.*"));
         Collections.addAll(vmOpts, new String[] {"-XX:+UnlockDiagnosticVMOptions",
@@ -52,10 +58,8 @@ public class TestVerifySubSet {
                                                  "-XX:+VerifyAfterGC",
                                                  "-Xlog:gc+verify=debug",
                                                  "-XX:VerifySubSet="+subset,
-                                                 RunSystemGC.class.getName()});
-        ProcessBuilder pb =
-            ProcessTools.createJavaProcessBuilder(vmOpts.toArray(new String[vmOpts.size()]));
-        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+                                                 TestVerifySubSetRunSystemGC.class.getName()});
+        OutputAnalyzer output = ProcessTools.executeLimitedTestJava(vmOpts);
 
         System.out.println("Output:\n" + output.getOutput());
         return output;

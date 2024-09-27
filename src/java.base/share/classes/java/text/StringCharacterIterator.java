@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,13 +40,14 @@
 
 package java.text;
 
-import org.jspecify.annotations.Nullable;
+import java.util.Objects;
 
 /**
- * <code>StringCharacterIterator</code> implements the
- * <code>CharacterIterator</code> protocol for a <code>String</code>.
- * The <code>StringCharacterIterator</code> class iterates over the
- * entire <code>String</code>.
+ * {@code StringCharacterIterator} implements the
+ * {@code CharacterIterator} protocol for a {@code String}.
+ * The {@code StringCharacterIterator} class iterates over the
+ * entire {@code String}. All constructors throw {@code NullPointerException}
+ * if {@code text} is {@code null}.
  *
  * @see CharacterIterator
  * @since 1.1
@@ -65,8 +66,7 @@ public final class StringCharacterIterator implements CharacterIterator
      *
      * @param text the {@code String} to be iterated over
      */
-    public StringCharacterIterator(String text)
-    {
+    public StringCharacterIterator(String text) {
         this(text, 0);
     }
 
@@ -75,10 +75,11 @@ public final class StringCharacterIterator implements CharacterIterator
      *
      * @param  text   The String to be iterated over
      * @param  pos    Initial iterator position
+     * @throws IllegalArgumentException if {@code pos} is not within the bounds of
+     * range (inclusive) from {@code 0} to the length of {@code text}
      */
-    public StringCharacterIterator(String text, int pos)
-    {
-    this(text, 0, text.length(), pos);
+    public StringCharacterIterator(String text, int pos) {
+        this(text, 0, text.length(), pos);
     }
 
     /**
@@ -89,11 +90,13 @@ public final class StringCharacterIterator implements CharacterIterator
      * @param  begin  Index of the first character
      * @param  end    Index of the character following the last character
      * @param  pos    Initial iterator position
+     * @throws IllegalArgumentException if {@code begin} and {@code end} are not
+     * within the bounds of range (inclusive) from {@code 0} to the length of {@code text},
+     * {@code begin} is greater than {@code end}, or {@code pos} is not within
+     * the bounds of range (inclusive) from {@code begin} to {@code end}
      */
     public StringCharacterIterator(String text, int begin, int end, int pos) {
-        if (text == null)
-            throw new NullPointerException();
-        this.text = text;
+        this.text = Objects.requireNonNull(text, "text must not be null");
 
         if (begin < 0 || begin > end || end > text.length())
             throw new IllegalArgumentException("Invalid substring range");
@@ -113,12 +116,11 @@ public final class StringCharacterIterator implements CharacterIterator
      * is called.
      *
      * @param  text   The String to be iterated over
+     * @throws NullPointerException if {@code text} is {@code null}
      * @since 1.2
      */
     public void setText(String text) {
-        if (text == null)
-            throw new NullPointerException();
-        this.text = text;
+        this.text = Objects.requireNonNull(text, "text must not be null");
         this.begin = 0;
         this.end = text.length();
         this.pos = 0;
@@ -150,6 +152,9 @@ public final class StringCharacterIterator implements CharacterIterator
 
     /**
      * Implements CharacterIterator.setIndex() for String.
+     *
+     * @throws IllegalArgumentException if {@code p} is not within the bounds
+     * (inclusive) of {@link #getBeginIndex()} to {@link #getEndIndex()}
      * @see CharacterIterator#setIndex
      */
     public char setIndex(int p)
@@ -238,16 +243,12 @@ public final class StringCharacterIterator implements CharacterIterator
      * @return true if the given obj is the same as this
      * StringCharacterIterator object; false otherwise.
      */
-    
-    
-    public boolean equals(@Nullable Object obj)
+    public boolean equals(Object obj)
     {
         if (this == obj)
             return true;
-        if (!(obj instanceof StringCharacterIterator))
+        if (!(obj instanceof StringCharacterIterator that))
             return false;
-
-        StringCharacterIterator that = (StringCharacterIterator) obj;
 
         if (hashCode() != that.hashCode())
             return false;

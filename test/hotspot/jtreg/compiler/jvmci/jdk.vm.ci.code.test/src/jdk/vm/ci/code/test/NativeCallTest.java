@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,8 @@
 
 /**
  * @test
- * @requires vm.jvmci & (vm.simpleArch == "x64" | vm.simpleArch == "sparcv9")
+ * @requires vm.jvmci
+ * @requires vm.simpleArch == "x64" | vm.simpleArch == "aarch64" | vm.simpleArch == "riscv64"
  * @library /test/lib /
  * @modules jdk.internal.vm.ci/jdk.vm.ci.hotspot
  *          jdk.internal.vm.ci/jdk.vm.ci.code
@@ -31,9 +32,10 @@
  *          jdk.internal.vm.ci/jdk.vm.ci.meta
  *          jdk.internal.vm.ci/jdk.vm.ci.runtime
  *          jdk.internal.vm.ci/jdk.vm.ci.common
+ *          jdk.internal.vm.ci/jdk.vm.ci.aarch64
  *          jdk.internal.vm.ci/jdk.vm.ci.amd64
- *          jdk.internal.vm.ci/jdk.vm.ci.sparc
- * @compile CodeInstallationTest.java TestHotSpotVMConfig.java NativeCallTest.java TestAssembler.java sparc/SPARCTestAssembler.java amd64/AMD64TestAssembler.java
+ *          jdk.internal.vm.ci/jdk.vm.ci.riscv64
+ * @compile CodeInstallationTest.java TestHotSpotVMConfig.java NativeCallTest.java TestAssembler.java amd64/AMD64TestAssembler.java aarch64/AArch64TestAssembler.java riscv64/RISCV64TestAssembler.java
  * @run junit/othervm/native -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI  -Xbootclasspath/a:. jdk.vm.ci.code.test.NativeCallTest
  */
 package jdk.vm.ci.code.test;
@@ -77,7 +79,8 @@ public class NativeCallTest extends CodeInstallationTest {
     @Test
     public void testF32SDILDS() {
         int sCount = 32;
-        Object[] remainingArgs = new Object[]{ // Pairs of <Object>, <Class>
+        // Pairs of <Object>, <Class>
+        Object[] remainingArgs = new Object[]{
                         1.2345678F, float.class,
                         3.212434D, double.class,
                         43921652, int.class,
@@ -101,7 +104,8 @@ public class NativeCallTest extends CodeInstallationTest {
     @Test
     public void testI32SDILDS() {
         int sCount = 32;
-        Object[] remainingArgs = new Object[]{ // Pairs of <Object>, <Class>
+        // Pairs of <Object>, <Class>
+        Object[] remainingArgs = new Object[]{
                         1.2345678F, float.class,
                         3.212434D, double.class,
                         43921652, int.class,
@@ -122,6 +126,26 @@ public class NativeCallTest extends CodeInstallationTest {
         test("I32SDILDS", getI32SDILDS(), float.class, argClazz, argValues);
     }
 
+    @Test
+    public void testI32I() {
+        int sCount = 32;
+        // Pairs of <Object>, <Class>
+        Object[] remainingArgs = new Object[]{
+                        12, int.class
+        };
+        Class<?>[] argClazz = new Class[sCount + remainingArgs.length / 2];
+        Object[] argValues = new Object[sCount + remainingArgs.length / 2];
+        for (int i = 0; i < sCount; i++) {
+            argValues[i] = i;
+            argClazz[i] = int.class;
+        }
+        for (int i = 0; i < remainingArgs.length; i += 2) {
+            argValues[sCount + i / 2] = remainingArgs[i + 0];
+            argClazz[sCount + i / 2] = (Class<?>) remainingArgs[i + 1];
+        }
+        test("I32I", getI32I(), int.class, argClazz, argValues);
+    }
+
     public void test(String name, long addr, Class<?> returnClazz, Class<?>[] types, Object[] values) {
         try {
             test(asm -> {
@@ -135,13 +159,21 @@ public class NativeCallTest extends CodeInstallationTest {
                 asm.emitCallPrologue(cc, values);
                 asm.emitCall(addr);
                 asm.emitCallEpilogue(cc);
-                asm.emitFloatRet(((RegisterValue) cc.getReturn()).getRegister());
+                if (returnClazz == float.class) {
+                    asm.emitFloatRet(((RegisterValue) cc.getReturn()).getRegister());
+                } else if (returnClazz == int.class) {
+                    asm.emitIntRet(((RegisterValue) cc.getReturn()).getRegister());
+                } else {
+                    assert false : "Unimplemented return type: " + returnClazz;
+                }
             }, getMethod(name, types), values);
         } catch (Throwable e) {
             e.printStackTrace();
             throw e;
         }
     }
+
+    // Checkstyle: stop
 
     public static native long getFF();
 
@@ -187,6 +219,7 @@ public class NativeCallTest extends CodeInstallationTest {
                     double d18, double d19, double d1a, double d1b, double d1c, double d1d, double d1e, double d1f,
                     float a, double b, int c, long d, double e, float f);
 
+    @SuppressWarnings("unused")
     public static float D32SDILDS(double d00, double d01, double d02, double d03, double d04, double d05, double d06, double d07,
                     double d08, double d09, double d0a, double d0b, double d0c, double d0d, double d0e, double d0f,
                     double d10, double d11, double d12, double d13, double d14, double d15, double d16, double d17,
@@ -237,5 +270,25 @@ public class NativeCallTest extends CodeInstallationTest {
                         l10, l11, l12, l13, l14, l15, l16, l17,
                         l18, l19, l1a, l1b, l1c, l1d, l1e, l1f,
                         a, b, c, d, e, f);
+    }
+
+    public static native long getI32I();
+
+    public static native int _I32I(int i00, int i01, int i02, int i03, int i04, int i05, int i06, int i07,
+                    int i08, int i09, int i0a, int i0b, int i0c, int i0d, int i0e, int i0f,
+                    int i10, int i11, int i12, int i13, int i14, int i15, int i16, int i17,
+                    int i18, int i19, int i1a, int i1b, int i1c, int i1d, int i1e, int i1f,
+                    int a);
+
+    public static int I32I(int i00, int i01, int i02, int i03, int i04, int i05, int i06, int i07,
+                    int i08, int i09, int i0a, int i0b, int i0c, int i0d, int i0e, int i0f,
+                    int i10, int i11, int i12, int i13, int i14, int i15, int i16, int i17,
+                    int i18, int i19, int i1a, int i1b, int i1c, int i1d, int i1e, int i1f,
+                    int a) {
+        return _I32I(i00, i01, i02, i03, i04, i05, i06, i07,
+                    i08, i09, i0a, i0b, i0c, i0d, i0e, i0f,
+                    i10, i11, i12, i13, i14, i15, i16, i17,
+                    i18, i19, i1a, i1b, i1c, i1d, i1e, i1f,
+                    a);
     }
 }

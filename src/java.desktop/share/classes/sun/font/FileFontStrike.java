@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.concurrent.ConcurrentHashMap;
 import static sun.awt.SunHints.*;
+import sun.java2d.pipe.OutlineTextRenderer;
 
 
 public class FileFontStrike extends PhysicalStrike {
@@ -107,6 +108,7 @@ public class FileFontStrike extends PhysicalStrike {
     boolean useNatives;
     NativeStrike[] nativeStrikes;
 
+    static final int MAX_IMAGE_SIZE = OutlineTextRenderer.THRESHHOLD;
     /* Used only for communication to native layer */
     private int intPtSize;
 
@@ -151,23 +153,6 @@ public class FileFontStrike extends PhysicalStrike {
             }
         }
 
-        /* Amble fonts are better rendered unhinted although there's the
-         * inevitable fuzziness that accompanies this due to no longer
-         * snapping stems to the pixel grid. The exception is that in B&W
-         * mode they are worse without hinting. The down side to that is that
-         * B&W metrics will differ which normally isn't the case, although
-         * since AA mode is part of the measuring context that should be OK.
-         * We don't expect Amble to be installed in the Windows fonts folder.
-         * If we were to, then we'd also might want to disable using the
-         * native rasteriser path which is used for LCD mode for platform
-         * fonts. since we have no way to disable hinting by GDI.
-         * In the case of Amble, since its 'gasp' table says to disable
-         * hinting, I'd expect GDI to follow that, so likely it should
-         * all be consistent even if GDI used.
-         */
-        boolean disableHinting = desc.aaHint != INTVAL_TEXT_ANTIALIAS_OFF &&
-                                 fileFont.familyName.startsWith("Amble");
-
         /* If any of the values is NaN then substitute the null scaler context.
          * This will return null images, zero advance, and empty outlines
          * as no rendering need take place in this case.
@@ -181,7 +166,7 @@ public class FileFontStrike extends PhysicalStrike {
         } else {
             pScalerContext = fileFont.getScaler().createScalerContext(matrix,
                                     desc.aaHint, desc.fmHint,
-                                    boldness, italic, disableHinting);
+                                    boldness, italic);
         }
 
         mapper = fileFont.getMapper();
@@ -239,27 +224,8 @@ public class FileFontStrike extends PhysicalStrike {
             !((TrueTypeFont)fileFont).useEmbeddedBitmapsForSize(intPtSize)) {
             useNatives = true;
         }
-        else if (fileFont.checkUseNatives() && desc.aaHint==0 && !algoStyle) {
-            /* Check its a simple scale of a pt size in the range
-             * where native bitmaps typically exist (6-36 pts) */
-            if (matrix[1] == 0.0 && matrix[2] == 0.0 &&
-                matrix[0] >= 6.0 && matrix[0] <= 36.0 &&
-                matrix[0] == matrix[3]) {
-                useNatives = true;
-                int numNatives = fileFont.nativeFonts.length;
-                nativeStrikes = new NativeStrike[numNatives];
-                /* Maybe initialise these strikes lazily?. But we
-                 * know we need at least one
-                 */
-                for (int i=0; i<numNatives; i++) {
-                    nativeStrikes[i] =
-                        new NativeStrike(fileFont.nativeFonts[i], desc, false);
-                }
-            }
-        }
         if (FontUtilities.isLogging() && FontUtilities.isWindows) {
-            FontUtilities.getLogger().info
-                ("Strike for " + fileFont + " at size = " + intPtSize +
+            FontUtilities.logInfo("Strike for " + fileFont + " at size = " + intPtSize +
                  " use natives = " + useNatives +
                  " useJavaRasteriser = " + fileFont.useJavaRasterizer +
                  " AAHint = " + desc.aaHint +
@@ -328,7 +294,8 @@ public class FileFontStrike extends PhysicalStrike {
                                                   int style,
                                                   int size,
                                                   int glyphCode,
-                                                  boolean fracMetrics);
+                                                  boolean fracMetrics,
+                                                  int fontDataSize);
 
     long getGlyphImageFromWindows(int glyphCode) {
         String family = fileFont.getFamilyName(null);
@@ -337,7 +304,8 @@ public class FileFontStrike extends PhysicalStrike {
         int size = intPtSize;
         long ptr = _getGlyphImageFromWindows
             (family, style, size, glyphCode,
-             desc.fmHint == INTVAL_FRACTIONALMETRICS_ON);
+             desc.fmHint == INTVAL_FRACTIONALMETRICS_ON,
+             ((TrueTypeFont)fileFont).fontDataSize);
         if (ptr != 0) {
             /* Get the advance from the JDK rasterizer. This is mostly
              * necessary for the fractional metrics case, but there are
@@ -347,10 +315,14 @@ public class FileFontStrike extends PhysicalStrike {
              * work to the FM case.
              */
             float advance = getGlyphAdvance(glyphCode, false);
-            StrikeCache.unsafe.putFloat(ptr + StrikeCache.xAdvanceOffset,
-                                        advance);
+            StrikeCache.setGlyphXAdvance(ptr, advance);
             return ptr;
         } else {
+            if (FontUtilities.isLogging()) {
+                FontUtilities.logWarning("Failed to render glyph using GDI: code=" + glyphCode
+                                    + ", fontFamily=" + family + ", style=" + style
+                                    + ", size=" + size);
+            }
             return fileFont.getGlyphImage(pScalerContext, glyphCode);
         }
     }
@@ -383,14 +355,13 @@ public class FileFontStrike extends PhysicalStrike {
             if (useNatives) {
                 glyphPtr = getGlyphImageFromNative(glyphCode);
                 if (glyphPtr == 0L && FontUtilities.isLogging()) {
-                    FontUtilities.getLogger().info
-                        ("Strike for " + fileFont +
+                    FontUtilities.logInfo("Strike for " + fileFont +
                          " at size = " + intPtSize +
                          " couldn't get native glyph for code = " + glyphCode);
-                 }
-            } if (glyphPtr == 0L) {
-                glyphPtr = fileFont.getGlyphImage(pScalerContext,
-                                                  glyphCode);
+                }
+            }
+            if (glyphPtr == 0L) {
+                glyphPtr = fileFont.getGlyphImage(pScalerContext, glyphCode);
             }
             return setCachedGlyphPtr(glyphCode, glyphPtr);
         }
@@ -693,8 +664,7 @@ public class FileFontStrike extends PhysicalStrike {
                 glyphPtr = getCachedGlyphPtr(glyphCode);
             }
             if (glyphPtr != 0L) {
-                advance = StrikeCache.unsafe.getFloat
-                    (glyphPtr + StrikeCache.xAdvanceOffset);
+                advance = StrikeCache.getGlyphXAdvance(glyphPtr);
 
             } else {
                 advance = fileFont.getGlyphAdvance(pScalerContext, glyphCode);
@@ -727,6 +697,20 @@ public class FileFontStrike extends PhysicalStrike {
     void getGlyphImageBounds(int glyphCode, Point2D.Float pt,
                              Rectangle result) {
 
+        if (intPtSize > MAX_IMAGE_SIZE) {
+            Rectangle.Float obds = getGlyphOutlineBounds(glyphCode);
+            if (obds.isEmpty()) {
+                Rectangle bds = getGlyphOutline(glyphCode, pt.x, pt.y).getBounds();
+                result.setBounds(bds);
+            } else {
+                result.x = (int)Math.floor(pt.x + obds.getX() + 0.5f);
+                result.y = (int)Math.floor(pt.y + obds.getY() + 0.5f);
+                result.width = (int)Math.floor(obds.getWidth() + 0.5f);
+                result.height = (int)Math.floor(obds.getHeight() + 0.5f);
+            }
+            return;
+        }
+
         long ptr = getGlyphImagePtr(glyphCode);
         float topLeftX, topLeftY;
 
@@ -740,15 +724,13 @@ public class FileFontStrike extends PhysicalStrike {
             return;
         }
 
-        topLeftX = StrikeCache.unsafe.getFloat(ptr+StrikeCache.topLeftXOffset);
-        topLeftY = StrikeCache.unsafe.getFloat(ptr+StrikeCache.topLeftYOffset);
+        topLeftX = StrikeCache.getGlyphTopLeftX(ptr);
+        topLeftY = StrikeCache.getGlyphTopLeftY(ptr);
 
         result.x = (int)Math.floor(pt.x + topLeftX + 0.5f);
         result.y = (int)Math.floor(pt.y + topLeftY + 0.5f);
-        result.width =
-            StrikeCache.unsafe.getShort(ptr+StrikeCache.widthOffset)  &0x0ffff;
-        result.height =
-            StrikeCache.unsafe.getShort(ptr+StrikeCache.heightOffset) &0x0ffff;
+        result.width = StrikeCache.getGlyphWidth(ptr) & 0x0ffff;
+        result.height = StrikeCache.getGlyphHeight(ptr) & 0x0ffff;
 
         /* HRGB LCD text may have padding that is empty. This is almost always
          * going to be when topLeftX is -2 or less.
@@ -769,25 +751,22 @@ public class FileFontStrike extends PhysicalStrike {
 
     private int getGlyphImageMinX(long ptr, int origMinX) {
 
-        int width = StrikeCache.unsafe.getChar(ptr+StrikeCache.widthOffset);
-        int height = StrikeCache.unsafe.getChar(ptr+StrikeCache.heightOffset);
-        int rowBytes =
-            StrikeCache.unsafe.getChar(ptr+StrikeCache.rowBytesOffset);
+        int width = StrikeCache.getGlyphWidth(ptr);
+        int height = StrikeCache.getGlyphHeight(ptr);
+        int rowBytes = StrikeCache.getGlyphRowBytes(ptr);
 
         if (rowBytes == width) {
             return origMinX;
         }
 
-        long pixelData =
-            StrikeCache.unsafe.getAddress(ptr + StrikeCache.pixelDataOffset);
-
-        if (pixelData == 0L) {
+        if (StrikeCache.getGlyphImagePtr(ptr) == 0L) {
             return origMinX;
         }
 
+        byte[] pixelData = StrikeCache.getGlyphPixelBytes(ptr);
         for (int y=0;y<height;y++) {
             for (int x=0;x<3;x++) {
-                if (StrikeCache.unsafe.getByte(pixelData+y*rowBytes+x) != 0) {
+                if (pixelData[(y*rowBytes)+x] != 0) {
                     return origMinX;
                 }
             }
@@ -833,10 +812,8 @@ public class FileFontStrike extends PhysicalStrike {
         }
         if (glyphPtr != 0L) {
             metrics = new Point2D.Float();
-            metrics.x = StrikeCache.unsafe.getFloat
-                (glyphPtr + StrikeCache.xAdvanceOffset);
-            metrics.y = StrikeCache.unsafe.getFloat
-                (glyphPtr + StrikeCache.yAdvanceOffset);
+            metrics.x = StrikeCache.getGlyphXAdvance(glyphPtr);
+            metrics.y = StrikeCache.getGlyphYAdvance(glyphPtr);
             /* advance is currently in device space, need to convert back
              * into user space.
              * This must not include the translation component. */

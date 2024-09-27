@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,20 @@
 
 // -- This file was mechanically generated: Do not edit! -- //
 
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+
 import java.nio.*;
+
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Random;
+
+
+
+
 
 
 public class BasicByte
@@ -87,6 +100,18 @@ public class BasicByte
         }
     }
 
+    private static void absBulkGet(ByteBuffer b) {
+        int n = b.capacity();
+        int len = n - 7*2;
+        byte[] a = new byte[n + 7];
+        b.position(42);
+        b.get(7, a, 7, len);
+        ck(b, b.position() == 42);
+        for (int i = 0; i < len; i++) {
+            ck(b, (long)a[i + 7], (long)((byte)ic(i)));
+        }
+    }
+
     private static void relPut(ByteBuffer b) {
         int n = b.capacity();
         b.clear();
@@ -134,6 +159,20 @@ public class BasicByte
                      + " put into same buffer");
             }
         }
+    }
+
+    private static void absBulkPutArray(ByteBuffer b) {
+        int n = b.capacity();
+        b.clear();
+        int lim = n - 7;
+        int len = lim - 7;
+        b.limit(lim);
+        byte[] a = new byte[len + 7];
+        for (int i = 0; i < len; i++)
+            a[i + 7] = (byte)ic(i);
+        b.position(42);
+        b.put(7, a, 7, len);
+        ck(b, b.position() == 42);
     }
 
     //6231529
@@ -345,7 +384,7 @@ public class BasicByte
                 // unit size not a power of two
                 catchIllegalArgument(b, () -> b.alignmentOffset(0, _us));
             } else {
-                if (direct || us <= 8) {
+                if (direct || us == 1) {
                     b.alignmentOffset(0, us);
                 } else {
                     // unit size > 8 with non-direct buffer
@@ -355,12 +394,11 @@ public class BasicByte
             }
         }
 
-        // Probe for long misalignment at index zero for a newly created buffer
-        ByteBuffer empty =
-                direct ? ByteBuffer.allocateDirect(0) : ByteBuffer.allocate(0);
-        int longMisalignmentAtZero = empty.alignmentOffset(0, 8);
-
         if (direct) {
+            // Probe for long misalignment at index zero for a newly created buffer
+            ByteBuffer empty = ByteBuffer.allocateDirect(0);
+            int longMisalignmentAtZero = empty.alignmentOffset(0, 8);
+
             // Freshly created direct byte buffers should be aligned at index 0
             // for ref and primitive values (see Unsafe.allocateMemory)
             if (longMisalignmentAtZero != 0) {
@@ -368,80 +406,136 @@ public class BasicByte
                         + " for ref and primitive values "
                         + longMisalignmentAtZero);
             }
-        } else {
-            // For heap byte buffers misalignment may occur on 32-bit systems
-            // where Unsafe.ARRAY_BYTE_BASE_OFFSET % 8 == 4 and not 0
-            // Note the GC will preserve alignment of the base address of the
-            // array
-            if (jdk.internal.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET % 8
-                    != longMisalignmentAtZero) {
-                fail("Heap byte buffer misaligned at index 0"
-                        + " for ref and primitive values "
-                        + longMisalignmentAtZero);
+
+            // Ensure test buffer is correctly aligned at index 0
+            if (b.alignmentOffset(0, 8) != longMisalignmentAtZero)
+                fail("Test input buffer not correctly aligned at index 0", b);
+
+            // Test misalignment values
+            for (int us : new int[]{1, 2, 4, 8}) {
+                for (int i = 0; i < us * 2; i++) {
+                    int am = b.alignmentOffset(i, us);
+                    int expectedAm = (longMisalignmentAtZero + i) % us;
+
+                    if (am != expectedAm) {
+                        String f = "b.alignmentOffset(%d, %d) == %d incorrect, expected %d";
+                        fail(String.format(f, i, us, am, expectedAm));
+                    }
+                }
             }
-        }
 
-        // Ensure test buffer is correctly aligned at index 0
-        if (b.alignmentOffset(0, 8) != longMisalignmentAtZero)
-            fail("Test input buffer not correctly aligned at index 0", b);
+            // Created aligned slice to test against
+            int ap = 8 - longMisalignmentAtZero;
+            int al = b.limit() - b.alignmentOffset(b.limit(), 8);
+            ByteBuffer ab = b.position(ap).limit(al).
+                    slice();
+            if (ab.limit() == 0) {
+                fail("Test input buffer not sufficiently sized to cover" +
+                        " an aligned region for all values", b);
+            }
+            if (ab.alignmentOffset(0, 8) != 0)
+                fail("Aligned test input buffer not correctly aligned at index 0", ab);
 
-        // Test misalignment values
-        for (int us : new int[]{1, 2, 4, 8}) {
-            for (int i = 0; i < us * 2; i++) {
-                int am = b.alignmentOffset(i, us);
-                int expectedAm = (longMisalignmentAtZero + i) % us;
+            for (int us : new int[]{1, 2, 4, 8}) {
+                for (int p = 1; p < 16; p++) {
+                    int l = ab.limit() - p;
 
-                if (am != expectedAm) {
-                    String f = "b.alignmentOffset(%d, %d) == %d incorrect, expected %d";
-                    fail(String.format(f, i, us, am, expectedAm));
+                    ByteBuffer as = ab.slice().position(p).limit(l).
+                            alignedSlice(us);
+
+                    ck(as, 0, as.position());
+                    ck(as, as.capacity(), as.limit());
+                    if (b.isDirect() != as.isDirect())
+                        fail("Lost direction", as);
+                    if (b.isReadOnly() != as.isReadOnly())
+                        fail("Lost read-only", as);
+
+                    if (as.alignmentOffset(0, us) != 0)
+                        fail("Buffer not correctly aligned at index 0", as);
+
+                    if (as.alignmentOffset(as.limit(), us) != 0)
+                        fail("Buffer not correctly aligned at limit", as);
+
+                    int p_mod = ab.alignmentOffset(p, us);
+                    int l_mod = ab.alignmentOffset(l, us);
+                    // Round up position
+                    p = (p_mod > 0) ? p + (us - p_mod) : p;
+                    // Round down limit
+                    l = l - l_mod;
+
+                    int ec = l - p;
+                    if (as.limit() != ec) {
+                        fail("Buffer capacity incorrect, expected: " + ec, as);
+                    }
                 }
             }
         }
 
-        // Created aligned slice to test against
-        int ap = 8 - longMisalignmentAtZero;
-        int al = b.limit() - b.alignmentOffset(b.limit(), 8);
-        ByteBuffer ab = b.position(ap).limit(al).
-                slice();
-        if (ab.limit() == 0) {
-            fail("Test input buffer not sufficiently sized to cover" +
-                    " an aligned region for all values", b);
-        }
-        if (ab.alignmentOffset(0, 8) != 0)
-            fail("Aligned test input buffer not correctly aligned at index 0", ab);
-
-        for (int us : new int[]{1, 2, 4, 8}) {
-            for (int p = 1; p < 16; p++) {
-                int l = ab.limit() - p;
-
-                ByteBuffer as = ab.slice().position(p).limit(l).
-                        alignedSlice(us);
-
-                ck(as, 0, as.position());
-                ck(as, as.capacity(), as.limit());
-                if (b.isDirect() != as.isDirect())
-                    fail("Lost direction", as);
-                if (b.isReadOnly() != as.isReadOnly())
-                    fail("Lost read-only", as);
-
-                if (as.alignmentOffset(0, us) != 0)
-                    fail("Buffer not correctly aligned at index 0", as);
-
-                if (as.alignmentOffset(as.limit(), us) != 0)
-                    fail("Buffer not correctly aligned at limit", as);
-
-                int p_mod = ab.alignmentOffset(p, us);
-                int l_mod = ab.alignmentOffset(l, us);
-                // Round up position
-                p = (p_mod > 0) ? p + (us - p_mod) : p;
-                // Round down limit
-                l = l - l_mod;
-
-                int ec = l - p;
-                if (as.limit() != ec) {
-                    fail("Buffer capacity incorrect, expected: " + ec, as);
+        // mapped buffers
+        try {
+            for (MappedByteBuffer bb : mappedBuffers()) {
+                try {
+                    int offset = bb.alignmentOffset(1, 4);
+                    ck(bb, offset >= 0);
+                } catch (UnsupportedOperationException e) {
+                    System.out.println("Not applicable, UOE thrown: ");
                 }
             }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        // alignment identities
+        final int maxPow2 = 12;
+        ByteBuffer bb = ByteBuffer.allocateDirect(1 << maxPow2); // cap 4096
+
+        Random rnd = new Random();
+        long seed = rnd.nextLong();
+        rnd = new Random(seed);
+
+        for (int i = 0; i < 100; i++) {
+            // 1 == 2^0 <= unitSize == 2^k <= bb.capacity()/2
+            int unitSize = 1 << rnd.nextInt(maxPow2);
+            // 0 <= index < 2*unitSize
+            int index = rnd.nextInt(unitSize << 1);
+            int value = bb.alignmentOffset(index, unitSize);
+            try {
+                if (value < 0 || value >= unitSize) {
+                    throw new RuntimeException(value + " < 0 || " +
+                        value + " >= " + unitSize);
+                }
+                if (value <= index &&
+                    bb.alignmentOffset(index - value, unitSize) != 0)
+                    throw new RuntimeException("Identity 1");
+                if (bb.alignmentOffset(index + (unitSize - value),
+                    unitSize) != 0)
+                    throw new RuntimeException("Identity 2");
+            } catch (RuntimeException re) {
+                System.err.format("seed %d, index %d, unitSize %d, value %d%n",
+                    seed, index, unitSize, value);
+                throw re;
+            }
+        }
+    }
+
+    private static MappedByteBuffer[] mappedBuffers() throws IOException {
+        return new MappedByteBuffer[]{
+                createMappedBuffer(new byte[]{0, 1, 2, 3}),
+                createMappedBuffer(new byte[]{0, 1, 2, -3,
+                    45, 6, 7, 78, 3, -7, 6, 7, -128, 127}),
+        };
+    }
+
+    private static MappedByteBuffer createMappedBuffer(byte[] contents)
+        throws IOException {
+        Path tempFile = Files.createTempFile("mbb", null);
+        tempFile.toFile().deleteOnExit();
+        Files.write(tempFile, contents);
+        try (FileChannel fc = FileChannel.open(tempFile)) {
+            MappedByteBuffer map =
+                fc.map(FileChannel.MapMode.READ_ONLY, 0, contents.length);
+            map.load();
+            return map;
         }
     }
 
@@ -450,6 +544,10 @@ public class BasicByte
                              ByteBuffer xb, ByteBuffer yb,
                              byte x, byte y) {
         fail(problem + String.format(": x=%s y=%s", x, y), xb, yb);
+    }
+
+    private static void catchNullArgument(Buffer b, Runnable thunk) {
+        tryCatch(b, NullPointerException.class, thunk);
     }
 
     private static void catchIllegalArgument(Buffer b, Runnable thunk) {
@@ -476,7 +574,10 @@ public class BasicByte
             if (ex.isAssignableFrom(x.getClass())) {
                 caught = true;
             } else {
-                fail(x.getMessage() + " not expected");
+                String s = x.getMessage();
+                if (s == null)
+                    s = x.getClass().getName();
+                fail(s + " not expected");
             }
         }
         if (!caught) {
@@ -512,6 +613,63 @@ public class BasicByte
 
         bulkPutBuffer(b);
         relGet(b);
+
+        absBulkPutArray(b);
+        absBulkGet(b);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -611,6 +769,31 @@ public class BasicByte
                      + " negative limit");
             }
         }
+
+        // Exceptions in absolute bulk and slice operations
+
+        catchNullArgument(b, () -> b.get(7, null, 0, 42));
+        catchNullArgument(b, () -> b.put(7, (byte[])null, 0, 42));
+
+        byte[] tmpa = new byte[42];
+        catchIndexOutOfBounds(b, () -> b.get(7, tmpa, -1, 42));
+        catchIndexOutOfBounds(b, () -> b.get(7, tmpa, 42, 1));
+        catchIndexOutOfBounds(b, () -> b.get(7, tmpa, 41, -1));
+        catchIndexOutOfBounds(b, () -> b.get(-1, tmpa, 0, 1));
+        catchIndexOutOfBounds(b, () -> b.get(b.limit(), tmpa, 0, 1));
+        catchIndexOutOfBounds(b, () -> b.get(b.limit() - 41, tmpa, 0, 42));
+
+        catchIndexOutOfBounds(b, () -> b.put(7, tmpa, -1, 42));
+        catchIndexOutOfBounds(b, () -> b.put(7, tmpa, 42, 1));
+        catchIndexOutOfBounds(b, () -> b.put(7, tmpa, 41, -1));
+        catchIndexOutOfBounds(b, () -> b.put(-1, tmpa, 0, 1));
+        catchIndexOutOfBounds(b, () -> b.put(b.limit(), tmpa, 0, 1));
+        catchIndexOutOfBounds(b, () -> b.put(b.limit() - 41, tmpa, 0, 42));
+
+        catchIndexOutOfBounds(b, () -> b.slice(-1, 7));
+        catchIndexOutOfBounds(b, () -> b.slice(b.limit() + 1, 7));
+        catchIndexOutOfBounds(b, () -> b.slice(0, -1));
+        catchIndexOutOfBounds(b, () -> b.slice(7, b.limit() - 7 + 1));
 
         // Values
 
@@ -776,6 +959,20 @@ public class BasicByte
                  + sb.arrayOffset() + " != " + sb2.arrayOffset(), sb, sb2);
         }
 
+        int bPos = b.position();
+        int bLim = b.limit();
+
+        b.position(7);
+        b.limit(42);
+        ByteBuffer rsb = b.slice();
+        b.position(0);
+        b.limit(b.capacity());
+        ByteBuffer asb = b.slice(7, 35);
+        checkSlice(rsb, asb);
+
+        b.position(bPos);
+        b.limit(bLim);
+
 
 
         // Views
@@ -819,6 +1016,7 @@ public class BasicByte
         catchReadOnlyBuffer(b, () -> absPut(rb));
         catchReadOnlyBuffer(b, () -> bulkPutArray(rb));
         catchReadOnlyBuffer(b, () -> bulkPutBuffer(rb));
+        catchReadOnlyBuffer(b, () -> absBulkPutArray(rb));
 
         // put(ByteBuffer) should not change source position
         final ByteBuffer src = ByteBuffer.allocate(1);
@@ -928,6 +1126,13 @@ public class BasicByte
 
 
 
+
+
+
+
+
+
+
     public static void test(final byte [] ba) {
         int offset = 47;
         int length = 900;
@@ -974,6 +1179,26 @@ public class BasicByte
 
     }
 
+    public static void testToString() {
+        final int cap = 10;
+
+
+        ByteBuffer direct1 = ByteBuffer.allocateDirect(cap);
+        if (!direct1.toString().equals(Basic.toString(direct1))) {
+           fail("Direct buffer toString is incorrect: "
+                  + direct1.toString() + " vs " + Basic.toString(direct1));
+        }
+
+
+
+        ByteBuffer nondirect1 = ByteBuffer.allocate(cap);
+        if (!nondirect1.toString().equals(Basic.toString(nondirect1))) {
+           fail("Heap buffer toString is incorrect: "
+                  + nondirect1.toString() + " vs " + Basic.toString(nondirect1));
+        }
+
+    }
+
     public static void test() {
         testAllocate();
         test(0, ByteBuffer.allocate(7 * 1024), false);
@@ -995,6 +1220,8 @@ public class BasicByte
 
 
 
+
+        testToString();
     }
 
 }

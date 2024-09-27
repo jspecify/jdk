@@ -24,9 +24,7 @@ package com.sun.org.apache.xml.internal.security.c14n.implementations;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
-
 
 import org.w3c.dom.Attr;
 import org.w3c.dom.Node;
@@ -38,6 +36,9 @@ import org.w3c.dom.Node;
  */
 public class NameSpaceSymbTable {
 
+    private static final com.sun.org.slf4j.internal.Logger LOG =
+        com.sun.org.slf4j.internal.LoggerFactory.getLogger(NameSpaceSymbTable.class);
+
     private static final String XMLNS = "xmlns";
     private static final SymbMap initialMap = new SymbMap();
 
@@ -47,20 +48,23 @@ public class NameSpaceSymbTable {
         initialMap.put(XMLNS, ne);
     }
 
-    /**The map betwen prefix-> entry table. */
+    /**The map between prefix-> entry table. */
     private SymbMap symb;
 
     /**The stacks for removing the definitions when doing pop.*/
-    private List<SymbMap> level;
+    private final List<SymbMap> level = new ArrayList<>();
     private boolean cloned = true;
 
     /**
-     * Default constractor
+     * Default constructor
      **/
     public NameSpaceSymbTable() {
-        level = new ArrayList<>();
         //Insert the default binding for xmlns.
-        symb = (SymbMap) initialMap.clone();
+        try {
+            symb = initialMap.clone();
+        } catch (CloneNotSupportedException e) {
+            LOG.error("Error cloning the initial map");
+        }
     }
 
     /**
@@ -69,18 +73,16 @@ public class NameSpaceSymbTable {
      * @param result the list where to fill the unrendered xmlns definitions.
      **/
     public void getUnrenderedNodes(Collection<Attr> result) {
-        Iterator<NameSpaceSymbEntry> it = symb.entrySet().iterator();
-        while (it.hasNext()) {
-            NameSpaceSymbEntry n = it.next();
+        for (NameSpaceSymbEntry nsEntry : symb.entrySet()) {
             //put them rendered?
-            if (!n.rendered && n.n != null) {
-                n = (NameSpaceSymbEntry) n.clone();
+            if (!nsEntry.rendered && nsEntry.n != null) {
+                nsEntry = nsEntry.clone();
                 needsClone();
-                symb.put(n.prefix, n);
-                n.lastrendered = n.uri;
-                n.rendered = true;
+                symb.put(nsEntry.prefix, nsEntry);
+                nsEntry.lastrendered = nsEntry.uri;
+                nsEntry.rendered = true;
 
-                result.add(n.n);
+                result.add(nsEntry.n);
             }
         }
     }
@@ -132,7 +134,11 @@ public class NameSpaceSymbTable {
     final void needsClone() {
         if (!cloned) {
             level.set(level.size() - 1, symb);
-            symb = (SymbMap) symb.clone();
+            try {
+                symb = symb.clone();
+            } catch (CloneNotSupportedException e) {
+                LOG.error("Error cloning the symbol map");
+            }
             cloned = true;
         }
     }
@@ -155,19 +161,19 @@ public class NameSpaceSymbTable {
             return null;
         }
         // Mark this entry as render.
-        entry = (NameSpaceSymbEntry) entry.clone();
+        entry = entry.clone();
         needsClone();
         symb.put(prefix, entry);
         entry.rendered = true;
         entry.lastrendered = entry.uri;
-        // Return the node for outputing.
+        // Return the node for outputting.
         return entry.n;
     }
 
     /**
      * Gets a definition without mark it as render.
      * For render in exclusive c14n the namespaces in the include prefixes.
-     * @param prefix The prefix whose definition is neaded.
+     * @param prefix The prefix whose definition is needed.
      * @return the attr to render, null if there is no need to render
      **/
     public Attr getMappingWithoutRendered(String prefix) {
@@ -223,7 +229,7 @@ public class NameSpaceSymbTable {
 
         if (ob != null && uri.equals(ob.uri)) {
             if (!ob.rendered) {
-                ob = (NameSpaceSymbEntry) ob.clone();
+                ob = ob.clone();
                 needsClone();
                 symb.put(prefix, ob);
                 ob.lastrendered = uri;
@@ -282,19 +288,19 @@ public class NameSpaceSymbTable {
  **/
 class NameSpaceSymbEntry implements Cloneable {
 
-    String prefix;
+    final String prefix;
 
     /**The URI that the prefix defines */
-    String uri;
+    final String uri;
+
+    /**The attribute to include.*/
+    final Attr n;
 
     /**The last output in the URI for this prefix (This for speed reason).*/
     String lastrendered = null;
 
     /**This prefix-URI has been already render or not.*/
     boolean rendered = false;
-
-    /**The attribute to include.*/
-    Attr n;
 
     NameSpaceSymbEntry(String name, Attr n, boolean rendered, String prefix) {
         this.uri = name;
@@ -304,9 +310,10 @@ class NameSpaceSymbEntry implements Cloneable {
     }
 
     /** {@inheritDoc} */
-    public Object clone() {
+    @Override
+    public NameSpaceSymbEntry clone() { //NOPMD
         try {
-            return super.clone();
+            return (NameSpaceSymbEntry)super.clone();
         } catch (CloneNotSupportedException e) {
             return null;
         }
@@ -337,9 +344,9 @@ class SymbMap implements Cloneable {
 
     List<NameSpaceSymbEntry> entrySet() {
         List<NameSpaceSymbEntry> a = new ArrayList<>();
-        for (int i = 0;i < entries.length;i++) {
-            if (entries[i] != null && !"".equals(entries[i].uri)) {
-                a.add(entries[i]);
+        for (NameSpaceSymbEntry nsEntry : entries) {
+            if (nsEntry != null && !nsEntry.uri.isEmpty()) {
+                a.add(nsEntry);
             }
         }
         return a;
@@ -370,7 +377,7 @@ class SymbMap implements Cloneable {
      */
     protected void rehash(int newCapacity) {
         int oldCapacity = keys.length;
-        String oldKeys[] = keys;
+        String[] oldKeys = keys;
         NameSpaceSymbEntry oldVals[] = entries;
 
         keys = new String[newCapacity];
@@ -390,18 +397,14 @@ class SymbMap implements Cloneable {
         return entries[index(key)];
     }
 
-    protected Object clone()  {
-        try {
-            SymbMap copy = (SymbMap) super.clone();
-            copy.entries = new NameSpaceSymbEntry[entries.length];
-            System.arraycopy(entries, 0, copy.entries, 0, entries.length);
-            copy.keys = new String[keys.length];
-            System.arraycopy(keys, 0, copy.keys, 0, keys.length);
+    @Override
+    public SymbMap clone() throws CloneNotSupportedException  {
+        SymbMap copy = (SymbMap) super.clone();
+        copy.entries = new NameSpaceSymbEntry[entries.length];
+        System.arraycopy(entries, 0, copy.entries, 0, entries.length);
+        copy.keys = new String[keys.length];
+        System.arraycopy(keys, 0, copy.keys, 0, keys.length);
 
-            return copy;
-        } catch (CloneNotSupportedException e) {
-            e.printStackTrace();
-        }
-        return null;
+        return copy;
     }
 }

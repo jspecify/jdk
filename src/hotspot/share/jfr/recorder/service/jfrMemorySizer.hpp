@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,18 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_RECORDER_SERVICE_JFRMEMORYSIZER_HPP
-#define SHARE_VM_JFR_RECORDER_SERVICE_JFRMEMORYSIZER_HPP
+#ifndef SHARE_JFR_RECORDER_SERVICE_JFRMEMORYSIZER_HPP
+#define SHARE_JFR_RECORDER_SERVICE_JFRMEMORYSIZER_HPP
 
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 extern const julong MIN_BUFFER_COUNT;
 extern const julong MIN_GLOBAL_BUFFER_SIZE;
 extern const julong MIN_MEMORY_SIZE;
 extern const julong MIN_THREAD_BUFFER_SIZE;
+extern const julong MAX_GLOBAL_BUFFER_SIZE;
+extern const julong MAX_THREAD_BUFFER_SIZE;
 
 struct JfrMemoryOptions {
   julong memory_size;
@@ -53,4 +55,4 @@ class JfrMemorySizer : AllStatic {
   static bool adjust_options(JfrMemoryOptions* options);
 };
 
-#endif // SHARE_VM_JFR_RECORDER_SERVICE_JFRMEMORYSIZER_HPP
+#endif // SHARE_JFR_RECORDER_SERVICE_JFRMEMORYSIZER_HPP

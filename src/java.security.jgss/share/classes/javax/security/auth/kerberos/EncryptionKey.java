@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,7 @@
 
 package javax.security.auth.kerberos;
 
-import org.jspecify.annotations.Nullable;
-
+import java.io.Serial;
 import java.util.Arrays;
 import java.util.Objects;
 import javax.crypto.SecretKey;
@@ -50,6 +49,7 @@ import javax.security.auth.DestroyFailedException;
  */
 public final class EncryptionKey implements SecretKey {
 
+    @Serial
     private static final long serialVersionUID = 9L;
 
    /**
@@ -58,7 +58,7 @@ public final class EncryptionKey implements SecretKey {
     *
     * @serial
     */
-    final private KeyImpl key;
+    private final KeyImpl key;
 
     private transient boolean destroyed = false;
 
@@ -143,7 +143,7 @@ public final class EncryptionKey implements SecretKey {
     /**
      * Destroys this key by clearing out the key material of this key.
      *
-     * @throws DestroyFailedException if some error occurs while destorying
+     * @throws DestroyFailedException if some error occurs while destroying
      * this key.
      */
     @Override
@@ -174,9 +174,7 @@ public final class EncryptionKey implements SecretKey {
     }
 
     /**
-     * Returns a hash code for this {@code EncryptionKey}.
-     *
-     * @return a hash code for this {@code EncryptionKey}.
+     * {@return a hash code for this {@code EncryptionKey}}
      */
     @Override
     public int hashCode() {
@@ -202,18 +200,15 @@ public final class EncryptionKey implements SecretKey {
      * {@code EncryptionKey}, false otherwise.
      */
     @Override
-    
-    
-    public boolean equals(@Nullable Object other) {
+    public boolean equals(Object other) {
 
         if (other == this)
             return true;
 
-        if (! (other instanceof EncryptionKey)) {
+        if (! (other instanceof EncryptionKey otherKey)) {
             return false;
         }
 
-        EncryptionKey otherKey = ((EncryptionKey) other);
         if (isDestroyed() || otherKey.isDestroyed()) {
             return false;
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,11 +63,13 @@ public class CookieExtension {
     static class CookieSpec implements SSLExtensionSpec {
         final byte[] cookie;
 
-        private CookieSpec(ByteBuffer m) throws IOException {
+        private CookieSpec(HandshakeContext hc,
+                ByteBuffer m) throws IOException {
             // opaque cookie<1..2^16-1>;
             if (m.remaining() < 3) {
-                throw new SSLProtocolException(
-                    "Invalid cookie extension: insufficient data");
+                throw hc.conContext.fatal(Alert.DECODE_ERROR,
+                        new SSLProtocolException(
+                    "Invalid cookie extension: insufficient data"));
             }
 
             this.cookie = Record.getBytes16(m);
@@ -76,9 +78,10 @@ public class CookieExtension {
         @Override
         public String toString() {
             MessageFormat messageFormat = new MessageFormat(
-                    "\"cookie\": '{'\n" +
-                    "{0}\n" +
-                    "'}',", Locale.ENGLISH);
+                    """
+                            "cookie": '{'
+                            {0}
+                            '}',""", Locale.ENGLISH);
             HexDumpEncoder hexEncoder = new HexDumpEncoder();
             Object[] messageFields = {
                 Utilities.indent(hexEncoder.encode(cookie))
@@ -90,9 +93,9 @@ public class CookieExtension {
 
     private static final class CookieStringizer implements SSLStringizer {
         @Override
-        public String toString(ByteBuffer buffer) {
+        public String toString(HandshakeContext hc, ByteBuffer buffer) {
             try {
-                return (new CookieSpec(buffer)).toString();
+                return (new CookieSpec(hc, buffer)).toString();
             } catch (IOException ioe) {
                 // For debug logging only, so please swallow exceptions.
                 return ioe.getMessage();
@@ -125,8 +128,7 @@ public class CookieExtension {
             CookieSpec spec = (CookieSpec)chc.handshakeExtensions.get(
                     SSLExtension.HRR_COOKIE);
 
-            if (spec != null &&
-                    spec.cookie != null && spec.cookie.length != 0) {
+            if (spec != null && spec.cookie.length != 0) {
                 byte[] extData = new byte[spec.cookie.length + 2];
                 ByteBuffer m = ByteBuffer.wrap(extData);
                 Record.putBytes16(m, spec.cookie);
@@ -159,14 +161,7 @@ public class CookieExtension {
                 return;     // ignore the extension
             }
 
-            CookieSpec spec;
-            try {
-                spec = new CookieSpec(buffer);
-            } catch (IOException ioe) {
-                shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
-                return;     // fatal() always throws, make the compiler happy.
-            }
-
+            CookieSpec spec = new CookieSpec(shc, buffer);
             shc.handshakeExtensions.put(SSLExtension.CH_COOKIE, spec);
 
             // No impact on session resumption.
@@ -201,9 +196,8 @@ public class CookieExtension {
             HelloCookieManager hcm =
                 shc.sslContext.getHelloCookieManager(shc.negotiatedProtocol);
             if (!hcm.isCookieValid(shc, clientHello, spec.cookie)) {
-                shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                throw shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                         "unrecognized cookie");
-                return;     // fatal() always throws, make the compiler happy.
             }
         }
     }
@@ -266,14 +260,7 @@ public class CookieExtension {
                 return;     // ignore the extension
             }
 
-            CookieSpec spec;
-            try {
-                spec = new CookieSpec(buffer);
-            } catch (IOException ioe) {
-                chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
-                return;     // fatal() always throws, make the compiler happy.
-            }
-
+            CookieSpec spec = new CookieSpec(chc, buffer);
             chc.handshakeExtensions.put(SSLExtension.HRR_COOKIE, spec);
         }
     }
@@ -304,8 +291,7 @@ public class CookieExtension {
             CookieSpec spec = (CookieSpec)shc.handshakeExtensions.get(
                     SSLExtension.CH_COOKIE);
 
-            if (spec != null &&
-                    spec.cookie != null && spec.cookie.length != 0) {
+            if (spec != null && spec.cookie.length != 0) {
                 byte[] extData = new byte[spec.cookie.length + 2];
                 ByteBuffer m = ByteBuffer.wrap(extData);
                 Record.putBytes16(m, spec.cookie);

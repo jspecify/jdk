@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@ import java.security.spec.*;
 
 /**
  * This class defines the <i>Service Provider Interface</i> (<b>SPI</b>)
- * for the <code>KeyGenerator</code> class.
+ * for the {@code KeyGenerator} class.
  * All the abstract methods in this class must be implemented by each
  * cryptographic service provider who wishes to supply the implementation
  * of a key generator for a particular algorithm.
@@ -56,6 +56,11 @@ import java.security.spec.*;
 public abstract class KeyGeneratorSpi {
 
     /**
+     * Constructor for subclasses to call.
+     */
+    public KeyGeneratorSpi() {}
+
+    /**
      * Initializes the key generator.
      *
      * @param random the source of randomness for this generator
@@ -69,7 +74,7 @@ public abstract class KeyGeneratorSpi {
      * @param params the key generation parameters
      * @param random the source of randomness for this key generator
      *
-     * @exception InvalidAlgorithmParameterException if <code>params</code> is
+     * @exception InvalidAlgorithmParameterException if {@code params} is
      * inappropriate for this key generator
      */
     protected abstract void engineInit(AlgorithmParameterSpec params,

@@ -21,7 +21,7 @@
  * under the License.
  */
 /*
- * Portions copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * ===========================================================================
@@ -29,9 +29,6 @@
  * (C) Copyright IBM Corp. 2003 All Rights Reserved.
  *
  * ===========================================================================
- */
-/*
- * $Id: DOMRetrievalMethod.java 1788465 2017-03-24 15:10:51Z coheigea $
  */
 package org.jcp.xml.dsig.internal.dom;
 
@@ -54,11 +51,11 @@ import javax.xml.crypto.URIDereferencer;
 import javax.xml.crypto.URIReferenceException;
 import javax.xml.crypto.XMLCryptoContext;
 import javax.xml.crypto.XMLStructure;
+import javax.xml.crypto.dom.DOMCryptoContext;
 import javax.xml.crypto.dom.DOMURIReference;
 import javax.xml.crypto.dsig.Transform;
 import javax.xml.crypto.dsig.XMLSignature;
 import javax.xml.crypto.dsig.keyinfo.RetrievalMethod;
-import javax.xml.parsers.DocumentBuilder;
 
 import com.sun.org.apache.xml.internal.security.utils.XMLUtils;
 import org.w3c.dom.Attr;
@@ -114,7 +111,7 @@ public final class DOMRetrievalMethod extends DOMStructure
             }
         }
         this.uri = uri;
-        if (!uri.equals("")) {
+        if (!uri.isEmpty()) {
             try {
                 new URI(uri);
             } catch (URISyntaxException e) {
@@ -197,26 +194,34 @@ public final class DOMRetrievalMethod extends DOMStructure
     }
 
     @Override
-    public void marshal(XmlWriter xwriter, String dsPrefix, XMLCryptoContext context)
+    public void marshal(Node parent, String dsPrefix, DOMCryptoContext context)
         throws MarshalException
     {
-        xwriter.writeStartElement(dsPrefix, "RetrievalMethod", XMLSignature.XMLNS);
+        Document ownerDoc = DOMUtils.getOwnerDocument(parent);
+        Element rmElem = DOMUtils.createElement(ownerDoc, "RetrievalMethod",
+                                                XMLSignature.XMLNS, dsPrefix);
 
-        // TODO - see whether it is important to capture the "here" attribute as part of the
-        // marshalling - do any of the tests fail?
         // add URI and Type attributes
-        here = xwriter.writeAttribute("", "", "URI", uri);
-        xwriter.writeAttribute("", "", "Type", type);
+        DOMUtils.setAttribute(rmElem, "URI", uri);
+        DOMUtils.setAttribute(rmElem, "Type", type);
 
         // add Transforms elements
         if (!transforms.isEmpty()) {
-            xwriter.writeStartElement(dsPrefix, "Transforms", XMLSignature.XMLNS);
+            Element transformsElem = DOMUtils.createElement(ownerDoc,
+                                                            "Transforms",
+                                                            XMLSignature.XMLNS,
+                                                            dsPrefix);
+            rmElem.appendChild(transformsElem);
             for (Transform transform : transforms) {
-                ((DOMTransform)transform).marshal(xwriter, dsPrefix, context);
+                ((DOMTransform)transform).marshal(transformsElem,
+                                                   dsPrefix, context);
             }
-            xwriter.writeEndElement(); // "Transforms"
         }
-        xwriter.writeEndElement(); // "RetrievalMethod"
+
+        parent.appendChild(rmElem);
+
+        // save here node
+        here = rmElem.getAttributeNodeNS(null, "URI");
     }
 
     @Override
@@ -246,7 +251,7 @@ public final class DOMRetrievalMethod extends DOMStructure
         // pass dereferenced data through Transforms
         try {
             for (Transform transform : transforms) {
-                data = transform.transform(data, context);
+                data = ((DOMTransform)transform).transform(data, context);
             }
         } catch (Exception e) {
             throw new URIReferenceException(e);
@@ -273,14 +278,12 @@ public final class DOMRetrievalMethod extends DOMStructure
     public XMLStructure dereferenceAsXMLStructure(XMLCryptoContext context)
         throws URIReferenceException
     {
-        DocumentBuilder db = null;
         boolean secVal = Utils.secureValidation(context);
         ApacheData data = (ApacheData)dereference(context);
         try (InputStream is = new ByteArrayInputStream(data.getXMLSignatureInput().getBytes())) {
-            db = XMLUtils.createDocumentBuilder(false, secVal);
-            Document doc = db.parse(is);
+            Document doc = XMLUtils.read(is, secVal);
             Element kiElem = doc.getDocumentElement();
-            if (kiElem.getLocalName().equals("X509Data")
+            if ("X509Data".equals(kiElem.getLocalName())
                 && XMLSignature.XMLNS.equals(kiElem.getNamespaceURI())) {
                 return new DOMX509Data(kiElem);
             } else {

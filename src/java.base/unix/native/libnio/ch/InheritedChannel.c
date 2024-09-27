@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,12 +34,9 @@
 #include "jni.h"
 #include "jni_util.h"
 #include "net_util.h"
+#include "nio_util.h"
 
 #include "sun_nio_ch_InheritedChannel.h"
-
-static int matchFamily(SOCKETADDRESS *sa) {
-    return (sa->sa.sa_family == (ipv6_available() ? AF_INET6 : AF_INET));
-}
 
 JNIEXPORT void JNICALL
 Java_sun_nio_ch_InheritedChannel_initIDs(JNIEnv *env, jclass cla)
@@ -49,7 +46,7 @@ Java_sun_nio_ch_InheritedChannel_initIDs(JNIEnv *env, jclass cla)
 }
 
 JNIEXPORT jobject JNICALL
-Java_sun_nio_ch_InheritedChannel_peerAddress0(JNIEnv *env, jclass cla, jint fd)
+Java_sun_nio_ch_InheritedChannel_inetPeerAddress0(JNIEnv *env, jclass cla, jint fd)
 {
     SOCKETADDRESS sa;
     socklen_t len = sizeof(SOCKETADDRESS);
@@ -57,12 +54,25 @@ Java_sun_nio_ch_InheritedChannel_peerAddress0(JNIEnv *env, jclass cla, jint fd)
     jint remote_port;
 
     if (getpeername(fd, &sa.sa, &len) == 0) {
-        if (matchFamily(&sa)) {
-            remote_ia = NET_SockaddrToInetAddress(env, &sa, (int *)&remote_port);
-        }
+        remote_ia = NET_SockaddrToInetAddress(env, &sa, (int *)&remote_port);
     }
 
     return remote_ia;
+}
+
+JNIEXPORT jbyteArray JNICALL
+Java_sun_nio_ch_InheritedChannel_unixPeerAddress0(JNIEnv *env, jclass cla, jint fd)
+{
+    struct sockaddr_un sa;
+    socklen_t len = sizeof(struct sockaddr_un);
+    jobject remote_sa = NULL;
+
+    if (getpeername(fd, (struct sockaddr *)&sa, &len) == 0) {
+        if (sa.sun_family == AF_UNIX) {
+            remote_sa = sockaddrToUnixAddressBytes(env, &sa, len);
+        }
+    }
+    return remote_sa;
 }
 
 JNIEXPORT jint JNICALL
@@ -72,13 +82,44 @@ Java_sun_nio_ch_InheritedChannel_peerPort0(JNIEnv *env, jclass cla, jint fd)
     socklen_t len = sizeof(SOCKETADDRESS);
     jint remote_port = -1;
 
-    if (getpeername(fd, &sa.sa, &len) == 0) {
-        if (matchFamily(&sa)) {
-            NET_SockaddrToInetAddress(env, &sa, (int *)&remote_port);
-        }
+    if (getpeername(fd, (struct sockaddr *)&sa.sa, &len) == 0) {
+        NET_SockaddrToInetAddress(env, &sa, (int *)&remote_port);
     }
 
     return remote_port;
+}
+
+JNIEXPORT jint JNICALL
+Java_sun_nio_ch_InheritedChannel_addressFamily(JNIEnv *env, jclass cla, jint fd)
+{
+    SOCKETADDRESS addr;
+    socklen_t addrlen = sizeof(addr);
+
+    if (getsockname(fd, (struct sockaddr *)&addr, &addrlen) < 0) {
+        return sun_nio_ch_InheritedChannel_AF_UNKNOWN;
+    }
+    if (addr.sa.sa_family == AF_INET) {
+        return sun_nio_ch_InheritedChannel_AF_INET;
+    }
+    if (addr.sa.sa_family == AF_INET6) {
+        return sun_nio_ch_InheritedChannel_AF_INET6;
+    }
+    if (addr.sa.sa_family == AF_UNIX) {
+        return sun_nio_ch_InheritedChannel_AF_UNIX;
+    }
+    return sun_nio_ch_InheritedChannel_AF_UNKNOWN;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_sun_nio_ch_InheritedChannel_isConnected(JNIEnv *env, jclass cla, jint fd)
+{
+    SOCKETADDRESS addr;
+    socklen_t addrlen = sizeof(addr);
+
+    if (getpeername(fd, (struct sockaddr *)&addr, &addrlen) < 0) {
+        return JNI_FALSE;
+    }
+    return JNI_TRUE;
 }
 
 JNIEXPORT jint JNICALL

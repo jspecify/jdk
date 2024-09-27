@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2018 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,33 +26,32 @@
 // This file is organized as os_linux_x86.cpp.
 
 // no precompiled headers
-#include "jvm.h"
 #include "asm/assembler.inline.hpp"
-#include "classfile/classLoader.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
-#include "code/icBuffer.hpp"
 #include "code/nativeInst.hpp"
 #include "code/vtableStubs.hpp"
 #include "compiler/disassembler.hpp"
 #include "interpreter/interpreter.hpp"
+#include "jvm.h"
 #include "memory/allocation.inline.hpp"
 #include "nativeInst_s390.hpp"
-#include "os_share_linux.hpp"
+#include "os_linux.hpp"
+#include "os_posix.hpp"
 #include "prims/jniFastGetField.hpp"
 #include "prims/jvm_misc.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/javaThread.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/osThread.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
-#include "runtime/thread.inline.hpp"
 #include "runtime/timer.hpp"
+#include "signals_posix.hpp"
 #include "utilities/events.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/vmError.hpp"
@@ -95,17 +94,14 @@ char* os::non_memory_address_word() {
   return (char*) -1;
 }
 
-// OS specific thread initialization.
-void os::initialize_thread(Thread* thread) { }
-
 // Frame information (pc, sp, fp) retrieved via ucontext
 // always looks like a C-frame according to the frame
 // conventions in frame_s390.hpp.
-address os::Linux::ucontext_get_pc(const ucontext_t * uc) {
+address os::Posix::ucontext_get_pc(const ucontext_t * uc) {
   return (address)uc->uc_mcontext.psw.addr;
 }
 
-void os::Linux::ucontext_set_pc(ucontext_t * uc, address pc) {
+void os::Posix::ucontext_set_pc(ucontext_t * uc, address pc) {
   uc->uc_mcontext.psw.addr = (unsigned long)pc;
 }
 
@@ -118,24 +114,23 @@ intptr_t* os::Linux::ucontext_get_sp(const ucontext_t * uc) {
 }
 
 intptr_t* os::Linux::ucontext_get_fp(const ucontext_t * uc) {
-  return NULL;
+  return nullptr;
 }
 
-ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
+address os::fetch_frame_from_context(const void* ucVoid,
                     intptr_t** ret_sp, intptr_t** ret_fp) {
 
-  ExtendedPC  epc;
+  address epc;
   const ucontext_t* uc = (const ucontext_t*)ucVoid;
 
-  if (uc != NULL) {
-    epc = ExtendedPC(os::Linux::ucontext_get_pc(uc));
+  if (uc != nullptr) {
+    epc = os::Posix::ucontext_get_pc(uc);
     if (ret_sp) { *ret_sp = os::Linux::ucontext_get_sp(uc); }
     if (ret_fp) { *ret_fp = os::Linux::ucontext_get_fp(uc); }
   } else {
-    // Construct empty ExtendedPC for return value checking.
-    epc = ExtendedPC(NULL);
-    if (ret_sp) { *ret_sp = (intptr_t *)NULL; }
-    if (ret_fp) { *ret_fp = (intptr_t *)NULL; }
+    epc = nullptr;
+    if (ret_sp) { *ret_sp = (intptr_t *)nullptr; }
+    if (ret_fp) { *ret_fp = (intptr_t *)nullptr; }
   }
 
   return epc;
@@ -144,44 +139,15 @@ ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
 frame os::fetch_frame_from_context(const void* ucVoid) {
   intptr_t* sp;
   intptr_t* fp;
-  ExtendedPC epc = fetch_frame_from_context(ucVoid, &sp, &fp);
-  return frame(sp, epc.pc());
+  address epc = fetch_frame_from_context(ucVoid, &sp, &fp);
+  return frame(sp, epc);
 }
 
-bool os::Linux::get_frame_at_stack_banging_point(JavaThread* thread, ucontext_t* uc, frame* fr) {
-  address pc = (address) os::Linux::ucontext_get_pc(uc);
-  if (Interpreter::contains(pc)) {
-    // Interpreter performs stack banging after the fixed frame header has
-    // been generated while the compilers perform it before. To maintain
-    // semantic consistency between interpreted and compiled frames, the
-    // method returns the Java sender of the current frame.
-    *fr = os::fetch_frame_from_context(uc);
-    if (!fr->is_first_java_frame()) {
-      assert(fr->safe_for_sender(thread), "Safety check");
-      *fr = fr->java_sender();
-    }
-  } else {
-    // More complex code with compiled code.
-    assert(!Interpreter::contains(pc), "Interpreted methods should have been handled above");
-    CodeBlob* cb = CodeCache::find_blob(pc);
-    if (cb == NULL || !cb->is_nmethod() || cb->is_frame_complete_at(pc)) {
-      // Not sure where the pc points to, fallback to default
-      // stack overflow handling. In compiled code, we bang before
-      // the frame is complete.
-      return false;
-    } else {
-      intptr_t* sp = os::Linux::ucontext_get_sp(uc);
-      address lr = ucontext_get_lr(uc);
-      *fr = frame(sp, lr);
-      if (!fr->is_java_frame()) {
-        assert(fr->safe_for_sender(thread), "Safety check");
-        assert(!fr->is_first_frame(), "Safety check");
-        *fr = fr->java_sender();
-      }
-    }
-  }
-  assert(fr->is_java_frame(), "Safety check");
-  return true;
+frame os::fetch_compiled_frame_from_context(const void* ucVoid) {
+  const ucontext_t* uc = (const ucontext_t*)ucVoid;
+  intptr_t* sp = os::Linux::ucontext_get_sp(uc);
+  address lr = ucontext_get_lr(uc);
+  return frame(sp, lr);
 }
 
 frame os::get_sender_for_C_frame(frame* fr) {
@@ -193,7 +159,7 @@ frame os::get_sender_for_C_frame(frame* fr) {
   // If its not one of our frames, the return pc is saved at gpr14
   // stack slot. The call_stub stores the return_pc to the stack slot
   // of gpr10.
-  if ((Interpreter::code() != NULL && Interpreter::contains(fr->pc())) ||
+  if ((Interpreter::code() != nullptr && Interpreter::contains(fr->pc())) ||
       (CodeCache::contains(fr->pc()) && !StubRoutines::contains(fr->pc()))) {
     return frame(fr->sender_sp(), fr->sender_pc());
   } else {
@@ -205,7 +171,14 @@ frame os::get_sender_for_C_frame(frame* fr) {
         return frame(fr->sender_sp(), fr->sender_pc());
       }
     } else {
-      return frame(fr->sender_sp(), fr->native_sender_pc());
+      intptr_t* sender_sp = fr->sender_sp();
+      address   sender_fp = (address)*sender_sp;
+      ptrdiff_t entry_len = sender_fp - (address)sender_sp;
+      if (entry_len < frame::z_abi_160_size) {
+        return frame(sender_sp, fr->sender_pc());
+      } else {
+        return frame(sender_sp, fr->native_sender_pc());
+      }
     }
   }
 }
@@ -214,7 +187,7 @@ frame os::current_frame() {
   // Expected to return the stack pointer of this method.
   // But if inlined, returns the stack pointer of our caller!
   intptr_t* csp = (intptr_t*) *((intptr_t*) os::current_stack_pointer());
-  assert (csp != NULL, "sp should not be NULL");
+  assert (csp != nullptr, "sp should not be null");
   // Pass a dummy pc. This way we don't have to load it from the
   // stack, since we don't know in which slot we can find it.
   frame topframe(csp, (address)0x8);
@@ -223,9 +196,9 @@ frame os::current_frame() {
     return frame();
   } else {
     frame senderFrame = os::get_sender_for_C_frame(&topframe);
-    assert(senderFrame.pc() != NULL, "Sender pc should not be NULL");
+    assert(senderFrame.pc() != nullptr, "Sender pc should not be null");
     // Return sender of sender of current topframe which hopefully
-    // both have pc != NULL.
+    // both have pc != nullptr.
 #ifdef _NMT_NOINLINE_   // Is set in slowdebug builds.
     // Current_stack_pointer is not inlined, we must pop one more frame.
     frame tmp = os::get_sender_for_C_frame(&topframe);
@@ -236,78 +209,17 @@ frame os::current_frame() {
   }
 }
 
-// Utility functions
-
-extern "C" JNIEXPORT int
-JVM_handle_linux_signal(int sig,
-                        siginfo_t* info,
-                        void* ucVoid,
-                        int abort_if_unrecognized) {
-  ucontext_t* uc = (ucontext_t*) ucVoid;
-
-  Thread* t = Thread::current_or_null_safe();
-
-  // Must do this before SignalHandlerMark, if crash protection installed we will longjmp away
-  // (no destructors can be run).
-  os::ThreadCrashProtection::check_crash_protection(sig, t);
-
-  SignalHandlerMark shm(t);
-
-  // Note: it's not uncommon that JNI code uses signal/sigset to install
-  // then restore certain signal handler (e.g. to temporarily block SIGPIPE,
-  // or have a SIGILL handler when detecting CPU type). When that happens,
-  // JVM_handle_linux_signal() might be invoked with junk info/ucVoid. To
-  // avoid unnecessary crash when libjsig is not preloaded, try handle signals
-  // that do not require siginfo/ucontext first.
-
-  if (sig == SIGPIPE) {
-    if (os::Linux::chained_handler(sig, info, ucVoid)) {
-      return true;
-    } else {
-      if (PrintMiscellaneous && (WizardMode || Verbose)) {
-        warning("Ignoring SIGPIPE - see bug 4229104");
-      }
-      return true;
-    }
-  }
-
-#ifdef CAN_SHOW_REGISTERS_ON_ASSERT
-  if ((sig == SIGSEGV || sig == SIGBUS) && info != NULL && info->si_addr == g_assert_poison) {
-    handle_assert_poison_fault(ucVoid, info->si_addr);
-    return 1;
-  }
-#endif
-
-  JavaThread* thread = NULL;
-  VMThread* vmthread = NULL;
-  if (os::Linux::signal_handlers_are_installed) {
-    if (t != NULL) {
-      if(t->is_Java_thread()) {
-        thread = (JavaThread*)t;
-      } else if(t->is_VM_thread()) {
-        vmthread = (VMThread *)t;
-      }
-    }
-  }
-
-  // Moved SafeFetch32 handling outside thread!=NULL conditional block to make
-  // it work if no associated JavaThread object exists.
-  if (uc) {
-    address const pc = os::Linux::ucontext_get_pc(uc);
-    if (pc && StubRoutines::is_safefetch_fault(pc)) {
-      os::Linux::ucontext_set_pc(uc, StubRoutines::continuation_for_safefetch_fault(pc));
-      return true;
-    }
-  }
+bool PosixSignals::pd_hotspot_signal_handler(int sig, siginfo_t* info,
+                                             ucontext_t* uc, JavaThread* thread) {
 
   // Decide if this trap can be handled by a stub.
-  address stub    = NULL;
-  address pc      = NULL;  // Pc as retrieved from PSW. Usually points past failing instruction.
-  address trap_pc = NULL;  // Pc of the instruction causing the trap.
+  address stub    = nullptr;
+  address pc      = nullptr;  // Pc as retrieved from PSW. Usually points past failing instruction.
+  address trap_pc = nullptr;  // Pc of the instruction causing the trap.
 
   //%note os_trap_1
-  if (info != NULL && uc != NULL && thread != NULL) {
-    pc = os::Linux::ucontext_get_pc(uc);
+  if (info != nullptr && uc != nullptr && thread != nullptr) {
+    pc = os::Posix::ucontext_get_pc(uc);
     if (TraceTraps) {
       tty->print_cr("     pc at " INTPTR_FORMAT, p2i(pc));
     }
@@ -323,61 +235,10 @@ JVM_handle_linux_signal(int sig,
       address addr = (address)info->si_addr; // Address causing SIGSEGV, usually mem ref target.
 
       // Check if fault address is within thread stack.
-      if (thread->on_local_stack(addr)) {
+      if (thread->is_in_full_stack(addr)) {
         // stack overflow
-        if (thread->in_stack_yellow_reserved_zone(addr)) {
-          if (thread->thread_state() == _thread_in_Java) {
-            if (thread->in_stack_reserved_zone(addr)) {
-              frame fr;
-              if (os::Linux::get_frame_at_stack_banging_point(thread, uc, &fr)) {
-                assert(fr.is_java_frame(), "Must be a Javac frame");
-                frame activation =
-                  SharedRuntime::look_for_reserved_stack_annotated_method(thread, fr);
-                if (activation.sp() != NULL) {
-                  thread->disable_stack_reserved_zone();
-                  if (activation.is_interpreted_frame()) {
-                    thread->set_reserved_stack_activation((address)activation.fp());
-                  } else {
-                    thread->set_reserved_stack_activation((address)activation.unextended_sp());
-                  }
-                  return 1;
-                }
-              }
-            }
-            // Throw a stack overflow exception.
-            // Guard pages will be reenabled while unwinding the stack.
-            thread->disable_stack_yellow_reserved_zone();
-            stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::STACK_OVERFLOW);
-          } else {
-            // Thread was in the vm or native code. Return and try to finish.
-            thread->disable_stack_yellow_reserved_zone();
-            return 1;
-          }
-        } else if (thread->in_stack_red_zone(addr)) {
-          // Fatal red zone violation.  Disable the guard pages and fall through
-          // to handle_unexpected_exception way down below.
-          thread->disable_stack_red_zone();
-          tty->print_raw_cr("An irrecoverable stack overflow has occurred.");
-
-          // This is a likely cause, but hard to verify. Let's just print
-          // it as a hint.
-          tty->print_raw_cr("Please check if any of your loaded .so files has "
-                            "enabled executable stack (see man page execstack(8))");
-        } else {
-          // Accessing stack address below sp may cause SEGV if current
-          // thread has MAP_GROWSDOWN stack. This should only happen when
-          // current thread was created by user code with MAP_GROWSDOWN flag
-          // and then attached to VM. See notes in os_linux.cpp.
-          if (thread->osthread()->expanding_stack() == 0) {
-             thread->osthread()->set_expanding_stack();
-             if (os::Linux::manually_expand_stack(thread, addr)) {
-               thread->osthread()->clear_expanding_stack();
-               return 1;
-             }
-             thread->osthread()->clear_expanding_stack();
-          } else {
-             fatal("recursive segv. expanding stack.");
-          }
+        if (os::Posix::handle_stack_overflow(thread, addr, pc, uc, &stub)) {
+          return true; // continue
         }
       }
     }
@@ -387,15 +248,15 @@ JVM_handle_linux_signal(int sig,
       // a fault inside compiled code, the interpreter, or a stub
 
       // Handle signal from NativeJump::patch_verified_entry().
-      if (sig == SIGILL && nativeInstruction_at(pc)->is_sigill_zombie_not_entrant()) {
+      if (sig == SIGILL && nativeInstruction_at(pc)->is_sigill_not_entrant()) {
         if (TraceTraps) {
-          tty->print_cr("trap: zombie_not_entrant (SIGILL)");
+          tty->print_cr("trap: not_entrant (SIGILL)");
         }
         stub = SharedRuntime::get_handle_wrong_method_stub();
       }
 
       else if (sig == SIGSEGV &&
-               os::is_poll_address((address)info->si_addr)) {
+               SafepointMechanism::is_poll_address((address)info->si_addr)) {
         if (TraceTraps) {
           tty->print_cr("trap: safepoint_poll at " INTPTR_FORMAT " (SIGSEGV)", p2i(pc));
         }
@@ -411,7 +272,7 @@ JVM_handle_linux_signal(int sig,
       // SIGTRAP-based implicit null check in compiled code.
       else if ((sig == SIGFPE) &&
                TrapBasedNullChecks &&
-               (trap_pc != NULL) &&
+               (trap_pc != nullptr) &&
                Assembler::is_sigtrap_zero_check(trap_pc)) {
         if (TraceTraps) {
           tty->print_cr("trap: NULL_CHECK at " INTPTR_FORMAT " (SIGFPE)", p2i(trap_pc));
@@ -421,22 +282,24 @@ JVM_handle_linux_signal(int sig,
 
       else if (sig == SIGSEGV && ImplicitNullChecks &&
                CodeCache::contains((void*) pc) &&
-               !MacroAssembler::needs_explicit_null_check((intptr_t) info->si_addr)) {
+               MacroAssembler::uses_implicit_null_check(info->si_addr)) {
         if (TraceTraps) {
           tty->print_cr("trap: null_check at " INTPTR_FORMAT " (SIGSEGV)", p2i(pc));
         }
         stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_NULL);
       }
 
+#ifdef COMPILER2
       // SIGTRAP-based implicit range check in compiled code.
       else if (sig == SIGFPE && TrapBasedRangeChecks &&
-               (trap_pc != NULL) &&
+               (trap_pc != nullptr) &&
                Assembler::is_sigtrap_range_check(trap_pc)) {
         if (TraceTraps) {
           tty->print_cr("trap: RANGE_CHECK at " INTPTR_FORMAT " (SIGFPE)", p2i(trap_pc));
         }
         stub = SharedRuntime::continuation_for_implicit_exception(thread, trap_pc, SharedRuntime::IMPLICIT_NULL);
       }
+#endif
 
       else if (sig == SIGFPE && info->si_code == FPE_INTDIV) {
         stub = SharedRuntime::continuation_for_implicit_exception(thread, trap_pc, SharedRuntime::IMPLICIT_DIVIDE_BY_ZERO);
@@ -445,10 +308,10 @@ JVM_handle_linux_signal(int sig,
       else if (sig == SIGBUS) {
         // BugId 4454115: A read from a MappedByteBuffer can fault here if the
         // underlying file has been truncated. Do not crash the VM in such a case.
-        CodeBlob* cb = CodeCache::find_blob_unsafe(pc);
-        CompiledMethod* nm = (cb != NULL) ? cb->as_compiled_method_or_null() : NULL;
-        if (nm != NULL && nm->has_unsafe_access()) {
-          // We don't really need a stub here! Just set the pending exeption and
+        CodeBlob* cb = CodeCache::find_blob(pc);
+        nmethod* nm = (cb != nullptr) ? cb->as_nmethod_or_null() : nullptr;
+        if (nm != nullptr && nm->has_unsafe_access()) {
+          // We don't really need a stub here! Just set the pending exception and
           // continue at the next instruction after the faulting read. Returning
           // garbage from this read is ok.
           thread->set_pending_unsafe_access_error();
@@ -470,69 +333,35 @@ JVM_handle_linux_signal(int sig,
         // when the vector facility is installed, but operating system support is missing.
         VM_Version::reset_has_VectorFacility();
         stub = pc; // Continue with next instruction.
-      } else if (thread->thread_state() == _thread_in_vm &&
+      } else if ((thread->thread_state() == _thread_in_vm ||
+                  thread->thread_state() == _thread_in_native) &&
                  sig == SIGBUS && thread->doing_unsafe_access()) {
-        // We don't really need a stub here! Just set the pending exeption and
+        // We don't really need a stub here! Just set the pending exception and
         // continue at the next instruction after the faulting read. Returning
         // garbage from this read is ok.
         thread->set_pending_unsafe_access_error();
-        os::Linux::ucontext_set_pc(uc, pc + Assembler::instr_len(pc));
+        os::Posix::ucontext_set_pc(uc, pc + Assembler::instr_len(pc));
         return true;
       }
     }
 
-    // Check to see if we caught the safepoint code in the
-    // process of write protecting the memory serialization page.
-    // It write enables the page immediately after protecting it
-    // so we can just return to retry the write.
-    // Info->si_addr need not be the exact address, it is only
-    // guaranteed to be on the same page as the address that caused
-    // the SIGSEGV.
-    if ((sig == SIGSEGV) && !UseMembar &&
-        (os::get_memory_serialize_page() ==
-         (address)((uintptr_t)info->si_addr & ~(os::vm_page_size()-1)))) {
-      return true;
+    // jni_fast_Get<Primitive>Field can trap at certain pc's if a GC kicks in
+    // and the heap gets shrunk before the field access.
+    if ((sig == SIGSEGV) || (sig == SIGBUS)) {
+      address addr = JNI_FastGetField::find_slowcase_pc(pc);
+      if (addr != (address)-1) {
+        stub = addr;
+      }
     }
   }
 
-  if (stub != NULL) {
+  if (stub != nullptr) {
     // Save all thread context in case we need to restore it.
-    if (thread != NULL) thread->set_saved_exception_pc(pc);
-    os::Linux::ucontext_set_pc(uc, stub);
+    if (thread != nullptr) thread->set_saved_exception_pc(pc);
+    os::Posix::ucontext_set_pc(uc, stub);
     return true;
   }
 
-  // signal-chaining
-  if (os::Linux::chained_handler(sig, info, ucVoid)) {
-    return true;
-  }
-
-  if (!abort_if_unrecognized) {
-    // caller wants another chance, so give it to him
-    return false;
-  }
-
-  if (pc == NULL && uc != NULL) {
-    pc = os::Linux::ucontext_get_pc(uc);
-  }
-
-  // unmask current signal
-  sigset_t newset;
-  sigemptyset(&newset);
-  sigaddset(&newset, sig);
-  sigprocmask(SIG_UNBLOCK, &newset, NULL);
-
-  // Hand down correct pc for SIGILL, SIGFPE. pc from context
-  // usually points to the instruction after the failing instruction.
-  // Note: this should be combined with the trap_pc handling above,
-  // because it handles the same issue.
-  if (sig == SIGILL || sig == SIGFPE) {
-    pc = (address)info->si_addr;
-  }
-
-  VMError::report_and_die(t, sig, pc, info, ucVoid);
-
-  ShouldNotReachHere();
   return false;
 }
 
@@ -554,9 +383,9 @@ void os::Linux::set_fpu_control_word(int fpu_control) {
 
 // Minimum usable stack sizes required to get to user code. Space for
 // HotSpot guard pages is added later.
-size_t os::Posix::_compiler_thread_min_stack_allowed = (52 DEBUG_ONLY(+ 32)) * K;
-size_t os::Posix::_java_thread_min_stack_allowed = (32 DEBUG_ONLY(+ 8)) * K;
-size_t os::Posix::_vm_internal_thread_min_stack_allowed = 32 * K;
+size_t os::_compiler_thread_min_stack_allowed = (52 DEBUG_ONLY(+ 32)) * K;
+size_t os::_java_thread_min_stack_allowed = (32 DEBUG_ONLY(+ 8)) * K;
+size_t os::_vm_internal_thread_min_stack_allowed = 32 * K;
 
 // Return default stack size for thr_type.
 size_t os::Posix::default_stack_size(os::ThreadType thr_type) {
@@ -569,7 +398,7 @@ size_t os::Posix::default_stack_size(os::ThreadType thr_type) {
 // helper functions for fatal error handler
 
 void os::print_context(outputStream *st, const void *context) {
-  if (context == NULL) return;
+  if (context == nullptr) return;
 
   const ucontext_t* uc = (const ucontext_t*)context;
 
@@ -611,36 +440,45 @@ void os::print_context(outputStream *st, const void *context) {
   }
   st->cr();
   st->cr();
+}
 
-  intptr_t *sp = (intptr_t *)os::Linux::ucontext_get_sp(uc);
-  st->print_cr("Top of Stack: (sp=" PTR_FORMAT ")", p2i(sp));
-  print_hex_dump(st, (address)sp, (address)(sp + 128), sizeof(intptr_t));
+void os::print_tos_pc(outputStream *st, const void *context) {
+  if (context == nullptr) return;
+
+  const ucontext_t* uc = (const ucontext_t*)context;
+
+  address sp = (address)os::Linux::ucontext_get_sp(uc);
+  print_tos(st, sp);
   st->cr();
 
   // Note: it may be unsafe to inspect memory near pc. For example, pc may
   // point to garbage if entry point in an nmethod is corrupted. Leave
   // this at the end, and hope for the best.
-  address pc = os::Linux::ucontext_get_pc(uc);
-  if (Verbose) { st->print_cr("pc at " PTR_FORMAT, p2i(pc)); }
-  st->print_cr("Instructions: (pc=" PTR_FORMAT ")", p2i(pc));
-  print_hex_dump(st, pc-64, pc+64, /*intrsize=*/4);
+  address pc = os::Posix::ucontext_get_pc(uc);
+  print_instructions(st, pc);
   st->cr();
 }
 
-void os::print_register_info(outputStream *st, const void *context) {
-  if (context == NULL) return;
+void os::print_register_info(outputStream *st, const void *context, int& continuation) {
+  const int register_count = 16 /* r0-r15 */ + 1 /* pc */;
+  int n = continuation;
+  assert(n >= 0 && n <= register_count, "Invalid continuation value");
+  if (context == nullptr || n == register_count) {
+    return;
+  }
 
   const ucontext_t *uc = (const ucontext_t*)context;
-
-  st->print_cr("Register to memory mapping:");
-  st->cr();
-
-  st->print("pc ="); print_location(st, (intptr_t)uc->uc_mcontext.psw.addr);
-  for (int i = 0; i < 16; i++) {
-    st->print("r%-2d=", i);
-    print_location(st, uc->uc_mcontext.gregs[i]);
+  while (n < register_count) {
+    // Update continuation with next index before printing location
+    continuation = n + 1;
+    if (n == register_count - 1) {
+      st->print("pc ="); print_location(st, (intptr_t)uc->uc_mcontext.psw.addr);
+    } else {
+      st->print("r%-2d=", n);
+      print_location(st, uc->uc_mcontext.gregs[n]);
+    }
+    ++n;
   }
-  st->cr();
 }
 
 #ifndef PRODUCT
@@ -652,3 +490,5 @@ int os::extra_bang_size_in_bytes() {
   // z/Architecture does not require the additional stack bang.
   return 0;
 }
+
+void os::setup_fpu() {}

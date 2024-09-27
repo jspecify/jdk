@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,8 +44,7 @@ import static java.util.zip.ZipConstants64.*;
  * @since 1.1
  */
 @NullMarked
-public
- class ZipEntry implements ZipConstants, Cloneable {
+public class ZipEntry implements ZipConstants, Cloneable {
 
     String name;        // entry name
     long xdostime = -1; // last modification time (in extended DOS time,
@@ -57,11 +56,13 @@ public
     long crc = -1;      // crc-32 of entry data
     long size = -1;     // uncompressed size of entry data
     long csize = -1;    // compressed size of entry data
+    boolean csizeSet = false; // Only true if csize was explicitly set by
+                        // a call to setCompressedSize()
     int method = -1;    // compression method
     int flag = 0;       // general purpose flag
     byte[] extra;       // optional extra field data for entry
     String comment;     // optional comment string for entry
-
+    int externalFileAttributes = -1; // File type, setuid, setgid, sticky, POSIX permissions
     /**
      * Compression method for uncompressed entries.
      */
@@ -80,7 +81,7 @@ public
     /**
      * Approximately 128 years, in milliseconds (ignoring leap years etc).
      *
-     * This establish an approximate high-bound value for DOS times in
+     * This establishes an approximate high-bound value for DOS times in
      * milliseconds since epoch, used to enable an efficient but
      * sufficient bounds check to avoid generating extended last modified
      * time entries.
@@ -95,7 +96,7 @@ public
             128L * 365 * 24 * 60 * 60 * 1000;
 
     /**
-     * Creates a new zip entry with the specified name.
+     * Creates a new ZIP entry with the specified name.
      *
      * @param  name
      *         The entry name
@@ -113,11 +114,11 @@ public
     }
 
     /**
-     * Creates a new zip entry with fields taken from the specified
-     * zip entry.
+     * Creates a new ZIP entry with fields taken from the specified
+     * ZIP entry.
      *
      * @param  e
-     *         A zip Entry object
+     *         A ZIP Entry object
      *
      * @throws NullPointerException if the entry object is null
      */
@@ -131,20 +132,16 @@ public
         crc = e.crc;
         size = e.size;
         csize = e.csize;
+        csizeSet = e.csizeSet;
         method = e.method;
         flag = e.flag;
         extra = e.extra;
         comment = e.comment;
+        externalFileAttributes = e.externalFileAttributes;
     }
 
     /**
-     * Creates a new un-initialized zip entry
-     */
-    ZipEntry() {}
-
-    /**
-     * Returns the name of the entry.
-     * @return the name of the entry
+     * {@return the name of the entry}
      */
     public String getName() {
         return name;
@@ -155,10 +152,10 @@ public
      *
      * <p> If the entry is output to a ZIP file or ZIP file formatted
      * output stream the last modification time set by this method will
-     * be stored into the {@code date and time fields} of the zip file
+     * be stored into the {@code date and time fields} of the ZIP file
      * entry and encoded in standard {@code MS-DOS date and time format}.
      * The {@link java.util.TimeZone#getDefault() default TimeZone} is
-     * used to convert the epoch time to the MS-DOS data and time.
+     * used to convert the epoch time to the MS-DOS date and time.
      *
      * @param  time
      *         The last modification time of the entry in milliseconds
@@ -171,10 +168,15 @@ public
         this.xdostime = javaToExtendedDosTime(time);
         // Avoid setting the mtime field if time is in the valid
         // range for a DOS time
-        if (xdostime != DOSTIME_BEFORE_1980 && time <= UPPER_DOSTIME_BOUND) {
+        if (this.xdostime != DOSTIME_BEFORE_1980 && time <= UPPER_DOSTIME_BOUND) {
             this.mtime = null;
         } else {
-            this.mtime = FileTime.from(time, TimeUnit.MILLISECONDS);
+            int localYear = javaEpochToLocalDateTime(time).getYear();
+            if (localYear >= 1980 && localYear <= 2099) {
+                this.mtime = null;
+            } else {
+                this.mtime = FileTime.from(time, TimeUnit.MILLISECONDS);
+            }
         }
     }
 
@@ -183,7 +185,7 @@ public
      *
      * <p> If the entry is read from a ZIP file or ZIP file formatted
      * input stream, this is the last modification time from the {@code
-     * date and time fields} of the zip file entry. The
+     * date and time fields} of the ZIP file entry. The
      * {@link java.util.TimeZone#getDefault() default TimeZone} is used
      * to convert the standard MS-DOS formatted date and time to the
      * epoch time.
@@ -206,11 +208,11 @@ public
      *
      * <p> If the entry is output to a ZIP file or ZIP file formatted
      * output stream the last modification time set by this method will
-     * be stored into the {@code date and time fields} of the zip file
+     * be stored into the {@code date and time fields} of the ZIP file
      * entry and encoded in standard {@code MS-DOS date and time format}.
      * If the date-time set is out of the range of the standard {@code
      * MS-DOS date and time format}, the time will also be stored into
-     * zip file entry's extended timestamp fields in {@code optional
+     * ZIP file entry's extended timestamp fields in {@code optional
      * extra data} in UTC time. The {@link java.time.ZoneId#systemDefault()
      * system default TimeZone} is used to convert the local date-time
      * to UTC time.
@@ -222,7 +224,7 @@ public
      *
      * @param  time
      *         The last modification time of the entry in local date-time
-     *
+     * @throws NullPointerException if {@code time} is null
      * @see #getTimeLocal()
      * @since 9
      */
@@ -285,13 +287,13 @@ public
      *
      * <p> When output to a ZIP file or ZIP file formatted output stream
      * the last modification time set by this method will be stored into
-     * zip file entry's {@code date and time fields} in {@code standard
+     * ZIP file entry's {@code date and time fields} in {@code standard
      * MS-DOS date and time format}), and the extended timestamp fields
      * in {@code optional extra data} in UTC time.
      *
      * @param  time
      *         The last modification time of the entry
-     * @return This zip entry
+     * @return This ZIP entry
      *
      * @throws NullPointerException if the {@code time} is null
      *
@@ -337,7 +339,7 @@ public
      *
      * @param  time
      *         The last access time of the entry
-     * @return This zip entry
+     * @return This ZIP entry
      *
      * @throws NullPointerException if the {@code time} is null
      *
@@ -373,7 +375,7 @@ public
      *
      * @param  time
      *         The creation time of the entry
-     * @return This zip entry
+     * @return This ZIP entry
      *
      * @throws NullPointerException if the {@code time} is null
      *
@@ -450,6 +452,7 @@ public
      */
     public void setCompressedSize(long csize) {
         this.csize = csize;
+        this.csizeSet = true;
     }
 
     /**
@@ -525,7 +528,7 @@ public
      * @see #getExtra()
      */
     public void setExtra(byte @Nullable [] extra) {
-        setExtra0(extra, false);
+        setExtra0(extra, false, true);
     }
 
     /**
@@ -535,8 +538,11 @@ public
      *        the extra field data bytes
      * @param doZIP64
      *        if true, set size and csize from ZIP64 fields if present
+     * @param isLOC
+     *        true if setting the extra field for a LOC, false if for
+     *        a CEN
      */
-    void setExtra0(byte[] extra, boolean doZIP64) {
+    void setExtra0(byte[] extra, boolean doZIP64, boolean isLOC) {
         if (extra != null) {
             if (extra.length > 0xFFFF) {
                 throw new IllegalArgumentException("invalid extra field length");
@@ -553,15 +559,29 @@ public
                 switch (tag) {
                 case EXTID_ZIP64:
                     if (doZIP64) {
-                        // LOC extra zip64 entry MUST include BOTH original
-                        // and compressed file size fields.
-                        // If invalid zip64 extra fields, simply skip. Even
-                        // it's rare, it's possible the entry size happens to
-                        // be the magic value and it "accidently" has some
-                        // bytes in extra match the id.
-                        if (sz >= 16) {
-                            size = get64(extra, off);
-                            csize = get64(extra, off + 8);
+                        if (isLOC) {
+                            // LOC extra zip64 entry MUST include BOTH original
+                            // and compressed file size fields.
+                            // If invalid zip64 extra fields, simply skip. Even
+                            // it's rare, it's possible the entry size happens to
+                            // be the magic value and it "accidentally" has some
+                            // bytes in extra match the id.
+                            if (sz >= 16) {
+                                size = get64(extra, off);
+                                csize = get64(extra, off + 8);
+                            }
+                        } else {
+                            // CEN extra zip64
+                            if (size == ZIP64_MAGICVAL) {
+                                if (off + 8 > len)  // invalid zip64 extra
+                                    break;          // fields, just skip
+                                size = get64(extra, off);
+                            }
+                            if (csize == ZIP64_MAGICVAL) {
+                                if (off + 16 > len)  // invalid zip64 extra
+                                    break;           // fields, just skip
+                                csize = get64(extra, off + 8);
+                            }
                         }
                     }
                     break;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CIMETHODBLOCKS_HPP
-#define SHARE_VM_CI_CIMETHODBLOCKS_HPP
+#ifndef SHARE_CI_CIMETHODBLOCKS_HPP
+#define SHARE_CI_CIMETHODBLOCKS_HPP
 
 #include "ci/ciMethod.hpp"
 #include "memory/resourceArea.hpp"
@@ -32,9 +32,7 @@
 
 class ciBlock;
 
-typedef short ciBlockIndex;
-
-class ciMethodBlocks : public ResourceObj {
+class ciMethodBlocks : public ArenaObj {
 private:
   ciMethod *_method;
   Arena *_arena;
@@ -62,7 +60,7 @@ public:
 #endif
 };
 
-class ciBlock : public ResourceObj {
+class ciBlock : public ArenaObj {
 private:
   int _idx;
   int _start_bci;
@@ -129,4 +127,4 @@ public:
 #endif
 };
 
-#endif // SHARE_VM_CI_CIMETHODBLOCKS_HPP
+#endif // SHARE_CI_CIMETHODBLOCKS_HPP

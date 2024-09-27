@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import jdk.test.lib.apps.LingeredApp;
+import jtreg.SkippedException;
 
 /**
  * @test
@@ -45,7 +46,7 @@ public class ClhsdbPrintAll {
             ClhsdbLauncher test = new ClhsdbLauncher();
 
             theApp = new LingeredAppWithEnum();
-            LingeredApp.startApp(null, theApp);
+            LingeredApp.startApp(theApp);
             System.out.println("Started LingeredAppWithEnum with pid " + theApp.getPid());
 
             List<String> cmds = List.of("printall");
@@ -55,19 +56,21 @@ public class ClhsdbPrintAll {
             expStrMap.put("printall", List.of(
                 "aload_0",
                 "Constant Pool of",
-                "public static void main(java.lang.String[])",
+                "public static void main\\(java.lang.String\\[\\]\\)",
                 "Bytecode",
-                "[enum] class Song [signature Ljava/lang/Enum<LSong;>;]",
-                "Method java.lang.Object clone()",
-                "public static Song[] values()",
+                "\\[enum\\] class Song \\[signature Ljava/lang/Enum\\<LSong;\\>;\\]",
+                "Method java.lang.Object clone\\(\\)",
+                "public static Song\\[\\] values\\(\\)",
                 "invokevirtual",
                 "checkcast",
                 "Field Song HAVANA",
                 "Exception Table",
                 "invokedynamic"));
             unExpStrMap.put("printall", List.of(
-                "cannot be cast to"));
+                "cannot be cast to class"));
             test.run(theApp.getPid(), cmds, expStrMap, unExpStrMap);
+        } catch (SkippedException se) {
+            throw se;
         } catch (Exception ex) {
             throw new RuntimeException("Test ERROR " + ex, ex);
         } finally {

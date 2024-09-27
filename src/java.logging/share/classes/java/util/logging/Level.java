@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package java.util.logging;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import java.io.Serial;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -43,8 +44,8 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.function.Function;
 import jdk.internal.loader.ClassLoaderValue;
-import jdk.internal.misc.JavaUtilResourceBundleAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaUtilResourceBundleAccess;
+import jdk.internal.access.SharedSecrets;
 
 /**
  * The Level class defines a set of standard logging levels that
@@ -444,11 +445,20 @@ public  class Level implements java.io.Serializable {
         return value;
     }
 
+    @Serial
     private static final long serialVersionUID = -8176160795706313070L;
 
-    // Serialization magic to prevent "doppelgangers".
-    // This is a performance optimization.
+    /**
+     * Returns a {@code Level} instance with the same {@code name},
+     * {@code value}, and {@code resourceBundleName} as the deserialized
+     * object.
+     * @return a {@code Level} instance corresponding to the deserialized
+     * object.
+     */
+    @Serial
     private Object readResolve() {
+        // Serialization magic to prevent "doppelgangers".
+        // This is a performance optimization.
         Optional<Level> level = KnownLevel.matches(this);
         if (level.isPresent()) {
             return level.get();
@@ -626,10 +636,8 @@ public  class Level implements java.io.Serializable {
         }
 
         private static void registerWithClassLoader(Level customLevel) {
-            PrivilegedAction<ClassLoader> pa =
-                  () -> customLevel.getClass().getClassLoader();
-            PrivilegedAction<String> pn =  customLevel.getClass()::getName;
-            final String name = AccessController.doPrivileged(pn);
+            PrivilegedAction<ClassLoader> pa = customLevel.getClass()::getClassLoader;
+            @SuppressWarnings("removal")
             final ClassLoader cl = AccessController.doPrivileged(pa);
             CUSTOM_LEVEL_CLV.computeIfAbsent(cl, (c, v) -> new ArrayList<>())
                 .add(customLevel);
@@ -640,19 +648,10 @@ public  class Level implements java.io.Serializable {
             // the mirroredLevel object is always added to the list
             // before the custom Level instance
             KnownLevel o = new KnownLevel(l);
-            List<KnownLevel> list = nameToLevels.get(l.name);
-            if (list == null) {
-                list = new ArrayList<>();
-                nameToLevels.put(l.name, list);
-            }
-            list.add(o);
-
-            list = intToLevels.get(l.value);
-            if (list == null) {
-                list = new ArrayList<>();
-                intToLevels.put(l.value, list);
-            }
-            list.add(o);
+            nameToLevels.computeIfAbsent(l.name, (k) -> new ArrayList<>())
+                .add(o);
+            intToLevels.computeIfAbsent(l.value, (k) -> new ArrayList<>())
+                .add(o);
 
             // keep the custom level reachable from its class loader
             // This will ensure that custom level values are not GC'ed

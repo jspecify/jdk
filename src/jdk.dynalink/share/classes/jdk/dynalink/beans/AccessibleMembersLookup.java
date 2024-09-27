@@ -65,9 +65,8 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Utility class for discovering accessible methods and inner classes. Normally, a public member declared on a class is
@@ -78,7 +77,7 @@ import java.util.Set;
  */
 class AccessibleMembersLookup {
     private final Map<MethodSignature, Method> methods;
-    private final Set<Class<?>> innerClasses;
+    private final Map<String, Class<?>> innerClasses;
     private final boolean instance;
 
     /**
@@ -89,20 +88,9 @@ class AccessibleMembersLookup {
      */
     AccessibleMembersLookup(final Class<?> clazz, final boolean instance) {
         this.methods = new HashMap<>();
-        this.innerClasses = new LinkedHashSet<>();
+        this.innerClasses = new LinkedHashMap<>();
         this.instance = instance;
         lookupAccessibleMembers(clazz);
-    }
-
-    /**
-     * Returns an accessible method equivalent of a method.
-     *
-     * @param m the method whose accessible equivalent is requested.
-     * @return the accessible equivalent for the method (can be the same as the passed in method), or null if there is
-     * no accessible method equivalent.
-     */
-    Method getAccessibleMethod(final Method m) {
-        return m == null ? null : methods.get(new MethodSignature(m));
     }
 
     Collection<Method> getMethods() {
@@ -110,7 +98,11 @@ class AccessibleMembersLookup {
     }
 
     Class<?>[] getInnerClasses() {
-        return innerClasses.toArray(new Class<?>[0]);
+        return innerClasses.values().toArray(new Class<?>[0]);
+    }
+
+    Method getAccessibleMethod(final Method m) {
+        return methods.get(new MethodSignature(m));
     }
 
     /**
@@ -216,7 +208,11 @@ class AccessibleMembersLookup {
                 // NOTE: getting inner class objects through getClasses() does not resolve them, so if those classes
                 // were not yet loaded, they'll only get loaded in a non-resolved state; no static initializers for
                 // them will trigger just by doing this.
-                innerClasses.add(innerClass);
+                // Don't overwrite an inner class with an inherited inner class with the same name.
+                Class<?> previousClass = innerClasses.get(innerClass.getSimpleName());
+                if (previousClass == null || previousClass.getDeclaringClass().isAssignableFrom(innerClass.getDeclaringClass())) {
+                    innerClasses.put(innerClass.getSimpleName(), innerClass);
+                }
             }
         } else {
             searchSuperTypes = true;
@@ -227,9 +223,8 @@ class AccessibleMembersLookup {
             // If we reach here, the class is either not public, or it is in a restricted package. Alternatively, it is
             // public, but some of its methods claim that their declaring class is non-public. We'll try superclasses
             // and implemented interfaces then looking for public ones.
-            final Class<?>[] interfaces = clazz.getInterfaces();
-            for(int i = 0; i < interfaces.length; i++) {
-                lookupAccessibleMembers(interfaces[i]);
+            for (final Class<?> itf: clazz.getInterfaces()) {
+                lookupAccessibleMembers(itf);
             }
             final Class<?> superclass = clazz.getSuperclass();
             if(superclass != null) {

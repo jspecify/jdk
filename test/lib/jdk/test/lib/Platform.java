@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,29 +23,40 @@
 
 package jdk.test.lib;
 
-import java.io.File;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+import static java.util.Locale.ROOT;
 
 public class Platform {
-    public  static final String vmName      = System.getProperty("java.vm.name");
-    public  static final String vmInfo      = System.getProperty("java.vm.info");
-    private static final String osVersion   = System.getProperty("os.version");
-    private static       String[] osVersionTokens;
+    public  static final String vmName      = privilegedGetProperty("java.vm.name");
+    public  static final String vmInfo      = privilegedGetProperty("java.vm.info");
+    private static final String osVersion   = privilegedGetProperty("os.version");
     private static       int osVersionMajor = -1;
     private static       int osVersionMinor = -1;
-    private static final String osName      = System.getProperty("os.name");
-    private static final String dataModel   = System.getProperty("sun.arch.data.model");
-    private static final String vmVersion   = System.getProperty("java.vm.version");
-    private static final String jdkDebug    = System.getProperty("jdk.debug");
-    private static final String osArch      = System.getProperty("os.arch");
-    private static final String userName    = System.getProperty("user.name");
-    private static final String compiler    = System.getProperty("sun.management.compiler");
+    private static final String osName      = privilegedGetProperty("os.name");
+    private static final String dataModel   = privilegedGetProperty("sun.arch.data.model");
+    private static final String vmVersion   = privilegedGetProperty("java.vm.version");
+    private static final String jdkDebug    = privilegedGetProperty("jdk.debug");
+    private static final String osArch      = privilegedGetProperty("os.arch");
+    private static final String userName    = privilegedGetProperty("user.name");
+    private static final String compiler    = privilegedGetProperty("sun.management.compiler");
+    private static final String testJdk     = privilegedGetProperty("test.jdk");
+
+    @SuppressWarnings("removal")
+    private static String privilegedGetProperty(String key) {
+        return AccessController.doPrivileged((
+                PrivilegedAction<String>) () -> System.getProperty(key));
+    }
 
     public static boolean isClient() {
         return vmName.endsWith(" Client VM");
@@ -53,10 +64,6 @@ public class Platform {
 
     public static boolean isServer() {
         return vmName.endsWith(" Server VM");
-    }
-
-    public static boolean isGraal() {
-        return vmName.endsWith(" Graal VM");
     }
 
     public static boolean isZero() {
@@ -76,7 +83,7 @@ public class Platform {
     }
 
     public static boolean isTieredSupported() {
-        return compiler.contains("Tiered Compilers");
+        return (compiler != null) && compiler.contains("Tiered Compilers");
     }
 
     public static boolean isInt() {
@@ -107,12 +114,20 @@ public class Platform {
         return isOs("linux");
     }
 
-    public static boolean isOSX() {
-        return isOs("mac");
+    public static boolean isBusybox(String tool) {
+        try {
+            Path toolpath = Paths.get(tool);
+            return !isWindows()
+                    && Files.isSymbolicLink(toolpath)
+                    && Paths.get("/bin/busybox")
+                        .equals(Files.readSymbolicLink(toolpath));
+        } catch (IOException ignore) {
+            return false;
+        }
     }
 
-    public static boolean isSolaris() {
-        return isOs("sunos");
+    public static boolean isOSX() {
+        return isOs("mac");
     }
 
     public static boolean isWindows() {
@@ -120,7 +135,7 @@ public class Platform {
     }
 
     private static boolean isOs(String osname) {
-        return osName.toLowerCase().startsWith(osname.toLowerCase());
+        return osName.toLowerCase(ROOT).startsWith(osname.toLowerCase(ROOT));
     }
 
     public static String getOsName() {
@@ -129,7 +144,7 @@ public class Platform {
 
     // Os version support.
     private static void init_version() {
-        osVersionTokens = osVersion.split("\\.");
+        String[] osVersionTokens = osVersion.split("\\.");
         try {
             if (osVersionTokens.length > 0) {
                 osVersionMajor = Integer.parseInt(osVersionTokens[0]);
@@ -147,72 +162,46 @@ public class Platform {
     }
 
     // Returns major version number from os.version system property.
-    // E.g. 5 on Solaris 10 and 3 on SLES 11.3 (for the linux kernel version).
+    // E.g. 3 on SLES 11.3 (for the linux kernel version).
     public static int getOsVersionMajor() {
         if (osVersionMajor == -1) init_version();
         return osVersionMajor;
     }
 
     // Returns minor version number from os.version system property.
-    // E.g. 10 on Solaris 10 and 0 on SLES 11.3 (for the linux kernel version).
+    // E.g. 0 on SLES 11.3 (for the linux kernel version).
     public static int getOsVersionMinor() {
         if (osVersionMinor == -1) init_version();
         return osVersionMinor;
     }
 
-    /**
-     * Compares the platform version with the supplied version. The
-     * version must be of the form a[.b[.c[.d...]]] where a, b, c, d, ...
-     * are decimal integers.
-     *
-     * @throws NullPointerException if the parameter is null
-     * @throws NumberFormatException if there is an error parsing either
-     *         version as split into component strings
-     * @return -1, 0, or 1 according to whether the platform version is
-     *         less than, equal to, or greater than the supplied version
-     */
-    public static int compareOsVersion(String version) {
-        if (osVersionTokens == null) init_version();
-
-        Objects.requireNonNull(version);
-
-        List<Integer> s1 = Arrays
-            .stream(osVersionTokens)
-            .map(Integer::valueOf)
-            .collect(Collectors.toList());
-        List<Integer> s2 = Arrays
-            .stream(version.split("\\."))
-            .map(Integer::valueOf)
-            .collect(Collectors.toList());
-
-        int count = Math.max(s1.size(), s2.size());
-        for (int i = 0; i < count; i++) {
-            int i1 = i < s1.size() ? s1.get(i) : 0;
-            int i2 = i < s2.size() ? s2.get(i) : 0;
-            if (i1 > i2) {
-                return 1;
-            } else if (i2 > i1) {
-                return -1;
-            }
-        }
-
-        return 0;
-    }
-
     public static boolean isDebugBuild() {
-        return (jdkDebug.toLowerCase().contains("debug"));
+        return (jdkDebug.toLowerCase(ROOT).contains("debug"));
     }
 
     public static boolean isSlowDebugBuild() {
-        return (jdkDebug.toLowerCase().equals("slowdebug"));
+        return (jdkDebug.toLowerCase(ROOT).equals("slowdebug"));
     }
 
     public static boolean isFastDebugBuild() {
-        return (jdkDebug.toLowerCase().equals("fastdebug"));
+        return (jdkDebug.toLowerCase(ROOT).equals("fastdebug"));
     }
 
     public static String getVMVersion() {
         return vmVersion;
+    }
+
+    public static boolean isMusl() {
+        try {
+            ProcessBuilder pb = new ProcessBuilder("ldd", "--version");
+            pb.redirectErrorStream(true);
+            Process p = pb.start();
+            BufferedReader b = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String l = b.readLine();
+            if (l != null && l.contains("musl")) { return true; }
+        } catch(Exception e) {
+        }
+        return false;
     }
 
     public static boolean isAArch64() {
@@ -221,6 +210,10 @@ public class Platform {
 
     public static boolean isARM() {
         return isArch("arm.*");
+    }
+
+    public static boolean isRISCV64() {
+        return isArch("riscv64");
     }
 
     public static boolean isPPC() {
@@ -232,13 +225,8 @@ public class Platform {
         return isArch("s390.*") || isArch("s/390.*") || isArch("zArch_64");
     }
 
-    // Returns true for sparc and sparcv9.
-    public static boolean isSparc() {
-        return isArch("sparc.*");
-    }
-
     public static boolean isX64() {
-        // On OSX it's 'x86_64' and on other (Linux, Windows and Solaris) platforms it's 'amd64'
+        // On OSX it's 'x86_64' and on other (Linux and Windows) platforms it's 'amd64'
         return isArch("(amd64)|(x86_64)");
     }
 
@@ -251,15 +239,22 @@ public class Platform {
         return osArch;
     }
 
+    public static boolean isRoot() {
+        return userName.equals("root");
+    }
+
     /**
      * Return a boolean for whether SA and jhsdb are ported/available
      * on this platform.
      */
     public static boolean hasSA() {
+        if (isZero()) {
+            return false; // SA is not enabled.
+        }
         if (isAix()) {
             return false; // SA not implemented.
         } else if (isLinux()) {
-            if (isS390x()) {
+            if (isS390x() || isARM()) {
                 return false; // SA not implemented.
             }
         }
@@ -267,73 +262,106 @@ public class Platform {
         return true;
     }
 
-    /**
-     * Return a boolean for whether we expect to be able to attach
-     * the SA to our own processes on this system.  This requires
-     * that SA is ported/available on this platform.
-     */
-    public static boolean shouldSAAttach() throws IOException {
-        if (!hasSA()) return false;
-        if (isLinux()) {
-            return canPtraceAttachLinux();
-        } else if (isOSX()) {
-            return canAttachOSX();
-        } else {
-            // Other platforms expected to work:
-            return true;
+    private static Process launchCodesignOnJavaBinary() throws IOException {
+        String jdkPath = System.getProperty("java.home");
+        Path javaPath = Paths.get(jdkPath + "/bin/java");
+        String javaFileName = javaPath.toAbsolutePath().toString();
+        if (Files.notExists(javaPath)) {
+            throw new FileNotFoundException("Could not find file " + javaFileName);
         }
+        ProcessBuilder pb = new ProcessBuilder("codesign", "--display", "--verbose", javaFileName);
+        pb.redirectErrorStream(true); // redirect stderr to stdout
+        Process codesignProcess = pb.start();
+        return codesignProcess;
+    }
+
+    public static boolean hasOSXPlistEntries() throws IOException {
+        Process codesignProcess = launchCodesignOnJavaBinary();
+        BufferedReader is = new BufferedReader(new InputStreamReader(codesignProcess.getInputStream()));
+        String line;
+        while ((line = is.readLine()) != null) {
+            System.out.println("STDOUT: " + line);
+            if (line.indexOf("Info.plist=not bound") != -1) {
+                return false;
+            }
+            if (line.indexOf("Info.plist entries=") != -1) {
+                return true;
+            }
+        }
+        System.out.println("No matching Info.plist entry was found");
+        return false;
     }
 
     /**
-     * On Linux, first check the SELinux boolean "deny_ptrace" and return false
-     * as we expect to be denied if that is "1".  Then expect permission to attach
-     * if we are root, so return true.  Then return false for an expected denial
-     * if "ptrace_scope" is 1, and true otherwise.
+     * Return true if the test JDK is hardened, otherwise false. Only valid on OSX.
      */
-    private static boolean canPtraceAttachLinux() throws IOException {
-        // SELinux deny_ptrace:
-        File deny_ptrace = new File("/sys/fs/selinux/booleans/deny_ptrace");
-        if (deny_ptrace.exists()) {
-            try (RandomAccessFile file = new RandomAccessFile(deny_ptrace, "r")) {
-                if (file.readByte() != '0') {
-                    return false;
-                }
+    public static boolean isHardenedOSX() throws IOException {
+        // We only care about hardened binaries for 10.14 and later (actually 10.14.5, but
+        // for simplicity we'll also include earlier 10.14 versions).
+        if (getOsVersionMajor() == 10 && getOsVersionMinor() < 14) {
+            return false; // assume not hardened
+        }
+        Process codesignProcess = launchCodesignOnJavaBinary();
+        BufferedReader is = new BufferedReader(new InputStreamReader(codesignProcess.getInputStream()));
+        String line;
+        boolean isHardened = false;
+        boolean hardenedStatusConfirmed = false; // set true when we confirm whether or not hardened
+        while ((line = is.readLine()) != null) {
+            System.out.println("STDOUT: " + line);
+            if (line.indexOf("flags=0x10000(runtime)") != -1 ) {
+                hardenedStatusConfirmed = true;
+                isHardened = true;
+                System.out.println("Target JDK is hardened. Some tests may be skipped.");
+            } else if (line.indexOf("flags=0x20002(adhoc,linker-signed)") != -1 ) {
+                hardenedStatusConfirmed = true;
+                isHardened = false;
+                System.out.println("Target JDK is adhoc linker-signed, but not hardened.");
+            } else if (line.indexOf("flags=0x2(adhoc)") != -1 ) {
+                hardenedStatusConfirmed = true;
+                isHardened = false;
+                System.out.println("Target JDK is adhoc signed, but not hardened.");
+            } else if (line.indexOf("code object is not signed at all") != -1) {
+                hardenedStatusConfirmed = true;
+                isHardened = false;
+                System.out.println("Target JDK is not signed, therefore not hardened.");
             }
         }
-
-        // YAMA enhanced security ptrace_scope:
-        // 0 - a process can PTRACE_ATTACH to any other process running under the same uid
-        // 1 - restricted ptrace: a process must be a children of the inferior or user is root
-        // 2 - only processes with CAP_SYS_PTRACE may use ptrace or user is root
-        // 3 - no attach: no processes may use ptrace with PTRACE_ATTACH
-        File ptrace_scope = new File("/proc/sys/kernel/yama/ptrace_scope");
-        if (ptrace_scope.exists()) {
-            try (RandomAccessFile file = new RandomAccessFile(ptrace_scope, "r")) {
-                byte yama_scope = file.readByte();
-                if (yama_scope == '3') {
-                    return false;
-                }
-
-                if (!userName.equals("root") && yama_scope != '0') {
-                    return false;
-                }
-            }
+        if (!hardenedStatusConfirmed) {
+            System.out.println("Could not confirm if TargetJDK is hardened. Assuming not hardened.");
+            isHardened = false;
         }
-        // Otherwise expect to be permitted:
-        return true;
-    }
 
-    /**
-     * On OSX, expect permission to attach only if we are root.
-     */
-    private static boolean canAttachOSX() {
-        return userName.equals("root");
+        try {
+            if (codesignProcess.waitFor(10, TimeUnit.SECONDS) == false) {
+                System.err.println("Timed out waiting for the codesign process to complete. Assuming not hardened.");
+                codesignProcess.destroyForcibly();
+                return false; // assume not hardened
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        return isHardened;
     }
 
     private static boolean isArch(String archnameRE) {
         return Pattern.compile(archnameRE, Pattern.CASE_INSENSITIVE)
                       .matcher(osArch)
                       .matches();
+    }
+
+    public static boolean isOracleLinux7() {
+        if (System.getProperty("os.name").toLowerCase(ROOT).contains("linux") &&
+                System.getProperty("os.version").toLowerCase(ROOT).contains("el")) {
+            Pattern p = Pattern.compile("el(\\d+)");
+            Matcher m = p.matcher(System.getProperty("os.version"));
+            if (m.find()) {
+                try {
+                    return Integer.parseInt(m.group(1)) <= 7;
+                } catch (NumberFormatException nfe) {}
+            }
+        }
+        return false;
     }
 
     /**
@@ -350,14 +378,109 @@ public class Platform {
         }
     }
 
+    /**
+     * Returns the usual file prefix of a shared library, e.g. "lib" on linux, empty on windows.
+     * @return file name prefix
+     */
+    public static String sharedLibraryPrefix() {
+        if (isWindows()) {
+            return "";
+        } else {
+            return "lib";
+        }
+    }
+
+    /**
+     * Returns the usual full shared lib name of a name without prefix and extension, e.g. for jsig
+     * "libjsig.so" on linux, "jsig.dll" on windows.
+     * @return the full shared lib name
+     */
+    public static String buildSharedLibraryName(String name) {
+        return sharedLibraryPrefix() + name + "." + sharedLibraryExt();
+    }
+
+    /*
+     * Returns name of system variable containing paths to shared native libraries.
+     */
+    public static String sharedLibraryPathVariableName() {
+        if (isWindows()) {
+            return "PATH";
+        } else if (isOSX()) {
+            return "DYLD_LIBRARY_PATH";
+        } else if (isAix()) {
+            return "LIBPATH";
+        } else {
+            return "LD_LIBRARY_PATH";
+        }
+    }
+
+    /**
+     * Returns absolute path to directory containing shared libraries in the tested JDK.
+     */
+    public static Path libDir() {
+        return libDir(Paths.get(testJdk)).toAbsolutePath();
+    }
+
+    /**
+     * Resolves a given path, to a JDK image, to the directory containing shared libraries.
+     *
+     * @param image the path to a JDK image
+     * @return the resolved path to the directory containing shared libraries
+     */
+    public static Path libDir(Path image) {
+        if (Platform.isWindows()) {
+            return image.resolve("bin");
+        } else {
+            return image.resolve("lib");
+        }
+    }
+
+    /**
+     * Returns absolute path to directory containing JVM shared library.
+     */
+    public static Path jvmLibDir() {
+        return libDir().resolve(variant());
+    }
+
+    private static String variant() {
+        if (Platform.isServer()) {
+            return "server";
+        } else if (Platform.isClient()) {
+            return "client";
+        } else if (Platform.isMinimal()) {
+            return "minimal";
+        } else if (Platform.isZero()) {
+            return "zero";
+        } else {
+            throw new Error("TESTBUG: unsupported vm variant");
+        }
+    }
+
+
+    public static boolean isDefaultCDSArchiveSupported() {
+        return (is64bit()  &&
+                isServer() &&
+                (isLinux()   ||
+                 isOSX()     ||
+                 isWindows()) &&
+                !isZero()    &&
+                !isMinimal() &&
+                !isARM());
+    }
+
     /*
      * This should match the #if condition in ClassListParser::load_class_from_source().
      */
     public static boolean areCustomLoadersSupportedForCDS() {
-        boolean isLinux = Platform.isLinux();
-        boolean is64 = Platform.is64bit();
-        boolean isSolaris = Platform.isSolaris();
+        return (is64bit() && (isLinux() || isOSX() || isWindows()));
+    }
 
-        return (is64 && (isLinux || isSolaris));
+    /**
+     * Checks if the current system is running on Wayland display server on Linux.
+     *
+     * @return {@code true} if the system is running on Wayland display server
+     */
+    public static boolean isOnWayland() {
+        return System.getenv("WAYLAND_DISPLAY") != null;
     }
 }

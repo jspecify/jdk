@@ -47,7 +47,6 @@ void CardTableBarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembl
   BarrierSet* bs = BarrierSet::barrier_set();
   CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
   CardTable* ct = ctbs->card_table();
-  assert(sizeof(*ct->byte_map_base()) == sizeof(jbyte), "adjust this code");
 
   Label L_cardtable_loop, L_done;
 
@@ -56,12 +55,12 @@ void CardTableBarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembl
   __ add_ptr_scaled_int32(count, addr, count, LogBytesPerHeapOop);
   __ sub(count, count, BytesPerHeapOop);                            // last addr
 
-  __ logical_shift_right(addr, addr, CardTable::card_shift);
-  __ logical_shift_right(count, count, CardTable::card_shift);
+  __ logical_shift_right(addr, addr, CardTable::card_shift());
+  __ logical_shift_right(count, count, CardTable::card_shift());
   __ sub(count, count, addr); // nb of cards
 
   // warning: Rthread has not been preserved
-  __ mov_address(tmp, (address) ct->byte_map_base(), symbolic_Relocation::card_table_reference);
+  __ mov_address(tmp, (address) ct->byte_map_base());
   __ add(addr,tmp, addr);
 
   Register zero = __ zero_register(tmp);
@@ -102,7 +101,6 @@ void CardTableBarrierSetAssembler::store_check_part1(MacroAssembler* masm, Regis
 
   CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
   CardTable* ct = ctbs->card_table();
-  assert(sizeof(*ct->byte_map_base()) == sizeof(jbyte), "Adjust store check code");
 
   // Load card table base address.
 
@@ -119,8 +117,7 @@ void CardTableBarrierSetAssembler::store_check_part1(MacroAssembler* masm, Regis
      Possible cause is a cache miss (card table base address resides in a
      rarely accessed area of thread descriptor).
   */
-  // TODO-AARCH64 Investigate if mov_slow is faster than ldr from Rthread on AArch64
-  __ mov_address(card_table_base, (address)ct->byte_map_base(), symbolic_Relocation::card_table_reference);
+  __ mov_address(card_table_base, (address)ct->byte_map_base());
 }
 
 // The 2nd part of the store check.
@@ -131,22 +128,10 @@ void CardTableBarrierSetAssembler::store_check_part2(MacroAssembler* masm, Regis
   assert(bs->kind() == BarrierSet::CardTableBarrierSet,
          "Wrong barrier set kind");
 
-  CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
-  CardTable* ct = ctbs->card_table();
-  assert(sizeof(*ct->byte_map_base()) == sizeof(jbyte), "Adjust store check code");
-
   assert(CardTable::dirty_card_val() == 0, "Dirty card value must be 0 due to optimizations.");
-#ifdef AARCH64
-  add(card_table_base, card_table_base, AsmOperand(obj, lsr, CardTable::card_shift));
-  Address card_table_addr(card_table_base);
-#else
-  Address card_table_addr(card_table_base, obj, lsr, CardTable::card_shift);
-#endif
+  Address card_table_addr(card_table_base, obj, lsr, CardTable::card_shift());
 
   if (UseCondCardMark) {
-    if (ct->scanned_concurrently()) {
-      __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreLoad), noreg);
-    }
     Label already_dirty;
 
     __ ldrb(tmp, card_table_addr);
@@ -156,17 +141,11 @@ void CardTableBarrierSetAssembler::store_check_part2(MacroAssembler* masm, Regis
     __ bind(already_dirty);
 
   } else {
-    if (ct->scanned_concurrently()) {
-      __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreStore), noreg);
-    }
     set_card(masm, card_table_base, card_table_addr, tmp);
   }
 }
 
 void CardTableBarrierSetAssembler::set_card(MacroAssembler* masm, Register card_table_base, Address card_table_addr, Register tmp) {
-#ifdef AARCH64
-  strb(ZR, card_table_addr);
-#else
   CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
   CardTable* ct = ctbs->card_table();
   if ((((uintptr_t)ct->byte_map_base() & 0xff) == 0)) {
@@ -178,5 +157,4 @@ void CardTableBarrierSetAssembler::set_card(MacroAssembler* masm, Register card_
     __ mov(tmp, 0);
     __ strb(tmp, card_table_addr);
   }
-#endif // AARCH64
 }

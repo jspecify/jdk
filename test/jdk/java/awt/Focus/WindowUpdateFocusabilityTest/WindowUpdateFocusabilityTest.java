@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,19 @@
  */
 
 /*
-  test
-  @bug       6253913
-  @summary   Tests that a Window shown before its owner is focusable.
-  @author    anton.tarasov@sun.com: area=awt-focus
-  @run       applet WindowUpdateFocusabilityTest.html
+  @test
+  @key headful
+  @bug        6253913
+  @summary    Tests that a Window shown before its owner is focusable.
+  @modules java.desktop/sun.awt
+  @run        main WindowUpdateFocusabilityTest
 */
 
 import java.awt.*;
 import java.awt.event.*;
-import java.applet.Applet;
 import java.lang.reflect.*;
 
-public class WindowUpdateFocusabilityTest extends Applet {
+public class WindowUpdateFocusabilityTest {
     Robot robot;
     boolean focusGained = false;
     final Object monitor = new Object();
@@ -60,18 +60,9 @@ public class WindowUpdateFocusabilityTest extends Applet {
         } catch (AWTException e) {
             throw new RuntimeException("Error: couldn't create robot");
         }
-        // Create instructions for the user here, as well as set up
-        // the environment -- set the layout manager, add buttons,
-        // etc.
-        this.setLayout (new BorderLayout ());
     }
 
     public void start() {
-        if ("sun.awt.motif.MToolkit".equals(Toolkit.getDefaultToolkit().getClass().getName())) {
-            System.out.println("No testing on Motif.");
-            return;
-        }
-
         test(new Frame("Frame owner"));
         Frame dialog_owner = new Frame("dialog's owner");
         test(new Dialog(dialog_owner));

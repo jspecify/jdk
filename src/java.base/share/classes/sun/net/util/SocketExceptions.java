@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,45 +28,18 @@ package sun.net.util;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
+import java.net.UnixDomainSocketAddress;
+import java.net.SocketAddress;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.security.Security;
+
+import sun.security.util.SecurityProperties;
 
 public final class SocketExceptions {
     private SocketExceptions() {}
 
-    /**
-     * Security or system property which specifies categories of
-     * (potentially sensitive) information that may be included
-     * in exception text. This class only defines one category:
-     * "hostInfo" which represents the hostname and port number
-     * of the remote peer relating to a socket exception.
-     * The property value is a comma separated list of
-     * case insignificant category names.
-     */
-    private static final String enhancedTextPropname = "jdk.includeInExceptions";
-
-    private static final boolean enhancedExceptionText = initTextProp();
-
-    private static boolean initTextProp() {
-        return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-            public Boolean run() {
-                String val = System.getProperty(enhancedTextPropname);
-                if (val == null) {
-                    val = Security.getProperty(enhancedTextPropname);
-                    if (val == null)
-                        return false;
-                }
-                String[] tokens = val.split(",");
-                for (String token : tokens) {
-                    if (token.equalsIgnoreCase("hostinfo"))
-                        return true;
-                }
-                return false;
-            }
-        });
-    }
-
+    private static final boolean enhancedExceptionText =
+        SecurityProperties.includedInExceptions("hostInfo");
 
     /**
      * Utility which takes an exception and returns either the same exception
@@ -74,22 +47,35 @@ public final class SocketExceptions {
      * and detail message enhanced with addressing information from the
      * given InetSocketAddress.
      *
-     * If the system/security property "jdk.net.enhanceExceptionText" is not
-     * set or is false, then the original exception is returned.
+     * If the system/security property "jdk.includeInExceptions" is not
+     * set or does not contain the category hostInfo,
+     * then the original exception is returned.
      *
      * Only specific IOException subtypes are supported.
      */
-    public static IOException of(IOException e, InetSocketAddress address) {
-        if (!enhancedExceptionText || address == null)
+    public static IOException of(IOException e, SocketAddress addr) {
+        if (!enhancedExceptionText || addr == null) {
             return e;
-        int port = address.getPort();
-        String host = address.getHostString();
+        }
+        if (addr instanceof UnixDomainSocketAddress) {
+            return ofUnixDomain(e, (UnixDomainSocketAddress)addr);
+        } else if (addr instanceof InetSocketAddress) {
+            return ofInet(e, (InetSocketAddress)addr);
+        } else {
+            return e;
+        }
+    }
+
+    private static IOException ofInet(IOException e, InetSocketAddress addr) {
+        return create(e, String.join(": ", e.getMessage(), addr.toString()));
+    }
+
+    private static IOException ofUnixDomain(IOException e, UnixDomainSocketAddress addr) {
+        String path = addr.getPath().toString();
         StringBuilder sb = new StringBuilder();
         sb.append(e.getMessage());
         sb.append(": ");
-        sb.append(host);
-        sb.append(':');
-        sb.append(Integer.toString(port));
+        sb.append(path);
         String enhancedMsg = sb.toString();
         return create(e, enhancedMsg);
     }
@@ -98,6 +84,7 @@ public final class SocketExceptions {
     // msg, or if the type doesn't support detail msgs, return given
     // instance.
 
+    @SuppressWarnings("removal")
     private static IOException create(IOException e, String msg) {
         return AccessController.doPrivileged(new PrivilegedAction<IOException>() {
             public IOException run() {

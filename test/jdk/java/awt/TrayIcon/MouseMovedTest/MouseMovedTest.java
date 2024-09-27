@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@ import java.awt.image.BufferedImage;
  * @bug 7153700
  * @summary Check for mouseMoved event for java.awt.TrayIcon
  * @author Dmitriy Ermashov (dmitriy.ermashov@oracle.com)
- * @library ../../../../lib/testlibrary ../
+ * @library /lib/client ../
  * @build ExtendedRobot SystemTrayIconHelper
  * @run main MouseMovedTest
  */
@@ -44,7 +44,7 @@ public class MouseMovedTest {
             return;
         }
 
-        if (SystemTrayIconHelper.isOel7()) {
+        if (SystemTrayIconHelper.isOel7orLater()) {
             return;
         }
 

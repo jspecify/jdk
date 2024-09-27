@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,11 +66,13 @@ abstract class TranslucentWindowPainter {
     protected WWindowPeer peer;
 
     // REMIND: we probably would want to remove this later
+    @SuppressWarnings("removal")
     private static final boolean forceOpt  =
-        Boolean.valueOf(AccessController.doPrivileged(
+        Boolean.parseBoolean(AccessController.doPrivileged(
             new GetPropertyAction("sun.java2d.twp.forceopt", "false")));
+    @SuppressWarnings("removal")
     private static final boolean forceSW  =
-        Boolean.valueOf(AccessController.doPrivileged(
+        Boolean.parseBoolean(AccessController.doPrivileged(
             new GetPropertyAction("sun.java2d.twp.forcesw", "false")));
 
     /**
@@ -207,7 +209,7 @@ abstract class TranslucentWindowPainter {
 
             if (bb instanceof BufferedImage) {
                 BufferedImage bi = (BufferedImage)bb;
-                int data[] =
+                int[] data =
                     ((DataBufferInt)bi.getRaster().getDataBuffer()).getData();
                 peer.updateWindowImpl(data, bi.getWidth(), bi.getHeight());
                 return true;
@@ -222,7 +224,7 @@ abstract class TranslucentWindowPainter {
                         int w = viBB.getWidth();
                         int h = viBB.getHeight();
                         BufImgSurfaceData bisd = (BufImgSurfaceData)s;
-                        int data[] = ((DataBufferInt)bisd.getRaster(0,0,w,h).
+                        int[] data = ((DataBufferInt)bisd.getRaster(0,0,w,h).
                             getDataBuffer()).getData();
                         peer.updateWindowImpl(data, w, h);
                         return true;
@@ -233,7 +235,7 @@ abstract class TranslucentWindowPainter {
             // copy the passed image into our own buffer, then upload
             BufferedImage bi = (BufferedImage)clearImage(backBuffer);
 
-            int data[] =
+            int[] data =
                 ((DataBufferInt)bi.getRaster().getDataBuffer()).getData();
             peer.updateWindowImpl(data, bi.getWidth(), bi.getHeight());
 
@@ -252,7 +254,7 @@ abstract class TranslucentWindowPainter {
         protected Graphics getGraphics(boolean clear) {
             Graphics g = getBackBuffer(clear).getGraphics();
             /*
-             * This graphics object returned by BuffereImage is not scaled to
+             * This graphics object returned by BufferedImage is not scaled to
              * graphics configuration, but this graphics object can be used by
              * components inside this TranslucentWindow. So need to scale this
              * before returning.
@@ -332,7 +334,7 @@ abstract class TranslucentWindowPainter {
             if (bb instanceof DestSurfaceProvider) {
                 Surface s = ((DestSurfaceProvider)bb).getDestSurface();
                 if (s instanceof AccelSurface) {
-                    final boolean arr[] = { false };
+                    final boolean[] arr = { false };
                     final AccelSurface as = (AccelSurface)s;
                     final int w = as.getBounds().width;
                     final int h = as.getBounds().height;

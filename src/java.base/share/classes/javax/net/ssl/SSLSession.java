@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package javax.net.ssl;
 
 import java.security.Principal;
+import java.nio.ByteBuffer;
 
 /**
  * In SSL, sessions are used to describe an ongoing relationship between
@@ -69,7 +70,7 @@ public interface SSLSession {
      *
      * @return the Session identifier
      */
-    public byte[] getId();
+    byte[] getId();
 
 
     /**
@@ -90,7 +91,7 @@ public interface SSLSession {
      * @return the session context used for this session, or null
      * if the context is unavailable.
      */
-    public SSLSessionContext getSessionContext();
+    SSLSessionContext getSessionContext();
 
 
     /**
@@ -99,7 +100,7 @@ public interface SSLSession {
      *
      * @return the time this Session was created
      */
-    public long getCreationTime();
+    long getCreationTime();
 
 
     /**
@@ -118,7 +119,7 @@ public interface SSLSession {
      *
      * @return the last time this Session was accessed
      */
-    public long getLastAccessedTime();
+    long getLastAccessedTime();
 
 
     /**
@@ -131,7 +132,7 @@ public interface SSLSession {
      *
      * @see #isValid()
      */
-    public void invalidate();
+    void invalidate();
 
 
     /**
@@ -143,7 +144,7 @@ public interface SSLSession {
      *
      * @since 1.5
      */
-    public boolean isValid();
+    boolean isValid();
 
 
     /**
@@ -165,7 +166,7 @@ public interface SSLSession {
      * @param value the data object to be bound. This may not be null.
      * @throws IllegalArgumentException if either argument is null.
      */
-    public void putValue(String name, Object value);
+    void putValue(String name, Object value);
 
 
     /**
@@ -180,14 +181,14 @@ public interface SSLSession {
      *          not exist.
      * @throws IllegalArgumentException if the argument is null.
      */
-    public Object getValue(String name);
+    Object getValue(String name);
 
 
     /**
      * Removes the object bound to the given name in the session's
      * application layer data.  Does nothing if there is no object
      * bound to the given name.  If the bound existing object
-     * implements the {@code SessionBindingListener} interface,
+     * implements the {@code SSLSessionBindingListener} interface,
      * it is notified appropriately.
      * <p>
      * For security reasons, the same named values may not be
@@ -197,7 +198,7 @@ public interface SSLSession {
      *          across different access control contexts
      * @throws IllegalArgumentException if the argument is null.
      */
-    public void removeValue(String name);
+    void removeValue(String name);
 
 
     /**
@@ -210,7 +211,7 @@ public interface SSLSession {
      * @return a non-null (possibly empty) array of names of the objects
      *  bound to this Session.
      */
-    public String [] getValueNames();
+    String [] getValueNames();
 
     /**
      * Returns the identity of the peer which was established as part
@@ -230,7 +231,7 @@ public interface SSLSession {
      *          been verified
      * @see #getPeerPrincipal()
      */
-    public java.security.cert.Certificate [] getPeerCertificates()
+    java.security.cert.Certificate [] getPeerCertificates()
             throws SSLPeerUnverifiedException;
 
     /**
@@ -253,7 +254,7 @@ public interface SSLSession {
      *
      * @see #getLocalPrincipal()
      */
-    public java.security.cert.Certificate [] getLocalCertificates();
+    java.security.cert.Certificate [] getLocalCertificates();
 
     /**
      * Returns the identity of the peer which was identified as part
@@ -270,28 +271,39 @@ public interface SSLSession {
      * releases. New applications should use
      * {@link #getPeerCertificates} instead.</em></p>
      *
+     * @implSpec
+     *     This default implementation throws UnsupportedOperationException.
+     *
      * @return an ordered array of peer X.509 certificates,
      *          with the peer's own certificate first followed by any
      *          certificate authorities.  (The certificates are in
      *          the original JSSE certificate
      *          {@link javax.security.cert.X509Certificate} format.)
-     * @exception SSLPeerUnverifiedException if the peer's identity
-     *          has not been verified
+     * @throws SSLPeerUnverifiedException if the peer's identity
+     *         has not been verified.
+     * @throws UnsupportedOperationException if the underlying provider
+     *         does not implement the operation.
+     *
      * @see #getPeerPrincipal()
      * @deprecated The {@link #getPeerCertificates()} method that returns an
      *               array of {@code java.security.cert.Certificate} should
      *               be used instead.
      */
-    @Deprecated(since="9")
-    public javax.security.cert.X509Certificate [] getPeerCertificateChain()
-            throws SSLPeerUnverifiedException;
+    @SuppressWarnings("removal")
+    @Deprecated(since="9", forRemoval=true)
+    default javax.security.cert.X509Certificate[]
+            getPeerCertificateChain() throws SSLPeerUnverifiedException {
+        throw new UnsupportedOperationException(
+             "This method is deprecated and marked for removal. Use the " +
+             "getPeerCertificates() method instead.");
+    }
 
     /**
      * Returns the identity of the peer which was established as part of
      * defining the session.
      *
      * @return the peer's principal. Returns an X500Principal of the
-     * end-entity certiticate for X509-based cipher suites, and
+     * end-entity certificate for X509-based cipher suites, and
      * KerberosPrincipal for Kerberos cipher suites.
      *
      * @throws SSLPeerUnverifiedException if the peer's identity has not
@@ -302,7 +314,7 @@ public interface SSLSession {
      *
      * @since 1.5
      */
-    public Principal getPeerPrincipal()
+    Principal getPeerPrincipal()
             throws SSLPeerUnverifiedException;
 
     /**
@@ -318,7 +330,7 @@ public interface SSLSession {
      *
      * @since 1.5
      */
-    public Principal getLocalPrincipal();
+    Principal getLocalPrincipal();
 
     /**
      * Returns the name of the SSL cipher suite which is used for all
@@ -330,7 +342,7 @@ public interface SSLSession {
      *
      * @return the name of the session's cipher suite
      */
-    public String getCipherSuite();
+    String getCipherSuite();
 
     /**
      * Returns the standard name of the protocol used for all
@@ -341,7 +353,7 @@ public interface SSLSession {
      * @return the standard name of the protocol used for all
      * connections in the session.
      */
-    public String getProtocol();
+    String getProtocol();
 
     /**
      * Returns the host name of the peer in this session.
@@ -361,7 +373,7 @@ public interface SSLSession {
      * @return  the host name of the peer host, or null if no information
      *          is available.
      */
-    public String getPeerHost();
+    String getPeerHost();
 
     /**
      * Returns the port number of the peer in this session.
@@ -378,7 +390,7 @@ public interface SSLSession {
      *
      * @since 1.5
      */
-    public int getPeerPort();
+    int getPeerPort();
 
     /**
      * Gets the current size of the largest SSL/TLS/DTLS packet that is
@@ -397,7 +409,7 @@ public interface SSLSession {
      *
      * @since 1.5
      */
-    public int getPacketBufferSize();
+    int getPacketBufferSize();
 
 
     /**
@@ -416,5 +428,5 @@ public interface SSLSession {
      *
      * @since 1.5
      */
-    public int getApplicationBufferSize();
+    int getApplicationBufferSize();
 }

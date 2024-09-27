@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,26 +23,29 @@
 
 /*
  * @test
- * @bug 6316539 8136355
+ * @bug 6316539 8136355 8294906
  * @summary Known-answer-test for TlsKeyMaterial generator
  * @author Andreas Sterbenz
  * @library /test/lib ..
  * @modules java.base/sun.security.internal.spec
  *          jdk.crypto.cryptoki
  * @run main/othervm TestKeyMaterial
- * @run main/othervm TestKeyMaterial sm policy
+ * @run main/othervm -Djava.security.manager=allow TestKeyMaterial sm policy
  */
 
 import java.io.BufferedReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.security.Provider;
 import java.security.InvalidAlgorithmParameterException;
+import java.security.Provider;
+import java.security.ProviderException;
 import java.util.Arrays;
+
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+
 import sun.security.internal.spec.TlsKeyMaterialParameterSpec;
 import sun.security.internal.spec.TlsKeyMaterialSpec;
 
@@ -51,6 +54,7 @@ public class TestKeyMaterial extends PKCS11Test {
     private static final int PREFIX_LENGTH = "km-master:  ".length();
 
     public static void main(String[] args) throws Exception {
+        System.out.println("NSS Version: " + getNSSVersion());
         main(new TestKeyMaterial(), args);
     }
 
@@ -73,6 +77,7 @@ public class TestKeyMaterial extends PKCS11Test {
             byte[] clientRandom = null;
             byte[] serverRandom = null;
             String cipherAlgorithm = null;
+            String hashAlgorithm = null; // TLS1.2+ only
             int keyLength = 0;
             int expandedKeyLength = 0;
             int ivLength = 0;
@@ -106,6 +111,8 @@ public class TestKeyMaterial extends PKCS11Test {
                     serverRandom = parse(data);
                 } else if (line.startsWith("km-cipalg:")) {
                     cipherAlgorithm = data;
+                } else if (line.startsWith("km-hashalg:")) {
+                    hashAlgorithm = data;
                 } else if (line.startsWith("km-keylen:")) {
                     keyLength = Integer.parseInt(data);
                 } else if (line.startsWith("km-explen:")) {
@@ -131,14 +138,17 @@ public class TestKeyMaterial extends PKCS11Test {
                     n++;
 
                     KeyGenerator kg =
-                        KeyGenerator.getInstance("SunTlsKeyMaterial", provider);
+                        KeyGenerator.getInstance(minor == 3 ?
+                                "SunTls12KeyMaterial" :
+                                "SunTlsKeyMaterial", provider);
                     SecretKey masterKey =
                         new SecretKeySpec(master, "TlsMasterSecret");
+                    // prfHashLength and prfBlockSize are ignored by PKCS11 provider
                     TlsKeyMaterialParameterSpec spec =
                         new TlsKeyMaterialParameterSpec(masterKey, major, minor,
                         clientRandom, serverRandom, cipherAlgorithm,
                         keyLength, expandedKeyLength, ivLength, macLength,
-                        null, -1, -1);
+                        hashAlgorithm, -1 /*ignored*/, -1 /*ignored*/);
 
                     try {
                         kg.init(spec);
@@ -152,12 +162,19 @@ public class TestKeyMaterial extends PKCS11Test {
                         match(lineNumber, serverIv, result.getServerIv(), "");
                         match(lineNumber, clientMacBytes, result.getClientMacKey(), "");
                         match(lineNumber, serverMacBytes, result.getServerMacKey(), "");
-                    } catch (InvalidAlgorithmParameterException iape) {
-                        // SSLv3 support is removed in S12
-                        if (major == 3 && minor == 0) {
-                            System.out.println("Skip testing SSLv3");
-                            continue;
+                    } catch (ProviderException pe) {
+                        if (provider.getName().indexOf("NSS") != -1) {
+                            Throwable t = pe.getCause();
+                            if (expandedKeyLength != 0
+                                    && t.getMessage().indexOf(
+                                            "CKR_MECHANISM_PARAM_INVALID") != -1) {
+                                // NSS removed support for export-grade cipher suites in 3.28,
+                                // see https://bugzilla.mozilla.org/show_bug.cgi?id=1252849
+                                System.out.println("Ignore known NSS failure on CKR_MECHANISM_PARAM_INVALID");
+                                continue;
+                            }
                         }
+                        throw pe;
                     }
                } else {
                     throw new Exception("Unknown line: " + line);

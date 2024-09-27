@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,44 +23,49 @@
 
 /*
  * @test
- * @bug 4369014 4851991 8164407
+ * @bug 4369014 4851991 8164407 8205593
  * @summary Determine if the docRoot inline tag works properly.
  * If docRoot performs as documented, the test passes.
  * Make sure that the docRoot tag works with the -bottom option.
- * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestDocRootInlineTag
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestDocRootInlineTag extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestDocRootInlineTag tester = new TestDocRootInlineTag();
+        var tester = new TestDocRootInlineTag();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         String uri = "http://www.java.sun.com/j2se/1.4/docs/api";
 
-        javadoc("-bottom", "The value of @docRoot is \"{@docRoot}\"",
+        javadoc("-bottom", """
+            The value of @docRoot is "{@docRoot}\"""",
                 "-d", "out",
+                "-source", "8",
                 "-sourcepath", testSrc,
                 "-linkoffline", uri, testSrc,
                 testSrc("TestDocRootTag.java"), "pkg");
         checkExit(Exit.OK);
 
         checkOutput("TestDocRootTag.html", true,
-                "<a href=\"" + uri + "/java/io/File.html?is-external=true\" "
-                + "title=\"class or interface in java.io\" class=\"externalLink\"><code>File</code></a>",
-                "<a href=\"./glossary.html\">glossary</a>",
-                "<a href=\"" + uri + "/java/io/File.html?is-external=true\" "
-                + "title=\"class or interface in java.io\" class=\"externalLink\"><code>Second File Link</code></a>",
+                "<a href=\"" + uri + """
+                    /java/io/File.html" title="class or interface in java.io" class="external-link"><code>File</code></a>""",
+                """
+                    <a href="./index-all.html">index</a>""",
+                "<a href=\"" + uri + """
+                    /java/io/File.html" title="class or interface in java.io" class="external-link"><code>Second File Link</code></a>""",
                 "The value of @docRoot is \"./\"");
 
         checkOutput("index-all.html", true,
-                "My package page is <a href=\"./pkg/package-summary.html\">here</a>");
+                """
+                    My package page is <a href="./pkg/package-summary.html">here</a>""");
     }
 }

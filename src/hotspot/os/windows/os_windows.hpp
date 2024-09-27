@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,38 +22,78 @@
  *
  */
 
-#ifndef OS_WINDOWS_VM_OS_WINDOWS_HPP
-#define OS_WINDOWS_VM_OS_WINDOWS_HPP
+#ifndef OS_WINDOWS_OS_WINDOWS_HPP
+#define OS_WINDOWS_OS_WINDOWS_HPP
+
+#include "runtime/os.hpp"
+
 // Win32_OS defines the interface to windows operating systems
 
-// Information about the protection of the page at address '0' on this os.
-static bool zero_page_read_protected() { return true; }
+class outputStream;
+class Thread;
 
-// File conventions
-static const char* file_separator() { return "\\"; }
-static const char* line_separator() { return "\r\n"; }
-static const char* path_separator() { return ";"; }
+typedef void (*signal_handler_t)(int);
 
-class win32 {
+class os::win32 {
   friend class os;
-  friend unsigned __stdcall thread_native_entry(class Thread*);
 
  protected:
-  static int    _vm_page_size;
-  static int    _vm_allocation_granularity;
   static int    _processor_type;
   static int    _processor_level;
   static julong _physical_memory;
-  static size_t _default_stack_size;
   static bool   _is_windows_server;
   static bool   _has_exit_bug;
+  static bool   _processor_group_warning_displayed;
+  static bool   _job_object_processor_group_warning_displayed;
+
+  static int    _major_version;
+  static int    _minor_version;
+  static int    _build_number;
+  static int    _build_minor;
 
   static void print_windows_version(outputStream* st);
+  static void print_uptime_info(outputStream* st);
+
+  static bool platform_print_native_stack(outputStream* st, const void* context,
+                                          char *buf, int buf_size, address& lastpc);
+
+  static bool register_code_area(char *low, char *high);
 
  public:
   // Windows-specific interface:
   static void   initialize_system_info();
   static void   setmode_streams();
+  static bool   is_windows_11_or_greater();
+  static bool   is_windows_server_2022_or_greater();
+  static int windows_major_version() {
+    assert(_major_version > 0, "windows version not initialized.");
+    return _major_version;
+  }
+  static int windows_minor_version() {
+    assert(_major_version > 0, "windows version not initialized.");
+    return _minor_version;
+  }
+  static int windows_build_number() {
+    assert(_major_version > 0, "windows version not initialized.");
+    return _build_number;
+  }
+  static int windows_build_minor() {
+    assert(_major_version > 0, "windows version not initialized.");
+    return _build_minor;
+  }
+
+  static void set_processor_group_warning_displayed(bool displayed)  {
+    _processor_group_warning_displayed = displayed;
+  }
+  static bool processor_group_warning_displayed() {
+    return _processor_group_warning_displayed;
+  }
+  static void set_job_object_processor_group_warning_displayed(bool displayed)  {
+    _job_object_processor_group_warning_displayed = displayed;
+  }
+  static bool job_object_processor_group_warning_displayed() {
+    return _job_object_processor_group_warning_displayed;
+  }
 
   // Processor info as provided by NT
   static int processor_type()  { return _processor_type;  }
@@ -61,24 +101,20 @@ class win32 {
     return _processor_level;
   }
   static julong available_memory();
+  static julong free_memory();
   static julong physical_memory() { return _physical_memory; }
 
   // load dll from Windows system directory or Windows directory
   static HINSTANCE load_Windows_dll(const char* name, char *ebuf, int ebuflen);
 
  private:
-  enum Ept { EPT_THREAD, EPT_PROCESS, EPT_PROCESS_DIE };
-  // Wrapper around _endthreadex(), exit() and _exit()
-  static int exit_process_or_thread(Ept what, int exit_code);
 
   static void initialize_performance_counter();
+  static void initialize_windows_version();
+  static DWORD active_processors_in_job_object(DWORD* active_processor_groups = nullptr);
 
  public:
   // Generic interface:
-
-  // Trace number of created threads
-  static          intx  _os_thread_limit;
-  static volatile intx  _os_thread_count;
 
   // Tells whether this is a server version of Windows
   static bool is_windows_server() { return _is_windows_server; }
@@ -86,30 +122,32 @@ class win32 {
   // Tells whether there can be the race bug during process exit on this platform
   static bool has_exit_bug() { return _has_exit_bug; }
 
-  // Returns the byte size of a virtual memory page
-  static int vm_page_size() { return _vm_page_size; }
-
-  // Returns the size in bytes of memory blocks which can be allocated.
-  static int vm_allocation_granularity() { return _vm_allocation_granularity; }
-
   // Read the headers for the executable that started the current process into
   // the structure passed in (see winnt.h).
   static void read_executable_headers(PIMAGE_NT_HEADERS);
-
-  // Default stack size for the current process.
-  static size_t default_stack_size() { return _default_stack_size; }
 
   static bool get_frame_at_stack_banging_point(JavaThread* thread,
                           struct _EXCEPTION_POINTERS* exceptionInfo,
                           address pc, frame* fr);
 
+  struct mapping_info_t {
+    // Start of allocation (AllocationBase)
+    address base;
+    // Total size of allocation over all regions
+    size_t size;
+    // Total committed size
+    size_t committed_size;
+    // Number of regions
+    int regions;
+  };
+  // Given an address p which points into an area allocated with VirtualAlloc(),
+  // return information about that area.
+  static bool find_mapping(address p, mapping_info_t* mapping_info);
+
 #ifndef _WIN64
-  // A wrapper to install a structured exception handler for fast JNI accesors.
+  // A wrapper to install a structured exception handler for fast JNI accessors.
   static address fast_jni_accessor_wrapper(BasicType);
 #endif
-
-  // filter function to ignore faults on serializations page
-  static LONG WINAPI serialize_fault_filter(struct _EXCEPTION_POINTERS* e);
 
   // Fast access to current thread
 protected:
@@ -121,82 +159,10 @@ public:
     _thread_ptr_offset = offset;
   }
   static inline int get_thread_ptr_offset() { return _thread_ptr_offset; }
+
+  // signal support
+  static void* install_signal_handler(int sig, signal_handler_t handler);
+  static void* user_handler();
 };
 
-static void write_memory_serialize_page_with_handler(JavaThread* thread) {
-  // Due to chained nature of SEH handlers we have to be sure
-  // that our handler is always last handler before an attempt to write
-  // into serialization page - it can fault if we access this page
-  // right in the middle of protect/unprotect sequence by remote
-  // membar logic.
-  // __try/__except are very lightweight operations (only several
-  // instructions not affecting control flow directly on x86)
-  // so we can use it here, on very time critical path
-  __try {
-    write_memory_serialize_page(thread);
-  } __except (win32::serialize_fault_filter((_EXCEPTION_POINTERS*)_exception_info()))
-    {}
-}
-
-/*
- * Crash protection for the watcher thread. Wrap the callback
- * with a __try { call() }
- * To be able to use this - don't take locks, don't rely on destructors,
- * don't make OS library calls, don't allocate memory, don't print,
- * don't call code that could leave the heap / memory in an inconsistent state,
- * or anything else where we are not in control if we suddenly jump out.
- */
-class ThreadCrashProtection : public StackObj {
-public:
-  static bool is_crash_protected(Thread* thr) {
-    return _crash_protection != NULL && _protected_thread == thr;
-  }
-
-  ThreadCrashProtection();
-  bool call(os::CrashProtectionCallback& cb);
-private:
-  static Thread* _protected_thread;
-  static ThreadCrashProtection* _crash_protection;
-  static volatile intptr_t _crash_mux;
-};
-
-class PlatformEvent : public CHeapObj<mtInternal> {
-  private:
-    double CachePad [4] ;   // increase odds that _Event is sole occupant of cache line
-    volatile int _Event ;
-    HANDLE _ParkHandle ;
-
-  public:       // TODO-FIXME: make dtor private
-    ~PlatformEvent() { guarantee (0, "invariant") ; }
-
-  public:
-    PlatformEvent() {
-      _Event   = 0 ;
-      _ParkHandle = CreateEvent (NULL, false, false, NULL) ;
-      guarantee (_ParkHandle != NULL, "invariant") ;
-    }
-
-    // Exercise caution using reset() and fired() - they may require MEMBARs
-    void reset() { _Event = 0 ; }
-    int  fired() { return _Event; }
-    void park () ;
-    void unpark () ;
-    int  park (jlong millis) ;
-} ;
-
-
-
-class PlatformParker : public CHeapObj<mtInternal> {
-  protected:
-    HANDLE _ParkEvent ;
-
-  public:
-    ~PlatformParker () { guarantee (0, "invariant") ; }
-    PlatformParker  () {
-      _ParkEvent = CreateEvent (NULL, true, false, NULL) ;
-      guarantee (_ParkEvent != NULL, "invariant") ;
-    }
-
-} ;
-
-#endif // OS_WINDOWS_VM_OS_WINDOWS_HPP
+#endif // OS_WINDOWS_OS_WINDOWS_HPP

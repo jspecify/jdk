@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8027634
+ * @bug 8027634 8210810 8240629
  * @summary Verify syntax of argument file
  * @build TestHelper
  * @run main ArgFileSyntax
@@ -36,10 +36,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ArgFileSyntax extends TestHelper {
+    // Buffer size in args.c readArgFile() method
+    private static final int ARG_FILE_PARSER_BUF_SIZE = 4096;
+
     private File createArgFile(List<String> lines) throws IOException {
         File argFile = new File("argfile");
         argFile.delete();
@@ -186,7 +188,7 @@ public class ArgFileSyntax extends TestHelper {
         String bag = "-Dgarbage=";
         String ver = "-version";
         // a token 8192 long
-        char[] data = new char[8192 - bag.length()];
+        char[] data = new char[2*ARG_FILE_PARSER_BUF_SIZE - bag.length()];
         Arrays.fill(data, 'O');
         List<String> scratch = new ArrayList<>();
         scratch.add("-Xmx32m");
@@ -194,14 +196,42 @@ public class ArgFileSyntax extends TestHelper {
         scratch.add(ver);
         rv.add(Collections.nCopies(2, scratch));
 
-        data = new char[8192 + 1024];
+        data = new char[2*ARG_FILE_PARSER_BUF_SIZE + 1024];
         Arrays.fill(data, 'O');
         scratch = new ArrayList<>();
         scratch.add(bag + String.valueOf(data));
         scratch.add(ver);
         rv.add(Collections.nCopies(2, scratch));
 
+        // 8210810: position escaping character at boundary
+        // reserve space for quote and backslash
+        data = new char[ARG_FILE_PARSER_BUF_SIZE - bag.length() - 2];
+        Arrays.fill(data, 'O');
+        scratch = new ArrayList<>();
+        String filling = String.valueOf(data);
+        scratch.add(bag + "'" + filling + "\\\\aaa\\\\'");
+        scratch.add(ver);
+        rv.add(List.of(scratch, List.of(bag + filling + "\\aaa\\", ver)));
         return rv;
+    }
+
+    // 8240629: end or start comment at boundary
+    @Test
+    public void test8240629() throws IOException {
+        char[] data = new char[ARG_FILE_PARSER_BUF_SIZE];
+        data[0] = '#';
+        Arrays.fill(data, 1, data.length, '0');
+
+        int need = ARG_FILE_PARSER_BUF_SIZE - System.lineSeparator().length();
+        // Comment end before, at, after boundary
+        for (int count = need - 1; count <= need + 1 ; count++) {
+            String commentAtBoundary = String.valueOf(data, 0, count);
+            List<String> content = new ArrayList<>();
+            content.add(commentAtBoundary);
+            content.add("# start a new comment at boundary");
+            content.add("-Dfoo=bar");
+            verifyParsing(content, List.of("-Dfoo=bar"));
+        }
     }
 
     // ensure the arguments in the file are read in correctly

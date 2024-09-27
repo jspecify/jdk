@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.EndPosTable;
+import com.sun.tools.javac.tree.JCTree.JCSwitchExpression;
 
 /** This class contains the CharacterRangeTable for some method
  *  and the hashtable for mapping trees or lists of trees to their
@@ -311,10 +312,38 @@ implements CRTFlags {
             result = sr;
         }
 
+        @Override
+        public void visitSwitchExpression(JCSwitchExpression tree) {
+            SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
+            sr.mergeWith(csp(tree.selector));
+            sr.mergeWith(cspCases(tree.cases));
+            result = sr;
+        }
+
         public void visitCase(JCCase tree) {
             SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
-            sr.mergeWith(csp(tree.pat));
+            sr.mergeWith(csp(tree.labels));
+            sr.mergeWith(csp(tree.guard));
             sr.mergeWith(csp(tree.stats));
+            result = sr;
+        }
+
+        @Override
+        public void visitDefaultCaseLabel(JCTree.JCDefaultCaseLabel that) {
+            result = null;
+        }
+
+        @Override
+        public void visitConstantCaseLabel(JCConstantCaseLabel tree) {
+            SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
+            sr.mergeWith(csp(tree.expr));
+            result = sr;
+        }
+
+        @Override
+        public void visitPatternCaseLabel(JCPatternCaseLabel tree) {
+            SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
+            sr.mergeWith(csp(tree.pat));
             result = sr;
         }
 
@@ -365,6 +394,12 @@ implements CRTFlags {
 
         public void visitBreak(JCBreak tree) {
             SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
+            result = sr;
+        }
+
+        public void visitYield(JCYield tree) {
+            SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
+            sr.mergeWith(csp(tree.value));
             result = sr;
         }
 
@@ -459,7 +494,7 @@ implements CRTFlags {
         public void visitTypeTest(JCInstanceOf tree) {
             SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
             sr.mergeWith(csp(tree.expr));
-            sr.mergeWith(csp(tree.clazz));
+            sr.mergeWith(csp(tree.pattern));
             result = sr;
         }
 

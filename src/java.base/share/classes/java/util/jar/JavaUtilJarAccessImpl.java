@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,11 +29,8 @@ import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.io.IOException;
-import java.net.URL;
-import java.security.CodeSource;
-import java.util.Enumeration;
-import java.util.List;
-import jdk.internal.misc.JavaUtilJarAccess;
+
+import jdk.internal.access.JavaUtilJarAccess;
 
 @AnnotatedFor({"interning"})
 public @UsesObjectEquals class JavaUtilJarAccessImpl implements JavaUtilJarAccess {
@@ -41,27 +38,19 @@ public @UsesObjectEquals class JavaUtilJarAccessImpl implements JavaUtilJarAcces
         return jar.hasClassPathAttribute();
     }
 
-    public CodeSource[] getCodeSources(JarFile jar, URL url) {
-        return jar.getCodeSources(url);
+    public Attributes getTrustedAttributes(Manifest man, String name) {
+        return man.getTrustedAttributes(name);
     }
 
-    public CodeSource getCodeSource(JarFile jar, URL url, String name) {
-        return jar.getCodeSource(url, name);
+    public void ensureInitialization(JarFile jar) {
+        jar.ensureInitialization();
     }
 
-    public Enumeration<String> entryNames(JarFile jar, CodeSource[] cs) {
-        return jar.entryNames(cs);
+    public boolean isInitializing() {
+        return JarFile.isInitializing();
     }
 
-    public Enumeration<JarEntry> entries2(JarFile jar) {
-        return jar.entries2();
-    }
-
-    public void setEagerValidation(JarFile jar, boolean eager) {
-        jar.setEagerValidation(eager);
-    }
-
-    public List<Object> getManifestDigests(JarFile jar) {
-        return jar.getManifestDigests();
+    public JarEntry entryFor(JarFile jar, String name) {
+        return jar.entryFor(name);
     }
 }

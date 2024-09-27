@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,9 +60,8 @@ public class T6439826 extends AbstractProcessor {
             System.err.print(s);
             // Expect the following 2 diagnostics, and no output to log
             //   Foo.java:1: illegal character: \35
-            //   Foo.java:1: reached end of file while parsing
             System.err.println(dl.count + " diagnostics; " + s.length() + " characters");
-            if (dl.count != 2 || s.length() != 0)
+            if (dl.count != 1 || s.length() != 0)
                 throw new AssertionError("unexpected output from compiler");
         }
     }
@@ -85,12 +84,10 @@ public class T6439826 extends AbstractProcessor {
     private void writeBadFile() {
         Filer filer = processingEnv.getFiler();
         Messager messager = processingEnv.getMessager();
-        try {
-            Writer out = filer.createSourceFile("Foo").openWriter();
+        try (Writer out = filer.createSourceFile("Foo").openWriter()) {
             out.write("class Foo #"); // write a file that generates a scanner error
-            out.close();
         } catch (IOException e) {
-            messager.printMessage(Diagnostic.Kind.ERROR, e.toString());
+            messager.printError(e.toString());
         }
     }
 

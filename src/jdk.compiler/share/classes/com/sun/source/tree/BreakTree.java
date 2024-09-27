@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,7 @@ import javax.lang.model.element.Name;
  *   break <em>label</em> ;
  * </pre>
  *
- * @jls section 14.15
+ * @jls 14.15 The break Statement
  *
  * @author Peter von der Ah&eacute;
  * @author Jonathan Gibbons
@@ -49,4 +49,5 @@ public interface BreakTree extends StatementTree {
      * @return the label
      */
     Name getLabel();
+
 }

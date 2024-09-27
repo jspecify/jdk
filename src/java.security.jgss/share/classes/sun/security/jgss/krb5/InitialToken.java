@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import sun.security.krb5.*;
 import sun.security.krb5.internal.Krb5;
+import sun.security.jgss.krb5.internal.TlsChannelBindingImpl;
 
 abstract class InitialToken extends Krb5Token {
 
@@ -57,6 +58,7 @@ abstract class InitialToken extends Krb5Token {
     private final byte[] CHECKSUM_FIRST_BYTES =
     {(byte)0x10, (byte)0x00, (byte)0x00, (byte)0x00};
 
+    private static final int CHANNEL_BINDING_AF_UNSPEC = 0;
     private static final int CHANNEL_BINDING_AF_INET = 2;
     private static final int CHANNEL_BINDING_AF_INET6 = 24;
     private static final int CHANNEL_BINDING_AF_NULL_ADDR = 255;
@@ -66,7 +68,7 @@ abstract class InitialToken extends Krb5Token {
 
     protected class OverloadedChecksum {
 
-        private byte[] checksumBytes = null;
+        private final byte[] checksumBytes;
         private Credentials delegCreds = null;
         private int flags = 0;
 
@@ -103,7 +105,7 @@ abstract class InitialToken extends Krb5Token {
             }
 
             if (context.getCredDelegState()) {
-                KrbCred krbCred = null;
+                KrbCred krbCred;
                 CipherHelper cipherHelper =
                     context.getCipherHelper(serviceTicket.getSessionKey());
                 if (useNullKey(cipherHelper)) {
@@ -169,6 +171,7 @@ abstract class InitialToken extends Krb5Token {
                 String realm = delegateTo.getRealmAsString();
                 sb.append(" \"krbtgt/").append(realm).append('@');
                 sb.append(realm).append('\"');
+                @SuppressWarnings("removal")
                 SecurityManager sm = System.getSecurityManager();
                 if (sm != null) {
                     DelegationPermission perm =
@@ -213,8 +216,6 @@ abstract class InitialToken extends Krb5Token {
         public OverloadedChecksum(Krb5Context context, Checksum checksum,
                                   EncryptionKey key, EncryptionKey subKey)
             throws GSSException, KrbException, IOException {
-
-            int pos = 0;
 
             if (checksum == null) {
                 GSSException ge = new GSSException(GSSException.FAILURE, -1,
@@ -293,12 +294,8 @@ abstract class InitialToken extends Krb5Token {
 
         // check if KRB-CRED message should use NULL_KEY for encryption
         private boolean useNullKey(CipherHelper ch) {
-            boolean flag = true;
             // for "newer" etypes and RC4-HMAC do not use NULL KEY
-            if ((ch.getProto() == 1) || ch.isArcFour()) {
-                flag = false;
-            }
-            return flag;
+            return (ch.getProto() != 1) && !ch.isArcFour();
         }
 
         public Checksum getChecksum() throws KrbException {
@@ -333,8 +330,8 @@ abstract class InitialToken extends Krb5Token {
         }
     }
 
-    private int getAddrType(InetAddress addr) {
-        int addressType = CHANNEL_BINDING_AF_NULL_ADDR;
+    private int getAddrType(InetAddress addr, int defValue) {
+        int addressType = defValue;
 
         if (addr instanceof Inet4Address)
             addressType = CHANNEL_BINDING_AF_INET;
@@ -344,7 +341,7 @@ abstract class InitialToken extends Krb5Token {
     }
 
     private byte[] getAddrBytes(InetAddress addr) throws GSSException {
-        int addressType = getAddrType(addr);
+        int addressType = getAddrType(addr, CHANNEL_BINDING_AF_NULL_ADDR);
         byte[] addressBytes = addr.getAddress();
         if (addressBytes != null) {
             switch (addressType) {
@@ -375,8 +372,16 @@ abstract class InitialToken extends Krb5Token {
         InetAddress acceptorAddress = channelBinding.getAcceptorAddress();
         int size = 5*4;
 
-        int initiatorAddressType = getAddrType(initiatorAddress);
-        int acceptorAddressType = getAddrType(acceptorAddress);
+        // LDAP TLS Channel Binding requires CHANNEL_BINDING_AF_UNSPEC address type
+        // for unspecified initiator and acceptor addresses.
+        // CHANNEL_BINDING_AF_NULL_ADDR value should be used for unspecified address
+        // in all other cases.
+        int initiatorAddressType = getAddrType(initiatorAddress,
+                (channelBinding instanceof TlsChannelBindingImpl) ?
+                        CHANNEL_BINDING_AF_UNSPEC : CHANNEL_BINDING_AF_NULL_ADDR);
+        int acceptorAddressType = getAddrType(acceptorAddress,
+                (channelBinding instanceof TlsChannelBindingImpl) ?
+                        CHANNEL_BINDING_AF_UNSPEC : CHANNEL_BINDING_AF_NULL_ADDR);
 
         byte[] initiatorAddressBytes = null;
         if (initiatorAddress != null) {

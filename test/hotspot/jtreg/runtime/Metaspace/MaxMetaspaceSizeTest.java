@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,23 +26,27 @@ import jdk.test.lib.process.OutputAnalyzer;
 
 /*
  * @test MaxMetaspaceSizeTest
- * @requires vm.bits == "64"
- * @requires vm.opt.final.UseCompressedOops
+ * @requires vm.bits == 64 & vm.opt.final.UseCompressedOops == true
+ * @requires vm.flagless
  * @bug 8087291
  * @library /test/lib
- * @run main/othervm MaxMetaspaceSizeTest
+ * @run driver MaxMetaspaceSizeTest
  */
 
 public class MaxMetaspaceSizeTest {
     public static void main(String... args) throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(
+            "-Xshare:off",
             "-Xmx1g",
-            "-XX:InitialBootClassLoaderMetaspaceSize=4195328",
-            "-XX:MaxMetaspaceSize=4195328",
+            "-XX:MaxMetaspaceSize=4K",
             "-XX:+UseCompressedClassPointers",
             "-XX:CompressedClassSpaceSize=1g",
             "--version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
-        output.shouldContain("MaxMetaspaceSize is too small.");
+        // -Xshare:off --version loads hundreds of classes and will hit either one of
+        // "OutOfMemoryError: Metaspace" or
+        // "OutOfMemoryError: Compressed class space"
+        output.shouldMatch("OutOfMemoryError.*(Compressed class space|Metaspace)");
+        output.shouldNotHaveExitValue(0);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,7 @@ import org.netbeans.jemmy.Waitable;
 import org.netbeans.jemmy.Waiter;
 import org.netbeans.jemmy.util.DefaultVisualizer;
 import org.netbeans.jemmy.util.MouseVisualizer;
+import org.netbeans.jemmy.util.Platform;
 
 /**
  * Keeps all environment and low-level methods.
@@ -301,10 +302,9 @@ public abstract class Operator
         //Linux - new MouseVisualizer(MouseVisualizer.TOP, 0.5, 10, false)
         //solaris - new MouseVisualizer()
         //others - new DefaultVisualizer()
-        String os = System.getProperty("os.name").toUpperCase();
-        if (os.startsWith("LINUX")) {
+        if (Platform.isLinux()) {
             setDefaultComponentVisualizer(new MouseVisualizer(MouseVisualizer.TOP, 0.5, 10, false));
-        } else if (os.startsWith("SUNOS")) {
+        } else if (Platform.isSolaris()) {
             setDefaultComponentVisualizer(new MouseVisualizer());
         } else {
             setDefaultComponentVisualizer(new DefaultVisualizer());
@@ -364,7 +364,7 @@ public abstract class Operator
     }
 
     /**
-     * Returns component visualizer. Visualizer is used from from
+     * Returns component visualizer. Visualizer is used from
      * makeComponentVisible() method.
      *
      * @return a visualizer assigned to this operator.
@@ -376,7 +376,7 @@ public abstract class Operator
     }
 
     /**
-     * Changes component visualizer. Visualizer is used from from
+     * Changes component visualizer. Visualizer is used from
      * makeComponentVisible() method.
      *
      * @param vo a visualizer to assign to this operator.
@@ -691,7 +691,7 @@ public abstract class Operator
      * defined by {@code "ComponentOperator.WaitStateTimeout"}
      */
     public void waitState(final ComponentChooser state) {
-        Waiter<String, Void> stateWaiter = new Waiter<>(new Waitable<String, Void>() {
+        waitState(new Waitable<String, Void>() {
             @Override
             public String actionProduced(Void obj) {
                 return state.checkComponent(getSource()) ? "" : null;
@@ -708,13 +708,19 @@ public abstract class Operator
                 return "Operator.waitState.Waitable{description = " + getDescription() + '}';
             }
         });
-        stateWaiter.setTimeoutsToCloneOf(getTimeouts(), "ComponentOperator.WaitStateTimeout");
+    }
+
+    public <R> R waitState(Waitable<R, Void> waitable) {
+        Waiter<R, Void> stateWaiter = new Waiter<>(waitable);
+        stateWaiter.setTimeoutsToCloneOf(getTimeouts(),
+                "ComponentOperator.WaitStateTimeout");
         stateWaiter.setOutput(getOutput().createErrorOutput());
         try {
-            stateWaiter.waitAction(null);
+            return stateWaiter.waitAction(null);
         } catch (InterruptedException e) {
-            throw (new JemmyException("Waiting of \"" + state.getDescription()
-                    + "\" state has been interrupted!"));
+            throw new JemmyException(
+                    "Waiting of \"" + waitable.getDescription()
+                            + "\" state has been interrupted!");
         }
     }
 
@@ -726,14 +732,22 @@ public abstract class Operator
      * defined by {@code "ComponentOperator.WaitStateTimeout"}
      */
     public void waitStateOnQueue(final ComponentChooser state) {
-        waitState((comp) -> {
-            return (boolean) (queueTool.invokeSmoothly(
-                    new QueueTool.QueueAction<Object>("checkComponent") {
-                @Override
-                public final Object launch() throws Exception {
-                    return state.checkComponent(comp);
-                }
-            }));
+        waitState(new ComponentChooser() {
+            @Override
+            public boolean checkComponent(Component comp) {
+                return (boolean) (queueTool.invokeSmoothly(
+                        new QueueTool.QueueAction<Object>("checkComponent") {
+                            @Override
+                            public final Object launch() throws Exception {
+                                return state.checkComponent(comp);
+                            }
+                        }));
+            }
+
+            @Override
+            public String getDescription() {
+                return state.getDescription();
+            }
         });
     }
 
@@ -1064,7 +1078,7 @@ public abstract class Operator
     }
 
     /**
-     * Interface used to make component visible & ready to to make operations
+     * Interface used to make component visible & ready to make operations
      * with.
      */
     public interface ComponentVisualizer {

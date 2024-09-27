@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.HexFormat;
 
 /**
  * Unix specific Path <--> URI conversion
@@ -83,8 +84,13 @@ class UnixUriUtils {
                 if (b == 0)
                     throw new IllegalArgumentException("Nul character not allowed");
             } else {
-                assert c < 0x80;
+                if (c == 0 || c >= 0x80)
+                    throw new IllegalArgumentException("Bad escape");
                 b = (byte)c;
+            }
+            if (b == '/' && rlen > 0 && result[rlen-1] == '/') {
+                // skip redundant slashes
+                continue;
             }
             result[rlen++] = b;
         }
@@ -101,22 +107,26 @@ class UnixUriUtils {
         byte[] path = up.toAbsolutePath().asByteArray();
         StringBuilder sb = new StringBuilder("file:///");
         assert path[0] == '/';
+        HexFormat hex = HexFormat.of().withUpperCase();
         for (int i=1; i<path.length; i++) {
             char c = (char)(path[i] & 0xff);
             if (match(c, L_PATH, H_PATH)) {
                 sb.append(c);
             } else {
                sb.append('%');
-               sb.append(hexDigits[(c >> 4) & 0x0f]);
-               sb.append(hexDigits[(c) & 0x0f]);
+               hex.toHexDigits(sb, (byte)c);
             }
         }
 
         // trailing slash if directory
         if (sb.charAt(sb.length()-1) != '/') {
-            int mode = UnixNativeDispatcher.stat(up);
-            if ((mode & UnixConstants.S_IFMT) == UnixConstants.S_IFDIR)
-                sb.append('/');
+            try {
+                up.checkRead();
+                UnixFileAttributes attrs = UnixFileAttributes.getIfExists(up);
+                if (attrs != null
+                        && ((attrs.mode() & UnixConstants.S_IFMT) == UnixConstants.S_IFDIR))
+                    sb.append('/');
+            } catch (UnixException | SecurityException ignore) { }
         }
 
         try {
@@ -156,8 +166,8 @@ class UnixUriUtils {
     // between first and last, inclusive
     private static long lowMask(char first, char last) {
         long m = 0;
-        int f = Math.max(Math.min(first, 63), 0);
-        int l = Math.max(Math.min(last, 63), 0);
+        int f = Math.clamp(first, 0, 63);
+        int l = Math.clamp(last, 0, 63);
         for (int i = f; i <= l; i++)
             m |= 1L << i;
         return m;
@@ -167,8 +177,8 @@ class UnixUriUtils {
     // between first and last, inclusive
     private static long highMask(char first, char last) {
         long m = 0;
-        int f = Math.max(Math.min(first, 127), 64) - 64;
-        int l = Math.max(Math.min(last, 127), 64) - 64;
+        int f = Math.clamp(first, 64, 127) - 64;
+        int l = Math.clamp(last, 64, 127) - 64;
         for (int i = f; i <= l; i++)
             m |= 1L << i;
         return m;
@@ -238,9 +248,4 @@ class UnixUriUtils {
    // All valid path characters
    private static final long L_PATH = L_PCHAR | lowMask(";/");
    private static final long H_PATH = H_PCHAR | highMask(";/");
-
-   private static final char[] hexDigits = {
-        '0', '1', '2', '3', '4', '5', '6', '7',
-        '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
-    };
 }

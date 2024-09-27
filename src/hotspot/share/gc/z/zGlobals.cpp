@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,14 +24,13 @@
 #include "precompiled.hpp"
 #include "gc/z/zGlobals.hpp"
 
-uint32_t ZGlobalPhase                 = ZPhaseRelocate;
-uint32_t ZGlobalSeqNum                = 1;
+size_t     ZPageSizeMediumShift;
+size_t     ZPageSizeMedium;
 
-const int& ZObjectAlignmentSmallShift = LogMinObjAlignmentInBytes;
-const int& ZObjectAlignmentSmall      = MinObjAlignmentInBytes;
+size_t     ZObjectSizeLimitMedium;
 
-uintptr_t ZAddressGoodMask;
-uintptr_t ZAddressBadMask             = 0;
-uintptr_t ZAddressWeakBadMask;
+const int& ZObjectAlignmentSmallShift  = LogMinObjAlignmentInBytes;
+int        ZObjectAlignmentMediumShift;
 
-uintptr_t ZAddressMetadataMarked;
+const int& ZObjectAlignmentSmall       = MinObjAlignmentInBytes;
+int        ZObjectAlignmentMedium;

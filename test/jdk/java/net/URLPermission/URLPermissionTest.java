@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,9 @@ import java.io.*;
 
 /**
  * @test
- * @bug 8010464 8027570 8027687 8029354 8114860 8071660 8161291
+ * @bug 8010464 8027570 8027687 8029354 8114860 8071660 8161291 8294378
+ * @run main URLPermissionTest
+ * @run main/othervm -Duser.language=tr URLPermissionTest
  */
 
 public class URLPermissionTest {
@@ -253,7 +255,14 @@ public class URLPermissionTest {
         imtest("http://x/", "http://X/", true),
         imtest("http://x/", "http://x/", true),
         imtest("http://X/", "http://X/", true),
-        imtest("http://foo/bar", "https://foo/bar", false)
+        imtest("http://foo/bar", "https://foo/bar", false),
+        imtest("http://www.foo.com/*", "http://www.foo.com/#foo", true),
+        imtest("http://www.foo.com/a/*#foo", "http://www.foo.com/a/b#foo", true),
+        imtest("http://www.foo.com/a/-", "http://www.foo.com/a/b#foo", true),
+        imtest("http://www.foo.com/?q1=1&q2=2#foo", "http://www.foo.com/?q1=1&q2=2#bar", true),
+        imtest("http://www.foo.com/", "http://www.foo.com/?q1=1&q2=2#bar", true),
+        imtest("http://www.foo.com/", "http://www.foo.com?q1=1&q2=2#bar", false),
+        imtest("http://www.foo.com", "http://www.foo.com?q1=1&q2=2#bar", true)
     };
 
     // new functionality
@@ -385,13 +394,17 @@ public class URLPermissionTest {
         eqtest("http://michael@foo.com/bar","http://michael@foo.com/bar", true),
         eqtest("http://Michael@foo.com/bar","http://michael@goo.com/bar",false),
         eqtest("http://michael@foo.com/bar","http://george@foo.com/bar", true),
-        eqtest("http://@foo.com/bar","http://foo.com/bar", true)
+        eqtest("http://@foo.com/bar","http://foo.com/bar", true),
+        eqtest("http://www.IOU.com", "http://www.iou.com", true),
+        eqtest("HTTPI://www.IOU.com", "httpi://www.iou.com", true)
     };
 
     static Test[] createTests = {
         createtest("http://user@foo.com/a/b/c"),
         createtest("http://user:pass@foo.com/a/b/c"),
-        createtest("http://user:@foo.com/a/b/c")
+        createtest("http://user:@foo.com/a/b/c"),
+        createtest("http://foo_bar"),
+        createtest("http://foo_bar:12345")
     };
 
     static boolean failed = false;

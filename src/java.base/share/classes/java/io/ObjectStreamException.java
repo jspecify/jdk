@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,12 +31,12 @@ import org.jspecify.annotations.Nullable;
 /**
  * Superclass of all exceptions specific to Object Stream classes.
  *
- * @author  unascribed
  * @since   1.1
  */
 @NullMarked
 public abstract class ObjectStreamException extends IOException {
 
+    @java.io.Serial
     private static final long serialVersionUID = 7260898174833392607L;
 
     /**
@@ -49,9 +49,31 @@ public abstract class ObjectStreamException extends IOException {
     }
 
     /**
+     * Create an ObjectStreamException with the specified message and
+     * cause.
+     *
+     * @param message the detailed message for the exception
+     * @param cause the cause
+     * @since 19
+     */
+    protected ObjectStreamException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    /**
      * Create an ObjectStreamException.
      */
     protected ObjectStreamException() {
         super();
+    }
+
+    /**
+     * Create an ObjectStreamException with the specified cause.
+     *
+     * @param cause the cause
+     * @since 19
+     */
+    protected ObjectStreamException(Throwable cause) {
+        super(cause);
     }
 }

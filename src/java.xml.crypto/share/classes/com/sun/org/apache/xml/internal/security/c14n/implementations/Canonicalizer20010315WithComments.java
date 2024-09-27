@@ -36,12 +36,9 @@ public class Canonicalizer20010315WithComments extends Canonicalizer20010315 {
     }
 
     /** {@inheritDoc} */
+    @Override
     public final String engineGetURI() {
         return Canonicalizer.ALGO_ID_C14N_WITH_COMMENTS;
     }
 
-    /** {@inheritDoc} */
-    public final boolean engineGetIncludeComments() {
-        return true;
-    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,11 +23,11 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_JNITYPES_AARCH64_HPP
-#define CPU_AARCH64_VM_JNITYPES_AARCH64_HPP
+#ifndef CPU_AARCH64_JNITYPES_AARCH64_HPP
+#define CPU_AARCH64_JNITYPES_AARCH64_HPP
 
 #include "jni.h"
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 #include "oops/oop.hpp"
 
 // This file holds platform-dependent routines used to write primitive jni
@@ -39,7 +39,7 @@ class JNITypes : AllStatic {
   // I.e., they are functionally 'push' operations if they have a 'pos'
   // formal parameter.  Note that jlong's and jdouble's are written
   // _in reverse_ of the order in which they appear in the interpreter
-  // stack.  This is because call stubs (see stubGenerator_sparc.cpp)
+  // stack.  This is because call stubs (see stubGenerator_arm.cpp)
   // reverse the argument list constructed by JavaCallArguments (see
   // javaCalls.hpp).
 
@@ -66,9 +66,8 @@ public:
   }
 
   // Oops are stored in native format in one JavaCallArgument slot at *to.
-  static inline void    put_obj(oop  from, intptr_t *to)           { *(oop *)(to +   0  ) =  from; }
-  static inline void    put_obj(oop  from, intptr_t *to, int& pos) { *(oop *)(to + pos++) =  from; }
-  static inline void    put_obj(oop *from, intptr_t *to, int& pos) { *(oop *)(to + pos++) = *from; }
+  static inline void    put_obj(const Handle& from_handle, intptr_t *to, int& pos) { *(to + pos++) =  (intptr_t)from_handle.raw_value(); }
+  static inline void    put_obj(jobject       from_handle, intptr_t *to, int& pos) { *(to + pos++) =  (intptr_t)from_handle; }
 
   // Floats are stored in native format in one JavaCallArgument slot at *to.
   static inline void    put_float(jfloat  from, intptr_t *to)           { *(jfloat *)(to +   0  ) =  from;  }
@@ -104,4 +103,4 @@ public:
 #undef _JNI_SLOT_OFFSET
 };
 
-#endif // CPU_AARCH64_VM_JNITYPES_AARCH64_HPP
+#endif // CPU_AARCH64_JNITYPES_AARCH64_HPP

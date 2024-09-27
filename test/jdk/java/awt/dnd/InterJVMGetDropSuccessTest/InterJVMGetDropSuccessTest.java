@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,56 +22,44 @@
  */
 
 /*
-  test
+  @test
+  @key headful
   @bug 4658741
   @summary verifies that getDropSuccess() returns correct value for inter-JVM DnD
-  @author das@sparc.spb.su area=dnd
-  @run applet InterJVMGetDropSuccessTest.html
+  @run main InterJVMGetDropSuccessTest
 */
 
-// Note there is no @ in front of test above.  This is so that the
-//  harness will not mistake this file as a test file.  It should
-//  only see the html file as a test file. (the harness runs all
-//  valid test files, so it would run this test twice if this file
-//  were valid as well as the html file.)
-// Also, note the area= after Your Name in the author tag.  Here, you
-//  should put which functional area the test falls in.  See the
-//  AWT-core home page -> test areas and/or -> AWT team  for a list of
-//  areas.
-// Note also the 'InterJVMGetDropSuccessTest.html' in the run tag.  This should
-//  be changed to the name of the test.
+import java.awt.AWTEvent;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.EventQueue;
+import java.awt.Frame;
+import java.awt.Point;
+import java.awt.Robot;
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
+import java.awt.dnd.DnDConstants;
+import java.awt.dnd.DragGestureEvent;
+import java.awt.dnd.DragGestureListener;
+import java.awt.dnd.DragGestureRecognizer;
+import java.awt.dnd.DragSource;
+import java.awt.dnd.DragSourceAdapter;
+import java.awt.dnd.DragSourceDropEvent;
+import java.awt.dnd.DropTarget;
+import java.awt.dnd.DropTargetAdapter;
+import java.awt.dnd.DropTargetDropEvent;
+import java.awt.dnd.DropTargetListener;
+import java.awt.event.AWTEventListener;
+import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
+import java.io.File;
+import java.io.InputStream;
 
-
-/**
- * InterJVMGetDropSuccessTest.java
- *
- * summary: verifies that getDropSuccess() returns correct value for inter-JVM DnD
- */
-
-import java.applet.Applet;
-import java.awt.*;
-import java.awt.datatransfer.*;
-import java.awt.dnd.*;
-import java.awt.event.*;
-import java.io.*;
-import javax.swing.*;
-
-
-//Automated tests should run as applet tests if possible because they
-// get their environments cleaned up, including AWT threads, any
-// test created threads, and any system resources used by the test
-// such as file descriptors.  (This is normally not a problem as
-// main tests usually run in a separate VM, however on some platforms
-// such as the Mac, separate VMs are not possible and non-applet
-// tests will cause problems).  Also, you don't have to worry about
-// synchronisation stuff in Applet tests they way you do in main
-// tests...
-
-
-public class InterJVMGetDropSuccessTest extends Applet {
+public class InterJVMGetDropSuccessTest {
 
     private int returnCode = Util.CODE_NOT_RETURNED;
-    private boolean successCodes[] = { true, false };
+    private final boolean[] successCodes = { true, false };
     private int dropCount = 0;
 
     final Frame frame = new Frame("Target Frame");
@@ -85,6 +73,12 @@ public class InterJVMGetDropSuccessTest extends Applet {
         };
     final DropTarget dropTarget = new DropTarget(frame, dropTargetListener);
 
+    public static void main(final String[] args) {
+        InterJVMGetDropSuccessTest app = new InterJVMGetDropSuccessTest();
+        app.init();
+        app.start();
+    }
+
     public void init() {
         frame.setTitle("Test frame");
         frame.setBounds(100, 100, 150, 150);
@@ -95,7 +89,9 @@ public class InterJVMGetDropSuccessTest extends Applet {
         frame.setVisible(true);
 
         try {
-            Thread.sleep(Util.FRAME_ACTIVATION_TIMEOUT);
+            Robot robot = new Robot();
+            robot.waitForIdle();
+            robot.delay(Util.FRAME_ACTIVATION_TIMEOUT);
 
             Point p = frame.getLocationOnScreen();
             Dimension d = frame.getSize();
@@ -163,10 +159,9 @@ final class Util implements AWTEventListener {
     public static final int CODE_SECOND_SUCCESS = 0x2;
     public static final int CODE_FAILURE = 0x1;
 
-    public static final int FRAME_ACTIVATION_TIMEOUT = 3000;
+    public static final int FRAME_ACTIVATION_TIMEOUT = 1000;
 
     static final Object SYNC_LOCK = new Object();
-    static final int MOUSE_RELEASE_TIMEOUT = 1000;
 
     static final Util theInstance = new Util();
 
@@ -185,44 +180,12 @@ final class Util implements AWTEventListener {
         return n < 0 ? -1 : n == 0 ? 0 : 1;
     }
 
-    private Component clickedComponent = null;
-
-    private void reset() {
-        clickedComponent = null;
-    }
-
     public void eventDispatched(AWTEvent e) {
         if (e.getID() == MouseEvent.MOUSE_RELEASED) {
-            clickedComponent = (Component)e.getSource();
             synchronized (SYNC_LOCK) {
                 SYNC_LOCK.notifyAll();
             }
         }
-    }
-
-    public static boolean pointInComponent(Robot robot, Point p, Component comp)
-      throws InterruptedException {
-        return theInstance.pointInComponentImpl(robot, p, comp);
-    }
-
-    private boolean pointInComponentImpl(Robot robot, Point p, Component comp)
-      throws InterruptedException {
-        robot.waitForIdle();
-        reset();
-        robot.mouseMove(p.x, p.y);
-        robot.mousePress(InputEvent.BUTTON1_MASK);
-        synchronized (SYNC_LOCK) {
-            robot.mouseRelease(InputEvent.BUTTON1_MASK);
-            SYNC_LOCK.wait(MOUSE_RELEASE_TIMEOUT);
-        }
-
-        Component c = clickedComponent;
-
-        while (c != null && c != comp) {
-            c = c.getParent();
-        }
-
-        return c == comp;
     }
 }
 
@@ -252,6 +215,9 @@ class Child {
             }
         }
     }
+
+    private volatile boolean success1 = false;
+    private volatile boolean success2 = false;
 
     final Frame frame = new Frame("Source Frame");
     final DragSource dragSource = DragSource.getDefaultDragSource();
@@ -285,53 +251,62 @@ class Child {
             frame.setBounds(300, 200, 150, 150);
             frame.setVisible(true);
 
-            Thread.sleep(Util.FRAME_ACTIVATION_TIMEOUT);
+            Robot robot = new Robot();
+            robot.waitForIdle();
+            robot.delay(Util.FRAME_ACTIVATION_TIMEOUT);
 
             Point sourcePoint = Util.getCenterLocationOnScreen(frame);
-
             Point targetPoint = new Point(x + w / 2, y + h / 2);
 
-            Robot robot = new Robot();
             robot.mouseMove(sourcePoint.x, sourcePoint.y);
-            robot.mousePress(InputEvent.BUTTON1_MASK);
+            robot.waitForIdle();
+            robot.delay(50);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
             for (Point p = new Point(sourcePoint); !p.equals(targetPoint);
-                 p.translate(Util.sign(targetPoint.x - p.x),
-                             Util.sign(targetPoint.y - p.y))) {
+                p.translate(Util.sign(targetPoint.x - p.x),
+                            Util.sign(targetPoint.y - p.y))) {
                 robot.mouseMove(p.x, p.y);
-                Thread.sleep(50);
+                robot.delay(5);
             }
 
             synchronized (Util.SYNC_LOCK) {
-                robot.mouseRelease(InputEvent.BUTTON1_MASK);
+                robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
                 Util.SYNC_LOCK.wait(Util.FRAME_ACTIVATION_TIMEOUT);
             }
 
-            if (!dragSourceListener.isDropFinished()) {
-                throw new RuntimeException("Drop not finished");
-            }
+            EventQueue.invokeAndWait(() -> {
+                if (!dragSourceListener.isDropFinished()) {
+                    throw new RuntimeException("Drop not finished");
+                }
+                success1 = dragSourceListener.getDropSuccess();
+                dragSourceListener.reset();
+            });
 
-            boolean success1 = dragSourceListener.getDropSuccess();
 
-            dragSourceListener.reset();
             robot.mouseMove(sourcePoint.x, sourcePoint.y);
-            robot.mousePress(InputEvent.BUTTON1_MASK);
+            robot.waitForIdle();
+            robot.delay(50);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
             for (Point p = new Point(sourcePoint); !p.equals(targetPoint);
-                 p.translate(Util.sign(targetPoint.x - p.x),
-                             Util.sign(targetPoint.y - p.y))) {
+                p.translate(Util.sign(targetPoint.x - p.x),
+                            Util.sign(targetPoint.y - p.y))) {
                 robot.mouseMove(p.x, p.y);
-                Thread.sleep(50);
+                robot.delay(5);
             }
 
             synchronized (Util.SYNC_LOCK) {
-                robot.mouseRelease(InputEvent.BUTTON1_MASK);
+                robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
                 Util.SYNC_LOCK.wait(Util.FRAME_ACTIVATION_TIMEOUT);
             }
 
-            if (!dragSourceListener.isDropFinished()) {
-                throw new RuntimeException("Drop not finished");
-            }
+            EventQueue.invokeAndWait(() -> {
+                if (!dragSourceListener.isDropFinished()) {
+                    throw new RuntimeException("Drop not finished");
+                }
+                success2 = dragSourceListener.getDropSuccess();
+                dragSourceListener.reset();
+            });
 
-            boolean success2 = dragSourceListener.getDropSuccess();
             int retCode = 0;
 
             if (success1) {

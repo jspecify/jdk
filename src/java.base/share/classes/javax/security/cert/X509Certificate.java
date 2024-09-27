@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,17 +27,13 @@
 package javax.security.cert;
 
 import java.io.InputStream;
-import java.lang.Class;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.security.Security;
-
 import java.math.BigInteger;
 import java.security.AccessController;
 import java.security.Principal;
 import java.security.PrivilegedAction;
-import java.security.PublicKey;
-import java.util.BitSet;
+import java.security.Security;
 import java.util.Date;
 
 /**
@@ -126,10 +122,16 @@ import java.util.Date;
  * @see java.security.Security security properties
  * @deprecated Use the classes in {@code java.security.cert} instead.
  */
-@Deprecated(since="9")
+@SuppressWarnings("removal")
+@Deprecated(since="9", forRemoval=true)
 public abstract class X509Certificate extends Certificate {
 
-    /*
+    /**
+     * Constructor for subclasses to call.
+     */
+    public X509Certificate() {}
+
+    /**
      * Constant to lookup in the Security properties file.
      * In the Security properties file the default implementation
      * for X.509 v3 is given as:
@@ -210,7 +212,7 @@ public abstract class X509Certificate extends Certificate {
          * under JDK1.1.
          */
         String className = X509Provider;
-        if (className == null || className.length() == 0) {
+        if (className == null || className.isEmpty()) {
             // shouldn't happen, but assume corrupted properties file
             // provide access to sun implementation
             className = "com.sun.security.cert.internal.x509.X509V1CertImpl";

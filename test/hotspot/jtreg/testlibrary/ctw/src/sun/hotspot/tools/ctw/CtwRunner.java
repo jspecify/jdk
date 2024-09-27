@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,9 +34,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+import java.util.Random;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -51,6 +53,14 @@ import java.util.stream.Collectors;
 public class CtwRunner {
     private static final Predicate<String> IS_CLASS_LINE = Pattern.compile(
             "^\\[\\d+\\]\\s*\\S+\\s*$").asPredicate();
+
+    /**
+     * Value of {@code -Dsun.hotspot.tools.ctwrunner.ctw_extra_args}. Extra
+     * comma-separated arguments to pass to CTW subprocesses.
+     */
+    private static final String CTW_EXTRA_ARGS
+            = System.getProperty("sun.hotspot.tools.ctwrunner.ctw_extra_args", "");
+
 
     private static final String USAGE = "Usage: CtwRunner <artifact to compile> [start[%] stop[%]]";
 
@@ -93,7 +103,7 @@ public class CtwRunner {
         errors = new ArrayList<>();
 
         if (start.endsWith("%") && stop.endsWith("%")) {
-            int startPercentage = Integer.parseInt(start.substring(0, start.length() - 1));;
+            int startPercentage = Integer.parseInt(start.substring(0, start.length() - 1));
             int stopPercentage = Integer.parseInt(stop.substring(0, stop.length() - 1));
             if (startPercentage < 0 || startPercentage > 100 ||
                 stopPercentage < 0 || stopPercentage > 100) {
@@ -174,9 +184,7 @@ public class CtwRunner {
         while (!done) {
             String[] cmd = cmd(classStart, classStop);
             try {
-                ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-                        /* addTestVmAndJavaOptions = */ true,
-                        cmd);
+                ProcessBuilder pb = ProcessTools.createTestJavaProcessBuilder(cmd);
                 String commandLine = pb.command()
                         .stream()
                         .collect(Collectors.joining(" "));
@@ -258,11 +266,15 @@ public class CtwRunner {
 
     private String[] cmd(long classStart, long classStop) {
         String phase = phaseName(classStart);
-        return new String[] {
+        Path file = Paths.get(phase + ".cmd");
+        Random rng = Utils.getRandomInstance();
+
+        ArrayList<String> Args = new ArrayList<String>(Arrays.asList(
                 "-Xbatch",
-                "-XX:-UseCounterDecay",
                 "-XX:-ShowMessageBoxOnError",
                 "-XX:+UnlockDiagnosticVMOptions",
+                // redirect VM output to cerr so it won't collide w/ ctw output
+                "-XX:+DisplayVMOutputToStderr",
                 // define phase start
                 "-DCompileTheWorldStartAt=" + classStart,
                 "-DCompileTheWorldStopAt=" + classStop,
@@ -272,6 +284,7 @@ public class CtwRunner {
                 "--add-exports", "java.base/jdk.internal.jimage=ALL-UNNAMED",
                 "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
                 "--add-exports", "java.base/jdk.internal.reflect=ALL-UNNAMED",
+                "--add-exports", "java.base/jdk.internal.access=ALL-UNNAMED",
                 // enable diagnostic logging
                 "-XX:+LogCompilation",
                 // use phase specific log, hs_err and ciReplay files
@@ -280,10 +293,33 @@ public class CtwRunner {
                 String.format("-XX:ReplayDataFile=replay_%s_%%p.log", phase),
                 // MethodHandle MUST NOT be compiled
                 "-XX:CompileCommand=exclude,java/lang/invoke/MethodHandle.*",
-                // CTW entry point
-                CompileTheWorld.class.getName(),
-                target,
-        };
+                "-XX:+IgnoreUnrecognizedVMOptions",
+                // Do not pay extra zapping cost for explicit GC invocations
+                "-XX:-ZapUnusedHeapArea",
+                // Stress* are c2-specific stress flags, so IgnoreUnrecognizedVMOptions is needed
+                "-XX:+StressLCM",
+                "-XX:+StressGCM",
+                "-XX:+StressIGVN",
+                "-XX:+StressCCP",
+                "-XX:+StressMacroExpansion",
+                "-XX:+StressIncrementalInlining",
+                // StressSeed is uint
+                "-XX:StressSeed=" + rng.nextInt(Integer.MAX_VALUE)));
+
+        for (String arg : CTW_EXTRA_ARGS.split(",")) {
+            Args.add(arg);
+        }
+
+        // CTW entry point
+        Args.add(CompileTheWorld.class.getName());
+        Args.add(target);
+
+        try {
+            Files.write(file, Args);
+        } catch (IOException e) {
+            throw new Error("can't create " + file, e);
+        }
+        return new String[]{ "@" + file.toAbsolutePath() };
     }
 
     private String phaseName(long classStart) {

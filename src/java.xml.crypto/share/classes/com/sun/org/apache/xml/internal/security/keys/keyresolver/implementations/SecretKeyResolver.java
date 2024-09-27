@@ -27,7 +27,9 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
+
 import javax.crypto.SecretKey;
+
 import com.sun.org.apache.xml.internal.security.keys.keyresolver.KeyResolverException;
 import com.sun.org.apache.xml.internal.security.keys.keyresolver.KeyResolverSpi;
 import com.sun.org.apache.xml.internal.security.keys.storage.StorageResolver;
@@ -44,8 +46,8 @@ public class SecretKeyResolver extends KeyResolverSpi
     private static final com.sun.org.slf4j.internal.Logger LOG =
         com.sun.org.slf4j.internal.LoggerFactory.getLogger(SecretKeyResolver.class);
 
-    private KeyStore keyStore;
-    private char[] password;
+    private final KeyStore keyStore;
+    private final char[] password;
 
     /**
      * Constructor.
@@ -55,59 +57,32 @@ public class SecretKeyResolver extends KeyResolverSpi
         this.password = password;
     }
 
-    /**
-     * This method returns whether the KeyResolverSpi is able to perform the requested action.
-     *
-     * @param element
-     * @param baseURI
-     * @param storage
-     * @return whether the KeyResolverSpi is able to perform the requested action.
-     */
-    public boolean engineCanResolve(Element element, String baseURI, StorageResolver storage) {
+    /** {@inheritDoc} */
+    @Override
+    protected boolean engineCanResolve(Element element, String baseURI, StorageResolver storage) {
         return XMLUtils.elementIsInSignatureSpace(element, Constants._TAG_KEYNAME);
     }
 
-    /**
-     * Method engineLookupAndResolvePublicKey
-     *
-     * @param element
-     * @param baseURI
-     * @param storage
-     * @return null if no {@link PublicKey} could be obtained
-     * @throws KeyResolverException
-     */
-    public PublicKey engineLookupAndResolvePublicKey(
-        Element element, String baseURI, StorageResolver storage
+    /** {@inheritDoc} */
+    @Override
+    protected PublicKey engineResolvePublicKey(
+        Element element, String baseURI, StorageResolver storage, boolean secureValidation
     ) throws KeyResolverException {
         return null;
     }
 
-    /**
-     * Method engineResolveX509Certificate
-     * {@inheritDoc}
-     * @param element
-     * @param baseURI
-     * @param storage
-     * @throws KeyResolverException
-     */
-    public X509Certificate engineLookupResolveX509Certificate(
-        Element element, String baseURI, StorageResolver storage
+    /** {@inheritDoc} */
+    @Override
+    protected X509Certificate engineResolveX509Certificate(
+        Element element, String baseURI, StorageResolver storage, boolean secureValidation
     ) throws KeyResolverException {
         return null;
     }
 
-    /**
-     * Method engineResolveSecretKey
-     *
-     * @param element
-     * @param baseURI
-     * @param storage
-     * @return resolved SecretKey key or null if no {@link SecretKey} could be obtained
-     *
-     * @throws KeyResolverException
-     */
-    public SecretKey engineResolveSecretKey(
-        Element element, String baseURI, StorageResolver storage
+    /** {@inheritDoc} */
+    @Override
+    protected SecretKey engineResolveSecretKey(
+        Element element, String baseURI, StorageResolver storage, boolean secureValidation
     ) throws KeyResolverException {
         LOG.debug("Can I resolve {}?", element.getTagName());
 
@@ -127,18 +102,11 @@ public class SecretKeyResolver extends KeyResolverSpi
         return null;
     }
 
-    /**
-     * Method engineResolvePrivateKey
-     * {@inheritDoc}
-     * @param element
-     * @param baseURI
-     * @param storage
-     * @return resolved PrivateKey key or null if no {@link PrivateKey} could be obtained
-     * @throws KeyResolverException
-     */
-    public PrivateKey engineLookupAndResolvePrivateKey(
-        Element element, String baseURI, StorageResolver storage
-    ) throws KeyResolverException {
+    /** {@inheritDoc} */
+    @Override
+    protected PrivateKey engineResolvePrivateKey(
+        Element element, String baseURI, StorageResolver storage, boolean secureValidation
+    ) {
         return null;
     }
 }

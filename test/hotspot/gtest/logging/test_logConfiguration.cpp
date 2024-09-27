@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,7 @@
  */
 
 #include "precompiled.hpp"
+#include "concurrentTestRunner.inline.hpp"
 #include "jvm.h"
 #include "logTestFixture.hpp"
 #include "logTestUtils.inline.hpp"
@@ -34,6 +35,8 @@
 #include "memory/resourceArea.hpp"
 #include "unittest.hpp"
 #include "utilities/ostream.hpp"
+
+using testing::HasSubstr;
 
 class LogConfigurationTest : public LogTestFixture {
  protected:
@@ -70,26 +73,26 @@ TEST_VM_F(LogConfigurationTest, describe) {
   const char* description = ss.as_string();
 
   // Verify that stdout and stderr are listed by default
-  EXPECT_PRED2(string_contains_substring, description, StdoutLog.name());
-  EXPECT_PRED2(string_contains_substring, description, StderrLog.name());
+  EXPECT_THAT(description, HasSubstr(LogConfiguration::StdoutLog->name()));
+  EXPECT_THAT(description, HasSubstr(LogConfiguration::StderrLog->name()));
 
   // Verify that each tag, level and decorator is listed
   for (size_t i = 0; i < LogTag::Count; i++) {
-    EXPECT_PRED2(string_contains_substring, description, LogTag::name(static_cast<LogTagType>(i)));
+    EXPECT_THAT(description, HasSubstr(LogTag::name(static_cast<LogTagType>(i))));
   }
   for (size_t i = 0; i < LogLevel::Count; i++) {
-    EXPECT_PRED2(string_contains_substring, description, LogLevel::name(static_cast<LogLevelType>(i)));
+    EXPECT_THAT(description, HasSubstr(LogLevel::name(static_cast<LogLevelType>(i))));
   }
   for (size_t i = 0; i < LogDecorators::Count; i++) {
-    EXPECT_PRED2(string_contains_substring, description, LogDecorators::name(static_cast<LogDecorators::Decorator>(i)));
+    EXPECT_THAT(description, HasSubstr(LogDecorators::name(static_cast<LogDecorators::Decorator>(i))));
   }
 
   // Verify that the default configuration is printed
   char expected_buf[256];
   int ret = jio_snprintf(expected_buf, sizeof(expected_buf), "=%s", LogLevel::name(LogLevel::Default));
   ASSERT_NE(-1, ret);
-  EXPECT_PRED2(string_contains_substring, description, expected_buf);
-  EXPECT_PRED2(string_contains_substring, description, "#1: stderr all=off");
+  EXPECT_THAT(description, HasSubstr(expected_buf));
+  EXPECT_THAT(description, HasSubstr("#1: stderr all=off"));
 
   // Verify default decorators are listed
   LogDecorators default_decorators;
@@ -106,7 +109,7 @@ TEST_VM_F(LogConfigurationTest, describe) {
       ASSERT_NE(-1, ret);
     }
   }
-  EXPECT_PRED2(string_contains_substring, description, expected_buf);
+  EXPECT_THAT(description, HasSubstr(expected_buf));
 
   // Add a new output and verify that it gets described after it has been added
   const char* what = "all=trace";
@@ -128,8 +131,8 @@ TEST_VM_F(LogConfigurationTest, update_output) {
     EXPECT_TRUE(is_described("all=info"));
 
     // Verify by iterating over tagsets
-    LogOutput* o = &StdoutLog;
-    for (LogTagSet* ts = LogTagSet::first(); ts != NULL; ts = ts->next()) {
+    LogOutput* o = LogConfiguration::StdoutLog;
+    for (LogTagSet* ts = LogTagSet::first(); ts != nullptr; ts = ts->next()) {
       EXPECT_TRUE(ts->has_output(o));
       EXPECT_TRUE(ts->is_level(LogLevel::Info));
       EXPECT_FALSE(ts->is_level(LogLevel::Debug));
@@ -137,7 +140,7 @@ TEST_VM_F(LogConfigurationTest, update_output) {
 
     // Now change the level and verify the change propagated
     set_log_config(test_outputs[i], "all=debug");
-    for (LogTagSet* ts = LogTagSet::first(); ts != NULL; ts = ts->next()) {
+    for (LogTagSet* ts = LogTagSet::first(); ts != nullptr; ts = ts->next()) {
       EXPECT_TRUE(ts->has_output(o));
       EXPECT_TRUE(ts->is_level(LogLevel::Debug));
       EXPECT_FALSE(ts->is_level(LogLevel::Trace));
@@ -157,7 +160,7 @@ TEST_VM_F(LogConfigurationTest, add_new_output) {
   EXPECT_TRUE(is_described("all=trace"));
 
   // Also verify by iterating over tagsets, checking levels on tagsets
-  for (LogTagSet* ts = LogTagSet::first(); ts != NULL; ts = ts->next()) {
+  for (LogTagSet* ts = LogTagSet::first(); ts != nullptr; ts = ts->next()) {
     EXPECT_TRUE(ts->is_level(LogLevel::Trace));
   }
 }
@@ -179,9 +182,9 @@ TEST_VM_F(LogConfigurationTest, disable_logging) {
   delete_file(other_file_name);
 
   // Verify that no tagset has logging enabled
-  for (LogTagSet* ts = LogTagSet::first(); ts != NULL; ts = ts->next()) {
-    EXPECT_FALSE(ts->has_output(&StdoutLog));
-    EXPECT_FALSE(ts->has_output(&StderrLog));
+  for (LogTagSet* ts = LogTagSet::first(); ts != nullptr; ts = ts->next()) {
+    EXPECT_FALSE(ts->has_output(LogConfiguration::StdoutLog));
+    EXPECT_FALSE(ts->has_output(LogConfiguration::StderrLog));
     EXPECT_FALSE(ts->is_level(LogLevel::Error));
   }
 }
@@ -195,8 +198,8 @@ TEST_VM_F(LogConfigurationTest, disable_output) {
   EXPECT_TRUE(is_described("#0: stdout all=off"));
 
   // Verify by iterating over tagsets
-  LogOutput* o = &StdoutLog;
-  for (LogTagSet* ts = LogTagSet::first(); ts != NULL; ts = ts->next()) {
+  LogOutput* o = LogConfiguration::StdoutLog;
+  for (LogTagSet* ts = LogTagSet::first(); ts != nullptr; ts = ts->next()) {
     EXPECT_FALSE(ts->has_output(o));
     EXPECT_FALSE(ts->is_level(LogLevel::Error));
   }
@@ -209,7 +212,7 @@ TEST_VM_F(LogConfigurationTest, disable_output) {
   // Now disable it, verifying it is removed completely
   set_log_config(TestLogFileName, "all=off");
   EXPECT_FALSE(is_described(TestLogFileName));
-  for (LogTagSet* ts = LogTagSet::first(); ts != NULL; ts = ts->next()) {
+  for (LogTagSet* ts = LogTagSet::first(); ts != nullptr; ts = ts->next()) {
     EXPECT_FALSE(ts->is_level(LogLevel::Error));
   }
 }
@@ -225,7 +228,92 @@ TEST_VM_F(LogConfigurationTest, reconfigure_decorators) {
 
   // Now reconfigure logging on stderr with no decorators
   set_log_config("stderr", "all=off", "none");
-  EXPECT_TRUE(is_described("#1: stderr all=off none (reconfigured)\n")) << "Expecting no decorators";
+  EXPECT_TRUE(is_described("#1: stderr all=off none foldmultilines=false (reconfigured)\n")) << "Expecting no decorators";
+}
+
+class ConcurrentLogsite : public TestRunnable {
+  int _id;
+
+ public:
+  ConcurrentLogsite(int id) : _id(id) {}
+  void runUnitTest() const override {
+    log_debug(logging)("ConcurrentLogsite %d emits a log", _id);
+  }
+};
+
+// Dynamically change decorators while loggings are emitting.
+TEST_VM_F(LogConfigurationTest, reconfigure_decorators_MT) {
+  const int nrOfThreads = 2;
+  ConcurrentLogsite logsites[nrOfThreads] = {0, 1};
+  Semaphore done(0);
+  const long testDurationMillis = 1000;
+  UnitTestThread* t[nrOfThreads];
+
+  set_log_config(TestLogFileName, "logging=debug", "none", "filecount=0");
+  set_log_config("stdout", "all=off", "none");
+  set_log_config("stderr", "all=off", "none");
+  for (int i = 0; i < nrOfThreads; ++i) {
+    t[i] = new UnitTestThread(&logsites[i], &done, testDurationMillis);
+  }
+
+  for (int i = 0; i < nrOfThreads; i++) {
+    t[i]->doit();
+  }
+
+  jlong time_start = os::elapsed_counter();
+  while (true) {
+    jlong elapsed = (jlong)TimeHelper::counter_to_millis(os::elapsed_counter() - time_start);
+    if (elapsed > testDurationMillis) {
+      break;
+    }
+
+    // Take turn logging with different decorators, either None or All.
+    set_log_config(TestLogFileName, "logging=debug", "none");
+    set_log_config(TestLogFileName, "logging=debug", _all_decorators);
+  }
+
+  for (int i = 0; i < nrOfThreads; ++i) {
+    done.wait();
+  }
+}
+
+// Dynamically change tags while loggings are emitting.
+TEST_VM_F(LogConfigurationTest, reconfigure_tags_MT) {
+  const int nrOfThreads = 2;
+  ConcurrentLogsite logsites[nrOfThreads] = {0, 1};
+  Semaphore done(0);
+  const long testDurationMillis = 1000;
+  UnitTestThread* t[nrOfThreads];
+
+  set_log_config(TestLogFileName, "logging=debug", "", "filecount=0");
+  set_log_config("stdout", "all=off", "none");
+  set_log_config("stderr", "all=off", "none");
+
+  for (int i = 0; i < nrOfThreads; ++i) {
+    t[i] = new UnitTestThread(&logsites[i], &done, testDurationMillis);
+  }
+
+  for (int i = 0; i < nrOfThreads; i++) {
+    t[i]->doit();
+  }
+
+  jlong time_start = os::elapsed_counter();
+  while (true) {
+    jlong elapsed = (jlong)TimeHelper::counter_to_millis(os::elapsed_counter() - time_start);
+    if (elapsed > testDurationMillis) {
+      break;
+    }
+
+    // turn on/off the tagset 'logging'.
+    set_log_config(TestLogFileName, "logging=off");
+    set_log_config(TestLogFileName, "logging=debug", "", "filecount=0");
+    // sleep a prime number milliseconds to allow concurrent logsites to write logs
+    os::naked_short_nanosleep(37);
+  }
+
+  for (int i = 0; i < nrOfThreads; ++i) {
+    done.wait();
+  }
 }
 
 // Test that invalid options cause configuration errors
@@ -249,8 +337,8 @@ TEST_VM_F(LogConfigurationTest, parse_empty_command_line_arguments) {
     const char* cmdline = empty_variations[i];
     bool ret = LogConfiguration::parse_command_line_arguments(cmdline);
     EXPECT_TRUE(ret) << "Error parsing command line arguments '" << cmdline << "'";
-    for (LogTagSet* ts = LogTagSet::first(); ts != NULL; ts = ts->next()) {
-      EXPECT_EQ(LogLevel::Unspecified, ts->level_for(&StdoutLog));
+    for (LogTagSet* ts = LogTagSet::first(); ts != nullptr; ts = ts->next()) {
+      EXPECT_EQ(LogLevel::Unspecified, ts->level_for(LogConfiguration::StdoutLog));
     }
   }
 }
@@ -273,6 +361,29 @@ TEST_VM_F(LogConfigurationTest, parse_command_line_arguments) {
   ret = jio_snprintf(buf, sizeof(buf), ":%s", TestLogFileName);
   ASSERT_NE(-1, ret);
   EXPECT_TRUE(LogConfiguration::parse_command_line_arguments(buf));
+
+#ifdef _WINDOWS
+  // We need to test the special-case parsing for drive letters in
+  // log file paths e.g. c:\log.txt and c:/log.txt. Our temp directory
+  // based TestLogFileName should already be the \ format (we print it
+  // below to visually verify) so we only need to convert to /.
+  printf("Checked: %s\n", buf);
+  // First disable logging so the current log file will be closed and we
+  // can delete it, so that UL won't try to perform log file rotation.
+  // The rotated file would not be auto-deleted.
+  set_log_config(TestLogFileName, "all=off");
+  delete_file(TestLogFileName);
+
+  // now convert \ to /
+  char* current_pos = strchr(buf,'\\');
+  while (current_pos != nullptr) {
+    *current_pos = '/';
+    current_pos = strchr(current_pos + 1, '\\');
+  }
+  printf("Checking: %s\n", buf);
+  EXPECT_TRUE(LogConfiguration::parse_command_line_arguments(buf));
+#endif
+
 }
 
 // Test split up log configuration arguments
@@ -309,19 +420,19 @@ TEST_VM_F(LogConfigurationTest, configure_stdout) {
   EXPECT_FALSE(log_is_enabled(Debug, logging));
   EXPECT_FALSE(log_is_enabled(Info, gc));
   LogTagSet* logging_ts = &LogTagSetMapping<LOG_TAGS(logging)>::tagset();
-  EXPECT_EQ(LogLevel::Info, logging_ts->level_for(&StdoutLog));
+  EXPECT_EQ(LogLevel::Info, logging_ts->level_for(LogConfiguration::StdoutLog));
 
   // Enable 'gc=debug' (no wildcard), verifying no other tags are enabled
   LogConfiguration::configure_stdout(LogLevel::Debug, true, LOG_TAGS(gc));
   EXPECT_TRUE(log_is_enabled(Debug, gc));
   EXPECT_TRUE(log_is_enabled(Info, logging));
   EXPECT_FALSE(log_is_enabled(Debug, gc, heap));
-  for (LogTagSet* ts = LogTagSet::first(); ts != NULL; ts = ts->next()) {
+  for (LogTagSet* ts = LogTagSet::first(); ts != nullptr; ts = ts->next()) {
     if (ts->contains(PREFIX_LOG_TAG(gc))) {
       if (ts->ntags() == 1) {
-        EXPECT_EQ(LogLevel::Debug, ts->level_for(&StdoutLog));
+        EXPECT_EQ(LogLevel::Debug, ts->level_for(LogConfiguration::StdoutLog));
       } else {
-        EXPECT_EQ(LogLevel::Off, ts->level_for(&StdoutLog));
+        EXPECT_EQ(LogLevel::Off, ts->level_for(LogConfiguration::StdoutLog));
       }
     }
   }
@@ -330,14 +441,14 @@ TEST_VM_F(LogConfigurationTest, configure_stdout) {
   LogConfiguration::configure_stdout(LogLevel::Trace, false, LOG_TAGS(gc));
   EXPECT_TRUE(log_is_enabled(Trace, gc));
   EXPECT_TRUE(log_is_enabled(Trace, gc, heap));
-  for (LogTagSet* ts = LogTagSet::first(); ts != NULL; ts = ts->next()) {
+  for (LogTagSet* ts = LogTagSet::first(); ts != nullptr; ts = ts->next()) {
     if (ts->contains(PREFIX_LOG_TAG(gc))) {
-      EXPECT_EQ(LogLevel::Trace, ts->level_for(&StdoutLog));
+      EXPECT_EQ(LogLevel::Trace, ts->level_for(LogConfiguration::StdoutLog));
     } else if (ts == logging_ts) {
       // Previous setting for 'logging' should remain
-      EXPECT_EQ(LogLevel::Info, ts->level_for(&StdoutLog));
+      EXPECT_EQ(LogLevel::Info, ts->level_for(LogConfiguration::StdoutLog));
     } else {
-      EXPECT_EQ(LogLevel::Off, ts->level_for(&StdoutLog));
+      EXPECT_EQ(LogLevel::Off, ts->level_for(LogConfiguration::StdoutLog));
     }
   }
 
@@ -347,8 +458,8 @@ TEST_VM_F(LogConfigurationTest, configure_stdout) {
   LogConfiguration::configure_stdout(LogLevel::Off, false, LOG_TAGS(gc));
   EXPECT_FALSE(log_is_enabled(Error, gc));
   EXPECT_FALSE(log_is_enabled(Error, gc, heap));
-  for (LogTagSet* ts = LogTagSet::first(); ts != NULL; ts = ts->next()) {
-    EXPECT_EQ(LogLevel::Off, ts->level_for(&StdoutLog));
+  for (LogTagSet* ts = LogTagSet::first(); ts != nullptr; ts = ts->next()) {
+    EXPECT_EQ(LogLevel::Off, ts->level_for(LogConfiguration::StdoutLog));
   }
 }
 
@@ -365,7 +476,7 @@ TEST_VM_F(LogConfigurationTest, subscribe) {
   LogConfiguration::register_update_listener(&Test_logconfiguration_subscribe_helper);
 
   LogStream ls(log.error());
-  LogConfiguration::parse_log_arguments("stdout", "logging=trace", NULL, NULL, &ls);
+  LogConfiguration::parse_log_arguments("stdout", "logging=trace", nullptr, nullptr, &ls);
   ASSERT_EQ(1, Test_logconfiguration_subscribe_triggered);
 
   LogConfiguration::configure_stdout(LogLevel::Debug, true, LOG_TAGS(gc));
@@ -381,11 +492,11 @@ TEST_VM_F(LogConfigurationTest, parse_invalid_tagset) {
   // Make sure warning is produced if one or more configured tagsets are invalid
   ResourceMark rm;
   stringStream ss;
-  bool success = LogConfiguration::parse_log_arguments("stdout", invalid_tagset, NULL, NULL, &ss);
+  bool success = LogConfiguration::parse_log_arguments("stdout", invalid_tagset, nullptr, nullptr, &ss);
   const char* msg = ss.as_string();
   EXPECT_TRUE(success) << "Should only cause a warning, not an error";
-  EXPECT_TRUE(string_contains_substring(msg, "No tag set matches selection:"));
-  EXPECT_TRUE(string_contains_substring(msg, invalid_tagset));
+  EXPECT_THAT(msg, HasSubstr("No tag set matches selection:"));
+  EXPECT_THAT(msg, HasSubstr(invalid_tagset));
 }
 
 TEST_VM_F(LogConfigurationTest, output_name_normalization) {
@@ -403,21 +514,20 @@ TEST_VM_F(LogConfigurationTest, output_name_normalization) {
 
   // Make sure prefixes are ignored when used within quotes
   // (this should create a log with "file=" in its filename)
-  int ret = jio_snprintf(buf, sizeof(buf), "\"file=%s\"", TestLogFileName);
-  ASSERT_NE(-1, ret);
-  set_log_config(buf, "logging=trace");
+  // Note that the filename cannot contain directories because
+  // it is being prefixed with "file=".
+  const char* leafFileName = "\"file=leaf_file_name\"";
+  set_log_config(leafFileName, "logging=trace");
   EXPECT_TRUE(is_described("#3: ")) << "prefix within quotes not ignored as it should be";
-  set_log_config(buf, "all=off");
+  set_log_config(leafFileName, "all=off");
 
   // Remove the extra log file created
-  ret = jio_snprintf(buf, sizeof(buf), "file=%s", TestLogFileName);
-  ASSERT_NE(-1, ret);
-  delete_file(buf);
+  delete_file("file=leaf_file_name");
 }
 
 static size_t count_occurrences(const char* haystack, const char* needle) {
   size_t count = 0;
-  for (const char* p = strstr(haystack, needle); p != NULL; p = strstr(p + 1, needle)) {
+  for (const char* p = strstr(haystack, needle); p != nullptr; p = strstr(p + 1, needle)) {
     count++;
   }
   return count;
@@ -429,7 +539,7 @@ TEST_OTHER_VM(LogConfiguration, output_reconfigured) {
 
   EXPECT_FALSE(is_described("(reconfigured)"));
 
-  bool success = LogConfiguration::parse_log_arguments("#1", "all=warning", NULL, NULL, &ss);
+  bool success = LogConfiguration::parse_log_arguments("#1", "all=warning", nullptr, nullptr, &ss);
   ASSERT_TRUE(success);
   EXPECT_EQ(0u, ss.size());
 
@@ -447,11 +557,11 @@ TEST_VM_F(LogConfigurationTest, suggest_similar_selection) {
 
   ResourceMark rm;
   stringStream ss;
-  LogConfiguration::parse_log_arguments("stdout", nonexisting_tagset, NULL, NULL, &ss);
+  LogConfiguration::parse_log_arguments("stdout", nonexisting_tagset, nullptr, nullptr, &ss);
 
   const char* suggestion = ss.as_string();
   SCOPED_TRACE(suggestion);
-  EXPECT_TRUE(string_contains_substring(ss.as_string(), "Did you mean any of the following?"));
+  EXPECT_THAT(suggestion, HasSubstr("Did you mean any of the following?"));
   EXPECT_TRUE(string_contains_substring(suggestion, "logging") ||
               string_contains_substring(suggestion, "start") ||
               string_contains_substring(suggestion, "exit") ||

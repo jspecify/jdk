@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@ package nsk.jdi.AttachingConnector.attach.attach004;
 
 import jdk.test.lib.JDKToolFinder;
 import jdk.test.lib.Utils;
+import jtreg.SkippedException;
 import nsk.share.jdi.ArgumentHandler;
 
 import java.io.BufferedReader;
@@ -63,23 +64,23 @@ public class TestDriver {
                 "-arch=" + arch
         };
 
-        if (isTransportSupported(jdiArgs)) {
-            System.out.println("Transport is supported on this platform, execute test");
-            String suspend = args[2];
-            Process debuggee = startDebuggee(jdiArgs, transport, suspend);
-            Process debugger = startDebugger(jdiArgs, Arrays.copyOfRange(args, 3, args.length), debuggee.pid());
+        if (!isTransportSupported(jdiArgs)) {
+            throw new SkippedException("Transport isn't supported on this platform");
+        }
 
-            int debuggerExit = debugger.waitFor();
-            if (debuggerExit != 95) {
-                throw new Error("debugger exit code is " + debuggerExit);
-            }
+        System.out.println("Transport is supported on this platform, execute test");
+        String suspend = args[2];
+        Process debuggee = startDebuggee(jdiArgs, transport, suspend);
+        Process debugger = startDebugger(jdiArgs, Arrays.copyOfRange(args, 3, args.length), debuggee.pid());
 
-            int debuggeeExit = debuggee.waitFor();
-            if (debuggeeExit != 95) {
-                throw new Error("debuggee exit code is " + debuggeeExit);
-            }
-        } else {
-            System.out.println("SKIPPED: Transport isn't supported on this platform, treat test as passed");
+        int debuggerExit = debugger.waitFor();
+        if (debuggerExit != 0) {
+            throw new Error("debugger exit code is " + debuggerExit);
+        }
+
+        int debuggeeExit = debuggee.waitFor();
+        if (debuggeeExit != 95) {
+            throw new Error("debuggee exit code is " + debuggeeExit);
         }
     }
 
@@ -88,10 +89,9 @@ public class TestDriver {
         List<String> cmd = new ArrayList<>();
         Class<?> debuggeeClass = attach004t.class;
         cmd.add(JDKToolFinder.getJDKTool("java"));
-        Collections.addAll(cmd, Utils.addTestJavaOpts(
+        Collections.addAll(cmd, Utils.prependTestJavaOpts(
                 "-cp",
                 Utils.TEST_CLASS_PATH,
-                "-Xdebug",
                 "-agentlib:jdwp=transport=" + transport + ",server=y,suspend=" + suspend,
                 "-Dmy.little.cookie=" + ProcessHandle.current().pid(),
                 debuggeeClass.getName()));
@@ -118,7 +118,7 @@ public class TestDriver {
         List<String> cmd = new ArrayList<>();
         Class<?> debuggerClass = attach004.class;
         cmd.add(JDKToolFinder.getJDKTool("java"));
-        Collections.addAll(cmd, Utils.addTestJavaOpts(
+        Collections.addAll(cmd, Utils.prependTestJavaOpts(
                 "-cp",
                 Utils.TEST_CLASS_PATH,
                 debuggerClass.getName(),

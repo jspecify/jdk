@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@ import org.jspecify.annotations.Nullable;
  * Thrown to indicate some unexpected internal error has occurred in
  * the Java Virtual Machine.
  *
- * @author  unascribed
  * @since   1.0
  */
 @NullMarked
@@ -40,7 +39,7 @@ public class InternalError extends VirtualMachineError {
     private static final long serialVersionUID = -9062593416125562365L;
 
     /**
-     * Constructs an <code>InternalError</code> with no detail message.
+     * Constructs an {@code InternalError} with no detail message.
      */
     
     public InternalError() {
@@ -48,7 +47,7 @@ public class InternalError extends VirtualMachineError {
     }
 
     /**
-     * Constructs an <code>InternalError</code> with the specified
+     * Constructs an {@code InternalError} with the specified
      * detail message.
      *
      * @param   message   the detail message.

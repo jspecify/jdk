@@ -1,6 +1,6 @@
 #!/bin/ksh -p
 #
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,7 @@ else
   CP="${TESTCLASSES}"
 fi
 
-if [ $OS != SunOS -a $OS != Linux ]
+if [ $OS != Linux ]
 then
     exit 0
 fi
@@ -49,7 +49,7 @@ else
 fi
 
 $JAVA_HOME/bin/java ${TESTVMOPTS} \
-    -cp "${CP}" -Xcheck:jni JNICheck | grep -v SIG | grep -v Signal | grep -v CallStatic > "${CP}"/log.txt
+    -cp "${CP}" -Xcheck:jni JNICheck | grep -v SIG | grep -v Signal | grep -v Handler | grep -v jsig | grep -v CallStatic > "${CP}"/log.txt
 
 # any messages logged may indicate a failure.
 if [ -s "${CP}"/log.txt ]; then

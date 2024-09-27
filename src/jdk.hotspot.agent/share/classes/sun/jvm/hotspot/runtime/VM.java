@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,8 @@ import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.classfile.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 /** <P> This class encapsulates the global state of the VM; the
     universe, object heap, interpreter, etc. It is a Singleton and
@@ -67,18 +69,16 @@ import sun.jvm.hotspot.classfile.*;
 
 public class VM {
   private static VM    soleInstance;
-  private static List  vmInitializedObservers = new ArrayList();
-  private List         vmResumedObservers   = new ArrayList();
-  private List         vmSuspendedObservers = new ArrayList();
+  private static List<Observer> vmInitializedObservers = new ArrayList<>();
+  private List<Observer> vmResumedObservers   = new ArrayList<>();
+  private List<Observer> vmSuspendedObservers = new ArrayList<>();
   private TypeDataBase db;
   private boolean      isBigEndian;
   /** This is only present if in a debugging system */
   private JVMDebugger  debugger;
-  private long         stackBias;
   private long         logAddressSize;
   private Universe     universe;
   private ObjectHeap   heap;
-  private SymbolTable  symbols;
   private SystemDictionary dict;
   private ClassLoaderDataGraph cldGraph;
   private Threads      threads;
@@ -98,6 +98,7 @@ public class VM {
   private boolean      isLP64;
   private int          bytesPerLong;
   private int          bytesPerWord;
+  private int          logBytesPerWord;
   private int          objectAlignmentInBytes;
   private int          minObjAlignmentInBytes;
   private int          logMinObjAlignmentInBytes;
@@ -105,7 +106,18 @@ public class VM {
   private int          heapOopSize;
   private int          klassPtrSize;
   private int          oopSize;
-  private final int    IndexSetSize;
+  /** -XX flags (value origin) */
+  public static int    Flags_DEFAULT;
+  public static int    Flags_COMMAND_LINE;
+  public static int    Flags_ENVIRON_VAR;
+  public static int    Flags_CONFIG_FILE;
+  public static int    Flags_MANAGEMENT;
+  public static int    Flags_ERGONOMIC;
+  public static int    Flags_ATTACH_ON_DEMAND;
+  public static int    Flags_INTERNAL;
+  public static int    Flags_JIMAGE_RESOURCE;
+  private static int   Flags_VALUE_ORIGIN_MASK;
+  private static int   Flags_WAS_SET_ON_COMMAND_LINE;
   /** This is only present in a non-core build */
   private CodeCache    codeCache;
   /** This is only present in a C1 build */
@@ -124,13 +136,14 @@ public class VM {
   private String       vmInternalInfo;
 
   private Flag[] commandLineFlags;
-  private Map flagsMap;
+  private Map<String, Flag> flagsMap;
 
   private static Type intType;
   private static Type uintType;
   private static Type intxType;
   private static Type uintxType;
   private static Type sizetType;
+  private static Type uint64tType;
   private static CIntegerType boolType;
   private Boolean sharingEnabled;
   private Boolean compressedOopsEnabled;
@@ -163,7 +176,38 @@ public class VM {
      }
 
      public int getOrigin() {
-        return flags & 0xF;  // XXX can we get the mask bits from somewhere?
+        return flags & Flags_VALUE_ORIGIN_MASK;
+     }
+
+     // See JVMFlag::print_origin() in HotSpot
+     public String getOriginString() {
+        var origin = flags & Flags_VALUE_ORIGIN_MASK;
+        if (origin == Flags_DEFAULT) {
+            return "default";
+        } else if (origin == Flags_COMMAND_LINE) {
+            return "command line";
+        } else if (origin == Flags_ENVIRON_VAR) {
+            return "environment";
+        } else if (origin == Flags_CONFIG_FILE) {
+            return "config file";
+        } else if (origin == Flags_MANAGEMENT) {
+            return "management";
+        } else if (origin == Flags_ERGONOMIC) {
+            String result = "";
+            if ((flags & Flags_WAS_SET_ON_COMMAND_LINE) == Flags_WAS_SET_ON_COMMAND_LINE) {
+                result = "command line, ";
+            }
+            return result + "ergonomic";
+        } else if (origin == Flags_ATTACH_ON_DEMAND) {
+            return "attach";
+        } else if (origin == Flags_INTERNAL) {
+            return "internal";
+        } else if (origin == Flags_JIMAGE_RESOURCE) {
+            return "jimage";
+        } else {
+            throw new IllegalStateException(
+                "Unknown flag origin " + origin + " is detected in " + name);
+        }
      }
 
      public boolean isBool() {
@@ -232,6 +276,50 @@ public class VM {
         return addr.getCIntegerAt(0, sizetType.getSize(), true);
      }
 
+     public boolean isCcstr() {
+        return type.equals("ccstr");
+     }
+
+     public String getCcstr() {
+        if (Assert.ASSERTS_ENABLED) {
+           Assert.that(isCcstr(), "not a ccstr flag!");
+        }
+        return CStringUtilities.getString(addr.getAddressAt(0));
+     }
+
+     public boolean isCcstrlist() {
+        return type.equals("ccstrlist");
+     }
+
+     public String getCcstrlist() {
+        if (Assert.ASSERTS_ENABLED) {
+           Assert.that(isCcstrlist(), "not a ccstrlist flag!");
+        }
+        return CStringUtilities.getString(addr.getAddressAt(0));
+     }
+
+     public boolean isDouble() {
+        return type.equals("double");
+     }
+
+     public double getDouble() {
+        if (Assert.ASSERTS_ENABLED) {
+           Assert.that(isDouble(), "not a double flag!");
+        }
+        return addr.getJDoubleAt(0);
+     }
+
+     public boolean isUint64t() {
+        return type.equals("uint64_t");
+     }
+
+     public long getUint64t() {
+        if (Assert.ASSERTS_ENABLED) {
+           Assert.that(isUint64t(), "not an uint64_t flag!");
+        }
+        return addr.getCIntegerAt(0, uint64tType.getSize(), true);
+     }
+
      public String getValue() {
         if (isBool()) {
            return Boolean.toString(getBool());
@@ -242,11 +330,27 @@ public class VM {
         } else if (isIntx()) {
            return Long.toString(getIntx());
         } else if (isUIntx()) {
-           return Long.toString(getUIntx());
+           return Long.toUnsignedString(getUIntx());
         } else if (isSizet()) {
-            return Long.toString(getSizet());
+           return Long.toUnsignedString(getSizet());
+        } else if (isCcstr()) {
+           var str = getCcstr();
+           if (str != null) {
+               str = "\"" + str + "\"";
+           }
+           return str;
+        } else if (isCcstrlist()) {
+           var str = getCcstrlist();
+           if (str != null) {
+               str = "\"" + str + "\"";
+           }
+           return str;
+        } else if (isDouble()) {
+           return Double.toString(getDouble());
+        } else if (isUint64t()) {
+           return Long.toUnsignedString(getUint64t());
         } else {
-           return null;
+           throw new WrongTypeException("Unknown type: " + type + " (" + name + ")");
         }
      }
   };
@@ -255,26 +359,26 @@ public class VM {
      if (System.getProperty("sun.jvm.hotspot.runtime.VM.disableVersionCheck") == null) {
         // read sa build version.
         String versionProp = "sun.jvm.hotspot.runtime.VM.saBuildVersion";
-        String saVersion = saProps.getProperty(versionProp);
-        if (saVersion == null)
+        String versionPropVal = saProps.getProperty(versionProp);
+        if (versionPropVal == null) {
            throw new RuntimeException("Missing property " + versionProp);
+        }
 
-        // Strip nonproduct VM version substring (note: saVersion doesn't have it).
-        String vmVersion = vmRelease.replaceAll("(-fastdebug)|(-debug)|(-jvmg)|(-optimized)|(-profiled)","");
+        var saVersion = Runtime.Version.parse(versionPropVal);
+        var vmVersion = Runtime.Version.parse(vmRelease);
 
         if (saVersion.equals(vmVersion)) {
            // Exact match
            return;
         }
-        if (saVersion.indexOf('-') == saVersion.lastIndexOf('-') &&
-            vmVersion.indexOf('-') == vmVersion.lastIndexOf('-')) {
+        if (!saVersion.equalsIgnoreOptional(vmVersion)) {
            // Throw exception if different release versions:
-           // <major>.<minor>-b<n>
-           throw new VMVersionMismatchException(saVersion, vmRelease);
+           // <version>+<build>
+           throw new VMVersionMismatchException(saVersion, vmVersion);
         } else {
            // Otherwise print warning to allow mismatch not release versions
            // during development.
-           System.err.println("WARNING: Hotspot VM version " + vmRelease +
+           System.err.println("WARNING: Hotspot VM version " + vmVersion +
                               " does not match with SA version " + saVersion +
                               "." + " You may see unexpected results. ");
         }
@@ -339,7 +443,6 @@ public class VM {
 
     checkVMVersion(vmRelease);
 
-    stackBias    = db.lookupIntConstant("STACK_BIAS").intValue();
     invocationEntryBCI = db.lookupIntConstant("InvocationEntryBci").intValue();
 
     // We infer the presence of JVMTI from the presence of the InstanceKlass::_breakpoints field.
@@ -375,25 +478,35 @@ public class VM {
     }
     bytesPerLong = db.lookupIntConstant("BytesPerLong").intValue();
     bytesPerWord = db.lookupIntConstant("BytesPerWord").intValue();
+    logBytesPerWord = db.lookupIntConstant("LogBytesPerWord").intValue();
     heapWordSize = db.lookupIntConstant("HeapWordSize").intValue();
+    Flags_DEFAULT = db.lookupIntConstant("JVMFlagOrigin::DEFAULT").intValue();
+    Flags_COMMAND_LINE = db.lookupIntConstant("JVMFlagOrigin::COMMAND_LINE").intValue();
+    Flags_ENVIRON_VAR = db.lookupIntConstant("JVMFlagOrigin::ENVIRON_VAR").intValue();
+    Flags_CONFIG_FILE = db.lookupIntConstant("JVMFlagOrigin::CONFIG_FILE").intValue();
+    Flags_MANAGEMENT = db.lookupIntConstant("JVMFlagOrigin::MANAGEMENT").intValue();
+    Flags_ERGONOMIC = db.lookupIntConstant("JVMFlagOrigin::ERGONOMIC").intValue();
+    Flags_ATTACH_ON_DEMAND = db.lookupIntConstant("JVMFlagOrigin::ATTACH_ON_DEMAND").intValue();
+    Flags_INTERNAL = db.lookupIntConstant("JVMFlagOrigin::INTERNAL").intValue();
+    Flags_JIMAGE_RESOURCE = db.lookupIntConstant("JVMFlagOrigin::JIMAGE_RESOURCE").intValue();
+    Flags_VALUE_ORIGIN_MASK = db.lookupIntConstant("JVMFlag::VALUE_ORIGIN_MASK").intValue();
+    Flags_WAS_SET_ON_COMMAND_LINE = db.lookupIntConstant("JVMFlag::WAS_SET_ON_COMMAND_LINE").intValue();
     oopSize  = db.lookupIntConstant("oopSize").intValue();
-    IndexSetSize = db.lookupIntConstant("CompactibleFreeListSpace::IndexSetSize").intValue();
 
     intType = db.lookupType("int");
     uintType = db.lookupType("uint");
     intxType = db.lookupType("intx");
     uintxType = db.lookupType("uintx");
     sizetType = db.lookupType("size_t");
+    uint64tType = db.lookupType("uint64_t");
     boolType = (CIntegerType) db.lookupType("bool");
 
     minObjAlignmentInBytes = getObjectAlignmentInBytes();
-    if (minObjAlignmentInBytes == 8) {
-      logMinObjAlignmentInBytes = 3;
-    } else if (minObjAlignmentInBytes == 16) {
-      logMinObjAlignmentInBytes = 4;
-    } else {
-      throw new RuntimeException("Object alignment " + minObjAlignmentInBytes + " not yet supported");
+    if ((minObjAlignmentInBytes & (minObjAlignmentInBytes - 1)) != 0) {
+      throw new RuntimeException("Object alignment " + minObjAlignmentInBytes + " is not power of two");
     }
+
+    logMinObjAlignmentInBytes = Integer.numberOfTrailingZeros(minObjAlignmentInBytes);
 
     if (isCompressedOopsEnabled()) {
       // Size info for oops within java objects is fixed
@@ -433,8 +546,8 @@ public class VM {
     }
 
     debugger.putHeapConst(soleInstance.getHeapOopSize(), soleInstance.getKlassPtrSize(),
-                          Universe.getNarrowOopBase(), Universe.getNarrowOopShift(),
-                          Universe.getNarrowKlassBase(), Universe.getNarrowKlassShift());
+                          CompressedOops.getBase(), CompressedOops.getShift(),
+                          CompressedKlassPointers.getBase(), CompressedKlassPointers.getShift());
   }
 
   /** This is used by the debugging system */
@@ -537,7 +650,7 @@ public class VM {
   }
 
   // Convenience function for conversions
-  static public long getAddressValue(Address addr) {
+  public static long getAddressValue(Address addr) {
     return VM.getVM().getDebugger().getAddressValue(addr);
   }
 
@@ -555,11 +668,6 @@ public class VM {
 
   public long getIntSize() {
     return db.getJIntType().getSize();
-  }
-
-  /** NOTE: this offset is in BYTES in this system! */
-  public long getStackBias() {
-    return stackBias;
   }
 
   /** Indicates whether the underlying machine supports the LP64 data
@@ -580,6 +688,10 @@ public class VM {
     return bytesPerWord;
   }
 
+  public int getLogBytesPerWord() {
+    return logBytesPerWord;
+  }
+
   /** Get minimum object alignment in bytes. */
   public int getMinObjAlignmentInBytes() {
     return minObjAlignmentInBytes;
@@ -594,10 +706,6 @@ public class VM {
 
   public int getHeapOopSize() {
     return heapOopSize;
-  }
-
-  public int getIndexSetSize() {
-    return IndexSetSize;
   }
 
   public int getKlassPtrSize() {
@@ -619,16 +727,6 @@ public class VM {
     return (((int) high) << 16) | (((int) low) & 0xFFFF);
   }
 
-  /** Utility routine for building a long from two "unsigned" 32-bit
-      ints in <b>platform-dependent</b> order */
-  public long buildLongFromIntsPD(int oneHalf, int otherHalf) {
-    if (isBigEndian) {
-      return (((long) otherHalf) << 32) | (((long) oneHalf) & 0x00000000FFFFFFFFL);
-    } else{
-      return (((long) oneHalf) << 32) | (((long) otherHalf) & 0x00000000FFFFFFFFL);
-    }
-  }
-
   public TypeDataBase getTypeDataBase() {
     return db;
   }
@@ -645,13 +743,6 @@ public class VM {
       heap = new ObjectHeap(db);
     }
     return heap;
-  }
-
-  public SymbolTable getSymbolTable() {
-    if (symbols == null) {
-      symbols = SymbolTable.getTheTable();
-    }
-    return symbols;
   }
 
   public SystemDictionary getSystemDictionary() {
@@ -840,9 +931,13 @@ public class VM {
 
   public boolean isSharingEnabled() {
     if (sharingEnabled == null) {
-      Flag flag = getCommandLineFlag("UseSharedSpaces");
-      sharingEnabled = (flag == null)? Boolean.FALSE :
-          (flag.getBool()? Boolean.TRUE: Boolean.FALSE);
+        Address address = VM.getVM().getDebugger().lookup(null, "UseSharedSpaces");
+        if (address == null && getOS().equals("win32")) {
+            // On Win32 symbols are prefixed with the dll name. So look for
+            // UseSharedSpaces as a symbol in jvm.dll.
+            address = VM.getVM().getDebugger().lookup(null, "jvm!UseSharedSpaces");
+        }
+        sharingEnabled = address.getJBooleanAt(0);
     }
     return sharingEnabled.booleanValue();
   }
@@ -868,7 +963,7 @@ public class VM {
   public int getObjectAlignmentInBytes() {
     if (objectAlignmentInBytes == 0) {
         Flag flag = getCommandLineFlag("ObjectAlignmentInBytes");
-        objectAlignmentInBytes = (flag == null) ? 8 : (int)flag.getIntx();
+        objectAlignmentInBytes = (flag == null) ? 8 : (int)flag.getInt();
     }
     return objectAlignmentInBytes;
   }
@@ -896,13 +991,34 @@ public class VM {
 
   public Flag getCommandLineFlag(String name) {
     if (flagsMap == null) {
-      flagsMap = new HashMap();
+      flagsMap = new HashMap<>();
       Flag[] flags = getCommandLineFlags();
       for (int i = 0; i < flags.length; i++) {
         flagsMap.put(flags[i].getName(), flags[i]);
       }
     }
-    return (Flag) flagsMap.get(name);
+    return flagsMap.get(name);
+  }
+
+  private static final String cmdFlagTypes[] = {
+    "bool",
+    "int",
+    "uint",
+    "intx",
+    "uintx",
+    "uint64_t",
+    "size_t",
+    "double",
+    "ccstr",
+    "ccstrlist"
+  };
+
+  private String getFlagTypeAsString(int typeIndex) {
+    if (0 <= typeIndex && typeIndex < cmdFlagTypes.length) {
+      return cmdFlagTypes[typeIndex];
+    } else {
+      return "unknown";
+    }
   }
 
   private void readCommandLineFlags() {
@@ -914,8 +1030,7 @@ public class VM {
     commandLineFlags = new Flag[numFlags - 1];
 
     Address flagAddr = flagType.getAddressField("flags").getValue();
-
-    AddressField typeFld = flagType.getAddressField("_type");
+    CIntField typeFld = new CIntField(flagType.getCIntegerField("_type"), 0);
     AddressField nameFld = flagType.getAddressField("_name");
     AddressField addrFld = flagType.getAddressField("_addr");
     CIntField flagsFld = new CIntField(flagType.getCIntegerField("_flags"), 0);
@@ -924,7 +1039,8 @@ public class VM {
 
     // NOTE: last flag contains null values.
     for (int f = 0; f < numFlags - 1; f++) {
-      String type = CStringUtilities.getString(typeFld.getValue(flagAddr));
+      int typeIndex = (int)typeFld.getValue(flagAddr);
+      String type = getFlagTypeAsString(typeIndex);
       String name = CStringUtilities.getString(nameFld.getValue(flagAddr));
       Address addr = addrFld.getValue(flagAddr);
       int flags = (int)flagsFld.getValue(flagAddr);
@@ -933,10 +1049,8 @@ public class VM {
     }
 
     // sort flags by name
-    Arrays.sort(commandLineFlags, new Comparator() {
-        public int compare(Object o1, Object o2) {
-          Flag f1 = (Flag) o1;
-          Flag f2 = (Flag) o2;
+    Arrays.sort(commandLineFlags, new Comparator<>() {
+        public int compare(Flag f1, Flag f2) {
           return f1.getName().compareTo(f2.getName());
         }
       });

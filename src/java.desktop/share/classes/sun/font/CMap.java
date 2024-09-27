@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -130,7 +130,7 @@ abstract class CMap {
 
     static final char noSuchChar = (char)0xfffd;
     static final int SHORTMASK = 0x0000ffff;
-    static final int INTMASK   = 0xffffffff;
+    static final int INTMASK   = 0x7fffffff;
 
     static final char[][] converterMaps = new char[7][];
 
@@ -234,26 +234,8 @@ abstract class CMap {
                                   getConverterMap(GBKEncoding));
             }
             else if (three4 != 0) {
-                /* GB2312 TrueType fonts on Solaris have wrong encoding ID for
-                 * cmap table, these fonts have EncodingID 4 which is Big5
-                 * encoding according the TrueType spec, but actually the
-                 * fonts are using gb2312 encoding, have to use this
-                 * workaround to make Solaris zh_CN locale work.  -sherman
-                 */
-                if (FontUtilities.isSolaris && font.platName != null &&
-                    (font.platName.startsWith(
-                     "/usr/openwin/lib/locale/zh_CN.EUC/X11/fonts/TrueType") ||
-                     font.platName.startsWith(
-                     "/usr/openwin/lib/locale/zh_CN/X11/fonts/TrueType") ||
-                     font.platName.startsWith(
-                     "/usr/openwin/lib/locale/zh/X11/fonts/TrueType"))) {
-                    cmap = createCMap(cmapBuffer, three4,
-                                       getConverterMap(GBKEncoding));
-                }
-                else {
-                    cmap = createCMap(cmapBuffer, three4,
-                                      getConverterMap(Big5Encoding));
-                }
+                cmap = createCMap(cmapBuffer, three4,
+                                  getConverterMap(Big5Encoding));
             }
             else if (three5 != 0) {
                 cmap = createCMap(cmapBuffer, three5,
@@ -418,10 +400,8 @@ abstract class CMap {
         } else {
             subtableLength = buffer.getInt(offset+4) & INTMASK;
         }
-        if (offset+subtableLength > buffer.capacity()) {
-            if (FontUtilities.isLogging()) {
-                FontUtilities.getLogger().warning("Cmap subtable overflows buffer.");
-            }
+        if (FontUtilities.isLogging() && offset + subtableLength > buffer.capacity()) {
+            FontUtilities.logWarning("Cmap subtable overflows buffer.");
         }
         switch (subtableFormat) {
         case 0:  return new CMapFormat0(buffer, offset);
@@ -440,16 +420,12 @@ abstract class CMap {
         int subtableFormat = buffer.getChar(offset);
         if (subtableFormat == 14) {
             long subtableLength = buffer.getInt(offset + 2) & INTMASK;
-            if (offset + subtableLength > buffer.capacity()) {
-                if (FontUtilities.isLogging()) {
-                    FontUtilities.getLogger()
-                            .warning("Cmap UVS subtable overflows buffer.");
-                }
+            if (FontUtilities.isLogging() && offset + subtableLength > buffer.capacity()) {
+                FontUtilities.logWarning("Cmap UVS subtable overflows buffer.");
             }
             try {
                 this.uvs = new UVS(buffer, offset);
             } catch (Throwable t) {
-                t.printStackTrace();
             }
         }
         return;
@@ -566,6 +542,7 @@ abstract class CMap {
 
         char getGlyph(int charCode) {
 
+            final int origCharCode = charCode;
             int index = 0;
             char glyphCode = 0;
 
@@ -600,7 +577,7 @@ abstract class CMap {
             /*
              * CMAP format4 defines several fields for optimized search of
              * the segment list (entrySelector, searchRange, rangeShift).
-             * However, benefits are neglible and some fonts have incorrect
+             * However, benefits are negligible and some fonts have incorrect
              * data - so we use straightforward binary search (see bug 6247425)
              */
             int left = 0, right = startCount.length;
@@ -637,8 +614,8 @@ abstract class CMap {
                     }
                 }
             }
-            if (glyphCode != 0) {
-            //System.err.println("cc="+Integer.toHexString((int)charCode) + " gc="+(int)glyphCode);
+            if (glyphCode == 0) {
+              glyphCode = getFormatCharGlyph(origCharCode);
             }
             return glyphCode;
         }
@@ -748,7 +725,7 @@ abstract class CMap {
 
         char[] subHeaderKey = new char[256];
          /* Store subheaders in individual arrays
-          * A SubHeader entry theortically looks like {
+          * A SubHeader entry theoretically looks like {
           *   char firstCode;
           *   char entryCount;
           *   short idDelta;
@@ -804,6 +781,7 @@ abstract class CMap {
         }
 
         char getGlyph(int charCode) {
+            final int origCharCode = charCode;
             int controlGlyph = getControlCodeGlyph(charCode, true);
             if (controlGlyph >= 0) {
                 return (char)controlGlyph;
@@ -859,7 +837,7 @@ abstract class CMap {
                     return glyphCode;
                 }
             }
-            return 0;
+            return getFormatCharGlyph(origCharCode);
         }
     }
 
@@ -883,6 +861,7 @@ abstract class CMap {
          }
 
          char getGlyph(int charCode) {
+            final int origCharCode = charCode;
             int controlGlyph = getControlCodeGlyph(charCode, true);
             if (controlGlyph >= 0) {
                 return (char)controlGlyph;
@@ -894,7 +873,7 @@ abstract class CMap {
 
              charCode -= firstCode;
              if (charCode < 0 || charCode >= entryCount) {
-                  return 0;
+                  return getFormatCharGlyph(origCharCode);
              } else {
                   return glyphIdArray[charCode];
              }
@@ -916,7 +895,11 @@ abstract class CMap {
 
              bbuffer.position(12);
              bbuffer.get(is32);
-             nGroups = bbuffer.getInt();
+             nGroups = bbuffer.getInt() & INTMASK;
+             // A map group record is three uint32's making for 12 bytes total
+             if (bbuffer.remaining() < (12 * (long)nGroups)) {
+                 throw new RuntimeException("Format 8 table exceeded");
+             }
              startCharCode = new int[nGroups];
              endCharCode   = new int[nGroups];
              startGlyphID  = new int[nGroups];
@@ -944,9 +927,13 @@ abstract class CMap {
 
          CMapFormat10(ByteBuffer bbuffer, int offset, char[] xlat) {
 
+             bbuffer.position(offset+12);
              firstCode = bbuffer.getInt() & INTMASK;
              entryCount = bbuffer.getInt() & INTMASK;
-             bbuffer.position(offset+20);
+             // each glyph is a uint16, so 2 bytes per value.
+             if (bbuffer.remaining() < (2 * (long)entryCount)) {
+                 throw new RuntimeException("Format 10 table exceeded");
+             }
              CharBuffer buffer = bbuffer.asCharBuffer();
              glyphIdArray = new char[entryCount];
              for (int i=0; i< entryCount; i++) {
@@ -986,11 +973,15 @@ abstract class CMap {
                 throw new RuntimeException("xlat array for cmap fmt=12");
             }
 
-            numGroups = buffer.getInt(offset+12);
+            buffer.position(offset+12);
+            numGroups = buffer.getInt() & INTMASK;
+            // A map group record is three uint32's making for 12 bytes total
+            if (buffer.remaining() < (12 * (long)numGroups)) {
+                throw new RuntimeException("Format 12 table exceeded");
+            }
             startCharCode = new long[numGroups];
             endCharCode = new long[numGroups];
             startGlyphID = new int[numGroups];
-            buffer.position(offset+16);
             buffer = buffer.slice();
             IntBuffer ibuffer = buffer.asIntBuffer();
             for (int i=0; i<numGroups; i++) {
@@ -1032,6 +1023,7 @@ abstract class CMap {
         }
 
         char getGlyph(int charCode) {
+            final int origCharCode = charCode;
             int controlGlyph = getControlCodeGlyph(charCode, false);
             if (controlGlyph >= 0) {
                 return (char)controlGlyph;
@@ -1057,7 +1049,7 @@ abstract class CMap {
                     (startGlyphID[range] + (charCode - startCharCode[range]));
             }
 
-            return 0;
+            return getFormatCharGlyph(origCharCode);
         }
 
     }
@@ -1079,16 +1071,21 @@ abstract class CMap {
             case 0x000a:
             case 0x000d: return CharToGlyphMapper.INVISIBLE_GLYPH_ID;
             }
-        } else if (charCode >= 0x200c) {
+         } else if (noSurrogates && charCode >= 0xFFFF) {
+            return 0;
+        }
+        return -1;
+    }
+
+    final char getFormatCharGlyph(int charCode) {
+        if (charCode >= 0x200c) {
             if ((charCode <= 0x200f) ||
                 (charCode >= 0x2028 && charCode <= 0x202e) ||
                 (charCode >= 0x206a && charCode <= 0x206f)) {
-                return CharToGlyphMapper.INVISIBLE_GLYPH_ID;
-            } else if (noSurrogates && charCode >= 0xFFFF) {
-                return 0;
+                return (char)CharToGlyphMapper.INVISIBLE_GLYPH_ID;
             }
         }
-        return -1;
+        return 0;
     }
 
     static class UVS {
@@ -1101,7 +1098,13 @@ abstract class CMap {
         char[][] glyphID;
 
         UVS(ByteBuffer buffer, int offset) {
-            numSelectors = buffer.getInt(offset+6);
+            buffer.position(offset+6);
+            numSelectors = buffer.getInt() & INTMASK;
+            // A variation selector record is one 3 byte int + two int32's
+            // making for 11 bytes per record.
+            if (buffer.remaining() < (11 * (long)numSelectors)) {
+                throw new RuntimeException("Variations exceed buffer");
+            }
             selector = new int[numSelectors];
             numUVSMapping = new int[numSelectors];
             unicodeValue = new int[numSelectors][];
@@ -1122,6 +1125,11 @@ abstract class CMap {
                 } else if (tableOffset > 0) {
                     buffer.position(offset+tableOffset);
                     numUVSMapping[i] = buffer.getInt() & INTMASK;
+                    // a UVS mapping record is one 3 byte int + uint16
+                    // making for 5 bytes per record.
+                    if (buffer.remaining() < (5 * (long)numUVSMapping[i])) {
+                        throw new RuntimeException("Variations exceed buffer");
+                    }
                     unicodeValue[i] = new int[numUVSMapping[i]];
                     glyphID[i] = new char[numUVSMapping[i]];
 

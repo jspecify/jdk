@@ -151,17 +151,23 @@ public interface NavigableSet<E extends @Nullable Object> extends SortedSet<E> {
 
     /**
      * Retrieves and removes the first (lowest) element,
-     * or returns {@code null} if this set is empty.
+     * or returns {@code null} if this set is empty (optional operation).
      *
      * @return the first element, or {@code null} if this set is empty
+     *
+     * @throws UnsupportedOperationException if the {@code pollFirst}
+     *         operation is not supported by this collection
      */
     @Nullable E pollFirst();
 
     /**
      * Retrieves and removes the last (highest) element,
-     * or returns {@code null} if this set is empty.
+     * or returns {@code null} if this set is empty (optional operation).
      *
      * @return the last element, or {@code null} if this set is empty
+     *
+     * @throws UnsupportedOperationException if the {@code pollLast}
+     *         operation is not supported by this collection
      */
     @Nullable E pollLast();
 
@@ -332,4 +338,58 @@ public interface NavigableSet<E extends @Nullable Object> extends SortedSet<E> {
      */
     
     SortedSet<E> tailSet(E fromElement);
+
+    /**
+     * {@inheritDoc}
+     *
+     * @implSpec
+     * If this set is not empty, the implementation in this interface returns the result of calling
+     * the {@code pollFirst} method. Otherwise, it throws {@code NoSuchElementException}.
+     *
+     * @throws NoSuchElementException {@inheritDoc}
+     * @throws UnsupportedOperationException {@inheritDoc}
+     * @since 21
+     */
+    default E removeFirst() {
+        if (this.isEmpty()) {
+            throw new NoSuchElementException();
+        } else {
+            return this.pollFirst();
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @implSpec
+     * If this set is not empty, the implementation in this interface returns the result of calling
+     * the {@code pollLast} method. Otherwise, it throws {@code NoSuchElementException}.
+     *
+     * @throws NoSuchElementException {@inheritDoc}
+     * @throws UnsupportedOperationException {@inheritDoc}
+     * @since 21
+     */
+    default E removeLast() {
+        if (this.isEmpty()) {
+            throw new NoSuchElementException();
+        } else {
+            return this.pollLast();
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This method is equivalent to {@link #descendingSet descendingSet}.
+     *
+     * @implSpec
+     * The implementation in this interface returns the result of calling the
+     * {@code descendingSet} method.
+     *
+     * @return a reverse-ordered view of this collection, as a {@code NavigableSet}
+     * @since 21
+     */
+    default NavigableSet<E> reversed() {
+        return this.descendingSet();
+    }
 }

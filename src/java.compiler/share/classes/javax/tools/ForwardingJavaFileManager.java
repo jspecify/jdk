@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package javax.tools;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.ServiceLoader;
@@ -37,19 +38,21 @@ import javax.tools.JavaFileObject.Kind;
  * might override some of these methods and might also provide
  * additional fields and methods.
  *
+ * <p>Unless stated otherwise, references in this class to "<em>this file manager</em>"
+ * should be interpreted as referring indirectly to the {@linkplain #fileManager delegate file manager}.
+ *
  * @param <M> the kind of file manager forwarded to by this object
- * @author Peter von der Ah&eacute;
  * @since 1.6
  */
 public class ForwardingJavaFileManager<M extends JavaFileManager> implements JavaFileManager {
 
     /**
-     * The file manager which all methods are delegated to.
+     * The file manager to which all methods are delegated.
      */
     protected final M fileManager;
 
     /**
-     * Creates a new instance of ForwardingJavaFileManager.
+     * Creates a new instance of {@code ForwardingJavaFileManager}.
      * @param fileManager delegate to this file manager
      */
     protected ForwardingJavaFileManager(M fileManager) {
@@ -60,6 +63,7 @@ public class ForwardingJavaFileManager<M extends JavaFileManager> implements Jav
      * @throws SecurityException {@inheritDoc}
      * @throws IllegalStateException {@inheritDoc}
      */
+    @Override
     public ClassLoader getClassLoader(Location location) {
         return fileManager.getClassLoader(location);
     }
@@ -68,6 +72,7 @@ public class ForwardingJavaFileManager<M extends JavaFileManager> implements Jav
      * @throws IOException {@inheritDoc}
      * @throws IllegalStateException {@inheritDoc}
      */
+    @Override
     public Iterable<JavaFileObject> list(Location location,
                                          String packageName,
                                          Set<Kind> kinds,
@@ -80,6 +85,7 @@ public class ForwardingJavaFileManager<M extends JavaFileManager> implements Jav
     /**
      * @throws IllegalStateException {@inheritDoc}
      */
+    @Override
     public String inferBinaryName(Location location, JavaFileObject file) {
         return fileManager.inferBinaryName(location, file);
     }
@@ -87,6 +93,7 @@ public class ForwardingJavaFileManager<M extends JavaFileManager> implements Jav
     /**
      * @throws IllegalArgumentException {@inheritDoc}
      */
+    @Override
     public boolean isSameFile(FileObject a, FileObject b) {
         return fileManager.isSameFile(a, b);
     }
@@ -95,14 +102,17 @@ public class ForwardingJavaFileManager<M extends JavaFileManager> implements Jav
      * @throws IllegalArgumentException {@inheritDoc}
      * @throws IllegalStateException {@inheritDoc}
      */
+    @Override
     public boolean handleOption(String current, Iterator<String> remaining) {
         return fileManager.handleOption(current, remaining);
     }
 
+    @Override
     public boolean hasLocation(Location location) {
         return fileManager.hasLocation(location);
     }
 
+    @Override
     public int isSupportedOption(String option) {
         return fileManager.isSupportedOption(option);
     }
@@ -111,6 +121,7 @@ public class ForwardingJavaFileManager<M extends JavaFileManager> implements Jav
      * @throws IllegalArgumentException {@inheritDoc}
      * @throws IllegalStateException {@inheritDoc}
      */
+    @Override
     public JavaFileObject getJavaFileForInput(Location location,
                                               String className,
                                               Kind kind)
@@ -123,6 +134,7 @@ public class ForwardingJavaFileManager<M extends JavaFileManager> implements Jav
      * @throws IllegalArgumentException {@inheritDoc}
      * @throws IllegalStateException {@inheritDoc}
      */
+    @Override
     public JavaFileObject getJavaFileForOutput(Location location,
                                                String className,
                                                Kind kind,
@@ -132,10 +144,46 @@ public class ForwardingJavaFileManager<M extends JavaFileManager> implements Jav
         return fileManager.getJavaFileForOutput(location, className, kind, sibling);
     }
 
+    /**{@inheritDoc}
+     *
+     * @implSpec If the subclass of the {@code ForwardingJavaFileManager} overrides the
+     * {@link #getJavaFileForOutput} method, this method will delegate to it as per the
+     * general contract of {@link JavaFileManager#getJavaFileForOutputForOriginatingFiles}.
+     * If the subclass does not override the method, the call will be delegated to the
+     * {@code fileManager}.
+     *
+     * @throws IllegalArgumentException {@inheritDoc}
+     * @throws IllegalStateException {@inheritDoc}
+     *
+     * @since 18
+     */
+    @Override
+    public JavaFileObject getJavaFileForOutputForOriginatingFiles(Location location,
+                                               String className,
+                                               Kind kind,
+                                               FileObject... originatingFiles) throws IOException {
+        try {
+            Method delegate = getClass().getMethod("getJavaFileForOutput",
+                                                   Location.class, String.class,
+                                                   Kind.class, FileObject.class);
+            if (delegate.getDeclaringClass() == ForwardingJavaFileManager.class) {
+                return fileManager.getJavaFileForOutputForOriginatingFiles(location, className,
+                                                                           kind, originatingFiles);
+            } else {
+                return JavaFileManager.super
+                                      .getJavaFileForOutputForOriginatingFiles(location, className,
+                                                                               kind, originatingFiles);
+            }
+        } catch (NoSuchMethodException ex) {
+            throw new InternalError("This should never happen.", ex);
+        }
+    }
+
     /**
      * @throws IllegalArgumentException {@inheritDoc}
      * @throws IllegalStateException {@inheritDoc}
      */
+    @Override
     public FileObject getFileForInput(Location location,
                                       String packageName,
                                       String relativeName)
@@ -148,6 +196,7 @@ public class ForwardingJavaFileManager<M extends JavaFileManager> implements Jav
      * @throws IllegalArgumentException {@inheritDoc}
      * @throws IllegalStateException {@inheritDoc}
      */
+    @Override
     public FileObject getFileForOutput(Location location,
                                        String packageName,
                                        String relativeName,
@@ -157,50 +206,87 @@ public class ForwardingJavaFileManager<M extends JavaFileManager> implements Jav
         return fileManager.getFileForOutput(location, packageName, relativeName, sibling);
     }
 
+    /**{@inheritDoc}
+     *
+     * @implSpec If the subclass of the {@code ForwardingJavaFileManager} overrides the
+     * {@link #getFileForOutput} method, this method will delegate to it as per the
+     * general contract of {@link JavaFileManager#getFileForOutputForOriginatingFiles}.
+     * If the subclass does not override the method, the call will be delegated to the
+     * {@code fileManager}.
+     *
+     * @throws IllegalArgumentException {@inheritDoc}
+     * @throws IllegalStateException {@inheritDoc}
+     *
+     * @since 18
+     */
+    @Override
+    public FileObject getFileForOutputForOriginatingFiles(Location location,
+                                       String packageName,
+                                       String relativeName,
+                                       FileObject... originatingFiles) throws IOException {
+        try {
+            Method delegate = getClass().getMethod("getFileForOutput",
+                                                   Location.class, String.class,
+                                                   String.class, FileObject.class);
+            if (delegate.getDeclaringClass() == ForwardingJavaFileManager.class) {
+                return fileManager.getFileForOutputForOriginatingFiles(location, packageName,
+                                                                       relativeName, originatingFiles);
+            } else {
+                return JavaFileManager.super
+                                      .getFileForOutputForOriginatingFiles(location, packageName,
+                                                                           relativeName, originatingFiles);
+            }
+        } catch (NoSuchMethodException ex) {
+            throw new InternalError("This should never happen.", ex);
+        }
+    }
+
+    @Override
     public void flush() throws IOException {
         fileManager.flush();
     }
 
+    @Override
     public void close() throws IOException {
         fileManager.close();
     }
 
     /**
      * @since 9
-     * @spec JPMS
      */
+    @Override
     public Location getLocationForModule(Location location, String moduleName) throws IOException {
         return fileManager.getLocationForModule(location, moduleName);
     }
 
     /**
      * @since 9
-     * @spec JPMS
      */
+    @Override
     public Location getLocationForModule(Location location, JavaFileObject fo) throws IOException {
         return fileManager.getLocationForModule(location, fo);
     }
 
     /**
      * @since 9
-     * @spec JPMS
      */
+    @Override
     public <S> ServiceLoader<S> getServiceLoader(Location location, Class<S> service) throws  IOException {
         return fileManager.getServiceLoader(location, service);
     }
 
     /**
      * @since 9
-     * @spec JPMS
      */
+    @Override
     public String inferModuleName(Location location) throws IOException {
         return fileManager.inferModuleName(location);
     }
 
     /**
      * @since 9
-     * @spec JPMS
      */
+    @Override
     public Iterable<Set<Location>> listLocationsForModules(Location location) throws IOException {
         return fileManager.listLocationsForModules(location);
     }
@@ -208,6 +294,7 @@ public class ForwardingJavaFileManager<M extends JavaFileManager> implements Jav
     /**
      * @since 9
      */
+    @Override
     public boolean contains(Location location, FileObject fo) throws IOException {
         return fileManager.contains(location, fo);
     }

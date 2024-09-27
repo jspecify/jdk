@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,6 +54,7 @@ import java.io.IOException;
 public abstract @UsesObjectEquals class FileTypeDetector {
 
     private static Void checkPermission() {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null)
             sm.checkPermission(new RuntimePermission("fileTypeDetector"));
@@ -78,7 +79,7 @@ public abstract @UsesObjectEquals class FileTypeDetector {
      * <p> The means by which this method determines the file type is highly
      * implementation specific. It may simply examine the file name, it may use
      * a file <a href="../attribute/package-summary.html">attribute</a>,
-     * or it may examines bytes in the file.
+     * or it may examine bytes in the file.
      *
      * <p> The probe result is the string form of the value of a
      * Multipurpose Internet Mail Extension (MIME) content type as
@@ -103,6 +104,8 @@ public abstract @UsesObjectEquals class FileTypeDetector {
      *          provider then the {@link SecurityManager#checkRead(String)} method
      *          is invoked to check read access to the file.
      *
+     * @spec https://www.rfc-editor.org/info/rfc2045
+     *      RFC 2045: Multipurpose Internet Mail Extensions (MIME) Part One: Format of Internet Message Bodies
      * @see java.nio.file.Files#probeContentType
      */
     public abstract String probeContentType(Path path)

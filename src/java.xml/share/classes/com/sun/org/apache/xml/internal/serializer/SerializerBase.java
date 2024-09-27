@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -25,7 +25,7 @@ import com.sun.org.apache.xml.internal.serializer.utils.Utils;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Set;
-import java.util.ArrayList;
+import javax.xml.transform.ErrorListener;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.SourceLocator;
 import javax.xml.transform.Transformer;
@@ -42,10 +42,12 @@ import org.xml.sax.ext.Locator2;
  * It contains a number of common fields and methods.
  *
  * @xsl.usage internal
+ * @LastModified: May 2021
  */
 public abstract class SerializerBase
     implements SerializationHandler, SerializerConstants
 {
+    protected ErrorListener m_errListener;
 
     /**
      * To fire off the end element trace event
@@ -677,9 +679,9 @@ public abstract class SerializerBase
     }
 
     /**
-     * Sets the isStandalone property
-     * @param isStandalone true if the ORACLE_IS_STANDALONE is set to yes
-     * @see OutputPropertiesFactory ORACLE_IS_STANDALONE
+     * Sets the implementation specific property "isStandalone".
+     * @param isStandalone the value of the property
+     * @see JdkConstants.SP_XSLTC_IS_Standalone
      */
     public void setIsStandalone(boolean isStandalone) {
        m_isStandalone = isStandalone;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2017, Red Hat, Inc. and/or its affiliates.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -24,18 +24,54 @@
  */
 
 #include "precompiled.hpp"
+#include "cds/cdsConfig.hpp"
 #include "gc/g1/g1Arguments.hpp"
+#include "gc/g1/g1CardSet.hpp"
+#include "gc/g1/g1CardSetContainers.inline.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/g1CollectorPolicy.hpp"
+#include "gc/g1/g1HeapRegion.hpp"
+#include "gc/g1/g1HeapRegionBounds.inline.hpp"
+#include "gc/g1/g1HeapRegionRemSet.hpp"
 #include "gc/g1/g1HeapVerifier.hpp"
-#include "gc/g1/heapRegion.hpp"
-#include "gc/shared/gcArguments.inline.hpp"
+#include "gc/shared/cardTable.hpp"
+#include "gc/shared/gcArguments.hpp"
+#include "gc/shared/workerPolicy.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
-#include "runtime/vm_version.hpp"
+#include "runtime/java.hpp"
+
+static size_t calculate_heap_alignment(size_t space_alignment) {
+  size_t card_table_alignment = CardTable::ct_max_alignment_constraint();
+  size_t page_size = UseLargePages ? os::large_page_size() : os::vm_page_size();
+  return MAX3(card_table_alignment, space_alignment, page_size);
+}
+
+void G1Arguments::initialize_alignments() {
+  // Initialize card size before initializing alignments
+  CardTable::initialize_card_size();
+
+  // Set up the region size and associated fields.
+  //
+  // There is a circular dependency here. We base the region size on the heap
+  // size, but the heap size should be aligned with the region size. To get
+  // around this we use the unaligned values for the heap.
+  G1HeapRegion::setup_heap_region_size(MaxHeapSize);
+
+  SpaceAlignment = G1HeapRegion::GrainBytes;
+  HeapAlignment = calculate_heap_alignment(SpaceAlignment);
+
+  // We need to initialize card set configuration as soon as heap region size is
+  // known as it depends on it and is used really early.
+  initialize_card_set_configuration();
+  // Needs remembered set initialization as the ergonomics are based
+  // on it.
+  if (FLAG_IS_DEFAULT(G1EagerReclaimRemSetThreshold)) {
+    FLAG_SET_ERGO(G1EagerReclaimRemSetThreshold, G1RemSetArrayOfCardsEntries);
+  }
+}
 
 size_t G1Arguments::conservative_max_heap_alignment() {
-  return HeapRegion::max_region_size();
+  return G1HeapRegion::max_region_size();
 }
 
 void G1Arguments::initialize_verification_types() {
@@ -44,10 +80,12 @@ void G1Arguments::initialize_verification_types() {
     size_t length = strlen(VerifyGCType);
     char* type_list = NEW_C_HEAP_ARRAY(char, length + 1, mtInternal);
     strncpy(type_list, VerifyGCType, length + 1);
-    char* token = strtok(type_list, delimiter);
-    while (token != NULL) {
+    char* save_ptr;
+
+    char* token = strtok_r(type_list, delimiter, &save_ptr);
+    while (token != nullptr) {
       parse_verification_type(token);
-      token = strtok(NULL, delimiter);
+      token = strtok_r(nullptr, delimiter, &save_ptr);
     }
     FREE_C_HEAP_ARRAY(char, type_list);
   }
@@ -60,6 +98,8 @@ void G1Arguments::parse_verification_type(const char* type) {
     G1HeapVerifier::enable_verification_type(G1HeapVerifier::G1VerifyConcurrentStart);
   } else if (strcmp(type, "mixed") == 0) {
     G1HeapVerifier::enable_verification_type(G1HeapVerifier::G1VerifyMixed);
+  } else if (strcmp(type, "young-evac-fail") == 0) {
+    G1HeapVerifier::enable_verification_type(G1HeapVerifier::G1VerifyYoungEvacFail);
   } else if (strcmp(type, "remark") == 0) {
     G1HeapVerifier::enable_verification_type(G1HeapVerifier::G1VerifyRemark);
   } else if (strcmp(type, "cleanup") == 0) {
@@ -68,29 +108,86 @@ void G1Arguments::parse_verification_type(const char* type) {
     G1HeapVerifier::enable_verification_type(G1HeapVerifier::G1VerifyFull);
   } else {
     log_warning(gc, verify)("VerifyGCType: '%s' is unknown. Available types are: "
-                            "young-normal, concurrent-start, mixed, remark, cleanup and full", type);
+                            "young-normal, young-evac-fail, concurrent-start, mixed, remark, cleanup and full", type);
+  }
+}
+
+// Returns the maximum number of workers to be used in a concurrent
+// phase based on the number of GC workers being used in a STW
+// phase.
+static uint scale_concurrent_worker_threads(uint num_gc_workers) {
+  return MAX2((num_gc_workers + 2) / 4, 1U);
+}
+
+void G1Arguments::initialize_mark_stack_size() {
+  if (FLAG_IS_DEFAULT(MarkStackSize)) {
+    size_t mark_stack_size = MIN2(MarkStackSizeMax,
+                                  MAX2(MarkStackSize, (size_t)ConcGCThreads * TASKQUEUE_SIZE));
+    FLAG_SET_ERGO(MarkStackSize, mark_stack_size);
+  }
+}
+
+void G1Arguments::initialize_card_set_configuration() {
+  assert(G1HeapRegion::LogOfHRGrainBytes != 0, "not initialized");
+  // Array of Cards card set container globals.
+  const uint LOG_M = 20;
+  assert(log2i_exact(G1HeapRegionBounds::min_size()) == LOG_M, "inv");
+  assert(G1HeapRegion::LogOfHRGrainBytes >= LOG_M, "from the above");
+  uint region_size_log_mb = G1HeapRegion::LogOfHRGrainBytes - LOG_M;
+
+  if (FLAG_IS_DEFAULT(G1RemSetArrayOfCardsEntries)) {
+    uint max_cards_in_inline_ptr = G1CardSetConfiguration::max_cards_in_inline_ptr(G1HeapRegion::LogCardsPerRegion);
+    FLAG_SET_ERGO(G1RemSetArrayOfCardsEntries, MAX2(max_cards_in_inline_ptr * 2,
+                                                    G1RemSetArrayOfCardsEntriesBase << region_size_log_mb));
+  }
+
+  // Howl card set container globals.
+  if (FLAG_IS_DEFAULT(G1RemSetHowlNumBuckets)) {
+    FLAG_SET_ERGO(G1RemSetHowlNumBuckets, G1CardSetHowl::num_buckets(G1HeapRegion::CardsPerRegion,
+                                                                     G1RemSetArrayOfCardsEntries,
+                                                                     G1RemSetHowlMaxNumBuckets));
+  }
+
+  if (FLAG_IS_DEFAULT(G1RemSetHowlMaxNumBuckets)) {
+    FLAG_SET_ERGO(G1RemSetHowlMaxNumBuckets, MAX2(G1RemSetHowlMaxNumBuckets, G1RemSetHowlNumBuckets));
+  } else if (G1RemSetHowlMaxNumBuckets < G1RemSetHowlNumBuckets) {
+    FormatBuffer<> buf("Maximum Howl card set container bucket size %u smaller than requested bucket size %u",
+                       G1RemSetHowlMaxNumBuckets, G1RemSetHowlNumBuckets);
+    vm_exit_during_initialization(buf);
   }
 }
 
 void G1Arguments::initialize() {
   GCArguments::initialize();
   assert(UseG1GC, "Error");
-  FLAG_SET_DEFAULT(ParallelGCThreads, Abstract_VM_Version::parallel_worker_threads());
+  FLAG_SET_DEFAULT(ParallelGCThreads, WorkerPolicy::parallel_worker_threads());
   if (ParallelGCThreads == 0) {
     assert(!FLAG_IS_DEFAULT(ParallelGCThreads), "The default value for ParallelGCThreads should not be 0.");
-    vm_exit_during_initialization("The flag -XX:+UseG1GC can not be combined with -XX:ParallelGCThreads=0", NULL);
+    vm_exit_during_initialization("The flag -XX:+UseG1GC can not be combined with -XX:ParallelGCThreads=0", nullptr);
   }
 
-  if (FLAG_IS_DEFAULT(G1ConcRefinementThreads)) {
-    FLAG_SET_ERGO(uint, G1ConcRefinementThreads, ParallelGCThreads);
+  // When dumping the CDS heap we want to reduce fragmentation by
+  // triggering a full collection. To get as low fragmentation as
+  // possible we only use one worker thread.
+  if (CDSConfig::is_dumping_heap()) {
+    FLAG_SET_ERGO(ParallelGCThreads, 1);
   }
 
-  // MarkStackSize will be set (if it hasn't been set by the user)
-  // when concurrent marking is initialized.
-  // Its value will be based upon the number of parallel marking threads.
-  // But we do set the maximum mark stack size here.
-  if (FLAG_IS_DEFAULT(MarkStackSizeMax)) {
-    FLAG_SET_DEFAULT(MarkStackSizeMax, 128 * TASKQUEUE_SIZE);
+  if (!G1UseConcRefinement) {
+    if (!FLAG_IS_DEFAULT(G1ConcRefinementThreads)) {
+      log_warning(gc, ergo)("Ignoring -XX:G1ConcRefinementThreads "
+                            "because of -XX:-G1UseConcRefinement");
+    }
+    FLAG_SET_DEFAULT(G1ConcRefinementThreads, 0);
+  } else if (FLAG_IS_DEFAULT(G1ConcRefinementThreads)) {
+    FLAG_SET_ERGO(G1ConcRefinementThreads, ParallelGCThreads);
+  }
+
+  if (FLAG_IS_DEFAULT(ConcGCThreads) || ConcGCThreads == 0) {
+    // Calculate the number of concurrent worker threads by scaling
+    // the number of parallel GC threads.
+    uint marking_thread_num = scale_concurrent_worker_threads(ParallelGCThreads);
+    FLAG_SET_ERGO(ConcGCThreads, marking_thread_num);
   }
 
   if (FLAG_IS_DEFAULT(GCTimeRatio) || GCTimeRatio == 0) {
@@ -126,13 +223,6 @@ void G1Arguments::initialize() {
     FLAG_SET_DEFAULT(ParallelRefProcEnabled, true);
   }
 
-  log_trace(gc)("MarkStackSize: %uk  MarkStackSizeMax: %uk", (unsigned int) (MarkStackSize / K), (uint) (MarkStackSizeMax / K));
-
-  // By default do not let the target stack size to be more than 1/4 of the entries
-  if (FLAG_IS_DEFAULT(GCDrainStackTargetSize)) {
-    FLAG_SET_ERGO(uintx, GCDrainStackTargetSize, MIN2(GCDrainStackTargetSize, (uintx)TASKQUEUE_SIZE / 4));
-  }
-
 #ifdef COMPILER2
   // Enable loop strip mining to offer better pause time guarantees
   if (FLAG_IS_DEFAULT(UseCountedLoopSafepoints)) {
@@ -143,9 +233,26 @@ void G1Arguments::initialize() {
   }
 #endif
 
+  initialize_mark_stack_size();
   initialize_verification_types();
+
+  // Verify that the maximum parallelism isn't too high to eventually overflow
+  // the refcount in G1CardSetContainer.
+  uint max_parallel_refinement_threads = G1ConcRefinementThreads + G1DirtyCardQueueSet::num_par_ids();
+  uint const divisor = 3;  // Safe divisor; we increment by 2 for each claim, but there is a small initial value.
+  if (max_parallel_refinement_threads > UINT_MAX / divisor) {
+    vm_exit_during_initialization("Too large parallelism for remembered sets.");
+  }
+}
+
+void G1Arguments::initialize_heap_flags_and_sizes() {
+  GCArguments::initialize_heap_flags_and_sizes();
 }
 
 CollectedHeap* G1Arguments::create_heap() {
-  return create_heap_with_policy<G1CollectedHeap, G1CollectorPolicy>();
+  return new G1CollectedHeap();
+}
+
+size_t G1Arguments::heap_reserved_size_bytes() {
+  return MaxHeapSize;
 }

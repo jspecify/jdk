@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_ARM_VM_C2_GLOBALS_ARM_HPP
-#define CPU_ARM_VM_C2_GLOBALS_ARM_HPP
+#ifndef CPU_ARM_C2_GLOBALS_ARM_HPP
+#define CPU_ARM_C2_GLOBALS_ARM_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
@@ -34,40 +34,24 @@
 
 define_pd_global(bool, BackgroundCompilation,        true);
 define_pd_global(bool, CICompileOSR,                 true);
-define_pd_global(bool, InlineIntrinsics,             false);
+define_pd_global(bool, InlineIntrinsics,             true);
 define_pd_global(bool, PreferInterpreterNativeStubs, false);
 define_pd_global(bool, ProfileTraps,                 true);
 define_pd_global(bool, UseOnStackReplacement,        true);
 define_pd_global(bool, ProfileInterpreter,           true);
-#ifdef AARCH64
-define_pd_global(bool, TieredCompilation,            trueInTiered);
-#else
 define_pd_global(bool, TieredCompilation,            false);
-#endif
 define_pd_global(intx, CompileThreshold,             10000);
 
 define_pd_global(intx, OnStackReplacePercentage,     140);
 define_pd_global(intx, ConditionalMoveLimit,         4);
 // C2 gets to use all the float/double registers
-#ifdef AARCH64
-define_pd_global(intx, FLOATPRESSURE,                31);
-#else
-define_pd_global(intx, FLOATPRESSURE,                30);
-#endif
 define_pd_global(intx, FreqInlineSize,               175);
-#ifdef AARCH64
-define_pd_global(intx, INTPRESSURE,                  27);
-#else
-define_pd_global(intx, INTPRESSURE,                  12);
-#endif
 define_pd_global(intx, InteriorEntryAlignment,       16);  // = CodeEntryAlignment
 define_pd_global(size_t, NewSizeThreadIncrease,      ScaleForWordSize(4*K));
 // The default setting 16/16 seems to work best.
 // (For _228_jack 16/16 is 2% better than 4/4, 16/4, 32/32, 32/16, or 16/32.)
 //define_pd_global(intx, OptoLoopAlignment,            16);  // = 4*wordSize
 define_pd_global(intx, RegisterCostAreaRatio,        16000);
-define_pd_global(bool, UseTLAB,                      true);
-define_pd_global(bool, ResizeTLAB,                   true);
 define_pd_global(intx, LoopUnrollLimit,              60); // Design center runs on 1.3.1
 define_pd_global(intx, LoopPercentProfileLimit,      10);
 define_pd_global(intx, MinJumpTableSize,             16);
@@ -109,15 +93,12 @@ define_pd_global(size_t, CodeCacheExpansionSize,     32*K);
 // Ergonomics related flags
 define_pd_global(uint64_t, MaxRAM,                   4ULL*G);
 #endif
-define_pd_global(uintx, CodeCacheMinBlockLength,     4);
+define_pd_global(uintx, CodeCacheMinBlockLength,     6);
 define_pd_global(size_t, CodeCacheMinimumUseSpace,   400*K);
 
 define_pd_global(bool,  TrapBasedRangeChecks,        false); // Not needed
 
-// Heap related flags
-define_pd_global(size_t, MetaspaceSize,              ScaleForWordSize(16*M));
-
 // Ergonomics related flags
 define_pd_global(bool, NeverActAsServerClassMachine, false);
 
-#endif // CPU_ARM_VM_C2_GLOBALS_ARM_HPP
+#endif // CPU_ARM_C2_GLOBALS_ARM_HPP

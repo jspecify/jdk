@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2004, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package sun.security.provider.certpath;
 
-import java.util.List;
 import java.security.cert.CertPathBuilderException;
 
 /**
@@ -39,6 +38,7 @@ import java.security.cert.CertPathBuilderException;
  */
 public class SunCertPathBuilderException extends CertPathBuilderException {
 
+    @java.io.Serial
     private static final long serialVersionUID = -7814288414129264709L;
 
     /**

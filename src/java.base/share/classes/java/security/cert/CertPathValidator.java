@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -152,7 +152,7 @@ public @UsesObjectEquals class CertPathValidator {
      * {@code jdk.security.provider.preferred}
      * {@link Security#getProperty(String) Security} property to determine
      * the preferred provider order for the specified algorithm. This
-     * may be different than the order of providers returned by
+     * may be different from the order of providers returned by
      * {@link Security#getProviders() Security.getProviders()}.
      *
      * @param algorithm the name of the requested {@code CertPathValidator}
@@ -300,9 +300,9 @@ public @UsesObjectEquals class CertPathValidator {
      * @param certPath the {@code CertPath} to be validated
      * @param params the algorithm parameters
      * @return the result of the validation algorithm
-     * @exception CertPathValidatorException if the {@code CertPath}
+     * @throws    CertPathValidatorException if the {@code CertPath}
      * does not validate
-     * @exception InvalidAlgorithmParameterException if the specified
+     * @throws    InvalidAlgorithmParameterException if the specified
      * parameters or the type of the specified {@code CertPath} are
      * inappropriate for this {@code CertPathValidator}
      */
@@ -333,12 +333,10 @@ public @UsesObjectEquals class CertPathValidator {
      * {@literal "PKIX"} if no such property exists.
      */
     public static final String getDefaultType() {
+        @SuppressWarnings("removal")
         String cpvtype =
-            AccessController.doPrivileged(new PrivilegedAction<>() {
-                public String run() {
-                    return Security.getProperty(CPV_TYPE);
-                }
-            });
+            AccessController.doPrivileged((PrivilegedAction<String>) () ->
+                    Security.getProperty(CPV_TYPE));
         return (cpvtype == null) ? "PKIX" : cpvtype;
     }
 

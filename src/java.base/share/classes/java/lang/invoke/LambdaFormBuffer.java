@@ -59,7 +59,7 @@ final class LambdaFormBuffer {
 
     private LambdaForm lambdaForm() {
         assert(!inTrans());  // need endEdit call to tidy things up
-        return new LambdaForm(arity, nameArray(), resultIndex());
+        return LambdaForm.create(arity, nameArray(), resultIndex());
     }
 
     Name name(int i) {
@@ -301,7 +301,7 @@ final class LambdaFormBuffer {
             int argp = firstChange, exprp = 0;
             for (int i = firstChange; i < arity; i++) {
                 Name name = names[i];
-                if (name.isParam()) {
+                if (name != null && name.isParam()) {
                     names[argp++] = name;
                 } else {
                     exprs[exprp++] = name;

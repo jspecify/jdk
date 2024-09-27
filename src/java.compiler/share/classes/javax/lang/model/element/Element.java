@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,18 +27,16 @@ package javax.lang.model.element;
 
 
 import java.lang.annotation.Annotation;
-import java.lang.annotation.AnnotationTypeMismatchException;
-import java.lang.annotation.IncompleteAnnotationException;
 import java.util.List;
 import java.util.Set;
 
+import javax.lang.model.AnnotatedConstruct;
 import javax.lang.model.type.*;
 import javax.lang.model.util.*;
 
-
 /**
  * Represents a program element such as a module, package, class, or method.
- * Each element represents a static, language-level construct
+ * Each element represents a compile-time language-level construct
  * (and not, for example, a runtime construct of the virtual machine).
  *
  * <p> Elements should be compared using the {@link #equals(Object)}
@@ -53,60 +51,90 @@ import javax.lang.model.util.*;
  * hierarchy since an implementation may choose to have a single object
  * implement multiple {@code Element} subinterfaces.
  *
- * @author Joseph D. Darcy
- * @author Scott Seligman
- * @author Peter von der Ah&eacute;
  * @see Elements
  * @see TypeMirror
  * @since 1.6
  */
-public interface Element extends javax.lang.model.AnnotatedConstruct {
+public interface Element extends AnnotatedConstruct {
     /**
-     * Returns the type defined by this element.
-     *
-     * <p> A generic element defines a family of types, not just one.
-     * If this is a generic element, a <i>prototypical</i> type is
-     * returned.  This is the element's invocation on the
-     * type variables corresponding to its own formal type parameters.
-     * For example,
-     * for the generic class element {@code C<N extends Number>},
-     * the parameterized type {@code C<N>} is returned.
-     * The {@link Types} utility interface has more general methods
-     * for obtaining the full range of types defined by an element.
+     * {@return the type defined by this element}
      *
      * @see Types
-     *
-     * @return the type defined by this element
+     * @see ExecutableElement#asType
+     * @see ModuleElement#asType
+     * @see PackageElement#asType
+     * @see TypeElement#asType
+     * @see TypeParameterElement#asType
+     * @see VariableElement#asType
+     * @see RecordComponentElement#asType
      */
     TypeMirror asType();
 
     /**
-     * Returns the {@code kind} of this element.
+     * {@return the {@code kind} of this element}
      *
-     * @return the kind of this element
+     * <ul>
+     *
+     * <li> The kind of a {@linkplain PackageElement package} is
+     * {@link ElementKind#PACKAGE PACKAGE}.
+     *
+     * <li> The kind of a {@linkplain ModuleElement module} is {@link
+     * ElementKind#MODULE MODULE}.
+     *
+     * <li> The kind of a {@linkplain TypeElement type element} is one
+     * of {@link ElementKind#ANNOTATION_TYPE ANNOTATION_TYPE}, {@link
+     * ElementKind#CLASS CLASS}, {@link ElementKind#ENUM ENUM}, {@link
+     * ElementKind#INTERFACE INTERFACE}, or {@link ElementKind#RECORD
+     * RECORD}.
+     *
+     * <li> The kind of a {@linkplain VariableElement variable} is one
+     * of {@link ElementKind#ENUM_CONSTANT ENUM_CONSTANT}, {@link
+     * ElementKind#EXCEPTION_PARAMETER EXCEPTION_PARAMETER}, {@link
+     * ElementKind#FIELD FIELD}, {@link ElementKind#LOCAL_VARIABLE
+     * LOCAL_VARIABLE}, {@link ElementKind#PARAMETER PARAMETER},
+     * {@link ElementKind#RESOURCE_VARIABLE RESOURCE_VARIABLE}, or
+     * {@link ElementKind#BINDING_VARIABLE BINDING_VARIABLE}.
+     *
+     * <li> The kind of an {@linkplain ExecutableElement executable}
+     * is one of {@link ElementKind#CONSTRUCTOR CONSTRUCTOR}, {@link
+     * ElementKind#INSTANCE_INIT INSTANCE_INIT}, {@link
+     * ElementKind#METHOD METHOD}, or {@link ElementKind#STATIC_INIT
+     * STATIC_INIT}.
+     *
+     * <li> The kind of a {@linkplain TypeParameterElement type parameter} is
+     * {@link ElementKind#TYPE_PARAMETER TYPE_PARAMETER}.
+     *
+     * <li> The kind of a {@linkplain RecordComponentElement record
+     * component} is {@link ElementKind#RECORD_COMPONENT
+     * RECORD_COMPONENT}.
+     *
+     * </ul>
      */
     ElementKind getKind();
 
     /**
      * Returns the modifiers of this element, excluding annotations.
-     * Implicit modifiers, such as the {@code public} and {@code static}
-     * modifiers of interface members, are included.
+     * Implicit modifiers, such as the {@code public} and {@code
+     * static} modifiers of interface members (JLS section {@jls
+     * 9.3}), are included.
      *
      * @return the modifiers of this element, or an empty set if there are none
      */
     Set<Modifier> getModifiers();
 
     /**
-     * Returns the simple (unqualified) name of this element.  The
-     * name of a generic type does not include any reference to its
-     * formal type parameters.
+     * {@return the simple (unqualified) name of this element} The
+     * name of a generic class or interface does not include any
+     * reference to its formal type parameters.
      *
-     * For example, the simple name of the type element {@code
-     * java.util.Set<E>} is {@code "Set"}.
+     * For example, the simple name of the type element representing
+     * {@code java.util.Set<E>} is {@code "Set"}.
      *
      * If this element represents an unnamed {@linkplain
-     * PackageElement#getSimpleName package} or unnamed {@linkplain
-     * ModuleElement#getSimpleName module}, an empty name is returned.
+     * PackageElement#getSimpleName package}, an unnamed {@linkplain
+     * ModuleElement#getSimpleName module} or an unnamed {@linkplain
+     * VariableElement#getSimpleName variable}, an {@linkplain Name##empty_name empty name}
+     * is returned.
      *
      * If it represents a {@linkplain ExecutableElement#getSimpleName
      * constructor}, the name "{@code <init>}" is returned.  If it
@@ -115,16 +143,15 @@ public interface Element extends javax.lang.model.AnnotatedConstruct {
      *
      * If it represents an {@linkplain TypeElement#getSimpleName
      * anonymous class} or {@linkplain ExecutableElement#getSimpleName
-     * instance initializer}, an empty name is returned.
+     * instance initializer}, an {@linkplain Name##empty_name empty
+     * name} is returned.
      *
-     * @return the simple name of this element
      * @see PackageElement#getSimpleName
      * @see ExecutableElement#getSimpleName
      * @see TypeElement#getSimpleName
      * @see VariableElement#getSimpleName
      * @see ModuleElement#getSimpleName
-     * @revised 9
-     * @spec JPMS
+     * @see RecordComponentElement#getSimpleName
      */
     Name getSimpleName();
 
@@ -137,7 +164,7 @@ public interface Element extends javax.lang.model.AnnotatedConstruct {
      * element is returned.
      *
      * <li> If this is a {@linkplain TypeElement#getEnclosingElement
-     * top-level type}, its package is returned.
+     * top-level class or interface}, its package is returned.
      *
      * <li> If this is a {@linkplain
      * PackageElement#getEnclosingElement package}, its module is
@@ -153,6 +180,11 @@ public interface Element extends javax.lang.model.AnnotatedConstruct {
      * parameter}, {@linkplain ExecutableElement the executable
      * element} which declares the parameter is returned.
      *
+     * <li> If this is a {@linkplain
+     * RecordComponentElement#getEnclosingElement record component},
+     * {@linkplain TypeElement the record class} which declares the
+     * record component is returned.
+     *
      * <li> If this is a {@linkplain ModuleElement#getEnclosingElement
      * module}, {@code null} is returned.
      *
@@ -160,8 +192,6 @@ public interface Element extends javax.lang.model.AnnotatedConstruct {
      *
      * @return the enclosing element, or {@code null} if there is none
      * @see Elements#getPackageOf
-     * @revised 9
-     * @spec JPMS
      */
     Element getEnclosingElement();
 
@@ -171,7 +201,7 @@ public interface Element extends javax.lang.model.AnnotatedConstruct {
      *
      * A {@linkplain TypeElement#getEnclosedElements class or
      * interface} is considered to enclose the fields, methods,
-     * constructors, and member types that it directly declares.
+     * constructors, record components, and member classes and interfaces that it directly declares.
      *
      * A {@linkplain PackageElement#getEnclosedElements package}
      * encloses the top-level classes and interfaces within it, but is
@@ -196,15 +226,14 @@ public interface Element extends javax.lang.model.AnnotatedConstruct {
      * @see ModuleElement#getEnclosedElements
      * @see Elements#getAllMembers
      * @jls 8.8.9 Default Constructor
-     * @jls 8.9 Enums
-     * @revised 9
-     * @spec JPMS
+     * @jls 8.9 Enum Classes
+     * @jls 8.10 Record Classes
      */
     List<? extends Element> getEnclosedElements();
 
     /**
-     * Returns {@code true} if the argument represents the same
-     * element as {@code this}, or {@code false} otherwise.
+     * {@return {@code true} if the argument represents the same
+     * element as {@code this}, or {@code false} otherwise}
      *
      * @apiNote The identity of an element involves implicit state
      * not directly accessible from the element's methods, including
@@ -216,8 +245,6 @@ public interface Element extends javax.lang.model.AnnotatedConstruct {
      * different class loaders.
      *
      * @param obj  the object to be compared with this element
-     * @return {@code true} if the specified object represents the same
-     *          element as this
      */
     @Override
     boolean equals(Object obj);
@@ -230,13 +257,15 @@ public interface Element extends javax.lang.model.AnnotatedConstruct {
     @Override
     int hashCode();
 
-
     /**
-     * {@inheritDoc}
+     * {@inheritDoc AnnotatedConstruct}
      *
-     * <p> To get inherited annotations as well, use {@link
+     * <p>To get inherited annotations as well, use {@link
      * Elements#getAllAnnotationMirrors(Element)
      * getAllAnnotationMirrors}.
+     *
+     * <p>Note that any annotations returned by this method are
+     * declaration annotations.
      *
      * @since 1.6
      */
@@ -244,11 +273,26 @@ public interface Element extends javax.lang.model.AnnotatedConstruct {
     List<? extends AnnotationMirror> getAnnotationMirrors();
 
     /**
-     * {@inheritDoc}
+     * {@inheritDoc AnnotatedConstruct}
+     *
+     * <p>Note that any annotation returned by this method is a
+     * declaration annotation.
+     *
      * @since 1.6
      */
     @Override
     <A extends Annotation> A getAnnotation(Class<A> annotationType);
+
+    /**
+     * {@inheritDoc AnnotatedConstruct}
+     *
+     * <p>Note that any annotations returned by this method are
+     * declaration annotations.
+     *
+     * @since 1.8
+     */
+    @Override
+    <A extends Annotation> A[] getAnnotationsByType(Class<A> annotationType);
 
     /**
      * Applies a visitor to this element.

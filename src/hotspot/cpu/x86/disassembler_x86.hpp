@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_DISASSEMBLER_X86_HPP
-#define CPU_X86_VM_DISASSEMBLER_X86_HPP
+#ifndef CPU_X86_DISASSEMBLER_X86_HPP
+#define CPU_X86_DISASSEMBLER_X86_HPP
 
   static int pd_instruction_alignment() {
     return 1;
@@ -33,4 +33,16 @@
     return "";
   }
 
-#endif // CPU_X86_VM_DISASSEMBLER_X86_HPP
+  // special-case instruction decoding.
+  // There may be cases where the binutils disassembler doesn't do
+  // the perfect job. In those cases, decode_instruction0 may kick in
+  // and do it right.
+  // If nothing had to be done, just return "here", otherwise return "here + instr_len(here)"
+  static address decode_instruction0(address here, outputStream* st, address virtual_begin = nullptr) {
+    return here;
+  }
+
+  // platform-specific instruction annotations (like value of loaded constants)
+  static void annotate(address pc, outputStream* st) { };
+
+#endif // CPU_X86_DISASSEMBLER_X86_HPP

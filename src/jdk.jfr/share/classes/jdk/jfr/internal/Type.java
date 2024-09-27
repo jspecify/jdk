@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,15 +25,15 @@
 
 package jdk.jfr.internal;
 
-import org.jspecify.annotations.Nullable;
-
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import jdk.internal.module.Checks;
 import jdk.jfr.AnnotationElement;
 import jdk.jfr.Event;
 import jdk.jfr.SettingControl;
@@ -54,52 +54,62 @@ public class Type implements Comparable<Type> {
     public static final String SETTINGS_PREFIX = "jdk.settings.";
 
 
-    // Initialization of known types
-    private final static Map<Type, Class<?>> knownTypes = new HashMap<>();
-    static final Type BOOLEAN = register(boolean.class, new Type("boolean", null, 4));
-    static final Type CHAR = register(char.class, new Type("char", null, 5));
-    static final Type FLOAT = register(float.class, new Type("float", null, 6));
-    static final Type DOUBLE = register(double.class, new Type("double", null, 7));
-    static final Type BYTE = register(byte.class, new Type("byte", null, 8));
-    static final Type SHORT = register(short.class, new Type("short", null, 9));
-    static final Type INT = register(int.class, new Type("int", null, 10));
-    static final Type LONG = register(long.class, new Type("long", null, 11));
-    static final Type CLASS = register(Class.class, new Type("java.lang.Class", null, 20));
-    static final Type STRING = register(String.class, new Type("java.lang.String", null, 21));
-    static final Type THREAD = register(Thread.class, new Type("java.lang.Thread", null, 22));
-    static final Type STACK_TRACE = register(null, new Type(TYPES_PREFIX + "StackTrace", null, 23));
+    // To bootstrap the type system, the supported Java types
+    // are available here as statics. When metadata.xml is parsed
+    // fields are added to THREAD and STACK_TRACE.
+    private static final Map<Type, Class<?>> knownTypes = new LinkedHashMap<>();
+    static final Type BOOLEAN = createKnownType(boolean.class);
+    static final Type CHAR = createKnownType(char.class);
+    static final Type FLOAT = createKnownType(float.class);
+    static final Type DOUBLE = createKnownType(double.class);
+    static final Type BYTE = createKnownType(byte.class);
+    static final Type SHORT = createKnownType(short.class);
+    static final Type INT = createKnownType(int.class);
+    static final Type LONG = createKnownType(long.class);
+    static final Type CLASS = createKnownType(Class.class);
+    static final Type STRING = createKnownType(String.class);
+    static final Type THREAD = createKnownType(Thread.class);
+    public static final Type STACK_TRACE = createKnownType(TYPES_PREFIX + "StackTrace", null);
+
+    private static Type createKnownType(Class<?> clazz) {
+        return createKnownType(clazz.getName(), clazz);
+    }
+
+    private static Type createKnownType(String name, Class<?> clazz) {
+        long id = JVM.getTypeId(name);
+        Type t =  new Type(name, null, id, null);
+        knownTypes.put(t, clazz);
+        return t;
+    }
 
     private final AnnotationConstruct annos = new AnnotationConstruct();
     private final String name;
     private final String superType;
-    private final boolean constantPool;
-    private final long id;
-    private final ArrayList<ValueDescriptor> fields = new ArrayList<>();
+    private List<ValueDescriptor> fields = new ArrayList<>();
     private Boolean simpleType; // calculated lazy
     private boolean remove = true;
+    private long id;
+    private boolean visible = true;
+    private boolean internal;
+
     /**
      * Creates a type
      *
      * @param javaTypeName i.e "java.lang.String"
      * @param superType i.e "java.lang.Annotation"
-     * @param id the class id that represents the class in the JVM
+     * @param typeId the class id that represents the class in the JVM
      *
      */
     public Type(String javaTypeName, String superType, long typeId) {
-        this(javaTypeName, superType, typeId, false);
-    }
-
-    Type(String javaTypeName, String superType, long typeId, boolean contantPool) {
-        this(javaTypeName, superType, typeId, contantPool, null);
-    }
-
-    Type(String javaTypeName, String superType, long typeId, boolean contantPool, Boolean simpleType) {
-        Objects.requireNonNull(javaTypeName);
-
-        if (!isValidJavaIdentifier(javaTypeName)) {
-            throw new IllegalArgumentException(javaTypeName + " is not a valid Java identifier");
+        this(javaTypeName, superType, typeId, null);
+        if (!Checks.isClassName(javaTypeName)) {
+            // Should not be able to come here with an invalid type name
+            throw new InternalError(javaTypeName + " is not a valid Java type");
         }
-        this.constantPool = contantPool;
+    }
+
+    Type(String javaTypeName, String superType, long typeId, Boolean simpleType) {
+        Objects.requireNonNull(javaTypeName);
         this.superType = superType;
         this.name = javaTypeName;
         this.id = typeId;
@@ -112,29 +122,11 @@ public class Type implements Comparable<Type> {
 
     public static long getTypeId(Class<?> clazz) {
         Type type = Type.getKnownType(clazz);
-        return type == null ? JVM.getJVM().getTypeId(clazz) : type.getId();
+        return type == null ? JVM.getTypeId(clazz) : type.getId();
     }
 
     static Collection<Type> getKnownTypes() {
         return knownTypes.keySet();
-    }
-
-    public static boolean isValidJavaIdentifier(String identifier) {
-        if (identifier.isEmpty()) {
-            return false;
-        }
-        if (!Character.isJavaIdentifierStart(identifier.charAt(0))) {
-            return false;
-        }
-        for (int i = 1; i < identifier.length(); i++) {
-            char c = identifier.charAt(i);
-            if (c != '.') {
-                if (!Character.isJavaIdentifierPart(c)) {
-                    return false;
-                }
-            }
-        }
-        return true;
     }
 
     public static boolean isValidJavaFieldType(String name) {
@@ -183,7 +175,31 @@ public class Type implements Comparable<Type> {
        return getName() + "(" + getId() + ")";
     }
 
+    public ValueDescriptor getField(String name) {
+        int dotIndex = name.indexOf(".");
+        if (dotIndex > 0) {
+            String pre = name.substring(0, dotIndex);
+            String post = name.substring(dotIndex + 1);
+            ValueDescriptor subField = getField(pre);
+            if (subField != null) {
+                Type type = PrivateAccess.getInstance().getType(subField);
+                return type.getField(post);
+            }
+        } else {
+            for (ValueDescriptor v : getFields()) {
+                if (name.equals(v.getName())) {
+                    return v;
+                }
+            }
+        }
+        return null;
+    }
+
     public List<ValueDescriptor> getFields() {
+        if (fields instanceof ArrayList<?> list) {
+            list.trimToSize();
+            fields = Collections.unmodifiableList(fields);
+        }
         return fields;
     }
 
@@ -206,9 +222,8 @@ public class Type implements Comparable<Type> {
         return id < JVM.RESERVED_CLASS_ID_LIMIT;
     }
 
-    private static Type register(Class<?> clazz, Type type) {
-        knownTypes.put(type, clazz);
-        return type;
+    public void setFields(List<ValueDescriptor> fields) {
+        this.fields = List.copyOf(fields);
     }
 
     public void add(ValueDescriptor valueDescriptor) {
@@ -216,8 +231,17 @@ public class Type implements Comparable<Type> {
         fields.add(valueDescriptor);
     }
 
+    public int indexOf(String name) {
+        for (int i = 0; i < fields.size(); i++) {
+            if (name.equals(fields.get(i).getName())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     void trimFields() {
-        fields.trimToSize();
+        getFields();
     }
 
     void setAnnotations(List<AnnotationElement> annotations) {
@@ -232,16 +256,16 @@ public class Type implements Comparable<Type> {
         return id;
     }
 
-    public boolean isConstantPool() {
-        return constantPool;
-    }
-
     public String getLabel() {
         return annos.getLabel();
     }
 
     public List<AnnotationElement> getAnnotationElements() {
         return annos.getUnmodifiableAnnotationElements();
+    }
+
+    public <T> T getAnnotationValue(Class<? extends java.lang.annotation.Annotation> clazz, T defaultValue) {
+       return annos.getAnnotationValue(clazz, defaultValue);
     }
 
     public <T> T getAnnotation(Class<? extends java.lang.annotation.Annotation> clazz) {
@@ -258,11 +282,8 @@ public class Type implements Comparable<Type> {
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object object) {
-        if (object instanceof Type) {
-            Type that = (Type) object;
+    public boolean equals(Object object) {
+        if (object instanceof Type that) {
             return that.id == this.id;
         }
         return false;
@@ -274,7 +295,7 @@ public class Type implements Comparable<Type> {
     }
 
     void log(String action, LogTag logTag, LogLevel level) {
-        if (logTag.shouldLog(level.level) && !isSimpleType()) {
+        if (Logger.shouldLog(logTag, level) && !isSimpleType()) {
             Logger.log(logTag, LogLevel.TRACE, action + " " + typeText() + " " + getLogName() + " {");
             for (ValueDescriptor v : getFields()) {
                 String array = v.isArray() ? "[]" : "";
@@ -282,7 +303,7 @@ public class Type implements Comparable<Type> {
             }
             Logger.log(logTag, LogLevel.TRACE, "}");
         } else {
-            if (logTag.shouldLog(LogLevel.INFO.level) && !isSimpleType()) {
+            if (Logger.shouldLog(logTag, LogLevel.INFO) && !isSimpleType()) {
                 Logger.log(logTag, LogLevel.INFO, action + " " + typeText() + " " + getLogName());
             }
         }
@@ -321,5 +342,29 @@ public class Type implements Comparable<Type> {
 
     public boolean getRemove() {
         return remove;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public void setVisible(boolean visible) {
+        this.visible = visible;
+    }
+
+    public boolean isVisible() {
+        return visible;
+    }
+
+    public void setInternal(boolean internal) {
+        this.internal = internal;
+    }
+
+    public boolean isInternal() {
+        return internal;
+    }
+
+    public boolean hasAnnotation(Class<? extends java.lang.annotation.Annotation> clazz) {
+        return annos.getAnnotationElement(clazz) != null;
     }
 }

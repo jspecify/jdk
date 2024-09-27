@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -61,7 +59,7 @@ public class TestConstructor {
 
         // Get labelA from getAnnotations() list
         Asserts.assertEquals(1, vdComplex.getAnnotationElements().size(), "Expected getAnnotations().size() == 1");
-        final AnnotationElement outAnnotation = vdComplex.getAnnotationElements().get(0);
+        final AnnotationElement outAnnotation = vdComplex.getAnnotationElements().getFirst();
         Asserts.assertNotNull(outAnnotation, "outAnnotation was null");
         System.out.printf("Annotation: %s = %s%n", outAnnotation.getTypeName(), outAnnotation.getValue("value"));
         Asserts.assertEquals(outAnnotation, labelA, "Expected firstAnnotation == labelA");

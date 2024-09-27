@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,9 +51,9 @@ import java.util.Objects;
  */
 public final class KerberosCredMessage implements Destroyable {
 
-    final private KerberosPrincipal sender;
-    final private KerberosPrincipal recipient;
-    final private byte[] message;
+    private final KerberosPrincipal sender;
+    private final KerberosPrincipal recipient;
+    private final byte[] message;
 
     private boolean destroyed = false;
 
@@ -148,16 +148,14 @@ public final class KerberosCredMessage implements Destroyable {
     }
 
     /**
-     * Returns a hash code for this {@code KerberosCredMessage}.
-     *
-     * @return a hash code for this {@code KerberosCredMessage}.
+     * {@return a hash code for this {@code KerberosCredMessage}}
      */
     @Override
     public int hashCode() {
         if (isDestroyed()) {
             return -1;
         } else {
-            return Objects.hash(sender, recipient, Arrays.hashCode(message));
+            return Arrays.deepHashCode(new Object[]{sender, recipient, message});
         }
     }
 
@@ -182,11 +180,10 @@ public final class KerberosCredMessage implements Destroyable {
             return true;
         }
 
-        if (! (other instanceof KerberosCredMessage)) {
+        if (! (other instanceof KerberosCredMessage otherMessage)) {
             return false;
         }
 
-        KerberosCredMessage otherMessage = ((KerberosCredMessage) other);
         if (isDestroyed() || otherMessage.isDestroyed()) {
             return false;
         }

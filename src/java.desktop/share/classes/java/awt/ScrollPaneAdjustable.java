@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,18 +22,16 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package java.awt;
-
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import sun.awt.AWTAccessor;
 
 import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
 import java.awt.peer.ScrollPanePeer;
+import java.io.Serial;
 import java.io.Serializable;
 
+import sun.awt.AWTAccessor;
 
 /**
  * This class represents the state of a horizontal or vertical
@@ -42,8 +40,7 @@ import java.io.Serializable;
  *
  * @since       1.4
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class ScrollPaneAdjustable implements Adjustable, Serializable {
+public final class ScrollPaneAdjustable implements Adjustable, Serializable {
 
     /**
      * The {@code ScrollPane} this object is a scrollbar of.
@@ -142,6 +139,11 @@ public @UsesObjectEquals class ScrollPaneAdjustable implements Adjustable, Seria
      */
     private int blockIncrement = 1;
 
+    /**
+     * Specified adjustment listener to receive adjustment events from this
+     * {@code ScrollPaneAdjustable}.
+     */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private AdjustmentListener adjustmentListener;
 
     /**
@@ -171,8 +173,9 @@ public @UsesObjectEquals class ScrollPaneAdjustable implements Adjustable, Seria
     }
 
     /**
-     * JDK 1.1 serialVersionUID.
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = -3359745691033257079L;
 
 

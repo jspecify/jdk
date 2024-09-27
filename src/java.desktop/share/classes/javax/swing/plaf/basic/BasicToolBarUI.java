@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -165,6 +165,11 @@ public class BasicToolBarUI extends ToolBarUI implements SwingConstants
 
 
     private static String FOCUSED_COMP_INDEX = "JToolBar.focusedCompIndex";
+
+    /**
+     * Constructs a {@code BasicToolBarUI}.
+     */
+    public BasicToolBarUI() {}
 
     /**
      * Constructs a new instance of {@code BasicToolBarUI}.
@@ -543,7 +548,10 @@ public class BasicToolBarUI extends ToolBarUI implements SwingConstants
      * @param toolbar an instance of {@code JToolBar}
      * @return an instance of {@code JFrame}
      * @see #createFloatingWindow
+     * @deprecated It is recommended that {@link BasicToolBarUI#createFloatingWindow(JToolBar)}
+     *             be used instead
      */
+    @Deprecated(since = "17", forRemoval = true)
     protected JFrame createFloatingFrame(JToolBar toolbar) {
         Window window = SwingUtilities.getWindowAncestor(toolbar);
         @SuppressWarnings("serial") // anonymous class
@@ -646,8 +654,8 @@ public class BasicToolBarUI extends ToolBarUI implements SwingConstants
             Container p;
             for(p = toolBar.getParent() ; p != null && !(p instanceof Window) ;
                 p = p.getParent());
-            if(p != null && p instanceof Window)
-                frame = (Window) p;
+            if (p instanceof Window window)
+                frame = window;
         }
         if(floatingToolBar == null) {
             floatingToolBar = createFloatingWindow(toolBar);
@@ -1408,6 +1416,11 @@ public class BasicToolBarUI extends ToolBarUI implements SwingConstants
      * The class listens for window events.
      */
     protected class FrameListener extends WindowAdapter {
+        /**
+         * Constructs a {@code FrameListener}.
+         */
+        protected FrameListener() {}
+
         public void windowClosing(WindowEvent w) {
             if (toolBar.isFloatable()) {
                 if (dragWindow != null)
@@ -1418,15 +1431,6 @@ public class BasicToolBarUI extends ToolBarUI implements SwingConstants
                 if (floatingToolBar instanceof Window) ((Window)floatingToolBar).setVisible(false);
                 floatingToolBar.getContentPane().remove(toolBar);
                 String constraint = constraintBeforeFloating;
-                if (toolBar.getOrientation() == JToolBar.HORIZONTAL) {
-                    if (constraint == "West" || constraint == "East") {
-                        constraint = "North";
-                    }
-                } else {
-                    if (constraint == "North" || constraint == "South") {
-                        constraint = "West";
-                    }
-                }
                 if (dockingSource == null)
                     dockingSource = toolBar.getParent();
                 if (propertyListener != null)
@@ -1450,6 +1454,11 @@ public class BasicToolBarUI extends ToolBarUI implements SwingConstants
         // its functionality has been moved into Handler. If you need to add
         // new functionality add it to the Handler, but make sure this
         // class calls into the Handler.
+        /**
+         * Constructs a {@code ToolBarContListener}.
+         */
+        protected ToolBarContListener() {}
+
         public void componentAdded( ContainerEvent e )  {
             getHandler().componentAdded(e);
         }
@@ -1468,6 +1477,11 @@ public class BasicToolBarUI extends ToolBarUI implements SwingConstants
         // its functionality has been moved into Handler. If you need to add
         // new functionality add it to the Handler, but make sure this
         // class calls into the Handler.
+        /**
+         * Constructs a {@code ToolBarFocusListener}.
+         */
+        protected ToolBarFocusListener() {}
+
         public void focusGained( FocusEvent e ) {
             getHandler().focusGained(e);
             }
@@ -1485,6 +1499,11 @@ public class BasicToolBarUI extends ToolBarUI implements SwingConstants
         // its functionality has been moved into Handler. If you need to add
         // new functionality add it to the Handler, but make sure this
         // class calls into the Handler.
+        /**
+         * Constructs a {@code PropertyListener}.
+         */
+        protected PropertyListener() {}
+
         public void propertyChange( PropertyChangeEvent e ) {
             getHandler().propertyChange(e);
             }

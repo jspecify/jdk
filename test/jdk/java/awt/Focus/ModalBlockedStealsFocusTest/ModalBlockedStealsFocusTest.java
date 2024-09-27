@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,44 +22,31 @@
  */
 
 /*
-  test
-  @bug       6426132
-  @summary   Modal blocked window shouldn't steal focus when shown, or brought to front.
-  @author    anton.tarasov@...: area=awt.focus
-  @run       applet ModalBlockedStealsFocusTest.html
+  @test
+  @key headful
+  @bug        6426132
+  @summary    Modal blocked window shouldn't steal focus when shown, or brought to front.
+  @library    ../../regtesthelpers
+  @build      Util
+  @run        main ModalBlockedStealsFocusTest
 */
 
 import java.awt.*;
 import java.awt.event.*;
-import java.applet.Applet;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.lang.reflect.InvocationTargetException;
 import test.java.awt.regtesthelpers.Util;
 
-public class ModalBlockedStealsFocusTest extends Applet {
+public class ModalBlockedStealsFocusTest {
     Frame frame = new Frame("Blocked Frame");
     Dialog dialog = new Dialog(frame, "Modal Dialog", Dialog.ModalityType.TOOLKIT_MODAL);
     AtomicBoolean lostFocus = new AtomicBoolean(false);
 
     public static void main(String[] args) {
         ModalBlockedStealsFocusTest app = new ModalBlockedStealsFocusTest();
-        app.init();
         app.start();
     }
 
-    public void init() {
-        // Create instructions for the user here, as well as set up
-        // the environment -- set the layout manager, add buttons,
-        // etc.
-        this.setLayout (new BorderLayout ());
-    }
-
     public void start() {
-        if ("sun.awt.motif.MToolkit".equals(Toolkit.getDefaultToolkit().getClass().getName())) {
-            System.out.println("The test is not for MToolkit.");
-            return;
-        }
-
         dialog.setBounds(800, 0, 200, 100);
         frame.setBounds(800, 150, 200, 100);
 

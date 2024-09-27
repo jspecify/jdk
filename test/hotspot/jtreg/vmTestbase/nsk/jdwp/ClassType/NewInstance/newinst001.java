@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -96,8 +96,11 @@ public class newinst001 {
     /**
      * Start test from command line.
      */
-    public static void main(String argv[]) {
-        System.exit(run(argv,System.out) + JCK_STATUS_BASE);
+    public static void main (String argv[]) {
+        int result = run(argv, System.out);
+        if (result != 0) {
+            throw new RuntimeException("Test failed");
+        }
     }
 
     /**
@@ -240,7 +243,7 @@ public class newinst001 {
         log.display("  arguments: " + ARGUMENTS_COUNT);
         command.addInt(ARGUMENTS_COUNT);
         for (int i = 0; i < ARGUMENTS_COUNT; i++) {
-            JDWP.Value value = new JDWP.Value(JDWP.Tag.INT, new Integer(ARGUMENT_VALUE));
+            JDWP.Value value = new JDWP.Value(JDWP.Tag.INT, Integer.valueOf(ARGUMENT_VALUE));
             log.display("    arg: " + value);
             command.addValue(value);
         }

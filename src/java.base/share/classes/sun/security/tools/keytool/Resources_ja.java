@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,16 +61,18 @@ public class Resources_ja extends java.util.ListResourceBundle {
         {"Exports.certificate",
                 "\u8A3C\u660E\u66F8\u3092\u30A8\u30AF\u30B9\u30DD\u30FC\u30C8\u3057\u307E\u3059"}, //-exportcert
         {"Generates.a.key.pair",
-                "\u9375\u30DA\u30A2\u3092\u751F\u6210\u3057\u307E\u3059"}, //-genkeypair
+                "\u30AD\u30FC\u30FB\u30DA\u30A2\u3092\u751F\u6210\u3057\u307E\u3059"}, //-genkeypair
         {"Generates.a.secret.key",
-                "\u79D8\u5BC6\u9375\u3092\u751F\u6210\u3057\u307E\u3059"}, //-genseckey
+                "\u79D8\u5BC6\u30AD\u30FC\u3092\u751F\u6210\u3057\u307E\u3059"}, //-genseckey
         {"Generates.certificate.from.a.certificate.request",
                 "\u8A3C\u660E\u66F8\u30EA\u30AF\u30A8\u30B9\u30C8\u304B\u3089\u8A3C\u660E\u66F8\u3092\u751F\u6210\u3057\u307E\u3059"}, //-gencert
         {"Generates.CRL", "CRL\u3092\u751F\u6210\u3057\u307E\u3059"}, //-gencrl
         {"Generated.keyAlgName.secret.key",
-                "{0}\u79D8\u5BC6\u9375\u3092\u751F\u6210\u3057\u307E\u3057\u305F"}, //-genseckey
+                "{0}\u79D8\u5BC6\u30AD\u30FC\u3092\u751F\u6210\u3057\u307E\u3057\u305F"}, //-genseckey
         {"Generated.keysize.bit.keyAlgName.secret.key",
-                "{0}\u30D3\u30C3\u30C8{1}\u79D8\u5BC6\u9375\u3092\u751F\u6210\u3057\u307E\u3057\u305F"}, //-genseckey
+                "{0}\u30D3\u30C3\u30C8{1}\u79D8\u5BC6\u30AD\u30FC\u3092\u751F\u6210\u3057\u307E\u3057\u305F"}, //-genseckey
+        {"key.algorithm.weak", "%1$s\u306F%2$s\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0\u3092\u4F7F\u7528\u3057\u3066\u304A\u308A\u3001\u3053\u308C\u306F\u30BB\u30AD\u30E5\u30EA\u30C6\u30A3\u30FB\u30EA\u30B9\u30AF\u3068\u307F\u306A\u3055\u308C\u307E\u3059\u3002"},
+        {"key.size.weak", "%1$s\u306F%2$s\u3092\u4F7F\u7528\u3057\u3066\u304A\u308A\u3001\u3053\u308C\u306F\u30BB\u30AD\u30E5\u30EA\u30C6\u30A3\u30FB\u30EA\u30B9\u30AF\u3068\u307F\u306A\u3055\u308C\u307E\u3059\u3002"},
         {"Imports.entries.from.a.JDK.1.1.x.style.identity.database",
                 "JDK 1.1.x-style\u30A2\u30A4\u30C7\u30F3\u30C6\u30A3\u30C6\u30A3\u30FB\u30C7\u30FC\u30BF\u30D9\u30FC\u30B9\u304B\u3089\u30A8\u30F3\u30C8\u30EA\u3092\u30A4\u30F3\u30DD\u30FC\u30C8\u3057\u307E\u3059"}, //-identitydb
         {"Imports.a.certificate.or.a.certificate.chain",
@@ -80,9 +82,9 @@ public class Resources_ja extends java.util.ListResourceBundle {
         {"Imports.one.or.all.entries.from.another.keystore",
                 "\u5225\u306E\u30AD\u30FC\u30B9\u30C8\u30A2\u304B\u30891\u3064\u307E\u305F\u306F\u3059\u3079\u3066\u306E\u30A8\u30F3\u30C8\u30EA\u3092\u30A4\u30F3\u30DD\u30FC\u30C8\u3057\u307E\u3059"}, //-importkeystore
         {"Clones.a.key.entry",
-                "\u9375\u30A8\u30F3\u30C8\u30EA\u306E\u30AF\u30ED\u30FC\u30F3\u3092\u4F5C\u6210\u3057\u307E\u3059"}, //-keyclone
+                "\u30AD\u30FC\u30FB\u30A8\u30F3\u30C8\u30EA\u306E\u30AF\u30ED\u30FC\u30F3\u3092\u4F5C\u6210\u3057\u307E\u3059"}, //-keyclone
         {"Changes.the.key.password.of.an.entry",
-                "\u30A8\u30F3\u30C8\u30EA\u306E\u9375\u30D1\u30B9\u30EF\u30FC\u30C9\u3092\u5909\u66F4\u3057\u307E\u3059"}, //-keypasswd
+                "\u30A8\u30F3\u30C8\u30EA\u306E\u30AD\u30FC\u30FB\u30D1\u30B9\u30EF\u30FC\u30C9\u3092\u5909\u66F4\u3057\u307E\u3059"}, //-keypasswd
         {"Lists.entries.in.a.keystore",
                 "\u30AD\u30FC\u30B9\u30C8\u30A2\u5185\u306E\u30A8\u30F3\u30C8\u30EA\u3092\u30EA\u30B9\u30C8\u3057\u307E\u3059"}, //-list
         {"Prints.the.content.of.a.certificate",
@@ -95,9 +97,14 @@ public class Resources_ja extends java.util.ListResourceBundle {
                 "\u81EA\u5DF1\u7F72\u540D\u578B\u8A3C\u660E\u66F8\u3092\u751F\u6210\u3057\u307E\u3059"}, //-selfcert
         {"Changes.the.store.password.of.a.keystore",
                 "\u30AD\u30FC\u30B9\u30C8\u30A2\u306E\u30B9\u30C8\u30A2\u30FB\u30D1\u30B9\u30EF\u30FC\u30C9\u3092\u5909\u66F4\u3057\u307E\u3059"}, //-storepasswd
+        {"showinfo.command.help", "\u30BB\u30AD\u30E5\u30EA\u30C6\u30A3\u95A2\u9023\u60C5\u5831\u3092\u8868\u793A\u3057\u307E\u3059"},
+        {"Prints.the.program.version", "\u30D7\u30ED\u30B0\u30E9\u30E0\u30FB\u30D0\u30FC\u30B8\u30E7\u30F3\u3092\u51FA\u529B\u3057\u307E\u3059"},
+
         // keytool: help: options
         {"alias.name.of.the.entry.to.process",
                 "\u51E6\u7406\u3059\u308B\u30A8\u30F3\u30C8\u30EA\u306E\u5225\u540D"}, //-alias
+        {"groupname.option.help",
+                "\u30B0\u30EB\u30FC\u30D7\u540D\u3002\u305F\u3068\u3048\u3070\u3001\u6955\u5186\u66F2\u7DDA\u540D\u3067\u3059\u3002"}, //-groupname
         {"destination.alias",
                 "\u51FA\u529B\u5148\u306E\u5225\u540D"}, //-destalias
         {"destination.key.password",
@@ -121,11 +128,11 @@ public class Resources_ja extends java.util.ListResourceBundle {
         {"input.file.name",
                 "\u5165\u529B\u30D5\u30A1\u30A4\u30EB\u540D"}, //-file and -infile
         {"key.algorithm.name",
-                "\u9375\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0\u540D"}, //-keyalg
+                "\u30AD\u30FC\u30FB\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0\u540D"}, //-keyalg
         {"key.password",
-                "\u9375\u306E\u30D1\u30B9\u30EF\u30FC\u30C9"}, //-keypass
+                "\u30AD\u30FC\u306E\u30D1\u30B9\u30EF\u30FC\u30C9"}, //-keypass
         {"key.bit.size",
-                "\u9375\u306E\u30D3\u30C3\u30C8\u30FB\u30B5\u30A4\u30BA"}, //-keysize
+                "\u30AD\u30FC\u306E\u30D3\u30C3\u30C8\u30FB\u30B5\u30A4\u30BA"}, //-keysize
         {"keystore.name",
                 "\u30AD\u30FC\u30B9\u30C8\u30A2\u540D"}, //-keystore
         {"access.the.cacerts.keystore",
@@ -138,6 +145,7 @@ public class Resources_ja extends java.util.ListResourceBundle {
                 "\u30D7\u30ED\u30F3\u30D7\u30C8\u3092\u8868\u793A\u3057\u306A\u3044"}, //-noprompt
         {"password.through.protected.mechanism",
                 "\u4FDD\u8B77\u30E1\u30AB\u30CB\u30BA\u30E0\u306B\u3088\u308B\u30D1\u30B9\u30EF\u30FC\u30C9"}, //-protected
+        {"tls.option.help", "TLS\u69CB\u6210\u60C5\u5831\u3092\u8868\u793A\u3057\u307E\u3059"},
 
         // The following 2 values should span 2 lines, the first for the
         // option itself, the second for its -providerArg value.
@@ -154,6 +162,10 @@ public class Resources_ja extends java.util.ListResourceBundle {
                 "RFC\u30B9\u30BF\u30A4\u30EB\u306E\u51FA\u529B"}, //-rfc
         {"signature.algorithm.name",
                 "\u7F72\u540D\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0\u540D"}, //-sigalg
+        {"signer.alias",
+                "\u7F72\u540D\u8005\u306E\u5225\u540D"}, //-signer
+        {"signer.key.password",
+                "\u7F72\u540D\u8005\u306E\u30AD\u30FC\u306E\u30D1\u30B9\u30EF\u30FC\u30C9"}, //-signerkeypass
         {"source.alias",
                 "\u30BD\u30FC\u30B9\u5225\u540D"}, //-srcalias
         {"source.key.password",
@@ -196,7 +208,7 @@ public class Resources_ja extends java.util.ListResourceBundle {
         {"Cannot.find.file.", "\u30D5\u30A1\u30A4\u30EB\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093: "},
         {"Command.option.flag.needs.an.argument.", "\u30B3\u30DE\u30F3\u30C9\u30FB\u30AA\u30D7\u30B7\u30E7\u30F3{0}\u306B\u306F\u5F15\u6570\u304C\u5FC5\u8981\u3067\u3059\u3002"},
         {"Warning.Different.store.and.key.passwords.not.supported.for.PKCS12.KeyStores.Ignoring.user.specified.command.value.",
-                "\u8B66\u544A: PKCS12\u30AD\u30FC\u30B9\u30C8\u30A2\u3067\u306F\u3001\u30B9\u30C8\u30A2\u306E\u30D1\u30B9\u30EF\u30FC\u30C9\u3068\u9375\u306E\u30D1\u30B9\u30EF\u30FC\u30C9\u304C\u7570\u306A\u308B\u72B6\u6CC1\u306F\u30B5\u30DD\u30FC\u30C8\u3055\u308C\u307E\u305B\u3093\u3002\u30E6\u30FC\u30B6\u30FC\u304C\u6307\u5B9A\u3057\u305F{0}\u306E\u5024\u306F\u7121\u8996\u3057\u307E\u3059\u3002"},
+                "\u8B66\u544A: PKCS12\u30AD\u30FC\u30B9\u30C8\u30A2\u3067\u306F\u3001\u30B9\u30C8\u30A2\u306E\u30D1\u30B9\u30EF\u30FC\u30C9\u3068\u30AD\u30FC\u306E\u30D1\u30B9\u30EF\u30FC\u30C9\u304C\u7570\u306A\u308B\u72B6\u6CC1\u306F\u30B5\u30DD\u30FC\u30C8\u3055\u308C\u307E\u305B\u3093\u3002\u30E6\u30FC\u30B6\u30FC\u304C\u6307\u5B9A\u3057\u305F{0}\u306E\u5024\u306F\u7121\u8996\u3057\u307E\u3059\u3002"},
         {"the.keystore.or.storetype.option.cannot.be.used.with.the.cacerts.option",
             "-keystore\u307E\u305F\u306F-storetype\u30AA\u30D7\u30B7\u30E7\u30F3\u306F\u3001-cacerts\u30AA\u30D7\u30B7\u30E7\u30F3\u3068\u3068\u3082\u306B\u4F7F\u7528\u3067\u304D\u307E\u305B\u3093"},
         {".keystore.must.be.NONE.if.storetype.is.{0}",
@@ -229,7 +241,7 @@ public class Resources_ja extends java.util.ListResourceBundle {
         {"Must.not.specify.both.v.and.rfc.with.list.command",
                 "'list'\u30B3\u30DE\u30F3\u30C9\u306B-v\u3068-rfc\u306E\u4E21\u65B9\u3092\u6307\u5B9A\u3059\u308B\u3053\u3068\u306F\u3067\u304D\u307E\u305B\u3093"},
         {"Key.password.must.be.at.least.6.characters",
-                "\u9375\u306E\u30D1\u30B9\u30EF\u30FC\u30C9\u306F6\u6587\u5B57\u4EE5\u4E0A\u3067\u3042\u308B\u5FC5\u8981\u304C\u3042\u308A\u307E\u3059"},
+                "\u30AD\u30FC\u306E\u30D1\u30B9\u30EF\u30FC\u30C9\u306F6\u6587\u5B57\u4EE5\u4E0A\u3067\u3042\u308B\u5FC5\u8981\u304C\u3042\u308A\u307E\u3059"},
         {"New.password.must.be.at.least.6.characters",
                 "\u65B0\u898F\u30D1\u30B9\u30EF\u30FC\u30C9\u306F6\u6587\u5B57\u4EE5\u4E0A\u3067\u3042\u308B\u5FC5\u8981\u304C\u3042\u308A\u307E\u3059"},
         {"Keystore.file.exists.but.is.empty.",
@@ -248,7 +260,6 @@ public class Resources_ja extends java.util.ListResourceBundle {
         {"Keystore.password.is.too.short.must.be.at.least.6.characters",
          "\u30AD\u30FC\u30B9\u30C8\u30A2\u306E\u30D1\u30B9\u30EF\u30FC\u30C9\u304C\u77ED\u3059\u304E\u307E\u3059 - 6\u6587\u5B57\u4EE5\u4E0A\u306B\u3057\u3066\u304F\u3060\u3055\u3044"},
         {"Unknown.Entry.Type", "\u4E0D\u660E\u306A\u30A8\u30F3\u30C8\u30EA\u30FB\u30BF\u30A4\u30D7"},
-        {"Too.many.failures.Alias.not.changed", "\u969C\u5BB3\u304C\u591A\u3059\u304E\u307E\u3059\u3002\u5225\u540D\u306F\u5909\u66F4\u3055\u308C\u307E\u305B\u3093"},
         {"Entry.for.alias.alias.successfully.imported.",
                  "\u5225\u540D{0}\u306E\u30A8\u30F3\u30C8\u30EA\u306E\u30A4\u30F3\u30DD\u30FC\u30C8\u306B\u6210\u529F\u3057\u307E\u3057\u305F\u3002"},
         {"Entry.for.alias.alias.not.imported.", "\u5225\u540D{0}\u306E\u30A8\u30F3\u30C8\u30EA\u306F\u30A4\u30F3\u30DD\u30FC\u30C8\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F\u3002"},
@@ -280,35 +291,37 @@ public class Resources_ja extends java.util.ListResourceBundle {
                 "\u8A3C\u660E\u66F8\u304C\u30AD\u30FC\u30B9\u30C8\u30A2\u306B\u8FFD\u52A0\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F"},
         {".Storing.ksfname.", "[{0}\u3092\u683C\u7D0D\u4E2D]"},
         {"alias.has.no.public.key.certificate.",
-                "{0}\u306B\u306F\u516C\u958B\u9375(\u8A3C\u660E\u66F8)\u304C\u3042\u308A\u307E\u305B\u3093"},
+                "{0}\u306B\u306F\u516C\u958B\u30AD\u30FC(\u8A3C\u660E\u66F8)\u304C\u3042\u308A\u307E\u305B\u3093"},
         {"Cannot.derive.signature.algorithm",
                 "\u7F72\u540D\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0\u3092\u53D6\u5F97\u3067\u304D\u307E\u305B\u3093"},
         {"Alias.alias.does.not.exist",
                 "\u5225\u540D<{0}>\u306F\u5B58\u5728\u3057\u307E\u305B\u3093"},
         {"Alias.alias.has.no.certificate",
                 "\u5225\u540D<{0}>\u306B\u306F\u8A3C\u660E\u66F8\u304C\u3042\u308A\u307E\u305B\u3093"},
+        {"groupname.keysize.coexist",
+                "-groupname\u3068-keysize\u306E\u4E21\u65B9\u3092\u6307\u5B9A\u3067\u304D\u307E\u305B\u3093"},
+        {"deprecate.keysize.for.ec",
+                "-keysize\u306E\u6307\u5B9A\u306B\u3088\u308BEC\u30AD\u30FC\u306E\u751F\u6210\u306F\u975E\u63A8\u5968\u3067\u3059\u3002\u304B\u308F\u308A\u306B\"-groupname %s\"\u3092\u4F7F\u7528\u3057\u3066\u304F\u3060\u3055\u3044\u3002"},
         {"Key.pair.not.generated.alias.alias.already.exists",
-                "\u9375\u30DA\u30A2\u306F\u751F\u6210\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u5225\u540D<{0}>\u306F\u3059\u3067\u306B\u5B58\u5728\u3057\u307E\u3059"},
+                "\u30AD\u30FC\u30FB\u30DA\u30A2\u306F\u751F\u6210\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u5225\u540D<{0}>\u306F\u3059\u3067\u306B\u5B58\u5728\u3057\u307E\u3059"},
         {"Generating.keysize.bit.keyAlgName.key.pair.and.self.signed.certificate.sigAlgName.with.a.validity.of.validality.days.for",
-                "{3}\u65E5\u9593\u6709\u52B9\u306A{0}\u30D3\u30C3\u30C8\u306E{1}\u306E\u9375\u30DA\u30A2\u3068\u81EA\u5DF1\u7F72\u540D\u578B\u8A3C\u660E\u66F8({2})\u3092\u751F\u6210\u3057\u3066\u3044\u307E\u3059\n\t\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u540D: {4}"},
-        {"Enter.key.password.for.alias.", "<{0}>\u306E\u9375\u30D1\u30B9\u30EF\u30FC\u30C9\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044"},
+                "{3}\u65E5\u9593\u6709\u52B9\u306A{0}\u30D3\u30C3\u30C8\u306E{1}\u306E\u30AD\u30FC\u30FB\u30DA\u30A2\u3068\u81EA\u5DF1\u7F72\u540D\u578B\u8A3C\u660E\u66F8({2})\u3092\u751F\u6210\u3057\u3066\u3044\u307E\u3059\n\t\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u540D: {4}"},
+        {"Generating.keysize.bit.keyAlgName.key.pair.and.a.certificate.sigAlgName.issued.by.signerAlias.with.a.validity.of.validality.days.for",
+                "{4}\u65E5\u9593\u6709\u52B9\u306A{0}\u30D3\u30C3\u30C8\u306E{1}\u30AD\u30FC\u30FB\u30DA\u30A2\u3068<{3}>\u306B\u3088\u3063\u3066\u767A\u884C\u3055\u308C\u308B\u8A3C\u660E\u66F8({2})\u3092\u751F\u6210\u3057\u3066\u3044\u307E\u3059\n\t\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u540D: {5}"},
+        {"Enter.key.password.for.alias.", "<{0}>\u306E\u30AD\u30FC\u30FB\u30D1\u30B9\u30EF\u30FC\u30C9\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044"},
         {".RETURN.if.same.as.keystore.password.",
                 "\t(\u30AD\u30FC\u30B9\u30C8\u30A2\u306E\u30D1\u30B9\u30EF\u30FC\u30C9\u3068\u540C\u3058\u5834\u5408\u306FRETURN\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044):  "},
         {"Key.password.is.too.short.must.be.at.least.6.characters",
-                "\u9375\u306E\u30D1\u30B9\u30EF\u30FC\u30C9\u304C\u77ED\u3059\u304E\u307E\u3059 - 6\u6587\u5B57\u4EE5\u4E0A\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044"},
+                "\u30AD\u30FC\u306E\u30D1\u30B9\u30EF\u30FC\u30C9\u304C\u77ED\u3059\u304E\u307E\u3059 - 6\u6587\u5B57\u4EE5\u4E0A\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044"},
         {"Too.many.failures.key.not.added.to.keystore",
-                "\u969C\u5BB3\u304C\u591A\u3059\u304E\u307E\u3059 - \u9375\u306F\u30AD\u30FC\u30B9\u30C8\u30A2\u306B\u8FFD\u52A0\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F"},
+                "\u969C\u5BB3\u304C\u591A\u3059\u304E\u307E\u3059 - \u30AD\u30FC\u306F\u30AD\u30FC\u30B9\u30C8\u30A2\u306B\u8FFD\u52A0\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F"},
         {"Destination.alias.dest.already.exists",
                 "\u51FA\u529B\u5148\u306E\u5225\u540D<{0}>\u306F\u3059\u3067\u306B\u5B58\u5728\u3057\u307E\u3059"},
         {"Password.is.too.short.must.be.at.least.6.characters",
                 "\u30D1\u30B9\u30EF\u30FC\u30C9\u304C\u77ED\u3059\u304E\u307E\u3059 - 6\u6587\u5B57\u4EE5\u4E0A\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044"},
         {"Too.many.failures.Key.entry.not.cloned",
-                "\u969C\u5BB3\u304C\u591A\u3059\u304E\u307E\u3059\u3002\u9375\u30A8\u30F3\u30C8\u30EA\u306E\u30AF\u30ED\u30FC\u30F3\u306F\u4F5C\u6210\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F"},
-        {"key.password.for.alias.", "<{0}>\u306E\u9375\u306E\u30D1\u30B9\u30EF\u30FC\u30C9"},
-        {"Keystore.entry.for.id.getName.already.exists",
-                "<{0}>\u306E\u30AD\u30FC\u30B9\u30C8\u30A2\u30FB\u30A8\u30F3\u30C8\u30EA\u306F\u3059\u3067\u306B\u5B58\u5728\u3057\u307E\u3059"},
-        {"Creating.keystore.entry.for.id.getName.",
-                "<{0}>\u306E\u30AD\u30FC\u30B9\u30C8\u30A2\u30FB\u30A8\u30F3\u30C8\u30EA\u3092\u4F5C\u6210\u4E2D..."},
+                "\u969C\u5BB3\u304C\u591A\u3059\u304E\u307E\u3059\u3002\u30AD\u30FC\u30FB\u30A8\u30F3\u30C8\u30EA\u306E\u30AF\u30ED\u30FC\u30F3\u306F\u4F5C\u6210\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F"},
+        {"key.password.for.alias.", "<{0}>\u306E\u30AD\u30FC\u306E\u30D1\u30B9\u30EF\u30FC\u30C9"},
         {"No.entries.from.identity.database.added",
                 "\u30A2\u30A4\u30C7\u30F3\u30C6\u30A3\u30C6\u30A3\u30FB\u30C7\u30FC\u30BF\u30D9\u30FC\u30B9\u304B\u3089\u8FFD\u52A0\u3055\u308C\u305F\u30A8\u30F3\u30C8\u30EA\u306F\u3042\u308A\u307E\u305B\u3093"},
         {"Alias.name.alias", "\u5225\u540D: {0}"},
@@ -330,7 +343,7 @@ public class Resources_ja extends java.util.ListResourceBundle {
         {"Failed.to.parse.input", "\u5165\u529B\u306E\u69CB\u6587\u89E3\u6790\u306B\u5931\u6557\u3057\u307E\u3057\u305F"},
         {"Empty.input", "\u5165\u529B\u304C\u3042\u308A\u307E\u305B\u3093"},
         {"Not.X.509.certificate", "X.509\u8A3C\u660E\u66F8\u3067\u306F\u3042\u308A\u307E\u305B\u3093"},
-        {"alias.has.no.public.key", "{0}\u306B\u306F\u516C\u958B\u9375\u304C\u3042\u308A\u307E\u305B\u3093"},
+        {"alias.has.no.public.key", "{0}\u306B\u306F\u516C\u958B\u30AD\u30FC\u304C\u3042\u308A\u307E\u305B\u3093"},
         {"alias.has.no.X.509.certificate", "{0}\u306B\u306FX.509\u8A3C\u660E\u66F8\u304C\u3042\u308A\u307E\u305B\u3093"},
         {"New.certificate.self.signed.", "\u65B0\u3057\u3044\u8A3C\u660E\u66F8(\u81EA\u5DF1\u7F72\u540D\u578B):"},
         {"Reply.has.no.certificates", "\u5FDC\u7B54\u306B\u306F\u8A3C\u660E\u66F8\u304C\u3042\u308A\u307E\u305B\u3093"},
@@ -346,7 +359,6 @@ public class Resources_ja extends java.util.ListResourceBundle {
         {"Do.you.still.want.to.add.it.to.your.own.keystore.no.",
                 "\u30AD\u30FC\u30B9\u30C8\u30A2\u306B\u8FFD\u52A0\u3057\u307E\u3059\u304B\u3002 [\u3044\u3044\u3048]:  "},
         {"Trust.this.certificate.no.", "\u3053\u306E\u8A3C\u660E\u66F8\u3092\u4FE1\u983C\u3057\u307E\u3059\u304B\u3002 [\u3044\u3044\u3048]:  "},
-        {"YES", "\u306F\u3044"},
         {"New.prompt.", "\u65B0\u898F{0}: "},
         {"Passwords.must.differ", "\u30D1\u30B9\u30EF\u30FC\u30C9\u306F\u7570\u306A\u3063\u3066\u3044\u308B\u5FC5\u8981\u304C\u3042\u308A\u307E\u3059"},
         {"Re.enter.new.prompt.", "\u65B0\u898F{0}\u3092\u518D\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044: "},
@@ -359,6 +371,8 @@ public class Resources_ja extends java.util.ListResourceBundle {
         {"Enter.alias.name.", "\u5225\u540D\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044:  "},
         {".RETURN.if.same.as.for.otherAlias.",
                 "\t(<{0}>\u3068\u540C\u3058\u5834\u5408\u306FRETURN\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044)"},
+        {"enter.dname.components",
+                "\u8B58\u5225\u540D\u3092\u5165\u529B\u3057\u307E\u3059\u3002\u30B5\u30D6\u30B3\u30F3\u30DD\u30FC\u30CD\u30F3\u30C8\u3092\u7A7A\u306E\u307E\u307E\u306B\u3059\u308B\u5834\u5408\u306F\u30C9\u30C3\u30C8(.)\u30921\u3064\u5165\u529B\u3057\u3001\u4E2D\u30AB\u30C3\u30B3\u5185\u306E\u30C7\u30D5\u30A9\u30EB\u30C8\u5024\u3092\u4F7F\u7528\u3059\u308B\u5834\u5408\u306F[ENTER]\u3092\u62BC\u3057\u307E\u3059\u3002"},
         {"What.is.your.first.and.last.name.",
                 "\u59D3\u540D\u306F\u4F55\u3067\u3059\u304B\u3002"},
         {"What.is.the.name.of.your.organizational.unit.",
@@ -371,22 +385,23 @@ public class Resources_ja extends java.util.ListResourceBundle {
                 "\u90FD\u9053\u5E9C\u770C\u540D\u307E\u305F\u306F\u5DDE\u540D\u306F\u4F55\u3067\u3059\u304B\u3002"},
         {"What.is.the.two.letter.country.code.for.this.unit.",
                 "\u3053\u306E\u5358\u4F4D\u306B\u8A72\u5F53\u3059\u308B2\u6587\u5B57\u306E\u56FD\u30B3\u30FC\u30C9\u306F\u4F55\u3067\u3059\u304B\u3002"},
+        {"no.field.in.dname",
+                "\u5C11\u306A\u304F\u3068\u30821\u3064\u306E\u30D5\u30A3\u30FC\u30EB\u30C9\u3092\u6307\u5B9A\u3059\u308B\u5FC5\u8981\u304C\u3042\u308A\u307E\u3059\u3002\u518D\u5EA6\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\u3002"},
         {"Is.name.correct.", "{0}\u3067\u3088\u308D\u3057\u3044\u3067\u3059\u304B\u3002"},
         {"no", "\u3044\u3044\u3048"},
         {"yes", "\u306F\u3044"},
         {"y", "y"},
         {".defaultValue.", "  [{0}]:  "},
         {"Alias.alias.has.no.key",
-                "\u5225\u540D<{0}>\u306B\u306F\u9375\u304C\u3042\u308A\u307E\u305B\u3093"},
+                "\u5225\u540D<{0}>\u306B\u306F\u30AD\u30FC\u304C\u3042\u308A\u307E\u305B\u3093"},
         {"Alias.alias.references.an.entry.type.that.is.not.a.private.key.entry.The.keyclone.command.only.supports.cloning.of.private.key",
-                 "\u5225\u540D<{0}>\u304C\u53C2\u7167\u3057\u3066\u3044\u308B\u30A8\u30F3\u30C8\u30EA\u30FB\u30BF\u30A4\u30D7\u306F\u79D8\u5BC6\u9375\u30A8\u30F3\u30C8\u30EA\u3067\u306F\u3042\u308A\u307E\u305B\u3093\u3002-keyclone\u30B3\u30DE\u30F3\u30C9\u306F\u79D8\u5BC6\u9375\u30A8\u30F3\u30C8\u30EA\u306E\u30AF\u30ED\u30FC\u30F3\u4F5C\u6210\u306E\u307F\u3092\u30B5\u30DD\u30FC\u30C8\u3057\u307E\u3059"},
+                 "\u5225\u540D<{0}>\u304C\u53C2\u7167\u3057\u3066\u3044\u308B\u30A8\u30F3\u30C8\u30EA\u30FB\u30BF\u30A4\u30D7\u306F\u79D8\u5BC6\u30AD\u30FC\u30FB\u30A8\u30F3\u30C8\u30EA\u3067\u306F\u3042\u308A\u307E\u305B\u3093\u3002-keyclone\u30B3\u30DE\u30F3\u30C9\u306F\u79D8\u5BC6\u30AD\u30FC\u30FB\u30A8\u30F3\u30C8\u30EA\u306E\u30AF\u30ED\u30FC\u30F3\u4F5C\u6210\u306E\u307F\u3092\u30B5\u30DD\u30FC\u30C8\u3057\u307E\u3059"},
 
         {".WARNING.WARNING.WARNING.",
             "*****************  WARNING WARNING WARNING  *****************"},
         {"Signer.d.", "\u7F72\u540D\u8005\u756A\u53F7%d:"},
+        {"Certificate.d.", "\u8A3C\u660E\u66F8#%d:"},
         {"Timestamp.", "\u30BF\u30A4\u30E0\u30B9\u30BF\u30F3\u30D7:"},
-        {"Signature.", "\u7F72\u540D:"},
-        {"CRLs.", "CRL:"},
         {"Certificate.owner.", "\u8A3C\u660E\u66F8\u306E\u6240\u6709\u8005: "},
         {"Not.a.signed.jar.file", "\u7F72\u540D\u4ED8\u304DJAR\u30D5\u30A1\u30A4\u30EB\u3067\u306F\u3042\u308A\u307E\u305B\u3093"},
         {"No.certificate.from.the.SSL.server",
@@ -398,18 +413,15 @@ public class Resources_ja extends java.util.ListResourceBundle {
             "*\u30BD\u30FC\u30B9\u30FB\u30AD\u30FC\u30B9\u30C8\u30A2\u306B\u4FDD\u5B58\u3055\u308C\u305F\u60C5\u5831\u306E\u6574\u5408\u6027\u306F*\n*\u691C\u8A3C\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002\u6574\u5408\u6027\u3092\u691C\u8A3C\u3059\u308B\u306B\u306F*\n*\u30BD\u30FC\u30B9\u30FB\u30AD\u30FC\u30B9\u30C8\u30A2\u306E\u30D1\u30B9\u30EF\u30FC\u30C9\u3092\u5165\u529B\u3059\u308B\u5FC5\u8981\u304C\u3042\u308A\u307E\u3059\u3002*"},
 
         {"Certificate.reply.does.not.contain.public.key.for.alias.",
-                "\u8A3C\u660E\u66F8\u5FDC\u7B54\u306B\u306F\u3001<{0}>\u306E\u516C\u958B\u9375\u306F\u542B\u307E\u308C\u307E\u305B\u3093"},
+                "\u8A3C\u660E\u66F8\u5FDC\u7B54\u306B\u306F\u3001<{0}>\u306E\u516C\u958B\u30AD\u30FC\u306F\u542B\u307E\u308C\u307E\u305B\u3093"},
         {"Incomplete.certificate.chain.in.reply",
                 "\u5FDC\u7B54\u3057\u305F\u8A3C\u660E\u66F8\u30C1\u30A7\u30FC\u30F3\u306F\u4E0D\u5B8C\u5168\u3067\u3059"},
-        {"Certificate.chain.in.reply.does.not.verify.",
-                "\u5FDC\u7B54\u3057\u305F\u8A3C\u660E\u66F8\u30C1\u30A7\u30FC\u30F3\u306F\u691C\u8A3C\u3055\u308C\u3066\u3044\u307E\u305B\u3093: "},
         {"Top.level.certificate.in.reply.",
                 "\u5FDC\u7B54\u3057\u305F\u30C8\u30C3\u30D7\u30EC\u30D9\u30EB\u306E\u8A3C\u660E\u66F8:\n"},
         {".is.not.trusted.", "... \u306F\u4FE1\u983C\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002 "},
         {"Install.reply.anyway.no.", "\u5FDC\u7B54\u3092\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3057\u307E\u3059\u304B\u3002[\u3044\u3044\u3048]:  "},
-        {"NO", "\u3044\u3044\u3048"},
         {"Public.keys.in.reply.and.keystore.don.t.match",
-                "\u5FDC\u7B54\u3057\u305F\u516C\u958B\u9375\u3068\u30AD\u30FC\u30B9\u30C8\u30A2\u304C\u4E00\u81F4\u3057\u307E\u305B\u3093"},
+                "\u5FDC\u7B54\u3057\u305F\u516C\u958B\u30AD\u30FC\u3068\u30AD\u30FC\u30B9\u30C8\u30A2\u304C\u4E00\u81F4\u3057\u307E\u305B\u3093"},
         {"Certificate.reply.and.certificate.in.keystore.are.identical",
                 "\u8A3C\u660E\u66F8\u5FDC\u7B54\u3068\u30AD\u30FC\u30B9\u30C8\u30A2\u5185\u306E\u8A3C\u660E\u66F8\u304C\u540C\u3058\u3067\u3059"},
         {"Failed.to.establish.chain.from.reply",
@@ -417,12 +429,14 @@ public class Resources_ja extends java.util.ListResourceBundle {
         {"n", "n"},
         {"Wrong.answer.try.again", "\u5FDC\u7B54\u304C\u9593\u9055\u3063\u3066\u3044\u307E\u3059\u3002\u3082\u3046\u4E00\u5EA6\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044"},
         {"Secret.key.not.generated.alias.alias.already.exists",
-                "\u79D8\u5BC6\u9375\u306F\u751F\u6210\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u5225\u540D<{0}>\u306F\u3059\u3067\u306B\u5B58\u5728\u3057\u307E\u3059"},
+                "\u79D8\u5BC6\u30AD\u30FC\u306F\u751F\u6210\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u5225\u540D<{0}>\u306F\u3059\u3067\u306B\u5B58\u5728\u3057\u307E\u3059"},
         {"Please.provide.keysize.for.secret.key.generation",
-                "\u79D8\u5BC6\u9375\u306E\u751F\u6210\u6642\u306B\u306F -keysize\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044"},
+                "\u79D8\u5BC6\u30AD\u30FC\u306E\u751F\u6210\u6642\u306B\u306F -keysize\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044"},
 
         {"warning.not.verified.make.sure.keystore.is.correct",
             "\u8B66\u544A: \u691C\u8A3C\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002-keystore\u304C\u6B63\u3057\u3044\u3053\u3068\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"},
+        {"warning.not.verified.make.sure.keystore.is.correct.or.specify.trustcacerts",
+            "\u8B66\u544A: \u691C\u8A3C\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002-keystore\u304C\u6B63\u3057\u3044\u3053\u3068\u3092\u78BA\u8A8D\u3059\u308B\u304B\u3001-trustcacerts\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002"},
 
         {"Extensions.", "\u62E1\u5F35: "},
         {".Empty.value.", "(\u7A7A\u306E\u5024)"},
@@ -441,6 +455,7 @@ public class Resources_ja extends java.util.ListResourceBundle {
         // generating cert/cert req using weak algorithms
         {"the.certificate.request", "\u8A3C\u660E\u66F8\u30EA\u30AF\u30A8\u30B9\u30C8"},
         {"the.issuer", "\u767A\u884C\u8005"},
+        {"the.generated.secretkey", "\u751F\u6210\u3055\u308C\u305F\u79D8\u5BC6\u30AD\u30FC"},
         {"the.generated.certificate", "\u751F\u6210\u3055\u308C\u305F\u8A3C\u660E\u66F8"},
         {"the.generated.crl", "\u751F\u6210\u3055\u308C\u305FCRL"},
         {"the.generated.certificate.request", "\u751F\u6210\u3055\u308C\u305F\u8A3C\u660E\u66F8\u30EA\u30AF\u30A8\u30B9\u30C8"},
@@ -450,23 +465,34 @@ public class Resources_ja extends java.util.ListResourceBundle {
         {"the.input", "\u5165\u529B"},
         {"reply", "\u5FDC\u7B54"},
         {"one.in.many", "%1$s #%2$d / %3$d"},
+        {"one.in.many1", "%1$s #%2$d"},
+        {"one.in.many2", "\u7F72\u540D\u8005\u306E%1$s #%2$d"},
+        {"one.in.many3", "\u7F72\u540D\u8005\u306E%1$s #%2$d #%3$d"},
         {"alias.in.cacerts", "cacerts\u5185\u306E\u767A\u884C\u8005<%s>"},
         {"alias.in.keystore", "\u767A\u884C\u8005<%s>"},
         {"with.weak", "%s (\u5F31)"},
-        {"key.bit", "%1$d\u30D3\u30C3\u30C8%2$s\u9375"},
-        {"key.bit.weak", "%1$d\u30D3\u30C3\u30C8%2$s\u9375(\u5F31)"},
+        {"with.disabled", "%s (\u7121\u52B9)"},
+        {"key.bit", "%1$d\u30D3\u30C3\u30C8%2$s\u30AD\u30FC"},
+        {"key.bit.weak", "%1$d\u30D3\u30C3\u30C8%2$s\u30AD\u30FC(\u5F31)"},
+        {"key.bit.disabled", "%1$d-bit %2$s key (\u7121\u52B9)"},
         {"unknown.size.1", "\u4E0D\u660E\u306A\u30B5\u30A4\u30BA\u306E%s\u30AD\u30FC"},
         {".PATTERN.printX509Cert.with.weak",
-                "\u6240\u6709\u8005: {0}\n\u767A\u884C\u8005: {1}\n\u30B7\u30EA\u30A2\u30EB\u756A\u53F7: {2}\n\u6709\u52B9\u671F\u9593\u306E\u958B\u59CB\u65E5: {3}\u7D42\u4E86\u65E5: {4}\n\u8A3C\u660E\u66F8\u306E\u30D5\u30A3\u30F3\u30AC\u30D7\u30EA\u30F3\u30C8:\n\t SHA1: {5}\n\t SHA256: {6}\n\u7F72\u540D\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0\u540D: {7}\n\u30B5\u30D6\u30B8\u30A7\u30AF\u30C8\u516C\u958B\u9375\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0: {8}\n\u30D0\u30FC\u30B8\u30E7\u30F3: {9}"},
+                "\u6240\u6709\u8005: {0}\n\u767A\u884C\u8005: {1}\n\u30B7\u30EA\u30A2\u30EB\u756A\u53F7: {2}\n\u6709\u52B9\u671F\u9593\u306E\u958B\u59CB\u65E5: {3}\u7D42\u4E86\u65E5: {4}\n\u8A3C\u660E\u66F8\u306E\u30D5\u30A3\u30F3\u30AC\u30D7\u30EA\u30F3\u30C8:\n\t SHA1: {5}\n\t SHA256: {6}\n\u7F72\u540D\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0\u540D: {7}\n\u30B5\u30D6\u30B8\u30A7\u30AF\u30C8\u516C\u958B\u30AD\u30FC\u30FB\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0: {8}\n\u30D0\u30FC\u30B8\u30E7\u30F3: {9}"},
         {"PKCS.10.with.weak",
-                "PKCS #10\u8A3C\u660E\u66F8\u30EA\u30AF\u30A8\u30B9\u30C8(\u30D0\u30FC\u30B8\u30E7\u30F31.0)\n\u30B5\u30D6\u30B8\u30A7\u30AF\u30C8: %1$s\n\u30D5\u30A9\u30FC\u30DE\u30C3\u30C8: %2$s\n\u516C\u958B\u9375: %3$s\n\u7F72\u540D\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0: %4$s\n"},
+                "PKCS #10\u8A3C\u660E\u66F8\u30EA\u30AF\u30A8\u30B9\u30C8(\u30D0\u30FC\u30B8\u30E7\u30F31.0)\n\u30B5\u30D6\u30B8\u30A7\u30AF\u30C8: %1$s\n\u30D5\u30A9\u30FC\u30DE\u30C3\u30C8: %2$s\n\u516C\u958B\u30AD\u30FC: %3$s\n\u7F72\u540D\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0: %4$s\n"},
         {"verified.by.s.in.s.weak", "%2$s\u5185\u306E%1$s\u306B\u3088\u308A%3$s\u3067\u691C\u8A3C\u3055\u308C\u307E\u3057\u305F"},
-        {"whose.sigalg.risk", "%1$s\u306F%2$s\u7F72\u540D\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0\u3092\u4F7F\u7528\u3057\u3066\u304A\u308A\u3001\u3053\u308C\u306F\u30BB\u30AD\u30E5\u30EA\u30C6\u30A3\u30FB\u30EA\u30B9\u30AF\u3068\u307F\u306A\u3055\u308C\u307E\u3059\u3002"},
-        {"whose.key.risk", "%1$s\u306F%2$s\u3092\u4F7F\u7528\u3057\u3066\u304A\u308A\u3001\u3053\u308C\u306F\u30BB\u30AD\u30E5\u30EA\u30C6\u30A3\u30FB\u30EA\u30B9\u30AF\u3068\u307F\u306A\u3055\u308C\u307E\u3059\u3002"},
+        {"whose.sigalg.disabled", "%1$s\u306F%2$s\u7F72\u540D\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0\u3092\u4F7F\u7528\u3057\u3066\u304A\u308A\u3001\u3053\u308C\u306F\u30BB\u30AD\u30E5\u30EA\u30C6\u30A3\u30FB\u30EA\u30B9\u30AF\u3068\u307F\u306A\u3055\u308C\u3001\u7121\u52B9\u5316\u3055\u308C\u3066\u3044\u307E\u3059\u3002"},
+        {"whose.sigalg.usagesignedjar", "%1$s\u306F%2$s\u7F72\u540D\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0\u3092\u4F7F\u7528\u3057\u3066\u304A\u308A\u3001\u3053\u308C\u306F\u30BB\u30AD\u30E5\u30EA\u30C6\u30A3\u30FB\u30EA\u30B9\u30AF\u3068\u307F\u306A\u3055\u308C\u307E\u3059\u3002%3$s\u306E\u5F8C\u3067JAR\u306B\u7F72\u540D\u3059\u308B\u305F\u3081\u306B\u4F7F\u7528\u3059\u308B\u3053\u3068\u306F\u3067\u304D\u307E\u305B\u3093\u3002"},
+        {"Unable.to.parse.denyAfter.string.in.exception.message", "\u4F8B\u5916\u30E1\u30C3\u30BB\u30FC\u30B8\u306EdenyAfter\u65E5\u4ED8\u6587\u5B57\u5217\u3092\u89E3\u6790\u3067\u304D\u307E\u305B\u3093"},
+        {"whose.sigalg.weak", "%1$s\u306F%2$s\u7F72\u540D\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0\u3092\u4F7F\u7528\u3057\u3066\u304A\u308A\u3001\u3053\u308C\u306F\u30BB\u30AD\u30E5\u30EA\u30C6\u30A3\u30FB\u30EA\u30B9\u30AF\u3068\u307F\u306A\u3055\u308C\u307E\u3059\u3002"},
+        {"whose.key.disabled", "%1$s\u306F%2$s\u3092\u4F7F\u7528\u3057\u3066\u304A\u308A\u3001\u3053\u308C\u306F\u30BB\u30AD\u30E5\u30EA\u30C6\u30A3\u30FB\u30EA\u30B9\u30AF\u3068\u307F\u306A\u3055\u308C\u3001\u7121\u52B9\u5316\u3055\u308C\u3066\u3044\u307E\u3059\u3002"},
+        {"whose.key.weak", "%1$s\u306F%2$s\u3092\u4F7F\u7528\u3057\u3066\u304A\u308A\u3001\u3053\u308C\u306F\u30BB\u30AD\u30E5\u30EA\u30C6\u30A3\u30FB\u30EA\u30B9\u30AF\u3068\u307F\u306A\u3055\u308C\u307E\u3059\u3002\u3053\u306E\u30AD\u30FC\u30FB\u30B5\u30A4\u30BA\u306F\u5C06\u6765\u306E\u66F4\u65B0\u3067\u7121\u52B9\u5316\u3055\u308C\u307E\u3059\u3002"},
         {"jks.storetype.warning", "%1$s\u30AD\u30FC\u30B9\u30C8\u30A2\u306F\u72EC\u81EA\u306E\u5F62\u5F0F\u3092\u4F7F\u7528\u3057\u3066\u3044\u307E\u3059\u3002\"keytool -importkeystore -srckeystore %2$s -destkeystore %2$s -deststoretype pkcs12\"\u3092\u4F7F\u7528\u3059\u308B\u696D\u754C\u6A19\u6E96\u306E\u5F62\u5F0F\u3067\u3042\u308BPKCS12\u306B\u79FB\u884C\u3059\u308B\u3053\u3068\u3092\u304A\u85A6\u3081\u3057\u307E\u3059\u3002"},
         {"migrate.keystore.warning", "\"%1$s\"\u304C%4$s\u306B\u79FB\u884C\u3055\u308C\u307E\u3057\u305F\u3002%2$s\u30AD\u30FC\u30B9\u30C8\u30A2\u306F\"%3$s\"\u3068\u3057\u3066\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u3055\u308C\u307E\u3059\u3002"},
         {"backup.keystore.warning", "\u5143\u306E\u30AD\u30FC\u30B9\u30C8\u30A2\"%1$s\"\u306F\"%3$s\"\u3068\u3057\u3066\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u3055\u308C\u307E\u3059..."},
         {"importing.keystore.status", "\u30AD\u30FC\u30B9\u30C8\u30A2%1$s\u3092%2$s\u306B\u30A4\u30F3\u30DD\u30FC\u30C8\u3057\u3066\u3044\u307E\u3059..."},
+        {"keyalg.option.missing.error", "-keyalg\u30AA\u30D7\u30B7\u30E7\u30F3\u3092\u6307\u5B9A\u3059\u308B\u5FC5\u8981\u304C\u3042\u308A\u307E\u3059\u3002"},
+        {"showinfo.no.option", "-showinfo\u306E\u30AA\u30D7\u30B7\u30E7\u30F3\u304C\u3042\u308A\u307E\u305B\u3093\u3002\"keytool -showinfo -tls\"\u3092\u8A66\u3057\u3066\u304F\u3060\u3055\u3044\u3002"},
     };
 
 

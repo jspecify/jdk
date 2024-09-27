@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,29 +23,29 @@
 
 /*
  * @test
- * @bug      6227616 8043186 8196202
+ * @bug      6227616 8043186 8196202 8223378
  * @summary  Test the new -top option.
- * @author   jamieh
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestTopOption
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestTopOption extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestTopOption tester = new TestTopOption();
+        var tester = new TestTopOption();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-overview", testSrc("overview.html"),
                 "-use",
                 "-top", "TOP TEXT",
                 "-d", "out-1",
-                "--frames",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
@@ -57,19 +57,18 @@ public class TestTopOption extends JavadocTester {
                 "pkg/class-use/Cl.html",
                 "pkg/package-summary.html",
                 "pkg/package-use.html",
-                "overview-summary.html",
+                "index.html",
                 "overview-tree.html",
                 "constant-values.html",
                 "help-doc.html");
     }
 
     @Test
-    void testDocRootRewrite() {
+    public void testDocRootRewrite() {
         javadoc("-overview", testSrc("overview.html"),
                 "-use",
                 "-top", "\u0130{@docroot}TOP TEXT",
                 "-d", "out-2",
-                "--frames",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
@@ -81,7 +80,31 @@ public class TestTopOption extends JavadocTester {
                 "pkg/class-use/Cl.html",
                 "pkg/package-summary.html",
                 "pkg/package-use.html",
-                "overview-summary.html",
+                "index.html",
+                "overview-tree.html",
+                "constant-values.html",
+                "help-doc.html");
+    }
+
+    @Test
+    public void testNoNavbar() {
+        javadoc("-overview", testSrc("overview.html"),
+                "-use",
+                "-top", "TOP TEXT",
+                "-nonavbar",
+                "-d", "out-3",
+                "-sourcepath", testSrc,
+                "pkg");
+        checkExit(Exit.OK);
+
+        checkTopText(
+                "pkg/AnnotationType.html",
+                "pkg/class-use/AnnotationType.html",
+                "pkg/Cl.html",
+                "pkg/class-use/Cl.html",
+                "pkg/package-summary.html",
+                "pkg/package-use.html",
+                "index.html",
                 "overview-tree.html",
                 "constant-values.html",
                 "help-doc.html");

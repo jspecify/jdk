@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,14 +23,13 @@
 
 import java.nio.file.AccessMode;
 import java.nio.file.ClosedFileSystemException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.PathMatcher;
 import java.nio.file.ProviderMismatchException;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
@@ -43,7 +42,7 @@ import java.util.Map;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 /**
  * @test
- * @bug 8038500 8040059 8150366 8150496 8147539
+ * @bug 8038500 8040059 8150366 8150496 8147539 8290047
  * @summary Basic test for zip provider
  *
  * @modules jdk.zipfs
@@ -53,7 +52,7 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 
 public class Basic {
     public static void main(String[] args) throws Exception {
-        // Test: zip should should be returned in provider list
+        // Test: zip should be returned in provider list
         boolean found = false;
         for (FileSystemProvider provider: FileSystemProvider.installedProviders()) {
             if (provider.getScheme().equalsIgnoreCase("jar")) {
@@ -70,7 +69,7 @@ public class Basic {
 
         // Test: FileSystems#newFileSystem(Path)
         Map<String,?> env = Collections.emptyMap();
-        FileSystems.newFileSystem(jarFile, null).close();
+        FileSystems.newFileSystem(jarFile).close();
 
         // Test: FileSystems#newFileSystem(URI)
         URI uri = new URI("jar", jarFile.toUri().toString(), null);
@@ -87,22 +86,10 @@ public class Basic {
         // Test: exercise directory iterator and retrieval of basic attributes
         Files.walkFileTree(fs.getPath("/"), new FileTreePrinter());
 
-        // Test: DirectoryStream
-        found = false;
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(fs.getPath("/"))) {
-            for (Path entry: stream) {
-                found = entry.toString().equals("/META-INF");
-                if (found) break;
-            }
-        }
-
-        if (!found)
-            throw new RuntimeException("Expected file not found");
-
         // Test: copy file from zip file to current (scratch) directory
         Path source = fs.getPath("/META-INF/services/java.nio.file.spi.FileSystemProvider");
         if (Files.exists(source)) {
-            Path target = Paths.get(source.getFileName().toString());
+            Path target = Path.of(source.getFileName().toString());
             Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
             try {
                 long s1 = Files.readAttributes(source, BasicFileAttributes.class).size();
@@ -126,6 +113,19 @@ public class Basic {
             throw new RuntimeException("watch service is not supported");
         } catch (ProviderMismatchException x) { }
 
+        // Test: IllegalArgumentException
+        try {
+            PathMatcher pm = fs.getPathMatcher(":glob");
+            throw new RuntimeException("IllegalArgumentException not thrown");
+        } catch (IllegalArgumentException iae) {
+        }
+        try {
+            PathMatcher pm = fs.getPathMatcher("glob:");
+        } catch (IllegalArgumentException iae) {
+            iae.printStackTrace();
+            throw new RuntimeException("Unexpected IllegalArgumentException");
+        }
+
         // Test: ClosedFileSystemException
         fs.close();
         if (fs.isOpen())
@@ -133,6 +133,8 @@ public class Basic {
         try {
             fs.provider().checkAccess(fs.getPath("/missing"), AccessMode.READ);
         } catch (ClosedFileSystemException x) { }
+
+        Files.deleteIfExists(jarFile);
     }
 
     // FileVisitor that pretty prints a file tree

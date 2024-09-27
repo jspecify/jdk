@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2017, SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,14 +24,20 @@
  */
 
 #include "precompiled.hpp"
-#include "jvm.h"
 #include "asm/macroAssembler.inline.hpp"
 #include "classfile/javaClasses.inline.hpp"
+#include "classfile/vmClasses.hpp"
 #include "interpreter/interpreter.hpp"
+#include "jvm.h"
+#include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/frame.inline.hpp"
+#include "runtime/stubRoutines.hpp"
+#include "utilities/macros.hpp"
 #include "utilities/preserveException.hpp"
 
 #ifdef PRODUCT
@@ -52,10 +58,10 @@ static RegisterOrConstant constant(int value) {
 void MethodHandles::load_klass_from_Class(MacroAssembler* _masm, Register klass_reg,
                                           Register temp_reg, Register temp2_reg) {
   if (VerifyMethodHandles) {
-    verify_klass(_masm, klass_reg, SystemDictionary::WK_KLASS_ENUM_NAME(java_lang_Class),
+    verify_klass(_masm, klass_reg, VM_CLASS_ID(java_lang_Class),
                  temp_reg, temp2_reg, "MH argument is a Class");
   }
-  __ z_lg(klass_reg, Address(klass_reg, java_lang_Class::klass_offset_in_bytes()));
+  __ z_lg(klass_reg, Address(klass_reg, java_lang_Class::klass_offset()));
 }
 
 
@@ -71,12 +77,12 @@ static int check_nonzero(const char* xname, int x) {
 
 #ifdef ASSERT
 void MethodHandles::verify_klass(MacroAssembler* _masm,
-                                 Register obj_reg, SystemDictionary::WKID klass_id,
+                                 Register obj_reg, vmClassID klass_id,
                                  Register temp_reg, Register temp2_reg,
                                  const char* error_message) {
 
-  InstanceKlass** klass_addr = SystemDictionary::well_known_klass_addr(klass_id);
-  Klass* klass = SystemDictionary::well_known_klass(klass_id);
+  InstanceKlass** klass_addr = vmClasses::klass_addr_at(klass_id);
+  Klass* klass = vmClasses::klass_at(klass_id);
 
   assert(temp_reg != Z_R0 && // Is used as base register!
          temp_reg != noreg && temp2_reg != noreg, "need valid registers!");
@@ -85,7 +91,7 @@ void MethodHandles::verify_klass(MacroAssembler* _masm,
 
   BLOCK_COMMENT("verify_klass {");
 
-  __ verify_oop(obj_reg);
+  __ verify_oop(obj_reg, FILE_AND_LINE);
   __ compareU64_and_branch(obj_reg, (intptr_t)0L, Assembler::bcondEqual, L_bad);
   __ load_klass(temp_reg, obj_reg);
   // klass_addr is a klass in allstatic SystemDictionaryHandles. Can't get GCed.
@@ -110,7 +116,7 @@ void MethodHandles::verify_ref_kind(MacroAssembler* _masm, int ref_kind,
 
   __ z_llgf(temp,
             Address(member_reg,
-                    NONZERO(java_lang_invoke_MemberName::flags_offset_in_bytes())));
+                    NONZERO(java_lang_invoke_MemberName::flags_offset())));
   __ z_srl(temp,  java_lang_invoke_MemberName::MN_REFERENCE_KIND_SHIFT);
   __ z_nilf(temp, java_lang_invoke_MemberName::MN_REFERENCE_KIND_MASK);
   __ compare32_and_branch(temp, constant(ref_kind), Assembler::bcondEqual, L);
@@ -146,15 +152,13 @@ void MethodHandles::jump_from_method_handle(MacroAssembler* _masm, Register meth
     // by avoiding running compiled code in threads for which the
     // event is enabled. Check here for interp_only_mode if these
     // events CAN be enabled.
-    __ verify_thread();
 
     Label run_compiled_code;
 
     __ load_and_test_int(temp, Address(Z_thread, JavaThread::interp_only_mode_offset()));
     __ z_bre(run_compiled_code);
 
-    // Null method test is replicated below in compiled case,
-    // it might be able to address across the verify_thread().
+    // Null method test is replicated below in compiled case.,
     __ z_ltgr(temp, method);
     __ z_bre(L_no_such_method);
 
@@ -176,8 +180,8 @@ void MethodHandles::jump_from_method_handle(MacroAssembler* _masm, Register meth
   __ z_br(target);
 
   __ bind(L_no_such_method);
-  assert(StubRoutines::throw_AbstractMethodError_entry() != NULL, "not yet generated!");
-  __ load_const_optimized(target, StubRoutines::throw_AbstractMethodError_entry());
+  assert(SharedRuntime::throw_AbstractMethodError_entry() != nullptr, "not yet generated!");
+  __ load_const_optimized(target, SharedRuntime::throw_AbstractMethodError_entry());
   __ z_br(target);
 }
 
@@ -194,25 +198,25 @@ void MethodHandles::jump_to_lambda_form(MacroAssembler* _masm,
   BLOCK_COMMENT("jump_to_lambda_form {");
 
   // Load the invoker, as MH -> MH.form -> LF.vmentry
-  __ verify_oop(recv);
+  __ verify_oop(recv, FILE_AND_LINE);
   __ load_heap_oop(method_temp,
                    Address(recv,
-                           NONZERO(java_lang_invoke_MethodHandle::form_offset_in_bytes())),
+                           NONZERO(java_lang_invoke_MethodHandle::form_offset())),
                    noreg, noreg, IS_NOT_NULL);
-  __ verify_oop(method_temp);
+  __ verify_oop(method_temp, FILE_AND_LINE);
   __ load_heap_oop(method_temp,
                    Address(method_temp,
-                           NONZERO(java_lang_invoke_LambdaForm::vmentry_offset_in_bytes())),
+                           NONZERO(java_lang_invoke_LambdaForm::vmentry_offset())),
                    noreg, noreg, IS_NOT_NULL);
-  __ verify_oop(method_temp);
+  __ verify_oop(method_temp, FILE_AND_LINE);
   __ load_heap_oop(method_temp,
                    Address(method_temp,
-                           NONZERO(java_lang_invoke_MemberName::method_offset_in_bytes())),
+                           NONZERO(java_lang_invoke_MemberName::method_offset())),
                    noreg, noreg, IS_NOT_NULL);
-  __ verify_oop(method_temp);
+  __ verify_oop(method_temp, FILE_AND_LINE);
   __ z_lg(method_temp,
           Address(method_temp,
-                  NONZERO(java_lang_invoke_ResolvedMethodName::vmtarget_offset_in_bytes())));
+                  NONZERO(java_lang_invoke_ResolvedMethodName::vmtarget_offset())));
 
   if (VerifyMethodHandles && !for_compiler_entry) {
     // Make sure recv is already on stack.
@@ -245,7 +249,14 @@ address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* 
     // adapters via MethodHandleNatives.linkMethod. They all allow an
     // appendix argument.
     __ should_not_reach_here();           // Empty stubs make SG sick.
-    return NULL;
+    return nullptr;
+  }
+
+  // No need in interpreter entry for linkToNative for now.
+  // Interpreter calls compiled entry through i2c.
+  if (iid == vmIntrinsics::_linkToNative) {
+    __ should_not_reach_here();           // Empty stubs make SG sick.
+    return nullptr;
   }
 
   // Z_R10: sender SP (must preserve; see prepare_to_jump_from_interprted)
@@ -265,10 +276,10 @@ address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* 
 
     // Supplement to 8139891: _intrinsic_id exceeded 1-byte size limit.
     if (Method::intrinsic_id_size_in_bytes() == 1) {
-      __ z_cli(Address(Z_method, Method::intrinsic_id_offset_in_bytes()), (int)iid);
+      __ z_cli(Address(Z_method, Method::intrinsic_id_offset()), (int)iid);
     } else {
       assert(Method::intrinsic_id_size_in_bytes() == 2, "size error: check Method::_intrinsic_id");
-      __ z_lh(Z_R0_scratch, Address(Z_method, Method::intrinsic_id_offset_in_bytes()));
+      __ z_lh(Z_R0_scratch, Address(Z_method, Method::intrinsic_id_offset()));
       __ z_chi(Z_R0_scratch, (int)iid);
     }
     __ z_bre(L);
@@ -336,6 +347,21 @@ address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* 
   return entry_point;
 }
 
+void MethodHandles::jump_to_native_invoker(MacroAssembler* _masm, Register nep_reg, Register temp_target) {
+  BLOCK_COMMENT("jump_to_native_invoker {");
+  assert(nep_reg != noreg, "required register");
+
+  // Load the invoker, as NEP -> .invoker
+  __ verify_oop(nep_reg);
+
+  __ z_lg(temp_target, Address(nep_reg,
+        NONZERO(jdk_internal_foreign_abi_NativeEntryPoint::downcall_stub_address_offset_in_bytes())));
+
+  __ z_br(temp_target);
+
+  BLOCK_COMMENT("} jump_to_native_invoker");
+}
+
 void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
                                                     vmIntrinsics::ID iid,
                                                     Register receiver_reg,
@@ -349,7 +375,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
   Register temp4 = Z_R13;
 
   if (for_compiler_entry) {
-    assert(receiver_reg == (iid == vmIntrinsics::_linkToStatic ? noreg : Z_ARG1),
+    assert(receiver_reg == (iid == vmIntrinsics::_linkToStatic || iid == vmIntrinsics::_linkToNative ? noreg : Z_ARG1),
            "only valid assignment");
   }
   if (receiver_reg != noreg) {
@@ -367,31 +393,34 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
     // Indirect through MH.form.vmentry.vmtarget.
     jump_to_lambda_form(_masm, receiver_reg, Z_method, Z_R1, temp3, for_compiler_entry);
     return;
+  } else if (iid == vmIntrinsics::_linkToNative) {
+    assert(for_compiler_entry, "only compiler entry is supported");
+    jump_to_native_invoker(_masm, member_reg, temp1);
+    return;
   }
 
   // The method is a member invoker used by direct method handles.
   if (VerifyMethodHandles) {
     // Make sure the trailing argument really is a MemberName (caller responsibility).
     verify_klass(_masm, member_reg,
-                 SystemDictionary::WK_KLASS_ENUM_NAME(MemberName_klass),
+                 VM_CLASS_ID(MemberName_klass),
                  temp1, temp2,
                  "MemberName required for invokeVirtual etc.");
   }
 
-  Address  member_clazz(   member_reg, NONZERO(java_lang_invoke_MemberName::clazz_offset_in_bytes()));
-  Address  member_vmindex( member_reg, NONZERO(java_lang_invoke_MemberName::vmindex_offset_in_bytes()));
-  Address  member_vmtarget(member_reg, NONZERO(java_lang_invoke_MemberName::method_offset_in_bytes()));
-  Address  vmtarget_method(Z_method, NONZERO(java_lang_invoke_ResolvedMethodName::vmtarget_offset_in_bytes()));
+  Address  member_clazz(   member_reg, NONZERO(java_lang_invoke_MemberName::clazz_offset()));
+  Address  member_vmindex( member_reg, NONZERO(java_lang_invoke_MemberName::vmindex_offset()));
+  Address  member_vmtarget(member_reg, NONZERO(java_lang_invoke_MemberName::method_offset()));
+  Address  vmtarget_method(Z_method, NONZERO(java_lang_invoke_ResolvedMethodName::vmtarget_offset()));
   Register temp1_recv_klass = temp1;
 
   if (iid != vmIntrinsics::_linkToStatic) {
-    __ verify_oop(receiver_reg);
+    __ verify_oop(receiver_reg, FILE_AND_LINE);
     if (iid == vmIntrinsics::_linkToSpecial) {
       // Don't actually load the klass; just null-check the receiver.
       __ null_check(receiver_reg);
     } else {
       // Load receiver klass itself.
-      __ null_check(receiver_reg, Z_R0, oopDesc::klass_offset_in_bytes());
       __ load_klass(temp1_recv_klass, receiver_reg);
       __ verify_klass_ptr(temp1_recv_klass);
     }
@@ -514,13 +543,13 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
       __ bind(L_no_such_interface);
 
       // Throw exception.
-      __ load_const_optimized(Z_R1, StubRoutines::throw_IncompatibleClassChangeError_entry());
+      __ load_const_optimized(Z_R1, SharedRuntime::throw_IncompatibleClassChangeError_entry());
       __ z_br(Z_R1);
       break;
     }
 
     default:
-      fatal("unexpected intrinsic %d: %s", iid, vmIntrinsics::name_at(iid));
+      fatal("unexpected intrinsic %d: %s", vmIntrinsics::as_int(iid), vmIntrinsics::name_at(iid));
       break;
   }
 
@@ -540,20 +569,22 @@ void trace_method_handle_stub(const char* adaptername,
                               intptr_t* sender_sp,
                               intptr_t* args,
                               intptr_t* tracing_fp) {
-  bool has_mh = (strstr(adaptername, "/static") == NULL &&
-                 strstr(adaptername, "linkTo") == NULL);    // Static linkers don't have MH.
+  bool has_mh = (strstr(adaptername, "/static") == nullptr &&
+                 strstr(adaptername, "linkTo") == nullptr);    // Static linkers don't have MH.
   const char* mh_reg_name = has_mh ? "Z_R4_mh" : "Z_R4";
-  tty->print_cr("MH %s %s=" INTPTR_FORMAT " sender_sp=" INTPTR_FORMAT " args=" INTPTR_FORMAT,
-                adaptername, mh_reg_name,
-                p2i(mh), p2i(sender_sp), p2i(args));
+  log_info(methodhandles)("MH %s %s=" INTPTR_FORMAT " sender_sp=" INTPTR_FORMAT " args=" INTPTR_FORMAT,
+                          adaptername, mh_reg_name,
+                          p2i(mh), p2i(sender_sp), p2i(args));
 
-  if (Verbose) {
+  LogTarget(Trace, methodhandles) lt;
+  if (lt.is_enabled()) {
     // Dumping last frame with frame::describe.
-
+    ResourceMark rm;
+    LogStream ls(lt);
     JavaThread* p = JavaThread::active();
 
-    ResourceMark rm;
-    PRESERVE_EXCEPTION_MARK; // May not be needed by safer and unexpensive here.
+    // may not be needed by safer and unexpensive here
+    PreserveExceptionMark pem(Thread::current());
     FrameValues values;
 
     // Note: We want to allow trace_method_handle from any call site.
@@ -573,7 +604,7 @@ void trace_method_handle_stub(const char* adaptername,
     intptr_t *dump_sp = cur_frame.sender_sp();
     intptr_t *dump_fp = cur_frame.link();
 
-    bool walkable = has_mh; // Whether the traced frame shoud be walkable.
+    bool walkable = has_mh; // Whether the traced frame should be walkable.
 
     // The sender for cur_frame is the caller of trace_method_handle.
     if (walkable) {
@@ -602,24 +633,22 @@ void trace_method_handle_stub(const char* adaptername,
     }
 
     // Note: the unextended_sp may not be correct.
-    tty->print_cr("  stack layout:");
-    values.print(p);
+    ls.print_cr("  stack layout:");
+    values.print_on(p, &ls);
     if (has_mh && oopDesc::is_oop(mh)) {
-      mh->print();
+      mh->print_on(&ls);
       if (java_lang_invoke_MethodHandle::is_instance(mh)) {
-        if (java_lang_invoke_MethodHandle::form_offset_in_bytes() != 0) {
-          java_lang_invoke_MethodHandle::form(mh)->print();
-        }
+        java_lang_invoke_MethodHandle::form(mh)->print_on(&ls);
       }
     }
   }
 }
 
 void MethodHandles::trace_method_handle(MacroAssembler* _masm, const char* adaptername) {
-  if (!TraceMethodHandles) { return; }
+  if (!log_is_enabled(Info, methodhandles)) { return; }
 
   // If arg registers are contiguous, we can use STMG/LMG.
-  assert((Z_ARG5->encoding() - Z_ARG1->encoding() + 1) == RegisterImpl::number_of_arg_registers, "Oops");
+  assert((Z_ARG5->encoding() - Z_ARG1->encoding() + 1) == Register::number_of_arg_registers, "Oops");
 
   BLOCK_COMMENT("trace_method_handle {");
 

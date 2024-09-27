@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "gc/shared/c1/cardTableBarrierSetC1.hpp"
 #include "gc/shared/cardTable.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "utilities/macros.hpp"
 
 #ifdef ASSERT
@@ -34,7 +35,7 @@
 #define __ gen->lir()->
 #endif
 
-void CardTableBarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, LIR_OprDesc* new_val) {
+void CardTableBarrierSetC1::post_barrier(LIRAccess& access, LIR_Opr addr, LIR_Opr new_val) {
   DecoratorSet decorators = access.decorators();
   LIRGenerator* gen = access.gen();
   bool in_heap = (decorators & IN_HEAP) != 0;
@@ -45,7 +46,6 @@ void CardTableBarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, L
   BarrierSet* bs = BarrierSet::barrier_set();
   CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
   CardTable* ct = ctbs->card_table();
-  assert(sizeof(*(ct->byte_map_base())) == sizeof(jbyte), "adjust this code");
   LIR_Const* card_table_base = new LIR_Const(ct->byte_map_base());
   if (addr->is_address()) {
     LIR_Address* address = addr->as_address_ptr();
@@ -66,11 +66,12 @@ void CardTableBarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, L
   gen->CardTableBarrierSet_post_barrier_helper(addr, card_table_base);
 #else
   LIR_Opr tmp = gen->new_pointer_register();
-  if (TwoOperandLIRForm) {
-    __ move(addr, tmp);
-    __ unsigned_shift_right(tmp, CardTable::card_shift, tmp);
+  if (two_operand_lir_form) {
+    LIR_Opr addr_opr = LIR_OprFact::address(new LIR_Address(addr, addr->type()));
+    __ leal(addr_opr, tmp);
+    __ unsigned_shift_right(tmp, CardTable::card_shift(), tmp);
   } else {
-    __ unsigned_shift_right(addr, CardTable::card_shift, tmp);
+    __ unsigned_shift_right(addr, CardTable::card_shift(), tmp);
   }
 
   LIR_Address* card_addr;
@@ -83,20 +84,14 @@ void CardTableBarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, L
   LIR_Opr dirty = LIR_OprFact::intConst(CardTable::dirty_card_val());
   if (UseCondCardMark) {
     LIR_Opr cur_value = gen->new_register(T_INT);
-    if (ct->scanned_concurrently()) {
-      __ membar_storeload();
-    }
     __ move(card_addr, cur_value);
 
     LabelObj* L_already_dirty = new LabelObj();
     __ cmp(lir_cond_equal, cur_value, dirty);
-    __ branch(lir_cond_equal, T_BYTE, L_already_dirty->label());
+    __ branch(lir_cond_equal, L_already_dirty->label());
     __ move(dirty, card_addr);
     __ branch_destination(L_already_dirty->label());
   } else {
-    if (ct->scanned_concurrently()) {
-      __ membar_storestore();
-    }
     __ move(dirty, card_addr);
   }
 #endif

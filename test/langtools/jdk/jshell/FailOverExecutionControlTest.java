@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,8 @@ public class FailOverExecutionControlTest extends ExecutionControlTestBase {
     @BeforeMethod
     @Override
     public void setUp() {
-        setUp(builder -> builder.executionEngine("failover:0(nonExistent), 1(nonExistent), 2(jdi:launch(true))"));
+        setUp(builder -> builder.executionEngine("failover:0(expectedFailureNonExistent1), 1(expectedFailureNonExistent2), "
+                + alwaysPassingSpec()));
     }
 
 }

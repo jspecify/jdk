@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package javax.annotation.processing;
 
+import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Collections;
@@ -38,9 +39,9 @@ import javax.tools.Diagnostic;
  * superclass for most concrete annotation processors.  This class
  * examines annotation values to compute the {@linkplain
  * #getSupportedOptions options}, {@linkplain
- * #getSupportedAnnotationTypes annotation types}, and {@linkplain
- * #getSupportedSourceVersion source version} supported by its
- * subtypes.
+ * #getSupportedAnnotationTypes annotation interfaces}, and
+ * {@linkplain #getSupportedSourceVersion source version} supported by
+ * its subtypes.
  *
  * <p>The getter methods may {@linkplain Messager#printMessage issue
  * warnings} about noteworthy conditions using the facilities available
@@ -52,9 +53,6 @@ import javax.tools.Diagnostic;
  * general {@link javax.annotation.processing.Processor Processor}
  * contract for that method is obeyed.
  *
- * @author Joseph D. Darcy
- * @author Scott Seligman
- * @author Peter von der Ah&eacute;
  * @since 1.6
  */
 public abstract class AbstractProcessor implements Processor {
@@ -70,6 +68,9 @@ public abstract class AbstractProcessor implements Processor {
     protected AbstractProcessor() {}
 
     /**
+     * Returns the options recognized by this processor.
+     *
+     * @implSpec
      * If the processor class is annotated with {@link
      * SupportedOptions}, return an unmodifiable set with the same set
      * of strings as the annotation.  If the class is not so
@@ -78,29 +79,32 @@ public abstract class AbstractProcessor implements Processor {
      * @return the options recognized by this processor, or an empty
      * set if none
      */
+    @Override
     public Set<String> getSupportedOptions() {
         SupportedOptions so = this.getClass().getAnnotation(SupportedOptions.class);
-        if  (so == null)
-            return Collections.emptySet();
-        else
-            return arrayToSet(so.value(), false);
+        return (so == null) ?
+            Set.of() :
+            arrayToSet(so.value(), false, "option value", "@SupportedOptions");
     }
 
     /**
+     * Returns the names of the annotation interfaces supported by this processor.
+     *
+     * @implSpec
      * If the processor class is annotated with {@link
      * SupportedAnnotationTypes}, return an unmodifiable set with the
      * same set of strings as the annotation.  If the class is not so
      * annotated, an empty set is returned.
      *
-     * If the {@link ProcessingEnvironment#getSourceVersion source
+     * If the {@linkplain ProcessingEnvironment#getSourceVersion source
      * version} does not support modules, in other words if it is less
      * than or equal to {@link SourceVersion#RELEASE_8 RELEASE_8},
-     * then any leading {@link Processor#getSupportedAnnotationTypes
+     * then any leading {@linkplain Processor#getSupportedAnnotationTypes
      * module prefixes} are stripped from the names.
      *
-     * @return the names of the annotation types supported by this
-     * processor, or an empty set if none
+     * @return {@inheritDoc Processor}
      */
+    @Override
     public Set<String> getSupportedAnnotationTypes() {
             SupportedAnnotationTypes sat = this.getClass().getAnnotation(SupportedAnnotationTypes.class);
             boolean initialized = isInitialized();
@@ -110,23 +114,28 @@ public abstract class AbstractProcessor implements Processor {
                                                              "No SupportedAnnotationTypes annotation " +
                                                              "found on " + this.getClass().getName() +
                                                              ", returning an empty set.");
-                return Collections.emptySet();
+                return Set.of();
             } else {
                 boolean stripModulePrefixes =
                         initialized &&
                         processingEnv.getSourceVersion().compareTo(SourceVersion.RELEASE_8) <= 0;
-                return arrayToSet(sat.value(), stripModulePrefixes);
+                return arrayToSet(sat.value(), stripModulePrefixes,
+                                  "annotation interface", "@SupportedAnnotationTypes");
             }
         }
 
     /**
+     * {@inheritDoc Processor}
+     *
+     * @implSpec
      * If the processor class is annotated with {@link
      * SupportedSourceVersion}, return the source version in the
      * annotation.  If the class is not so annotated, {@link
      * SourceVersion#RELEASE_6} is returned.
      *
-     * @return the latest source version supported by this processor
+     * @return {@inheritDoc Processor}
      */
+    @Override
     public SourceVersion getSupportedSourceVersion() {
         SupportedSourceVersion ssv = this.getClass().getAnnotation(SupportedSourceVersion.class);
         SourceVersion sv = null;
@@ -144,8 +153,11 @@ public abstract class AbstractProcessor implements Processor {
 
 
     /**
+     * {@inheritDoc Processor}
+     *
+     * @implSpec
      * Initializes the processor with the processing environment by
-     * setting the {@code processingEnv} field to the value of the
+     * setting the {@link #processingEnv} field to the value of the
      * {@code processingEnv} argument.  An {@code
      * IllegalStateException} will be thrown if this method is called
      * more than once on the same object.
@@ -164,48 +176,65 @@ public abstract class AbstractProcessor implements Processor {
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritDoc Processor}
+     * @param annotations {@inheritDoc Processor}
+     * @param roundEnv {@inheritDoc Processor}
      */
+    @Override
     public abstract boolean process(Set<? extends TypeElement> annotations,
                                     RoundEnvironment roundEnv);
 
     /**
-     * Returns an empty iterable of completions.
+     * {@return an empty iterable of completions}
      *
-     * @param element {@inheritDoc}
-     * @param annotation {@inheritDoc}
-     * @param member {@inheritDoc}
-     * @param userText {@inheritDoc}
+     * @param element {@inheritDoc Processor}
+     * @param annotation {@inheritDoc Processor}
+     * @param member {@inheritDoc Processor}
+     * @param userText {@inheritDoc Processor}
      */
+    @Override
     public Iterable<? extends Completion> getCompletions(Element element,
                                                          AnnotationMirror annotation,
                                                          ExecutableElement member,
                                                          String userText) {
-        return Collections.emptyList();
+        return List.of();
     }
 
     /**
-     * Returns {@code true} if this object has been {@linkplain #init
-     * initialized}, {@code false} otherwise.
-     *
-     * @return {@code true} if this object has been initialized,
-     * {@code false} otherwise.
+     * {@return {@code true} if this object has been {@linkplain #init
+     * initialized}, {@code false} otherwise}
      */
     protected synchronized boolean isInitialized() {
         return initialized;
     }
 
-    private static Set<String> arrayToSet(String[] array,
-                                          boolean stripModulePrefixes) {
+    private Set<String> arrayToSet(String[] array,
+                                          boolean stripModulePrefixes,
+                                   String contentType,
+                                   String annotationName) {
         assert array != null;
-        Set<String> set = new HashSet<>(array.length);
+        Set<String> set = new HashSet<>();
         for (String s : array) {
+            boolean stripped = false;
             if (stripModulePrefixes) {
                 int index = s.indexOf('/');
-                if (index != -1)
+                if (index != -1) {
                     s = s.substring(index + 1);
+                    stripped = true;
+                }
             }
-            set.add(s);
+            boolean added = set.add(s);
+            // Don't issue a duplicate warning when the module name is
+            // stripped off to avoid spurious warnings in a case like
+            // "foo/a.B", "bar/a.B".
+            if (!added && !stripped && isInitialized() ) {
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING,
+                                                         "Duplicate " + contentType  +
+                                                         " ``" + s  + "'' for processor " +
+                                                         this.getClass().getName() +
+                                                         " in its " + annotationName  +
+                                                         "annotation.");
+            }
         }
         return Collections.unmodifiableSet(set);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2009, 2012 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,28 +23,16 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_DTRACE_HPP
-#define SHARE_VM_UTILITIES_DTRACE_HPP
+#ifndef SHARE_UTILITIES_DTRACE_HPP
+#define SHARE_UTILITIES_DTRACE_HPP
 
 #if defined(DTRACE_ENABLED)
 
 #include <sys/sdt.h>
+#include <sys/types.h>
 
 #define DTRACE_ONLY(x) x
 #define NOT_DTRACE(x)
-
-#if defined(SOLARIS)
-// Work around dtrace tail call bug 6672627 until it is fixed in solaris 10.
-#define HS_DTRACE_WORKAROUND_TAIL_CALL_BUG() \
-  do { volatile size_t dtrace_workaround_tail_call_bug = 1; } while (0)
-#elif defined(LINUX)
-#define HS_DTRACE_WORKAROUND_TAIL_CALL_BUG()
-#elif defined(__APPLE__)
-#define HS_DTRACE_WORKAROUND_TAIL_CALL_BUG()
-#include <sys/types.h>
-#else
-#error "dtrace enabled for unknown os"
-#endif /* defined(SOLARIS) */
 
 #include "dtracefiles/hotspot.h"
 #include "dtracefiles/hotspot_jni.h"
@@ -55,10 +43,8 @@
 #define DTRACE_ONLY(x)
 #define NOT_DTRACE(x) x
 
-#define HS_DTRACE_WORKAROUND_TAIL_CALL_BUG()
-
 #include "dtrace_disabled.hpp"
 
 #endif /* defined(DTRACE_ENABLED) */
 
-#endif // SHARE_VM_UTILITIES_DTRACE_HPP
+#endif // SHARE_UTILITIES_DTRACE_HPP

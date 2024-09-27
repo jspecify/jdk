@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,23 +25,23 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.CharBuffer;
 import java.util.Arrays;
-import java.util.Scanner;
 
 import jdk.test.lib.Asserts;
 import jdk.test.lib.JDKToolLauncher;
-import jdk.test.lib.Platform;
+import jdk.test.lib.Utils;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.SA.SATestUtils;
 
 /**
  * @test
  * @bug 6313383
- * @key regression
- * @requires vm.hasSAandCanAttach
+ * @requires vm.hasSA
  * @summary Regression test for hprof export issue due to large heaps (>2G)
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
@@ -49,7 +49,7 @@ import jdk.test.lib.process.ProcessTools;
  *          java.management/sun.management
  *          jdk.internal.jvmstat/sun.jvmstat.monitor
  * @build JMapHProfLargeHeapProc
- * @run main JMapHProfLargeHeapTest
+ * @run driver JMapHProfLargeHeapTest
  */
 
 public class JMapHProfLargeHeapTest {
@@ -59,6 +59,7 @@ public class JMapHProfLargeHeapTest {
     private static final long G = 1024L * M;
 
     public static void main(String[] args) throws Exception {
+        SATestUtils.skipIfCannotAttach(); // throws SkippedException if attach not expected to work.
 
         // All heap dumps should create 1.0.2 file format
         testHProfFileFormat("-Xmx1g", 22 * M, HPROF_HEADER_1_0_2);
@@ -76,33 +77,40 @@ public class JMapHProfLargeHeapTest {
     private static void testHProfFileFormat(String vmArgs, long heapSize,
             String expectedFormat) throws Exception, IOException,
             InterruptedException, FileNotFoundException {
-        ProcessBuilder procBuilder = ProcessTools.createJavaProcessBuilder(
+        ProcessBuilder procBuilder = ProcessTools.createTestJavaProcessBuilder(
                 "--add-exports=java.management/sun.management=ALL-UNNAMED", vmArgs, "JMapHProfLargeHeapProc", String.valueOf(heapSize));
         procBuilder.redirectError(ProcessBuilder.Redirect.INHERIT);
         Process largeHeapProc = procBuilder.start();
 
-        try (Scanner largeHeapScanner = new Scanner(
-                largeHeapProc.getInputStream());) {
+        try (BufferedReader r = new BufferedReader(
+                new InputStreamReader(largeHeapProc.getInputStream()))) {
             String pidstring = null;
-            if (!largeHeapScanner.hasNext()) {
-                throw new RuntimeException ("Test failed: could not open largeHeapScanner.");
+            while ((pidstring = r.readLine()) != null) {
+                // The output might contain different VM output, skip it while searching PID line.
+                if (pidstring.matches("PID\\[[0-9].*\\]")) {
+                    System.out.println("Found: " + pidstring);
+                    break;
+                } else {
+                    System.out.println("Ignoring: " + pidstring);
+                }
             }
-            while ((pidstring = largeHeapScanner.findInLine("PID\\[[0-9].*\\]")) == null) {
-                Thread.sleep(500);
+            if (pidstring == null) {
+                throw new RuntimeException("Not able to find string matching PID.");
             }
+
             int pid = Integer.parseInt(pidstring.substring(4,
                     pidstring.length() - 1));
             System.out.println("Extracted pid: " + pid);
 
             JDKToolLauncher jMapLauncher = JDKToolLauncher
                     .createUsingTestJDK("jhsdb");
+            jMapLauncher.addVMArgs(Utils.getTestJavaOpts());
             jMapLauncher.addToolArg("jmap");
             jMapLauncher.addToolArg("--binaryheap");
             jMapLauncher.addToolArg("--pid");
             jMapLauncher.addToolArg(String.valueOf(pid));
 
-            ProcessBuilder jMapProcessBuilder = new ProcessBuilder(
-                    jMapLauncher.getCommand());
+            ProcessBuilder jMapProcessBuilder = SATestUtils.createProcessBuilder(jMapLauncher);
             System.out.println("jmap command: "
                     + Arrays.toString(jMapLauncher.getCommand()));
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,17 @@
 
 package jdk.javadoc.internal.tool;
 
-
-import org.checkerframework.dataflow.qual.Pure;
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 
@@ -42,6 +43,7 @@ import com.sun.tools.javac.code.ClassFinder;
 import com.sun.tools.javac.code.DeferredCompletionFailureHandler;
 import com.sun.tools.javac.code.Symbol.Completer;
 import com.sun.tools.javac.code.Symbol.CompletionFailure;
+import com.sun.tools.javac.code.Symbol.PackageSymbol;
 import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
@@ -55,22 +57,15 @@ import jdk.javadoc.doclet.DocletEnvironment;
 import static jdk.javadoc.internal.tool.Main.Result.*;
 
 /**
- *  This class could be the main entry point for Javadoc when Javadoc is used as a
- *  component in a larger software system. It provides operations to
- *  construct a new javadoc processor, and to run it on a set of source
- *  files.
- *
- *  <p><b>This is NOT part of any supported API.
- *  If you write code that depends on this, you do so at your own risk.
- *  This code and its internal interfaces are subject to change or
- *  deletion without notice.</b>
- *
- *  @author Neal Gafter
+ * This class could be the main entry point for Javadoc when Javadoc is used as a
+ * component in a larger software system. It provides operations to
+ * construct a new javadoc processor, and to run it on a set of source
+ * files.
  */
 public class JavadocTool extends com.sun.tools.javac.main.JavaCompiler {
     ToolEnvironment toolEnv;
 
-    final Messager messager;
+    final JavadocLog log;
     final ClassFinder javadocFinder;
     final DeferredCompletionFailureHandler dcfh;
     final Enter javadocEnter;
@@ -82,7 +77,7 @@ public class JavadocTool extends com.sun.tools.javac.main.JavaCompiler {
      */
     protected JavadocTool(Context context) {
         super(context);
-        messager = Messager.instance0(context);
+        log = JavadocLog.instance0(context);
         javadocFinder = JavadocClassFinder.instance(context);
         dcfh = DeferredCompletionFailureHandler.instance(context);
         javadocEnter = JavadocEnter.instance(context);
@@ -98,10 +93,10 @@ public class JavadocTool extends com.sun.tools.javac.main.JavaCompiler {
     }
 
     /**
-     *  Construct a new javadoc tool.
+     * Construct a new javadoc tool.
      */
     public static JavadocTool make0(Context context) {
-        Messager messager = null;
+        JavadocLog log = null;
         try {
             // force the use of Javadoc's class finder
             JavadocClassFinder.preRegister(context);
@@ -115,23 +110,25 @@ public class JavadocTool extends com.sun.tools.javac.main.JavaCompiler {
             // force the use of Javadoc's own todo phase
             JavadocTodo.preRegister(context);
 
-            // force the use of Messager as a Log
-            messager = Messager.instance0(context);
+            // force the use of Javadoc's subtype of Log
+            log = JavadocLog.instance0(context);
 
             return new JavadocTool(context);
         } catch (CompletionFailure ex) {
-            messager.error(Position.NOPOS, ex.getMessage());
+            assert log != null;
+            log.error(Position.NOPOS, ex.getMessage());
             return null;
         }
     }
 
-    public DocletEnvironment getEnvironment(Map<ToolOption,
-            Object> jdtoolOpts,
-            List<String> javaNames,
-            Iterable<? extends JavaFileObject> fileObjects) throws ToolException {
+    public DocletEnvironment getEnvironment(ToolOptions toolOptions,
+                                            List<String> javaNames,
+                                            Iterable<? extends JavaFileObject> fileObjects)
+            throws ToolException
+    {
         toolEnv = ToolEnvironment.instance(context);
-        toolEnv.initialize(jdtoolOpts);
-        ElementsTable etable = new ElementsTable(context, jdtoolOpts);
+        toolEnv.initialize(toolOptions);
+        ElementsTable etable = new ElementsTable(context, toolOptions);
         javadocFinder.sourceCompleter = etable.xclasses
                 ? Completer.NULL_COMPLETER
                 : sourceCompleter;
@@ -140,11 +137,11 @@ public class JavadocTool extends com.sun.tools.javac.main.JavaCompiler {
             // If -Xclasses is set, the args should be a list of class names
             for (String arg: javaNames) {
                 if (!isValidPackageName(arg)) { // checks
-                    String text = messager.getText("main.illegal_class_name", arg);
+                    String text = log.getText("main.illegal_class_name", arg);
                     throw new ToolException(CMDERR, text);
                 }
             }
-            if (messager.hasErrors()) {
+            if (log.hasErrors()) {
                 return null;
             }
             etable.setClassArgList(javaNames);
@@ -153,89 +150,109 @@ public class JavadocTool extends com.sun.tools.javac.main.JavaCompiler {
             return new DocEnvImpl(toolEnv, etable);
         }
 
-        ListBuffer<JCCompilationUnit> classTrees = new ListBuffer<>();
+        ListBuffer<JCCompilationUnit> compilationUnits = new ListBuffer<>();
 
         try {
-            StandardJavaFileManager fm = toolEnv.fileManager instanceof StandardJavaFileManager
-                    ? (StandardJavaFileManager) toolEnv.fileManager
+            StandardJavaFileManager fm = toolEnv.fileManager instanceof StandardJavaFileManager sfm
+                    ? sfm
                     : null;
             Set<String> packageNames = new LinkedHashSet<>();
             // Normally, the args should be a series of package names or file names.
             // Parse the files and collect the package names.
             for (String arg: javaNames) {
-                if (fm != null && arg.endsWith(".java") && new File(arg).exists()) {
-                    parse(fm.getJavaFileObjects(arg), classTrees, true);
+                if (fm != null && arg.endsWith(".java") && isRegularFile(arg)) {
+                    parse(fm.getJavaFileObjects(arg), compilationUnits, true);
                 } else if (isValidPackageName(arg)) {
                     packageNames.add(arg);
                 } else if (arg.endsWith(".java")) {
                     if (fm == null) {
-                        String text = messager.getText("main.assertion.error", "fm == null");
+                        String text = log.getText("main.assertion.error", "fm == null");
                         throw new ToolException(ABNORMAL, text);
                     } else {
-                        String text = messager.getText("main.file_not_found", arg);
+                        String text = log.getText("main.file_not_found", arg);
                         throw new ToolException(ERROR, text);
                     }
                 } else {
-                    String text = messager.getText("main.illegal_package_name", arg);
+                    String text = log.getText("main.illegal_package_name", arg);
                     throw new ToolException(CMDERR, text);
                 }
             }
 
             // Parse file objects provide via the DocumentationTool API
-            parse(fileObjects, classTrees, true);
+            parse(fileObjects, compilationUnits, true);
 
             etable.packages(packageNames)
-                    .classTrees(classTrees.toList())
+                    .compilationUnits(compilationUnits.toList())
                     .scanSpecifiedItems();
 
             // abort, if errors were encountered during modules initialization
-            if (messager.hasErrors()) {
+            if (log.hasErrors()) {
                 return null;
             }
 
             // Parse the files in the packages and subpackages to be documented
-            ListBuffer<JCCompilationUnit> packageTrees = new ListBuffer<>();
-            parse(etable.getFilesToParse(), packageTrees, false);
-            modules.enter(packageTrees.toList(), null);
+            ListBuffer<JCCompilationUnit> allTrees = new ListBuffer<>();
+            allTrees.addAll(compilationUnits);
+            parse(etable.getFilesToParse(), allTrees, false);
+            modules.newRound();
+            modules.initModules(allTrees.toList());
 
-            if (messager.hasErrors()) {
+            if (log.hasErrors()) {
                 return null;
             }
 
             // Enter symbols for all files
-            toolEnv.notice("main.Building_tree");
-            javadocEnter.main(classTrees.toList().appendList(packageTrees));
+            toolEnv.printInfo("main.Building_tree");
+            javadocEnter.main(allTrees.toList());
 
-            if (messager.hasErrors()) {
+            if (log.hasErrors()) {
                 return null;
             }
 
-            etable.setClassDeclList(listClasses(classTrees.toList()));
+            etable.setClassDeclList(listClasses(compilationUnits.toList()));
 
             dcfh.setHandler(dcfh.userCodeHandler);
             etable.analyze();
+
+            // Ensure that package-info is read for all included packages
+            for (Element e : etable.getIncludedElements()) {
+                if (e.getKind() == ElementKind.PACKAGE) {
+                    PackageSymbol p = (PackageSymbol) e;
+                    if (p.package_info != null) {
+                        p.package_info.complete();
+                    }
+                }
+            }
+
         } catch (CompletionFailure cf) {
             throw new ToolException(ABNORMAL, cf.getMessage(), cf);
         } catch (Abort abort) {
-            if (messager.hasErrors()) {
+            if (log.hasErrors()) {
                 // presumably a message has been emitted, keep silent
                 throw new ToolException(ABNORMAL, "", abort);
             } else {
-                String text = messager.getText("main.internal.error");
+                String text = log.getText("main.internal.error");
                 Throwable t = abort.getCause() == null ? abort : abort.getCause();
                 throw new ToolException(ABNORMAL, text, t);
             }
         }
 
-        if (messager.hasErrors())
+        if (log.hasErrors())
             return null;
 
         toolEnv.docEnv = new DocEnvImpl(toolEnv, etable);
         return toolEnv.docEnv;
     }
 
+    private boolean isRegularFile(String s) {
+        try {
+            return Files.isRegularFile(Paths.get(s));
+        } catch (InvalidPathException e) {
+            return false;
+        }
+    }
+
     /** Is the given string a valid package name? */
-    @Pure
     boolean isValidPackageName(String s) {
         if (s.contains("/")) {
             String[] a = s.split("/");
@@ -247,7 +264,6 @@ public class JavadocTool extends com.sun.tools.javac.main.JavaCompiler {
         return isValidPackageName0(s);
     }
 
-    @Pure
     private boolean isValidPackageName0(String s) {
         for (int index = s.indexOf('.') ; index != -1; index = s.indexOf('.')) {
             if (!isValidClassName(s.substring(0, index))) {
@@ -263,14 +279,14 @@ public class JavadocTool extends com.sun.tools.javac.main.JavaCompiler {
         for (JavaFileObject fo: files) {
             if (uniquefiles.add(fo)) { // ignore duplicates
                 if (trace)
-                    toolEnv.notice("main.Loading_source_file", fo.getName());
+                    toolEnv.printInfo("main.Loading_source_file", fo.getName());
                 trees.append(parse(fo));
             }
         }
     }
 
     /** Are surrogates supported? */
-    final static boolean surrogatesSupported = surrogatesSupported();
+    static final boolean surrogatesSupported = surrogatesSupported();
     private static boolean surrogatesSupported() {
         try {
             boolean b = Character.isHighSurrogate('a');
@@ -287,7 +303,6 @@ public class JavadocTool extends com.sun.tools.javac.main.JavaCompiler {
      * @return true if given class name is a valid class name
      * and false otherwise.
      */
-    @Pure
     public static boolean isValidClassName(String s) {
         if (s.length() < 1) return false;
         if (s.equals("package-info")) return true;

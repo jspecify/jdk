@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,18 +21,22 @@
  * questions.
  */
 
+package gc.arguments;
+
 /*
  * @test TestVerifyBeforeAndAfterGCFlags
- * @key gc
  * @bug 8000831
  * @summary Runs an simple application (GarbageProducer) with various
          combinations of -XX:{+|-}Verify{After|Before}GC flags and checks that
          output contain or doesn't contain expected patterns
- * @requires vm.gc != "Z"
+ * @requires vm.gc != "Z" & vm.gc != "Shenandoah"
  * @modules java.base/jdk.internal.misc
  * @modules java.management
  * @library /test/lib
- * @run driver TestVerifyBeforeAndAfterGCFlags
+ * @library /
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run driver gc.arguments.TestVerifyBeforeAndAfterGCFlags
  */
 
 import java.util.ArrayList;
@@ -40,7 +44,7 @@ import java.util.Collections;
 
 import jdk.test.lib.Utils;
 import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.process.ProcessTools;
+import jdk.test.whitebox.WhiteBox;
 
 public class TestVerifyBeforeAndAfterGCFlags {
 
@@ -61,35 +65,41 @@ public class TestVerifyBeforeAndAfterGCFlags {
                                                    "-XX:-DisplayVMOutput",
                                                    "VerifyBeforeGC",
                                                    "VerifyAfterGC" });
-        testVerifyFlags(false, false, filteredOpts);
-        testVerifyFlags(true,  true,  filteredOpts);
-        testVerifyFlags(true,  false, filteredOpts);
-        testVerifyFlags(false, true,  filteredOpts);
+        // Young GC
+        testVerifyFlags(false, false, false, filteredOpts);
+        testVerifyFlags(true,  true,  false, filteredOpts);
+        testVerifyFlags(true,  false, false, filteredOpts);
+        testVerifyFlags(false, true,  false, filteredOpts);
+        // Full GC
+        testVerifyFlags(false, false, true, filteredOpts);
+        testVerifyFlags(true,  true,  true, filteredOpts);
+        testVerifyFlags(true,  false, true, filteredOpts);
+        testVerifyFlags(false, true,  true, filteredOpts);
     }
 
     public static void testVerifyFlags(boolean verifyBeforeGC,
                                        boolean verifyAfterGC,
+                                       boolean doFullGC,
                                        String[] opts) throws Exception {
         ArrayList<String> vmOpts = new ArrayList<>();
         if (opts != null && (opts.length > 0)) {
             Collections.addAll(vmOpts, opts);
         }
-
         Collections.addAll(vmOpts, new String[] {
+                                       "-Xbootclasspath/a:.",
+                                       "-XX:+UnlockDiagnosticVMOptions",
+                                       "-XX:+WhiteBoxAPI",
                                        "-Xlog:gc+verify=debug",
                                        "-Xmx5m",
                                        "-Xms5m",
                                        "-Xmn3m",
-                                       "-XX:+UnlockDiagnosticVMOptions",
                                        (verifyBeforeGC ? "-XX:+VerifyBeforeGC"
                                                        : "-XX:-VerifyBeforeGC"),
                                        (verifyAfterGC ? "-XX:+VerifyAfterGC"
                                                       : "-XX:-VerifyAfterGC"),
-                                       GarbageProducer.class.getName() });
-        ProcessBuilder procBuilder =
-            ProcessTools.createJavaProcessBuilder(vmOpts.toArray(
-                                                   new String[vmOpts.size()]));
-        OutputAnalyzer analyzer = new OutputAnalyzer(procBuilder.start());
+                                       GarbageProducer.class.getName(),
+                                       doFullGC ? "t" : "f" });
+        OutputAnalyzer analyzer = GCArguments.executeLimitedTestJava(vmOpts);
 
         analyzer.shouldHaveExitValue(0);
         analyzer.shouldNotMatch(VERIFY_BEFORE_GC_CORRUPTED_PATTERN);
@@ -112,10 +122,12 @@ public class TestVerifyBeforeAndAfterGCFlags {
         static long[][] garbage = new long[10][];
 
         public static void main(String args[]) {
-            int j = 0;
-            for(int i = 0; i<1000; i++) {
-                garbage[j] = new long[10000];
-                j = (j+1)%garbage.length;
+            WhiteBox wb = WhiteBox.getWhiteBox();
+
+            if (args[0].equals("t")) {
+                wb.fullGC();
+            } else {
+                wb.youngGC();
             }
         }
     }

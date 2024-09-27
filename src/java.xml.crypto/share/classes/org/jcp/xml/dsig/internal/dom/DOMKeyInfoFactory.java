@@ -21,10 +21,7 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
- */
-/*
- * $Id: DOMKeyInfoFactory.java 1788465 2017-03-24 15:10:51Z coheigea $
+ * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
  */
 package org.jcp.xml.dsig.internal.dom;
 
@@ -36,10 +33,19 @@ import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.List;
 
-import javax.xml.crypto.*;
+import javax.xml.crypto.MarshalException;
+import javax.xml.crypto.URIDereferencer;
+import javax.xml.crypto.XMLStructure;
 import javax.xml.crypto.dom.DOMCryptoContext;
 import javax.xml.crypto.dsig.XMLSignature;
-import javax.xml.crypto.dsig.keyinfo.*;
+import javax.xml.crypto.dsig.keyinfo.KeyInfo;
+import javax.xml.crypto.dsig.keyinfo.KeyInfoFactory;
+import javax.xml.crypto.dsig.keyinfo.KeyName;
+import javax.xml.crypto.dsig.keyinfo.KeyValue;
+import javax.xml.crypto.dsig.keyinfo.PGPData;
+import javax.xml.crypto.dsig.keyinfo.RetrievalMethod;
+import javax.xml.crypto.dsig.keyinfo.X509Data;
+import javax.xml.crypto.dsig.keyinfo.X509IssuerSerial;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -96,7 +102,7 @@ public final class DOMKeyInfoFactory extends KeyInfoFactory {
     }
 
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     public PGPData newPGPData(byte[] keyPacket, List other) {
         return new DOMPGPData(keyPacket, other);
     }
@@ -107,7 +113,7 @@ public final class DOMKeyInfoFactory extends KeyInfoFactory {
     }
 
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     public RetrievalMethod newRetrievalMethod(String uri, String type,
         List transforms) {
         if (uri == null) {
@@ -117,7 +123,7 @@ public final class DOMKeyInfoFactory extends KeyInfoFactory {
     }
 
     @Override
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({ "rawtypes" })
     public X509Data newX509Data(List content) {
         return new DOMX509Data(content);
     }
@@ -173,9 +179,15 @@ public final class DOMKeyInfoFactory extends KeyInfoFactory {
                 "support DOM Level 2 and be namespace aware");
         }
         if ("KeyInfo".equals(tag) && XMLSignature.XMLNS.equals(namespace)) {
-            return new DOMKeyInfo(element, new UnmarshalContext(), getProvider());
+            try {
+                return new DOMKeyInfo(element, new UnmarshalContext(), getProvider());
+            } catch (MarshalException me) {
+                throw me;
+            } catch (Exception e) {
+                throw new MarshalException(e);
+            }
         } else {
-            throw new MarshalException("invalid KeyInfo tag: " + namespace + ":" + tag);
+            throw new MarshalException("Invalid KeyInfo tag: " + namespace + ":" + tag);
         }
     }
 

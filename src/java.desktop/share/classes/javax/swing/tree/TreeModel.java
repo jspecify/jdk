@@ -33,7 +33,7 @@ import javax.swing.event.*;
  * <code>TreePath</code>s for identifying nodes in the <code>TreeModel</code>.
  * If a <code>TreeModel</code> returns the same object, as compared by
  * <code>equals</code>, at two different indices under the same parent
- * than the resulting <code>TreePath</code> objects will be considered equal
+ * then the resulting <code>TreePath</code> objects will be considered equal
  * as well. Some implementations may assume that if two
  * <code>TreePath</code>s are equal, they identify the same node. If this
  * condition is not met, painting problems and other oddities may result.
@@ -50,7 +50,7 @@ import javax.swing.event.*;
  * For further information on tree models,
  * including an example of a custom implementation,
  * see <a
- href="http://docs.oracle.com/javase/tutorial/uiswing/components/tree.html">How to Use Trees</a>
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/tree.html">How to Use Trees</a>
  * in <em>The Java Tutorial.</em>
  *
  * @see TreePath

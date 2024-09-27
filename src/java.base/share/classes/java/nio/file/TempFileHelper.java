@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,8 +36,7 @@ import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import static java.nio.file.attribute.PosixFilePermission.*;
-import sun.security.action.GetPropertyAction;
-
+import jdk.internal.util.StaticProperty;
 
 /**
  * Helper class to support creation of temporary files and directories with
@@ -49,8 +48,7 @@ import sun.security.action.GetPropertyAction;
     private TempFileHelper() { }
 
     // temporary directory location
-    private static final Path tmpdir =
-        Path.of(GetPropertyAction.privilegedGetProperty("java.io.tmpdir"));
+    private static final Path tmpdir = Path.of(StaticProperty.javaIoTmpDir());
 
     private static final boolean isPosix =
         FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
@@ -123,6 +121,7 @@ import sun.security.action.GetPropertyAction;
         }
 
         // loop generating random names until file or directory can be created
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         for (;;) {
             Path f;

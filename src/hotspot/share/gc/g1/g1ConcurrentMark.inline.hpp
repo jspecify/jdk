@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,61 +22,63 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1CONCURRENTMARK_INLINE_HPP
-#define SHARE_VM_GC_G1_G1CONCURRENTMARK_INLINE_HPP
+#ifndef SHARE_GC_G1_G1CONCURRENTMARK_INLINE_HPP
+#define SHARE_GC_G1_G1CONCURRENTMARK_INLINE_HPP
+
+#include "gc/g1/g1ConcurrentMark.hpp"
 
 #include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/g1ConcurrentMark.hpp"
 #include "gc/g1/g1ConcurrentMarkBitMap.inline.hpp"
 #include "gc/g1/g1ConcurrentMarkObjArrayProcessor.inline.hpp"
+#include "gc/g1/g1HeapRegion.hpp"
+#include "gc/g1/g1HeapRegionRemSet.inline.hpp"
 #include "gc/g1/g1OopClosures.inline.hpp"
 #include "gc/g1/g1Policy.hpp"
 #include "gc/g1/g1RegionMarkStatsCache.inline.hpp"
 #include "gc/g1/g1RemSetTrackingPolicy.hpp"
-#include "gc/g1/heapRegionRemSet.hpp"
-#include "gc/g1/heapRegion.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
 #include "utilities/bitMap.inline.hpp"
 
 inline bool G1CMIsAliveClosure::do_object_b(oop obj) {
-  return !_g1h->is_obj_ill(obj);
+  // Check whether the passed in object is null. During discovery the referent
+  // may be cleared between the initial check and being passed in here.
+  if (obj == nullptr) {
+    // Return true to avoid discovery when the referent is null.
+    return true;
+  }
+
+  // All objects allocated since the start of marking are considered live.
+  if (_cm->obj_allocated_since_mark_start(obj)) {
+    return true;
+  }
+
+  // All objects that are marked are live.
+  return _cm->is_marked_in_bitmap(obj);
 }
 
 inline bool G1CMSubjectToDiscoveryClosure::do_object_b(oop obj) {
-  // Re-check whether the passed object is null. With ReferentBasedDiscovery the
-  // mutator may have changed the referent's value (i.e. cleared it) between the
-  // time the referent was determined to be potentially alive and calling this
-  // method.
-  if (obj == NULL) {
-    return false;
-  }
+  assert(obj != nullptr, "precondition");
   assert(_g1h->is_in_reserved(obj), "Trying to discover obj " PTR_FORMAT " not in heap", p2i(obj));
+
   return _g1h->heap_region_containing(obj)->is_old_or_humongous();
 }
 
-inline bool G1ConcurrentMark::mark_in_next_bitmap(uint const worker_id, oop const obj, size_t const obj_size) {
-  HeapRegion* const hr = _g1h->heap_region_containing(obj);
-  return mark_in_next_bitmap(worker_id, hr, obj, obj_size);
-}
-
-inline bool G1ConcurrentMark::mark_in_next_bitmap(uint const worker_id, HeapRegion* const hr, oop const obj, size_t const obj_size) {
-  assert(hr != NULL, "just checking");
-  assert(hr->is_in_reserved(obj), "Attempting to mark object at " PTR_FORMAT " that is not contained in the given region %u", p2i(obj), hr->hrm_index());
-
-  if (hr->obj_allocated_since_next_marking(obj)) {
+inline bool G1ConcurrentMark::mark_in_bitmap(uint const worker_id, oop const obj) {
+  if (obj_allocated_since_mark_start(obj)) {
     return false;
   }
 
-  // Some callers may have stale objects to mark above nTAMS after humongous reclaim.
+  // Some callers may have stale objects to mark above TAMS after humongous reclaim.
   // Can't assert that this is a valid object at this point, since it might be in the process of being copied by another thread.
-  assert(!hr->is_continues_humongous(), "Should not try to mark object " PTR_FORMAT " in Humongous continues region %u above nTAMS " PTR_FORMAT, p2i(obj), hr->hrm_index(), p2i(hr->next_top_at_mark_start()));
+  DEBUG_ONLY(G1HeapRegion* const hr = _g1h->heap_region_containing(obj);)
+  assert(!hr->is_continues_humongous(),
+         "Should not try to mark object " PTR_FORMAT " in Humongous continues region %u above TAMS " PTR_FORMAT,
+         p2i(obj), hr->hrm_index(), p2i(top_at_mark_start(hr)));
 
-  HeapWord* const obj_addr = (HeapWord*)obj;
-
-  bool success = _next_mark_bitmap->par_mark(obj_addr);
+  bool success = _mark_bitmap.par_mark(obj);
   if (success) {
-    add_to_liveness(worker_id, obj, obj_size == 0 ? obj->size() : obj_size);
+    add_to_liveness(worker_id, obj, obj->size());
   }
   return success;
 }
@@ -89,7 +91,7 @@ inline void G1CMMarkStack::iterate(Fn fn) const {
   size_t num_chunks = 0;
 
   TaskQueueEntryChunk* cur = _chunk_list;
-  while (cur != NULL) {
+  while (cur != nullptr) {
     guarantee(num_chunks <= _chunks_in_chunk_list, "Found " SIZE_FORMAT " oop chunks which is more than there should be", num_chunks);
 
     for (size_t i = 0; i < EntriesPerChunk; ++i) {
@@ -108,11 +110,10 @@ inline void G1CMMarkStack::iterate(Fn fn) const {
 inline void G1CMTask::scan_task_entry(G1TaskQueueEntry task_entry) { process_grey_task_entry<true>(task_entry); }
 
 inline void G1CMTask::push(G1TaskQueueEntry task_entry) {
-  assert(task_entry.is_array_slice() || _g1h->is_in_g1_reserved(task_entry.obj()), "invariant");
+  assert(task_entry.is_array_slice() || _g1h->is_in_reserved(task_entry.obj()), "invariant");
   assert(task_entry.is_array_slice() || !_g1h->is_on_master_free_list(
               _g1h->heap_region_containing(task_entry.obj())), "invariant");
-  assert(task_entry.is_array_slice() || !_g1h->is_obj_ill(task_entry.obj()), "invariant");  // FIXME!!!
-  assert(task_entry.is_array_slice() || _next_mark_bitmap->is_marked((HeapWord*)task_entry.obj()), "invariant");
+  assert(task_entry.is_array_slice() || _mark_bitmap->is_marked(cast_from_oop<HeapWord*>(task_entry.obj())), "invariant");
 
   if (!_task_queue->push(task_entry)) {
     // The local task queue looks full. We need to push some entries
@@ -135,14 +136,14 @@ inline bool G1CMTask::is_below_finger(oop obj, HeapWord* global_finger) const {
   // of checking both vs only checking the global finger is that the
   // local check will be more accurate and so result in fewer pushes,
   // but may also be a little slower.
-  HeapWord* objAddr = (HeapWord*)obj;
-  if (_finger != NULL) {
+  HeapWord* objAddr = cast_from_oop<HeapWord*>(obj);
+  if (_finger != nullptr) {
     // We have a current region.
 
-    // Finger and region values are all NULL or all non-NULL.  We
+    // Finger and region values are all null or all non-null.  We
     // use _finger to check since we immediately use its value.
-    assert(_curr_region != NULL, "invariant");
-    assert(_region_limit != NULL, "invariant");
+    assert(_curr_region != nullptr, "invariant");
+    assert(_region_limit != nullptr, "invariant");
     assert(_region_limit <= global_finger, "invariant");
 
     // True if obj is less than the local finger, or is between
@@ -160,7 +161,7 @@ inline bool G1CMTask::is_below_finger(oop obj, HeapWord* global_finger) const {
 template<bool scan>
 inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
   assert(scan || (task_entry.is_oop() && task_entry.obj()->is_typeArray()), "Skipping scan of grey non-typeArray");
-  assert(task_entry.is_array_slice() || _next_mark_bitmap->is_marked((HeapWord*)task_entry.obj()),
+  assert(task_entry.is_array_slice() || _mark_bitmap->is_marked(cast_from_oop<HeapWord*>(task_entry.obj())),
          "Any stolen object should be a slice or marked");
 
   if (scan) {
@@ -183,35 +184,62 @@ inline size_t G1CMTask::scan_objArray(objArrayOop obj, MemRegion mr) {
   return mr.word_size();
 }
 
-inline HeapWord* G1ConcurrentMark::top_at_rebuild_start(uint region) const {
-  assert(region < _g1h->max_regions(), "Tried to access TARS for region %u out of bounds", region);
-  return _top_at_rebuild_starts[region];
+inline void G1ConcurrentMark::update_top_at_mark_start(G1HeapRegion* r) {
+  uint const region = r->hrm_index();
+  assert(region < _g1h->max_reserved_regions(), "Tried to access TAMS for region %u out of bounds", region);
+  _top_at_mark_starts[region] = r->top();
 }
 
-inline void G1ConcurrentMark::update_top_at_rebuild_start(HeapRegion* r) {
+inline void G1ConcurrentMark::reset_top_at_mark_start(G1HeapRegion* r) {
+  _top_at_mark_starts[r->hrm_index()] = r->bottom();
+}
+
+inline HeapWord* G1ConcurrentMark::top_at_mark_start(const G1HeapRegion* r) const {
+  return top_at_mark_start(r->hrm_index());
+}
+
+inline HeapWord* G1ConcurrentMark::top_at_mark_start(uint region) const {
+  assert(region < _g1h->max_reserved_regions(), "Tried to access TARS for region %u out of bounds", region);
+  return _top_at_mark_starts[region];
+}
+
+inline bool G1ConcurrentMark::obj_allocated_since_mark_start(oop obj) const {
+  uint const region = _g1h->addr_to_region(obj);
+  assert(region < _g1h->max_reserved_regions(), "obj " PTR_FORMAT " outside heap %u", p2i(obj), region);
+  return cast_from_oop<HeapWord*>(obj) >= top_at_mark_start(region);
+}
+
+inline HeapWord* G1ConcurrentMark::top_at_rebuild_start(G1HeapRegion* r) const {
+  return _top_at_rebuild_starts[r->hrm_index()];
+}
+
+inline void G1ConcurrentMark::update_top_at_rebuild_start(G1HeapRegion* r) {
+  assert(r->is_old() || r->is_humongous(), "precondition");
+
   uint const region = r->hrm_index();
-  assert(region < _g1h->max_regions(), "Tried to access TARS for region %u out of bounds", region);
-  assert(_top_at_rebuild_starts[region] == NULL,
-         "TARS for region %u has already been set to " PTR_FORMAT " should be NULL",
+  assert(region < _g1h->max_reserved_regions(), "Tried to access TARS for region %u out of bounds", region);
+  assert(_top_at_rebuild_starts[region] == nullptr,
+         "TARS for region %u has already been set to " PTR_FORMAT " should be null",
          region, p2i(_top_at_rebuild_starts[region]));
-  G1RemSetTrackingPolicy* tracker = _g1h->g1_policy()->remset_tracker();
-  if (tracker->needs_scan_for_rebuild(r)) {
-    _top_at_rebuild_starts[region] = r->top();
-  } else {
-    // Leave TARS at NULL.
-  }
+  _top_at_rebuild_starts[region] = r->top();
 }
 
 inline void G1CMTask::update_liveness(oop const obj, const size_t obj_size) {
-  _mark_stats_cache.add_live_words(_g1h->addr_to_region((HeapWord*)obj), obj_size);
+  _mark_stats_cache.add_live_words(_g1h->addr_to_region(obj), obj_size);
 }
 
 inline void G1ConcurrentMark::add_to_liveness(uint worker_id, oop const obj, size_t size) {
   task(worker_id)->update_liveness(obj, size);
 }
 
+inline void G1CMTask::abort_marking_if_regular_check_fail() {
+  if (!regular_clock_call()) {
+    set_has_aborted();
+  }
+}
+
 inline bool G1CMTask::make_reference_grey(oop obj) {
-  if (!_cm->mark_in_next_bitmap(_worker_id, obj)) {
+  if (!_cm->mark_in_bitmap(_worker_id, obj)) {
     return false;
   }
 
@@ -256,26 +284,20 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
 template <class T>
 inline bool G1CMTask::deal_with_reference(T* p) {
   increment_refs_reached();
-  oop const obj = RawAccess<MO_VOLATILE>::oop_load(p);
-  if (obj == NULL) {
+  oop const obj = RawAccess<MO_RELAXED>::oop_load(p);
+  if (obj == nullptr) {
     return false;
   }
   return make_reference_grey(obj);
 }
 
-inline void G1ConcurrentMark::mark_in_prev_bitmap(oop p) {
-  assert(!_prev_mark_bitmap->is_marked((HeapWord*) p), "sanity");
- _prev_mark_bitmap->mark((HeapWord*) p);
+inline void G1ConcurrentMark::raw_mark_in_bitmap(oop obj) {
+  _mark_bitmap.par_mark(obj);
 }
 
-bool G1ConcurrentMark::is_marked_in_prev_bitmap(oop p) const {
-  assert(p != NULL && oopDesc::is_oop(p), "expected an oop");
-  return _prev_mark_bitmap->is_marked((HeapWord*)p);
-}
-
-bool G1ConcurrentMark::is_marked_in_next_bitmap(oop p) const {
-  assert(p != NULL && oopDesc::is_oop(p), "expected an oop");
-  return _next_mark_bitmap->is_marked((HeapWord*)p);
+bool G1ConcurrentMark::is_marked_in_bitmap(oop p) const {
+  assert(p != nullptr && oopDesc::is_oop(p), "expected an oop");
+  return _mark_bitmap.is_marked(cast_from_oop<HeapWord*>(p));
 }
 
 inline bool G1ConcurrentMark::do_yield_check() {
@@ -287,4 +309,4 @@ inline bool G1ConcurrentMark::do_yield_check() {
   }
 }
 
-#endif // SHARE_VM_GC_G1_G1CONCURRENTMARK_INLINE_HPP
+#endif // SHARE_GC_G1_G1CONCURRENTMARK_INLINE_HPP

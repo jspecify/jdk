@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpClient.Builder;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
@@ -43,21 +44,29 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Flow;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
+import jdk.httpclient.test.lib.common.HttpServerAdapters;
+import jdk.httpclient.test.lib.http2.Http2TestServer;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
-import jdk.testlibrary.SimpleSSLContext;
+import jdk.test.lib.net.SimpleSSLContext;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import static java.net.http.HttpClient.Version.HTTP_1_1;
+import static java.net.http.HttpClient.Version.HTTP_2;
 import static java.nio.charset.StandardCharsets.UTF_16;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.net.http.HttpRequest.BodyPublishers.ofString;
@@ -71,16 +80,11 @@ import static org.testng.Assert.assertTrue;
  * @summary Basic tests for line adapter subscribers as created by
  *          the BodyHandlers returned by BodyHandler::fromLineSubscriber
  *          and BodyHandler::asLines
- * @modules java.base/sun.net.www.http
- *          java.net.http/jdk.internal.net.http.common
- *          java.net.http/jdk.internal.net.http.frame
- *          java.net.http/jdk.internal.net.http.hpack
- *          java.logging
- *          jdk.httpserver
- * @library /lib/testlibrary http2/server
- * @build Http2TestServer LineBodyHandlerTest HttpServerAdapters
- * @build jdk.testlibrary.SimpleSSLContext
- * @run testng/othervm LineBodyHandlerTest
+ * @bug 8256459
+ * @library /test/lib /test/jdk/java/net/httpclient/lib
+ * @build ReferenceTracker jdk.httpclient.test.lib.http2.Http2TestServer
+ *        jdk.test.lib.net.SimpleSSLContext
+ * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:DiagnoseSyncOnValueBasedClasses=1 LineBodyHandlerTest
  */
 
 public class LineBodyHandlerTest implements HttpServerAdapters {
@@ -94,6 +98,10 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
     String httpsURI;
     String http2URI;
     String https2URI;
+
+    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    final AtomicInteger clientCount = new AtomicInteger();
+    HttpClient sharedClient;
 
     @DataProvider(name = "uris")
     public Object[][] variants() {
@@ -182,11 +190,21 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         }
     }
 
+    HttpClient newClient() {
+        if (sharedClient != null) {
+            return sharedClient;
+        }
+        clientCount.incrementAndGet();
+        return sharedClient = TRACKER.track(HttpClient.newBuilder()
+                .sslContext(sslContext)
+                .proxy(Builder.NO_PROXY)
+                .build());
+    }
+
     @Test(dataProvider = "uris")
     void testStringWithFinisher(String url) {
         String body = "May the luck of the Irish be with you!";
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext)
-                .build();
+        HttpClient client = newClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(BodyPublishers.ofString(body))
                 .build();
@@ -207,8 +225,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
     @Test(dataProvider = "uris")
     void testAsStream(String url) {
         String body = "May the luck of the Irish be with you!";
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext)
-                .build();
+        HttpClient client = newClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(BodyPublishers.ofString(body))
                 .build();
@@ -230,7 +247,8 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
     @Test(dataProvider = "uris")
     void testStringWithFinisher2(String url) {
         String body = "May the luck\r\n\r\n of the Irish be with you!";
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
+        HttpClient client = newClient();
+
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(BodyPublishers.ofString(body))
                 .build();
@@ -251,7 +269,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
     @Test(dataProvider = "uris")
     void testAsStreamWithCRLF(String url) {
         String body = "May the luck\r\n\r\n of the Irish be with you!";
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
+        HttpClient client = newClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(BodyPublishers.ofString(body))
                 .build();
@@ -275,7 +293,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
     @Test(dataProvider = "uris")
     void testStringWithFinisherBlocking(String url) throws Exception {
         String body = "May the luck of the Irish be with you!";
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
+        HttpClient client = newClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(BodyPublishers.ofString(body)).build();
 
@@ -292,7 +310,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
     @Test(dataProvider = "uris")
     void testStringWithoutFinisherBlocking(String url) throws Exception {
         String body = "May the luck of the Irish be with you!";
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
+        HttpClient client = newClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(BodyPublishers.ofString(body)).build();
 
@@ -311,7 +329,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
     @Test(dataProvider = "uris")
     void testAsStreamWithMixedCRLF(String url) {
         String body = "May\r\n the wind\r\n always be\rat your back.\r\r";
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
+        HttpClient client = newClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(BodyPublishers.ofString(body))
                 .build();
@@ -338,7 +356,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
     @Test(dataProvider = "uris")
     void testAsStreamWithMixedCRLF_UTF8(String url) {
         String body = "May\r\n the wind\r\n always be\rat your back.\r\r";
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
+        HttpClient client = newClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .header("Content-type", "text/text; charset=UTF-8")
                 .POST(BodyPublishers.ofString(body, UTF_8)).build();
@@ -364,7 +382,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
     @Test(dataProvider = "uris")
     void testAsStreamWithMixedCRLF_UTF16(String url) {
         String body = "May\r\n the wind\r\n always be\rat your back.\r\r";
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
+        HttpClient client = newClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .header("Content-type", "text/text; charset=UTF-16")
                 .POST(BodyPublishers.ofString(body, UTF_16)).build();
@@ -391,7 +409,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
     @Test(dataProvider = "uris")
     void testObjectWithFinisher(String url) {
         String body = "May\r\n the wind\r\n always be\rat your back.";
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
+        HttpClient client = newClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(BodyPublishers.ofString(body))
                 .build();
@@ -416,7 +434,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
     @Test(dataProvider = "uris")
     void testObjectWithFinisher_UTF16(String url) {
         String body = "May\r\n the wind\r\n always be\rat your back.\r\r";
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
+        HttpClient client = newClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .header("Content-type", "text/text; charset=UTF-16")
                 .POST(BodyPublishers.ofString(body, UTF_16)).build();
@@ -442,8 +460,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
     @Test(dataProvider = "uris")
     void testObjectWithoutFinisher(String url) {
         String body = "May\r\n the wind\r\n always be\rat your back.";
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext)
-                .build();
+        HttpClient client = newClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(BodyPublishers.ofString(body))
                 .build();
@@ -469,8 +486,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
     @Test(dataProvider = "uris")
     void testObjectWithFinisherBlocking(String url) throws Exception {
         String body = "May\r\n the wind\r\n always be\nat your back.";
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext)
-                .build();
+        HttpClient client = newClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(BodyPublishers.ofString(body))
                 .build();
@@ -494,8 +510,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
     @Test(dataProvider = "uris")
     void testObjectWithoutFinisherBlocking(String url) throws Exception {
         String body = "May\r\n the wind\r\n always be\nat your back.";
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext)
-                .build();
+        HttpClient client = newClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(BodyPublishers.ofString(body))
                 .build();
@@ -529,8 +544,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
 
     @Test(dataProvider = "uris")
     void testBigTextFromLineSubscriber(String url) {
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext)
-                .build();
+        HttpClient client = newClient();
         String bigtext = bigtext();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(BodyPublishers.ofString(bigtext))
@@ -551,8 +565,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
 
     @Test(dataProvider = "uris")
     void testBigTextAsStream(String url) {
-        HttpClient client = HttpClient.newBuilder().sslContext(sslContext)
-                .build();
+        HttpClient client = newClient();
         String bigtext = bigtext();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(BodyPublishers.ofString(bigtext))
@@ -640,28 +653,40 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         }
     }
 
+    private static ExecutorService executorFor(String serverThreadName) {
+        ThreadFactory factory = new ThreadFactory() {
+            final AtomicInteger counter = new AtomicInteger();
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread thread = new Thread(r);
+                thread.setName(serverThreadName + "#" + counter.incrementAndGet());
+                return thread;
+            }
+        };
+        return Executors.newCachedThreadPool(factory);
+    }
+
     @BeforeTest
     public void setup() throws Exception {
         sslContext = new SimpleSSLContext().get();
         if (sslContext == null)
             throw new AssertionError("Unexpected null sslContext");
 
-        InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-        httpTestServer = HttpTestServer.of(HttpServer.create(sa, 0));
+        httpTestServer = HttpTestServer.create(HTTP_1_1, null,
+                executorFor("HTTP/1.1 Server Thread"));
         httpTestServer.addHandler(new HttpTestEchoHandler(), "/http1/echo");
         httpURI = "http://" + httpTestServer.serverAuthority() + "/http1/echo";
 
-        HttpsServer httpsServer = HttpsServer.create(sa, 0);
-        httpsServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
-        httpsTestServer = HttpTestServer.of(httpsServer);
+        httpsTestServer = HttpTestServer.create(HTTP_1_1, sslContext,
+                executorFor("HTTPS/1.1 Server Thread"));
         httpsTestServer.addHandler(new HttpTestEchoHandler(),"/https1/echo");
         httpsURI = "https://" + httpsTestServer.serverAuthority() + "/https1/echo";
 
-        http2TestServer = HttpTestServer.of(new Http2TestServer("localhost", false, 0));
+        http2TestServer = HttpTestServer.create(HTTP_2);
         http2TestServer.addHandler(new HttpTestEchoHandler(), "/http2/echo");
         http2URI = "http://" + http2TestServer.serverAuthority() + "/http2/echo";
 
-        https2TestServer = HttpTestServer.of(new Http2TestServer("localhost", true, sslContext));
+        https2TestServer = HttpTestServer.create(HTTP_2, sslContext);
         https2TestServer.addHandler(new HttpTestEchoHandler(), "/https2/echo");
         https2URI = "https://" + https2TestServer.serverAuthority() + "/https2/echo";
 
@@ -673,10 +698,21 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
 
     @AfterTest
     public void teardown() throws Exception {
+        sharedClient = null;
+        try {
+            System.gc();
+            Thread.sleep(200);
+        } catch (InterruptedException io) {
+            // don't care;
+        }
+        AssertionError fail = TRACKER.check(500);
+        System.out.printf("Tear down: %s client created.%n", clientCount.get());
+        System.err.printf("Tear down: %s client created.%n", clientCount.get());
         httpTestServer.stop();
         httpsTestServer.stop();
         http2TestServer.stop();
         https2TestServer.stop();
+        if (fail != null) throw fail;
     }
 
     static void printBytes(PrintStream out, String prefix, byte[] bytes) {

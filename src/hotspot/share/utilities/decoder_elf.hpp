@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_DECODER_ELF_HPP
-#define SHARE_VM_UTILITIES_DECODER_ELF_HPP
+#ifndef SHARE_UTILITIES_DECODER_ELF_HPP
+#define SHARE_UTILITIES_DECODER_ELF_HPP
 
 #if !defined(_WINDOWS) && !defined(__APPLE__)
 
@@ -33,10 +33,8 @@
 class ElfDecoder : public AbstractDecoder {
 
 public:
-  ElfDecoder() {
-    _opened_elf_files = NULL;
-    _decoder_status = no_error;
-  }
+  ElfDecoder() : AbstractDecoder(no_error), _opened_elf_files(nullptr) {}
+
   virtual ~ElfDecoder();
 
   bool demangle(const char* symbol, char *buf, int buflen);
@@ -45,6 +43,7 @@ public:
     ShouldNotReachHere();
     return false;
   }
+  bool get_source_info(address pc, char* buf, size_t buflen, int* line, bool is_pc_after_call);
 
 private:
   ElfFile*         get_elf_file(const char* filepath);
@@ -54,4 +53,4 @@ private:
 };
 
 #endif // !_WINDOWS && !__APPLE__
-#endif // SHARE_VM_UTILITIES_DECODER_ELF_HPP
+#endif // SHARE_UTILITIES_DECODER_ELF_HPP

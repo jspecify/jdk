@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_ARM_VM_ASSEMBLER_ARM_HPP
-#define CPU_ARM_VM_ASSEMBLER_ARM_HPP
+#ifndef CPU_ARM_ASSEMBLER_ARM_HPP
+#define CPU_ARM_ASSEMBLER_ARM_HPP
 
 #include "utilities/macros.hpp"
 
@@ -40,29 +40,14 @@ enum AsmShift {
   lsl, lsr, asr, ror
 };
 
-#ifdef AARCH64
-enum AsmExtendOp {
-  ex_uxtb, ex_uxth, ex_uxtw, ex_uxtx,
-  ex_sxtb, ex_sxth, ex_sxtw, ex_sxtx,
-
-  ex_lsl = ex_uxtx
-};
-#endif
 
 enum AsmOffset {
-#ifdef AARCH64
-  basic_offset = 0b00,
-  pre_indexed  = 0b11,
-  post_indexed = 0b01
-#else
   basic_offset = 1 << 24,
   pre_indexed  = 1 << 24 | 1 << 21,
   post_indexed = 0
-#endif
 };
 
 
-#ifndef AARCH64
 enum AsmWriteback {
   no_writeback,
   writeback
@@ -72,7 +57,6 @@ enum AsmOffsetOp {
   sub_offset = 0,
   add_offset = 1
 };
-#endif
 
 
 // ARM Addressing Modes 2 and 3 - Load and store
@@ -84,21 +68,13 @@ class Address {
   AsmOffset _mode;
   RelocationHolder   _rspec;
   int       _shift_imm;
-#ifdef AARCH64
-  AsmExtendOp _extend;
-#else
   AsmShift  _shift;
   AsmOffsetOp _offset_op;
 
   static inline int abs(int x) { return x < 0 ? -x : x; }
   static inline int up (int x) { return x < 0 ?  0 : 1; }
-#endif
 
-#ifdef AARCH64
-  static const AsmExtendOp LSL = ex_lsl;
-#else
   static const AsmShift LSL = lsl;
-#endif
 
  public:
   Address() : _base(noreg) {}
@@ -109,42 +85,13 @@ class Address {
     _disp = offset;
     _mode = mode;
     _shift_imm = 0;
-#ifdef AARCH64
-    _extend = ex_lsl;
-#else
     _shift = lsl;
     _offset_op = add_offset;
-#endif
   }
 
-#ifdef ASSERT
-  Address(Register rn, ByteSize offset, AsmOffset mode = basic_offset) {
-    _base = rn;
-    _index = noreg;
-    _disp = in_bytes(offset);
-    _mode = mode;
-    _shift_imm = 0;
-#ifdef AARCH64
-    _extend = ex_lsl;
-#else
-    _shift = lsl;
-    _offset_op = add_offset;
-#endif
-  }
-#endif
+  Address(Register rn, ByteSize offset, AsmOffset mode = basic_offset) :
+    Address(rn, in_bytes(offset), mode) {}
 
-#ifdef AARCH64
-  Address(Register rn, Register rm, AsmExtendOp extend = ex_lsl, int shift_imm = 0) {
-    assert ((extend == ex_uxtw) || (extend == ex_lsl) || (extend == ex_sxtw) || (extend == ex_sxtx), "invalid extend for address mode");
-    assert ((0 <= shift_imm) && (shift_imm <= 4), "shift amount is out of range");
-    _base = rn;
-    _index = rm;
-    _disp = 0;
-    _mode = basic_offset;
-    _extend = extend;
-    _shift_imm = shift_imm;
-  }
-#else
   Address(Register rn, Register rm, AsmShift shift = lsl,
           int shift_imm = 0, AsmOffset mode = basic_offset,
           AsmOffsetOp offset_op = add_offset) {
@@ -181,7 +128,6 @@ class Address {
     _mode = basic_offset;
     _offset_op = add_offset;
   }
-#endif // AARCH64
 
   // [base + index * wordSize]
   static Address indexed_ptr(Register base, Register index) {
@@ -211,25 +157,6 @@ class Address {
     return a;
   }
 
-#ifdef AARCH64
-  int encoding_simd() const {
-    assert(_index != SP, "encoding constraint");
-    assert(_disp == 0 || _mode == post_indexed,  "encoding constraint");
-    assert(_index == noreg || _mode == basic_offset, "encoding constraint");
-    assert(_mode == basic_offset || _mode == post_indexed, "encoding constraint");
-    assert(_extend == ex_lsl, "encoding constraint");
-    int index;
-    if (_index == noreg) {
-      if (_mode == post_indexed)
-        index = 0b100 << 5 | 31;
-      else
-        index = 0;
-    } else {
-      index = 0b100 << 5 | _index->encoding();
-    }
-    return index << 16 | _base->encoding_with_sp() << 5;
-  }
-#else /* !AARCH64 */
   int encoding2() const {
     assert(_mode == basic_offset || _base != PC, "unpredictable instruction");
     if (_index == noreg) {
@@ -248,7 +175,7 @@ class Address {
     if (_index == noreg) {
       assert(-256 < _disp && _disp < 256, "encoding constraint");
       return _mode | up(_disp) << 23 | 1 << 22 | _base->encoding() << 16 |
-             (abs(_disp) & 0xf0) << 4 | abs(_disp) & 0x0f;
+             (abs(_disp) & 0xf0) << 4 | (abs(_disp) & 0x0f);
     } else {
       assert(_index != PC && (_mode == basic_offset || _index != _base), "unpredictable instruction");
       assert(_disp == 0 && _shift == lsl && _shift_imm == 0, "encoding constraint");
@@ -287,7 +214,6 @@ class Address {
 
     return _base->encoding() << 16 | index;
   }
-#endif // !AARCH64
 
   Register base() const {
     return _base;
@@ -309,11 +235,6 @@ class Address {
     return _shift_imm;
   }
 
-#ifdef AARCH64
-  AsmExtendOp extend() const {
-    return _extend;
-  }
-#else
   AsmShift shift() const {
     return _shift;
   }
@@ -321,11 +242,10 @@ class Address {
   AsmOffsetOp offset_op() const {
     return _offset_op;
   }
-#endif
 
   bool uses(Register reg) const { return _base == reg || _index == reg; }
 
-  const relocInfo::relocType rtype() { return _rspec.type(); }
+  relocInfo::relocType rtype()       { return _rspec.type(); }
   const RelocationHolder&    rspec() { return _rspec; }
 
   // Convert the raw encoding form into the form expected by the
@@ -359,46 +279,36 @@ class VFP {
   class float_num : public fpnum {
    public:
     float_num(float v) {
-      _num.val = v;
+      _bits = PrimitiveConversions::cast<unsigned int>(v);
     }
 
-    virtual unsigned int f_hi4() const { return (_num.bits << 9) >> (19+9); }
-    virtual bool f_lo_is_null() const { return (_num.bits & ((1 << 19) - 1)) == 0; }
-    virtual int e() const { return ((_num.bits << 1) >> (23+1)) - 127; }
-    virtual unsigned int s() const { return _num.bits >> 31; }
+    unsigned int f_hi4() const override { return (_bits << 9) >> (19+9); }
+    bool f_lo_is_null() const override { return (_bits & ((1 << 19) - 1)) == 0; }
+    int e() const override { return ((_bits << 1) >> (23+1)) - 127; }
+    unsigned int s() const override { return _bits >> 31; }
 
    private:
-    union {
-      float val;
-      unsigned int bits;
-    } _num;
+    unsigned int _bits;
   };
 
   class double_num : public fpnum {
    public:
     double_num(double v) {
-      _num.val = v;
+      _bits = PrimitiveConversions::cast<uint64_t>(v);
     }
 
-    virtual unsigned int f_hi4() const { return (_num.bits << 12) >> (48+12); }
-    virtual bool f_lo_is_null() const { return (_num.bits & ((1LL << 48) - 1)) == 0; }
-    virtual int e() const { return ((_num.bits << 1) >> (52+1)) - 1023; }
-    virtual unsigned int s() const { return _num.bits >> 63; }
+    unsigned int f_hi4() const override { return (_bits << 12) >> (48+12); }
+    bool f_lo_is_null() const override { return (_bits & ((1LL << 48) - 1)) == 0; }
+    int e() const override { return ((_bits << 1) >> (52+1)) - 1023; }
+    unsigned int s() const override { return _bits >> 63; }
 
    private:
-    union {
-      double val;
-      unsigned long long bits;
-    } _num;
+    uint64_t _bits;
   };
 };
 #endif
 
-#ifdef AARCH64
-#include "assembler_arm_64.hpp"
-#else
 #include "assembler_arm_32.hpp"
-#endif
 
 
-#endif // CPU_ARM_VM_ASSEMBLER_ARM_HPP
+#endif // CPU_ARM_ASSEMBLER_ARM_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  */
 
 /*
@@ -28,8 +28,6 @@ import com.sun.org.apache.xerces.internal.util.XMLAttributesIteratorImpl;
 import com.sun.org.apache.xerces.internal.util.XMLChar;
 import com.sun.org.apache.xerces.internal.util.XMLStringBuffer;
 import com.sun.org.apache.xerces.internal.util.XMLSymbols;
-import com.sun.org.apache.xerces.internal.utils.XMLSecurityManager.Limit;
-import com.sun.org.apache.xerces.internal.utils.XMLSecurityManager;
 import com.sun.org.apache.xerces.internal.utils.XMLSecurityPropertyManager;
 import com.sun.org.apache.xerces.internal.xni.Augmentations;
 import com.sun.org.apache.xerces.internal.xni.QName;
@@ -53,8 +51,11 @@ import javax.xml.XMLConstants;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.events.XMLEvent;
+import jdk.xml.internal.JdkConstants;
 import jdk.xml.internal.JdkXmlUtils;
 import jdk.xml.internal.SecuritySupport;
+import jdk.xml.internal.XMLSecurityManager;
+import jdk.xml.internal.XMLSecurityManager.Limit;
 
 /**
  *
@@ -73,7 +74,7 @@ import jdk.xml.internal.SecuritySupport;
  * @author Eric Ye, IBM
  * @author Sunitha Reddy, SUN Microsystems
  *
- * @LastModified: Sep 2017
+ * @LastModified: Nov 2023
  */
 public class XMLDocumentFragmentScannerImpl
         extends XMLScanner
@@ -163,14 +164,18 @@ public class XMLDocumentFragmentScannerImpl
     protected static final String STANDARD_URI_CONFORMANT =
             Constants.XERCES_FEATURE_PREFIX +Constants.STANDARD_URI_CONFORMANT_FEATURE;
 
+    /** Feature id: create entity ref nodes. */
+    protected static final String CREATE_ENTITY_REF_NODES =
+            Constants.XERCES_FEATURE_PREFIX + Constants.CREATE_ENTITY_REF_NODES_FEATURE;
+
     /** Property identifier: Security property manager. */
     private static final String XML_SECURITY_PROPERTY_MANAGER =
-            Constants.XML_SECURITY_PROPERTY_MANAGER;
+            JdkConstants.XML_SECURITY_PROPERTY_MANAGER;
 
     /** access external dtd: file protocol
      *  For DOM/SAX, the secure feature is set to true by default
      */
-    final static String EXTERNAL_ACCESS_DEFAULT = Constants.EXTERNAL_ACCESS_DEFAULT;
+    final static String EXTERNAL_ACCESS_DEFAULT = JdkConstants.EXTERNAL_ACCESS_DEFAULT;
 
     // recognized features and properties
 
@@ -204,7 +209,7 @@ public class XMLDocumentFragmentScannerImpl
                 JdkXmlUtils.CATALOG_FILES,
                 JdkXmlUtils.CATALOG_PREFER,
                 JdkXmlUtils.CATALOG_RESOLVE,
-                JdkXmlUtils.CDATA_CHUNK_SIZE
+                JdkConstants.CDATA_CHUNK_SIZE
     };
 
     /** Property defaults. */
@@ -217,7 +222,7 @@ public class XMLDocumentFragmentScannerImpl
                 null,
                 null,
                 null,
-                JdkXmlUtils.CDATA_CHUNK_SIZE_DEFAULT
+                JdkConstants.CDATA_CHUNK_SIZE_DEFAULT
     };
 
 
@@ -321,6 +326,11 @@ public class XMLDocumentFragmentScannerImpl
     protected String fDeclaredEncoding =  null;
     /** Xerces Feature: Disallow doctype declaration. */
     protected boolean fDisallowDoctype = false;
+    // DTD Error Code
+    protected String fDTDErrorCode = null;
+
+    /** Create entity reference nodes. */
+    protected boolean fCreateEntityRefNodes = false;
 
     /**
      * CDATA chunk size limit
@@ -332,6 +342,13 @@ public class XMLDocumentFragmentScannerImpl
      * of accessing external dtd or entity references
      */
     protected String fAccessExternalDTD = EXTERNAL_ACCESS_DEFAULT;
+
+    /**
+     * Properties to determine whether to use a user-specified Catalog:
+     * Feature USE_CATALOG, Resolve and Catalog File
+     */
+    protected boolean fUseCatalog = true;
+    protected String fCatalogFile;
 
     /**
      * standard uri conformant (strict uri).
@@ -596,6 +613,8 @@ public class XMLDocumentFragmentScannerImpl
         fSecurityManager = (XMLSecurityManager)componentManager.getProperty(Constants.SECURITY_MANAGER, null);
         fNotifyBuiltInRefs = componentManager.getFeature(NOTIFY_BUILTIN_REFS, false);
 
+        fCreateEntityRefNodes = componentManager.getFeature(CREATE_ENTITY_REF_NODES, fCreateEntityRefNodes);
+
         Object resolver = componentManager.getProperty(ENTITY_RESOLVER, null);
         fExternalSubsetResolver = (resolver instanceof ExternalSubsetResolver) ?
                 (ExternalSubsetResolver) resolver : null;
@@ -618,8 +637,8 @@ public class XMLDocumentFragmentScannerImpl
         fAccessExternalDTD = spm.getValue(XMLSecurityPropertyManager.Property.ACCESS_EXTERNAL_DTD);
 
         fStrictURI = componentManager.getFeature(STANDARD_URI_CONFORMANT, false);
-        fChunkSize = JdkXmlUtils.getValue(componentManager.getProperty(JdkXmlUtils.CDATA_CHUNK_SIZE),
-                JdkXmlUtils.CDATA_CHUNK_SIZE_DEFAULT);
+        fChunkSize = JdkXmlUtils.getValue(componentManager.getProperty(JdkConstants.CDATA_CHUNK_SIZE),
+                JdkConstants.CDATA_CHUNK_SIZE_DEFAULT);
 
         resetCommon();
         //fEntityManager.test();
@@ -665,8 +684,8 @@ public class XMLDocumentFragmentScannerImpl
         fAccessExternalDTD = spm.getValue(XMLSecurityPropertyManager.Property.ACCESS_EXTERNAL_DTD);
 
         fSecurityManager = (XMLSecurityManager)propertyManager.getProperty(Constants.SECURITY_MANAGER);
-        fChunkSize = JdkXmlUtils.getValue(propertyManager.getProperty(JdkXmlUtils.CDATA_CHUNK_SIZE),
-                JdkXmlUtils.CDATA_CHUNK_SIZE_DEFAULT);
+        fChunkSize = JdkXmlUtils.getValue(propertyManager.getProperty(JdkConstants.CDATA_CHUNK_SIZE),
+                JdkConstants.CDATA_CHUNK_SIZE_DEFAULT);
         resetCommon();
     } // reset(XMLComponentManager)
 
@@ -782,7 +801,7 @@ public class XMLDocumentFragmentScannerImpl
         }
 
 
-                // Xerces properties
+        // Xerces properties
         if (propertyId.startsWith(Constants.XERCES_PROPERTY_PREFIX)) {
             String property = propertyId.substring(Constants.XERCES_PROPERTY_PREFIX.length());
             if (property.equals(Constants.ENTITY_MANAGER_PROPERTY)) {
@@ -1634,6 +1653,8 @@ public class XMLDocumentFragmentScannerImpl
                     }
                 } else {
                     //CData partially returned due to the size limit
+                    fInCData = true;
+                    fCDataEnd = false;
                     break;
                 }
                 //by this time we have also read surrogate contents if any...
@@ -1835,14 +1856,20 @@ public class XMLDocumentFragmentScannerImpl
             } else
                 reportFatalError("EntityNotDeclared", new Object[]{name});
         }
-        //we are starting the entity even if the entity was not declared
-        //if that was the case it its taken care in XMLEntityManager.startEntity()
-        //we immediately call the endEntity. Application gets to know if there was
-        //any entity that was not declared.
-        fEntityManager.startEntity(true, name, false);
-        //set the scaner state to content.. parser will automatically revive itself at any point of time.
-        //setScannerState(SCANNER_STATE_CONTENT);
-        //return true ;
+
+        // create EntityReference only
+        if (fCreateEntityRefNodes) {
+            fDocumentHandler.startGeneralEntity(name, null, null, null);
+        } else {
+            //we are starting the entity even if the entity was not declared
+            //if that was the case it its taken care in XMLEntityManager.startEntity()
+            //we immediately call the endEntity. Application gets to know if there was
+            //any entity that was not declared.
+            fEntityManager.startEntity(true, name, false);
+            //set the scaner state to content.. parser will automatically revive itself at any point of time.
+            //setScannerState(SCANNER_STATE_CONTENT);
+            //return true ;
+        }
     } // scanEntityReference()
 
     // utility methods
@@ -1995,7 +2022,7 @@ public class XMLDocumentFragmentScannerImpl
     String checkAccess(String systemId, String allowedProtocols) throws IOException {
         String baseSystemId = fEntityScanner.getBaseSystemId();
         String expandedSystemId = XMLEntityManager.expandSystemId(systemId, baseSystemId, fStrictURI);
-        return SecuritySupport.checkAccess(expandedSystemId, allowedProtocols, Constants.ACCESS_EXTERNAL_ALL);
+        return SecuritySupport.checkAccess(expandedSystemId, allowedProtocols, JdkConstants.ACCESS_EXTERNAL_ALL);
     }
 
     //
@@ -2928,7 +2955,11 @@ public class XMLDocumentFragmentScannerImpl
                         fUsebuffer = true;
                         //CDATA section is read up to the chunk size limit
                         scanCDATASection(fContentBuffer , true);
-                        setScannerState(SCANNER_STATE_CONTENT);
+                        if (!fCDataEnd) {
+                            setScannerState(SCANNER_STATE_CDATA);
+                        } else {
+                            setScannerState(SCANNER_STATE_CONTENT);
+                        }
                         //1. if fIsCoalesce is set to true we set the variable fLastSectionWasCData to true
                         //and just call fDispatche.next(). Since we have set the scanner state to
                         //SCANNER_STATE_CONTENT (super state) parser will automatically recover and
@@ -2941,9 +2972,6 @@ public class XMLDocumentFragmentScannerImpl
                             //there might be more data to coalesce.
                             continue;
                         } else if(fReportCdataEvent) {
-                            if (!fCDataEnd) {
-                                setScannerState(SCANNER_STATE_CDATA);
-                            }
                             return XMLEvent.CDATA;
                         } else {
                             return XMLEvent.CHARACTERS;
@@ -3008,7 +3036,7 @@ public class XMLDocumentFragmentScannerImpl
                                 return XMLEvent.ENTITY_REFERENCE;
                             }
                         }
-                        //Wether it was character reference, entity reference or built-in entity
+                        //Whether it was character reference, entity reference or built-in entity
                         //set the next possible state to SCANNER_STATE_CONTENT
                         setScannerState(SCANNER_STATE_CONTENT);
                         fLastSectionWasEntityReference = true ;

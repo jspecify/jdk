@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -64,8 +62,8 @@ public final class TestModuleEvents {
         recording.stop();
 
         List<RecordedEvent> events = Events.fromRecording(recording);
-        assertDependency(events, "jdk.jfr", "java.base"); // jdk.jfr requires java.base (by edfault)
-        assertDependency(events, "java.base", "jdk.jfr"); // java.base require jdk.jfr for JDK events, i.e. FileRead
+        assertDependency(events, "jdk.jfr", "java.base"); // jdk.jfr requires java.base (by default)
+        assertDependency(events, "java.base", "jdk.jfr"); // java.base requires jdk.jfr for JDK events, i.e. FileRead
 
         recording.close();
     }
@@ -97,8 +95,9 @@ public final class TestModuleEvents {
         events.stream().forEach((ev) -> {
             String exportedPackage = getValue(ev.getValue("exportedPackage"), "name", UNNAMED);
             String toModule = getValue(ev.getValue("targetModule"), "name", UNNAMED);
-
-            edges.put(exportedPackage, toModule);
+            if (!toModule.equals("jdk.proxy1")) { // ignore jdk.proxy1 module
+                edges.put(exportedPackage, toModule);
+            }
         });
 
         // We expect
@@ -110,7 +109,7 @@ public final class TestModuleEvents {
         assertEquals(edges.get("jdk/jfr"), UNNAMED);
         assertEquals(edges.get("java/util"), UNNAMED);
         assertEquals(edges.get("jdk/jfr/events"), "java.base");
-        assertEquals(edges.get("jdk/internal"), "jdk.jfr");
+        assertEquals(edges.get("jdk/internal/vm/annotation"), "jdk.jfr");
 
         recording.close();
     }

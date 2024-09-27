@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2017, Red Hat, Inc. and/or its affiliates.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -30,15 +30,37 @@
 
 class CollectedHeap;
 
+extern size_t HeapAlignment;
+extern size_t SpaceAlignment;
+
 class GCArguments {
 protected:
-  template <class Heap, class Policy>
-  CollectedHeap* create_heap_with_policy();
+  // Initialize HeapAlignment, SpaceAlignment, and extra alignments (E.g. GenAlignment)
+  virtual void initialize_alignments() = 0;
+  virtual void initialize_heap_flags_and_sizes();
+  virtual void initialize_size_info();
+
+  DEBUG_ONLY(void assert_flags();)
+  DEBUG_ONLY(void assert_size_info();)
 
 public:
   virtual void initialize();
   virtual size_t conservative_max_heap_alignment() = 0;
+
+  // Used by heap size heuristics to determine max
+  // amount of address space to use for the heap.
+  virtual size_t heap_virtual_to_physical_ratio();
+
   virtual CollectedHeap* create_heap() = 0;
+
+  // Allows GCs to tell external code if it's supported or not in the current setup.
+  virtual bool is_supported() const {
+    return true;
+  }
+
+  void initialize_heap_sizes();
+
+  static size_t compute_heap_alignment();
 };
 
 #endif // SHARE_GC_SHARED_GCARGUMENTS_HPP

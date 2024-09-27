@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,12 +25,12 @@
 /*
  * @test
  * @summary Stress test for malloc tracking
- * @key nmt jcmd stress
+ * @key stress randomness
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=1200 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:NativeMemoryTracking=detail MallocStressTest
  */
 
@@ -39,9 +40,10 @@ import java.util.List;
 import java.util.Random;
 import jdk.test.lib.JDKToolFinder;
 import jdk.test.lib.Platform;
+import jdk.test.lib.Utils;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 public class MallocStressTest {
     private static int K = 1024;
@@ -57,21 +59,19 @@ public class MallocStressTest {
         release
     };
 
-    static TestPhase phase = TestPhase.alloc;
+    static volatile TestPhase phase = TestPhase.alloc;
 
     // malloc'd memory
-    static ArrayList<MallocMemory>  mallocd_memory = new ArrayList<MallocMemory>();
+    static final ArrayList<MallocMemory>  mallocd_memory = new ArrayList<MallocMemory>();
     static long                     mallocd_total  = 0;
     static WhiteBox                 whiteBox;
     static AtomicInteger            pause_count = new AtomicInteger();
 
-    static boolean                  is_64_bit_system;
+    static final boolean            is_64_bit_system = Platform.is64bit();
 
     private static boolean is_64_bit_system() { return is_64_bit_system; }
 
     public static void main(String args[]) throws Exception {
-        is_64_bit_system = (Platform.is64bit());
-
         OutputAnalyzer output;
         whiteBox = WhiteBox.getWhiteBox();
 
@@ -79,8 +79,8 @@ public class MallocStressTest {
         String pid = Long.toString(ProcessTools.getProcessId());
         ProcessBuilder pb = new ProcessBuilder();
 
-        AllocThread[]   alloc_threads = new AllocThread[256];
-        ReleaseThread[] release_threads = new ReleaseThread[64];
+        AllocThread[]   alloc_threads = new AllocThread[40];
+        ReleaseThread[] release_threads = new ReleaseThread[10];
 
         int index;
         // Create many allocation threads
@@ -93,11 +93,6 @@ public class MallocStressTest {
             release_threads[index] = new ReleaseThread();
         }
 
-        if (is_64_bit_system()) {
-            sleep_wait(2*60*1000);
-        } else {
-            sleep_wait(60*1000);
-        }
         // pause the stress test
         phase = TestPhase.pause;
         while (pause_count.intValue() <  alloc_threads.length + release_threads.length) {
@@ -136,7 +131,7 @@ public class MallocStressTest {
 
         // All test memory allocated should be released
         output = new OutputAnalyzer(pb.start());
-        output.shouldNotContain("Test (reserved=");
+        output.shouldContain("Test (reserved=0KB, committed=0KB)");
 
         // Verify that tracking level has not been downgraded
         pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.native_memory", "statistics"});
@@ -166,6 +161,7 @@ public class MallocStressTest {
     }
 
     static class AllocThread extends Thread {
+        private final Random random = new Random(Utils.getRandomInstance().nextLong());
         AllocThread() {
             this.setName("MallocThread");
             this.start();
@@ -173,9 +169,9 @@ public class MallocStressTest {
 
         // AllocThread only runs "Alloc" phase
         public void run() {
-            Random random = new Random();
-            while (MallocStressTest.phase == TestPhase.alloc) {
-                int r = Math.abs(random.nextInt());
+            // MallocStressTest.phase == TestPhase.alloc
+            for (int loops = 0; loops < 100; loops++) {
+                int r = random.nextInt(Integer.MAX_VALUE);
                 // Only malloc small amount to avoid OOM
                 int size = r % 32;
                 if (is_64_bit_system()) {
@@ -186,13 +182,19 @@ public class MallocStressTest {
                 if (size == 0) size = 1;
                 long addr = MallocStressTest.whiteBox.NMTMallocWithPseudoStack(size, r);
                 if (addr != 0) {
-                    MallocMemory mem = new MallocMemory(addr, size);
-                    synchronized(MallocStressTest.mallocd_memory) {
-                        MallocStressTest.mallocd_memory.add(mem);
-                        MallocStressTest.mallocd_total += size;
+                    try {
+                        MallocMemory mem = new MallocMemory(addr, size);
+                        synchronized(MallocStressTest.mallocd_memory) {
+                            MallocStressTest.mallocd_memory.add(mem);
+                            MallocStressTest.mallocd_total += size;
+                        }
+                    } catch (OutOfMemoryError e) {
+                        // Don't include this malloc memory because it didn't
+                        // get recorded in mallocd_memory list.
+                        MallocStressTest.whiteBox.NMTFree(addr);
+                        break;
                     }
                 } else {
-                    System.out.println("Out of malloc memory");
                     break;
                 }
             }
@@ -201,7 +203,7 @@ public class MallocStressTest {
     }
 
     static class ReleaseThread extends Thread {
-        private Random random = new Random();
+        private final Random random = new Random(Utils.getRandomInstance().nextLong());
         ReleaseThread() {
             this.setName("ReleaseThread");
             this.start();
@@ -259,7 +261,7 @@ public class MallocStressTest {
             }
             synchronized(MallocStressTest.mallocd_memory) {
                 if (MallocStressTest.mallocd_memory.isEmpty()) return;
-                int n = Math.abs(random.nextInt()) % MallocStressTest.mallocd_memory.size();
+                int n = random.nextInt(MallocStressTest.mallocd_memory.size());
                 MallocMemory mem = mallocd_memory.remove(n);
                 MallocStressTest.whiteBox.NMTFree(mem.addr());
                 MallocStressTest.mallocd_total -= mem.size();

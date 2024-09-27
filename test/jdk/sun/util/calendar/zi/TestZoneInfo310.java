@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8007572 8008161 8157792
+ * @bug 8007572 8008161 8157792 8212970 8224560 8324065
  * @summary Test whether the TimeZone generated from JSR310 tzdb is the same
  * as the one from the tz data from javazic
  * @modules java.base/sun.util.calendar:+open
@@ -46,18 +46,18 @@ public class TestZoneInfo310 {
     public static void main(String[] args) throws Throwable {
 
         String TESTDIR = System.getProperty("test.dir", ".");
-        String SRCDIR = System.getProperty("test.src", ".");
-        String tzdir = SRCDIR + File.separator + "tzdata";
-        String tzfiles = "africa antarctica asia australasia europe northamerica pacificnew southamerica backward etcetera systemv";
-        String jdk_tzdir = SRCDIR + File.separator + "tzdata_jdk";
-        String jdk_tzfiles = "gmt jdk11_backward";
+        Path tzdir = Paths.get(System.getProperty("test.root"),
+            "../../src/java.base/share/data/tzdata");
+        String tzfiles = "africa antarctica asia australasia europe northamerica southamerica backward etcetera gmt";
+        Path jdk_tzdir = Paths.get(System.getProperty("test.src"), "tzdata_jdk");
+        String jdk_tzfiles = "jdk11_backward";
         String zidir = TESTDIR + File.separator + "zi";
         File fZidir = new File(zidir);
         if (!fZidir.exists()) {
             fZidir.mkdirs();
         }
         Matcher m = Pattern.compile("tzdata(?<ver>[0-9]{4}[A-z])")
-                           .matcher(new String(Files.readAllBytes(Paths.get(tzdir, "VERSION")), "ascii"));
+                           .matcher(new String(Files.readAllBytes(tzdir.resolve("VERSION")), "ascii"));
         String ver = m.find() ? m.group("ver") : "NULL";
 
         ArrayList<String> alist = new ArrayList<>();
@@ -66,10 +66,10 @@ public class TestZoneInfo310 {
         alist.add("-d");
         alist.add(zidir);
         for (String f : tzfiles.split(" ")) {
-            alist.add(tzdir + File.separator + f);
+            alist.add(tzdir.resolve(f).toString());
         }
         for (String f : jdk_tzfiles.split(" ")) {
-            alist.add(jdk_tzdir + File.separator + f);
+            alist.add(jdk_tzdir.resolve(f).toString());
         }
         System.out.println("Compiling tz files!");
         Main.main(alist.toArray(new String[alist.size()]));
@@ -170,6 +170,31 @@ public class TestZoneInfo310 {
         for (String zid : zids_new) {
             ZoneInfoOld zi = toZoneInfoOld(TimeZone.getTimeZone(zid));
             ZoneInfoOld ziOLD = (ZoneInfoOld)ZoneInfoOld.getTimeZone(zid);
+            /*
+             * Ignoring the failing TimeZones which have negative DST
+             * save time in IANA tzdata, as javazic/ZoneInfoOld cannot
+             * handle the negative DST.
+             *
+             * These are the zones/rules that employ negative DST in vanguard
+             * format (as of 2019a), Palestine added in 2022d:
+             *
+             *  - Rule "Eire"
+             *  - Rule "Morocco"
+             *  - Rule "Namibia"
+             *  - Rule "Palestine"
+             *  - Zone "Europe/Prague"
+             */
+            if (zid.equals("Africa/Casablanca") || // uses "Morocco" rule
+                zid.equals("Africa/El_Aaiun") || // uses "Morocco" rule
+                zid.equals("Africa/Windhoek") || // uses "Namibia" rule
+                zid.equals("Eire") ||
+                zid.equals("Europe/Bratislava") || // link to "Europe/Prague"
+                zid.equals("Europe/Dublin") || // uses "Eire" rule
+                zid.equals("Europe/Prague") ||
+                zid.equals("Asia/Gaza") || // uses "Palestine" rule
+                zid.equals("Asia/Hebron")) { // uses "Palestine" rule
+                    continue;
+            }
             if (! zi.equalsTo(ziOLD)) {
                 System.out.println(zi.diffsTo(ziOLD));
                 throw new RuntimeException("  FAILED:  " + zid);
@@ -186,8 +211,9 @@ public class TestZoneInfo310 {
 
         // test getAvailableIDs(raw);
         zids_new = TimeZone.getAvailableIDs(-8 * 60 * 60 * 1000);
-        //Arrays.sort(zids_new);
+        Arrays.sort(zids_new);
         zids_old = ZoneInfoOld.getAvailableIDs(-8 * 60 * 60 * 1000);
+        Arrays.sort(zids_old);
         if (!Arrays.equals(zids_new, zids_old)) {
             System.out.println("------------------------");
             System.out.println("NEW.getAvailableIDs(-8:00)");

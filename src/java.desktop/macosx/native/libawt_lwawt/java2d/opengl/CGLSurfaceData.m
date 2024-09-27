@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
 
 #import "sun_java2d_opengl_CGLSurfaceData.h"
 
-#import "jni_util.h"
+#import "JNIUtilities.h"
 #import "OGLRenderQueue.h"
 #import "CGLGraphicsConfig.h"
 #import "CGLSurfaceData.h"
@@ -62,9 +62,9 @@ OGLSD_UnlockFocus(OGLContext *oglc, OGLSDOps *dstOps)
 
     NSOpenGLView *nsView = cglsdo->peerData;
     if (nsView != NULL) {
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
         [nsView unlockFocus];
-JNF_COCOA_EXIT(env);
+JNI_COCOA_EXIT(env);
     }
 }
 #endif
@@ -85,12 +85,11 @@ CGLSD_MakeCurrentToScratch(JNIEnv *env, OGLContext *oglc)
         return JNI_FALSE;
     }
 
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
 
     CGLCtxInfo *ctxinfo = (CGLCtxInfo *)oglc->ctxInfo;
 #if USE_NSVIEW_FOR_SCRATCH
     [ctxinfo->context makeCurrentContext];
-    [ctxinfo->context setView: ctxinfo->scratchSurface];
 #else
     [ctxinfo->context clearDrawable];
     [ctxinfo->context makeCurrentContext];
@@ -100,7 +99,7 @@ JNF_COCOA_ENTER(env);
             currentVirtualScreen: [ctxinfo->context currentVirtualScreen]];
 #endif
 
-JNF_COCOA_EXIT(env);
+JNI_COCOA_EXIT(env);
 
     return JNI_TRUE;
 }
@@ -114,7 +113,7 @@ OGLSD_DestroyOGLSurface(JNIEnv *env, OGLSDOps *oglsdo)
 {
     J2dTraceLn(J2D_TRACE_INFO, "OGLSD_DestroyOGLSurface");
 
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
 
     CGLSDOps *cglsdo = (CGLSDOps *)oglsdo->privOps;
     if (oglsdo->drawableType == OGLSD_WINDOW) {
@@ -127,32 +126,7 @@ JNF_COCOA_ENTER(env);
 
     oglsdo->drawableType = OGLSD_UNDEFINED;
 
-JNF_COCOA_EXIT(env);
-}
-
-/**
- * Returns a pointer (as a jlong) to the native CGLGraphicsConfigInfo
- * associated with the given OGLSDOps.  This method can be called from
- * shared code to retrieve the native GraphicsConfig data in a platform-
- * independent manner.
- */
-jlong
-OGLSD_GetNativeConfigInfo(OGLSDOps *oglsdo)
-{
-    J2dTraceLn(J2D_TRACE_INFO, "OGLSD_GetNativeConfigInfo");
-
-    if (oglsdo == NULL) {
-        J2dRlsTraceLn(J2D_TRACE_ERROR, "OGLSD_GetNativeConfigInfo: ops are null");
-        return 0L;
-    }
-
-    CGLSDOps *cglsdo = (CGLSDOps *)oglsdo->privOps;
-    if (cglsdo == NULL) {
-        J2dRlsTraceLn(J2D_TRACE_ERROR, "OGLSD_GetNativeConfigInfo: cgl ops are null");
-        return 0L;
-    }
-
-    return ptr_to_jlong(cglsdo->configInfo);
+JNI_COCOA_EXIT(env);
 }
 
 /**
@@ -180,7 +154,7 @@ OGLSD_SetScratchSurface(JNIEnv *env, jlong pConfigInfo)
 
     CGLCtxInfo *ctxinfo = (CGLCtxInfo *)oglc->ctxInfo;
 
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
 
     // avoid changing the context's target view whenever possible, since
     // calling setView causes flickering; as long as our context is current
@@ -207,7 +181,7 @@ JNF_COCOA_ENTER(env);
         j2d_glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
     }
 
-JNF_COCOA_EXIT(env);
+JNI_COCOA_EXIT(env);
 
     return oglc;
 }
@@ -261,7 +235,7 @@ OGLSD_MakeOGLContextCurrent(JNIEnv *env, OGLSDOps *srcOps, OGLSDOps *dstOps)
         return oglc;
     }
 
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
 
     CGLSDOps *cglsdo = (CGLSDOps *)dstOps->privOps;
     NSView *nsView = (NSView *)cglsdo->peerData;
@@ -278,7 +252,7 @@ JNF_COCOA_ENTER(env);
         j2d_glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
     }
 
-JNF_COCOA_EXIT(env);
+JNI_COCOA_EXIT(env);
 
     return oglc;
 }
@@ -310,13 +284,13 @@ OGLSD_InitOGLWindow(JNIEnv *env, OGLSDOps *oglsdo)
         return JNI_FALSE;
     }
 
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
     NSRect surfaceBounds = [v bounds];
     oglsdo->drawableType = OGLSD_WINDOW;
     oglsdo->isOpaque = JNI_TRUE;
     oglsdo->width = surfaceBounds.size.width;
     oglsdo->height = surfaceBounds.size.height;
-JNF_COCOA_EXIT(env);
+JNI_COCOA_EXIT(env);
 
     J2dTraceLn2(J2D_TRACE_VERBOSE, "  created window: w=%d h=%d", oglsdo->width, oglsdo->height);
 
@@ -328,9 +302,9 @@ OGLSD_SwapBuffers(JNIEnv *env, jlong pPeerData)
 {
     J2dTraceLn(J2D_TRACE_INFO, "OGLSD_SwapBuffers");
 
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
     [[NSOpenGLContext currentContext] flushBuffer];
-JNF_COCOA_EXIT(env);
+JNI_COCOA_EXIT(env);
 }
 
 void
@@ -341,26 +315,9 @@ OGLSD_Flush(JNIEnv *env)
         CGLSDOps *dstCGLOps = (CGLSDOps *)dstOps->privOps;
         CGLLayer *layer = (CGLLayer*)dstCGLOps->layer;
         if (layer != NULL) {
-            [JNFRunLoop performOnMainThreadWaiting:NO withBlock:^(){
+            [ThreadUtilities performOnMainThreadWaiting:NO block:^(){
                 AWT_ASSERT_APPKIT_THREAD;
                 [layer setNeedsDisplay];
-
-#ifdef REMOTELAYER
-                /* If there's a remote layer (being used for testing)
-                 * then we want to have that also receive the texture.
-                 * First sync. up its dimensions with that of the layer
-                 * we have attached to the local window and tell it that
-                 * it also needs to copy the texture.
-                 */
-                if (layer.remoteLayer != nil) {
-                    CGLLayer* remoteLayer = layer.remoteLayer;
-                    remoteLayer.target = GL_TEXTURE_2D;
-                    remoteLayer.textureID = layer.textureID;
-                    remoteLayer.textureWidth = layer.textureWidth;
-                    remoteLayer.textureHeight = layer.textureHeight;
-                    [remoteLayer setNeedsDisplay];
-                }
-#endif /* REMOTELAYER */
             }];
         }
     }
@@ -376,7 +333,7 @@ extern DisposeFunc     OGLSD_Dispose;
 
 JNIEXPORT void JNICALL
 Java_sun_java2d_opengl_CGLSurfaceData_initOps
-    (JNIEnv *env, jobject cglsd,
+    (JNIEnv *env, jobject cglsd, jobject gc,
      jlong pConfigInfo, jlong pPeerData, jlong layerPtr,
      jint xoff, jint yoff, jboolean isOpaque)
 {
@@ -384,8 +341,22 @@ Java_sun_java2d_opengl_CGLSurfaceData_initOps
     J2dTraceLn1(J2D_TRACE_INFO, "  pPeerData=%p", jlong_to_ptr(pPeerData));
     J2dTraceLn2(J2D_TRACE_INFO, "  xoff=%d, yoff=%d", (int)xoff, (int)yoff);
 
+    gc = (*env)->NewGlobalRef(env, gc);
+    if (gc == NULL) {
+        JNU_ThrowOutOfMemoryError(env, "Initialization of SurfaceData failed.");
+        return;
+    }
+
     OGLSDOps *oglsdo = (OGLSDOps *)
         SurfaceData_InitOps(env, cglsd, sizeof(OGLSDOps));
+    if (oglsdo == NULL) {
+        (*env)->DeleteGlobalRef(env, gc);
+        JNU_ThrowOutOfMemoryError(env, "Initialization of SurfaceData failed.");
+        return;
+    }
+    // later the graphicsConfig will be used for deallocation of oglsdo
+    oglsdo->graphicsConfig = gc;
+
     CGLSDOps *cglsdo = (CGLSDOps *)malloc(sizeof(CGLSDOps));
     if (cglsdo == NULL) {
         JNU_ThrowOutOfMemoryError(env, "creating native cgl ops");
@@ -427,39 +398,4 @@ Java_sun_java2d_opengl_CGLSurfaceData_clearWindow
 
     cglsdo->peerData = NULL;
     cglsdo->layer = NULL;
-}
-
-#pragma mark -
-#pragma mark "--- CGLSurfaceData methods - Mac OS X specific ---"
-
-// Must be called on the QFT...
-JNIEXPORT void JNICALL
-Java_sun_java2d_opengl_CGLSurfaceData_validate
-    (JNIEnv *env, jobject jsurfacedata,
-     jint xoff, jint yoff, jint width, jint height, jboolean isOpaque)
-{
-    J2dTraceLn2(J2D_TRACE_INFO, "CGLSurfaceData_validate: w=%d h=%d", width, height);
-
-    OGLSDOps *oglsdo = (OGLSDOps*)SurfaceData_GetOps(env, jsurfacedata);
-    oglsdo->needsInit = JNI_TRUE;
-    oglsdo->xOffset = xoff;
-    oglsdo->yOffset = yoff;
-
-    oglsdo->width = width;
-    oglsdo->height = height;
-    oglsdo->isOpaque = isOpaque;
-
-    if (oglsdo->drawableType == OGLSD_WINDOW) {
-        OGLContext_SetSurfaces(env, ptr_to_jlong(oglsdo), ptr_to_jlong(oglsdo));
-
-        // we have to explicitly tell the NSOpenGLContext that its target
-        // drawable has changed size
-        CGLSDOps *cglsdo = (CGLSDOps *)oglsdo->privOps;
-        OGLContext *oglc = cglsdo->configInfo->context;
-        CGLCtxInfo *ctxinfo = (CGLCtxInfo *)oglc->ctxInfo;
-
-JNF_COCOA_ENTER(env);
-        [ctxinfo->context update];
-JNF_COCOA_EXIT(env);
-    }
 }

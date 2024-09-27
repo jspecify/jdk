@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,23 +29,24 @@
  *          jdk.javadoc/jdk.javadoc.internal.tool
  *          jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
- * @library ../lib /tools/lib
- * @build toolbox.ToolBox toolbox.ModuleBuilder JavadocTester
+ * @library ../../lib /tools/lib
+ * @build toolbox.ToolBox toolbox.ModuleBuilder javadoc.tester.*
  * @run main TestEmptyModule
  */
 
-import toolbox.ModuleBuilder;
-import toolbox.ToolBox;
-
 import java.nio.file.Path;
 import java.nio.file.Paths;
+
+import javadoc.tester.JavadocTester;
+import toolbox.ModuleBuilder;
+import toolbox.ToolBox;
 
 public class TestEmptyModule extends JavadocTester {
 
     public final ToolBox tb;
     public static void main(String... args) throws Exception {
-        TestEmptyModule tester = new TestEmptyModule();
-        tester.runTests(m -> new Object[] { Paths.get(m.getName()) });
+        var tester = new TestEmptyModule();
+        tester.runTests();
     }
 
     public TestEmptyModule() {

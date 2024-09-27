@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,43 +23,33 @@
 
 /*
  * @test
- * @bug 8025633 8081854 8182765
+ * @bug 8025633 8081854 8182765 8261976
  * @summary  Make sure that annotations types with optional elements have
  *           element headers
- * @author   Mahmood Ali
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestAnnotationOptional
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestAnnotationOptional extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestAnnotationOptional tester = new TestAnnotationOptional();
+        var tester = new TestAnnotationOptional();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
 
         checkOutput("pkg/AnnotationOptional.html", true,
-            "<a id=\"annotation.type.element.detail\">");
-    }
-
-    @Test
-    void test_html4() {
-        javadoc("-d", "out-html4",
-                "-html4",
-                "-sourcepath", testSrc,
-                "pkg");
-        checkExit(Exit.OK);
-
-        checkOutput("pkg/AnnotationOptional.html", true,
-            "<a name=\"annotation.type.element.detail\">");
+            """
+                <section class="details" id="annotation-interface-element-detail">""");
     }
 }

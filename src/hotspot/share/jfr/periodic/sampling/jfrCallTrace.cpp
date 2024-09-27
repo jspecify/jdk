@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,20 +27,24 @@
 #include "code/nmethod.hpp"
 #include "code/pcDesc.hpp"
 #include "jfr/periodic/sampling/jfrCallTrace.hpp"
+#include "jfr/utilities/jfrTypes.hpp"
 #include "oops/method.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/javaThread.inline.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/registerMap.hpp"
-#include "runtime/thread.inline.hpp"
 
 bool JfrGetCallTrace::find_top_frame(frame& top_frame, Method** method, frame& first_frame) {
-  assert(top_frame.cb() != NULL, "invariant");
-  RegisterMap map(_thread, false);
+  assert(top_frame.cb() != nullptr, "invariant");
+  RegisterMap map(_thread,
+                  RegisterMap::UpdateMap::skip,
+                  RegisterMap::ProcessFrames::skip,
+                  RegisterMap::WalkContinuation::skip);
   frame candidate = top_frame;
-  for (int i = 0; i < MaxJavaStackTraceDepth * 2; ++i) {
+  for (u4 i = 0; i < MAX_STACK_DEPTH * 2; ++i) {
     if (candidate.is_entry_frame()) {
       JavaCallWrapper *jcw = candidate.entry_frame_call_wrapper_if_safe(_thread);
-      if (jcw == NULL || jcw->is_first_frame()) {
+      if (jcw == nullptr || jcw->is_first_frame()) {
         return false;
       }
     }
@@ -50,7 +54,7 @@ bool JfrGetCallTrace::find_top_frame(frame& top_frame, Method** method, frame& f
       const bool known_valid = (state == _thread_in_native || state == _thread_in_vm || state == _thread_blocked);
       if (known_valid || candidate.is_interpreted_frame_valid(_thread)) {
         Method* im = candidate.interpreter_frame_method();
-        if (known_valid && !im->is_valid_method()) {
+        if (known_valid && !Method::is_valid_method(im)) {
           return false;
         }
         *method = im;
@@ -71,11 +75,11 @@ bool JfrGetCallTrace::find_top_frame(frame& top_frame, Method** method, frame& f
 
       if (_in_java) {
         PcDesc* pc_desc = nm->pc_desc_near(candidate.pc() + 1);
-        if (pc_desc == NULL || pc_desc->scope_decode_offset() == DebugInformationRecorder::serialized_null) {
+        if (pc_desc == nullptr || pc_desc->scope_decode_offset() == DebugInformationRecorder::serialized_null) {
           return false;
         }
         candidate.set_pc(pc_desc->real_pc(nm));
-        assert(nm->pc_desc_at(candidate.pc()) != NULL, "invalid pc");
+        assert(nm->pc_desc_at(candidate.pc()) != nullptr, "invalid pc");
       }
       first_frame = candidate;
       return true;
@@ -88,7 +92,7 @@ bool JfrGetCallTrace::find_top_frame(frame& top_frame, Method** method, frame& f
     }
 
     candidate = candidate.sender(&map);
-    if (candidate.cb() == NULL) {
+    if (candidate.cb() == nullptr) {
       return false;
     }
   }
@@ -100,14 +104,14 @@ bool JfrGetCallTrace::get_topframe(void* ucontext, frame& topframe) {
     return false;
   }
 
-  if (topframe.cb() == NULL) {
+  if (topframe.cb() == nullptr) {
     return false;
   }
 
   frame first_java_frame;
-  Method* method = NULL;
+  Method* method = nullptr;
   if (find_top_frame(topframe, &method, first_java_frame)) {
-    if (method == NULL) {
+    if (method == nullptr) {
       return false;
     }
     topframe = first_java_frame;

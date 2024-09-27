@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
  * Used by BootClassPath.sh.
  *
  * Given a "work directory" this class creates a sub-directory with a
- * name that uses locale specific characters. It the creates a jar
+ * name that uses locale specific characters. It then creates a jar
  * manifest file in the work directory with a Boot-Class-Path that
  * encodes the created sub-directory. Finally it creates a file
  * "boot.dir" in the work directory with the name of the sub-directory.
@@ -45,12 +45,23 @@ public class Setup {
         }
         String workDir = args[0];
         String premainClass = args[1];
+        boolean isCygwin = false;
+        if (args.length == 3 && args[2].equals("CYGWIN")) {
+            isCygwin = true;
+        }
 
         String manifestFile = workDir + fileSeparator + "MANIFEST.MF";
         String bootClassPath = "boot" + suffix();
 
         String bootDir = workDir + fileSeparator + bootClassPath;
 
+        /*
+         * Environment variable settings ("null" if unset)
+         */
+        System.out.println("Env vars:");
+        System.out.println("  LANG=" + System.getenv("LANG"));
+        System.out.println("  LC_ALL=" + System.getenv("LC_ALL"));
+        System.out.println("  LC_CTYPE=" + System.getenv("LC_CTYPE"));
 
         /*
          * Create sub-directory
@@ -87,7 +98,12 @@ public class Setup {
          */
         f = new File(workDir + fileSeparator + "boot.dir");
         try (FileOutputStream out = new FileOutputStream(f)) {
-            out.write(bootDir.getBytes(defaultEncoding));
+            if (osName.startsWith("Windows") && isCygwin) {
+                out.write(bootDir.getBytes("UTF-8"));
+            }
+            else {
+                out.write(bootDir.getBytes(filePathEncoding));
+            }
         }
     }
 
@@ -95,7 +111,7 @@ public class Setup {
 
     private static final String fileSeparator = System.getProperty("file.separator");
     private static final String osName = System.getProperty("os.name");
-    private static final String defaultEncoding = Charset.defaultCharset().name();
+    private static final String filePathEncoding = System.getProperty("sun.jnu.encoding");
 
     // language names taken from java.util.Locale.getDisplayLanguage for the respective language
     private static final String arabic = "\u0627\u0644\u0639\u0631\u0628\u064a\u0629";
@@ -124,39 +140,39 @@ public class Setup {
         // Use null if encoding isn't used.
         String[][] names = {
             { "UTF-8",          unicode,        ""              },
-            { "windows-1256",   null,           ""              },
+            { "Cp1256",         null,           ""              },
             { "iso-8859-6",     arabic,         null            },
             { "GBK",            s_chinese,      s_chinese       },
             { "GB18030",        s_chinese,      s_chinese       },
             { "GB2312",         s_chinese,      null            },
-            { "x-windows-950",  null,           t_chinese       },
-            { "x-MS950-HKSCS",  null,           t_chinese       },
-            { "x-euc-tw",       t_chinese,      null            },
+            { "MS950",          null,           t_chinese       },
+            { "MS950_HKSCS_XP", null,           t_chinese       },
+            { "EUC-TW",         t_chinese,      null            },
             { "Big5",           t_chinese,      null            },
             { "Big5-HKSCS",     t_chinese,      null            },
             { "windows-1251",   null,           ""              },
             { "iso-8859-5",     russian,        null            },
             { "koi8-r",         russian,        null            },
-            { "windows-1253",   null,           ""              },
+            { "Cp1253",         null,           ""              },
             { "iso-8859-7",     greek,          null            },
-            { "windows-1255",   null,           ""              },
-            { "iso8859-8",      hebrew,         null            },
-            { "windows-31j",    null,           japanese        },
+            { "Cp1255",         null,           ""              },
+            { "iso-8859-8",     hebrew,         null            },
+            { "MS932",          null,           japanese        },
             { "x-eucJP-Open",   japanese,       null            },
-            { "x-EUC-JP-LINUX", japanese,       null            },
+            { "EUC-JP-LINUX",   japanese,       null            },
             { "x-pck",          japanese,       null            },
-            { "x-windows-949",  null,           korean          },
+            { "MS949",          null,           korean          },
             { "euc-kr",         korean,         null            },
-            { "windows-1257",   null,           ""              },
+            { "Cp1257",         null,           ""              },
             { "iso-8859-13",    lithuanian,     null            },
-            { "windows-1250",   null,           ""              },
+            { "Cp1250",         null,           ""              },
             { "iso-8859-2",     czech,          null            },
-            { "windows-1254",   null,           ""              },
+            { "Cp1254",         null,           ""              },
             { "iso-8859-9",     turkish,        null            },
-            { "windows-1252",   null,           ""              },
+            { "Cp1252",         null,           ""              },
             { "iso-8859-1",     spanish,        null            },
             { "iso-8859-15",    spanish,        null            },
-            { "x-windows-874",  null,           thai            },
+            { "MS874",          null,           thai            },
             { "tis-620",        thai,           null            },
         };
 
@@ -167,7 +183,7 @@ public class Setup {
             column = 1;
         }
         for (int i = 0; i < names.length; i++) {
-             if (names[i][0].equalsIgnoreCase(defaultEncoding)) {
+             if (names[i][0].equalsIgnoreCase(filePathEncoding)) {
                  return names[i][column];
              }
          }

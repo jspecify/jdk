@@ -1,11 +1,13 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -27,7 +29,11 @@
  * libthread to interpose the signal handler installation functions:
  * sigaction(), signal(), sigset().
  * Used for signal-chaining. See RFE 4381843.
+ * Use of signal() and sigset() is now deprecated as these old API's should
+ * not be used - sigaction is the only truly supported API.
  */
+
+#include "jni.h"
 
 #include <dlfcn.h>
 #include <errno.h>
@@ -36,25 +42,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
-#if (__STDC_VERSION__ >= 199901L)
-  #include <stdbool.h>
-#else
-  #define bool int
-  #define true 1
-  #define false 0
-#endif
-
-#ifdef SOLARIS
-#define MAX_SIGNALS (SIGRTMAX+1)
-
-/* On solaris, MAX_SIGNALS is a macro, not a constant, so we must allocate sact dynamically. */
-static struct sigaction *sact = (struct sigaction *)NULL; /* saved signal handlers */
-#else
 #define MAX_SIGNALS NSIG
 
 static struct sigaction sact[MAX_SIGNALS]; /* saved signal handlers */
-#endif
 
 static sigset_t jvmsigs; /* Signals used by jvm. */
 
@@ -65,7 +57,7 @@ static __thread bool reentry = false; /* prevent reentry deadlock (per-thread) *
 /* Used to synchronize the installation of signal handlers. */
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-static pthread_t tid = 0;
+static pthread_t tid;
 
 typedef void (*sa_handler_t)(int);
 typedef void (*sa_sigaction_t)(int, siginfo_t *, void *);
@@ -79,27 +71,16 @@ static bool jvm_signal_installing = false;
 static bool jvm_signal_installed = false;
 
 
-/* assume called within signal_lock */
-static void allocate_sact() {
-#ifdef SOLARIS
-  if (sact == NULL) {
-    sact = (struct sigaction *)malloc((MAX_SIGNALS) * (size_t)sizeof(struct sigaction));
-    if (sact == NULL) {
-      printf("%s\n", "libjsig.so unable to allocate memory");
-      exit(0);
-    }
-    memset(sact, 0, (MAX_SIGNALS) * (size_t)sizeof(struct sigaction));
-  }
-#endif
-}
-
 static void signal_lock() {
   pthread_mutex_lock(&mutex);
   /* When the jvm is installing its set of signal handlers, threads
    * other than the jvm thread should wait. */
   if (jvm_signal_installing) {
-    if (tid != pthread_self()) {
-      pthread_cond_wait(&cond, &mutex);
+    /* tid is not initialized until jvm_signal_installing is set to true. */
+    if (pthread_equal(tid, pthread_self()) == 0) {
+      do {
+        pthread_cond_wait(&cond, &mutex);
+      } while (jvm_signal_installing);
     }
   }
 }
@@ -113,6 +94,10 @@ static sa_handler_t call_os_signal(int sig, sa_handler_t disp,
   sa_handler_t res;
 
   if (os_signal == NULL) {
+    // Deprecation warning first time through
+    printf(HOTSPOT_VM_DISTRO " VM warning: the use of signal() and sigset() "
+           "for signal chaining was deprecated in version 16.0 and will "
+           "be removed in a future release. Use sigaction() instead.\n");
     if (!is_sigset) {
       os_signal = (signal_function_t)dlsym(RTLD_NEXT, "signal");
     } else {
@@ -145,18 +130,7 @@ static void save_signal_handler(int sig, sa_handler_t disp, bool is_sigset) {
   sact[sig].sa_handler = disp;
   sigemptyset(&set);
   sact[sig].sa_mask = set;
-  if (!is_sigset) {
-#ifdef SOLARIS
-    sact[sig].sa_flags = SA_NODEFER;
-    if (sig != SIGILL && sig != SIGTRAP && sig != SIGPWR) {
-      sact[sig].sa_flags |= SA_RESETHAND;
-    }
-#else
-    sact[sig].sa_flags = 0;
-#endif
-  } else {
-    sact[sig].sa_flags = 0;
-  }
+  sact[sig].sa_flags = 0;
 }
 
 static sa_handler_t set_signal(int sig, sa_handler_t disp, bool is_sigset) {
@@ -165,7 +139,6 @@ static sa_handler_t set_signal(int sig, sa_handler_t disp, bool is_sigset) {
   bool sigblocked;
 
   signal_lock();
-  allocate_sact();
 
   sigused = sigismember(&jvmsigs, sig);
   if (jvm_signal_installed && sigused) {
@@ -176,13 +149,6 @@ static sa_handler_t set_signal(int sig, sa_handler_t disp, bool is_sigset) {
     }
     oldhandler = sact[sig].sa_handler;
     save_signal_handler(sig, disp, is_sigset);
-
-#ifdef SOLARIS
-    if (is_sigset && sigblocked) {
-      /* We won't honor the SIG_HOLD request to change the signal mask */
-      oldhandler = SIG_HOLD;
-    }
-#endif
 
     signal_unlock();
     return oldhandler;
@@ -208,7 +174,7 @@ static sa_handler_t set_signal(int sig, sa_handler_t disp, bool is_sigset) {
   }
 }
 
-sa_handler_t signal(int sig, sa_handler_t disp) {
+JNIEXPORT sa_handler_t signal(int sig, sa_handler_t disp) {
   if (sig < 0 || sig >= MAX_SIGNALS) {
     errno = EINVAL;
     return SIG_ERR;
@@ -217,7 +183,7 @@ sa_handler_t signal(int sig, sa_handler_t disp) {
   return set_signal(sig, disp, false);
 }
 
-sa_handler_t sigset(int sig, sa_handler_t disp) {
+JNIEXPORT sa_handler_t sigset(int sig, sa_handler_t disp) {
 #ifdef _ALLBSD_SOURCE
   printf("sigset() is not supported by BSD");
   exit(0);
@@ -243,7 +209,7 @@ static int call_os_sigaction(int sig, const struct sigaction  *act,
   return (*os_sigaction)(sig, act, oact);
 }
 
-int sigaction(int sig, const struct sigaction *act, struct sigaction *oact) {
+JNIEXPORT int sigaction(int sig, const struct sigaction *act, struct sigaction *oact) {
   int res;
   bool sigused;
   struct sigaction oldAct;
@@ -261,7 +227,6 @@ int sigaction(int sig, const struct sigaction *act, struct sigaction *oact) {
 
   signal_lock();
 
-  allocate_sact();
   sigused = sigismember(&jvmsigs, sig);
   if (jvm_signal_installed && sigused) {
     /* jvm has installed its signal handler for this signal. */
@@ -276,16 +241,27 @@ int sigaction(int sig, const struct sigaction *act, struct sigaction *oact) {
     signal_unlock();
     return 0;
   } else if (jvm_signal_installing) {
-    /* jvm is installing its signal handlers. Install the new
-     * handlers and save the old ones. */
+    /* jvm is installing its signal handlers.
+     * - if this is a modifying sigaction call, we install a new signal handler and store the old one
+     *   as chained signal handler.
+     * - if this is a non-modifying sigaction call, we don't change any state; we just return the existing
+     *   signal handler in the system (not the stored one).
+     * This works under the assumption that there is only one modifying sigaction call for a specific signal
+     * within the JVM_begin_signal_setting-JVM_end_signal_setting-window. There can be any number of non-modifying
+     * calls, but they will only return the expected preexisting handler if executed before the modifying call.
+     */
     res = call_os_sigaction(sig, act, &oldAct);
-    sact[sig] = oldAct;
-    if (oact != NULL) {
-      *oact = oldAct;
+    if (res == 0) {
+      if (act != NULL) {
+        /* store pre-existing handler as chained handler */
+        sact[sig] = oldAct;
+        /* Record the signals used by jvm. */
+        sigaddset(&jvmsigs, sig);
+      }
+      if (oact != NULL) {
+        *oact = oldAct;
+      }
     }
-
-    /* Record the signals used by jvm. */
-    sigaddset(&jvmsigs, sig);
 
     signal_unlock();
     return res;
@@ -300,7 +276,7 @@ int sigaction(int sig, const struct sigaction *act, struct sigaction *oact) {
 }
 
 /* The three functions for the jvm to call into. */
-void JVM_begin_signal_setting() {
+JNIEXPORT void JVM_begin_signal_setting() {
   signal_lock();
   sigemptyset(&jvmsigs);
   jvm_signal_installing = true;
@@ -308,7 +284,7 @@ void JVM_begin_signal_setting() {
   signal_unlock();
 }
 
-void JVM_end_signal_setting() {
+JNIEXPORT void JVM_end_signal_setting() {
   signal_lock();
   jvm_signal_installed = true;
   jvm_signal_installing = false;
@@ -316,8 +292,7 @@ void JVM_end_signal_setting() {
   signal_unlock();
 }
 
-struct sigaction *JVM_get_signal_action(int sig) {
-  allocate_sact();
+JNIEXPORT struct sigaction *JVM_get_signal_action(int sig) {
   /* Does race condition make sense here? */
   if (sigismember(&jvmsigs, sig)) {
     return &sact[sig];

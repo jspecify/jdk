@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,17 +23,19 @@
  * questions.
  */
 
-/*-
+/*
  *      FTP stream opener
  */
 
 package sun.net.www.protocol.ftp;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.Proxy;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Objects;
 import sun.net.ftp.FtpClient;
 import sun.net.www.protocol.http.HttpURLConnection;
 
@@ -47,8 +49,7 @@ public class Handler extends java.net.URLStreamHandler {
     protected boolean equals(URL u1, URL u2) {
         String userInfo1 = u1.getUserInfo();
         String userInfo2 = u2.getUserInfo();
-        return super.equals(u1, u2) &&
-            (userInfo1 == null? userInfo2 == null: userInfo1.equals(userInfo2));
+        return super.equals(u1, u2) && Objects.equals(userInfo1, userInfo2);
     }
 
     protected java.net.URLConnection openConnection(URL u)
@@ -58,6 +59,14 @@ public class Handler extends java.net.URLStreamHandler {
 
     protected java.net.URLConnection openConnection(URL u, Proxy p)
         throws IOException {
-        return new FtpURLConnection(u, p);
+        FtpURLConnection connection = null;
+        try {
+            connection = new FtpURLConnection(u, p);
+        } catch (IllegalArgumentException e) {
+            var mfue = new MalformedURLException(e.getMessage());
+            mfue.initCause(e);
+            throw mfue;
+        }
+        return connection;
     }
 }

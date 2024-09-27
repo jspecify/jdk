@@ -1,6 +1,6 @@
-<?xml version="1.0"?> 
+<?xml version="1.0"?>
 <!--
- Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -20,7 +20,7 @@
  Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  or visit www.oracle.com if you need additional information or have any
  questions.
-  
+
 -->
 
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">
@@ -37,6 +37,8 @@
   <xsl:call-template name="sourceHeader"/>
   <xsl:text>
 # include "precompiled.hpp"
+# include "classfile/javaClasses.inline.hpp"
+# include "classfile/vmClasses.hpp"
 # include "memory/resourceArea.hpp"
 # include "utilities/macros.hpp"
 #if INCLUDE_JVMTI
@@ -45,6 +47,10 @@
 # include "prims/jvmtiEnter.inline.hpp"
 # include "prims/jvmtiRawMonitor.hpp"
 # include "prims/jvmtiUtil.hpp"
+# include "runtime/fieldDescriptor.inline.hpp"
+# include "runtime/jniHandles.hpp"
+# include "runtime/thread.inline.hpp"
+# include "runtime/threads.hpp"
 # include "runtime/threadSMR.hpp"
 
 </xsl:text>
@@ -61,7 +67,7 @@
 // Error names
 const char* JvmtiUtil::_error_names[] = {
 </xsl:text>
-    <xsl:call-template name="fillEntityName"> 
+    <xsl:call-template name="fillEntityName">
       <xsl:with-param name="entities" select="errorsection/errorcategory/errorid"/>
     </xsl:call-template>
     <xsl:text>
@@ -71,7 +77,7 @@ const char* JvmtiUtil::_error_names[] = {
 // Event threaded
 const bool JvmtiUtil::_event_threaded[] = {
 </xsl:text>
-    <xsl:call-template name="fillEventThreaded"> 
+    <xsl:call-template name="fillEventThreaded">
       <xsl:with-param name="entities" select="eventsection/event"/>
     </xsl:call-template>
     <xsl:text>
@@ -90,7 +96,7 @@ const bool JvmtiUtil::_event_threaded[] = {
       <xsl:if test="count(../../eventsection/event[@num &gt; $mynum]) = 0">
         <xsl:value-of select="@num"/>
       </xsl:if>
-    </xsl:for-each>    
+    </xsl:for-each>
   </xsl:variable>
 
   <xsl:text>jbyte JvmtiTrace::_event_trace_flags[</xsl:text>
@@ -104,7 +110,7 @@ jint JvmtiTrace::_max_event_index = </xsl:text>
 // Event names
 const char* JvmtiTrace::_event_names[] = {
 </xsl:text>
-    <xsl:call-template name="fillEntityName"> 
+    <xsl:call-template name="fillEntityName">
       <xsl:with-param name="entities" select="eventsection/event"/>
     </xsl:call-template>
     <xsl:text>
@@ -133,7 +139,7 @@ const char* </xsl:text>
   <xsl:text>ConstantNames[] = {
 </xsl:text>
   <xsl:apply-templates select="constant" mode="constname"/>
-  <xsl:text>  NULL
+  <xsl:text>  nullptr
 };
 
 // </xsl:text>
@@ -168,7 +174,7 @@ jint </xsl:text>
   <xsl:text>
 
 // Check Event Capabilities
-const bool JvmtiUtil::has_event_capability(jvmtiEvent event_type, const jvmtiCapabilities* capabilities_ptr) {
+bool JvmtiUtil::has_event_capability(jvmtiEvent event_type, const jvmtiCapabilities* capabilities_ptr) {
   switch (event_type) {
 </xsl:text>
   <xsl:for-each select="//eventsection/event">
@@ -201,7 +207,7 @@ const bool JvmtiUtil::has_event_capability(jvmtiEvent event_type, const jvmtiCap
       <xsl:if test="count(../../category/function[@num &gt; $mynum]) = 0">
         <xsl:value-of select="@num"/>
       </xsl:if>
-    </xsl:for-each>    
+    </xsl:for-each>
   </xsl:variable>
 
   <xsl:text>jbyte JvmtiTrace::_trace_flags[</xsl:text>
@@ -246,7 +252,7 @@ struct jvmtiInterface_1_ jvmti</xsl:text>
   <xsl:value-of select="$trace"/>
   <xsl:text>_Interface = {
 </xsl:text>
- 
+
   <xsl:call-template name="fillFuncStruct">
     <xsl:with-param name="funcs" select="category/function[count(@hide)=0]"/>
   </xsl:call-template>
@@ -279,7 +285,7 @@ struct jvmtiInterface_1_ jvmti</xsl:text>
     </xsl:when>
     <xsl:otherwise>
       <xsl:text> RESERVED */
-      NULL</xsl:text>        
+      nullptr</xsl:text>
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>
@@ -312,7 +318,7 @@ struct jvmtiInterface_1_ jvmti</xsl:text>
       <xsl:text>"</xsl:text>
     </xsl:when>
     <xsl:otherwise>
-      <xsl:text>  NULL</xsl:text>        
+      <xsl:text>  nullptr</xsl:text>
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>
@@ -345,12 +351,12 @@ struct jvmtiInterface_1_ jvmti</xsl:text>
           <xsl:text>  false</xsl:text>
         </xsl:when>
         <xsl:otherwise>
-          <xsl:text>  true</xsl:text>        
+          <xsl:text>  true</xsl:text>
         </xsl:otherwise>
       </xsl:choose>
     </xsl:when>
     <xsl:otherwise>
-      <xsl:text>  false</xsl:text>        
+      <xsl:text>  false</xsl:text>
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>
@@ -385,7 +391,7 @@ struct jvmtiInterface_1_ jvmti</xsl:text>
   <xsl:text>
   //
   // </xsl:text><xsl:value-of select="@label"/><xsl:text> functions
-  // 
+  //
 </xsl:text>
   <xsl:apply-templates select="function[count(@hide)=0]"/>
 </xsl:template>
@@ -396,23 +402,23 @@ struct jvmtiInterface_1_ jvmti</xsl:text>
   </xsl:text>
   </xsl:param>
   <xsl:value-of select="$space"/>
-  
-  <xsl:choose> 
+
+  <xsl:choose>
     <xsl:when test="count(@callbacksafe)=0 or not(contains(@callbacksafe,'safe'))">
-      <xsl:text>if (this_thread == NULL || !this_thread->is_Java_thread()) {</xsl:text> 
-    </xsl:when> 
-    <xsl:otherwise> 
+      <xsl:text>if (this_thread == nullptr || !this_thread->is_Java_thread()) {</xsl:text>
+    </xsl:when>
+    <xsl:otherwise>
       <xsl:choose>
         <xsl:when test="count(@phase)=0 or contains(@phase,'live') or contains(@phase,'start')">
-	  <xsl:text>if (this_thread == NULL || (!this_thread->is_Java_thread() &amp;&amp; !this_thread->is_VM_thread())) {</xsl:text>
+	  <xsl:text>if (this_thread == nullptr || (!this_thread->is_Java_thread() &amp;&amp; !this_thread->is_Named_thread())) {</xsl:text>
         </xsl:when>
         <xsl:otherwise>
-          <xsl:text>if (!this_thread->is_Java_thread()) {</xsl:text> 
+          <xsl:text>if (!this_thread->is_Java_thread()) {</xsl:text>
         </xsl:otherwise>
       </xsl:choose>
-     </xsl:otherwise> 
-  </xsl:choose> 
-  
+     </xsl:otherwise>
+  </xsl:choose>
+
   <xsl:if test="$trace='Trace'">
     <xsl:value-of select="$space"/>
     <xsl:text>  if (trace_flags) {</xsl:text>
@@ -426,10 +432,12 @@ struct jvmtiInterface_1_ jvmti</xsl:text>
   <xsl:value-of select="$space"/>
   <xsl:text>  return JVMTI_ERROR_UNATTACHED_THREAD;</xsl:text>
   <xsl:value-of select="$space"/>
-  <xsl:text>}</xsl:text>  
-  <xsl:value-of select="$space"/>  
+  <xsl:text>}</xsl:text>
+  <xsl:value-of select="$space"/>
   <xsl:if test="count(@impl)=0 or not(contains(@impl,'innative'))">
-    <xsl:text>JavaThread* current_thread = (JavaThread*)this_thread;</xsl:text>   
+    <xsl:text>JavaThread* current_thread = JavaThread::cast(this_thread);</xsl:text>
+    <xsl:value-of select="$space"/>
+    <xsl:text>MACOS_AARCH64_ONLY(ThreadWXEnable __wx(WXWrite, current_thread));</xsl:text>
     <xsl:value-of select="$space"/>
     <xsl:text>ThreadInVMfromNative __tiv(current_thread);</xsl:text>
     <xsl:value-of select="$space"/>
@@ -440,7 +448,16 @@ struct jvmtiInterface_1_ jvmti</xsl:text>
     <xsl:text>debug_only(VMNativeEntryWrapper __vew;)</xsl:text>
     <xsl:if test="count(@callbacksafe)=0 or not(contains(@callbacksafe,'safe'))">
       <xsl:value-of select="$space"/>
-      <xsl:text>CautiouslyPreserveExceptionMark __em(this_thread);</xsl:text>
+      <xsl:text>PreserveExceptionMark __em(this_thread);</xsl:text>
+    </xsl:if>
+    <xsl:value-of select="$space"/>
+    <xsl:if test="$trace='Trace'">
+      <xsl:text>if (trace_flags) {</xsl:text>
+      <xsl:value-of select="$space"/>
+      <xsl:text>  curr_thread_name = JvmtiTrace::safe_get_current_thread_name();</xsl:text>
+      <xsl:value-of select="$space"/>
+      <xsl:text>}</xsl:text>
+      <xsl:value-of select="$space"/>
     </xsl:if>
   </xsl:if>
 </xsl:template>
@@ -454,7 +471,7 @@ struct jvmtiInterface_1_ jvmti</xsl:text>
 </xsl:text>
     <xsl:if test="$trace='Trace'">
       <xsl:text>    if (trace_flags) {
-          log_trace(jvmti)("[%s] %s %s",  curr_thread_name, func_name, 
+          log_trace(jvmti)("[%s] %s %s",  curr_thread_name, func_name,
                     JvmtiUtil::error_name(JVMTI_ERROR_MUST_POSSESS_CAPABILITY));
     }
 </xsl:text>
@@ -494,9 +511,9 @@ static jvmtiError JNICALL
 </xsl:text>
     </xsl:if>
     <xsl:text>    return JVMTI_ERROR_WRONG_PHASE;
-  }</xsl:text>  
+  }</xsl:text>
 
-      <xsl:text>  
+      <xsl:text>
   Thread* this_thread = Thread::current_or_null(); </xsl:text>
 
       <xsl:apply-templates select="." mode="transition"/>
@@ -511,7 +528,7 @@ static jvmtiError JNICALL
 </xsl:text>
     <xsl:if test="$trace='Trace'">
       <xsl:text>    if (trace_flags) {
-          log_trace(jvmti)("[-] %s %s",  func_name, 
+          log_trace(jvmti)("[-] %s %s",  func_name,
                     JvmtiUtil::error_name(JVMTI_ERROR_WRONG_PHASE));
     }
 </xsl:text>
@@ -524,7 +541,7 @@ static jvmtiError JNICALL
 </xsl:text>
     <xsl:if test="$trace='Trace'">
       <xsl:text>    if (trace_flags) {
-          log_trace(jvmti)("[-] %s %s",  func_name, 
+          log_trace(jvmti)("[-] %s %s",  func_name,
                     JvmtiUtil::error_name(JVMTI_ERROR_WRONG_PHASE));
     }
 </xsl:text>
@@ -543,7 +560,7 @@ static jvmtiError JNICALL
 </xsl:text>
     <xsl:if test="$trace='Trace'">
       <xsl:text>    if (trace_flags) {
-          log_trace(jvmti)("[%s] %s %s  env=" PTR_FORMAT,  curr_thread_name, func_name, 
+          log_trace(jvmti)("[%s] %s %s  env=" PTR_FORMAT,  curr_thread_name, func_name,
                     JvmtiUtil::error_name(JVMTI_ERROR_INVALID_ENVIRONMENT), p2i(env));
     }
 </xsl:text>
@@ -553,11 +570,11 @@ static jvmtiError JNICALL
 </xsl:text>
 
   <xsl:apply-templates select="capabilities/required"/>
-  
+
   <xsl:text>  jvmtiError err;
 </xsl:text>
   <xsl:choose>
-    <xsl:when test="count(@phase)=1 and not(contains(@phase,'live')) and not(contains(@phase,'start'))">    
+    <xsl:when test="count(@phase)=1 and not(contains(@phase,'live')) and not(contains(@phase,'start'))">
       <xsl:choose>
         <xsl:when test="count(@callbacksafe)=0 or not(contains(@callbacksafe,'safe'))">
           <xsl:text>  if (Threads::number_of_threads() != 0) {
@@ -565,13 +582,13 @@ static jvmtiError JNICALL
         </xsl:when>
         <xsl:otherwise>
 
-	  <xsl:text>  Thread* this_thread = NULL;
+	  <xsl:text>  Thread* this_thread = nullptr;
   bool transition;
   if (Threads::number_of_threads() == 0) {
     transition = false;
   } else {
     this_thread = Thread::current_or_null();
-    transition = ((this_thread != NULL) &amp;&amp; !this_thread->is_Named_thread());
+    transition = ((this_thread != nullptr) &amp;&amp; !this_thread->is_Named_thread());
   }
   if (transition) {</xsl:text>
 	</xsl:otherwise>
@@ -587,16 +604,16 @@ static jvmtiError JNICALL
       </xsl:apply-templates>
       <xsl:text>
   </xsl:text>
-      <xsl:apply-templates select="." mode="doCall"/>     
+      <xsl:apply-templates select="." mode="doCall"/>
       <xsl:text>  } else {
   </xsl:text>
       <!-- we are pre-thread - no thread transition code -->
-      <xsl:apply-templates select="." mode="doCall"/>     
+      <xsl:apply-templates select="." mode="doCall"/>
       <xsl:text>  }
 </xsl:text>
     </xsl:when>
     <xsl:otherwise>
-      <xsl:apply-templates select="." mode="doCall"/>      
+      <xsl:apply-templates select="." mode="doCall"/>
     </xsl:otherwise>
   </xsl:choose>
   <xsl:text>  return err;
@@ -611,7 +628,7 @@ static jvmtiError JNICALL
 
 <xsl:template match="function" mode="doCall">
   <xsl:apply-templates select="parameters" mode="dochecks"/>
-  <xsl:apply-templates select="." mode="traceBefore"/>  
+  <xsl:apply-templates select="." mode="traceBefore"/>
   <xsl:apply-templates select="." mode="genCall"/>
   <xsl:apply-templates select="." mode="traceAfter"/>
 </xsl:template>
@@ -632,8 +649,8 @@ static jvmtiError JNICALL
   jint trace_flags = JvmtiTrace::trace_flags(</xsl:text>
       <xsl:value-of select="@num"/>
       <xsl:text>);
-  const char *func_name = NULL;
-  const char *curr_thread_name = NULL;
+  const char *func_name = nullptr;
+  const char *curr_thread_name = nullptr;
   if (trace_flags) {
     func_name = JvmtiTrace::function_name(</xsl:text>
       <xsl:value-of select="@num"/>
@@ -672,7 +689,7 @@ static jvmtiError JNICALL
         log_error(jvmti)("[%s] %s } %s - erroneous arg is </xsl:text>
     <xsl:value-of select="@id"/>
     <xsl:value-of select="$comment"/>
-    <xsl:text>",  curr_thread_name, func_name, 
+    <xsl:text>",  curr_thread_name, func_name,
                   JvmtiUtil::error_name(</xsl:text>
     <xsl:value-of select="$err"/>
     <xsl:text>)</xsl:text>
@@ -694,7 +711,7 @@ static jvmtiError JNICALL
 </xsl:text>
     <xsl:apply-templates select="." mode="traceIn"/>
     <xsl:text>    }
-    log_error(jvmti)("[%s] %s } %s",  curr_thread_name, func_name, 
+    log_error(jvmti)("[%s] %s } %s",  curr_thread_name, func_name,
                   JvmtiUtil::error_name(err));
   } else if ((trace_flags &amp; JvmtiTrace::SHOW_OUT) != 0) {
     log_trace(jvmti)("[%s] %s }",  curr_thread_name, func_name);
@@ -707,11 +724,11 @@ static jvmtiError JNICALL
   <xsl:param name="endParam"></xsl:param>
   <xsl:text>          log_trace(jvmti)("[%s] %s { </xsl:text>
   <xsl:apply-templates select="parameters" mode="traceInFormat">
-    <xsl:with-param name="endParam" select="$endParam"/>    
+    <xsl:with-param name="endParam" select="$endParam"/>
   </xsl:apply-templates>
   <xsl:text>", curr_thread_name, func_name</xsl:text>
   <xsl:apply-templates select="parameters" mode="traceInValue">
-    <xsl:with-param name="endParam" select="$endParam"/>    
+    <xsl:with-param name="endParam" select="$endParam"/>
   </xsl:apply-templates>
   <xsl:text>);
 </xsl:text>
@@ -729,12 +746,12 @@ static jvmtiError JNICALL
 
 <xsl:template match="outptr|outbuf|allocfieldbuf|ptrtype|inptr|inbuf|vmbuf|allocbuf|agentbuf|allocallocbuf" mode="dochecks">
   <xsl:param name="name"/>
-  <xsl:if test="count(nullok)=0">
+  <xsl:if test="count(nullok)=0 and not(contains(@impl,'nonullcheck'))">
     <xsl:text>  if (</xsl:text>
     <xsl:value-of select="$name"/>
-    <xsl:text> == NULL) {
+    <xsl:text> == nullptr) {
 </xsl:text>
-    <xsl:apply-templates select=".." mode="traceError">     
+    <xsl:apply-templates select=".." mode="traceError">
       <xsl:with-param name="err">JVMTI_ERROR_NULL_POINTER</xsl:with-param>
     </xsl:apply-templates>
     <xsl:text>
@@ -748,17 +765,17 @@ static jvmtiError JNICALL
   <xsl:text>  JvmtiRawMonitor *rmonitor = (JvmtiRawMonitor *)</xsl:text>
   <xsl:value-of select="$name"/>
   <xsl:text>;
-  if (rmonitor == NULL) {
+  if (rmonitor == nullptr) {
 </xsl:text>
-    <xsl:apply-templates select=".." mode="traceError">     
+    <xsl:apply-templates select=".." mode="traceError">
       <xsl:with-param name="err">JVMTI_ERROR_INVALID_MONITOR</xsl:with-param>
-      <xsl:with-param name="comment"> - raw monitor is NULL</xsl:with-param>
+      <xsl:with-param name="comment"> - raw monitor is nullptr</xsl:with-param>
     </xsl:apply-templates>
     <xsl:text>
   }
   if (!rmonitor->is_valid()) {
 </xsl:text>
-    <xsl:apply-templates select=".." mode="traceError">     
+    <xsl:apply-templates select=".." mode="traceError">
       <xsl:with-param name="err">JVMTI_ERROR_INVALID_MONITOR</xsl:with-param>
       <xsl:with-param name="comment"> - not a raw monitor " PTR_FORMAT "</xsl:with-param>
       <xsl:with-param name="extraValue">, p2i(rmonitor)</xsl:with-param>
@@ -772,10 +789,10 @@ static jvmtiError JNICALL
   <xsl:param name="name"/>
     <xsl:text>    err = JvmtiExport::cv_external_thread_to_JavaThread(tlh.list(), </xsl:text>
     <xsl:value-of select="$name"/>
-    <xsl:text>, &amp;java_thread, NULL);
+    <xsl:text>, &amp;java_thread, nullptr);
     if (err != JVMTI_ERROR_NONE) {
 </xsl:text>
-    <xsl:apply-templates select=".." mode="traceError">     
+    <xsl:apply-templates select=".." mode="traceError">
       <xsl:with-param name="err">err</xsl:with-param>
       <xsl:with-param name="comment"> - jthread did not convert to a JavaThread - jthread = " PTR_FORMAT "</xsl:with-param>
       <xsl:with-param name="extraValue">, p2i(<xsl:value-of select="$name"/>)</xsl:with-param>
@@ -789,7 +806,7 @@ static jvmtiError JNICALL
   <xsl:param name="name"/>
   <!-- If we convert and test threads -->
   <xsl:if test="count(@impl)=0 or not(contains(@impl,'noconvert'))">
-    <xsl:text>  JavaThread* java_thread = NULL;
+    <xsl:text>  JavaThread* java_thread = nullptr;
   ThreadsListHandle tlh(this_thread);
 </xsl:text>
     <xsl:choose>
@@ -801,7 +818,7 @@ static jvmtiError JNICALL
       <xsl:otherwise>
         <xsl:text>  if (</xsl:text>
         <xsl:value-of select="$name"/>
-        <xsl:text> == NULL) {
+        <xsl:text> == nullptr) {
     java_thread = current_thread;
   } else {
 </xsl:text>
@@ -820,7 +837,7 @@ static jvmtiError JNICALL
   <xsl:text>
   if (depth &lt; 0) {
 </xsl:text>
-    <xsl:apply-templates select=".." mode="traceError">     
+    <xsl:apply-templates select=".." mode="traceError">
       <xsl:with-param name="err">JVMTI_ERROR_ILLEGAL_ARGUMENT</xsl:with-param>
       <xsl:with-param name="comment"> - negative depth - jthread = " INT32_FORMAT "</xsl:with-param>
       <xsl:with-param name="extraValue">, <xsl:value-of select="$name"/></xsl:with-param>
@@ -834,21 +851,21 @@ static jvmtiError JNICALL
  <xsl:param name="name"/>
  <!-- for JVMTI a jclass/jmethodID becomes just jmethodID -->
  <xsl:if test="count(@method)=0">
-  <xsl:text>  oop k_mirror = JNIHandles::resolve_external_guard(</xsl:text>  
+  <xsl:text>  oop k_mirror = JNIHandles::resolve_external_guard(</xsl:text>
   <xsl:value-of select="$name"/>
   <xsl:text>);
-  if (k_mirror == NULL) {
+  if (k_mirror == nullptr) {
 </xsl:text>
-    <xsl:apply-templates select=".." mode="traceError">     
+    <xsl:apply-templates select=".." mode="traceError">
       <xsl:with-param name="err">JVMTI_ERROR_INVALID_CLASS</xsl:with-param>
-      <xsl:with-param name="comment"> - resolved to NULL - jclass = " PTR_FORMAT "</xsl:with-param>
+      <xsl:with-param name="comment"> - resolved to nullptr - jclass = " PTR_FORMAT "</xsl:with-param>
       <xsl:with-param name="extraValue">, p2i(<xsl:value-of select="$name"/>)</xsl:with-param>
     </xsl:apply-templates>
     <xsl:text>
   }
-  if (!k_mirror->is_a(SystemDictionary::Class_klass())) {
+  if (!k_mirror->is_a(vmClasses::Class_klass())) {
 </xsl:text>
-    <xsl:apply-templates select=".." mode="traceError">     
+    <xsl:apply-templates select=".." mode="traceError">
       <xsl:with-param name="err">JVMTI_ERROR_INVALID_CLASS</xsl:with-param>
       <xsl:with-param name="comment"> - not a class - jclass = " PTR_FORMAT "</xsl:with-param>
       <xsl:with-param name="extraValue">, p2i(<xsl:value-of select="$name"/>)</xsl:with-param>
@@ -860,7 +877,7 @@ static jvmtiError JNICALL
     <xsl:text>
   if (java_lang_Class::is_primitive(k_mirror)) {
 </xsl:text>
-    <xsl:apply-templates select=".." mode="traceError">     
+    <xsl:apply-templates select=".." mode="traceError">
       <xsl:with-param name="err">JVMTI_ERROR_INVALID_CLASS</xsl:with-param>
       <xsl:with-param name="comment"> - is a primitive class - jclass = " PTR_FORMAT "</xsl:with-param>
       <xsl:with-param name="extraValue">, p2i(<xsl:value-of select="$name"/>)</xsl:with-param>
@@ -868,9 +885,9 @@ static jvmtiError JNICALL
     <xsl:text>
   }
   Klass* k_oop = java_lang_Class::as_Klass(k_mirror);
-  if (k_oop == NULL) {
+  if (k_oop == nullptr) {
 </xsl:text>
-    <xsl:apply-templates select=".." mode="traceError">     
+    <xsl:apply-templates select=".." mode="traceError">
       <xsl:with-param name="err">JVMTI_ERROR_INVALID_CLASS</xsl:with-param>
       <xsl:with-param name="comment"> - no Klass* - jclass = " PTR_FORMAT "</xsl:with-param>
       <xsl:with-param name="extraValue">, p2i(<xsl:value-of select="$name"/>)</xsl:with-param>
@@ -885,11 +902,11 @@ static jvmtiError JNICALL
 
 <xsl:template match="jmethodID" mode="dochecks">
   <xsl:param name="name"/>
-  <xsl:text>  Method* method_oop = Method::checked_resolve_jmethod_id(</xsl:text>
+  <xsl:text>  Method* checked_method = Method::checked_resolve_jmethod_id(</xsl:text>
   <xsl:value-of select="$name"/>
   <xsl:text>);&#xA;</xsl:text>
-  <xsl:text>  if (method_oop == NULL) {&#xA;</xsl:text>
-  <xsl:apply-templates select=".." mode="traceError">     
+  <xsl:text>  if (checked_method == nullptr) {&#xA;</xsl:text>
+  <xsl:apply-templates select=".." mode="traceError">
     <xsl:with-param name="err">JVMTI_ERROR_INVALID_METHODID</xsl:with-param>
     <xsl:with-param name="comment"></xsl:with-param>
     <xsl:with-param name="extraValue"></xsl:with-param>
@@ -897,9 +914,9 @@ static jvmtiError JNICALL
   <xsl:text>&#xA;</xsl:text>
   <xsl:text>  }&#xA;</xsl:text>
   <xsl:if test="count(@native)=1 and contains(@native,'error')">
-    <xsl:text>  if (method_oop->is_native()) {&#xA;</xsl:text>   
-    <xsl:text>    return JVMTI_ERROR_NATIVE_METHOD;&#xA;</xsl:text>   
-    <xsl:text>  }&#xA;</xsl:text>   
+    <xsl:text>  if (checked_method->is_native()) {&#xA;</xsl:text>
+    <xsl:text>    return JVMTI_ERROR_NATIVE_METHOD;&#xA;</xsl:text>
+    <xsl:text>  }&#xA;</xsl:text>
   </xsl:if>
 </xsl:template>
 
@@ -911,7 +928,7 @@ static jvmtiError JNICALL
   <xsl:text>  if (!JvmtiEnv::get_field_descriptor(k_oop, </xsl:text>
   <xsl:value-of select="$name"/>
   <xsl:text>, &amp;fdesc)) {&#xA;</xsl:text>
-  <xsl:apply-templates select=".." mode="traceError">     
+  <xsl:apply-templates select=".." mode="traceError">
     <xsl:with-param name="err">JVMTI_ERROR_INVALID_FIELDID</xsl:with-param>
   </xsl:apply-templates>
   <xsl:text>&#xA;</xsl:text>
@@ -928,7 +945,7 @@ static jvmtiError JNICALL
     <xsl:value-of select="@min"/>
     <xsl:text>) {
 </xsl:text>
-    <xsl:apply-templates select=".." mode="traceError">     
+    <xsl:apply-templates select=".." mode="traceError">
       <xsl:with-param name="err">JVMTI_ERROR_ILLEGAL_ARGUMENT</xsl:with-param>
     </xsl:apply-templates>
     <xsl:text>
@@ -1048,7 +1065,7 @@ static jvmtiError JNICALL
       <xsl:text>=" PTR_FORMAT "</xsl:text>
     </xsl:when>
     <xsl:otherwise>
-      <xsl:apply-templates select="$child" mode="traceInFormat"/> 
+      <xsl:apply-templates select="$child" mode="traceInFormat"/>
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>
@@ -1064,7 +1081,7 @@ static jvmtiError JNICALL
     <xsl:otherwise>
       <xsl:apply-templates select="$child" mode="traceInValue"/>
     </xsl:otherwise>
-  </xsl:choose> 
+  </xsl:choose>
 </xsl:template>
 
 <xsl:template match="inptr" mode="traceInFormat">
@@ -1116,8 +1133,8 @@ static jvmtiError JNICALL
   <xsl:param name="name"/>
   <!-- If we convert and test threads -->
   <xsl:if test="count(@impl)=0 or not(contains(@impl,'noconvert'))">
-    <xsl:text>, 
-                    JvmtiTrace::safe_get_thread_name(java_thread)</xsl:text>  
+    <xsl:text>,
+                    JvmtiTrace::safe_get_thread_name(java_thread)</xsl:text>
   </xsl:if>
 </xsl:template>
 
@@ -1135,7 +1152,7 @@ static jvmtiError JNICALL
 <xsl:template match="jclass" mode="traceInValue">
   <!-- for JVMTI a jclass/jmethodID becomes just jmethodID -->
   <xsl:if test="count(@method)=0">
-    <xsl:text>, 
+    <xsl:text>,
                     JvmtiTrace::get_class_name(k_mirror)</xsl:text>
   </xsl:if>
 </xsl:template>
@@ -1149,9 +1166,9 @@ static jvmtiError JNICALL
 
 <xsl:template match="jmethodID" mode="traceInValue">
   <xsl:param name="name"/>
-  <xsl:text>, 
-                    method_oop == NULL? "NULL" : method_oop->klass_name()->as_C_string(),
-                    method_oop == NULL? "NULL" : method_oop->name()->as_C_string()
+  <xsl:text>,
+                    checked_method == nullptr? "nullptr" : checked_method->klass_name()->as_C_string(),
+                    checked_method == nullptr? "nullptr" : checked_method->name()->as_C_string()
              </xsl:text>
 </xsl:template>
 
@@ -1171,7 +1188,7 @@ static jvmtiError JNICALL
   <xsl:param name="name"/>
   <xsl:text>, </xsl:text>
   <xsl:value-of select="$name"/>
-  <xsl:text>, 
+  <xsl:text>,
                     </xsl:text>
   <xsl:choose>
     <xsl:when test=".='jvmtiError'">
@@ -1227,7 +1244,7 @@ static jvmtiError JNICALL
   <xsl:param name="name"/>
   <xsl:text> </xsl:text>
   <xsl:value-of select="$name"/>
-  <xsl:text>=" SIZE_FORMAT_HEX "</xsl:text>
+  <xsl:text>=" SIZE_FORMAT_X "</xsl:text>
 </xsl:template>
 
 <xsl:template match="jfloat|jdouble" mode="traceInFormat">

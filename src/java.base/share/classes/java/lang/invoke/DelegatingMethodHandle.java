@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@ package java.lang.invoke;
 import java.util.Arrays;
 import static java.lang.invoke.LambdaForm.*;
 import static java.lang.invoke.LambdaForm.Kind.*;
-import static java.lang.invoke.MethodHandleNatives.Constants.REF_invokeVirtual;
+import static java.lang.invoke.MethodHandleNatives.Constants.*;
 import static java.lang.invoke.MethodHandleStatics.*;
 
 /**
@@ -37,7 +37,11 @@ import static java.lang.invoke.MethodHandleStatics.*;
  * @author jrose
  */
 /*non-public*/
-abstract class DelegatingMethodHandle extends MethodHandle {
+abstract sealed class DelegatingMethodHandle extends MethodHandle
+    permits MethodHandleImpl.AsVarargsCollector,
+            MethodHandleImpl.WrappedMember,
+            MethodHandleImpl.IntrinsicMethodHandle,
+            MethodHandleImpl.CountingWrapper {
     protected DelegatingMethodHandle(MethodHandle target) {
         this(target.type(), target);
     }
@@ -59,6 +63,20 @@ abstract class DelegatingMethodHandle extends MethodHandle {
     @Override
     MemberName internalMemberName() {
         return getTarget().internalMemberName();
+    }
+
+    @Override
+    boolean isCrackable() {
+        MemberName member = internalMemberName();
+        return member != null &&
+                (member.isResolved() ||
+                 member.isMethodHandleInvoke() ||
+                 member.isVarHandleMethodInvoke());
+    }
+
+    @Override
+    MethodHandle viewAsType(MethodType newType, boolean strict) {
+        return getTarget().viewAsType(newType, strict);
     }
 
     @Override
@@ -125,7 +143,7 @@ abstract class DelegatingMethodHandle extends MethodHandle {
         final int PRE_ACTION   = hasPreAction ? nameCursor++ : -1;
         final int NEXT_MH     = customized ? -1 : nameCursor++;
         final int REINVOKE    = nameCursor++;
-        LambdaForm.Name[] names = LambdaForm.arguments(nameCursor - ARG_LIMIT, mtype.invokerType());
+        LambdaForm.Name[] names = LambdaForm.invokeArguments(nameCursor - ARG_LIMIT, mtype);
         assert(names.length == nameCursor);
         names[THIS_DMH] = names[THIS_DMH].withConstraint(constraint);
         Object[] targetArgs;
@@ -141,7 +159,7 @@ abstract class DelegatingMethodHandle extends MethodHandle {
             targetArgs[0] = names[NEXT_MH];  // overwrite this MH with next MH
             names[REINVOKE] = new LambdaForm.Name(mtype, targetArgs);
         }
-        form = new LambdaForm(ARG_LIMIT, names, forceInline, kind);
+        form = LambdaForm.create(ARG_LIMIT, names, forceInline, kind);
         if (!customized) {
             form = mtype.form().setCachedLambdaForm(whichCache, form);
         }
@@ -149,11 +167,11 @@ abstract class DelegatingMethodHandle extends MethodHandle {
     }
 
     private static Kind whichKind(int whichCache) {
-        switch(whichCache) {
-            case MethodTypeForm.LF_REBIND:   return BOUND_REINVOKER;
-            case MethodTypeForm.LF_DELEGATE: return DELEGATE;
-            default:                         return REINVOKER;
-        }
+        return switch (whichCache) {
+            case MethodTypeForm.LF_REBIND   -> BOUND_REINVOKER;
+            case MethodTypeForm.LF_DELEGATE -> DELEGATE;
+            default -> REINVOKER;
+        };
     }
 
     static final NamedFunction NF_getTarget;
@@ -163,7 +181,7 @@ abstract class DelegatingMethodHandle extends MethodHandle {
                     MethodType.methodType(MethodHandle.class), REF_invokeVirtual);
             NF_getTarget = new NamedFunction(
                     MemberName.getFactory()
-                            .resolveOrFail(REF_invokeVirtual, member, DelegatingMethodHandle.class, NoSuchMethodException.class));
+                            .resolveOrFail(REF_invokeVirtual, member, DelegatingMethodHandle.class, LM_TRUSTED, NoSuchMethodException.class));
         } catch (ReflectiveOperationException ex) {
             throw newInternalError(ex);
         }

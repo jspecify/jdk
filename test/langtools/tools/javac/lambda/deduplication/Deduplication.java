@@ -160,6 +160,18 @@ public class Deduplication {
                 group((Consumer<Integer>) x -> Deduplication.this.f());
             }
         }
+
+        group((Function<Integer, Integer>) x -> switch (x) { default: yield x; },
+              (Function<Integer, Integer>) x -> switch (x) { default: yield x; });
+
+        group((Function<Object, Integer>) x -> x instanceof Integer i ? i : -1,
+              (Function<Object, Integer>) x -> x instanceof Integer i ? i : -1);
+
+        group((Function<Object, Integer>) x -> x instanceof R(var i1, var i2) ? i1 : -1,
+              (Function<Object, Integer>) x -> x instanceof R(var i1, var i2) ? i1 : -1 );
+
+        group((Function<Object, Integer>) x -> x instanceof R(Integer i1, int i2) ? i2 : -1,
+              (Function<Object, Integer>) x -> x instanceof R(Integer i1, int i2) ? i2 : -1 );
     }
 
     void f() {}
@@ -168,4 +180,6 @@ public class Deduplication {
 
     int i;
     int j;
+
+    record R(Integer i1, int i2) {}
 }

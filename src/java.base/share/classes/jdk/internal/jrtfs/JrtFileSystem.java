@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -106,14 +106,6 @@ class JrtFileSystem extends FileSystem {
     }
 
     @Override
-    @SuppressWarnings("deprecation")
-    protected void finalize() throws Throwable {
-        try {
-            cleanup();
-        } catch (IOException ignored) {}
-    }
-
-    @Override
     public FileSystemProvider provider() {
         return provider;
     }
@@ -131,7 +123,7 @@ class JrtFileSystem extends FileSystem {
         StringBuilder sb = new StringBuilder();
         sb.append(first);
         for (String path : more) {
-            if (path.length() > 0) {
+            if (!path.isEmpty()) {
                 if (sb.length() > 0) {
                     sb.append('/');
                 }
@@ -183,8 +175,8 @@ class JrtFileSystem extends FileSystem {
     @Override
     public PathMatcher getPathMatcher(String syntaxAndInput) {
         int pos = syntaxAndInput.indexOf(':');
-        if (pos <= 0 || pos == syntaxAndInput.length()) {
-            throw new IllegalArgumentException("pos is " + pos);
+        if (pos <= 0) {
+            throw new IllegalArgumentException();
         }
         String syntax = syntaxAndInput.substring(0, pos);
         String input = syntaxAndInput.substring(pos + 1);
@@ -282,7 +274,7 @@ class JrtFileSystem extends FileSystem {
 
     // check that the options passed are supported by (read-only) jrt file system
     static void checkOptions(Set<? extends OpenOption> options) {
-        // check for options of null type and option is an intance of StandardOpenOption
+        // check for options of null type and option is an instance of StandardOpenOption
         for (OpenOption option : options) {
             Objects.requireNonNull(option);
             if (!(option instanceof StandardOpenOption)) {

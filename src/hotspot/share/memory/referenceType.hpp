@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_MEMORY_REFERENCETYPE_HPP
-#define SHARE_VM_MEMORY_REFERENCETYPE_HPP
+#ifndef SHARE_MEMORY_REFERENCETYPE_HPP
+#define SHARE_MEMORY_REFERENCETYPE_HPP
 
 #include "utilities/debug.hpp"
 
@@ -31,11 +31,10 @@
 
 enum ReferenceType {
   REF_NONE,      // Regular class
-  REF_OTHER,     // Subclass of java/lang/ref/Reference, but not subclass of one of the classes below
   REF_SOFT,      // Subclass of java/lang/ref/SoftReference
   REF_WEAK,      // Subclass of java/lang/ref/WeakReference
   REF_FINAL,     // Subclass of java/lang/ref/FinalReference
   REF_PHANTOM    // Subclass of java/lang/ref/PhantomReference
 };
 
-#endif // SHARE_VM_MEMORY_REFERENCETYPE_HPP
+#endif // SHARE_MEMORY_REFERENCETYPE_HPP

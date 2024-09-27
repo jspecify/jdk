@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,16 +26,38 @@
 
 #include "gc/z/zTracer.hpp"
 
-inline ZTracer* ZTracer::tracer() {
-  return _tracer;
+#include "jfr/jfrEvents.hpp"
+
+inline void ZTracer::report_stat_counter(const ZStatCounter& counter, uint64_t increment, uint64_t value) {
+  if (EventZStatisticsCounter::is_enabled()) {
+    send_stat_counter(counter, increment, value);
+  }
 }
 
-inline ZTraceThreadPhase::ZTraceThreadPhase(const char* name) :
-    _start(Ticks::now()),
+inline void ZTracer::report_stat_sampler(const ZStatSampler& sampler, uint64_t value) {
+  if (EventZStatisticsSampler::is_enabled()) {
+    send_stat_sampler(sampler, value);
+  }
+}
+
+inline void ZTracer::report_thread_phase(const char* name, const Ticks& start, const Ticks& end) {
+  if (EventZThreadPhase::is_enabled()) {
+    send_thread_phase(name, start, end);
+  }
+}
+
+inline void ZTracer::report_thread_debug(const char* name, const Ticks& start, const Ticks& end) {
+  if (EventZThreadDebug::is_enabled()) {
+    send_thread_debug(name, start, end);
+  }
+}
+
+inline ZTraceThreadDebug::ZTraceThreadDebug(const char* name)
+  : _start(Ticks::now()),
     _name(name) {}
 
-inline ZTraceThreadPhase::~ZTraceThreadPhase() {
-  ZTracer::tracer()->report_thread_phase(_name, _start, Ticks::now());
+inline ZTraceThreadDebug::~ZTraceThreadDebug() {
+  ZTracer::report_thread_debug(_name, _start, Ticks::now());
 }
 
 #endif // SHARE_GC_Z_ZTRACER_INLINE_HPP

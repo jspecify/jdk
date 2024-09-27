@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 
 #include "precompiled.hpp"
 #include "gc/g1/g1MMUTracker.hpp"
-#include "gc/shared/gcTrace.hpp"
+#include "gc/g1/g1Trace.hpp"
 #include "logging/log.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/ostream.hpp"
@@ -39,15 +39,12 @@
 
 G1MMUTracker::G1MMUTracker(double time_slice, double max_gc_time) :
   _time_slice(time_slice),
-  _max_gc_time(max_gc_time) { }
-
-G1MMUTrackerQueue::G1MMUTrackerQueue(double time_slice, double max_gc_time) :
-  G1MMUTracker(time_slice, max_gc_time),
+  _max_gc_time(max_gc_time),
   _head_index(0),
   _tail_index(trim_index(_head_index+1)),
   _no_entries(0) { }
 
-void G1MMUTrackerQueue::remove_expired_entries(double current_time) {
+void G1MMUTracker::remove_expired_entries(double current_time) {
   double limit = current_time - _time_slice;
   while (_no_entries > 0) {
     if (is_double_geq(limit, _array[_tail_index].end_time())) {
@@ -59,12 +56,12 @@ void G1MMUTrackerQueue::remove_expired_entries(double current_time) {
   guarantee(_no_entries == 0, "should have no entries in the array");
 }
 
-double G1MMUTrackerQueue::calculate_gc_time(double current_time) {
+double G1MMUTracker::calculate_gc_time(double current_timestamp) {
   double gc_time = 0.0;
-  double limit = current_time - _time_slice;
+  double limit = current_timestamp - _time_slice;
   for (int i = 0; i < _no_entries; ++i) {
     int index = trim_index(_tail_index + i);
-    G1MMUTrackerQueueElem *elem = &_array[index];
+    G1MMUTrackerElem *elem = &_array[index];
     if (elem->end_time() > limit) {
       if (elem->start_time() > limit)
         gc_time += elem->duration();
@@ -75,9 +72,7 @@ double G1MMUTrackerQueue::calculate_gc_time(double current_time) {
   return gc_time;
 }
 
-void G1MMUTrackerQueue::add_pause(double start, double end) {
-  double duration = end - start;
-
+void G1MMUTracker::add_pause(double start, double end) {
   remove_expired_entries(end);
   if (_no_entries == QueueLength) {
     // OK, we've filled up the queue. There are a few ways
@@ -101,40 +96,76 @@ void G1MMUTrackerQueue::add_pause(double start, double end) {
     _head_index = trim_index(_head_index + 1);
     ++_no_entries;
   }
-  _array[_head_index] = G1MMUTrackerQueueElem(start, end);
+  _array[_head_index] = G1MMUTrackerElem(start, end);
 
   // Current entry needs to be added before calculating the value
   double slice_time = calculate_gc_time(end);
   G1MMUTracer::report_mmu(_time_slice, slice_time, _max_gc_time);
 
-  if (slice_time >= _max_gc_time) {
-    log_info(gc, mmu)("MMU target violated: %.1lfms (%.1lfms/%.1lfms)", slice_time * 1000.0, _max_gc_time * 1000.0, _time_slice * 1000);
+  if (slice_time < _max_gc_time) {
+    log_debug(gc, mmu)("MMU: %.1lfms (%.1lfms/%.1lfms)",
+                       slice_time * 1000.0, _max_gc_time * 1000.0, _time_slice * 1000);
+  } else {
+    log_info(gc, mmu)("MMU target violated: %.1lfms (%.1lfms/%.1lfms)",
+                      slice_time * 1000.0, _max_gc_time * 1000.0, _time_slice * 1000);
   }
 }
 
-double G1MMUTrackerQueue::when_sec(double current_time, double pause_time) {
-  // if the pause is over the maximum, just assume that it's the maximum
-  double adjusted_pause_time =
-    (pause_time > max_gc_time()) ? max_gc_time() : pause_time;
-  double earliest_end = current_time + adjusted_pause_time;
-  double limit = earliest_end - _time_slice;
-  double gc_time = calculate_gc_time(earliest_end);
-  double diff = gc_time + adjusted_pause_time - max_gc_time();
-  if (is_double_leq_0(diff))
-    return 0.0;
+//                                                current_timestamp
+//                       GC events               /  pause_time
+//                 /     |     \     \          | /  /
+// -------------[----]-[---]--[--]---[---]------|[--]-----> Time
+//              |         |                         |
+//              |         |                         |
+//              |<- limit |                         |
+//              |         |<- balance_timestamp     |
+//              |         ^                         |
+//              |                                   |
+//              |<--------  _time_slice   --------->|
+//
+// The MMU constraint requires that we can spend up to `max_gc_time()` on GC
+// pauses inside a window of `_time_slice` length. Therefore, we have a GC
+// budget of `max_gc_time() - pause_time`, which is to be accounted for by past
+// GC events.
+//
+// Focusing on GC events that are inside [limit, current_timestamp], we iterate
+// over them from the newest to the oldest (right-to-left in the diagram) and
+// try to locate the timestamp annotated with ^, so that the accumulated GC
+// time inside [balance_timestamp, current_timestamp] is equal to the budget.
+// Next, return `balance_timestamp - limit`.
+//
+// When there are not enough GC events, i.e. we have a surplus budget, a new GC
+// pause can start right away, so return 0.
+double G1MMUTracker::when_sec(double current_timestamp, double pause_time) const {
+  assert(pause_time > 0.0, "precondition");
 
-  int index = _tail_index;
-  while ( 1 ) {
-    G1MMUTrackerQueueElem *elem = &_array[index];
-    if (elem->end_time() > limit) {
-      if (elem->start_time() > limit)
-        diff -= elem->duration();
-      else
-        diff -= elem->end_time() - limit;
-      if (is_double_leq_0(diff))
-        return  elem->end_time() + diff + _time_slice - adjusted_pause_time - current_time;
+  // If the pause is over the maximum, just assume that it's the maximum.
+  pause_time = MIN2(pause_time, max_gc_time());
+
+  double gc_budget = max_gc_time() - pause_time;
+
+  double limit = current_timestamp + pause_time - _time_slice;
+  // Iterate from newest to oldest.
+  for (int i = 0; i < _no_entries; ++i) {
+    int index = trim_index(_head_index - i);
+    const G1MMUTrackerElem *elem = &_array[index];
+    // Outside the window.
+    if (elem->end_time() <= limit) {
+      break;
     }
-    index = trim_index(index+1);
-    guarantee(index != trim_index(_head_index + 1), "should not go past head");
+
+    double duration = (elem->end_time() - MAX2(elem->start_time(), limit));
+    // This duration would exceed (strictly greater than) the budget.
+    if (duration > gc_budget) {
+      // This timestamp captures the instant the budget is balanced (or used up).
+      double balance_timestamp = elem->end_time() - gc_budget;
+      assert(balance_timestamp >= limit, "inv");
+      return balance_timestamp - limit;
+    }
+
+    gc_budget -= duration;
   }
+
+  // Not enough gc time spent inside the window, we have a budget surplus.
+  return 0;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,13 +24,13 @@
 
 /*
  * @test
- * @key stress
+ * @key stress randomness
  *
  * @summary converted from VM Testbase nsk/sysdict/vm/stress/btree/btree002.
  * VM Testbase keywords: [stress, sysdict, stressopt, nonconcurrent]
  * VM Testbase readme:
  * DESCRIPTION
- *     Single thread loads a tree of classes with signle loader.
+ *     Single thread loads a tree of classes with single loader.
  *     The test is deemed failed if loading attempt fails.
  *     The test repeats until the given number of iterations,
  *     or until EndOfMemoryError.
@@ -42,11 +42,9 @@
  * @run driver nsk.sysdict.share.GenClassesBuilder btree
  * @comment build fats.jar
  * @run driver nsk.sysdict.share.GenClassesBuilder fats
- * @run driver jdk.test.lib.FileInstaller . .
  * @build nsk.sysdict.share.BTreeTest
  * @run main/othervm
  *      -XX:-UseGCOverheadLimit
- *      PropertyResolvingWrapper
  *      nsk.sysdict.share.BTreeTest
  *      -jarpath btree.jar${path.separator}fats.jar
  *      -useSingleLoader

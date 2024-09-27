@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,11 +27,12 @@ package sun.java2d.loops;
 
 import java.awt.Composite;
 import java.awt.image.BufferedImage;
+
 import sun.awt.image.BufImgSurfaceData;
-import sun.java2d.loops.GraphicsPrimitive;
 import sun.java2d.SunGraphics2D;
 import sun.java2d.SurfaceData;
 import sun.java2d.pipe.Region;
+import sun.java2d.loops.GraphicsPrimitiveMgr.GeneralPrimitives;
 
 /**
  * MaskFill
@@ -141,12 +142,12 @@ public class MaskFill extends GraphicsPrimitive
     }
 
     static {
-        GraphicsPrimitiveMgr.registerGeneral(new MaskFill(null, null, null));
+        GeneralPrimitives.register(new MaskFill(null, null, null));
     }
 
-    public GraphicsPrimitive makePrimitive(SurfaceType srctype,
-                                           CompositeType comptype,
-                                           SurfaceType dsttype)
+    protected GraphicsPrimitive makePrimitive(SurfaceType srctype,
+                                              CompositeType comptype,
+                                              SurfaceType dsttype)
     {
         if (SurfaceType.OpaqueColor.equals(srctype) ||
             SurfaceType.AnyColor.equals(srctype))
@@ -181,7 +182,7 @@ public class MaskFill extends GraphicsPrimitive
                              SurfaceData sData,
                              Composite comp,
                              int x, int y, int w, int h,
-                             byte mask[], int offset, int scan)
+                             byte[] mask, int offset, int scan)
         {
             BufferedImage dstBI =
                 new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);

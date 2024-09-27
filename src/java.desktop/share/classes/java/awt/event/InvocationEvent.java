@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,11 @@
 
 package java.awt.event;
 
-import sun.awt.AWTAccessor;
-
-import java.awt.ActiveEvent;
 import java.awt.AWTEvent;
+import java.awt.ActiveEvent;
+import java.io.Serial;
+
+import sun.awt.AWTAccessor;
 
 /**
  * An event which executes the {@code run()} method on a {@code Runnable
@@ -85,6 +86,7 @@ public class InvocationEvent extends AWTEvent implements ActiveEvent {
     /**
      * The Runnable whose run() method will be called.
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     protected Runnable runnable;
 
     /**
@@ -94,6 +96,7 @@ public class InvocationEvent extends AWTEvent implements ActiveEvent {
      *
      * @see #isDispatched
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     protected volatile Object notifier;
 
     /**
@@ -103,6 +106,7 @@ public class InvocationEvent extends AWTEvent implements ActiveEvent {
      * @see #isDispatched
      * @since 1.8
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private final Runnable listener;
 
     /**
@@ -112,7 +116,7 @@ public class InvocationEvent extends AWTEvent implements ActiveEvent {
      * @see #isDispatched
      * @since 1.7
      */
-    private volatile boolean dispatched = false;
+    private volatile boolean dispatched;
 
     /**
      * Set to true if dispatch() catches Throwable and stores it in the
@@ -143,14 +147,15 @@ public class InvocationEvent extends AWTEvent implements ActiveEvent {
      */
     private long when;
 
-    /*
-     * JDK 1.1 serialVersionUID.
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = 436056344909459450L;
 
     /**
      * Constructs an {@code InvocationEvent} with the specified
-     * source which will execute the runnable's {@code run}
+     * source which will execute the runnable's {@code run()}
      * method when dispatched.
      * <p>This is a convenience constructor.  An invocation of the form
      * {@code InvocationEvent(source, runnable)}
@@ -161,7 +166,7 @@ public class InvocationEvent extends AWTEvent implements ActiveEvent {
      * if {@code source} is {@code null}.
      *
      * @param source    The {@code Object} that originated the event
-     * @param runnable  The {@code Runnable} whose {@code run}
+     * @param runnable  The {@code Runnable} whose {@code run()}
      *                  method will be executed
      * @throws IllegalArgumentException if {@code source} is null
      *
@@ -174,10 +179,10 @@ public class InvocationEvent extends AWTEvent implements ActiveEvent {
 
     /**
      * Constructs an {@code InvocationEvent} with the specified
-     * source which will execute the runnable's {@code run}
+     * source which will execute the runnable's {@code run()}
      * method when dispatched.  If notifier is non-{@code null},
      * {@code notifyAll()} will be called on it
-     * immediately after {@code run} has returned or thrown an exception.
+     * immediately after {@code run()} has returned or thrown an exception.
      * <p>An invocation of the form
      * {@code InvocationEvent(source, runnable, notifier, catchThrowables)}
      * behaves in exactly the same way as the invocation of
@@ -189,7 +194,7 @@ public class InvocationEvent extends AWTEvent implements ActiveEvent {
      * @param source            The {@code Object} that originated
      *                          the event
      * @param runnable          The {@code Runnable} whose
-     *                          {@code run} method will be
+     *                          {@code run()} method will be
      *                          executed
      * @param notifier          The {@code Object} whose {@code notifyAll}
      *                          method will be called after
@@ -198,7 +203,7 @@ public class InvocationEvent extends AWTEvent implements ActiveEvent {
      *                          disposed
      * @param catchThrowables   Specifies whether {@code dispatch}
      *                          should catch Throwable when executing
-     *                          the {@code Runnable}'s {@code run}
+     *                          the {@code Runnable}'s {@code run()}
      *                          method, or should instead propagate those
      *                          Throwables to the EventDispatchThread's
      *                          dispatch loop
@@ -214,7 +219,7 @@ public class InvocationEvent extends AWTEvent implements ActiveEvent {
 
     /**
      * Constructs an {@code InvocationEvent} with the specified
-     * source which will execute the runnable's {@code run}
+     * source which will execute the runnable's {@code run()}
      * method when dispatched.  If listener is non-{@code null},
      * {@code listener.run()} will be called immediately after
      * {@code run} has returned, thrown an exception or the event
@@ -225,15 +230,15 @@ public class InvocationEvent extends AWTEvent implements ActiveEvent {
      * @param source            The {@code Object} that originated
      *                          the event
      * @param runnable          The {@code Runnable} whose
-     *                          {@code run} method will be
+     *                          {@code run()} method will be
      *                          executed
-     * @param listener          The {@code Runnable}Runnable whose
+     * @param listener          The {@code Runnable} whose
      *                          {@code run()} method will be called
      *                          after the {@code InvocationEvent}
      *                          was dispatched or disposed
      * @param catchThrowables   Specifies whether {@code dispatch}
      *                          should catch Throwable when executing
-     *                          the {@code Runnable}'s {@code run}
+     *                          the {@code Runnable}'s {@code run()}
      *                          method, or should instead propagate those
      *                          Throwables to the EventDispatchThread's
      *                          dispatch loop
@@ -246,10 +251,10 @@ public class InvocationEvent extends AWTEvent implements ActiveEvent {
 
     /**
      * Constructs an {@code InvocationEvent} with the specified
-     * source and ID which will execute the runnable's {@code run}
+     * source and ID which will execute the runnable's {@code run()}
      * method when dispatched.  If notifier is non-{@code null},
-     * {@code notifyAll} will be called on it immediately after
-     * {@code run} has returned or thrown an exception.
+     * {@code notifyAll()} will be called on it immediately after
+     * {@code run()} has returned or thrown an exception.
      * <p>This method throws an
      * {@code IllegalArgumentException} if {@code source}
      * is {@code null}.
@@ -260,7 +265,7 @@ public class InvocationEvent extends AWTEvent implements ActiveEvent {
      *                     For information on allowable values, see
      *                     the class description for {@link InvocationEvent}
      * @param runnable          The {@code Runnable} whose
-     *                          {@code run} method will be executed
+     *                          {@code run()} method will be executed
      * @param notifier          The {@code Object} whose {@code notifyAll}
      *                          method will be called after
      *                          {@code Runnable.run} has returned or
@@ -268,7 +273,7 @@ public class InvocationEvent extends AWTEvent implements ActiveEvent {
      *                          disposed
      * @param catchThrowables   Specifies whether {@code dispatch}
      *                          should catch Throwable when executing the
-     *                          {@code Runnable}'s {@code run}
+     *                          {@code Runnable}'s {@code run()}
      *                          method, or should instead propagate those
      *                          Throwables to the EventDispatchThread's
      *                          dispatch loop

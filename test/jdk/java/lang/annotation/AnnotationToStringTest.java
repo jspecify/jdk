@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,16 @@
 
 /*
  * @test
- * @bug 8162817 8168921
+ * @bug 8162817 8168921 8322218
  * @summary Test of toString on normal annotations
  */
 
+// See also the sibling compile-time test
+// test/langtools/tools/javac/processing/model/element/AnnotationToStringTest.java
+
 import java.lang.annotation.*;
-import java.lang.reflect.*;
+import java.lang.reflect.Field;
+import javax.lang.model.element.Modifier;
 import java.util.*;
 
 /**
@@ -62,22 +66,25 @@ public class AnnotationToStringTest {
     @ExpectedString(
         "@MostlyPrimitive(c0='a', "+
         "c1='\\'', " +
+        "b0=(byte)0x01, " +
         "i0=1, " +
         "i1=2, " +
         "f0=1.0f, " +
         "f1=0.0f/0.0f, " +
         "d0=0.0, " +
         "d1=1.0/0.0, " +
-        "l0=5, " +
+        "l0=5L, " +
         "l1=9223372036854775807L, " +
         "l2=-9223372036854775808L, " +
-        "l3=-2147483648, " +
+        "l3=-2147483648L, " +
         "s0=\"Hello world.\", " +
         "s1=\"a\\\"b\", " +
-        "class0=Obj[].class)")
+        "class0=Obj[].class, " +
+        "classArray={Obj[].class})")
     @MostlyPrimitive(
         c0='a',
         c1='\'',
+        b0=1,
         i0=1,
         i1=2,
         f0=1.0f,
@@ -90,7 +97,8 @@ public class AnnotationToStringTest {
         l3=Integer.MIN_VALUE,
         s0="Hello world.",
         s1="a\"b",
-        class0=Obj[].class
+        class0=Obj[].class,
+        classArray={Obj[].class}
     )
     static class PrimHost{}
 
@@ -107,33 +115,33 @@ public class AnnotationToStringTest {
 
     static class AnnotationHost {
         @ExpectedString(
-       "@Classy(value=Obj.class)")
-        @Classy(value=Obj.class)
+       "@Classy(Obj.class)")
+        @Classy(Obj.class)
         public int f0;
 
         @ExpectedString(
-       "@Classy(value=Obj[].class)")
-        @Classy(value=Obj[].class)
+       "@Classy(Obj[].class)")
+        @Classy(Obj[].class)
         public int f1;
 
         @ExpectedString(
-       "@Classy(value=Obj[][].class)")
-        @Classy(value=Obj[][].class)
+       "@Classy(Obj[][].class)")
+        @Classy(Obj[][].class)
         public int f2;
 
         @ExpectedString(
-       "@Classy(value=Obj[][][].class)")
-        @Classy(value=Obj[][][].class)
+       "@Classy(Obj[][][].class)")
+        @Classy(Obj[][][].class)
         public int f3;
 
         @ExpectedString(
-       "@Classy(value=int.class)")
-        @Classy(value=int.class)
+       "@Classy(int.class)")
+        @Classy(int.class)
         public int f4;
 
         @ExpectedString(
-       "@Classy(value=int[][][].class)")
-        @Classy(value=int[][][].class)
+       "@Classy(int[][][].class)")
+        @Classy(int[][][].class)
         public int f5;
     }
 
@@ -154,60 +162,65 @@ public class AnnotationToStringTest {
 
     static class ArrayAnnotationHost {
         @ExpectedString(
-       "@BooleanArray(value={true, false, true})")
-        @BooleanArray(value={true, false, true})
+       "@EnumValue(NON_SEALED)") // toString and name differ
+        @EnumValue(Modifier.NON_SEALED)
+        public int f00;
+
+        @ExpectedString(
+       "@BooleanArray({true, false, true})")
+        @BooleanArray({true, false, true})
         public boolean[]   f0;
 
         @ExpectedString(
-       "@FloatArray(value={3.0f, 4.0f, 0.0f/0.0f, -1.0f/0.0f, 1.0f/0.0f})")
-        @FloatArray(value={3.0f, 4.0f, Float.NaN, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY})
+       "@FloatArray({3.0f, 4.0f, 0.0f/0.0f, -1.0f/0.0f, 1.0f/0.0f})")
+        @FloatArray({3.0f, 4.0f, Float.NaN, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY})
         public float[]     f1;
 
         @ExpectedString(
-       "@DoubleArray(value={1.0, 2.0, 0.0/0.0, 1.0/0.0, -1.0/0.0})")
-        @DoubleArray(value={1.0, 2.0, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY,})
+       "@DoubleArray({1.0, 2.0, 0.0/0.0, 1.0/0.0, -1.0/0.0})")
+        @DoubleArray({1.0, 2.0, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY,})
         public double[]    f2;
 
         @ExpectedString(
-       "@ByteArray(value={10, 11, 12})")
-        @ByteArray(value={10, 11, 12})
+       "@ByteArray({(byte)0x0a, (byte)0x0b, (byte)0x0c})")
+        @ByteArray({10, 11, 12})
         public byte[]      f3;
 
         @ExpectedString(
-       "@ShortArray(value={0, 4, 5})")
-        @ShortArray(value={0, 4, 5})
+       "@ShortArray({0, 4, 5})")
+        @ShortArray({0, 4, 5})
         public short[]     f4;
 
         @ExpectedString(
-       "@CharArray(value={'a', 'b', 'c', '\\''})")
-        @CharArray(value={'a', 'b', 'c', '\''})
+       "@CharArray({'a', 'b', 'c', '\\'', '\"'})")
+        @CharArray({'a', 'b', 'c', '\'', '"'})
         public char[]      f5;
 
         @ExpectedString(
-       "@IntArray(value={1})")
-        @IntArray(value={1})
+       "@IntArray({1})")
+        @IntArray({1})
         public int[]       f6;
 
         @ExpectedString(
-       "@LongArray(value={-9223372036854775808L, -2147483649L, -2147483648," +
-                " -2147483647, 2147483648L, 9223372036854775807L})")
-        @LongArray(value={Long.MIN_VALUE, Integer.MIN_VALUE-1L, Integer.MIN_VALUE,
+       "@LongArray({-9223372036854775808L, -2147483649L, -2147483648L," +
+                " -2147483647L, 2147483648L, 9223372036854775807L})")
+        @LongArray({Long.MIN_VALUE, Integer.MIN_VALUE-1L, Integer.MIN_VALUE,
                 -Integer.MAX_VALUE, Integer.MAX_VALUE+1L, Long.MAX_VALUE})
         public long[]      f7;
 
         @ExpectedString(
-       "@StringArray(value={\"A\", \"B\", \"C\", \"\\\"Quote\\\"\"})")
-        @StringArray(value={"A", "B", "C", "\"Quote\""})
+       "@StringArray({\"A\", \"B\", \"C\", \"\\\"Quote\\\"\", \"'\", \"\\\"\"})")
+        @StringArray({"A", "B", "C", "\"Quote\"", "'", "\""})
         public String[]    f8;
 
         @ExpectedString(
-       "@ClassArray(value={int.class, Obj[].class})")
-        @ClassArray(value={int.class, Obj[].class})
+       "@ClassArray({int.class, Obj[].class})")
+        @ClassArray({int.class, Obj[].class})
         public Class<?>[]  f9;
 
         @ExpectedString(
-       "@EnumArray(value={SOURCE})")
-        @EnumArray(value={RetentionPolicy.SOURCE})
+       "@EnumArray({SEALED, NON_SEALED, PUBLIC})")
+        @EnumArray({Modifier.SEALED, Modifier.NON_SEALED, Modifier.PUBLIC})
         public RetentionPolicy[]  f10;
     }
 }
@@ -215,6 +228,11 @@ public class AnnotationToStringTest {
 // ------------ Supporting types ------------
 
 class Obj {}
+
+@Retention(RetentionPolicy.RUNTIME)
+@interface EnumValue {
+    Modifier value();
+}
 
 @Retention(RetentionPolicy.RUNTIME)
 @interface ExpectedString {
@@ -278,13 +296,14 @@ class Obj {}
 
 @Retention(RetentionPolicy.RUNTIME)
 @interface EnumArray {
-    RetentionPolicy[] value();
+    Modifier[] value();
 }
 
 @Retention(RetentionPolicy.RUNTIME)
 @interface MostlyPrimitive {
     char   c0();
     char   c1();
+    byte   b0();
     int    i0();
     int    i1();
     float  f0();
@@ -298,4 +317,5 @@ class Obj {}
     String s0();
     String s1();
     Class<?> class0();
+    Class<?>[] classArray();
 }

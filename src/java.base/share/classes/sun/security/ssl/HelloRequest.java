@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,7 @@ final class HelloRequest {
                 ByteBuffer m) throws IOException {
             super(handshakeContext);
             if (m.hasRemaining()) {
-                handshakeContext.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw handshakeContext.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "Error parsing HelloRequest message: not empty");
             }
         }
@@ -185,7 +185,7 @@ final class HelloRequest {
             if (!chc.kickstartMessageDelivered) {
                 if (!chc.conContext.secureRenegotiation &&
                         !HandshakeContext.allowUnsafeRenegotiation) {
-                    chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                             "Unsafe renegotiation is not allowed");
                 }
 
@@ -208,7 +208,7 @@ final class HelloRequest {
             } else {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
-                            "Ingore HelloRequest, handshaking is in progress");
+                            "Ignore HelloRequest, handshaking is in progress");
                 }
             }
         }

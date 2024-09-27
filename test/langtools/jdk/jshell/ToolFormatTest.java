@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8148316 8148317 8151755 8152246 8153551 8154812 8157261 8163840 8166637 8161969 8173007
+ * @bug 8148316 8148317 8151755 8152246 8153551 8154812 8157261 8163840 8166637 8161969 8173007 8299829
  * @summary Tests for output customization
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
@@ -131,7 +131,7 @@ public class ToolFormatTest extends ReplToolTesting {
                 (a) -> assertCommand(a, "/se fo tm x \"iii\" method,class", ""),
                 (a) -> assertCommand(a, "/se fo tm x",
                         "|  /set format tm x \"aaa\" \n" +
-                        "|  /set format tm x \"iii\" class,method"),
+                        "|  /set format tm x \"iii\" method,class"),
                 (a) -> assertCommand(a, "/se fo tm x \"jjj\"", ""),
                 (a) -> assertCommand(a, "/se fo tm x",
                         "|  /set format tm x \"jjj\"")
@@ -300,7 +300,8 @@ public class ToolFormatTest extends ReplToolTesting {
                     (a) -> assertCommand(a, "/var", "|    String s = \"ABACABADA"),
                     (a) -> assertCommand(a, "String r = s", "String:\"ABACABAD ... BAXYZ\""),
                     (a) -> assertCommand(a, "r", "String:\"ABACABADA"),
-                    (a) -> assertCommand(a, "r=s", "String:\"AB")
+                    (a) -> assertCommand(a, "r=s", "String:\"AB"),
+                    (a) -> assertCommand(a, "\"0\".repeat(49999)+\"2\"", "String:\"00000000 ... 00002\"")
             );
         } finally {
             assertCommandCheckOutput(false, "/set feedback normal", s -> {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_MULTNODE_HPP
-#define SHARE_VM_OPTO_MULTNODE_HPP
+#ifndef SHARE_OPTO_MULTNODE_HPP
+#define SHARE_OPTO_MULTNODE_HPP
 
 #include "opto/node.hpp"
 
@@ -48,7 +48,7 @@ public:
   virtual uint ideal_reg() const { return NotAMachineReg; }
   ProjNode* proj_out(uint which_proj) const; // Get a named projection
   ProjNode* proj_out_or_null(uint which_proj) const;
-
+  ProjNode* proj_out_or_null(uint which_proj, bool is_io_use) const;
 };
 
 //------------------------------ProjNode---------------------------------------
@@ -58,7 +58,7 @@ public:
 class ProjNode : public Node {
 protected:
   virtual uint hash() const;
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const;
   void check_con() const;       // Called from constructor.
   const Type* proj_type(const Type* t) const;
@@ -92,17 +92,17 @@ public:
 #endif
 
   // Return uncommon trap call node if proj is for "proj->[region->..]call_uct"
-  // NULL otherwise
-  CallStaticJavaNode* is_uncommon_trap_proj(Deoptimization::DeoptReason reason);
+  // null otherwise
+  CallStaticJavaNode* is_uncommon_trap_proj(Deoptimization::DeoptReason reason = Deoptimization::Reason_none) const;
   // Return uncommon trap call node for    "if(test)-> proj -> ...
   //                                                 |
   //                                                 V
   //                                             other_proj->[region->..]call_uct"
-  // NULL otherwise
-  CallStaticJavaNode* is_uncommon_trap_if_pattern(Deoptimization::DeoptReason reason);
+  // null otherwise
+  CallStaticJavaNode* is_uncommon_trap_if_pattern(Deoptimization::DeoptReason reason = Deoptimization::Reason_none) const;
 
   // Return other proj node when this is a If proj node
   ProjNode* other_if_proj() const;
 };
 
-#endif // SHARE_VM_OPTO_MULTNODE_HPP
+#endif // SHARE_OPTO_MULTNODE_HPP

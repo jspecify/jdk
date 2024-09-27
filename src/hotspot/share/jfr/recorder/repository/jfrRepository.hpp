@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,11 +21,11 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_JFR_RECORDER_REPOSITORY_JFRREPOSITORY_HPP
-#define SHARE_VM_JFR_RECORDER_REPOSITORY_JFRREPOSITORY_HPP
+#ifndef SHARE_JFR_RECORDER_REPOSITORY_JFRREPOSITORY_HPP
+#define SHARE_JFR_RECORDER_REPOSITORY_JFRREPOSITORY_HPP
 
-#include "jni.h"
 #include "jfr/utilities/jfrAllocation.hpp"
+#include "jni.h"
 
 class JfrChunkWriter;
 class JfrPostBox;
@@ -37,7 +37,7 @@ class JfrPostBox;
 // has been moved out of process memory.
 //
 // Chunk files are associated with recordings and are managed at a higher level in Java.
-// Java continously keeps the VM informed about new chunk locations via set_chunk_path().
+// Java continuously keeps the VM informed about new chunk locations via set_chunk_path().
 //
 // A JfrChunkWriter will open the next chunk file which it maintains as the current chunk.
 // There is a rotation scheme in place for creating new chunks at certain intervals.
@@ -55,8 +55,10 @@ class JfrRepository : public JfrCHeapObj {
   bool set_path(const char* path);
   void set_chunk_path(const char* path);
   bool open_chunk(bool vm_error = false);
-  size_t close_chunk(jlong metadata_offset);
+  size_t close_chunk();
+  size_t flush_chunk();
   void on_vm_error();
+
   static void notify_on_new_chunk_path();
   static JfrChunkWriter& chunkwriter();
 
@@ -68,6 +70,10 @@ class JfrRepository : public JfrCHeapObj {
  public:
   static void set_path(jstring location, JavaThread* jt);
   static void set_chunk_path(jstring path, JavaThread* jt);
+  static void mark_chunk_final();
+  static void flush(JavaThread* jt);
+  static jlong current_chunk_start_nanos();
+  static void on_vm_error_report(outputStream* st);
 };
 
-#endif // SHARE_VM_JFR_RECORDER_REPOSITORY_JFRREPOSITORY_HPP
+#endif // SHARE_JFR_RECORDER_REPOSITORY_JFRREPOSITORY_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,17 +26,16 @@ package jdk.test.failurehandler.jtreg;
 import com.sun.javatest.Harness;
 import com.sun.javatest.Parameters;
 import com.sun.javatest.TestResult;
-import com.sun.javatest.InterviewParameters;
+import com.sun.javatest.regtest.config.RegressionParameters;
 import jdk.test.failurehandler.*;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * The jtreg test execution observer, which gathers info about
@@ -45,9 +44,11 @@ import java.util.Map;
 public class GatherDiagnosticInfoObserver implements Harness.Observer {
     public static final String LOG_FILENAME = "environment.log";
     public static final String ENVIRONMENT_OUTPUT = "environment.html";
+    public static final String CORES_OUTPUT = "cores.html";
 
-    private String compileJdk;
-    private String testJdk;
+
+    private Path compileJdk;
+    private Path testJdk;
 
     /*
      * The harness calls this method after each test.
@@ -64,25 +65,31 @@ public class GatherDiagnosticInfoObserver implements Harness.Observer {
         workDir.toFile().mkdir();
 
         String name = getClass().getName();
-        PrintWriter log;
+        PrintWriter log1;
         boolean needClose = false;
         try {
-            log = new PrintWriter(new FileWriter(
+            log1 = new PrintWriter(new FileWriter(
                     workDir.resolve(LOG_FILENAME).toFile(), true), true);
             needClose = true;
         } catch (IOException e) {
-            log = new PrintWriter(System.out);
-            log.printf("ERROR: %s cannot open log file %s", name,
+            log1 = new PrintWriter(System.out);
+            log1.printf("ERROR: %s cannot open log file %s", name,
                     LOG_FILENAME);
-            e.printStackTrace(log);
+            e.printStackTrace(log1);
         }
+        final PrintWriter log = log1;
         try {
             log.printf("%s ---%n", name);
             GathererFactory gathererFactory = new GathererFactory(
                     OS.current().family, workDir, log,
-                    Paths.get(testJdk), Paths.get(compileJdk));
+                    testJdk, compileJdk);
             gatherEnvInfo(workDir, name, log,
                     gathererFactory.getEnvironmentInfoGatherer());
+            Files.walk(workDir)
+                    .filter(Files::isRegularFile)
+                    .filter(f -> (f.getFileName().toString().contains("core") || f.getFileName().toString().contains("mdmp")))
+                    .forEach(core -> gatherCoreInfo(workDir, name,
+                            core, log, gathererFactory.getCoreInfoGatherer()));
         } catch (Throwable e) {
             log.printf("ERROR: exception in observer %s:", name);
             e.printStackTrace(log);
@@ -93,6 +100,22 @@ public class GatherDiagnosticInfoObserver implements Harness.Observer {
             } else {
                 log.flush();
             }
+        }
+    }
+
+    private void gatherCoreInfo(Path workDir, String name, Path core, PrintWriter log,
+                               CoreInfoGatherer gatherer) {
+        File output = workDir.resolve(CORES_OUTPUT).toFile();
+        try (HtmlPage html = new HtmlPage(new PrintWriter(
+                new FileWriter(output, true), true))) {
+            try (ElapsedTimePrinter timePrinter
+                         = new ElapsedTimePrinter(new Stopwatch(), name, log)) {
+                gatherer.gatherCoreInfo(html.getRootSection(), core);
+            }
+        } catch (Throwable e) {
+            log.printf("ERROR: exception in observer on getting environment "
+                    + "information %s:", name);
+            e.printStackTrace(log);
         }
     }
 
@@ -117,36 +140,8 @@ public class GatherDiagnosticInfoObserver implements Harness.Observer {
      */
     @Override
     public void startingTestRun(Parameters params) {
-        // TODO find a better way to get JDKs
-        InterviewParameters rp = (InterviewParameters) params;
-        Map<?,?> map = new HashMap<>();
-        rp.save(map);
-        compileJdk = (String) map.get("regtest.compilejdk");
-        testJdk = (String) map.get("regtest.testjdk");
-    }
-
-    @Override
-    public void startingTest(TestResult tr) {
-        // no-op
-    }
-
-    @Override
-    public void stoppingTestRun() {
-        // no-op
-    }
-
-    @Override
-    public void finishedTesting() {
-        // no-op
-    }
-
-    @Override
-    public void finishedTestRun(boolean allOK) {
-        // no-op
-    }
-
-    @Override
-    public void error(String msg) {
-        // no-op
+        RegressionParameters rp = (RegressionParameters) params;
+        compileJdk = rp.getCompileJDK().getAbsoluteFile().toPath();
+        testJdk = rp.getTestJDK().getAbsoluteFile().toPath();
     }
 }

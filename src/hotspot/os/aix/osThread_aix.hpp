@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2013 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef OS_AIX_VM_OSTHREAD_AIX_HPP
-#define OS_AIX_VM_OSTHREAD_AIX_HPP
+#ifndef OS_AIX_OSTHREAD_AIX_HPP
+#define OS_AIX_OSTHREAD_AIX_HPP
 
  public:
   typedef pthread_t thread_id_t;
@@ -63,13 +63,6 @@
   // Used for debugging, return a unique integer for each thread.
   int thread_identifier() const   { return _thread_id; }
 #endif
-#ifdef ASSERT
-  // We expect no reposition failures so kill vm if we get one.
-  //
-  bool valid_reposition_failure() {
-    return false;
-  }
-#endif // ASSERT
   tid_t kernel_thread_id() const {
     return _kernel_thread_id;
   }
@@ -90,7 +83,7 @@
   // flags that support signal based suspend/resume on Aix are in a
   // separate class to avoid confusion with many flags in OSThread that
   // are used by VM level suspend/resume.
-  os::SuspendResume sr;
+  SuspendResume sr;
 
   // _ucontext and _siginfo are used by SR_handler() to save thread context,
   // and they will later be used to walk the stack or reposition thread PC.
@@ -150,4 +143,4 @@
     jlong user;
   } _last_cpu_times;
 
-#endif // OS_AIX_VM_OSTHREAD_AIX_HPP
+#endif // OS_AIX_OSTHREAD_AIX_HPP

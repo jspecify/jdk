@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -39,6 +37,7 @@ import jdk.test.lib.jfr.Events;
 
 /**
  * @test
+ * @bug 8216559
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib
@@ -71,24 +70,10 @@ public class TestNativeLibrariesEvent {
     }
 
     private static List<String> getExpectedLibs() throws Throwable {
-        String libTemplate = null;
-        if (Platform.isSolaris()) {
-            libTemplate = "lib%s.so";
-        } else if (Platform.isWindows()) {
-            libTemplate = "%s.dll";
-        } else if (Platform.isOSX()) {
-            libTemplate = "lib%s.dylib";
-        } else if (Platform.isLinux()) {
-            libTemplate = "lib%s.so";
-        }
-        if (libTemplate == null) {
-            throw new Exception("Unsupported OS");
-        }
-
         List<String> libs = new ArrayList<String>();
         String[] names = { "jvm", "java", "zip" };
         for (String name : names) {
-            libs.add(String.format(libTemplate, name));
+            libs.add(Platform.buildSharedLibraryName(name));
         }
         return libs;
     }

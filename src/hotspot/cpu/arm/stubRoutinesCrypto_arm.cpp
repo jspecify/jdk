@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,8 +33,8 @@
 // Only the first table reference is passed to AES methods below. The other 3 tables
 // in ecryption and decryption are calculated in runtime by rotating the T1 result accordingly.
 // It is a free operation on ARM with embedded register-shifted-register EOR capability.
-// The table reference is passed in a form of a last argument on the parametes list.
-// The tables lookup method proves to perform better then a runtime Galois Field caclulation,
+// The table reference is passed in a form of a last argument on the parameters list.
+// The tables lookup method proves to perform better than a runtime Galois Field calculation,
 // due to a lack of HW acceleration for the later.
 
 unsigned char * SBox;
@@ -129,7 +129,7 @@ address generate_aescrypt_encryptBlock() {
   //    Register tbox = R3; // transposition box reference
 
   __ push (RegisterSet(R4, R12) | LR);
-  __ fstmdbd(SP, FloatRegisterSet(D0, 4), writeback);
+  __ fpush(FloatRegisterSet(D0, 4));
   __ sub(SP, SP, 32);
 
   // preserve TBox references
@@ -308,7 +308,7 @@ address generate_aescrypt_encryptBlock() {
   __ str(R0, Address(R9));
 
   __ add(SP, SP, 32);
-  __ fldmiad(SP, FloatRegisterSet(D0, 4), writeback);;
+  __ fpop(FloatRegisterSet(D0, 4));
 
   __ pop(RegisterSet(R4, R12) | PC);
   return start;
@@ -326,7 +326,7 @@ address generate_aescrypt_decryptBlock() {
   //    Register tbox = R3; // transposition box reference
 
   __ push (RegisterSet(R4, R12) | LR);
-  __ fstmdbd(SP, FloatRegisterSet(D0, 4), writeback);
+  __ fpush(FloatRegisterSet(D0, 4));
   __ sub(SP, SP, 32);
 
   // retrieve key length
@@ -372,7 +372,7 @@ address generate_aescrypt_decryptBlock() {
   Label round;
 
   __ bind(round);
-  // each sub-block is treated similary:
+  // each sub-block is treated similarly:
 
   // combine SubBytes|ShiftRows|MixColumn through a precalculated set of tables
   // Utilize a Transposition Box lookup along with subsequent shift and EOR with a round key.
@@ -521,7 +521,7 @@ address generate_aescrypt_decryptBlock() {
   __ str(R0, Address(R9));
 
   __ add(SP, SP, 32);
-  __ fldmiad(SP, FloatRegisterSet(D0, 4), writeback);;
+  __ fpop(FloatRegisterSet(D0, 4));
   __ pop(RegisterSet(R4, R12) | PC);
 
   return start;
@@ -592,7 +592,7 @@ address generate_cipherBlockChaining_encryptAESCrypt() {
 
 
 // The CBC decryption could benefit from parallel processing as the blocks could be
-// decrypted separatly from each other.
+// decrypted separately from each other.
 // NEON is utilized (if available) to perform parallel execution on 8 blocks at a time.
 // Since Transposition Box (tbox) is used the parallel execution will only apply to an
 // Initial Round and the last round. It's not practical to use NEON for a table lookup
@@ -642,7 +642,7 @@ address generate_cipherBlockChaining_decryptAESCrypt() {
   // near call is sufficient as the method is part of the StubGenerator
   __ bl((address)StubRoutines::_aescrypt_decryptBlock);
 
-  // check remainig cipher size (for individual block processing)
+  // check remaining cipher size (for individual block processing)
   __ subs(R4, R4, 16);
   if (VM_Version::has_simd()) {
     __ tst(R4, 0x7f);
@@ -680,7 +680,7 @@ address generate_cipherBlockChaining_decryptAESCrypt() {
   Label decrypt_8_blocks;
   int quad = 1;
   // Process 8 blocks in parallel
-  __ fstmdbd(SP, FloatRegisterSet(D8, 8), writeback);
+  __ fpush(FloatRegisterSet(D8, 8));
   __ sub(SP, SP, 40);
 
   // record output buffer end address (used as a block counter)
@@ -756,7 +756,7 @@ address generate_cipherBlockChaining_decryptAESCrypt() {
 
 
   // Local frame map:
-  // sp+20 - ouput buffer pointer
+  // sp+20 - output buffer pointer
   // sp+28 - key pointer
   // sp+32 - original source
   // sp+36 - block counter
@@ -1020,7 +1020,7 @@ address generate_cipherBlockChaining_decryptAESCrypt() {
   __ b(decrypt_8_blocks, ne);
 
   __ add(SP, SP, 40);
-  __ fldmiad(SP, FloatRegisterSet(D8, 8), writeback);;
+  __ fpop(FloatRegisterSet(D8, 8));
   }
 
   __ bind(cbc_done);

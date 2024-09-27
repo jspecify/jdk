@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,20 +41,38 @@ import sun.reflect.annotation.AnnotationSupport;
 import sun.reflect.annotation.AnnotationType;
 
 /**
- * Represents an annotated element of the program currently running in this
- * VM.  This interface allows annotations to be read reflectively.  All
+ * Represents an annotated construct of the program currently running
+ * in this VM.
+ *
+ * A construct is either an element or a type. Annotations on an
+ * element are on a <em>declaration</em>, whereas annotations on a
+ * type are on a specific <em>use</em> of a type name.
+ *
+ * As defined by <cite>The Java Language Specification</cite>
+ * section {@jls 9.7.4}, an annotation on an element is a
+ * <dfn>{@index "declaration annotation"}</dfn> and an annotation on a type is a
+ * <dfn>{@index "type annotation"}</dfn>.
+ *
+ * Note that any annotations returned by methods on the {@link
+ * AnnotatedType AnnotatedType} interface and its subinterfaces are
+ * type annotations as the entity being potentially annotated is a
+ * type. Annotations returned by methods outside of the {@code
+ * AnnotatedType} hierarchy are declaration annotations.
+ *
+ * <p>This interface allows annotations to be read reflectively.  All
  * annotations returned by methods in this interface are immutable and
- * serializable. The arrays returned by methods of this interface may be modified
- * by callers without affecting the arrays returned to other callers.
+ * serializable. The arrays returned by methods of this interface may
+ * be modified by callers without affecting the arrays returned to
+ * other callers.
  *
  * <p>The {@link #getAnnotationsByType(Class)} and {@link
  * #getDeclaredAnnotationsByType(Class)} methods support multiple
  * annotations of the same type on an element. If the argument to
- * either method is a repeatable annotation type (JLS 9.6), then the
- * method will "look through" a container annotation (JLS 9.7), if
- * present, and return any annotations inside the container. Container
- * annotations may be generated at compile-time to wrap multiple
- * annotations of the argument type.
+ * either method is a repeatable annotation type (JLS {@jls 9.6}),
+ * then the method will "look through" a container annotation (JLS
+ * {@jls 9.7}), if present, and return any annotations inside the
+ * container. Container annotations may be generated at compile-time
+ * to wrap multiple annotations of the argument type.
  *
  * <p>The terms <em>directly present</em>, <em>indirectly present</em>,
  * <em>present</em>, and <em>associated</em> are used throughout this
@@ -63,21 +81,21 @@ import sun.reflect.annotation.AnnotationType;
  *
  * <ul>
  *
- * <li> An annotation <i>A</i> is <em>directly present</em> on an
+ * <li> An annotation <i>A</i> is <dfn>{@index "directly present"}</dfn> on an
  * element <i>E</i> if <i>E</i> has a {@code
  * RuntimeVisibleAnnotations} or {@code
  * RuntimeVisibleParameterAnnotations} or {@code
  * RuntimeVisibleTypeAnnotations} attribute, and the attribute
  * contains <i>A</i>.
  *
- * <li>An annotation <i>A</i> is <em>indirectly present</em> on an
+ * <li>An annotation <i>A</i> is <dfn>{@index "indirectly present"}</dfn> on an
  * element <i>E</i> if <i>E</i> has a {@code RuntimeVisibleAnnotations} or
  * {@code RuntimeVisibleParameterAnnotations} or {@code RuntimeVisibleTypeAnnotations}
  * attribute, and <i>A</i> 's type is repeatable, and the attribute contains
  * exactly one annotation whose value element contains <i>A</i> and whose
  * type is the containing annotation type of <i>A</i> 's type.
  *
- * <li>An annotation <i>A</i> is present on an element <i>E</i> if either:
+ * <li>An annotation <i>A</i> is <dfn>{@index "present"}</dfn> on an element <i>E</i> if either:
  *
  * <ul>
  *
@@ -89,7 +107,7 @@ import sun.reflect.annotation.AnnotationType;
  *
  * </ul>
  *
- * <li>An annotation <i>A</i> is <em>associated</em> with an element <i>E</i>
+ * <li>An annotation <i>A</i> is <dfn>{@index "associated"}</dfn> with an element <i>E</i>
  * if either:
  *
  * <ul>
@@ -148,8 +166,8 @@ import sun.reflect.annotation.AnnotationType;
  * </tbody>
  * </table>
  *
- * <p>For an invocation of {@code get[Declared]AnnotationsByType( Class <
- * T >)}, the order of annotations which are directly or indirectly
+ * <p>For an invocation of {@code get[Declared]AnnotationsByType(Class <T>)},
+ * the order of annotations which are directly or indirectly
  * present on an element <i>E</i> is computed as if indirectly present
  * annotations on <i>E</i> are directly present on <i>E</i> in place
  * of their container annotation, in the order in which they appear in
@@ -233,7 +251,7 @@ import sun.reflect.annotation.AnnotationType;
  *
  * <p>Similarly, attempting to read an enum-valued member will result in
  * a {@link EnumConstantNotPresentException} if the enum constant in the
- * annotation is no longer present in the enum type.
+ * annotation is no longer present in the enum class.
  *
  * <p>If an annotation type <i>T</i> is (meta-)annotated with an
  * {@code @Repeatable} annotation whose value element indicates a type
@@ -264,8 +282,8 @@ public interface AnnotatedElement {
      * <p>The truth value returned by this method is equivalent to:
      * {@code getAnnotation(annotationClass) != null}
      *
-     * <p>The body of the default method is specified to be the code
-     * above.
+     * @implSpec The default implementation returns {@code
+     * getAnnotation(annotationClass) != null}.
      *
      * @param annotationClass the Class object corresponding to the
      *        annotation type
@@ -279,7 +297,7 @@ public interface AnnotatedElement {
         return getAnnotation(annotationClass) != null;
     }
 
-   /**
+    /**
      * Returns this element's annotation for the specified type if
      * such an annotation is <em>present</em>, else null.
      *
@@ -315,7 +333,7 @@ public interface AnnotatedElement {
      *
      * The difference between this method and {@link #getAnnotation(Class)}
      * is that this method detects if its argument is a <em>repeatable
-     * annotation type</em> (JLS 9.6), and if so, attempts to find one or
+     * annotation type</em> (JLS {@jls 9.6}), and if so, attempts to find one or
      * more annotations of that type by "looking through" a container
      * annotation.
      *
@@ -353,9 +371,9 @@ public interface AnnotatedElement {
          T[] result = getDeclaredAnnotationsByType(annotationClass);
 
          if (result.length == 0 && // Neither directly nor indirectly present
-             this instanceof Class && // the element is a class
+             this instanceof Class<?> cls && // the element is a class
              AnnotationType.getInstance(annotationClass).isInherited()) { // Inheritable
-             Class<?> superClass = ((Class<?>) this).getSuperclass();
+             Class<?> superClass = cls.getSuperclass();
              if (superClass != null) {
                  // Determine if the annotation is associated with the
                  // superclass
@@ -411,7 +429,7 @@ public interface AnnotatedElement {
      *
      * The difference between this method and {@link
      * #getDeclaredAnnotation(Class)} is that this method detects if its
-     * argument is a <em>repeatable annotation type</em> (JLS 9.6), and if so,
+     * argument is a <em>repeatable annotation type</em> (JLS {@jls 9.6}), and if so,
      * attempts to find one or more annotations of that type by "looking
      * through" a container annotation if one is present.
      *

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@
  * @summary Check that correct resolution variants are chosen for icons
  *          when multiresolution image is used for their construction.
  *
- * @library ../../../../lib/testlibrary/
+ * @library /lib/client/
  * @build ExtendedRobot
  * @run main/othervm/timeout=240 -Dsun.java2d.uiScale=1 MultiresolutionIconTest
  * @run main/othervm/timeout=240 -Dsun.java2d.uiScale=2 MultiresolutionIconTest
@@ -128,7 +128,7 @@ public class MultiresolutionIconTest extends JFrame {
 
     private boolean checkPressedColor(int x, int y, Color ok) {
 
-        r.mouseMove(x, y);
+        r.mouseMove(x+5, y+5);
         r.waitForIdle();
         r.mousePress(InputEvent.BUTTON1_DOWN_MASK);
         r.waitForIdle(100);
@@ -217,6 +217,10 @@ public class MultiresolutionIconTest extends JFrame {
     public static void main(String[] args) throws Exception {
 
         for (UIManager.LookAndFeelInfo LF: UIManager.getInstalledLookAndFeels()) {
+            // skip AquaL&F because Aqua icon darkening fails the test
+            if (LF.getName().equalsIgnoreCase("Mac OS X")) {
+                continue;
+            }
             System.out.println("\nL&F: " + LF.getName());
             (new MultiresolutionIconTest(LF)).doTest();
         }

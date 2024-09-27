@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@ import java.awt.event.ActionEvent;
 import java.awt.peer.MenuComponentPeer;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.Serial;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 
@@ -61,14 +62,6 @@ import sun.awt.ComponentFactory;
  */
 @AnnotatedFor({"interning"})
 public abstract @UsesObjectEquals class MenuComponent implements java.io.Serializable {
-
-    static {
-        /* ensure that the necessary native libraries are loaded */
-        Toolkit.loadLibraries();
-        if (!GraphicsEnvironment.isHeadless()) {
-            initIDs();
-        }
-    }
 
     transient volatile MenuComponentPeer peer;
     transient volatile MenuContainer parent;
@@ -117,12 +110,14 @@ public abstract @UsesObjectEquals class MenuComponent implements java.io.Seriali
     /*
      * The menu's AccessControlContext.
      */
+    @SuppressWarnings("removal")
     private transient volatile AccessControlContext acc =
             AccessController.getContext();
 
     /*
      * Returns the acc this menu component was constructed with.
      */
+    @SuppressWarnings("removal")
     final AccessControlContext getAccessControlContext() {
         if (acc == null) {
             throw new SecurityException(
@@ -137,9 +132,10 @@ public abstract @UsesObjectEquals class MenuComponent implements java.io.Seriali
     static final String actionListenerK = Component.actionListenerK;
     static final String itemListenerK = Component.itemListenerK;
 
-    /*
-     * JDK 1.1 serialVersionUID
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = -4536902356223894379L;
 
     static {
@@ -176,7 +172,7 @@ public abstract @UsesObjectEquals class MenuComponent implements java.io.Seriali
 
     /**
      * Creates a {@code MenuComponent}.
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *    {@code GraphicsEnvironment.isHeadless}
      *    returns {@code true}
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -373,8 +369,7 @@ public abstract @UsesObjectEquals class MenuComponent implements java.io.Seriali
         Toolkit.getDefaultToolkit().notifyAWTEventListeners(e);
 
         if (newEventsOnly ||
-            (parent != null && parent instanceof MenuComponent &&
-             ((MenuComponent)parent).newEventsOnly)) {
+            (parent instanceof MenuComponent mc && mc.newEventsOnly)) {
             if (eventEnabled(e)) {
                 processEvent(e);
             } else if (e instanceof ActionEvent && parent != null) {
@@ -442,13 +437,17 @@ public abstract @UsesObjectEquals class MenuComponent implements java.io.Seriali
     /**
      * Reads the menu component from an object input stream.
      *
-     * @param s the {@code ObjectInputStream} to read
-     * @exception HeadlessException if
-     *   {@code GraphicsEnvironment.isHeadless} returns
-     *   {@code true}
-     * @serial
+     * @param  s the {@code ObjectInputStream} to read
+     * @throws ClassNotFoundException if the class of a serialized object could
+     *         not be found
+     * @throws IOException if an I/O error occurs
+     * @throws HeadlessException if {@code GraphicsEnvironment.isHeadless()}
+     *         returns {@code true}
+     *
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
+    @SuppressWarnings("removal")
+    @Serial
     private void readObject(ObjectInputStream s)
         throws ClassNotFoundException, IOException, HeadlessException
     {
@@ -461,20 +460,15 @@ public abstract @UsesObjectEquals class MenuComponent implements java.io.Seriali
         appContext = AppContext.getAppContext();
     }
 
-    /**
-     * Initialize JNI field and method IDs.
-     */
-    private static native void initIDs();
-
-
     /*
      * --- Accessibility Support ---
-     *
-     *  MenuComponent will contain all of the methods in interface Accessible,
-     *  though it won't actually implement the interface - that will be up
-     *  to the individual objects which extend MenuComponent.
      */
-
+    /**
+     * MenuComponent will contain all of the methods in interface Accessible,
+     * though it won't actually implement the interface - that will be up
+     * to the individual objects which extend MenuComponent.
+     */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     AccessibleContext accessibleContext = null;
 
     /**
@@ -508,9 +502,10 @@ public abstract @UsesObjectEquals class MenuComponent implements java.io.Seriali
         implements java.io.Serializable, AccessibleComponent,
                    AccessibleSelection
     {
-        /*
-         * JDK 1.3 serialVersionUID
+        /**
+         * Use serialVersionUID from JDK 1.3 for interoperability.
          */
+        @Serial
         private static final long serialVersionUID = -4269533416223798698L;
 
         /**
@@ -737,7 +732,7 @@ public abstract @UsesObjectEquals class MenuComponent implements java.io.Seriali
         /**
          * Gets the {@code Font} of this object.
          *
-         * @return the {@code Font},if supported, for the object;
+         * @return the {@code Font}, if supported, for the object;
          *     otherwise, {@code null}
          */
         public Font getFont() {

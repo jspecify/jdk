@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -21,41 +20,40 @@
 
 package com.sun.org.apache.bcel.internal.generic;
 
-import com.sun.org.apache.bcel.internal.Const;
-
 /**
  * ALOAD - Load reference from local variable
- * <PRE>Stack: ... -&gt; ..., objectref</PRE>
  *
- * @version $Id: ALOAD.java 1747278 2016-06-07 17:28:43Z britter $
+ * <PRE>
+ * Stack: ... -&gt; ..., objectref
+ * </PRE>
+ * @LastModified: Jan 2020
  */
 public class ALOAD extends LoadInstruction {
 
     /**
-     * Empty constructor needed for the Class.newInstance() statement in
-     * Instruction.readInstruction(). Not to be used otherwise.
+     * Empty constructor needed for Instruction.readInstruction. Not to be used otherwise.
      */
     ALOAD() {
-        super(Const.ALOAD, Const.ALOAD_0);
-    }
-
-    /** Load reference from local variable
-     * @param n index of local variable
-     */
-    public ALOAD(final int n) {
-        super(Const.ALOAD, Const.ALOAD_0, n);
+        super(com.sun.org.apache.bcel.internal.Const.ALOAD, com.sun.org.apache.bcel.internal.Const.ALOAD_0);
     }
 
     /**
-     * Call corresponding visitor method(s). The order is:
-     * Call visitor methods of implemented interfaces first, then
-     * call methods according to the class hierarchy in descending order,
-     * i.e., the most specific visitXXX() call comes last.
+     * Load reference from local variable
+     *
+     * @param n index of local variable
+     */
+    public ALOAD(final int n) {
+        super(com.sun.org.apache.bcel.internal.Const.ALOAD, com.sun.org.apache.bcel.internal.Const.ALOAD_0, n);
+    }
+
+    /**
+     * Call corresponding visitor method(s). The order is: Call visitor methods of implemented interfaces first, then call
+     * methods according to the class hierarchy in descending order, i.e., the most specific visitXXX() call comes last.
      *
      * @param v Visitor object
      */
     @Override
-    public void accept( final Visitor v ) {
+    public void accept(final Visitor v) {
         super.accept(v);
         v.visitALOAD(this);
     }

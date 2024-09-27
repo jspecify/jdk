@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,22 +24,33 @@
 /*
  * @test
  * @key headful
- * @bug 5074573
- * @summary tests delte-next-word and delete-prev-word actions for all text compnents and all look&feels
- * @author Igor Kushnirskiy
+ * @bug 5074573 8196100
+ * @summary tests delete-next-word and delete-prev-word actions for all text components and all look&feels
  * @run main bug5074573
  */
 
-import java.util.*;
 import java.awt.Robot;
-import java.awt.Toolkit;
-import java.awt.event.*;
-import javax.swing.*;
-import javax.swing.text.*;
+import java.awt.event.KeyEvent;
+import java.util.Arrays;
+import java.util.List;
+
+import javax.swing.JEditorPane;
+import javax.swing.JFormattedTextField;
+import javax.swing.JFrame;
+import javax.swing.JPasswordField;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.JTextPane;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.text.Caret;
+import javax.swing.text.JTextComponent;
 
 public class bug5074573 {
 
     private static JTextComponent textComponent;
+    private static JFrame frame;
+    private static Robot robot;
     final static String testString = "123 456 789";
     final static String resultString = "456 ";
     final static List<Class<? extends JTextComponent>> textClasses = Arrays.asList(
@@ -47,24 +58,32 @@ public class bug5074573 {
             JTextField.class, JFormattedTextField.class, JPasswordField.class);
 
     public static void main(String[] args) throws Exception {
+        robot = new Robot();
+        robot.setAutoWaitForIdle(true);
+        robot.setAutoDelay(50);
+
         for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
             UIManager.setLookAndFeel(info.getClassName());
             System.out.println(info);
             for (Class<? extends JTextComponent> clazz : textClasses) {
-                boolean res = test(clazz);
-                if (!res && clazz != JPasswordField.class) {
-                    throw new RuntimeException("failed");
+                try {
+                    boolean res = test(clazz);
+                    if (!res && clazz != JPasswordField.class) {
+                        throw new RuntimeException("failed");
+                    }
+                } finally {
+                    SwingUtilities.invokeAndWait(() -> {
+                        if (frame != null) {
+                            frame.dispose();
+                            frame = null;
+                        }
+                    });
                 }
             }
         }
     }
 
     static boolean test(final Class<? extends JTextComponent> textComponentClass) throws Exception {
-        Robot robot = new Robot();
-        robot.setAutoWaitForIdle(true);
-        robot.setAutoDelay(50);
-
-
         SwingUtilities.invokeAndWait(new Runnable() {
 
             @Override
@@ -74,6 +93,7 @@ public class bug5074573 {
         });
 
         robot.waitForIdle();
+        robot.delay(500);
 
         // Remove selection from JTextField components for the Aqua Look & Feel
         if (textComponent instanceof JTextField && "Aqua".equals(UIManager.getLookAndFeel().getID())) {
@@ -111,6 +131,7 @@ public class bug5074573 {
         robot.keyRelease(KeyEvent.VK_DELETE);
         robot.keyRelease(getCtrlKey());
         robot.waitForIdle();
+        robot.delay(250);
 
         return resultString.equals(getText());
     }
@@ -143,11 +164,12 @@ public class bug5074573 {
 
     private static void initialize(Class<? extends JTextComponent> textComponentClass) {
         try {
-            JFrame frame = new JFrame();
+            frame = new JFrame();
             textComponent = textComponentClass.newInstance();
             textComponent.setText(testString);
             frame.add(textComponent);
             frame.pack();
+            frame.setLocationRelativeTo(null);
             frame.setVisible(true);
             textComponent.requestFocus();
             Caret caret = textComponent.getCaret();

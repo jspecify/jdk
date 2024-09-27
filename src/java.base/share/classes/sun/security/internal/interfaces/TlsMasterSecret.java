@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,7 +44,14 @@ import javax.crypto.SecretKey;
 @Deprecated
 public interface TlsMasterSecret extends SecretKey {
 
-    public static final long serialVersionUID = -461748105810469773L;
+    /***
+     * @deprecated A {@code serialVersionUID} field in an interface is
+     * ineffectual. Do not use; no replacement.
+     */
+    @Deprecated
+    @SuppressWarnings("serial")
+    @java.io.Serial
+    long serialVersionUID = -461748105810469773L;
 
     /**
      * Returns the major version number encapsulated in the premaster secret
@@ -55,7 +62,7 @@ public interface TlsMasterSecret extends SecretKey {
      *
      * @return the major version number, or -1 if it is not available
      */
-    public int getMajorVersion();
+    int getMajorVersion();
 
     /**
      * Returns the minor version number encapsulated in the premaster secret
@@ -66,6 +73,6 @@ public interface TlsMasterSecret extends SecretKey {
      *
      * @return the major version number, or -1 if it is not available
      */
-    public int getMinorVersion();
+    int getMinorVersion();
 
 }

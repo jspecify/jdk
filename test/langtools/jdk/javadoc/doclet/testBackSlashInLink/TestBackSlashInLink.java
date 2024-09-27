@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,25 +23,26 @@
 
 /*
  * @test
- * @bug 4511110
+ * @bug 4511110 8261976
  * @summary Test to make sure that the link to source documentation
  * has a forward slash.  It would be wrong to use a back slash.
- * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestBackSlashInLink
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestBackSlashInLink extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestBackSlashInLink tester = new TestBackSlashInLink();
+        var tester = new TestBackSlashInLink();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "-linksource",
@@ -49,6 +50,6 @@ public class TestBackSlashInLink extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("C.html", true,
-                "src-html/C.html#line.7");
+                "src-html/C.html#line-7");
     }
 }

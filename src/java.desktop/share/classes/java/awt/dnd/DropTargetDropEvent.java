@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,9 @@
 package java.awt.dnd;
 
 import java.awt.Point;
-
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
-
+import java.io.Serial;
 import java.util.List;
 
 /**
@@ -71,6 +70,10 @@ import java.util.List;
 
 public class DropTargetDropEvent extends DropTargetEvent {
 
+    /**
+     * Use serialVersionUID from JDK 1.4 for interoperability.
+     */
+    @Serial
     private static final long serialVersionUID = -1721911170440459322L;
 
     /**
@@ -185,15 +188,13 @@ public class DropTargetDropEvent extends DropTargetEvent {
     }
 
     /**
-     * This method returns a {@code boolean} indicating if the
-     * specified {@code DataFlavor} is available
-     * from the source.
+     * This method returns a {@code boolean} indicating if the specified
+     * {@code DataFlavor} is available from the source.
      *
-     * @param df the {@code DataFlavor} to test
-     *
-     * @return if the DataFlavor specified is available from the source
+     * @param  df the {@code DataFlavor} to test
+     * @return {@code true} if the {@code DataFlavor} specified is available
+     *         from the source, otherwise {@code false}
      */
-
     public boolean isDataFlavorSupported(DataFlavor df) {
         return getDropTargetContext().isDataFlavorSupported(df);
     }
@@ -253,12 +254,12 @@ public class DropTargetDropEvent extends DropTargetEvent {
     }
 
     /**
-     * This method returns an {@code int} indicating if
-     * the source is in the same JVM as the target.
+     * This method returns a {@code boolean} indicating if the source is in the
+     * same JVM as the target.
      *
-     * @return if the Source is in the same JVM
+     * @return {@code true} if the Source is in the same JVM, otherwise
+     *         {@code false}
      */
-
     public boolean isLocalTransfer() {
         return isLocalTx;
     }

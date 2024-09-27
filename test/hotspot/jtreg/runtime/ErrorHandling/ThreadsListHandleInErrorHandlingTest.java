@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,8 @@ import jdk.test.lib.process.ProcessTools;
  * @summary ThreadsListHandle info should be in error handling output.
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+EnableThreadSMRStatistics ThreadsListHandleInErrorHandlingTest
+ * @requires vm.flagless
+ * @run driver ThreadsListHandleInErrorHandlingTest
  */
 
 /*
@@ -49,11 +50,16 @@ public class ThreadsListHandleInErrorHandlingTest {
   public static void main(String[] args) throws Exception {
 
     // The -XX:ErrorHandlerTest=N option requires debug bits.
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+    // Need to disable ShowRegistersOnAssert: that flag causes registers to be shown, which calls os::print_location,
+    // which - as part of its checks - will iterate the threads list under a ThreadListHandle, changing the max nesting
+    // counters and confusing this test.
+    ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(
         "-XX:+UnlockDiagnosticVMOptions",
+        "-XX:+EnableThreadSMRStatistics",
         "-Xmx100M",
         "-XX:ErrorHandlerTest=16",
         "-XX:-CreateCoredumpOnCrash",
+        "-XX:-ShowRegistersOnAssert",
         "-version");
 
     OutputAnalyzer output_detail = new OutputAnalyzer(pb.start());
@@ -65,22 +71,7 @@ public class ThreadsListHandleInErrorHandlingTest {
     System.out.println("Found specific fatal error.");
 
     // Extract hs_err_pid file.
-    String hs_err_file = output_detail.firstMatch("# *(\\S*hs_err_pid\\d+\\.log)", 1);
-    if (hs_err_file == null) {
-        throw new RuntimeException("Did not find hs_err_pid file in output.\n");
-    }
-
-    File f = new File(hs_err_file);
-    if (!f.exists()) {
-        throw new RuntimeException("hs_err_pid file missing at "
-                                   + f.getAbsolutePath() + ".\n");
-    }
-
-    System.out.println("Found hs_err_pid file. Scanning...");
-
-    FileInputStream fis = new FileInputStream(f);
-    BufferedReader br = new BufferedReader(new InputStreamReader(fis));
-    String line = null;
+    File hs_err_file = HsErrFileUtils.openHsErrFileFromOutput(output_detail);
 
     Pattern [] pattern = new Pattern[] {
         // The "Current thread" line should show a hazard ptr
@@ -88,35 +79,17 @@ public class ThreadsListHandleInErrorHandlingTest {
         Pattern.compile("Current thread .* _threads_hazard_ptr=0x[0-9A-Fa-f][0-9A-Fa-f]*, _nested_threads_hazard_ptr_cnt=0.*"),
         // We should have a section of Threads class SMR info:
         Pattern.compile("Threads class SMR info:"),
+        // We should have had a single nested ThreadsListHandle since
+        // ThreadsSMRSupport::print_info_on() now protects itself with
+        // a ThreadsListHandle:
+        Pattern.compile(".*, _nested_thread_list_max=1"),
         // The current thread (marked with '=>') in the threads list
-        // should show a hazard ptr and no nested hazard ptrs:
-        Pattern.compile("=>.* JavaThread \"main\" .* _threads_hazard_ptr=0x[0-9A-Fa-f][0-9A-Fa-f]*, _nested_threads_hazard_ptr_cnt=0.*"),
+        // should show no nested hazard ptrs:
+        Pattern.compile("=>.* JavaThread \"main\" .*, _nested_threads_hazard_ptr_cnt=0.*"),
     };
-    int currentPattern = 0;
 
-    String lastLine = null;
-    while ((line = br.readLine()) != null) {
-        if (currentPattern < pattern.length) {
-            if (pattern[currentPattern].matcher(line).matches()) {
-                System.out.println("Found: " + line + ".");
-                currentPattern++;
-            }
-        }
-        lastLine = line;
-    }
-    br.close();
+    HsErrFileUtils.checkHsErrFileContent(hs_err_file, pattern, false);
 
-    if (currentPattern < pattern.length) {
-        throw new RuntimeException("hs_err_pid file incomplete (first missing pattern: " +  currentPattern + ")");
-    }
-
-    if (!lastLine.equals("END.")) {
-        throw new RuntimeException("hs-err file incomplete (missing END marker.)");
-    } else {
-        System.out.println("End marker found.");
-    }
-
-    System.out.println("Done scanning hs_err_pid_file.");
     System.out.println("PASSED.");
   }
 }

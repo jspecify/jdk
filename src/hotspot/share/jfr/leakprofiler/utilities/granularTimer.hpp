@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_LEAKPROFILER_UTILITIES_GRANULARTIMER_HPP
-#define SHARE_VM_LEAKPROFILER_UTILITIES_GRANULARTIMER_HPP
+#ifndef SHARE_JFR_LEAKPROFILER_UTILITIES_GRANULARTIMER_HPP
+#define SHARE_JFR_LEAKPROFILER_UTILITIES_GRANULARTIMER_HPP
 
 #include "jfr/utilities/jfrTime.hpp"
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 
 class GranularTimer : public AllStatic {
  private:
@@ -43,4 +43,4 @@ class GranularTimer : public AllStatic {
   static bool is_finished();
 };
 
-#endif // SHARE_VM_LEAKPROFILER_UTILITIES_GRANULARTIMER_HPP
+#endif // SHARE_JFR_LEAKPROFILER_UTILITIES_GRANULARTIMER_HPP

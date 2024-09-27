@@ -1,6 +1,5 @@
 /*
- *
- * Copyright (c) 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,22 +29,23 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import javax.swing.ButtonGroup;
+import javax.swing.ImageIcon;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
+import javax.swing.JTabbedPane;
+import javax.swing.SingleSelectionModel;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
-import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.text.*;
-import javax.swing.border.*;
-import javax.swing.colorchooser.*;
-import javax.swing.filechooser.*;
-import javax.accessibility.*;
-
-import java.awt.*;
-import java.awt.event.*;
-import java.beans.*;
-import java.util.*;
-import java.io.*;
-import java.applet.*;
-import java.net.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.Random;
 
 /**
  * JTabbedPane Demo
@@ -149,19 +149,19 @@ public class TabbedPaneDemo extends DemoModule implements ActionListener {
     class HeadSpin extends JComponent implements ActionListener {
         javax.swing.Timer animator;
 
-        ImageIcon icon[] = new ImageIcon[6];
+        ImageIcon[] icon = new ImageIcon[6];
 
         int tmpScale;
 
         static final int numImages = 6;
 
-        double x[] = new double[numImages];
-        double y[] = new double[numImages];
+        double[] x = new double[numImages];
+        double[] y = new double[numImages];
 
-        int xh[] = new int[numImages];
-        int yh[] = new int[numImages];
+        int[] xh = new int[numImages];
+        int[] yh = new int[numImages];
 
-        double scale[] = new double[numImages];
+        double[] scale = new double[numImages];
 
         public HeadSpin() {
             setBackground(Color.black);

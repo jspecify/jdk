@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,10 @@
  * @bug 6340864
  * @summary Implement vectorization optimizations in hotspot-server
  *
- * @run main/othervm/timeout=400 -Xbatch -Xmx128m compiler.c2.cr6340864.TestDoubleVect
+ * @run main/othervm -Xbatch -XX:CompileCommand=exclude,*::test() -Xmx128m -XX:+UnlockDiagnosticVMOptions -XX:+UseSignumIntrinsic compiler.c2.cr6340864.TestDoubleVect
+ * @run main/othervm -Xbatch -XX:CompileCommand=exclude,*::test() -Xmx128m -XX:+UnlockDiagnosticVMOptions -XX:+UseSignumIntrinsic -XX:MaxVectorSize=8 compiler.c2.cr6340864.TestDoubleVect
+ * @run main/othervm -Xbatch -XX:CompileCommand=exclude,*::test() -Xmx128m -XX:+UnlockDiagnosticVMOptions -XX:+UseSignumIntrinsic -XX:MaxVectorSize=16 compiler.c2.cr6340864.TestDoubleVect
+ * @run main/othervm -Xbatch -XX:CompileCommand=exclude,*::test() -Xmx128m -XX:+UnlockDiagnosticVMOptions -XX:+UseSignumIntrinsic -XX:MaxVectorSize=32 compiler.c2.cr6340864.TestDoubleVect
  */
 
 package compiler.c2.cr6340864;
@@ -41,14 +44,16 @@ public class TestDoubleVect {
     System.out.println("Testing Double vectors");
     int errn = test();
     if (errn > 0) {
-      System.err.println("FAILED: " + errn + " errors");
-      System.exit(97);
+        System.err.println("FAILED: " + errn + " errors");
+        System.exit(97);
     }
     System.out.println("PASSED");
   }
 
   static int test() {
     double[] a0 = new double[ARRLEN];
+    long  [] l0 = new long[ARRLEN];
+
     double[] a1 = new double[ARRLEN];
     double[] a2 = new double[ARRLEN];
     double[] a3 = new double[ARRLEN];
@@ -83,6 +88,13 @@ public class TestDoubleVect {
       test_divc_n(a0, a1);
       test_divv(a0, a1, -VALUE);
       test_diva(a0, a1, a3);
+      test_negc(a0, a1);
+      test_signum(a0, a1);
+      test_rint(a0, a1);
+      test_ceil(a0, a1);
+      test_floor(a0, a1);
+      test_sqrt(a0, a1);
+      test_round(l0, a1);
     }
     // Test and verify results
     System.out.println("Verification");
@@ -336,7 +348,126 @@ public class TestDoubleVect {
       for (int i=12; i<ARRLEN; i++) {
         errn += verify("test_diva_n: ", i, a0[i], ((ADD_INIT+i)/(-VALUE)));
       }
+      test_negc(a0, a1);
+      errn += verify("test_negc: ", 0, a0[0], (Double.NaN));
+      errn += verify("test_negc: ", 1, a0[1], (Double.NEGATIVE_INFINITY));
+      errn += verify("test_negc: ", 2, a0[2], (Double.POSITIVE_INFINITY));
+      errn += verify("test_negc: ", 3, a0[3], (double)(-Double.MAX_VALUE));
+      errn += verify("test_negc: ", 4, a0[4], (double)(-Double.MIN_VALUE));
+      errn += verify("test_negc: ", 5, a0[5], (double)(-Double.MIN_NORMAL));
+      for (int i=6; i<ARRLEN; i++) {
+        errn += verify("test_negc: ", i, a0[i], (double)(-((double)(ADD_INIT+i))));
+      }
 
+
+      // To test -ve and +ve Zero scenarios.
+      double [] other_corner_cases     = { -0.0, 0.0, 9.007199254740992E15 };
+      double [] other_corner_cases_res = new double[3];
+      test_floor(a0, a1);
+      errn += verify("test_floor: ", 0, a0[0], Double.NaN);
+      errn += verify("test_floor: ", 1, a0[1], Double.POSITIVE_INFINITY);
+      errn += verify("test_floor: ", 2, a0[2], Double.NEGATIVE_INFINITY);
+      errn += verify("test_floor: ", 3, a0[3], Double.MAX_VALUE);
+      errn += verify("test_floor: ", 4, a0[4], 0.0);
+      errn += verify("test_floor: ", 5, a0[5], 0.0);
+      for (int i=6; i<ARRLEN; i++) {
+        errn += verify("test_floor: ", i, a0[i], ((double)(ADD_INIT+i)));
+      }
+      test_floor_cc(other_corner_cases_res, other_corner_cases);
+      errn += verify("test_floor_cc: ", 0, other_corner_cases_res[0], -0.0);
+      errn += verify("test_floor_cc: ", 1, other_corner_cases_res[1], 0.0);
+      errn += verify("test_floor_cc: ", 2, other_corner_cases_res[2], 9.007199254740992E15);
+
+      test_ceil(a0, a1);
+      errn += verify("test_ceil: ", 0, a0[0], Double.NaN);
+      errn += verify("test_ceil: ", 1, a0[1], Double.POSITIVE_INFINITY);
+      errn += verify("test_ceil: ", 2, a0[2], Double.NEGATIVE_INFINITY);
+      errn += verify("test_ceil: ", 3, a0[3], Double.MAX_VALUE);
+      errn += verify("test_ceil: ", 4, a0[4], 1.0);
+      errn += verify("test_ceil: ", 5, a0[5], 1.0);
+      for (int i=6; i<ARRLEN; i++) {
+        errn += verify("test_ceil: ", i, a0[i], ((double)(ADD_INIT+i+1.0)));
+      }
+      test_ceil_cc(other_corner_cases_res, other_corner_cases);
+      errn += verify("test_ceil_cc: ", 0, other_corner_cases_res[0], -0.0);
+      errn += verify("test_ceil_cc: ", 1, other_corner_cases_res[1], 0.0);
+      errn += verify("test_ceil_cc: ", 2, other_corner_cases_res[2], 9.007199254740992E15);
+
+      test_rint(a0, a1);
+      errn += verify("test_rint: ", 0, a0[0], Double.NaN);
+      errn += verify("test_rint: ", 1, a0[1], Double.POSITIVE_INFINITY);
+      errn += verify("test_rint: ", 2, a0[2], Double.NEGATIVE_INFINITY);
+      errn += verify("test_rint: ", 3, a0[3], Double.MAX_VALUE);
+      errn += verify("test_rint: ", 4, a0[4], 0.0);
+      errn += verify("test_rint: ", 5, a0[5], 0.0);
+      for (int i=6; i<ARRLEN; i++) {
+        if ( i <= 500 )
+           errn += verify("test_rint: ", i, a0[i], ((double)(ADD_INIT+i)));
+        else
+           errn += verify("test_rint: ", i, a0[i], ((double)(ADD_INIT+i+1.0)));
+      }
+      test_rint_cc(other_corner_cases_res, other_corner_cases);
+      errn += verify("test_rint_cc: ", 0, other_corner_cases_res[0], -0.0);
+      errn += verify("test_rint_cc: ", 1, other_corner_cases_res[1], 0.0);
+      errn += verify("test_rint_cc: ", 2, other_corner_cases_res[2], 9.007199254740992E15);
+
+      // Overwrite with +0.0/-0.0 values
+      a1[6] = (double)0.0;
+      a1[7] = (double)-0.0;
+      test_sqrt(a0, a1);
+      errn += verify("test_sqrt: ", 0, a0[0], (Double.NaN));
+      errn += verify("test_sqrt: ", 1, a0[1], (Double.POSITIVE_INFINITY));
+      errn += verify("test_sqrt: ", 2, a0[2], (Double.NaN));
+      errn += verify("test_sqrt: ", 3, a0[3], Math.sqrt(Double.MAX_VALUE));
+      errn += verify("test_sqrt: ", 4, a0[4], Math.sqrt(Double.MIN_VALUE));
+      errn += verify("test_sqrt: ", 5, a0[5], Math.sqrt(Double.MIN_NORMAL));
+      errn += verify("test_sqrt: ", 6, a0[6], (double)0.0);
+      errn += verify("test_sqrt: ", 7, a0[7], (double)-0.0);
+      for (int i=8; i<ARRLEN; i++) {
+        errn += verify("test_sqrt: ", i, a0[i], Math.sqrt((double)(ADD_INIT+i)));
+      }
+
+      test_signum(a0, a1);
+      errn += verify("test_signum: ", 0, a0[0], (Double.NaN));
+      errn += verify("test_signum: ", 1, a0[1],  1.0);
+      errn += verify("test_signum: ", 2, a0[2], -1.0);
+      errn += verify("test_signum: ", 3, a0[3],  1.0);
+      errn += verify("test_signum: ", 4, a0[4],  1.0);
+      errn += verify("test_signum: ", 5, a0[5],  1.0);
+      errn += verify("test_signum: ", 6, a0[6],  0.0);
+      errn += verify("test_signum: ", 7, a0[7], -0.0);
+      for (int i=8; i<ARRLEN; i++) {
+        errn += verify("test_signum: ", i, a0[i], (double)(((double)(ADD_INIT+i)) > 0.0 ? 1.0 : -1.0));
+      }
+
+      a1[6] = +0x1.fffffffffffffp-2;
+      a1[7] = +0x1.0p-1;
+      a1[8] = +0x1.0000000000001p-1;
+      a1[9] = -0x1.fffffffffffffp-2;
+      a1[10] = -0x1.0p-1;
+      a1[11] = -0x1.0000000000001p-1;
+      a1[12] = 1.7976931348623157E19;
+      a1[13] = -1.7976931348623157E19;
+
+      test_round(l0, a1);
+      errn += verify("test_round: ", 0, l0[0], 0L);
+      errn += verify("test_round: ", 1, l0[1], Long.MAX_VALUE);
+      errn += verify("test_round: ", 2, l0[2], Long.MIN_VALUE);
+      errn += verify("test_round: ", 3, l0[3], Long.MAX_VALUE);
+      errn += verify("test_round: ", 4, l0[4], 0L);
+      errn += verify("test_round: ", 5, l0[5], 0L);
+
+      errn += verify("test_round: ", 6, l0[6], 0L);
+      errn += verify("test_round: ", 7, l0[7], 1L);
+      errn += verify("test_round: ", 8, l0[8], 1L);
+      errn += verify("test_round: ", 9, l0[9], 0L);
+      errn += verify("test_round: ", 10, l0[10], 0L);
+      errn += verify("test_round: ", 11, l0[11], -1L);
+      errn += verify("test_round: ", 12, l0[12], Long.MAX_VALUE);
+      errn += verify("test_round: ", 13, l0[13], Long.MIN_VALUE);
+      for (int i=14; i<ARRLEN; i++) {
+        errn += verify("test_round: ", i, l0[i], Math.round((double)(ADD_INIT+i)));
+      }
     }
 
     if (errn > 0)
@@ -466,6 +597,33 @@ public class TestDoubleVect {
     end = System.currentTimeMillis();
     System.out.println("test_diva_n: " + (end - start));
 
+    start = System.currentTimeMillis();
+    for (int i=0; i<ITERS; i++) {
+      test_negc(a0, a1);
+    }
+    end = System.currentTimeMillis();
+    System.out.println("test_negc_n: " + (end - start));
+
+    start = System.currentTimeMillis();
+    for (int i=0; i<ITERS; i++) {
+      test_signum(a0, a1);
+    }
+    end = System.currentTimeMillis();
+    System.out.println("test_signum_n: " + (end - start));
+
+    start = System.currentTimeMillis();
+    for (int i=0; i<ITERS; i++) {
+      test_sqrt(a0, a1);
+    }
+    end = System.currentTimeMillis();
+    System.out.println("test_sqrt_n: " + (end - start));
+
+    start = System.currentTimeMillis();
+    for (int i=0; i<ITERS; i++) {
+      test_round(l0, a1);
+    }
+    end = System.currentTimeMillis();
+    System.out.println("test_round_n: " + (end - start));
     return errn;
   }
 
@@ -549,6 +707,68 @@ public class TestDoubleVect {
     for (int i = 0; i < a0.length; i+=1) {
       a0[i] = (a1[i]/a2[i]);
     }
+  }
+  static void test_negc(double[] a0, double[] a1) {
+    for (int i = 0; i < a0.length; i+=1) {
+      a0[i] = (double)(-((double)a1[i]));
+    }
+  }
+
+  static void test_signum(double[] a0, double[] a1) {
+    for (int i = 0; i < a0.length; i+=1) {
+      a0[i] = Math.signum(a1[i]);
+    }
+  }
+
+  static void test_rint(double[] a0, double[] a1) {
+    for (int i = 0; i < a0.length; i+=1) {
+      a0[i] = Math.rint(a1[i] + ((double)(i))/1000);
+    }
+  }
+  static void test_ceil(double[] a0, double[] a1) {
+    for (int i = 0; i < a0.length; i+=1) {
+      a0[i] = Math.ceil(a1[i] + ((double)(i))/1000);
+    }
+  }
+  static void test_floor(double[] a0, double[] a1) {
+    for (int i = 0; i < a0.length; i+=1) {
+      a0[i] = Math.floor(a1[i] + ((double)(i))/1000);
+    }
+  }
+  static void test_rint_cc(double[] a0, double[] a1) {
+    for (int i = 0; i < a0.length; i+=1) {
+      a0[i] = Math.rint(a1[i]);
+    }
+  }
+  static void test_ceil_cc(double[] a0, double[] a1) {
+    for (int i = 0; i < a0.length; i+=1) {
+      a0[i] = Math.ceil(a1[i]);
+    }
+  }
+  static void test_floor_cc(double[] a0, double[] a1) {
+    for (int i = 0; i < a0.length; i+=1) {
+      a0[i] = Math.floor(a1[i]);
+    }
+  }
+
+  static void test_sqrt(double[] a0, double[] a1) {
+    for (int i = 0; i < a0.length; i+=1) {
+      a0[i] = (double)(Math.sqrt((double)a1[i]));
+    }
+  }
+
+  static void test_round(long[] a0, double[] a1) {
+    for (int i = 0; i < a0.length; i+=1) {
+      a0[i] = Math.round(a1[i]);
+    }
+  }
+
+  static int verify(String text, int i, long elem, long val) {
+    if (elem != val) {
+      System.err.println(text + "[" + i + "] = " + elem + " != " + val);
+      return 1;
+    }
+    return 0;
   }
 
   static int verify(String text, int i, double elem, double val) {

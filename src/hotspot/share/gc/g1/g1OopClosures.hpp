@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,20 +22,20 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1OOPCLOSURES_HPP
-#define SHARE_VM_GC_G1_G1OOPCLOSURES_HPP
+#ifndef SHARE_GC_G1_G1OOPCLOSURES_HPP
+#define SHARE_GC_G1_G1OOPCLOSURES_HPP
 
-#include "gc/g1/g1InCSetState.hpp"
+#include "classfile/classLoaderData.hpp"
+#include "gc/g1/g1HeapRegionAttr.hpp"
 #include "memory/iterator.hpp"
-#include "oops/markOop.hpp"
+#include "oops/markWord.hpp"
 
-class HeapRegion;
 class G1CollectedHeap;
 class G1RemSet;
 class G1ConcurrentMark;
-class DirtyCardToOopClosure;
 class G1CMBitMap;
 class G1ParScanThreadState;
+class G1ScanEvacuatedObjClosure;
 class G1CMTask;
 class ReferenceProcessor;
 
@@ -43,7 +43,6 @@ class G1ScanClosureBase : public BasicOopIterateClosure {
 protected:
   G1CollectedHeap* _g1h;
   G1ParScanThreadState* _par_scan_state;
-  HeapRegion* _from;
 
   G1ScanClosureBase(G1CollectedHeap* g1h, G1ParScanThreadState* par_scan_state);
   ~G1ScanClosureBase() { }
@@ -52,36 +51,33 @@ protected:
   inline void prefetch_and_push(T* p, oop const obj);
 
   template <class T>
-  inline void handle_non_cset_obj_common(InCSetState const state, T* p, oop const obj);
+  inline void handle_non_cset_obj_common(G1HeapRegionAttr const region_attr, T* p, oop const obj);
 public:
-  // This closure needs special handling for InstanceRefKlass.
-  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERED_AND_DISCOVERY; }
-  void set_region(HeapRegion* from) { _from = from; }
-
   inline void trim_queue_partially();
 };
 
-// Used during the Update RS phase to refine remaining cards in the DCQ during garbage collection.
-class G1ScanObjsDuringUpdateRSClosure: public G1ScanClosureBase {
-  uint _worker_i;
-
+// Used to scan cards from the DCQS or the remembered sets during garbage collection.
+class G1ScanCardClosure : public G1ScanClosureBase {
+  size_t& _heap_roots_found;
 public:
-  G1ScanObjsDuringUpdateRSClosure(G1CollectedHeap* g1h,
-                                  G1ParScanThreadState* pss,
-                                  uint worker_i) :
-    G1ScanClosureBase(g1h, pss), _worker_i(worker_i) { }
+  G1ScanCardClosure(G1CollectedHeap* g1h,
+                    G1ParScanThreadState* pss,
+                    size_t& heap_roots_found) :
+    G1ScanClosureBase(g1h, pss), _heap_roots_found(heap_roots_found) { }
+
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
-  virtual void do_oop(oop* p) { do_oop_work(p); }
+  virtual void do_oop(oop* p)       { do_oop_work(p); }
 };
 
-// Used during the Scan RS phase to scan cards from the remembered set during garbage collection.
-class G1ScanObjsDuringScanRSClosure : public G1ScanClosureBase {
+// Used during Optional RS scanning to make sure we trim the queues in a timely manner.
+class G1ScanRSForOptionalClosure : public OopClosure {
+  G1CollectedHeap* _g1h;
+  G1ScanCardClosure* _scan_cl;
 public:
-  G1ScanObjsDuringScanRSClosure(G1CollectedHeap* g1h,
-                                G1ParScanThreadState* par_scan_state):
-    G1ScanClosureBase(g1h, par_scan_state) { }
+  G1ScanRSForOptionalClosure(G1CollectedHeap* g1h, G1ScanCardClosure* cl) : _g1h(g1h), _scan_cl(cl) { }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(oop* p)          { do_oop_work(p); }
@@ -90,9 +86,19 @@ public:
 
 // This closure is applied to the fields of the objects that have just been copied during evacuation.
 class G1ScanEvacuatedObjClosure : public G1ScanClosureBase {
+  friend class G1SkipCardEnqueueSetter;
+
+  enum SkipCardEnqueueTristate {
+    False = 0,
+    True,
+    Uninitialized
+  };
+
+  SkipCardEnqueueTristate _skip_card_enqueue;
+
 public:
   G1ScanEvacuatedObjClosure(G1CollectedHeap* g1h, G1ParScanThreadState* par_scan_state) :
-    G1ScanClosureBase(g1h, par_scan_state) { }
+    G1ScanClosureBase(g1h, par_scan_state), _skip_card_enqueue(Uninitialized) { }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(oop* p)          { do_oop_work(p); }
@@ -100,6 +106,21 @@ public:
 
   void set_ref_discoverer(ReferenceDiscoverer* rd) {
     set_ref_discoverer_internal(rd);
+  }
+};
+
+// RAII object to properly set the _skip_card_enqueue field in G1ScanEvacuatedObjClosure.
+class G1SkipCardEnqueueSetter : public StackObj {
+  G1ScanEvacuatedObjClosure* _closure;
+
+public:
+  G1SkipCardEnqueueSetter(G1ScanEvacuatedObjClosure* closure, bool skip_card_enqueue) : _closure(closure) {
+    assert(_closure->_skip_card_enqueue == G1ScanEvacuatedObjClosure::Uninitialized, "Must not be set");
+    _closure->_skip_card_enqueue = skip_card_enqueue ? G1ScanEvacuatedObjClosure::True : G1ScanEvacuatedObjClosure::False;
+  }
+
+  ~G1SkipCardEnqueueSetter() {
+    DEBUG_ONLY(_closure->_skip_card_enqueue = G1ScanEvacuatedObjClosure::Uninitialized;)
   }
 };
 
@@ -117,13 +138,7 @@ protected:
   // during the GC (i.e., non-CSet objects). It is MT-safe.
   inline void mark_object(oop obj);
 
-  // Mark the object if it's not already marked. This is used to mark
-  // objects pointed to by roots that have been forwarded during a
-  // GC. It is MT-safe.
-  inline void mark_forwarded_object(oop from_obj, oop to_obj);
-
   G1ParCopyHelper(G1CollectedHeap* g1h,  G1ParScanThreadState* par_scan_state);
-  ~G1ParCopyHelper() { }
 
  public:
   void set_scanned_cld(ClassLoaderData* cld) { _scanned_cld = cld; }
@@ -134,16 +149,11 @@ protected:
 
 enum G1Barrier {
   G1BarrierNone,
-  G1BarrierCLD
+  G1BarrierCLD,
+  G1BarrierNoOptRoots  // Do not collect optional roots.
 };
 
-enum G1Mark {
-  G1MarkNone,
-  G1MarkFromRoot,
-  G1MarkPromotedFromRoot
-};
-
-template <G1Barrier barrier, G1Mark do_mark_object>
+template <G1Barrier barrier, bool should_mark>
 class G1ParCopyClosure : public G1ParCopyHelper {
 public:
   G1ParCopyClosure(G1CollectedHeap* g1h, G1ParScanThreadState* par_scan_state) :
@@ -157,17 +167,15 @@ public:
 class G1CLDScanClosure : public CLDClosure {
   G1ParCopyHelper* _closure;
   bool             _process_only_dirty;
-  bool             _must_claim;
   int              _count;
 public:
-  G1CLDScanClosure(G1ParCopyHelper* closure,
-                   bool process_only_dirty, bool must_claim)
-      : _process_only_dirty(process_only_dirty), _must_claim(must_claim), _closure(closure), _count(0) {}
+  G1CLDScanClosure(G1ParCopyHelper* closure, bool process_only_dirty)
+  : _closure(closure), _process_only_dirty(process_only_dirty), _count(0) {}
   void do_cld(ClassLoaderData* cld);
 };
 
 // Closure for iterating over object fields during concurrent marking
-class G1CMOopClosure : public MetadataVisitingOopIterateClosure {
+class G1CMOopClosure : public ClaimMetadataVisitingOopIterateClosure {
   G1CollectedHeap*   _g1h;
   G1CMTask*          _task;
 public:
@@ -178,13 +186,13 @@ public:
 };
 
 // Closure to scan the root regions during concurrent marking
-class G1RootRegionScanClosure : public MetadataVisitingOopIterateClosure {
-private:
+class G1RootRegionScanClosure : public ClaimMetadataVisitingOopIterateClosure {
   G1CollectedHeap* _g1h;
   G1ConcurrentMark* _cm;
   uint _worker_id;
 public:
   G1RootRegionScanClosure(G1CollectedHeap* g1h, G1ConcurrentMark* cm, uint worker_id) :
+    ClaimMetadataVisitingOopIterateClosure(ClassLoaderData::_claim_strong, nullptr),
     _g1h(g1h), _cm(cm), _worker_id(worker_id) { }
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(      oop* p) { do_oop_work(p); }
@@ -193,16 +201,15 @@ public:
 
 class G1ConcurrentRefineOopClosure: public BasicOopIterateClosure {
   G1CollectedHeap* _g1h;
-  uint _worker_i;
+  uint _worker_id;
 
 public:
-  G1ConcurrentRefineOopClosure(G1CollectedHeap* g1h, uint worker_i) :
+  G1ConcurrentRefineOopClosure(G1CollectedHeap* g1h, uint worker_id) :
     _g1h(g1h),
-    _worker_i(worker_i) {
+    _worker_id(worker_id) {
   }
 
-  // This closure needs special handling for InstanceRefKlass.
-  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERED_AND_DISCOVERY; }
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
@@ -219,8 +226,8 @@ public:
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(oop* p)       { do_oop_work(p); }
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
-  // This closure needs special handling for InstanceRefKlass.
-  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERED_AND_DISCOVERY; }
+
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 };
 
-#endif // SHARE_VM_GC_G1_G1OOPCLOSURES_HPP
+#endif // SHARE_GC_G1_G1OOPCLOSURES_HPP

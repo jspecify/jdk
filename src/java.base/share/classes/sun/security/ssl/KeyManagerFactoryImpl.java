@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,12 +61,6 @@ abstract class KeyManagerFactoryImpl extends KeyManagerFactorySpi {
         protected void engineInit(KeyStore ks, char[] password) throws
                 KeyStoreException, NoSuchAlgorithmException,
                 UnrecoverableKeyException {
-            if ((ks != null) && SunJSSE.isFIPS()) {
-                if (ks.getProvider() != SunJSSE.cryptoProvider) {
-                    throw new KeyStoreException("FIPS mode: KeyStore must be "
-                        + "from provider " + SunJSSE.cryptoProvider.getName());
-                }
-            }
             keyManager = new SunX509KeyManagerImpl(ks, password);
             isInitialized = true;
         }
@@ -89,14 +83,8 @@ abstract class KeyManagerFactoryImpl extends KeyManagerFactorySpi {
                 UnrecoverableKeyException {
             if (ks == null) {
                 keyManager = new X509KeyManagerImpl(
-                        Collections.<Builder>emptyList());
+                        Collections.emptyList());
             } else {
-                if (SunJSSE.isFIPS() &&
-                        (ks.getProvider() != SunJSSE.cryptoProvider)) {
-                    throw new KeyStoreException(
-                        "FIPS mode: KeyStore must be " +
-                        "from provider " + SunJSSE.cryptoProvider.getName());
-                }
                 try {
                     Builder builder = Builder.newInstance(ks,
                         new PasswordProtection(password));
@@ -111,14 +99,11 @@ abstract class KeyManagerFactoryImpl extends KeyManagerFactorySpi {
         @Override
         protected void engineInit(ManagerFactoryParameters params) throws
                 InvalidAlgorithmParameterException {
-            if (params instanceof KeyStoreBuilderParameters == false) {
+            if (!(params instanceof KeyStoreBuilderParameters)) {
                 throw new InvalidAlgorithmParameterException(
                 "Parameters must be instance of KeyStoreBuilderParameters");
             }
-            if (SunJSSE.isFIPS()) {
-                throw new InvalidAlgorithmParameterException
-                    ("FIPS mode: KeyStoreBuilderParameters not supported");
-            }
+
             List<Builder> builders =
                 ((KeyStoreBuilderParameters)params).getParameters();
             keyManager = new X509KeyManagerImpl(builders);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,16 +33,37 @@ public class CompileCommand {
     public final MethodDescriptor methodDescriptor;
     public final Scenario.Compiler compiler;
     public final Scenario.Type type;
+    public final String argument;
+    public final boolean isValid;
+
 
     public CompileCommand(Command command,
+                          boolean isValid,
                           MethodDescriptor methodDescriptor,
                           Scenario.Compiler compiler,
                           Scenario.Type type) {
         this.command = command;
+        this.isValid = isValid;
         this.methodDescriptor = methodDescriptor;
         this.compiler = compiler;
         this.type = type;
+        this.argument = null;
     }
+
+    public CompileCommand(Command command,
+                          boolean isValid,
+                          MethodDescriptor methodDescriptor,
+                          Scenario.Compiler compiler,
+                          Scenario.Type type,
+                          String argument) {
+        this.command = command;
+        this.isValid = isValid;
+        this.methodDescriptor = methodDescriptor;
+        this.compiler = compiler;
+        this.type = type;
+        this.argument = argument;
+    }
+
 
     /**
      * Shows that this compile command is valid
@@ -50,17 +71,53 @@ public class CompileCommand {
      * @return true if this is a valid command
      */
     public boolean isValid() {
+        if (!isValid) {
+            return false;
+        }
         if (command == Command.NONEXISTENT) {
             return false;
         }
+        // -XX:CompileCommand(File) ignores invalid items
+        // Invalid intrinsic ids in CompilerDirectivesFile will force hotspot to exit with non-zero value.
+        if (command == Command.INTRINSIC && type == Scenario.Type.DIRECTIVE) {
+            if (argument != null) {
+                String[] ids = argument.split(",");
+                for (String id : ids) {
+                    char ch = id.charAt(0);
+
+                    // Not a strict check.
+                    // a valid ControlIntrinsic argument is separated by ",", each one starts with '+' or '-'.
+                    // intrinsicId starts with '_'
+                    if ((ch != '+' && ch != '-') || id.charAt(1) != '_') {
+                      return false;
+                    }
+                }
+            }
+        }
+
         return methodDescriptor.isValid();
     }
 
     /**
-     * Prints compile command to the system output
+     * Formats the command according to the following pattern:
+     * {@code <command_name> Type: <type> Compiler: <compiler> MethodDescriptor: <method_descriptor> IsValid: <true/false>}
+     * Sample output:
+     * COMPILEONLY Type: OPTION Compiler: C1 MethodDescriptor: *Klass.method* IsValid: true
      */
-    public void print() {
-        System.out.printf("%s (type: %s): %s (valid: %b)%n", command.name(),
-                type.name(), methodDescriptor.getString(), isValid());
+    protected String formatFields() {
+        return command.name() +
+               " Type: " + type +
+               " Compiler: " + compiler +
+               " MethodDescriptor: " + (methodDescriptor == null ? "null" : methodDescriptor.getString()) +
+               " IsValid: " + isValid();
+    }
+
+    /**
+     * Returns formatted string representation in the form
+     * {@code "(CompileCommand Field1: <field1> Field2: <field2> ...)}
+     * The fields are formatted by {@link #formatFields()}.
+     */
+    public String toString() {
+        return "(CompileCommand " + formatFields() + ")";
     }
 }

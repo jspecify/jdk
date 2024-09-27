@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <limits.h>
 #include <fcntl.h>
 #include <dirent.h>
@@ -41,39 +42,115 @@
 #endif
 #include <sys/time.h>
 
-/* For POSIX-compliant getpwuid_r, getgrgid_r on Solaris */
-#if defined(__solaris__)
-#define _POSIX_PTHREAD_SEMANTICS
+#if defined(__linux__) || defined(_ALLBSD_SOURCE)
+#include <sys/xattr.h>
 #endif
+
+/* For POSIX-compliant getpwuid_r */
 #include <pwd.h>
 #include <grp.h>
 
-#ifdef __solaris__
-#include <strings.h>
-#endif
-
 #ifdef __linux__
 #include <sys/syscall.h>
+#include <sys/sysmacros.h> // makedev macros
 #endif
 
-#if defined(__linux__) || defined(_AIX)
-#include <string.h>
+#if defined(_AIX)
+  #define statvfs statvfs64
 #endif
 
-#ifdef _ALLBSD_SOURCE
-#include <string.h>
+#if defined(__linux__)
+// Account for the case where we compile on a system without statx
+// support. We still want to ensure we can call statx at runtime
+// if the runtime glibc version supports it (>= 2.28). We do this
+// by defining binary compatible statx structs in this file and
+// not relying on included headers.
 
-#define stat64 stat
-#ifndef MACOSX
-#define statvfs64 statvfs
+#ifndef __GLIBC__
+// Alpine doesn't know these types, define them
+typedef unsigned int       __uint32_t;
+typedef unsigned short     __uint16_t;
+typedef unsigned long int  __uint64_t;
 #endif
 
-#define open64 open
-#define fstat64 fstat
-#define lstat64 lstat
-#define dirent64 dirent
-#define readdir64_r readdir_r
+/*
+ * Timestamp structure for the timestamps in struct statx.
+ */
+struct my_statx_timestamp {
+        int64_t   tv_sec;
+        __uint32_t  tv_nsec;
+        int32_t   __reserved;
+};
+
+/*
+ * struct statx used by statx system call on >= glibc 2.28
+ * systems
+ */
+struct my_statx
+{
+  __uint32_t stx_mask;
+  __uint32_t stx_blksize;
+  __uint64_t stx_attributes;
+  __uint32_t stx_nlink;
+  __uint32_t stx_uid;
+  __uint32_t stx_gid;
+  __uint16_t stx_mode;
+  __uint16_t __statx_pad1[1];
+  __uint64_t stx_ino;
+  __uint64_t stx_size;
+  __uint64_t stx_blocks;
+  __uint64_t stx_attributes_mask;
+  struct my_statx_timestamp stx_atime;
+  struct my_statx_timestamp stx_btime;
+  struct my_statx_timestamp stx_ctime;
+  struct my_statx_timestamp stx_mtime;
+  __uint32_t stx_rdev_major;
+  __uint32_t stx_rdev_minor;
+  __uint32_t stx_dev_major;
+  __uint32_t stx_dev_minor;
+  __uint64_t __statx_pad2[14];
+};
+
+// statx masks, flags, constants
+
+#ifndef AT_SYMLINK_NOFOLLOW
+#define AT_SYMLINK_NOFOLLOW 0x100
 #endif
+
+#ifndef AT_STATX_SYNC_AS_STAT
+#define AT_STATX_SYNC_AS_STAT 0x0000
+#endif
+
+#ifndef AT_EMPTY_PATH
+#define AT_EMPTY_PATH 0x1000
+#endif
+
+#ifndef STATX_BASIC_STATS
+#define STATX_BASIC_STATS 0x000007ffU
+#endif
+
+#ifndef STATX_BTIME
+#define STATX_BTIME 0x00000800U
+#endif
+
+//
+// STATX_ALL is deprecated; use a different name to avoid confusion.
+//
+#define LOCAL_STATX_ALL (STATX_BASIC_STATS | STATX_BTIME)
+
+#ifndef AT_FDCWD
+#define AT_FDCWD -100
+#endif
+
+#ifndef RTLD_DEFAULT
+#define RTLD_DEFAULT RTLD_LOCAL
+#endif
+
+#define NO_FOLLOW_SYMLINK 1
+#define FOLLOW_SYMLINK 0
+
+#endif // __linux__
+
 
 #include "jni.h"
 #include "jni_util.h"
@@ -81,28 +158,10 @@
 
 #include "sun_nio_fs_UnixNativeDispatcher.h"
 
-#if defined(_AIX)
-  #define DIR DIR64
-  #define opendir opendir64
-  #define closedir closedir64
-#endif
-
 /**
  * Size of password or group entry when not available via sysconf
  */
 #define ENT_BUF_SIZE   1024
-
-#define RESTARTABLE(_cmd, _result) do { \
-  do { \
-    _result = _cmd; \
-  } while((_result == -1) && (errno == EINTR)); \
-} while(0)
-
-#define RESTARTABLE_RETURN_PTR(_cmd, _result) do { \
-  do { \
-    _result = _cmd; \
-  } while((_result == NULL) && (errno == EINTR)); \
-} while(0)
 
 static jfieldID attrs_st_mode;
 static jfieldID attrs_st_ino;
@@ -119,8 +178,11 @@ static jfieldID attrs_st_mtime_nsec;
 static jfieldID attrs_st_ctime_sec;
 static jfieldID attrs_st_ctime_nsec;
 
-#ifdef _DARWIN_FEATURE_64_BIT_INODE
+#if defined(_DARWIN_FEATURE_64_BIT_INODE) || defined(__linux__)
 static jfieldID attrs_st_birthtime_sec;
+#endif
+#if defined(__linux__) // Linux has nsec granularity if supported
+static jfieldID attrs_st_birthtime_nsec;
 #endif
 
 static jfieldID attrs_f_frsize;
@@ -137,28 +199,38 @@ static jfieldID entry_dev;
 /**
  * System calls that may not be available at run time.
  */
-typedef int openat64_func(int, const char *, int, ...);
-typedef int fstatat64_func(int, const char *, struct stat64 *, int);
+typedef int openat_func(int, const char *, int, ...);
+typedef int fstatat_func(int, const char *, struct stat *, int);
 typedef int unlinkat_func(int, const char*, int);
 typedef int renameat_func(int, const char*, int, const char*);
 typedef int futimesat_func(int, const char *, const struct timeval *);
+typedef int futimens_func(int, const struct timespec *);
+typedef int lutimes_func(const char *, const struct timeval *);
 typedef DIR* fdopendir_func(int);
+#if defined(__linux__)
+typedef int statx_func(int dirfd, const char *restrict pathname, int flags,
+                       unsigned int mask, struct my_statx *restrict statxbuf);
+#endif
 
-static openat64_func* my_openat64_func = NULL;
-static fstatat64_func* my_fstatat64_func = NULL;
+static openat_func* my_openat_func = NULL;
+static fstatat_func* my_fstatat_func = NULL;
 static unlinkat_func* my_unlinkat_func = NULL;
 static renameat_func* my_renameat_func = NULL;
 static futimesat_func* my_futimesat_func = NULL;
+static futimens_func* my_futimens_func = NULL;
+static lutimes_func* my_lutimes_func = NULL;
 static fdopendir_func* my_fdopendir_func = NULL;
+#if defined(__linux__)
+static statx_func* my_statx_func = NULL;
+#endif
 
 /**
- * fstatat missing from glibc on Linux. Temporary workaround
- * for x86/x64.
+ * fstatat missing from glibc on Linux.
  */
-#if defined(__linux__) && defined(__i386)
+#if defined(__linux__) && (defined(__i386) || defined(__arm__))
 #define FSTATAT64_SYSCALL_AVAILABLE
-static int fstatat64_wrapper(int dfd, const char *path,
-                             struct stat64 *statbuf, int flag)
+static int fstatat_wrapper(int dfd, const char *path,
+                             struct stat *statbuf, int flag)
 {
     #ifndef __NR_fstatat64
     #define __NR_fstatat64  300
@@ -169,10 +241,34 @@ static int fstatat64_wrapper(int dfd, const char *path,
 
 #if defined(__linux__) && defined(_LP64) && defined(__NR_newfstatat)
 #define FSTATAT64_SYSCALL_AVAILABLE
-static int fstatat64_wrapper(int dfd, const char *path,
-                             struct stat64 *statbuf, int flag)
+static int fstatat_wrapper(int dfd, const char *path,
+                           struct stat *statbuf, int flag)
 {
     return syscall(__NR_newfstatat, dfd, path, statbuf, flag);
+}
+#endif
+
+#if defined(__linux__)
+static int statx_wrapper(int dirfd, const char *restrict pathname, int flags,
+                         unsigned int mask, struct my_statx *restrict statxbuf) {
+    return (*my_statx_func)(dirfd, pathname, flags, mask, statxbuf);
+}
+#endif
+
+#if defined(__linux__) && defined(__arm__)
+/**
+ * Lookup functions with time_t parameter. Try to use 64 bit symbol
+ * if sizeof(time_t) exceeds 32 bit.
+ */
+static void* lookup_time_t_function(const char* symbol, const char* symbol64) {
+    void *func_ptr = NULL;
+    if (sizeof(time_t) > 4) {
+        func_ptr = dlsym(RTLD_DEFAULT, symbol64);
+    }
+    if (func_ptr == NULL) {
+        return dlsym(RTLD_DEFAULT, symbol);
+    }
+    return func_ptr;
 }
 #endif
 
@@ -228,9 +324,13 @@ Java_sun_nio_fs_UnixNativeDispatcher_init(JNIEnv* env, jclass this)
     attrs_st_ctime_nsec = (*env)->GetFieldID(env, clazz, "st_ctime_nsec", "J");
     CHECK_NULL_RETURN(attrs_st_ctime_nsec, 0);
 
-#ifdef _DARWIN_FEATURE_64_BIT_INODE
+#if defined(_DARWIN_FEATURE_64_BIT_INODE) || defined(__linux__)
     attrs_st_birthtime_sec = (*env)->GetFieldID(env, clazz, "st_birthtime_sec", "J");
     CHECK_NULL_RETURN(attrs_st_birthtime_sec, 0);
+#endif
+#if defined (__linux__) // Linux has nsec granularity
+    attrs_st_birthtime_nsec = (*env)->GetFieldID(env, clazz, "st_birthtime_nsec", "J");
+    CHECK_NULL_RETURN(attrs_st_birthtime_nsec, 0);
 #endif
 
     clazz = (*env)->FindClass(env, "sun/nio/fs/UnixFileStoreAttributes");
@@ -259,18 +359,32 @@ Java_sun_nio_fs_UnixNativeDispatcher_init(JNIEnv* env, jclass this)
 
     /* system calls that might not be available at run time */
 
-#if (defined(__solaris__) && defined(_LP64)) || defined(_ALLBSD_SOURCE)
-    /* Solaris 64-bit does not have openat64/fstatat64 */
-    my_openat64_func = (openat64_func*)dlsym(RTLD_DEFAULT, "openat");
-    my_fstatat64_func = (fstatat64_func*)dlsym(RTLD_DEFAULT, "fstatat");
+#if defined(_ALLBSD_SOURCE)
+    my_openat_func = (openat_func*)dlsym(RTLD_DEFAULT, "openat");
+    my_fstatat_func = (fstatat_func*)dlsym(RTLD_DEFAULT, "fstatat");
 #else
-    my_openat64_func = (openat64_func*) dlsym(RTLD_DEFAULT, "openat64");
-    my_fstatat64_func = (fstatat64_func*) dlsym(RTLD_DEFAULT, "fstatat64");
+    // Make sure we link to the 64-bit version of the functions
+    my_openat_func = (openat_func*) dlsym(RTLD_DEFAULT, "openat64");
+    my_fstatat_func = (fstatat_func*) dlsym(RTLD_DEFAULT, "fstatat64");
 #endif
     my_unlinkat_func = (unlinkat_func*) dlsym(RTLD_DEFAULT, "unlinkat");
     my_renameat_func = (renameat_func*) dlsym(RTLD_DEFAULT, "renameat");
+#if defined(__linux__) && defined(__arm__)
+    my_futimesat_func = (futimesat_func*) lookup_time_t_function("futimesat",
+        "__futimesat64");
+    my_lutimes_func = (lutimes_func*) lookup_time_t_function("lutimes",
+        "__lutimes64");
+    my_futimens_func = (futimens_func*) lookup_time_t_function("futimens",
+        "__futimens64");
+#else
+#ifndef _ALLBSD_SOURCE
     my_futimesat_func = (futimesat_func*) dlsym(RTLD_DEFAULT, "futimesat");
+    my_lutimes_func = (lutimes_func*) dlsym(RTLD_DEFAULT, "lutimes");
+#endif
+    my_futimens_func = (futimens_func*) dlsym(RTLD_DEFAULT, "futimens");
+#endif
 #if defined(_AIX)
+    // Make sure we link to the 64-bit version of the function
     my_fdopendir_func = (fdopendir_func*) dlsym(RTLD_DEFAULT, "fdopendir64");
 #else
     my_fdopendir_func = (fdopendir_func*) dlsym(RTLD_DEFAULT, "fdopendir");
@@ -278,22 +392,27 @@ Java_sun_nio_fs_UnixNativeDispatcher_init(JNIEnv* env, jclass this)
 
 #if defined(FSTATAT64_SYSCALL_AVAILABLE)
     /* fstatat64 missing from glibc */
-    if (my_fstatat64_func == NULL)
-        my_fstatat64_func = (fstatat64_func*)&fstatat64_wrapper;
+    if (my_fstatat_func == NULL)
+        my_fstatat_func = (fstatat_func*)&fstatat_wrapper;
 #endif
 
-    /* supports futimes or futimesat */
+    /* supports futimes or futimesat, futimens, and/or lutimes */
 
 #ifdef _ALLBSD_SOURCE
     capabilities |= sun_nio_fs_UnixNativeDispatcher_SUPPORTS_FUTIMES;
+    capabilities |= sun_nio_fs_UnixNativeDispatcher_SUPPORTS_LUTIMES;
 #else
     if (my_futimesat_func != NULL)
         capabilities |= sun_nio_fs_UnixNativeDispatcher_SUPPORTS_FUTIMES;
+    if (my_lutimes_func != NULL)
+        capabilities |= sun_nio_fs_UnixNativeDispatcher_SUPPORTS_LUTIMES;
 #endif
+    if (my_futimens_func != NULL)
+        capabilities |= sun_nio_fs_UnixNativeDispatcher_SUPPORTS_FUTIMENS;
 
     /* supports openat, etc. */
 
-    if (my_openat64_func != NULL &&  my_fstatat64_func != NULL &&
+    if (my_openat_func != NULL &&  my_fstatat_func != NULL &&
         my_unlinkat_func != NULL && my_renameat_func != NULL &&
         my_futimesat_func != NULL && my_fdopendir_func != NULL)
     {
@@ -304,6 +423,18 @@ Java_sun_nio_fs_UnixNativeDispatcher_init(JNIEnv* env, jclass this)
 
 #ifdef _DARWIN_FEATURE_64_BIT_INODE
     capabilities |= sun_nio_fs_UnixNativeDispatcher_SUPPORTS_BIRTHTIME;
+#endif
+#if defined(__linux__)
+    my_statx_func = (statx_func*) dlsym(RTLD_DEFAULT, "statx");
+    if (my_statx_func != NULL) {
+        capabilities |= sun_nio_fs_UnixNativeDispatcher_SUPPORTS_BIRTHTIME;
+    }
+#endif
+
+    /* supports extended attributes */
+
+#if defined(_SYS_XATTR_H) || defined(_SYS_XATTR_H_)
+    capabilities |= sun_nio_fs_UnixNativeDispatcher_SUPPORTS_XATTR;
 #endif
 
     return capabilities;
@@ -356,38 +487,49 @@ Java_sun_nio_fs_UnixNativeDispatcher_dup(JNIEnv* env, jclass this, jint fd) {
     return (jint)res;
 }
 
-JNIEXPORT jlong JNICALL
-Java_sun_nio_fs_UnixNativeDispatcher_fopen0(JNIEnv* env, jclass this,
-    jlong pathAddress, jlong modeAddress)
-{
-    FILE* fp = NULL;
-    const char* path = (const char*)jlong_to_ptr(pathAddress);
-    const char* mode = (const char*)jlong_to_ptr(modeAddress);
-
-    do {
-        fp = fopen(path, mode);
-    } while (fp == NULL && errno == EINTR);
-
-    if (fp == NULL) {
-        throwUnixException(env, errno);
-    }
-
-    return ptr_to_jlong(fp);
-}
-
 JNIEXPORT void JNICALL
-Java_sun_nio_fs_UnixNativeDispatcher_fclose(JNIEnv* env, jclass this, jlong stream)
+Java_sun_nio_fs_UnixNativeDispatcher_rewind(JNIEnv* env, jclass this, jlong stream)
 {
     FILE* fp = jlong_to_ptr(stream);
+    int saved_errno;
 
-    /* NOTE: fclose() wrapper is only used with read-only streams.
-     * If it ever is used with write streams, it might be better to add
-     * RESTARTABLE(fflush(fp)) before closing, to make sure the stream
-     * is completely written even if fclose() failed.
-     */
-    if (fclose(fp) == EOF && errno != EINTR) {
-        throwUnixException(env, errno);
+    errno = 0;
+    rewind(fp);
+    saved_errno = errno;
+    if (ferror(fp)) {
+        throwUnixException(env, saved_errno);
     }
+}
+
+/**
+ * This function returns line length without NUL terminator or -1 on EOF.
+ */
+JNIEXPORT jint JNICALL
+Java_sun_nio_fs_UnixNativeDispatcher_getlinelen(JNIEnv* env, jclass this, jlong stream)
+{
+    FILE* fp = jlong_to_ptr(stream);
+    size_t lineSize = 0;
+    char * lineBuffer = NULL;
+    int saved_errno;
+
+    ssize_t res = getline(&lineBuffer, &lineSize, fp);
+    saved_errno = errno;
+
+    /* Should free lineBuffer no matter result, according to man page */
+    if (lineBuffer != NULL)
+        free(lineBuffer);
+
+    if (feof(fp))
+        return -1;
+
+    /* On successful return res >= 0, otherwise res is -1 */
+    if (res == -1)
+        throwUnixException(env, saved_errno);
+
+    if (res > INT_MAX)
+        throwUnixException(env, EOVERFLOW);
+
+    return (jint)res;
 }
 
 JNIEXPORT jint JNICALL
@@ -397,7 +539,7 @@ Java_sun_nio_fs_UnixNativeDispatcher_open0(JNIEnv* env, jclass this,
     jint fd;
     const char* path = (const char*)jlong_to_ptr(pathAddress);
 
-    RESTARTABLE(open64(path, (int)oflags, (mode_t)mode), fd);
+    RESTARTABLE(open(path, (int)oflags, (mode_t)mode), fd);
     if (fd == -1) {
         throwUnixException(env, errno);
     }
@@ -411,12 +553,12 @@ Java_sun_nio_fs_UnixNativeDispatcher_openat0(JNIEnv* env, jclass this, jint dfd,
     jint fd;
     const char* path = (const char*)jlong_to_ptr(pathAddress);
 
-    if (my_openat64_func == NULL) {
+    if (my_openat_func == NULL) {
         JNU_ThrowInternalError(env, "should not reach here");
         return -1;
     }
 
-    RESTARTABLE((*my_openat64_func)(dfd, path, (int)oflags, (mode_t)mode), fd);
+    RESTARTABLE((*my_openat_func)(dfd, path, (int)oflags, (mode_t)mode), fd);
     if (fd == -1) {
         throwUnixException(env, errno);
     }
@@ -425,13 +567,21 @@ Java_sun_nio_fs_UnixNativeDispatcher_openat0(JNIEnv* env, jclass this, jint dfd,
 
 JNIEXPORT void JNICALL
 Java_sun_nio_fs_UnixNativeDispatcher_close0(JNIEnv* env, jclass this, jint fd) {
-    int err;
-    /* TDB - need to decide if EIO and other errors should cause exception */
-    RESTARTABLE(close((int)fd), err);
+    int res;
+
+#if defined(_AIX)
+    /* AIX allows close to be restarted after EINTR */
+    RESTARTABLE(close((int)fd), res);
+#else
+    res = close((int)fd);
+#endif
+    if (res == -1 && errno != EINTR) {
+        throwUnixException(env, errno);
+    }
 }
 
 JNIEXPORT jint JNICALL
-Java_sun_nio_fs_UnixNativeDispatcher_read(JNIEnv* env, jclass this, jint fd,
+Java_sun_nio_fs_UnixNativeDispatcher_read0(JNIEnv* env, jclass this, jint fd,
     jlong address, jint nbytes)
 {
     ssize_t n;
@@ -444,7 +594,7 @@ Java_sun_nio_fs_UnixNativeDispatcher_read(JNIEnv* env, jclass this, jint fd,
 }
 
 JNIEXPORT jint JNICALL
-Java_sun_nio_fs_UnixNativeDispatcher_write(JNIEnv* env, jclass this, jint fd,
+Java_sun_nio_fs_UnixNativeDispatcher_write0(JNIEnv* env, jclass this, jint fd,
     jlong address, jint nbytes)
 {
     ssize_t n;
@@ -456,10 +606,48 @@ Java_sun_nio_fs_UnixNativeDispatcher_write(JNIEnv* env, jclass this, jint fd,
     return (jint)n;
 }
 
+#if defined(__linux__)
 /**
- * Copy stat64 members into sun.nio.fs.UnixFileAttributes
+ * Copy statx members into sun.nio.fs.UnixFileAttributes
  */
-static void prepAttributes(JNIEnv* env, struct stat64* buf, jobject attrs) {
+static void copy_statx_attributes(JNIEnv* env, struct my_statx* buf, jobject attrs) {
+    (*env)->SetIntField(env, attrs, attrs_st_mode, (jint)buf->stx_mode);
+    (*env)->SetLongField(env, attrs, attrs_st_ino, (jlong)buf->stx_ino);
+    (*env)->SetIntField(env, attrs, attrs_st_nlink, (jint)buf->stx_nlink);
+    (*env)->SetIntField(env, attrs, attrs_st_uid, (jint)buf->stx_uid);
+    (*env)->SetIntField(env, attrs, attrs_st_gid, (jint)buf->stx_gid);
+    (*env)->SetLongField(env, attrs, attrs_st_size, (jlong)buf->stx_size);
+    (*env)->SetLongField(env, attrs, attrs_st_atime_sec, (jlong)buf->stx_atime.tv_sec);
+    (*env)->SetLongField(env, attrs, attrs_st_mtime_sec, (jlong)buf->stx_mtime.tv_sec);
+    (*env)->SetLongField(env, attrs, attrs_st_ctime_sec, (jlong)buf->stx_ctime.tv_sec);
+    if ((buf->stx_mask & STATX_BTIME) != 0) {
+        //  Birth time was filled in so use it
+        (*env)->SetLongField(env, attrs, attrs_st_birthtime_sec,
+                             (jlong)buf->stx_btime.tv_sec);
+        (*env)->SetLongField(env, attrs, attrs_st_birthtime_nsec,
+                             (jlong)buf->stx_btime.tv_nsec);
+    } else {
+        //  Birth time was not filled in: fall back to last modification time
+        (*env)->SetLongField(env, attrs, attrs_st_birthtime_sec,
+                             (jlong)buf->stx_mtime.tv_sec);
+        (*env)->SetLongField(env, attrs, attrs_st_birthtime_nsec,
+                             (jlong)buf->stx_mtime.tv_nsec);
+    }
+    (*env)->SetLongField(env, attrs, attrs_st_atime_nsec, (jlong)buf->stx_atime.tv_nsec);
+    (*env)->SetLongField(env, attrs, attrs_st_mtime_nsec, (jlong)buf->stx_mtime.tv_nsec);
+    (*env)->SetLongField(env, attrs, attrs_st_ctime_nsec, (jlong)buf->stx_ctime.tv_nsec);
+    // convert statx major:minor to dev_t using makedev
+    dev_t dev = makedev(buf->stx_dev_major, buf->stx_dev_minor);
+    dev_t rdev = makedev(buf->stx_rdev_major, buf->stx_rdev_minor);
+    (*env)->SetLongField(env, attrs, attrs_st_dev, (jlong)dev);
+    (*env)->SetLongField(env, attrs, attrs_st_rdev, (jlong)rdev);
+}
+#endif
+
+/**
+ * Copy stat members into sun.nio.fs.UnixFileAttributes
+ */
+static void copy_stat_attributes(JNIEnv* env, struct stat* buf, jobject attrs) {
     (*env)->SetIntField(env, attrs, attrs_st_mode, (jint)buf->st_mode);
     (*env)->SetLongField(env, attrs, attrs_st_ino, (jlong)buf->st_ino);
     (*env)->SetLongField(env, attrs, attrs_st_dev, (jlong)buf->st_dev);
@@ -474,6 +662,7 @@ static void prepAttributes(JNIEnv* env, struct stat64* buf, jobject attrs) {
 
 #ifdef _DARWIN_FEATURE_64_BIT_INODE
     (*env)->SetLongField(env, attrs, attrs_st_birthtime_sec, (jlong)buf->st_birthtime);
+    // rely on default value of 0 for st_birthtime_nsec field on Darwin
 #endif
 
 #ifndef MACOSX
@@ -487,33 +676,35 @@ static void prepAttributes(JNIEnv* env, struct stat64* buf, jobject attrs) {
 #endif
 }
 
-JNIEXPORT void JNICALL
+JNIEXPORT jint JNICALL
 Java_sun_nio_fs_UnixNativeDispatcher_stat0(JNIEnv* env, jclass this,
     jlong pathAddress, jobject attrs)
 {
     int err;
-    struct stat64 buf;
+    struct stat buf;
     const char* path = (const char*)jlong_to_ptr(pathAddress);
+#if defined(__linux__)
+    struct my_statx statx_buf;
+    int flags = AT_STATX_SYNC_AS_STAT;
+    unsigned int mask = LOCAL_STATX_ALL;
 
-    RESTARTABLE(stat64(path, &buf), err);
-    if (err == -1) {
-        throwUnixException(env, errno);
-    } else {
-        prepAttributes(env, &buf, attrs);
+    if (my_statx_func != NULL) {
+        // Prefer statx over stat on Linux if it's available
+        RESTARTABLE(statx_wrapper(AT_FDCWD, path, flags, mask, &statx_buf), err);
+        if (err == 0) {
+            copy_statx_attributes(env, &statx_buf, attrs);
+            return 0;
+        } else {
+            return errno;
+        }
     }
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_fs_UnixNativeDispatcher_stat1(JNIEnv* env, jclass this, jlong pathAddress) {
-    int err;
-    struct stat64 buf;
-    const char* path = (const char*)jlong_to_ptr(pathAddress);
-
-    RESTARTABLE(stat64(path, &buf), err);
-    if (err == -1) {
+#endif
+    RESTARTABLE(stat(path, &buf), err);
+    if (err == 0) {
+        copy_stat_attributes(env, &buf, attrs);
         return 0;
     } else {
-        return (jint)buf.st_mode;
+        return errno;
     }
 }
 
@@ -522,29 +713,62 @@ Java_sun_nio_fs_UnixNativeDispatcher_lstat0(JNIEnv* env, jclass this,
     jlong pathAddress, jobject attrs)
 {
     int err;
-    struct stat64 buf;
+    struct stat buf;
     const char* path = (const char*)jlong_to_ptr(pathAddress);
+#if defined(__linux__)
+    struct my_statx statx_buf;
+    int flags = AT_STATX_SYNC_AS_STAT | AT_SYMLINK_NOFOLLOW;
+    unsigned int mask = LOCAL_STATX_ALL;
 
-    RESTARTABLE(lstat64(path, &buf), err);
+    if (my_statx_func != NULL) {
+        // Prefer statx over stat on Linux if it's available
+        RESTARTABLE(statx_wrapper(AT_FDCWD, path, flags, mask, &statx_buf), err);
+        if (err == 0) {
+            copy_statx_attributes(env, &statx_buf, attrs);
+        } else {
+            throwUnixException(env, errno);
+        }
+        // statx was available, so return now
+        return;
+    }
+#endif
+    RESTARTABLE(lstat(path, &buf), err);
     if (err == -1) {
         throwUnixException(env, errno);
     } else {
-        prepAttributes(env, &buf, attrs);
+        copy_stat_attributes(env, &buf, attrs);
     }
 }
 
 JNIEXPORT void JNICALL
-Java_sun_nio_fs_UnixNativeDispatcher_fstat(JNIEnv* env, jclass this, jint fd,
+Java_sun_nio_fs_UnixNativeDispatcher_fstat0(JNIEnv* env, jclass this, jint fd,
     jobject attrs)
 {
     int err;
-    struct stat64 buf;
+    struct stat buf;
+#if defined(__linux__)
+    struct my_statx statx_buf;
+    int flags = AT_EMPTY_PATH | AT_STATX_SYNC_AS_STAT;
+    unsigned int mask = LOCAL_STATX_ALL;
 
-    RESTARTABLE(fstat64((int)fd, &buf), err);
+    if (my_statx_func != NULL) {
+        // statx supports FD use via dirfd iff pathname is an empty string and the
+        // AT_EMPTY_PATH flag is specified in flags
+        RESTARTABLE(statx_wrapper((int)fd, "", flags, mask, &statx_buf), err);
+        if (err == 0) {
+            copy_statx_attributes(env, &statx_buf, attrs);
+        } else {
+            throwUnixException(env, errno);
+        }
+        // statx was available, so return now
+        return;
+    }
+#endif
+    RESTARTABLE(fstat((int)fd, &buf), err);
     if (err == -1) {
         throwUnixException(env, errno);
     } else {
-        prepAttributes(env, &buf, attrs);
+        copy_stat_attributes(env, &buf, attrs);
     }
 }
 
@@ -553,18 +777,38 @@ Java_sun_nio_fs_UnixNativeDispatcher_fstatat0(JNIEnv* env, jclass this, jint dfd
     jlong pathAddress, jint flag, jobject attrs)
 {
     int err;
-    struct stat64 buf;
+    struct stat buf;
     const char* path = (const char*)jlong_to_ptr(pathAddress);
+#if defined(__linux__)
+    struct my_statx statx_buf;
+    int flags = AT_STATX_SYNC_AS_STAT;
+    unsigned int mask = LOCAL_STATX_ALL;
 
-    if (my_fstatat64_func == NULL) {
+    if (my_statx_func != NULL) {
+        // Prefer statx over stat on Linux if it's available
+        if (((int)flag & AT_SYMLINK_NOFOLLOW) > 0) { // flag set in java code
+            flags |= AT_SYMLINK_NOFOLLOW;
+        }
+        RESTARTABLE(statx_wrapper((int)dfd, path, flags, mask, &statx_buf), err);
+        if (err == 0) {
+            copy_statx_attributes(env, &statx_buf, attrs);
+        } else {
+            throwUnixException(env, errno);
+        }
+        // statx was available, so return now
+        return;
+    }
+#endif
+
+    if (my_fstatat_func == NULL) {
         JNU_ThrowInternalError(env, "should not reach here");
         return;
     }
-    RESTARTABLE((*my_fstatat64_func)((int)dfd, path, &buf, (int)flag), err);
+    RESTARTABLE((*my_fstatat_func)((int)dfd, path, &buf, (int)flag), err);
     if (err == -1) {
         throwUnixException(env, errno);
     } else {
-        prepAttributes(env, &buf, attrs);
+        copy_stat_attributes(env, &buf, attrs);
     }
 }
 
@@ -582,7 +826,7 @@ Java_sun_nio_fs_UnixNativeDispatcher_chmod0(JNIEnv* env, jclass this,
 }
 
 JNIEXPORT void JNICALL
-Java_sun_nio_fs_UnixNativeDispatcher_fchmod(JNIEnv* env, jclass this, jint filedes,
+Java_sun_nio_fs_UnixNativeDispatcher_fchmod0(JNIEnv* env, jclass this, jint filedes,
     jint mode)
 {
     int err;
@@ -592,7 +836,6 @@ Java_sun_nio_fs_UnixNativeDispatcher_fchmod(JNIEnv* env, jclass this, jint filed
         throwUnixException(env, errno);
     }
 }
-
 
 JNIEXPORT void JNICALL
 Java_sun_nio_fs_UnixNativeDispatcher_chown0(JNIEnv* env, jclass this,
@@ -620,7 +863,7 @@ Java_sun_nio_fs_UnixNativeDispatcher_lchown0(JNIEnv* env, jclass this, jlong pat
 }
 
 JNIEXPORT void JNICALL
-Java_sun_nio_fs_UnixNativeDispatcher_fchown(JNIEnv* env, jclass this, jint filedes, jint uid, jint gid)
+Java_sun_nio_fs_UnixNativeDispatcher_fchown0(JNIEnv* env, jclass this, jint filedes, jint uid, jint gid)
 {
     int err;
 
@@ -651,7 +894,7 @@ Java_sun_nio_fs_UnixNativeDispatcher_utimes0(JNIEnv* env, jclass this,
 }
 
 JNIEXPORT void JNICALL
-Java_sun_nio_fs_UnixNativeDispatcher_futimes(JNIEnv* env, jclass this, jint filedes,
+Java_sun_nio_fs_UnixNativeDispatcher_futimes0(JNIEnv* env, jclass this, jint filedes,
     jlong accessTime, jlong modificationTime)
 {
     struct timeval times[2];
@@ -667,10 +910,61 @@ Java_sun_nio_fs_UnixNativeDispatcher_futimes(JNIEnv* env, jclass this, jint file
     RESTARTABLE(futimes(filedes, &times[0]), err);
 #else
     if (my_futimesat_func == NULL) {
-        JNU_ThrowInternalError(env, "my_ftimesat_func is NULL");
+        JNU_ThrowInternalError(env, "my_futimesat_func is NULL");
         return;
     }
     RESTARTABLE((*my_futimesat_func)(filedes, NULL, &times[0]), err);
+#endif
+    if (err == -1) {
+        throwUnixException(env, errno);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_sun_nio_fs_UnixNativeDispatcher_futimens0(JNIEnv* env, jclass this, jint filedes,
+    jlong accessTime, jlong modificationTime)
+{
+    struct timespec times[2];
+    int err = 0;
+
+    times[0].tv_sec = accessTime / 1000000000;
+    times[0].tv_nsec = accessTime % 1000000000;
+
+    times[1].tv_sec = modificationTime / 1000000000;
+    times[1].tv_nsec = modificationTime % 1000000000;
+
+    if (my_futimens_func == NULL) {
+        JNU_ThrowInternalError(env, "my_futimens_func is NULL");
+        return;
+    }
+    RESTARTABLE((*my_futimens_func)(filedes, &times[0]), err);
+    if (err == -1) {
+        throwUnixException(env, errno);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_sun_nio_fs_UnixNativeDispatcher_lutimes0(JNIEnv* env, jclass this,
+    jlong pathAddress, jlong accessTime, jlong modificationTime)
+{
+    int err;
+    struct timeval times[2];
+    const char* path = (const char*)jlong_to_ptr(pathAddress);
+
+    times[0].tv_sec = accessTime / 1000000;
+    times[0].tv_usec = accessTime % 1000000;
+
+    times[1].tv_sec = modificationTime / 1000000;
+    times[1].tv_usec = modificationTime % 1000000;
+
+#ifdef _ALLBSD_SOURCE
+    RESTARTABLE(lutimes(path, &times[0]), err);
+#else
+    if (my_lutimes_func == NULL) {
+        JNU_ThrowInternalError(env, "my_lutimes_func is NULL");
+        return;
+    }
+    RESTARTABLE((*my_lutimes_func)(path, &times[0]), err);
 #endif
     if (err == -1) {
         throwUnixException(env, errno);
@@ -719,42 +1013,24 @@ Java_sun_nio_fs_UnixNativeDispatcher_closedir(JNIEnv* env, jclass this, jlong di
 }
 
 JNIEXPORT jbyteArray JNICALL
-Java_sun_nio_fs_UnixNativeDispatcher_readdir(JNIEnv* env, jclass this, jlong value) {
-    struct dirent64* result;
-    struct {
-        struct dirent64 buf;
-        char name_extra[PATH_MAX + 1 - sizeof result->d_name];
-    } entry;
-    struct dirent64* ptr = &entry.buf;
-    int res;
+Java_sun_nio_fs_UnixNativeDispatcher_readdir0(JNIEnv* env, jclass this, jlong value) {
     DIR* dirp = jlong_to_ptr(value);
+    struct dirent* ptr;
 
-    /* EINTR not listed as a possible error */
-    /* TDB: reentrant version probably not required here */
-    res = readdir64_r(dirp, ptr, &result);
-
-#ifdef _AIX
-    /* On AIX, readdir_r() returns EBADF (i.e. '9') and sets 'result' to NULL for the */
-    /* directory stream end. Otherwise, 'errno' will contain the error code. */
-    if (res != 0) {
-        res = (result == NULL && res == EBADF) ? 0 : errno;
-    }
-#endif
-
-    if (res != 0) {
-        throwUnixException(env, res);
+    errno = 0;
+    ptr = readdir(dirp);
+    if (ptr == NULL) {
+        if (errno != 0) {
+            throwUnixException(env, errno);
+        }
         return NULL;
     } else {
-        if (result == NULL) {
-            return NULL;
-        } else {
-            jsize len = strlen(ptr->d_name);
-            jbyteArray bytes = (*env)->NewByteArray(env, len);
-            if (bytes != NULL) {
-                (*env)->SetByteArrayRegion(env, bytes, 0, len, (jbyte*)(ptr->d_name));
-            }
-            return bytes;
+        jsize len = strlen(ptr->d_name);
+        jbyteArray bytes = (*env)->NewByteArray(env, len);
+        if (bytes != NULL) {
+            (*env)->SetByteArrayRegion(env, bytes, 0, len, (jbyte*)(ptr->d_name));
         }
+        return bytes;
     }
 }
 
@@ -885,7 +1161,10 @@ Java_sun_nio_fs_UnixNativeDispatcher_readlink0(JNIEnv* env, jclass this,
     } else {
         jsize len;
         if (n == sizeof(target)) {
-            n--;
+            /* Traditionally readlink(2) should not return more than */
+            /* PATH_MAX bytes (no terminating null byte is appended). */
+            throwUnixException(env, ENAMETOOLONG);
+            return NULL;
         }
         target[n] = '\0';
         len = (jsize)strlen(target);
@@ -918,7 +1197,7 @@ Java_sun_nio_fs_UnixNativeDispatcher_realpath0(JNIEnv* env, jclass this,
     return result;
 }
 
-JNIEXPORT void JNICALL
+JNIEXPORT jint JNICALL
 Java_sun_nio_fs_UnixNativeDispatcher_access0(JNIEnv* env, jclass this,
     jlong pathAddress, jint amode)
 {
@@ -926,17 +1205,8 @@ Java_sun_nio_fs_UnixNativeDispatcher_access0(JNIEnv* env, jclass this,
     const char* path = (const char*)jlong_to_ptr(pathAddress);
 
     RESTARTABLE(access(path, (int)amode), err);
-    if (err == -1) {
-        throwUnixException(env, errno);
-    }
-}
 
-JNIEXPORT jboolean JNICALL
-Java_sun_nio_fs_UnixNativeDispatcher_exists0(JNIEnv* env, jclass this, jlong pathAddress) {
-    int err;
-    const char* path = (const char*)jlong_to_ptr(pathAddress);
-    RESTARTABLE(access(path, F_OK), err);
-    return (err == 0) ? JNI_TRUE : JNI_FALSE;
+    return (err == -1) ? errno : 0;
 }
 
 JNIEXPORT void JNICALL
@@ -947,14 +1217,14 @@ Java_sun_nio_fs_UnixNativeDispatcher_statvfs0(JNIEnv* env, jclass this,
 #ifdef MACOSX
     struct statfs buf;
 #else
-    struct statvfs64 buf;
+    struct statvfs buf;
 #endif
     const char* path = (const char*)jlong_to_ptr(pathAddress);
 
 #ifdef MACOSX
     RESTARTABLE(statfs(path, &buf), err);
 #else
-    RESTARTABLE(statvfs64(path, &buf), err);
+    RESTARTABLE(statvfs(path, &buf), err);
 #endif
     if (err == -1) {
         throwUnixException(env, errno);
@@ -980,33 +1250,6 @@ Java_sun_nio_fs_UnixNativeDispatcher_statvfs0(JNIEnv* env, jclass this,
         (*env)->SetLongField(env, attrs, attrs_f_bfree,  long_to_jlong(buf.f_bfree));
         (*env)->SetLongField(env, attrs, attrs_f_bavail, long_to_jlong(buf.f_bavail));
     }
-}
-
-JNIEXPORT jlong JNICALL
-Java_sun_nio_fs_UnixNativeDispatcher_pathconf0(JNIEnv* env, jclass this,
-    jlong pathAddress, jint name)
-{
-    long err;
-    const char* path = (const char*)jlong_to_ptr(pathAddress);
-
-    err = pathconf(path, (int)name);
-    if (err == -1) {
-        throwUnixException(env, errno);
-    }
-    return (jlong)err;
-}
-
-JNIEXPORT jlong JNICALL
-Java_sun_nio_fs_UnixNativeDispatcher_fpathconf(JNIEnv* env, jclass this,
-    jint fd, jint name)
-{
-    long err;
-
-    err = fpathconf((int)fd, (int)name);
-    if (err == -1) {
-        throwUnixException(env, errno);
-    }
-    return (jlong)err;
 }
 
 JNIEXPORT void JNICALL
@@ -1142,8 +1385,11 @@ Java_sun_nio_fs_UnixNativeDispatcher_getpwnam0(JNIEnv* env, jclass this,
 
         if (res != 0 || p == NULL || p->pw_name == NULL || *(p->pw_name) == '\0') {
             /* not found or error */
-            if (errno != 0 && errno != ENOENT && errno != ESRCH)
+            if (errno != 0 && errno != ENOENT && errno != ESRCH &&
+                errno != EBADF && errno != EPERM)
+            {
                 throwUnixException(env, errno);
+            }
         } else {
             uid = p->pw_uid;
         }
@@ -1184,7 +1430,9 @@ Java_sun_nio_fs_UnixNativeDispatcher_getgrnam0(JNIEnv* env, jclass this,
         retry = 0;
         if (res != 0 || g == NULL || g->gr_name == NULL || *(g->gr_name) == '\0') {
             /* not found or error */
-            if (errno != 0 && errno != ENOENT && errno != ESRCH) {
+            if (errno != 0 && errno != ENOENT && errno != ESRCH &&
+                errno != EBADF && errno != EPERM)
+            {
                 if (errno == ERANGE) {
                     /* insufficient buffer size so need larger buffer */
                     buflen += ENT_BUF_SIZE;
@@ -1202,4 +1450,84 @@ Java_sun_nio_fs_UnixNativeDispatcher_getgrnam0(JNIEnv* env, jclass this,
     } while (retry);
 
     return gid;
+}
+
+JNIEXPORT jint JNICALL
+Java_sun_nio_fs_UnixNativeDispatcher_fgetxattr0(JNIEnv* env, jclass clazz,
+    jint fd, jlong nameAddress, jlong valueAddress, jint valueLen)
+{
+    size_t res = -1;
+    const char* name = jlong_to_ptr(nameAddress);
+    void* value = jlong_to_ptr(valueAddress);
+
+#ifdef __linux__
+    res = fgetxattr(fd, name, value, valueLen);
+#elif defined(_ALLBSD_SOURCE)
+    res = fgetxattr(fd, name, value, valueLen, 0, 0);
+#else
+    throwUnixException(env, ENOTSUP);
+#endif
+
+    if (res == (size_t)-1)
+        throwUnixException(env, errno);
+    return (jint)res;
+}
+
+JNIEXPORT void JNICALL
+Java_sun_nio_fs_UnixNativeDispatcher_fsetxattr0(JNIEnv* env, jclass clazz,
+    jint fd, jlong nameAddress, jlong valueAddress, jint valueLen)
+{
+    int res = -1;
+    const char* name = jlong_to_ptr(nameAddress);
+    void* value = jlong_to_ptr(valueAddress);
+
+#ifdef __linux__
+    res = fsetxattr(fd, name, value, valueLen, 0);
+#elif defined(_ALLBSD_SOURCE)
+    res = fsetxattr(fd, name, value, valueLen, 0, 0);
+#else
+    throwUnixException(env, ENOTSUP);
+#endif
+
+    if (res == -1)
+        throwUnixException(env, errno);
+}
+
+JNIEXPORT void JNICALL
+Java_sun_nio_fs_UnixNativeDispatcher_fremovexattr0(JNIEnv* env, jclass clazz,
+    jint fd, jlong nameAddress)
+{
+    int res = -1;
+    const char* name = jlong_to_ptr(nameAddress);
+
+#ifdef __linux__
+    res = fremovexattr(fd, name);
+#elif defined(_ALLBSD_SOURCE)
+    res = fremovexattr(fd, name, 0);
+#else
+    throwUnixException(env, ENOTSUP);
+#endif
+
+    if (res == -1)
+        throwUnixException(env, errno);
+}
+
+JNIEXPORT jint JNICALL
+Java_sun_nio_fs_UnixNativeDispatcher_flistxattr(JNIEnv* env, jclass clazz,
+    jint fd, jlong listAddress, jint size)
+{
+    size_t res = -1;
+    char* list = jlong_to_ptr(listAddress);
+
+#ifdef __linux__
+    res = flistxattr(fd, list, (size_t)size);
+#elif defined(_ALLBSD_SOURCE)
+    res = flistxattr(fd, list, (size_t)size, 0);
+#else
+    throwUnixException(env, ENOTSUP);
+#endif
+
+    if (res == (size_t)-1)
+        throwUnixException(env, errno);
+    return (jint)res;
 }

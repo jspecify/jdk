@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,18 +24,19 @@
 #ifndef SHARE_GC_Z_ZBARRIERSETASSEMBLER_HPP
 #define SHARE_GC_Z_ZBARRIERSETASSEMBLER_HPP
 
-#include "asm/macroAssembler.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
-#include "oops/accessDecorators.hpp"
-#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
 class ZBarrierSetAssemblerBase : public BarrierSetAssembler {
 public:
-  static Address address_bad_mask_from_thread(Register thread);
-  static Address address_bad_mask_from_jni_env(Register env);
+  static Address load_bad_mask_from_thread(Register thread);
+  static Address mark_bad_mask_from_thread(Register thread);
+
+  static Address load_bad_mask_from_jni_env(Register env);
+  static Address mark_bad_mask_from_jni_env(Register env);
 };
 
+// Needs to be included after definition of ZBarrierSetAssemblerBase
 #include CPU_HEADER(gc/z/zBarrierSetAssembler)
 
 #endif // SHARE_GC_Z_ZBARRIERSETASSEMBLER_HPP

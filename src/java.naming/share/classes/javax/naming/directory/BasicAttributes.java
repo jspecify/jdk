@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 
 package javax.naming.directory;
-
-import org.jspecify.annotations.Nullable;
 
 import java.util.Hashtable;
 import java.util.Enumeration;
@@ -78,7 +76,7 @@ public class BasicAttributes implements Attributes {
     private boolean ignoreCase = false;
 
     // The 'key' in attrs is stored in the 'right case'.
-    // If ignoreCase is true, key is aways lowercase.
+    // If ignoreCase is true, key is always lowercase.
     // If ignoreCase is false, key is stored as supplied by put().
     // %%% Not declared "private" due to bug 4064984.
     transient Hashtable<String,Attribute> attrs = new Hashtable<>(11);
@@ -226,11 +224,8 @@ public class BasicAttributes implements Attributes {
      * @return true If obj is equal to this BasicAttributes.
      * @see #hashCode
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
-        if ((obj != null) && (obj instanceof Attributes)) {
-            Attributes target = (Attributes)obj;
+    public boolean equals(Object obj) {
+        if (obj instanceof Attributes target) {
 
             // Check case first
             if (ignoreCase != target.isCaseIgnored()) {
@@ -283,26 +278,42 @@ public class BasicAttributes implements Attributes {
     }
 
     /**
-     * Overridden to avoid exposing implementation details.
-     * @serialData Default field (ignoreCase flag -- a boolean), followed by
+     * The writeObject method is called to save the state of the
+     * {@code BasicAttributes} to a stream.
+     *
+     * @serialData Default field (ignoreCase flag - a {@code boolean}), followed by
      * the number of attributes in the set
-     * (an int), and then the individual Attribute objects.
+     * (an {@code int}), and then the individual {@code Attribute} objects.
+     *
+     * @param s the {@code ObjectOutputStream} to write to
+     * @throws java.io.IOException if an I/O error occurs
      */
+    @java.io.Serial
     private void writeObject(java.io.ObjectOutputStream s)
             throws java.io.IOException {
+        // Overridden to avoid exposing implementation details
         s.defaultWriteObject(); // write out the ignoreCase flag
         s.writeInt(attrs.size());
-        Enumeration<Attribute> attrEnum = attrs.elements();
-        while (attrEnum.hasMoreElements()) {
-            s.writeObject(attrEnum.nextElement());
+        for (Attribute attribute : attrs.values()) {
+            s.writeObject(attribute);
         }
     }
 
     /**
-     * Overridden to avoid exposing implementation details.
+     * The readObject method is called to restore the state of
+     * the {@code BasicAttributes} from a stream.
+     *
+     * See {@code writeObject} for a description of the serial form.
+     *
+     * @param s the {@code ObjectInputStream} to read from
+     * @throws java.io.IOException if an I/O error occurs
+     * @throws ClassNotFoundException if the class of a serialized object
+     *         could not be found
      */
+    @java.io.Serial
     private void readObject(java.io.ObjectInputStream s)
             throws java.io.IOException, ClassNotFoundException {
+        // Overridden to avoid exposing implementation details.
         s.defaultReadObject();  // read in the ignoreCase flag
         int n = s.readInt();    // number of attributes
         attrs = (n >= 1)
@@ -378,5 +389,6 @@ class IDEnumImpl implements NamingEnumeration<String> {
     /**
      * Use serialVersionUID from JNDI 1.1.1 for interoperability.
      */
+    @java.io.Serial
     private static final long serialVersionUID = 4980164073184639448L;
 }

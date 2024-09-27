@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "classfile/stackMapFrame.hpp"
 #include "classfile/verifier.hpp"
+#include "classfile/vmSymbols.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
@@ -33,8 +34,8 @@
 
 StackMapFrame::StackMapFrame(u2 max_locals, u2 max_stack, ClassVerifier* v) :
                       _offset(0), _locals_size(0), _stack_size(0),
-                      _stack_mark(0), _flags(0), _max_locals(max_locals),
-                      _max_stack(max_stack), _verifier(v) {
+                      _stack_mark(0), _max_locals(max_locals),
+                      _max_stack(max_stack), _flags(0), _verifier(v) {
   Thread* thr = v->thread();
   _locals = NEW_RESOURCE_ARRAY_IN_THREAD(thr, VerificationType, max_locals);
   _stack = NEW_RESOURCE_ARRAY_IN_THREAD(thr, VerificationType, max_stack);
@@ -74,7 +75,7 @@ void StackMapFrame::initialize_object(
 }
 
 VerificationType StackMapFrame::set_locals_from_arg(
-    const methodHandle& m, VerificationType thisKlass, TRAPS) {
+    const methodHandle& m, VerificationType thisKlass) {
   SignatureStream ss(m->signature());
   int init_local_num = 0;
   if (!m->is_static()) {
@@ -92,8 +93,7 @@ VerificationType StackMapFrame::set_locals_from_arg(
   // local num may be greater than size of parameters because long/double occupies two slots
   while(!ss.at_return_type()) {
     init_local_num += _verifier->change_sig_to_verificationType(
-      &ss, &_locals[init_local_num],
-      CHECK_VERIFY_(verifier(), VerificationType::bogus_type()));
+      &ss, &_locals[init_local_num]);
     ss.next();
   }
   _locals_size = init_local_num;
@@ -102,14 +102,16 @@ VerificationType StackMapFrame::set_locals_from_arg(
     case T_OBJECT:
     case T_ARRAY:
     {
-      Symbol* sig = ss.as_symbol(CHECK_(VerificationType::bogus_type()));
-      // Create another symbol to save as signature stream unreferences
-      // this symbol.
-      Symbol* sig_copy =
-        verifier()->create_temporary_symbol(sig, 0, sig->utf8_length(),
-                                 CHECK_(VerificationType::bogus_type()));
-      assert(sig_copy == sig, "symbols don't match");
-      return VerificationType::reference_type(sig_copy);
+      Symbol* sig = ss.as_symbol();
+      if (!sig->is_permanent()) {
+        // Create another symbol to save as signature stream unreferences
+        // this symbol.
+        Symbol *sig_copy =
+          verifier()->create_temporary_symbol(sig);
+        assert(sig_copy == sig, "symbols don't match");
+        sig = sig_copy;
+      }
+      return VerificationType::reference_type(sig);
     }
     case T_INT:     return VerificationType::integer_type();
     case T_BYTE:    return VerificationType::byte_type();

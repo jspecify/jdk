@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,21 +34,16 @@ extern "C" {
 
 #include "debug_util.h"
 
-/* Use THIS_FILE when it is available. */
-#ifndef THIS_FILE
-    #define THIS_FILE __FILE__
-#endif
-
 typedef int     dtrace_id;
 enum {
     UNDEFINED_TRACE_ID = -1 /* indicates trace point has not been registered yet */
 };
 
 /* prototype for client provided output callback function */
-typedef void (*DTRACE_OUTPUT_CALLBACK)(const char * msg);
+typedef void (JNICALL *DTRACE_OUTPUT_CALLBACK)(const char * msg);
 
 /* prototype for client provided print callback function */
-typedef void (*DTRACE_PRINT_CALLBACK)(const char * file, int line, int argc, const char * fmt, va_list arglist);
+typedef void (JNICALL *DTRACE_PRINT_CALLBACK)(const char * file, int line, int argc, const char * fmt, va_list arglist);
 
 extern void DTrace_EnableAll(dbool_t enabled);
 extern void DTrace_EnableFile(const char * file, dbool_t enabled);
@@ -59,11 +54,12 @@ extern void DTrace_Shutdown();
 void DTrace_DisableMutex();
 extern void DTrace_VPrintImpl(const char * fmt, va_list arglist);
 extern void DTrace_PrintImpl(const char * fmt, ...);
-extern void DTrace_PrintFunction(DTRACE_PRINT_CALLBACK pfn, dtrace_id * pFileTraceId, dtrace_id * pTraceId, const char * file, int line, int argc, const char * fmt, ...);
+/* JNIEXPORT because these functions are also called from libawt_xawt */
+JNIEXPORT void JNICALL DTrace_PrintFunction(DTRACE_PRINT_CALLBACK pfn, dtrace_id * pFileTraceId, dtrace_id * pTraceId, const char * file, int line, int argc, const char * fmt, ...);
 
 /* these functions are exported only for use in macros-- do not call them directly!!! */
-extern void DTrace_VPrint(const char * file, int line, int argc, const char * fmt, va_list arglist);
-extern void DTrace_VPrintln(const char * file, int line, int argc, const char * fmt, va_list arglist);
+JNIEXPORT void JNICALL DTrace_VPrint(const char * file, int line, int argc, const char * fmt, va_list arglist);
+JNIEXPORT void JNICALL DTrace_VPrintln(const char * file, int line, int argc, const char * fmt, va_list arglist);
 
 /* each file includes this flag indicating module trace status */
 static dtrace_id        _Dt_FileTraceId = UNDEFINED_TRACE_ID;
@@ -74,7 +70,7 @@ static dtrace_id        _Dt_FileTraceId = UNDEFINED_TRACE_ID;
 #define _DTrace_Template(_func, _ac, _f, _a1, _a2, _a3, _a4, _a5, _a6, _a7, _a8) \
 { \
     static dtrace_id _dt_lineid_ = UNDEFINED_TRACE_ID; \
-    DTrace_PrintFunction((_func), &_Dt_FileTraceId, &_dt_lineid_, THIS_FILE, __LINE__, (_ac), (_f), (_a1), (_a2), (_a3), (_a4), (_a5), (_a6), (_a7), (_a8) ); \
+    DTrace_PrintFunction((_func), &_Dt_FileTraceId, &_dt_lineid_, __FILE__, __LINE__, (_ac), (_f), (_a1), (_a2), (_a3), (_a4), (_a5), (_a6), (_a7), (_a8) ); \
 }
 
 /* printf style trace macros */

@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -81,7 +79,7 @@ class HumongousMemoryAllocator extends MemoryAllocator {
 class OldGenMemoryAllocator extends MemoryAllocator {
 
     private List<byte[]> list = new ArrayList<byte[]>();
-    private int counter = 6000;
+    private int counter = 5000;
 
     @Override
     public void allocate() {
@@ -89,7 +87,7 @@ class OldGenMemoryAllocator extends MemoryAllocator {
             list.add(new byte[10 * KB]);
         } else {
             list = new ArrayList<byte[]>();
-            counter = 6000;
+            counter = 5000;
         }
 
         garbage = list;
@@ -204,52 +202,6 @@ public class AllocationStackTrace {
         String[] expectedStack = new String[]{
             "jdk.jfr.event.gc.stacktrace.AllocationStackTrace.testAllocEvent",
             "jdk.jfr.event.gc.stacktrace.AllocationStackTrace.testMetaspaceSerialGCAllocEvent"
-        };
-
-        testAllocEvent(bean, memory, expectedStack);
-    }
-
-    /**
-     * Tests event stacktrace for young GC if -XX:+UseConcMarkSweepGC is used
-     */
-    public static void testParNewAllocEvent() throws Exception {
-        GarbageCollectorMXBean bean = garbageCollectorMXBean("ParNew");
-        MemoryAllocator memory = new EdenMemoryAllocator();
-
-        String[] expectedStack = new String[]{
-            "jdk.jfr.event.gc.stacktrace.AllocationStackTrace.testAllocEvent",
-            "jdk.jfr.event.gc.stacktrace.AllocationStackTrace.testParNewAllocEvent"
-        };
-
-        testAllocEvent(bean, memory, expectedStack);
-    }
-
-    /**
-     * Tests event stacktrace for old GC if -XX:+UseConcMarkSweepGC is used
-     */
-    public static void testConcMarkSweepAllocEvent() throws Exception {
-        GarbageCollectorMXBean bean = garbageCollectorMXBean("ConcurrentMarkSweep");
-        MemoryAllocator memory = new OldGenMemoryAllocator();
-
-        String[] expectedStack = new String[]{
-            "jdk.jfr.event.gc.stacktrace.AllocationStackTrace.testAllocEvent",
-            "jdk.jfr.event.gc.stacktrace.AllocationStackTrace.testConcMarkSweepAllocEvent"
-        };
-
-        testAllocEvent(bean, memory, expectedStack);
-    }
-
-    /**
-     * Tests event stacktrace during metaspace GC threshold if
-     * -XX:+UseConcMarkSweepGC is used
-     */
-    public static void testMetaspaceConcMarkSweepGCAllocEvent() throws Exception {
-        GarbageCollectorMXBean bean = garbageCollectorMXBean("ConcurrentMarkSweep");
-        MemoryAllocator memory = new MetaspaceMemoryAllocator();
-
-        String[] expectedStack = new String[]{
-            "jdk.jfr.event.gc.stacktrace.AllocationStackTrace.testAllocEvent",
-            "jdk.jfr.event.gc.stacktrace.AllocationStackTrace.testMetaspaceConcMarkSweepGCAllocEvent"
         };
 
         testAllocEvent(bean, memory, expectedStack);

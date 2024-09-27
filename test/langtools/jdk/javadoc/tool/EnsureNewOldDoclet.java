@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,13 +36,11 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
 
-import com.sun.javadoc.Tag;
 import com.sun.source.doctree.DocTree;
 
 import toolbox.*;
@@ -76,9 +74,6 @@ public class EnsureNewOldDoclet extends TestRunner {
     final static String NEW_DOCLET_MARKER = "NEW_DOCLET_MARKER";
     final static String NEW_TAGLET_MARKER = "Registered Taglet " + CLASS_NAME + "\\$NewTaglet";
 
-    final static Pattern WARN_TEXT = Pattern.compile("Users are strongly recommended to migrate" +
-                                                    " to the new APIs.");
-
     final static String NEW_STDDOCLET = "jdk.javadoc.doclet.StandardDoclet";
 
 
@@ -111,35 +106,21 @@ public class EnsureNewOldDoclet extends TestRunner {
     // outcome: new tool and new doclet
     @Test
     public void testDefault() throws Exception {
-        setArgs("-classpath", ".", // insulates us from ambient classpath
+        setArgs("-J-Duser.language=en", "-J-Duser.country=US",
+                "-classpath", ".", // insulates us from ambient classpath
                   testSrc.toString());
         Task.Result tr = task.run(Task.Expect.SUCCESS);
-        List<String> out = tr.getOutputLines(Task.OutputKind.STDOUT);
-        checkOutput(testName, out, NEW_HEADER);
-    }
-
-    // input: old doclet
-    // outcome: old tool
-    @Test
-    public void testOldDoclet() throws Exception {
-        setArgs("-classpath", ".", // ambient classpath insulation
-                "-doclet",
-                OLD_DOCLET_CLASS_NAME,
-                "-docletpath",
-                testClasses,
-                testSrc.toString());
-        Task.Result tr = task.run(Task.Expect.SUCCESS);
-        List<String> out = tr.getOutputLines(Task.OutputKind.STDOUT);
         List<String> err = tr.getOutputLines(Task.OutputKind.STDERR);
-        checkOutput(testName, out, OLD_DOCLET_MARKER);
-        checkOutput(testName, err, WARN_TEXT);
+        checkOutput(testName, err, NEW_HEADER);
     }
 
     // input: new doclet and new taglet
     // outcome: new doclet and new taglet should register
     @Test
     public void testNewDocletNewTaglet() throws Exception {
-        setArgs("-classpath", ".", // ambient classpath insulation
+        setArgs("-J-Duser.language=en",
+                "-J-Duser.country=US",
+                "-classpath", ".", // ambient classpath insulation
                 "-doclet",
                 NEW_STDDOCLET,
                 "-taglet",
@@ -150,8 +131,8 @@ public class EnsureNewOldDoclet extends TestRunner {
         Task.Result tr = task.run(Task.Expect.SUCCESS);
         List<String> out = tr.getOutputLines(Task.OutputKind.STDOUT);
         List<String> err = tr.getOutputLines(Task.OutputKind.STDERR);
-        checkOutput(testName, out, NEW_HEADER);
-        checkOutput(testName, out, NEW_TAGLET_MARKER);
+        checkOutput(testName, err, NEW_HEADER);
+        checkOutput(testName, err, NEW_TAGLET_MARKER);
     }
 
     void setArgs(String... args) {
@@ -173,13 +154,6 @@ public class EnsureNewOldDoclet extends TestRunner {
             }
         }
         throw new Exception(testCase + ": Expected string not found: " +  toFind);
-    }
-
-    public static class OldDoclet extends com.sun.javadoc.Doclet {
-        public static boolean start(com.sun.javadoc.RootDoc root) {
-            System.out.println(OLD_DOCLET_MARKER);
-            return true;
-        }
     }
 
     public static class NewTaglet implements jdk.javadoc.doclet.Taglet {

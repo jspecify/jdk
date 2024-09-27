@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package java.io;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Objects;
 
 /**
  * A character-stream reader that allows characters to be pushed back into the
@@ -51,7 +52,7 @@ public class PushbackReader extends FilterReader {
      *
      * @param   in   The reader from which characters will be read
      * @param   size The size of the pushback buffer
-     * @exception IllegalArgumentException if {@code size <= 0}
+     * @throws  IllegalArgumentException if {@code size <= 0}
      */
     public PushbackReader(Reader in,  int size) {
         super(in);
@@ -83,7 +84,7 @@ public class PushbackReader extends FilterReader {
      * @return     The character read, or -1 if the end of the stream has been
      *             reached
      *
-     * @exception  IOException  If an I/O error occurs
+     * @throws     IOException  If an I/O error occurs
      */
     public int read() throws IOException {
         synchronized (lock) {
@@ -96,28 +97,14 @@ public class PushbackReader extends FilterReader {
     }
 
     /**
-     * Reads characters into a portion of an array.
-     *
-     * @param      cbuf  Destination buffer
-     * @param      off   Offset at which to start writing characters
-     * @param      len   Maximum number of characters to read
-     *
-     * @return     The number of characters read, or -1 if the end of the
-     *             stream has been reached
-     *
-     * @exception  IOException  If an I/O error occurs
-     * @exception  IndexOutOfBoundsException {@inheritDoc}
+     * {@inheritDoc}
      */
-    public   int read(char cbuf[],  int off,   int len) throws IOException {
+    public int read(char[] cbuf, int off, int len) throws IOException {
         synchronized (lock) {
             ensureOpen();
             try {
-                if (len <= 0) {
-                    if (len < 0) {
-                        throw new IndexOutOfBoundsException();
-                    } else if ((off < 0) || (off > cbuf.length)) {
-                        throw new IndexOutOfBoundsException();
-                    }
+                Objects.checkFromIndexSize(off, len, cbuf.length);
+                if (len == 0) {
                     return 0;
                 }
                 int avail = buf.length - pos;
@@ -146,12 +133,12 @@ public class PushbackReader extends FilterReader {
     /**
      * Pushes back a single character by copying it to the front of the
      * pushback buffer. After this method returns, the next character to be read
-     * will have the value <code>(char)c</code>.
+     * will have the value {@code (char)c}.
      *
      * @param  c  The int value representing a character to be pushed back
      *
-     * @exception  IOException  If the pushback buffer is full,
-     *                          or if some other I/O error occurs
+     * @throws IOException  If the pushback buffer is full,
+     *                      or if some other I/O error occurs
      */
     public void unread(int c) throws IOException {
         synchronized (lock) {
@@ -165,18 +152,18 @@ public class PushbackReader extends FilterReader {
     /**
      * Pushes back a portion of an array of characters by copying it to the
      * front of the pushback buffer.  After this method returns, the next
-     * character to be read will have the value <code>cbuf[off]</code>, the
-     * character after that will have the value <code>cbuf[off+1]</code>, and
+     * character to be read will have the value {@code cbuf[off]}, the
+     * character after that will have the value {@code cbuf[off+1]}, and
      * so forth.
      *
-     * @param  cbuf  Character array
-     * @param  off   Offset of first character to push back
-     * @param  len   Number of characters to push back
+     * @param      cbuf  Character array
+     * @param      off   Offset of first character to push back
+     * @param      len   Number of characters to push back
      *
-     * @exception  IOException  If there is insufficient room in the pushback
+     * @throws     IOException  If there is insufficient room in the pushback
      *                          buffer, or if some other I/O error occurs
      */
-    public void unread(char cbuf[],  int off,   int len) throws IOException {
+    public void unread(char[] cbuf, int off, int len) throws IOException {
         synchronized (lock) {
             ensureOpen();
             if (len > pos)
@@ -189,22 +176,22 @@ public class PushbackReader extends FilterReader {
     /**
      * Pushes back an array of characters by copying it to the front of the
      * pushback buffer.  After this method returns, the next character to be
-     * read will have the value <code>cbuf[0]</code>, the character after that
-     * will have the value <code>cbuf[1]</code>, and so forth.
+     * read will have the value {@code cbuf[0]}, the character after that
+     * will have the value {@code cbuf[1]}, and so forth.
      *
-     * @param  cbuf  Character array to push back
+     * @param      cbuf  Character array to push back
      *
-     * @exception  IOException  If there is insufficient room in the pushback
+     * @throws     IOException  If there is insufficient room in the pushback
      *                          buffer, or if some other I/O error occurs
      */
-    public void unread(char cbuf[]) throws IOException {
+    public void unread(char[] cbuf) throws IOException {
         unread(cbuf, 0, cbuf.length);
     }
 
     /**
      * Tells whether this stream is ready to be read.
      *
-     * @exception  IOException  If an I/O error occurs
+     * @throws     IOException  If an I/O error occurs
      */
     public boolean ready() throws IOException {
         synchronized (lock) {
@@ -214,20 +201,20 @@ public class PushbackReader extends FilterReader {
     }
 
     /**
-     * Marks the present position in the stream. The <code>mark</code>
-     * for class <code>PushbackReader</code> always throws an exception.
+     * Marks the present position in the stream. The {@code mark}
+     * for class {@code PushbackReader} always throws an exception.
      *
-     * @exception  IOException  Always, since mark is not supported
+     * @throws     IOException  Always, since mark is not supported
      */
     public void mark( int readAheadLimit) throws IOException {
         throw new IOException("mark/reset not supported");
     }
 
     /**
-     * Resets the stream. The <code>reset</code> method of
-     * <code>PushbackReader</code> always throws an exception.
+     * Resets the stream. The {@code reset} method of
+     * {@code PushbackReader} always throws an exception.
      *
-     * @exception  IOException  Always, since reset is not supported
+     * @throws     IOException  Always, since reset is not supported
      */
     public void reset() throws IOException {
         throw new IOException("mark/reset not supported");
@@ -248,7 +235,7 @@ public class PushbackReader extends FilterReader {
      * Closing a previously closed stream has no effect. This method will block
      * while there is another thread blocking on the reader.
      *
-     * @exception  IOException  If an I/O error occurs
+     * @throws     IOException  If an I/O error occurs
      */
     public void close() throws IOException {
         synchronized (lock) {
@@ -258,15 +245,7 @@ public class PushbackReader extends FilterReader {
     }
 
     /**
-     * Skips characters.  This method will block until some characters are
-     * available, an I/O error occurs, or the end of the stream is reached.
-     *
-     * @param  n  The number of characters to skip
-     *
-     * @return    The number of characters actually skipped
-     *
-     * @exception  IllegalArgumentException  If <code>n</code> is negative.
-     * @exception  IOException  If an I/O error occurs
+     * {@inheritDoc}
      */
     public  long skip( long n) throws IOException {
         if (n < 0L)
@@ -276,7 +255,7 @@ public class PushbackReader extends FilterReader {
             int avail = buf.length - pos;
             if (avail > 0) {
                 if (n <= avail) {
-                    pos += n;
+                    pos += (int)n;
                     return n;
                 } else {
                     pos = buf.length;

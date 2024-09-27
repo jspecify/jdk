@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -24,30 +22,23 @@
  */
 
 /*
-  test
+  @test
+  @key headful
   @bug 6260648
   @summary Tests that WINDOW_DESTROY event can be handled by overriding handleEvent(). Also,
 tests that handleEvent() is not called by AWT if any listener is added to the component
 (i. e. when post-1.1 events schema is used)
-  @author artem.ananiev: area=awt.event
-  @run applet HandleWindowDestroyTest.html
+  @run main HandleWindowDestroyTest
 */
-
-import java.applet.*;
 
 import java.awt.*;
 import java.awt.event.*;
 
-public class HandleWindowDestroyTest extends Applet
-{
-    private volatile boolean handleEventCalled;
+public class HandleWindowDestroyTest {
 
-    public void start ()
-    {
-        setSize (200,200);
-        setVisible(true);
-        validate();
+    private static volatile boolean handleEventCalled;
 
+    public static void main(final String[] args) {
         Robot robot;
         try {
             robot = new Robot();

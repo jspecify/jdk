@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,11 @@
  * @test
  * @bug 8129786
  * @summary Verify that JVM correctly processes very long unrecognized VM option
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  * @modules java.management
- * @run main TestLongUnrecognizedVMOption
+ * @run driver TestLongUnrecognizedVMOption
  */
 
 import jdk.test.lib.process.OutputAnalyzer;
@@ -42,7 +43,7 @@ public class TestLongUnrecognizedVMOption {
     public static void main(String[] args) throws Exception {
         OutputAnalyzer output;
 
-        output = new OutputAnalyzer(ProcessTools.createJavaProcessBuilder("-XX:" + VERY_LONG_OPTION, "-version").start());
+        output = new OutputAnalyzer(ProcessTools.createLimitedTestJavaProcessBuilder("-XX:" + VERY_LONG_OPTION, "-version").start());
         output.shouldHaveExitValue(1);
         output.shouldContain(String.format("Unrecognized VM option '%s'", VERY_LONG_OPTION));
     }

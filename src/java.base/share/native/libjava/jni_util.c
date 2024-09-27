@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,8 +35,13 @@
  * such as "z:" need to be appended with a "." so we
  * must allocate at least 4 bytes to allow room for
  * this expansion. See 4235353 for details.
+ * This macro returns NULL if the requested size is
+ * negative, or the size is INT_MAX as the macro adds 1
+ * that overflows into negative value.
  */
-#define MALLOC_MIN4(len) ((char *)malloc((len) + 1 < 4 ? 4 : (len) + 1))
+#define MALLOC_MIN4(len) ((len) >= INT_MAX || (len) < 0 ? \
+    NULL : \
+    ((char *)malloc((len) + 1 < 4 ? 4 : (len) + 1)))
 
 /**
  * Throw a Java exception by name. Similar to SignalError.
@@ -77,33 +82,9 @@ JNU_ThrowIllegalArgumentException(JNIEnv *env, const char *msg)
 }
 
 JNIEXPORT void JNICALL
-JNU_ThrowIllegalAccessError(JNIEnv *env, const char *msg)
-{
-    JNU_ThrowByName(env, "java/lang/IllegalAccessError", msg);
-}
-
-JNIEXPORT void JNICALL
-JNU_ThrowIllegalAccessException(JNIEnv *env, const char *msg)
-{
-    JNU_ThrowByName(env, "java/lang/IllegalAccessException", msg);
-}
-
-JNIEXPORT void JNICALL
 JNU_ThrowInternalError(JNIEnv *env, const char *msg)
 {
     JNU_ThrowByName(env, "java/lang/InternalError", msg);
-}
-
-JNIEXPORT void JNICALL
-JNU_ThrowNoSuchFieldException(JNIEnv *env, const char *msg)
-{
-    JNU_ThrowByName(env, "java/lang/NoSuchFieldException", msg);
-}
-
-JNIEXPORT void JNICALL
-JNU_ThrowNoSuchMethodException(JNIEnv *env, const char *msg)
-{
-    JNU_ThrowByName(env, "java/lang/NoSuchMethodException", msg);
 }
 
 JNIEXPORT void JNICALL
@@ -113,39 +94,9 @@ JNU_ThrowClassNotFoundException(JNIEnv *env, const char *msg)
 }
 
 JNIEXPORT void JNICALL
-JNU_ThrowNumberFormatException(JNIEnv *env, const char *msg)
-{
-    JNU_ThrowByName(env, "java/lang/NumberFormatException", msg);
-}
-
-JNIEXPORT void JNICALL
 JNU_ThrowIOException(JNIEnv *env, const char *msg)
 {
     JNU_ThrowByName(env, "java/io/IOException", msg);
-}
-
-JNIEXPORT void JNICALL
-JNU_ThrowNoSuchFieldError(JNIEnv *env, const char *msg)
-{
-    JNU_ThrowByName(env, "java/lang/NoSuchFieldError", msg);
-}
-
-JNIEXPORT void JNICALL
-JNU_ThrowNoSuchMethodError(JNIEnv *env, const char *msg)
-{
-    JNU_ThrowByName(env, "java/lang/NoSuchMethodError", msg);
-}
-
-JNIEXPORT void JNICALL
-JNU_ThrowStringIndexOutOfBoundsException(JNIEnv *env, const char *msg)
-{
-    JNU_ThrowByName(env, "java/lang/StringIndexOutOfBoundsException", msg);
-}
-
-JNIEXPORT void JNICALL
-JNU_ThrowInstantiationException(JNIEnv *env, const char *msg)
-{
-    JNU_ThrowByName(env, "java/lang/InstantiationException", msg);
 }
 
 /*
@@ -157,17 +108,13 @@ JNIEXPORT void JNICALL
 JNU_ThrowByNameWithLastError(JNIEnv *env, const char *name,
                              const char *defaultDetail)
 {
-    char buf[256];
-    size_t n = getLastErrorString(buf, sizeof(buf));
+    jstring s = getLastErrorString(env);
 
-    if (n > 0) {
-        jstring s = JNU_NewStringPlatform(env, buf);
-        if (s != NULL) {
-            jobject x = JNU_NewObjectByName(env, name,
-                                            "(Ljava/lang/String;)V", s);
-            if (x != NULL) {
-                (*env)->Throw(env, x);
-            }
+    if (s != NULL) {
+        jobject x = JNU_NewObjectByName(env, name,
+                                        "(Ljava/lang/String;)V", s);
+        if (x != NULL) {
+            (*env)->Throw(env, x);
         }
     }
     if (!(*env)->ExceptionOccurred(env)) {
@@ -183,48 +130,44 @@ JNIEXPORT void JNICALL
 JNU_ThrowByNameWithMessageAndLastError
   (JNIEnv *env, const char *name, const char *message)
 {
-    char buf[256];
-    size_t n = getLastErrorString(buf, sizeof(buf));
     size_t messagelen = message == NULL ? 0 : strlen(message);
 
-    if (n > 0) {
-        jstring s = JNU_NewStringPlatform(env, buf);
-        if (s != NULL) {
-            jobject x = NULL;
-            if (messagelen) {
-                jstring s2 = NULL;
-                size_t messageextlen = messagelen + 4;
-                char *str1 = (char *)malloc((messageextlen) * sizeof(char));
-                if (str1 == 0) {
-                    JNU_ThrowOutOfMemoryError(env, 0);
-                    return;
-                }
-                jio_snprintf(str1, messageextlen, " (%s)", message);
-                s2 = (*env)->NewStringUTF(env, str1);
-                free(str1);
+    jstring s = getLastErrorString(env);
+    if (s != NULL) {
+        jobject x = NULL;
+        if (messagelen > 0) {
+            jstring s2 = NULL;
+            size_t messageextlen = messagelen + 4;
+            char *str1 = (char *)malloc((messageextlen) * sizeof(char));
+            if (str1 == NULL) {
+                JNU_ThrowOutOfMemoryError(env, 0);
+                return;
+            }
+            jio_snprintf(str1, messageextlen, " (%s)", message);
+            s2 = (*env)->NewStringUTF(env, str1);
+            free(str1);
+            JNU_CHECK_EXCEPTION(env);
+            if (s2 != NULL) {
+                jstring s3 = JNU_CallMethodByName(
+                                 env, NULL, s, "concat",
+                                 "(Ljava/lang/String;)Ljava/lang/String;",
+                                 s2).l;
+                (*env)->DeleteLocalRef(env, s2);
                 JNU_CHECK_EXCEPTION(env);
-                if (s2 != NULL) {
-                    jstring s3 = JNU_CallMethodByName(
-                                     env, NULL, s, "concat",
-                                     "(Ljava/lang/String;)Ljava/lang/String;",
-                                     s2).l;
-                    (*env)->DeleteLocalRef(env, s2);
-                    JNU_CHECK_EXCEPTION(env);
-                    if (s3 != NULL) {
-                        (*env)->DeleteLocalRef(env, s);
-                        s = s3;
-                    }
+                if (s3 != NULL) {
+                    (*env)->DeleteLocalRef(env, s);
+                    s = s3;
                 }
             }
-            x = JNU_NewObjectByName(env, name, "(Ljava/lang/String;)V", s);
-            if (x != NULL) {
-                (*env)->Throw(env, x);
-            }
+        }
+        x = JNU_NewObjectByName(env, name, "(Ljava/lang/String;)V", s);
+        if (x != NULL) {
+            (*env)->Throw(env, x);
         }
     }
 
     if (!(*env)->ExceptionOccurred(env)) {
-        if (messagelen) {
+        if (messagelen > 0) {
             JNU_ThrowByName(env, name, message);
         } else {
             JNU_ThrowByName(env, name, "no further information");
@@ -233,13 +176,23 @@ JNU_ThrowByNameWithMessageAndLastError
 }
 
 /*
- * Convenience method.
+ * Convenience function.
  * Call JNU_ThrowByNameWithLastError for java.io.IOException.
  */
 JNIEXPORT void JNICALL
 JNU_ThrowIOExceptionWithLastError(JNIEnv *env, const char *defaultDetail)
 {
     JNU_ThrowByNameWithLastError(env, "java/io/IOException", defaultDetail);
+}
+
+/*
+ * Throw java.io.IOException using a given message and the string
+ * returned by getLastErrorString to construct the detail string.
+ */
+JNIEXPORT void JNICALL
+JNU_ThrowIOExceptionWithMessageAndLastError(JNIEnv *env, const char *message)
+{
+    JNU_ThrowByNameWithMessageAndLastError(env, "java/io/IOException", message);
 }
 
 
@@ -447,7 +400,7 @@ JNU_NewObjectByName(JNIEnv *env, const char *class_name,
 static jstring
 newSizedString8859_1(JNIEnv *env, const char *str, const int len)
 {
-    jchar buf[512];
+    jchar buf[512] = {0};
     jchar *str1;
     jstring result;
     int i;
@@ -466,6 +419,7 @@ newSizedString8859_1(JNIEnv *env, const char *str, const int len)
 
     for (i=0;i<len;i++)
         str1[i] = (unsigned char)str[i];
+
     result = (*env)->NewString(env, str1, len);
     if (str1 != buf)
         free(str1);
@@ -480,7 +434,7 @@ newString8859_1(JNIEnv *env, const char *str)
 }
 
 static const char*
-getString8859_1Chars(JNIEnv *env, jstring jstr)
+getString8859_1Chars(JNIEnv *env, jstring jstr, jboolean strict)
 {
     int i;
     char *result;
@@ -499,6 +453,13 @@ getString8859_1Chars(JNIEnv *env, jstring jstr)
 
     for (i=0; i<len; i++) {
         jchar unicode = str[i];
+        if (strict && unicode == 0) {
+            (*env)->ReleaseStringCritical(env, jstr, str);
+            free(result);
+            JNU_ThrowIllegalArgumentException(env, "NUL character not allowed in platform string");
+            return 0;
+        }
+
         if (unicode <= 0x00ff)
             result[i] = (char)unicode;
         else
@@ -516,10 +477,13 @@ static jstring
 newString646_US(JNIEnv *env, const char *str)
 {
     int len = (int)strlen(str);
-    jchar buf[512];
+    jchar buf[512] = {0};
     jchar *str1;
     jstring result;
     int i;
+
+    if ((*env)->EnsureLocalCapacity(env, 1) < 0)
+        return NULL;
 
     if (len > 512) {
         str1 = (jchar *)malloc(len * sizeof(jchar));
@@ -545,7 +509,7 @@ newString646_US(JNIEnv *env, const char *str)
 }
 
 static const char*
-getString646_USChars(JNIEnv *env, jstring jstr)
+getString646_USChars(JNIEnv *env, jstring jstr, jboolean strict)
 {
     int i;
     char *result;
@@ -564,6 +528,12 @@ getString646_USChars(JNIEnv *env, jstring jstr)
 
     for (i=0; i<len; i++) {
         jchar unicode = str[i];
+        if (strict && unicode == 0) {
+            (*env)->ReleaseStringCritical(env, jstr, str);
+            free(result);
+            JNU_ThrowIllegalArgumentException(env, "NUL character not allowed in platform string");
+            return 0;
+        }
         if (unicode <= 0x007f )
             result[i] = (char)unicode;
         else
@@ -588,7 +558,7 @@ static jstring
 newStringCp1252(JNIEnv *env, const char *str)
 {
     int len = (int) strlen(str);
-    jchar buf[512];
+    jchar buf[512] = {0};
     jchar *str1;
     jstring result;
     int i;
@@ -620,7 +590,7 @@ newStringCp1252(JNIEnv *env, const char *str)
 }
 
 static const char*
-getStringCp1252Chars(JNIEnv *env, jstring jstr)
+getStringCp1252Chars(JNIEnv *env, jstring jstr, jboolean strict)
 {
     int i;
     char *result;
@@ -639,6 +609,13 @@ getStringCp1252Chars(JNIEnv *env, jstring jstr)
 
     for (i=0; i<len; i++) {
         jchar c = str[i];
+        if (strict && c == 0) {
+            (*env)->ReleaseStringCritical(env, jstr, str);
+            free(result);
+            JNU_ThrowIllegalArgumentException(env,
+                   "NUL character not allowed in platform string");
+            return 0;
+        }
         if (c < 256) {
             if ((c >= 0x80) && (c <= 0x9f)) {
                 result[i] = '?';
@@ -683,30 +660,15 @@ getStringCp1252Chars(JNIEnv *env, jstring jstr)
 }
 
 static int fastEncoding = NO_ENCODING_YET;
-static jstring jnuEncoding = NULL;
+static jobject jnuCharset = NULL;
 
 /* Cached method IDs */
-static jmethodID String_init_ID;        /* String(byte[], enc) */
-static jmethodID String_getBytes_ID;    /* String.getBytes(enc) */
+static jmethodID String_init_ID;        /* String(byte[], Charset) */
+static jmethodID String_getBytes_ID;    /* String.getBytes(Charset) */
 
 /* Cached field IDs */
 static jfieldID String_coder_ID;        /* String.coder */
 static jfieldID String_value_ID;        /* String.value */
-
-static jboolean isJNUEncodingSupported = JNI_FALSE;
-static jboolean jnuEncodingSupported(JNIEnv *env) {
-    jboolean exe;
-    if (isJNUEncodingSupported == JNI_TRUE) {
-        return JNI_TRUE;
-    }
-    isJNUEncodingSupported = (jboolean) JNU_CallStaticMethodByName (
-                                    env, &exe,
-                                    "java/nio/charset/Charset",
-                                    "isSupported",
-                                    "(Ljava/lang/String;)Z",
-                                    jnuEncoding).z;
-    return isJNUEncodingSupported;
-}
 
 /* Create a new string by converting str to a heap-allocated byte array and
  * calling the appropriate String constructor.
@@ -725,22 +687,8 @@ newSizedStringJava(JNIEnv *env, const char *str, const int len)
         jclass strClazz = JNU_ClassString(env);
         CHECK_NULL_RETURN(strClazz, 0);
         (*env)->SetByteArrayRegion(env, bytes, 0, len, (jbyte *)str);
-        if (jnuEncodingSupported(env)) {
-            result = (*env)->NewObject(env, strClazz,
-                                       String_init_ID, bytes, jnuEncoding);
-        } else {
-            /*If the encoding specified in sun.jnu.encoding is not endorsed
-              by "Charset.isSupported" we have to fall back to use String(byte[])
-              explicitly here without specifying the encoding name, in which the
-              StringCoding class will pickup the iso-8859-1 as the fallback
-              converter for us.
-             */
-            jmethodID mid = (*env)->GetMethodID(env, strClazz,
-                                                "<init>", "([B)V");
-            if (mid != NULL) {
-                result = (*env)->NewObject(env, strClazz, mid, bytes);
-            }
-        }
+        result = (*env)->NewObject(env, strClazz,
+                                   String_init_ID, bytes, jnuCharset);
         (*env)->DeleteLocalRef(env, bytes);
         return result;
     }
@@ -799,18 +747,15 @@ InitializeEncoding(JNIEnv *env, const char *encname)
          *   "en_GB" locale -> "ISO8859-1"                   (on Sol 7/8)
          *   "en_UK" locale -> "ISO8859-1"                   (on 2.6)
          */
+        const char *charsetname = NULL;
         if ((strcmp(encname, "8859_1") == 0) ||
             (strcmp(encname, "ISO8859-1") == 0) ||
             (strcmp(encname, "ISO8859_1") == 0) ||
             (strcmp(encname, "ISO-8859-1") == 0)) {
             fastEncoding = FAST_8859_1;
         } else if (strcmp(encname, "UTF-8") == 0) {
-            jstring enc = (*env)->NewStringUTF(env, encname);
-            if (enc == NULL)
-                return;
+            charsetname = encname;
             fastEncoding = FAST_UTF_8;
-            jnuEncoding = (jstring)(*env)->NewGlobalRef(env, enc);
-            (*env)->DeleteLocalRef(env, enc);
         } else if (strcmp(encname, "ISO646-US") == 0) {
             fastEncoding = FAST_646_US;
         } else if (strcmp(encname, "Cp1252") == 0 ||
@@ -820,12 +765,38 @@ InitializeEncoding(JNIEnv *env, const char *encname)
             strcmp(encname, "utf-16le") == 0) {
             fastEncoding = FAST_CP1252;
         } else {
-            jstring enc = (*env)->NewStringUTF(env, encname);
-            if (enc == NULL)
-                return;
+            charsetname = encname;
             fastEncoding = NO_FAST_ENCODING;
-            jnuEncoding = (jstring)(*env)->NewGlobalRef(env, enc);
+        }
+        while (charsetname != NULL) {
+            jstring enc = (*env)->NewStringUTF(env, charsetname);
+            if (enc == NULL) {
+                fastEncoding = NO_ENCODING_YET;
+                return;
+            }
+            jboolean exc;
+            jvalue charset = JNU_CallStaticMethodByName(
+                    env, &exc,
+                    "java/nio/charset/Charset",
+                    "forName",
+                    "(Ljava/lang/String;)Ljava/nio/charset/Charset;",
+                    enc);
+            if (exc) {
+                (*env)->ExceptionClear(env);
+            }
             (*env)->DeleteLocalRef(env, enc);
+
+            if (!exc && charset.l != NULL) {
+                jnuCharset = (*env)->NewGlobalRef(env, charset.l);
+                (*env)->DeleteLocalRef(env, charset.l);
+                break; // success, continue below
+            } else if (strcmp(charsetname, "UTF-8") != 0) { // fall back
+                charsetname = "UTF-8";
+                fastEncoding = FAST_UTF_8;
+            } else { // give up
+                fastEncoding = NO_ENCODING_YET;
+                return;
+            }
         }
     } else {
         JNU_ThrowInternalError(env, "platform encoding undefined");
@@ -834,21 +805,15 @@ InitializeEncoding(JNIEnv *env, const char *encname)
 
     /* Initialize method-id cache */
     String_getBytes_ID = (*env)->GetMethodID(env, strClazz,
-                                             "getBytes", "(Ljava/lang/String;)[B");
+                                             "getBytes", "(Ljava/nio/charset/Charset;)[B");
     CHECK_NULL(String_getBytes_ID);
     String_init_ID = (*env)->GetMethodID(env, strClazz,
-                                         "<init>", "([BLjava/lang/String;)V");
+                                         "<init>", "([BLjava/nio/charset/Charset;)V");
     CHECK_NULL(String_init_ID);
     String_coder_ID = (*env)->GetFieldID(env, strClazz, "coder", "B");
     CHECK_NULL(String_coder_ID);
     String_value_ID = (*env)->GetFieldID(env, strClazz, "value", "[B");
     CHECK_NULL(String_value_ID);
-}
-
-JNIEXPORT jstring
-NewStringPlatform(JNIEnv *env, const char *str)
-{
-    return JNU_NewStringPlatform(env, str);
 }
 
 JNIEXPORT jstring JNICALL
@@ -869,50 +834,59 @@ JNU_NewStringPlatform(JNIEnv *env, const char *str)
     return newStringJava(env, str);
 }
 
+static const char *
+getStringPlatformChars0(JNIEnv *env, jstring jstr, jboolean *isCopy, jboolean);
+
 JNIEXPORT const char *
 GetStringPlatformChars(JNIEnv *env, jstring jstr, jboolean *isCopy)
 {
-    return JNU_GetStringPlatformChars(env, jstr, isCopy);
+    return getStringPlatformChars0(env, jstr, isCopy, JNI_FALSE);
 }
 
-static const char* getStringBytes(JNIEnv *env, jstring jstr) {
+JNIEXPORT const char *
+GetStringPlatformCharsStrict(JNIEnv *env, jstring jstr, jboolean *isCopy)
+{
+    return getStringPlatformChars0(env, jstr, isCopy, JNI_TRUE);
+}
+
+static const char* getStringBytes(JNIEnv *env, jstring jstr, jboolean strict) {
     char *result = NULL;
     jbyteArray hab = 0;
 
     if ((*env)->EnsureLocalCapacity(env, 2) < 0)
         return 0;
 
-    if (jnuEncodingSupported(env)) {
-        hab = (*env)->CallObjectMethod(env, jstr, String_getBytes_ID, jnuEncoding);
-    } else {
-        jmethodID mid;
-        jclass strClazz = JNU_ClassString(env);
-        CHECK_NULL_RETURN(strClazz, 0);
-        mid = (*env)->GetMethodID(env, strClazz,
-                                       "getBytes", "()[B");
-        if (mid != NULL) {
-            hab = (*env)->CallObjectMethod(env, jstr, mid);
+    hab = (*env)->CallObjectMethod(env, jstr, String_getBytes_ID, jnuCharset);
+    if (hab != 0) {
+        if (!(*env)->ExceptionCheck(env)) {
+            jint len = (*env)->GetArrayLength(env, hab);
+            result = MALLOC_MIN4(len);
+            if (result == 0) {
+                JNU_ThrowOutOfMemoryError(env, 0);
+                (*env)->DeleteLocalRef(env, hab);
+                return 0;
+            }
+            (*env)->GetByteArrayRegion(env, hab, 0, len, (jbyte *)result);
+            result[len] = 0; /* NULL-terminate */
+            if (strict) {
+                for (int i=0; i<len; i++) {
+                    if (result[i] == 0) {
+                        JNU_ThrowIllegalArgumentException(env,
+                            "NUL character not allowed in platform string");
+                        free(result);
+                        result = 0;
+                        break;
+                    }
+                }
+            }
         }
+        (*env)->DeleteLocalRef(env, hab);
     }
-
-    if (!(*env)->ExceptionCheck(env)) {
-        jint len = (*env)->GetArrayLength(env, hab);
-        result = MALLOC_MIN4(len);
-        if (result == 0) {
-            JNU_ThrowOutOfMemoryError(env, 0);
-            (*env)->DeleteLocalRef(env, hab);
-            return 0;
-        }
-        (*env)->GetByteArrayRegion(env, hab, 0, len, (jbyte *)result);
-        result[len] = 0; /* NULL-terminate */
-    }
-
-    (*env)->DeleteLocalRef(env, hab);
     return result;
 }
 
 static const char*
-getStringUTF8(JNIEnv *env, jstring jstr)
+getStringUTF8(JNIEnv *env, jstring jstr, jboolean strict)
 {
     int i;
     char *result;
@@ -923,7 +897,7 @@ getStringUTF8(JNIEnv *env, jstring jstr)
     int ri;
     jbyte coder = (*env)->GetByteField(env, jstr, String_coder_ID);
     if (coder != java_lang_String_LATIN1) {
-        return getStringBytes(env, jstr);
+        return getStringBytes(env, jstr, strict);
     }
     if ((*env)->EnsureLocalCapacity(env, 2) < 0) {
         return NULL;
@@ -940,6 +914,11 @@ getStringUTF8(JNIEnv *env, jstring jstr)
     rlen = len;
     // we need two bytes for each latin-1 char above 127 (negative jbytes)
     for (i = 0; i < len; i++) {
+        if (strict && str[i] == 0) {
+            (*env)->ReleasePrimitiveArrayCritical(env, value, str, JNI_ABORT);
+            JNU_ThrowIllegalArgumentException(env, "NUL character not allowed in platform string");
+            return NULL;
+        }
         if (str[i] < 0) {
             rlen++;
         }
@@ -947,8 +926,8 @@ getStringUTF8(JNIEnv *env, jstring jstr)
 
     result = MALLOC_MIN4(rlen);
     if (result == NULL) {
-        (*env)->ReleasePrimitiveArrayCritical(env, value, str, 0);
-        JNU_ThrowOutOfMemoryError(env, 0);
+        (*env)->ReleasePrimitiveArrayCritical(env, value, str, JNI_ABORT);
+        JNU_ThrowOutOfMemoryError(env, "requested array size exceeds VM limit");
         return NULL;
     }
 
@@ -961,7 +940,7 @@ getStringUTF8(JNIEnv *env, jstring jstr)
             result[ri++] = c;
         }
     }
-    (*env)->ReleasePrimitiveArrayCritical(env, value, str, 0);
+    (*env)->ReleasePrimitiveArrayCritical(env, value, str, JNI_ABORT);
     result[rlen] = '\0';
     return result;
 }
@@ -969,43 +948,41 @@ getStringUTF8(JNIEnv *env, jstring jstr)
 JNIEXPORT const char * JNICALL
 JNU_GetStringPlatformChars(JNIEnv *env, jstring jstr, jboolean *isCopy)
 {
+    return getStringPlatformChars0(env, jstr, isCopy, JNI_FALSE);
+}
+
+JNIEXPORT const char * JNICALL
+JNU_GetStringPlatformCharsStrict(JNIEnv *env, jstring jstr, jboolean *isCopy)
+{
+    return getStringPlatformChars0(env, jstr, isCopy, JNI_TRUE);
+}
+
+static const char *
+getStringPlatformChars0(JNIEnv *env, jstring jstr, jboolean *isCopy, jboolean strict)
+{
 
     if (isCopy)
         *isCopy = JNI_TRUE;
 
     if (fastEncoding == FAST_UTF_8)
-        return getStringUTF8(env, jstr);
+        return getStringUTF8(env, jstr, strict);
     if (fastEncoding == FAST_8859_1)
-        return getString8859_1Chars(env, jstr);
+        return getString8859_1Chars(env, jstr, strict);
     if (fastEncoding == FAST_646_US)
-        return getString646_USChars(env, jstr);
+        return getString646_USChars(env, jstr, strict);
     if (fastEncoding == FAST_CP1252)
-        return getStringCp1252Chars(env, jstr);
+        return getStringCp1252Chars(env, jstr, strict);
     if (fastEncoding == NO_ENCODING_YET) {
         JNU_ThrowInternalError(env, "platform encoding not initialized");
         return 0;
     } else
-        return getStringBytes(env, jstr);
+        return getStringBytes(env, jstr, strict);
 }
 
 JNIEXPORT void JNICALL
 JNU_ReleaseStringPlatformChars(JNIEnv *env, jstring jstr, const char *str)
 {
     free((void *)str);
-}
-
-/*
- * Export the platform dependent path canonicalization so that
- * VM can find it when loading system classes.
- * This function is also used by the instrumentation agent.
- */
-extern int canonicalize(char *path, const char *out, int len);
-
-JNIEXPORT int
-Canonicalize(JNIEnv *unused, char *orig, char *out, int len)
-{
-    /* canonicalize an already natived path */
-    return canonicalize(orig, out, len);
 }
 
 JNIEXPORT jclass JNICALL
@@ -1017,54 +994,6 @@ JNU_ClassString(JNIEnv *env)
         if ((*env)->EnsureLocalCapacity(env, 1) < 0)
             return 0;
         c = (*env)->FindClass(env, "java/lang/String");
-        CHECK_NULL_RETURN(c, NULL);
-        cls = (*env)->NewGlobalRef(env, c);
-        (*env)->DeleteLocalRef(env, c);
-    }
-    return cls;
-}
-
-JNIEXPORT jclass JNICALL
-JNU_ClassClass(JNIEnv *env)
-{
-    static jclass cls = 0;
-    if (cls == 0) {
-        jclass c;
-        if ((*env)->EnsureLocalCapacity(env, 1) < 0)
-            return 0;
-        c = (*env)->FindClass(env, "java/lang/Class");
-        CHECK_NULL_RETURN(c, NULL);
-        cls = (*env)->NewGlobalRef(env, c);
-        (*env)->DeleteLocalRef(env, c);
-    }
-    return cls;
-}
-
-JNIEXPORT jclass JNICALL
-JNU_ClassObject(JNIEnv *env)
-{
-    static jclass cls = 0;
-    if (cls == 0) {
-        jclass c;
-        if ((*env)->EnsureLocalCapacity(env, 1) < 0)
-            return 0;
-        c = (*env)->FindClass(env, "java/lang/Object");
-        CHECK_NULL_RETURN(c, NULL);
-        cls = (*env)->NewGlobalRef(env, c);
-        (*env)->DeleteLocalRef(env, c);
-    }
-    return cls;
-}
-
-JNIEXPORT jclass JNICALL
-JNU_ClassThrowable(JNIEnv *env)
-{
-    static jclass cls = 0;
-    if (cls == 0) {
-        jclass c;
-        if ((*env)->EnsureLocalCapacity(env, 1) < 0)
-            return 0;
-        c = (*env)->FindClass(env, "java/lang/Throwable");
         CHECK_NULL_RETURN(c, NULL);
         cls = (*env)->NewGlobalRef(env, c);
         (*env)->DeleteLocalRef(env, c);
@@ -1096,7 +1025,7 @@ JNU_GetEnv(JavaVM *vm, jint version)
 }
 
 JNIEXPORT jint JNICALL
-JNU_IsInstanceOfByName(JNIEnv *env, jobject object, char* classname)
+JNU_IsInstanceOfByName(JNIEnv *env, jobject object, const char* classname)
 {
     jclass cls;
     if ((*env)->EnsureLocalCapacity(env, 1) < 0)
@@ -1110,124 +1039,9 @@ JNU_IsInstanceOfByName(JNIEnv *env, jobject object, char* classname)
     return JNI_ERR;
 }
 
-JNIEXPORT jboolean JNICALL
-JNU_Equals(JNIEnv *env, jobject object1, jobject object2)
-{
-    static jmethodID mid = NULL;
-    if (mid == NULL) {
-        jclass objClazz = JNU_ClassObject(env);
-        CHECK_NULL_RETURN(objClazz, JNI_FALSE);
-        mid = (*env)->GetMethodID(env, objClazz, "equals",
-                                  "(Ljava/lang/Object;)Z");
-        CHECK_NULL_RETURN(mid, JNI_FALSE);
-    }
-    return (*env)->CallBooleanMethod(env, object1, mid, object2);
-}
-
-
-/************************************************************************
- * Thread calls
- */
-
-static jmethodID Object_waitMID;
-static jmethodID Object_notifyMID;
-static jmethodID Object_notifyAllMID;
-
-JNIEXPORT void JNICALL
-JNU_MonitorWait(JNIEnv *env, jobject object, jlong timeout)
-{
-    if (object == NULL) {
-        JNU_ThrowNullPointerException(env, "JNU_MonitorWait argument");
-        return;
-    }
-    if (Object_waitMID == NULL) {
-        jclass cls = JNU_ClassObject(env);
-        if (cls == NULL) {
-            return;
-        }
-        Object_waitMID = (*env)->GetMethodID(env, cls, "wait", "(J)V");
-        if (Object_waitMID == NULL) {
-            return;
-        }
-    }
-    (*env)->CallVoidMethod(env, object, Object_waitMID, timeout);
-}
-
-JNIEXPORT void JNICALL
-JNU_Notify(JNIEnv *env, jobject object)
-{
-    if (object == NULL) {
-        JNU_ThrowNullPointerException(env, "JNU_Notify argument");
-        return;
-    }
-    if (Object_notifyMID == NULL) {
-        jclass cls = JNU_ClassObject(env);
-        if (cls == NULL) {
-            return;
-        }
-        Object_notifyMID = (*env)->GetMethodID(env, cls, "notify", "()V");
-        if (Object_notifyMID == NULL) {
-            return;
-        }
-    }
-    (*env)->CallVoidMethod(env, object, Object_notifyMID);
-}
-
-JNIEXPORT void JNICALL
-JNU_NotifyAll(JNIEnv *env, jobject object)
-{
-    if (object == NULL) {
-        JNU_ThrowNullPointerException(env, "JNU_NotifyAll argument");
-        return;
-    }
-    if (Object_notifyAllMID == NULL) {
-        jclass cls = JNU_ClassObject(env);
-        if (cls == NULL) {
-            return;
-        }
-        Object_notifyAllMID = (*env)->GetMethodID(env, cls,"notifyAll", "()V");
-        if (Object_notifyAllMID == NULL) {
-            return;
-        }
-    }
-    (*env)->CallVoidMethod(env, object, Object_notifyAllMID);
-}
-
-
 /************************************************************************
  * Debugging utilities
  */
-
-JNIEXPORT void JNICALL
-JNU_PrintString(JNIEnv *env, char *hdr, jstring string)
-{
-    if (string == NULL) {
-        fprintf(stderr, "%s: is NULL\n", hdr);
-    } else {
-        const char *stringPtr = JNU_GetStringPlatformChars(env, string, 0);
-        if (stringPtr == 0)
-            return;
-        fprintf(stderr, "%s: %s\n", hdr, stringPtr);
-        JNU_ReleaseStringPlatformChars(env, string, stringPtr);
-    }
-}
-
-JNIEXPORT void JNICALL
-JNU_PrintClass(JNIEnv *env, char* hdr, jobject object)
-{
-    if (object == NULL) {
-        fprintf(stderr, "%s: object is NULL\n", hdr);
-        return;
-    } else {
-        jclass cls = (*env)->GetObjectClass(env, object);
-        jstring clsName = JNU_ToString(env, cls);
-        if (clsName == NULL) {
-            JNU_PrintString(env, hdr, clsName);
-        }
-        (*env)->DeleteLocalRef(env, cls);
-        (*env)->DeleteLocalRef(env, clsName);
-    }
-}
 
 JNIEXPORT jstring JNICALL
 JNU_ToString(JNIEnv *env, jobject object)
@@ -1436,71 +1250,4 @@ JNU_GetStaticFieldByName(JNIEnv *env,
         *hasException = (*env)->ExceptionCheck(env);
     }
     return result;
-}
-
-JNIEXPORT void JNICALL
-JNU_SetStaticFieldByName(JNIEnv *env,
-                         jboolean *hasException,
-                         const char *classname,
-                         const char *name,
-                         const char *signature,
-                         ...)
-{
-    jclass cls;
-    jfieldID fid;
-    va_list args;
-
-    if ((*env)->EnsureLocalCapacity(env, 3) < 0)
-        goto done2;
-
-    cls = (*env)->FindClass(env, classname);
-    if (cls == 0)
-        goto done2;
-
-    fid = (*env)->GetStaticFieldID(env, cls, name, signature);
-    if (fid == 0)
-        goto done1;
-
-    va_start(args, signature);
-    switch (*signature) {
-    case '[':
-    case 'L':
-        (*env)->SetStaticObjectField(env, cls, fid, va_arg(args, jobject));
-        break;
-    case 'Z':
-        (*env)->SetStaticBooleanField(env, cls, fid, (jboolean)va_arg(args, int));
-        break;
-    case 'B':
-        (*env)->SetStaticByteField(env, cls, fid, (jbyte)va_arg(args, int));
-        break;
-    case 'C':
-        (*env)->SetStaticCharField(env, cls, fid, (jchar)va_arg(args, int));
-        break;
-    case 'S':
-        (*env)->SetStaticShortField(env, cls, fid, (jshort)va_arg(args, int));
-        break;
-    case 'I':
-        (*env)->SetStaticIntField(env, cls, fid, va_arg(args, jint));
-        break;
-    case 'J':
-        (*env)->SetStaticLongField(env, cls, fid, va_arg(args, jlong));
-        break;
-    case 'F':
-        (*env)->SetStaticFloatField(env, cls, fid, (jfloat)va_arg(args, jdouble));
-        break;
-    case 'D':
-        (*env)->SetStaticDoubleField(env, cls, fid, va_arg(args, jdouble));
-        break;
-
-    default:
-        (*env)->FatalError(env, "JNU_SetStaticFieldByName: illegal signature");
-    }
-    va_end(args);
-
- done1:
-    (*env)->DeleteLocalRef(env, cls);
- done2:
-    if (hasException) {
-        *hasException = (*env)->ExceptionCheck(env);
-    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,7 +64,7 @@ public interface X509KeyManager extends KeyManager {
      * @return an array of the matching alias names, or null if there
      *          were no matches.
      */
-    public String @Nullable [] getClientAliases(String keyType, Principal @Nullable [] issuers);
+    String @Nullable [] getClientAliases(String keyType, Principal @Nullable [] issuers);
 
     /**
      * Choose an alias to authenticate the client side of a secure
@@ -82,7 +82,7 @@ public interface X509KeyManager extends KeyManager {
      * @return the alias name for the desired key, or null if there
      *          are no matches.
      */
-    public @Nullable String chooseClientAlias(String[] keyType, Principal @Nullable [] issuers,
+    @Nullable String chooseClientAlias(String[] keyType, Principal @Nullable [] issuers,
         @Nullable Socket socket);
 
     /**
@@ -96,7 +96,7 @@ public interface X509KeyManager extends KeyManager {
      * @return an array of the matching alias names, or null
      *          if there were no matches.
      */
-    public String @Nullable [] getServerAliases(String keyType, Principal @Nullable [] issuers);
+    String @Nullable [] getServerAliases(String keyType, Principal @Nullable [] issuers);
 
     /**
      * Choose an alias to authenticate the server side of a secure
@@ -113,7 +113,7 @@ public interface X509KeyManager extends KeyManager {
      * @return the alias name for the desired key, or null if there
      *          are no matches.
      */
-    public @Nullable String chooseServerAlias(String keyType, Principal @Nullable [] issuers,
+    @Nullable String chooseServerAlias(String keyType, Principal @Nullable [] issuers,
         @Nullable Socket socket);
 
     /**
@@ -124,7 +124,7 @@ public interface X509KeyManager extends KeyManager {
      *          and the root certificate authority last), or null
      *          if the alias can't be found.
      */
-    public X509Certificate @Nullable [] getCertificateChain(String alias);
+    X509Certificate @Nullable [] getCertificateChain(String alias);
 
     /**
      * Returns the key associated with the given alias.
@@ -132,5 +132,5 @@ public interface X509KeyManager extends KeyManager {
      * @param alias the alias name
      * @return the requested key, or null if the alias can't be found.
      */
-    public @Nullable PrivateKey getPrivateKey(String alias);
+    @Nullable PrivateKey getPrivateKey(String alias);
 }

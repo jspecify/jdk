@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -28,7 +26,7 @@ import java.nio.file.Paths;
 
 import jdk.jfr.Configuration;
 import jdk.jfr.Recording;
-import jdk.jfr.internal.JVM;
+import jdk.jfr.internal.JVMSupport;
 
 /**
  * @test
@@ -46,11 +44,10 @@ public class TestCreateNative {
     // all native structures after they are setup, as if something went wrong
     // at the last step.
     public static void main(String... args) throws Exception {
-        JVM jvm = JVM.getJVM();
         // Ensure that repeated failures can be handled
         for (int i = 1; i < 4; i++) {
             System.out.println("About to try failed initialization, attempt " + i + " out of 3");
-            assertFailedInitialization(jvm);
+            assertFailedInitialization();
             System.out.println("As expected, initialization failed.");
         }
         // Ensure that Flight Recorder can be initialized properly after failures
@@ -62,9 +59,9 @@ public class TestCreateNative {
         r.close();
     }
 
-    private static void assertFailedInitialization(JVM jvm) throws Exception {
+    private static void assertFailedInitialization() throws Exception {
         try {
-            jvm.createFailedNativeJFR();
+            JVMSupport.createFailedNativeJFR();
             throw new Exception("Expected failure when creating native JFR");
         } catch (IllegalStateException ise) {
             String message = ise.getMessage();

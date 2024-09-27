@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -25,8 +25,6 @@ import com.sun.org.apache.xerces.internal.util.SymbolTable;
 import com.sun.org.apache.xerces.internal.util.XMLAttributesImpl;
 import com.sun.org.apache.xerces.internal.util.XMLChar;
 import com.sun.org.apache.xerces.internal.util.XMLStringBuffer;
-import com.sun.org.apache.xerces.internal.utils.XMLLimitAnalyzer;
-import com.sun.org.apache.xerces.internal.utils.XMLSecurityManager;
 import com.sun.org.apache.xerces.internal.xni.XMLDTDContentModelHandler;
 import com.sun.org.apache.xerces.internal.xni.XMLDTDHandler;
 import com.sun.org.apache.xerces.internal.xni.XMLResourceIdentifier;
@@ -41,6 +39,8 @@ import com.sun.org.apache.xerces.internal.xni.Augmentations;
 import com.sun.xml.internal.stream.dtd.nonvalidating.DTDGrammar;
 import java.io.EOFException;
 import java.io.IOException;
+import jdk.xml.internal.XMLLimitAnalyzer;
+import jdk.xml.internal.XMLSecurityManager;
 
 /**
  * This class is responsible for scanning the declarations found
@@ -63,7 +63,7 @@ import java.io.IOException;
  * @author Glenn Marcy, IBM
  * @author Eric Ye, IBM
  *
- * @LastModified: Nov 2017
+ * @LastModified: July 2023
  */
 public class XMLDTDScannerImpl
 extends XMLScanner
@@ -388,6 +388,7 @@ implements XMLDTDScanner, XMLComponent, XMLEntityHandler {
             return false;
 
         fStringBuffer.clear();
+        fEntityScanner = fEntityManager.getEntityScanner();
         while (fEntityScanner.scanData("]", fStringBuffer, 0)) {
             int c = fEntityScanner.peekChar();
             if (c != -1) {
@@ -608,6 +609,7 @@ implements XMLDTDScanner, XMLComponent, XMLEntityHandler {
         if (fScannerState == SCANNER_STATE_END_OF_INPUT)
             return;
 
+        boolean dtdEntity = name.equals("[dtd]");
         // Handle end of PE
         boolean reportEntity = fReportEntity;
         if (name.startsWith("%")) {
@@ -616,8 +618,7 @@ implements XMLDTDScanner, XMLComponent, XMLEntityHandler {
             int startMarkUpDepth = popPEStack();
             // throw fatalError if this entity was incomplete and
             // was a freestanding decl
-            if(startMarkUpDepth == 0 &&
-            startMarkUpDepth < fMarkUpDepth) {
+            if (startMarkUpDepth == 0 && startMarkUpDepth < fMarkUpDepth) {
                 fErrorReporter.reportError(XMLMessageFormatter.XML_DOMAIN,
                 "ILL_FORMED_PARAMETER_ENTITY_WHEN_USED_IN_DECL",
                 new Object[]{ fEntityManager.fCurrentEntity.name},
@@ -637,12 +638,10 @@ implements XMLDTDScanner, XMLComponent, XMLEntityHandler {
             if (fEntityScanner.isExternal()) {
                 fExtEntityDepth--;
             }
-        }
-
-        // call handler
-        boolean dtdEntity = name.equals("[dtd]");
-        if (fDTDHandler != null && !dtdEntity && reportEntity) {
-            fDTDHandler.endParameterEntity(name, null);
+            // call handler
+            if (fDTDHandler != null && reportEntity) {
+                fDTDHandler.endParameterEntity(name, null);
+            }
         }
 
         // end DTD

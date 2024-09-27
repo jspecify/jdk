@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,22 +26,23 @@
  * @bug      7052170 8047745
  * @summary  Run a test on -charset to make sure the charset gets generated as a
  *           part of the meta tag.
- * @author   Bhavesh Patel
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestCharset
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestCharset extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestCharset tester = new TestCharset();
+        var tester = new TestCharset();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-charset", "ISO-8859-1",
                 "-sourcepath", testSrc,
@@ -49,26 +50,32 @@ public class TestCharset extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("index.html", true,
-            "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=ISO-8859-1\">");
+            """
+                <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">""");
         checkOutput("pkg/Foo.html", true,
-            "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=ISO-8859-1\">");
+            """
+                <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">""");
 
         checkOutput("index.html", false,
-            "<meta http-equiv=\"Content-Type\" content=\"text/html\" charset=\"ISO-8859-1\">");
+            """
+                <meta http-equiv="Content-Type" content="text/html" charset="ISO-8859-1">""");
         checkOutput("pkg/Foo.html", false,
-            "<meta http-equiv=\"Content-Type\" content=\"text/html\" charset=\"ISO-8859-1\">");
+            """
+                <meta http-equiv="Content-Type" content="text/html" charset="ISO-8859-1">""");
     }
 
     @Test
-    void test1() {
+    public void test1() {
         javadoc("-d", "out-1",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
 
         checkOutput("index.html", true,
-            "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">");
+            """
+                <meta http-equiv="Content-Type" content="text/html; charset=utf-8">""");
         checkOutput("pkg/Foo.html", true,
-            "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">");
+            """
+                <meta http-equiv="Content-Type" content="text/html; charset=utf-8">""");
     }
 }

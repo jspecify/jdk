@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,11 @@
  * @test
  * @bug 8061999 8135195 8136552
  * @summary Test "-XX:VMOptionsFile" VM option
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  * @modules jdk.management
- * @run main TestVMOptionsFile
+ * @run driver TestVMOptionsFile
  */
 
 import java.io.File;
@@ -247,7 +248,7 @@ public class TestVMOptionsFile {
         runJava.add(PrintPropertyAndOptions.class.getName());
         runJava.addAll(appParams);
 
-        pb = ProcessTools.createJavaProcessBuilder(runJava.toArray(new String[0]));
+        pb = ProcessTools.createLimitedTestJavaProcessBuilder(runJava);
 
         VMParams.clear();
         appParams.clear();

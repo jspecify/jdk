@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_C1_C1_LIRGENERATOR_HPP
-#define SHARE_VM_C1_C1_LIRGENERATOR_HPP
+#ifndef SHARE_C1_C1_LIRGENERATOR_HPP
+#define SHARE_C1_C1_LIRGENERATOR_HPP
 
 #include "c1/c1_Decorators.hpp"
 #include "c1/c1_Instruction.hpp"
@@ -42,18 +42,17 @@ class BarrierSetC1;
 class LIRGenerator;
 class LIREmitter;
 class Invoke;
-class SwitchRange;
 class LIRItem;
 
 typedef GrowableArray<LIRItem*> LIRItemList;
 
-class SwitchRange: public CompilationResourceObj {
+class C1SwitchRange: public CompilationResourceObj {
  private:
   int _low_key;
   int _high_key;
   BlockBegin* _sux;
  public:
-  SwitchRange(int start_key, BlockBegin* sux): _low_key(start_key), _high_key(start_key), _sux(sux) {}
+  C1SwitchRange(int start_key, BlockBegin* sux): _low_key(start_key), _high_key(start_key), _sux(sux) {}
   void set_high_key(int key) { _high_key = key; }
 
   int high_key() const { return _high_key; }
@@ -61,8 +60,8 @@ class SwitchRange: public CompilationResourceObj {
   BlockBegin* sux() const { return _sux; }
 };
 
-typedef GrowableArray<SwitchRange*> SwitchRangeArray;
-typedef GrowableArray<SwitchRange*> SwitchRangeList;
+typedef GrowableArray<C1SwitchRange*> SwitchRangeArray;
+typedef GrowableArray<C1SwitchRange*> SwitchRangeList;
 
 class ResolveNode;
 
@@ -102,7 +101,7 @@ class ResolveNode: public CompilationResourceObj {
 
 
 // This is shared state to be used by the PhiResolver so the operand
-// arrays don't have to be reallocated for reach resolution.
+// arrays don't have to be reallocated for each resolution.
 class PhiResolverState: public CompilationResourceObj {
   friend class PhiResolver;
 
@@ -114,7 +113,7 @@ class PhiResolverState: public CompilationResourceObj {
  public:
   PhiResolverState() {}
 
-  void reset(int max_vregs);
+  void reset();
 };
 
 
@@ -146,7 +145,7 @@ class PhiResolver: public CompilationResourceObj {
   }
 
  public:
-  PhiResolver(LIRGenerator* _lir_gen, int max_vregs);
+  PhiResolver(LIRGenerator* _lir_gen);
   ~PhiResolver();
 
   void move(LIR_Opr src, LIR_Opr dest);
@@ -167,7 +166,9 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   PhiResolverState  _resolver_state;
   BlockBegin*   _block;
   int           _virtual_register_number;
+#ifdef ASSERT
   Values        _instruction_for_operand;
+#endif
   BitMap2D      _vreg_flags; // flags which can be set on a per-vreg basis
   LIR_List*     _lir;
 
@@ -216,7 +217,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   LIR_Opr load_constant(LIR_Const* constant);
 
   // Given an immediate value, return an operand usable in logical ops.
-  LIR_Opr load_immediate(int x, BasicType type);
+  LIR_Opr load_immediate(jlong x, BasicType type);
 
   void  set_result(Value x, LIR_Opr opr)           {
     assert(opr->is_valid(), "must set to valid value");
@@ -224,9 +225,11 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
     assert(!opr->is_register() || opr->is_virtual(), "should never set result to a physical register");
     x->set_operand(opr);
     assert(opr == x->operand(), "must be");
+#ifdef ASSERT
     if (opr->is_virtual()) {
-      _instruction_for_operand.at_put_grow(opr->vreg_number(), x, NULL);
+      _instruction_for_operand.at_put_grow(opr->vreg_number(), x, nullptr);
     }
+#endif
   }
   void  set_no_result(Value x)                     { assert(!x->has_uses(), "can't have use"); x->clear_operand(); }
 
@@ -240,6 +243,8 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void  move_to_phi(PhiResolver* resolver, Value cur_val, Value sux_val);
   void  move_to_phi(ValueStack* cur_state);
 
+  void load_klass(LIR_Opr obj, LIR_Opr klass, CodeEmitInfo* null_check_info);
+
   // platform dependent
   LIR_Opr getThreadPointer();
 
@@ -252,19 +257,25 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_RegisterFinalizer(Intrinsic* x);
   void do_isInstance(Intrinsic* x);
   void do_isPrimitive(Intrinsic* x);
+  void do_getModifiers(Intrinsic* x);
   void do_getClass(Intrinsic* x);
-  void do_currentThread(Intrinsic* x);
+  void do_getObjectSize(Intrinsic* x);
+  void do_currentCarrierThread(Intrinsic* x);
+  void do_scopedValueCache(Intrinsic* x);
+  void do_vthread(Intrinsic* x);
+  void do_JavaThreadField(Intrinsic* x, ByteSize offset);
   void do_FmaIntrinsic(Intrinsic* x);
   void do_MathIntrinsic(Intrinsic* x);
   void do_LibmIntrinsic(Intrinsic* x);
   void do_ArrayCopy(Intrinsic* x);
   void do_CompareAndSwap(Intrinsic* x, ValueType* type);
-  void do_NIOCheckIndex(Intrinsic* x);
+  void do_PreconditionsCheckIndex(Intrinsic* x, BasicType type);
   void do_FPIntrinsics(Intrinsic* x);
   void do_Reference_get(Intrinsic* x);
   void do_update_CRC32(Intrinsic* x);
   void do_update_CRC32C(Intrinsic* x);
   void do_vectorizedMismatch(Intrinsic* x);
+  void do_blackhole(Intrinsic* x);
 
  public:
   LIR_Opr call_runtime(BasicTypeArray* signature, LIRItemList* args, address entry, ValueType* result_type, CodeEmitInfo* info);
@@ -282,11 +293,14 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
  public:
   void access_store_at(DecoratorSet decorators, BasicType type,
                        LIRItem& base, LIR_Opr offset, LIR_Opr value,
-                       CodeEmitInfo* patch_info = NULL, CodeEmitInfo* store_emit_info = NULL);
+                       CodeEmitInfo* patch_info = nullptr, CodeEmitInfo* store_emit_info = nullptr);
 
   void access_load_at(DecoratorSet decorators, BasicType type,
                       LIRItem& base, LIR_Opr offset, LIR_Opr result,
-                      CodeEmitInfo* patch_info = NULL, CodeEmitInfo* load_emit_info = NULL);
+                      CodeEmitInfo* patch_info = nullptr, CodeEmitInfo* load_emit_info = nullptr);
+
+  void access_load(DecoratorSet decorators, BasicType type,
+                   LIR_Opr addr, LIR_Opr result);
 
   LIR_Opr access_atomic_cmpxchg_at(DecoratorSet decorators, BasicType type,
                                    LIRItem& base, LIRItem& offset, LIRItem& cmp_value, LIRItem& new_value);
@@ -304,7 +318,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   LIR_Opr atomic_add(BasicType type, LIR_Opr addr, LIRItem& new_value);
 
 #ifdef CARDTABLEBARRIERSET_POST_BARRIER_HELPER
-  virtual void CardTableBarrierSet_post_barrier_helper(LIR_OprDesc* addr, LIR_Const* card_table_base);
+  virtual void CardTableBarrierSet_post_barrier_helper(LIR_Opr addr, LIR_Const* card_table_base);
 #endif
 
   // specific implementations
@@ -333,8 +347,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void increment_counter(address counter, BasicType type, int step = 1);
   void increment_counter(LIR_Address* addr, int step = 1);
 
-  // is_strictfp is only needed for mul and div (and only generates different code on i486)
-  void arithmetic_op(Bytecodes::Code code, LIR_Opr result, LIR_Opr left, LIR_Opr right, bool is_strictfp, LIR_Opr tmp, CodeEmitInfo* info = NULL);
+  void arithmetic_op(Bytecodes::Code code, LIR_Opr result, LIR_Opr left, LIR_Opr right, LIR_Opr tmp, CodeEmitInfo* info = nullptr);
   // machine dependent.  returns true if it emitted code for the multiply
   bool strength_reduce_multiply(LIR_Opr left, jint constant, LIR_Opr result, LIR_Opr tmp);
 
@@ -344,12 +357,10 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
 
   // this loads the length and compares against the index
   void array_range_check          (LIR_Opr array, LIR_Opr index, CodeEmitInfo* null_check_info, CodeEmitInfo* range_check_info);
-  // For java.nio.Buffer.checkIndex
-  void nio_range_check            (LIR_Opr buffer, LIR_Opr index, LIR_Opr result, CodeEmitInfo* info);
 
   void arithmetic_op_int  (Bytecodes::Code code, LIR_Opr result, LIR_Opr left, LIR_Opr right, LIR_Opr tmp);
-  void arithmetic_op_long (Bytecodes::Code code, LIR_Opr result, LIR_Opr left, LIR_Opr right, CodeEmitInfo* info = NULL);
-  void arithmetic_op_fpu  (Bytecodes::Code code, LIR_Opr result, LIR_Opr left, LIR_Opr right, bool is_strictfp, LIR_Opr tmp = LIR_OprFact::illegalOpr);
+  void arithmetic_op_long (Bytecodes::Code code, LIR_Opr result, LIR_Opr left, LIR_Opr right, CodeEmitInfo* info = nullptr);
+  void arithmetic_op_fpu  (Bytecodes::Code code, LIR_Opr result, LIR_Opr left, LIR_Opr right, LIR_Opr tmp = LIR_OprFact::illegalOpr);
 
   void shift_op   (Bytecodes::Code code, LIR_Opr dst_reg, LIR_Opr value, LIR_Opr count, LIR_Opr tmp);
 
@@ -395,22 +406,21 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
                                     int bci, bool backedge, bool notify);
   void increment_event_counter(CodeEmitInfo* info, LIR_Opr step, int bci, bool backedge);
   void increment_invocation_counter(CodeEmitInfo *info) {
-    if (compilation()->count_invocations()) {
+    if (compilation()->is_profiling()) {
       increment_event_counter(info, LIR_OprFact::intConst(InvocationCounter::count_increment), InvocationEntryBci, false);
     }
   }
   void increment_backedge_counter(CodeEmitInfo* info, int bci) {
-    if (compilation()->count_backedges()) {
+    if (compilation()->is_profiling()) {
       increment_event_counter(info, LIR_OprFact::intConst(InvocationCounter::count_increment), bci, true);
     }
   }
   void increment_backedge_counter_conditionally(LIR_Condition cond, LIR_Opr left, LIR_Opr right, CodeEmitInfo* info, int left_bci, int right_bci, int bci);
   void increment_backedge_counter(CodeEmitInfo* info, LIR_Opr step, int bci) {
-    if (compilation()->count_backedges()) {
+    if (compilation()->is_profiling()) {
       increment_event_counter(info, step, bci, true);
     }
   }
-  void decrement_age(CodeEmitInfo* info);
   CodeEmitInfo* state_for(Instruction* x, ValueStack* state, bool ignore_xhandler = false);
   CodeEmitInfo* state_for(Instruction* x);
 
@@ -425,9 +435,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
 
   void do_root (Instruction* instr);
   void walk    (Instruction* instr);
-
-  void bind_block_entry(BlockBegin* block);
-  void start_block(BlockBegin* block);
 
   LIR_Opr new_register(BasicType type);
   LIR_Opr new_register(Value value)              { return new_register(as_BasicType(value->type())); }
@@ -466,11 +473,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   SwitchRangeArray* create_lookup_ranges(LookupSwitch* x);
   void do_SwitchRanges(SwitchRangeArray* x, LIR_Opr value, BlockBegin* default_sux);
 
-#ifdef JFR_HAVE_INTRINSICS
-  void do_ClassIDIntrinsic(Intrinsic* x);
-  void do_getEventWriter(Intrinsic* x);
-#endif
-
   void do_RuntimeCall(address routine, Intrinsic* x);
 
   ciKlass* profile_type(ciMethodData* md, int md_first_offset, int md_offset, intptr_t profiled_k,
@@ -480,7 +482,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void profile_parameters(Base* x);
   void profile_parameters_at_call(ProfileCall* x);
   LIR_Opr mask_boolean(LIR_Opr array, LIR_Opr value, CodeEmitInfo*& null_check_info);
-  LIR_Opr maybe_mask_boolean(StoreIndexed* x, LIR_Opr array, LIR_Opr value, CodeEmitInfo*& null_check_info);
 
  public:
   Compilation*  compilation() const              { return _compilation; }
@@ -505,14 +506,15 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   LIRGenerator(Compilation* compilation, ciMethod* method)
     : _compilation(compilation)
     , _method(method)
-    , _virtual_register_number(LIR_OprDesc::vreg_base)
+    , _virtual_register_number(LIR_Opr::vreg_base)
     , _vreg_flags(num_vreg_flags)
     , _barrier_set(BarrierSet::barrier_set()->barrier_set_c1()) {
   }
 
+#ifdef ASSERT
   // for virtual registers, maps them back to Phi's or Local's
-  Instruction* instruction_for_opr(LIR_Opr opr);
   Instruction* instruction_for_vreg(int reg_num);
+#endif
 
   void set_vreg_flag   (int vreg_num, VregFlag f);
   bool is_vreg_flag_set(int vreg_num, VregFlag f);
@@ -571,7 +573,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   virtual void do_BlockBegin     (BlockBegin*      x);
   virtual void do_Goto           (Goto*            x);
   virtual void do_If             (If*              x);
-  virtual void do_IfInstanceOf   (IfInstanceOf*    x);
   virtual void do_TableSwitch    (TableSwitch*     x);
   virtual void do_LookupSwitch   (LookupSwitch*    x);
   virtual void do_Return         (Return*          x);
@@ -580,11 +581,9 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   virtual void do_OsrEntry       (OsrEntry*        x);
   virtual void do_ExceptionObject(ExceptionObject* x);
   virtual void do_RoundFP        (RoundFP*         x);
-  virtual void do_UnsafeGetRaw   (UnsafeGetRaw*    x);
-  virtual void do_UnsafePutRaw   (UnsafePutRaw*    x);
-  virtual void do_UnsafeGetObject(UnsafeGetObject* x);
-  virtual void do_UnsafePutObject(UnsafePutObject* x);
-  virtual void do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x);
+  virtual void do_UnsafeGet      (UnsafeGet*       x);
+  virtual void do_UnsafePut      (UnsafePut*       x);
+  virtual void do_UnsafeGetAndSet(UnsafeGetAndSet* x);
   virtual void do_ProfileCall    (ProfileCall*     x);
   virtual void do_ProfileReturnType (ProfileReturnType* x);
   virtual void do_ProfileInvoke  (ProfileInvoke*   x);
@@ -622,13 +621,13 @@ class LIRItem: public CompilationResourceObj {
     _destroys_register = false;
     _gen = gen;
     _result = LIR_OprFact::illegalOpr;
-    set_instruction(NULL);
+    set_instruction(nullptr);
   }
 
   void set_instruction(Value value) {
     _value = value;
     _result = LIR_OprFact::illegalOpr;
-    if (_value != NULL) {
+    if (_value != nullptr) {
       _gen->walk(_value);
       _result = _value->operand();
     }
@@ -639,7 +638,7 @@ class LIRItem: public CompilationResourceObj {
   ValueType* type() const      { return value()->type(); }
   LIR_Opr result()             {
     assert(!_destroys_register || (!_result->is_register() || _result->is_virtual()),
-           "shouldn't use set_destroys_register with physical regsiters");
+           "shouldn't use set_destroys_register with physical registers");
     if (_destroys_register && _result->is_register()) {
       if (_new_result->is_illegal()) {
         _new_result = _gen->new_register(type());
@@ -649,7 +648,6 @@ class LIRItem: public CompilationResourceObj {
     } else {
       return _result;
     }
-    return _result;
   }
 
   void set_result(LIR_Opr opr);
@@ -669,7 +667,7 @@ class LIRItem: public CompilationResourceObj {
     _destroys_register = true;
   }
 
-  bool is_constant() const { return value()->as_Constant() != NULL; }
+  bool is_constant() const { return value()->as_Constant() != nullptr; }
   bool is_stack()          { return result()->is_stack(); }
   bool is_register()       { return result()->is_register(); }
 
@@ -681,4 +679,4 @@ class LIRItem: public CompilationResourceObj {
   jint      get_address_constant() const;
 };
 
-#endif // SHARE_VM_C1_C1_LIRGENERATOR_HPP
+#endif // SHARE_C1_C1_LIRGENERATOR_HPP

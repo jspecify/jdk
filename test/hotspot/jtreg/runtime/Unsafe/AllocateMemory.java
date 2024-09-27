@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,9 @@
  * questions.
  */
 
+// Note: we run the test with MallocLimit for the "other" category set to 100m (oom mode),
+// in order to trigger and observe a fake os::malloc oom. This needs NMT.
+
 /*
  * @test
  * @requires vm.compMode != "Xcomp"
@@ -28,7 +31,7 @@
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:MallocMaxTestWords=100m AllocateMemory
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:NativeMemoryTracking=summary -XX:MallocLimit=other:100m:oom AllocateMemory
  */
 
 import jdk.internal.misc.Unsafe;
@@ -56,13 +59,32 @@ public class AllocateMemory {
         }
 
         // allocateMemory() should throw an OutOfMemoryError when the underlying malloc fails,
-        // we test this by limiting the malloc using -XX:MallocMaxTestWords
+        // since we start with -XX:MallocLimit
         try {
-            address = unsafe.allocateMemory(100 * 1024 * 1024 * 8);
+            address = unsafe.allocateMemory(100 * 1024 * 1024);
+            throw new RuntimeException("Did not get expected OutOfMemoryError");
         } catch (OutOfMemoryError e) {
             // Expected
-            return;
         }
-        throw new RuntimeException("Did not get expected OutOfMemoryError");
+
+        // Allocation should fail on a 32-bit system if the aligned-up
+        // size overflows a size_t
+        if (Unsafe.ADDRESS_SIZE == 4) {
+            try {
+                address = unsafe.allocateMemory((long)Integer.MAX_VALUE * 2);
+                throw new RuntimeException("Did not get expected IllegalArgumentException");
+            } catch (IllegalArgumentException e) {
+                // Expected
+            }
+        }
+
+        // Allocation should fail if the aligned-up size overflows a
+        // Java long
+        try {
+            address = unsafe.allocateMemory((long)Long.MAX_VALUE);
+            throw new RuntimeException("Did not get expected IllegalArgumentException");
+        } catch (IllegalArgumentException e) {
+            // Expected
+        }
     }
 }

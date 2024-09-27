@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package com.sun.tools.javac.comp;
 
-import com.sun.source.tree.LambdaExpressionTree.BodyKind;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symtab;
@@ -37,8 +36,8 @@ import com.sun.tools.javac.comp.Check.CheckContext;
 import com.sun.tools.javac.comp.DeferredAttr.AttrMode;
 import com.sun.tools.javac.comp.DeferredAttr.DeferredAttrContext;
 import com.sun.tools.javac.comp.DeferredAttr.DeferredType;
-import com.sun.tools.javac.comp.DeferredAttr.DeferredTypeCompleter;
 import com.sun.tools.javac.comp.DeferredAttr.LambdaReturnScanner;
+import com.sun.tools.javac.comp.DeferredAttr.SwitchExpressionScanner;
 import com.sun.tools.javac.comp.Infer.PartiallyInferredMethodType;
 import com.sun.tools.javac.comp.Resolve.MethodResolutionPhase;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
@@ -52,9 +51,9 @@ import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.tree.JCTree.JCParens;
 import com.sun.tools.javac.tree.JCTree.JCReturn;
+import com.sun.tools.javac.tree.JCTree.JCSwitchExpression;
 import com.sun.tools.javac.tree.TreeCopier;
 import com.sun.tools.javac.tree.TreeInfo;
-import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.DiagnosticSource;
 import com.sun.tools.javac.util.JCDiagnostic;
@@ -75,6 +74,7 @@ import static com.sun.tools.javac.code.TypeTag.DEFERRED;
 import static com.sun.tools.javac.code.TypeTag.FORALL;
 import static com.sun.tools.javac.code.TypeTag.METHOD;
 import static com.sun.tools.javac.code.TypeTag.VOID;
+import com.sun.tools.javac.tree.JCTree.JCYield;
 
 /**
  * This class performs attribution of method/constructor arguments when target-typing is enabled
@@ -89,7 +89,7 @@ import static com.sun.tools.javac.code.TypeTag.VOID;
  * type, so that enclosing overload resolution can be carried by simply checking compatibility against the
  * type determined during this speculative pass.
  *
- * - if A is a standalone expression, regular atributtion takes place.
+ * - if A is a standalone expression, regular attribution takes place.
  *
  * To minimize the speculative work, a cache is used, so that already computed argument types
  * associated with a given unique source location are never recomputed multiple times.
@@ -110,7 +110,7 @@ public class ArgumentAttr extends JCTree.Visitor {
     /** Result of method attribution. */
     Type result;
 
-    /** Cache for argument types; behavior is influences by the currrently selected cache policy. */
+    /** Cache for argument types; behavior is influenced by the currently selected cache policy. */
     Map<UniquePos, ArgumentType<?>> argumentTypeCache = new LinkedHashMap<>();
 
     public static ArgumentAttr instance(Context context) {
@@ -120,6 +120,7 @@ public class ArgumentAttr extends JCTree.Visitor {
         return instance;
     }
 
+    @SuppressWarnings("this-escape")
     protected ArgumentAttr(Context context) {
         context.put(methodAttrKey, this);
         deferredAttr = DeferredAttr.instance(context);
@@ -134,7 +135,7 @@ public class ArgumentAttr extends JCTree.Visitor {
      */
     void setResult(JCExpression tree, Type type) {
         result = type;
-        if (env.info.isSpeculative) {
+        if (env.info.attributionMode == DeferredAttr.AttributionMode.SPECULATIVE) {
             //if we are in a speculative branch we can save the type in the tree itself
             //as there's no risk of polluting the original tree.
             tree.type = result;
@@ -143,15 +144,15 @@ public class ArgumentAttr extends JCTree.Visitor {
 
     /**
      * Checks a type in the speculative tree against a given result; the type can be either a plain
-     * type or an argument type,in which case a more complex check is required.
+     * type or an argument type, in which case a more complex check is required.
      */
-    Type checkSpeculative(JCExpression expr, ResultInfo resultInfo) {
+    Type checkSpeculative(JCTree expr, ResultInfo resultInfo) {
         return checkSpeculative(expr, expr.type, resultInfo);
     }
 
     /**
      * Checks a type in the speculative tree against a given result; the type can be either a plain
-     * type or an argument type,in which case a more complex check is required.
+     * type or an argument type, in which case a more complex check is required.
      */
     Type checkSpeculative(DiagnosticPosition pos, Type t, ResultInfo resultInfo) {
         if (t.hasTag(DEFERRED)) {
@@ -256,6 +257,11 @@ public class ArgumentAttr extends JCTree.Visitor {
     }
 
     @Override
+    public void visitSwitchExpression(JCSwitchExpression that) {
+        processArg(that, speculativeTree -> new SwitchExpressionType(that, env, speculativeTree));
+    }
+
+    @Override
     public void visitReference(JCMemberReference tree) {
         //perform arity-based check
         Env<AttrContext> localEnv = env.dup(tree);
@@ -273,8 +279,9 @@ public class ArgumentAttr extends JCTree.Visitor {
         if (!res.kind.isResolutionError()) {
             tree.sym = res;
         }
-        if (res.kind.isResolutionTargetError() ||
-                res.type != null && res.type.hasTag(FORALL) ||
+        if (res.kind.isResolutionTargetError()) {
+             tree.setOverloadKind(JCMemberReference.OverloadKind.ERROR);
+        } else if (res.type != null && res.type.hasTag(FORALL) ||
                 (res.flags() & Flags.VARARGS) != 0 ||
                 (TreeInfo.isStaticSelector(exprTree, tree.name.table.names) &&
                 exprTree.type.isRaw() && !exprTree.type.hasTag(ARRAY))) {
@@ -328,7 +335,7 @@ public class ArgumentAttr extends JCTree.Visitor {
      * perform an overload check without the need of calling back to Attr. This extra information
      * is typically stored in the form of a speculative tree.
      */
-    abstract class ArgumentType<T extends JCExpression> extends DeferredType implements DeferredTypeCompleter {
+    abstract class ArgumentType<T extends JCExpression> extends DeferredType {
 
         /** The speculative tree carrying type information. */
         T speculativeTree;
@@ -343,24 +350,18 @@ public class ArgumentAttr extends JCTree.Visitor {
         }
 
         @Override
-        final DeferredTypeCompleter completer() {
-            return this;
-        }
-
-        @Override
-        final public Type complete(DeferredType dt, ResultInfo resultInfo, DeferredAttrContext deferredAttrContext) {
-            Assert.check(dt == this);
+        public final Type complete(ResultInfo resultInfo, DeferredAttrContext deferredAttrContext) {
             if (deferredAttrContext.mode == AttrMode.SPECULATIVE) {
                 Type t = (resultInfo.pt == Type.recoveryType) ?
-                        deferredAttr.basicCompleter.complete(dt, resultInfo, deferredAttrContext) :
+                        super.complete(resultInfo, deferredAttrContext) :
                         overloadCheck(resultInfo, deferredAttrContext);
                 speculativeTypes.put(resultInfo, t);
                 return t;
             } else {
-                if (!env.info.isSpeculative) {
-                    argumentTypeCache.remove(new UniquePos(dt.tree));
+                if (!env.info.attributionMode.isSpeculative) {
+                    argumentTypeCache.remove(new UniquePos(tree));
                 }
-                return deferredAttr.basicCompleter.complete(dt, resultInfo, deferredAttrContext);
+                return super.complete(resultInfo, deferredAttrContext);
             }
         }
 
@@ -452,6 +453,62 @@ public class ArgumentAttr extends JCTree.Visitor {
         @Override
         ArgumentType<JCConditional> dup(JCConditional tree, Env<AttrContext> env) {
             return new ConditionalType(tree, env, speculativeTree, speculativeTypes);
+        }
+    }
+
+    /**
+     * Argument type for switch expressions.
+     */
+    class SwitchExpressionType extends ArgumentType<JCSwitchExpression> {
+        /** List of break expressions (lazily populated). */
+        Optional<List<JCYield>> yieldExpressions = Optional.empty();
+
+        SwitchExpressionType(JCExpression tree, Env<AttrContext> env, JCSwitchExpression speculativeCond) {
+            this(tree, env, speculativeCond, new HashMap<>());
+        }
+
+        SwitchExpressionType(JCExpression tree, Env<AttrContext> env, JCSwitchExpression speculativeCond, Map<ResultInfo, Type> speculativeTypes) {
+           super(tree, env, speculativeCond, speculativeTypes);
+        }
+
+        @Override
+        Type overloadCheck(ResultInfo resultInfo, DeferredAttrContext deferredAttrContext) {
+            ResultInfo localInfo = resultInfo.dup(attr.conditionalContext(resultInfo.checkContext));
+            if (resultInfo.pt.hasTag(VOID)) {
+                //this means we are returning a poly switch expression from void-compatible lambda expression
+                resultInfo.checkContext.report(tree, attr.diags.fragment(Fragments.SwitchExpressionTargetCantBeVoid));
+                return attr.types.createErrorType(resultInfo.pt);
+            } else {
+                //poly
+                for (JCYield brk : yieldExpressions()) {
+                    checkSpeculative(brk.value, brk.value.type, resultInfo);
+                }
+                return localInfo.pt;
+            }
+        }
+
+        /** Compute return expressions (if needed). */
+        List<JCYield> yieldExpressions() {
+            return yieldExpressions.orElseGet(() -> {
+                final List<JCYield> res;
+                ListBuffer<JCYield> buf = new ListBuffer<>();
+                new SwitchExpressionScanner() {
+                    @Override
+                    public void visitYield(JCYield tree) {
+                        if (tree.target == speculativeTree)
+                            buf.add(tree);
+                        super.visitYield(tree);
+                    }
+                }.scan(speculativeTree.cases);
+                res = buf.toList();
+                yieldExpressions = Optional.of(res);
+                return res;
+            });
+        }
+
+        @Override
+        ArgumentType<JCSwitchExpression> dup(JCSwitchExpression tree, Env<AttrContext> env) {
+            return new SwitchExpressionType(tree, env, speculativeTree, speculativeTypes);
         }
     }
 
@@ -687,12 +744,9 @@ public class ArgumentAttr extends JCTree.Visitor {
 
         @Override
         public boolean equals(Object obj) {
-            if (obj instanceof UniquePos) {
-                UniquePos that = (UniquePos)obj;
-                return pos == that.pos && source == that.source;
-            } else {
-                return false;
-            }
+            return (obj instanceof UniquePos uniquePos)
+                    && pos == uniquePos.pos
+                    && source == uniquePos.source;
         }
 
         @Override

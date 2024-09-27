@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_METADATA_JFRSERIALIZER_HPP
-#define SHARE_VM_JFR_METADATA_JFRSERIALIZER_HPP
+#ifndef SHARE_JFR_METADATA_JFRSERIALIZER_HPP
+#define SHARE_JFR_METADATA_JFRSERIALIZER_HPP
 
 #include "memory/allocation.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
@@ -70,7 +70,8 @@
 class JfrSerializer : public CHeapObj<mtTracing> {
  public:
   virtual ~JfrSerializer() {}
-  static bool register_serializer(JfrTypeId id, bool require_safepoint, bool permit_cache, JfrSerializer* serializer);
+  virtual void on_rotation() {}
+  static bool register_serializer(JfrTypeId id, bool permit_cache, JfrSerializer* serializer);
   virtual void serialize(JfrCheckpointWriter& writer) = 0;
 };
 
@@ -97,4 +98,4 @@ class JfrSerializer : public CHeapObj<mtTracing> {
  * Please see jfr/recorder/checkpoint/types/jfrType.cpp for reference.
  */
 
-#endif // SHARE_VM_JFR_METADATA_JFRSERIALIZER_HPP
+#endif // SHARE_JFR_METADATA_JFRSERIALIZER_HPP

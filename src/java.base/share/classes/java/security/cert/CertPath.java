@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,6 @@
  */
 
 package java.security.cert;
-
-import org.jspecify.annotations.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.NotSerializableException;
@@ -121,9 +119,11 @@ import java.util.List;
  */
 public abstract class CertPath implements Serializable {
 
+    @java.io.Serial
     private static final long serialVersionUID = 6068470306649138683L;
 
-    private String type;        // the type of certificates in this chain
+    /** The type of certificates in this chain. */
+    private final transient String type;
 
     /**
      * Creates a {@code CertPath} of the specified type.
@@ -177,28 +177,20 @@ public abstract class CertPath implements Serializable {
      * @return true if the specified object is equal to this certification path,
      * false otherwise
      */
-    
-    
-    public boolean equals(@Nullable Object other) {
+    @Override
+    public boolean equals(Object other) {
         if (this == other)
             return true;
 
-        if (! (other instanceof CertPath))
-            return false;
-
-        CertPath otherCP = (CertPath) other;
-        if (! otherCP.getType().equals(type))
-            return false;
-
-        List<? extends Certificate> thisCertList = this.getCertificates();
-        List<? extends Certificate> otherCertList = otherCP.getCertificates();
-        return(thisCertList.equals(otherCertList));
+        return other instanceof CertPath that
+                && this.type.equals(that.getType())
+                && this.getCertificates().equals(that.getCertificates());
     }
 
     /**
-     * Returns the hashcode for this certification path. The hash code of
-     * a certification path is defined to be the result of the following
-     * calculation:
+     * {@return the hashcode value for this certification path}
+     * The hash code of a certification path is defined to be the result of
+     * the following calculation:
      * <pre>{@code
      *  hashCode = path.getType().hashCode();
      *  hashCode = 31*hashCode + path.getCertificates().hashCode();
@@ -207,9 +199,8 @@ public abstract class CertPath implements Serializable {
      * {@code path1.hashCode()==path2.hashCode()} for any two certification
      * paths, {@code path1} and {@code path2}, as required by the
      * general contract of {@code Object.hashCode}.
-     *
-     * @return the hashcode value for this certification path
      */
+    @Override
     public int hashCode() {
         int hashCode = type.hashCode();
         hashCode = 31*hashCode + getCertificates().hashCode();
@@ -251,7 +242,7 @@ public abstract class CertPath implements Serializable {
      * encoding.
      *
      * @return the encoded bytes
-     * @exception CertificateEncodingException if an encoding error occurs
+     * @throws    CertificateEncodingException if an encoding error occurs
      */
     public abstract byte[] getEncoded()
         throws CertificateEncodingException;
@@ -262,7 +253,7 @@ public abstract class CertPath implements Serializable {
      *
      * @param encoding the name of the encoding to use
      * @return the encoded bytes
-     * @exception CertificateEncodingException if an encoding error occurs or
+     * @throws    CertificateEncodingException if an encoding error occurs or
      *   the encoding requested is not supported
      */
     public abstract byte[] getEncoded(String encoding)
@@ -279,13 +270,16 @@ public abstract class CertPath implements Serializable {
 
     /**
      * Replaces the {@code CertPath} to be serialized with a
-     * {@code CertPathRep} object.
+     * {@link CertPathRep CertPathRep} object containing the
+     * {@code Certificate} type and encoded bytes of the {@code CertPath}.
      *
-     * @return the {@code CertPathRep} to be serialized
+     * @return a {@code CertPathRep} containing the {@code Certificate} type
+     *         and encoded bytes of the {@code CertPath}
      *
      * @throws ObjectStreamException if a {@code CertPathRep} object
      * representing this certification path could not be created
      */
+    @java.io.Serial
     protected Object writeReplace() throws ObjectStreamException {
         try {
             return new CertPathRep(type, getEncoded());
@@ -304,18 +298,19 @@ public abstract class CertPath implements Serializable {
      */
     protected static class CertPathRep implements Serializable {
 
+        @java.io.Serial
         private static final long serialVersionUID = 3015633072427920915L;
 
-        /** The Certificate type */
-        private String type;
-        /** The encoded form of the cert path */
-        private byte[] data;
+        /** The type of {@code Certificate}s in the {@code CertPath}. */
+        private final String type;
+        /** The encoded form of the {@code CertPath}. */
+        private final byte[] data;
 
         /**
          * Creates a {@code CertPathRep} with the specified
          * type and encoded form of a certification path.
          *
-         * @param type the standard name of a {@code CertPath} type
+         * @param type the standard name of a {@code Certificate} type
          * @param data the encoded form of the certification path
          */
         protected CertPathRep(String type, byte[] data) {
@@ -324,13 +319,15 @@ public abstract class CertPath implements Serializable {
         }
 
         /**
-         * Returns a {@code CertPath} constructed from the type and data.
+         * Returns a {@code CertPath} constructed from the type and data of
+         * this {@code CertPathRep}.
          *
          * @return the resolved {@code CertPath} object
          *
-         * @throws ObjectStreamException if a {@code CertPath} could not
+         * @throws ObjectStreamException if a {@code CertPath} object could not
          * be constructed
          */
+        @java.io.Serial
         protected Object readResolve() throws ObjectStreamException {
             try {
                 CertificateFactory cf = CertificateFactory.getInstance(type);

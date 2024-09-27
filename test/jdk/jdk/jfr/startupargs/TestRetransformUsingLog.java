@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -43,7 +41,7 @@ import jdk.test.lib.process.ProcessTools;
  */
 public class TestRetransformUsingLog {
 
-    private static final String FILE_READ_FORCED_CLASS_LOAD = "Adding forced instrumentation for event type " + EventNames.FileRead + " during initial class load";
+    private static final String FORCED_CLASS_LOAD = "Adding forced instrumentation for event type " + EventNames.DirectBufferStatistics + " during initial class load";
     private static final String SIMPLE_EVENT_FORCED_CLASS_LOAD = "Adding forced instrumentation for event type jdk.test.lib.jfr.SimpleEvent during initial class load";
     private static final String SIMPLE_EVENT_UNFORCED_CLASS_LOAD = "Adding instrumentation for event type jdk.test.lib.jfr.SimpleEvent during initial class load";
 
@@ -63,28 +61,28 @@ public class TestRetransformUsingLog {
 
     private static void testRecordingRetransFormFalse() throws Exception {
         startApp(true, false, out -> {
-            out.shouldContain(FILE_READ_FORCED_CLASS_LOAD);
+            out.shouldContain(FORCED_CLASS_LOAD);
             out.shouldContain(SIMPLE_EVENT_FORCED_CLASS_LOAD);
         });
     }
 
     private static void testRecordingRetransFormTrue() throws Exception {
         startApp(true, true, out -> {
-            out.shouldContain(FILE_READ_FORCED_CLASS_LOAD);
+            out.shouldContain(FORCED_CLASS_LOAD);
             out.shouldContain(SIMPLE_EVENT_UNFORCED_CLASS_LOAD);
         });
     }
 
     private static void testNoRecordingRetransFormFalse() throws Exception {
         startApp(false, false, out -> {
-            out.shouldNotContain(FILE_READ_FORCED_CLASS_LOAD);
+            out.shouldNotContain(FORCED_CLASS_LOAD);
             out.shouldContain(SIMPLE_EVENT_FORCED_CLASS_LOAD);
         });
     }
 
     private static void testNoRecordingRetransFormTrue() throws Exception {
         startApp(false, true, out -> {
-            out.shouldNotContain(FILE_READ_FORCED_CLASS_LOAD);
+            out.shouldNotContain(FORCED_CLASS_LOAD);
             out.shouldNotContain(SIMPLE_EVENT_FORCED_CLASS_LOAD);
             out.shouldNotContain(SIMPLE_EVENT_UNFORCED_CLASS_LOAD);
         });
@@ -93,7 +91,7 @@ public class TestRetransformUsingLog {
     private static void startApp(boolean recording, boolean retransform, Consumer<OutputAnalyzer> verifier) throws Exception {
         List<String> args = new ArrayList<>();
         args.add("-Xlog:jfr+system");
-        args.add("-XX:FlightRecorderOptions=retransform=" + retransform);
+        args.add("-XX:FlightRecorderOptions:retransform=" + retransform);
         if (recording) {
             args.add("-XX:StartFlightRecording");
         }
@@ -106,7 +104,7 @@ public class TestRetransformUsingLog {
         }
         System.out.println();
         System.out.println();
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true, args.toArray(new String[0]));
+        ProcessBuilder pb = ProcessTools.createTestJavaProcessBuilder(args);
         OutputAnalyzer out = ProcessTools.executeProcess(pb);
         System.out.println(out.getOutput());
         verifier.accept(out);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,8 +39,8 @@ import java.math.BigInteger;
  */
 public class ECPrivateKeySpec implements KeySpec {
 
-    private BigInteger s;
-    private ECParameterSpec params;
+    private final BigInteger s;
+    private final ECParameterSpec params;
 
     /**
      * Creates a new ECPrivateKeySpec with the specified
@@ -48,7 +48,7 @@ public class ECPrivateKeySpec implements KeySpec {
      * @param s the private value.
      * @param params the associated elliptic curve domain
      * parameters.
-     * @exception NullPointerException if {@code s}
+     * @throws    NullPointerException if {@code s}
      * or {@code params} is null.
      */
     public ECPrivateKeySpec(BigInteger s, ECParameterSpec params) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,392 +31,13 @@
 #include <elf.h>
 #include <link.h>
 #include "libproc_impl.h"
+#include "ps_core_common.h"
+#include "proc_service.h"
 #include "salibelf.h"
 
 // This file has the libproc implementation to read core files.
 // For live processes, refer to ps_proc.c. Portions of this is adapted
 // /modelled after Solaris libproc.so (in particular Pcore.c)
-
-//----------------------------------------------------------------------
-// ps_prochandle cleanup helper functions
-
-// close all file descriptors
-static void close_files(struct ps_prochandle* ph) {
-  lib_info* lib = NULL;
-
-  // close core file descriptor
-  if (ph->core->core_fd >= 0)
-    close(ph->core->core_fd);
-
-  // close exec file descriptor
-  if (ph->core->exec_fd >= 0)
-    close(ph->core->exec_fd);
-
-  // close interp file descriptor
-  if (ph->core->interp_fd >= 0)
-    close(ph->core->interp_fd);
-
-  // close class share archive file
-  if (ph->core->classes_jsa_fd >= 0)
-    close(ph->core->classes_jsa_fd);
-
-  // close all library file descriptors
-  lib = ph->libs;
-  while (lib) {
-    int fd = lib->fd;
-    if (fd >= 0 && fd != ph->core->exec_fd) {
-      close(fd);
-    }
-    lib = lib->next;
-  }
-}
-
-// clean all map_info stuff
-static void destroy_map_info(struct ps_prochandle* ph) {
-  map_info* map = ph->core->maps;
-  while (map) {
-    map_info* next = map->next;
-    free(map);
-    map = next;
-  }
-
-  if (ph->core->map_array) {
-    free(ph->core->map_array);
-  }
-
-  // Part of the class sharing workaround
-  map = ph->core->class_share_maps;
-  while (map) {
-    map_info* next = map->next;
-    free(map);
-    map = next;
-  }
-}
-
-// ps_prochandle operations
-static void core_release(struct ps_prochandle* ph) {
-  if (ph->core) {
-    close_files(ph);
-    destroy_map_info(ph);
-    free(ph->core);
-  }
-}
-
-static map_info* allocate_init_map(int fd, off_t offset, uintptr_t vaddr, size_t memsz) {
-  map_info* map;
-  if ( (map = (map_info*) calloc(1, sizeof(map_info))) == NULL) {
-    print_debug("can't allocate memory for map_info\n");
-    return NULL;
-  }
-
-  // initialize map
-  map->fd     = fd;
-  map->offset = offset;
-  map->vaddr  = vaddr;
-  map->memsz  = memsz;
-  return map;
-}
-
-// add map info with given fd, offset, vaddr and memsz
-static map_info* add_map_info(struct ps_prochandle* ph, int fd, off_t offset,
-                             uintptr_t vaddr, size_t memsz) {
-  map_info* map;
-  if ((map = allocate_init_map(fd, offset, vaddr, memsz)) == NULL) {
-    return NULL;
-  }
-
-  // add this to map list
-  map->next  = ph->core->maps;
-  ph->core->maps   = map;
-  ph->core->num_maps++;
-
-  return map;
-}
-
-// Part of the class sharing workaround
-static map_info* add_class_share_map_info(struct ps_prochandle* ph, off_t offset,
-                             uintptr_t vaddr, size_t memsz) {
-  map_info* map;
-  if ((map = allocate_init_map(ph->core->classes_jsa_fd,
-                               offset, vaddr, memsz)) == NULL) {
-    return NULL;
-  }
-
-  map->next = ph->core->class_share_maps;
-  ph->core->class_share_maps = map;
-  return map;
-}
-
-// Return the map_info for the given virtual address.  We keep a sorted
-// array of pointers in ph->map_array, so we can binary search.
-static map_info* core_lookup(struct ps_prochandle *ph, uintptr_t addr) {
-  int mid, lo = 0, hi = ph->core->num_maps - 1;
-  map_info *mp;
-
-  while (hi - lo > 1) {
-    mid = (lo + hi) / 2;
-    if (addr >= ph->core->map_array[mid]->vaddr) {
-      lo = mid;
-    } else {
-      hi = mid;
-    }
-  }
-
-  if (addr < ph->core->map_array[hi]->vaddr) {
-    mp = ph->core->map_array[lo];
-  } else {
-    mp = ph->core->map_array[hi];
-  }
-
-  if (addr >= mp->vaddr && addr < mp->vaddr + mp->memsz) {
-    return (mp);
-  }
-
-
-  // Part of the class sharing workaround
-  // Unfortunately, we have no way of detecting -Xshare state.
-  // Check out the share maps atlast, if we don't find anywhere.
-  // This is done this way so to avoid reading share pages
-  // ahead of other normal maps. For eg. with -Xshare:off we don't
-  // want to prefer class sharing data to data from core.
-  mp = ph->core->class_share_maps;
-  if (mp) {
-    print_debug("can't locate map_info at 0x%lx, trying class share maps\n", addr);
-  }
-  while (mp) {
-    if (addr >= mp->vaddr && addr < mp->vaddr + mp->memsz) {
-      print_debug("located map_info at 0x%lx from class share maps\n", addr);
-      return (mp);
-    }
-    mp = mp->next;
-  }
-
-  print_debug("can't locate map_info at 0x%lx\n", addr);
-  return (NULL);
-}
-
-//---------------------------------------------------------------
-// Part of the class sharing workaround:
-//
-// With class sharing, pages are mapped from classes.jsa file.
-// The read-only class sharing pages are mapped as MAP_SHARED,
-// PROT_READ pages. These pages are not dumped into core dump.
-// With this workaround, these pages are read from classes.jsa.
-
-// FIXME: !HACK ALERT!
-// The format of sharing achive file header is needed to read shared heap
-// file mappings. For now, I am hard coding portion of FileMapHeader here.
-// Refer to filemap.hpp.
-
-// FileMapHeader describes the shared space data in the file to be
-// mapped.  This structure gets written to a file.  It is not a class,
-// so that the compilers don't add any compiler-private data to it.
-
-#define NUM_SHARED_MAPS 9
-
-// Refer to FileMapInfo::_current_version in filemap.hpp
-#define CURRENT_ARCHIVE_VERSION 3
-
-typedef unsigned char* address;
-typedef uintptr_t      uintx;
-typedef intptr_t       intx;
-
-struct FileMapHeader {
-  int     _magic;                   // identify file type.
-  int     _crc;                     // header crc checksum.
-  int     _version;                 // (from enum, above.)
-  size_t  _alignment;               // how shared archive should be aligned
-  int     _obj_alignment;           // value of ObjectAlignmentInBytes
-  address _narrow_oop_base;         // compressed oop encoding base
-  int     _narrow_oop_shift;        // compressed oop encoding shift
-  bool    _compact_strings;         // value of CompactStrings
-  uintx   _max_heap_size;           // java max heap size during dumping
-  int     _narrow_oop_mode;         // compressed oop encoding mode
-  int     _narrow_klass_shift;      // save narrow klass base and shift
-  address _narrow_klass_base;
-  char*   _misc_data_patching_start;
-  char*   _read_only_tables_start;
-  address _cds_i2i_entry_code_buffers;
-  size_t  _cds_i2i_entry_code_buffers_size;
-  size_t  _core_spaces_size;        // number of bytes allocated by the core spaces
-                                    // (mc, md, ro, rw and od).
-
-
-  struct space_info {
-    int     _crc;          // crc checksum of the current space
-    size_t  _file_offset;  // sizeof(this) rounded to vm page size
-    union {
-      char*  _base;        // copy-on-write base address
-      intx   _offset;      // offset from the compressed oop encoding base, only used
-                           // by archive heap space
-    } _addr;
-    size_t _used;          // for setting space top on read
-    // 4991491 NOTICE These are C++ bool's in filemap.hpp and must match up with
-    // the C type matching the C++ bool type on any given platform.
-    // We assume the corresponding C type is char but licensees
-    // may need to adjust the type of these fields.
-    char   _read_only;     // read only space?
-    char   _allow_exec;    // executable code in space?
-  } _space[NUM_SHARED_MAPS];
-
-  // Ignore the rest of the FileMapHeader. We don't need those fields here.
-};
-
-static bool read_jboolean(struct ps_prochandle* ph, uintptr_t addr, jboolean* pvalue) {
-  jboolean i;
-  if (ps_pdread(ph, (psaddr_t) addr, &i, sizeof(i)) == PS_OK) {
-    *pvalue = i;
-    return true;
-  } else {
-    return false;
-  }
-}
-
-static bool read_pointer(struct ps_prochandle* ph, uintptr_t addr, uintptr_t* pvalue) {
-  uintptr_t uip;
-  if (ps_pdread(ph, (psaddr_t) addr, (char *)&uip, sizeof(uip)) == PS_OK) {
-    *pvalue = uip;
-    return true;
-  } else {
-    return false;
-  }
-}
-
-// used to read strings from debuggee
-static bool read_string(struct ps_prochandle* ph, uintptr_t addr, char* buf, size_t size) {
-  size_t i = 0;
-  char  c = ' ';
-
-  while (c != '\0') {
-    if (ps_pdread(ph, (psaddr_t) addr, &c, sizeof(char)) != PS_OK) {
-      return false;
-    }
-    if (i < size - 1) {
-      buf[i] = c;
-    } else {
-      // smaller buffer
-      return false;
-    }
-    i++; addr++;
-  }
-
-  buf[i] = '\0';
-  return true;
-}
-
-#define USE_SHARED_SPACES_SYM "UseSharedSpaces"
-// mangled name of Arguments::SharedArchivePath
-#define SHARED_ARCHIVE_PATH_SYM "_ZN9Arguments17SharedArchivePathE"
-#define LIBJVM_NAME "/libjvm.so"
-
-static bool init_classsharing_workaround(struct ps_prochandle* ph) {
-  lib_info* lib = ph->libs;
-  while (lib != NULL) {
-    // we are iterating over shared objects from the core dump. look for
-    // libjvm.so.
-    const char *jvm_name = 0;
-    if ((jvm_name = strstr(lib->name, LIBJVM_NAME)) != 0) {
-      char classes_jsa[PATH_MAX];
-      struct FileMapHeader header;
-      int fd = -1;
-      int m = 0;
-      size_t n = 0;
-      uintptr_t base = 0, useSharedSpacesAddr = 0;
-      uintptr_t sharedArchivePathAddrAddr = 0, sharedArchivePathAddr = 0;
-      jboolean useSharedSpaces = 0;
-      map_info* mi = 0;
-
-      memset(classes_jsa, 0, sizeof(classes_jsa));
-      jvm_name = lib->name;
-      useSharedSpacesAddr = lookup_symbol(ph, jvm_name, USE_SHARED_SPACES_SYM);
-      if (useSharedSpacesAddr == 0) {
-        print_debug("can't lookup 'UseSharedSpaces' flag\n");
-        return false;
-      }
-
-      // Hotspot vm types are not exported to build this library. So
-      // using equivalent type jboolean to read the value of
-      // UseSharedSpaces which is same as hotspot type "bool".
-      if (read_jboolean(ph, useSharedSpacesAddr, &useSharedSpaces) != true) {
-        print_debug("can't read the value of 'UseSharedSpaces' flag\n");
-        return false;
-      }
-
-      if ((int)useSharedSpaces == 0) {
-        print_debug("UseSharedSpaces is false, assuming -Xshare:off!\n");
-        return true;
-      }
-
-      sharedArchivePathAddrAddr = lookup_symbol(ph, jvm_name, SHARED_ARCHIVE_PATH_SYM);
-      if (sharedArchivePathAddrAddr == 0) {
-        print_debug("can't lookup shared archive path symbol\n");
-        return false;
-      }
-
-      if (read_pointer(ph, sharedArchivePathAddrAddr, &sharedArchivePathAddr) != true) {
-        print_debug("can't read shared archive path pointer\n");
-        return false;
-      }
-
-      if (read_string(ph, sharedArchivePathAddr, classes_jsa, sizeof(classes_jsa)) != true) {
-        print_debug("can't read shared archive path value\n");
-        return false;
-      }
-
-      print_debug("looking for %s\n", classes_jsa);
-      // open the class sharing archive file
-      fd = pathmap_open(classes_jsa);
-      if (fd < 0) {
-        print_debug("can't open %s!\n", classes_jsa);
-        ph->core->classes_jsa_fd = -1;
-        return false;
-      } else {
-        print_debug("opened %s\n", classes_jsa);
-      }
-
-      // read FileMapHeader from the file
-      memset(&header, 0, sizeof(struct FileMapHeader));
-      if ((n = read(fd, &header, sizeof(struct FileMapHeader)))
-           != sizeof(struct FileMapHeader)) {
-        print_debug("can't read shared archive file map header from %s\n", classes_jsa);
-        close(fd);
-        return false;
-      }
-
-      // check file magic
-      if (header._magic != 0xf00baba2) {
-        print_debug("%s has bad shared archive file magic number 0x%x, expecing 0xf00baba2\n",
-                     classes_jsa, header._magic);
-        close(fd);
-        return false;
-      }
-
-      // check version
-      if (header._version != CURRENT_ARCHIVE_VERSION) {
-        print_debug("%s has wrong shared archive file version %d, expecting %d\n",
-                     classes_jsa, header._version, CURRENT_ARCHIVE_VERSION);
-        close(fd);
-        return false;
-      }
-
-      ph->core->classes_jsa_fd = fd;
-      // add read-only maps from classes.jsa to the list of maps
-      for (m = 0; m < NUM_SHARED_MAPS; m++) {
-        if (header._space[m]._read_only) {
-          base = (uintptr_t) header._space[m]._addr._base;
-          // no need to worry about the fractional pages at-the-end.
-          // possible fractional pages are handled by core_read_data.
-          add_class_share_map_info(ph, (off_t) header._space[m]._file_offset,
-                                   base, (size_t) header._space[m]._used);
-          print_debug("added a share archive map at 0x%lx\n", base);
-        }
-      }
-      return true;
-   }
-   lib = lib->next;
-  }
-  return true;
-}
 
 
 //---------------------------------------------------------------------------
@@ -568,8 +189,7 @@ static bool core_handle_prstatus(struct ps_prochandle* ph, const char* buf, size
    prstatus_t* prstat = (prstatus_t*) buf;
    thread_info* newthr;
    print_debug("got integer regset for lwp %d\n", prstat->pr_pid);
-   // we set pthread_t to -1 for core dump
-   if((newthr = add_thread_info(ph, (pthread_t) -1,  prstat->pr_pid)) == NULL)
+   if((newthr = add_thread_info(ph, prstat->pr_pid)) == NULL)
       return false;
 
    // copy regs
@@ -731,7 +351,7 @@ static bool read_core_segments(struct ps_prochandle* ph, ELF_EHDR* core_ehdr) {
          case PT_LOAD: {
             if (core_php->p_filesz != 0) {
                if (add_map_info(ph, ph->core->core_fd, core_php->p_offset,
-                  core_php->p_vaddr, core_php->p_filesz) == NULL) goto err;
+                  core_php->p_vaddr, core_php->p_filesz, core_php->p_flags) == NULL) goto err;
             }
             break;
          }
@@ -770,10 +390,21 @@ static bool read_lib_segments(struct ps_prochandle* ph, int lib_fd, ELF_EHDR* li
 
       if (existing_map == NULL){
         if (add_map_info(ph, lib_fd, lib_php->p_offset,
-                          target_vaddr, lib_php->p_memsz) == NULL) {
+                         target_vaddr, lib_php->p_memsz, lib_php->p_flags) == NULL) {
           goto err;
         }
+      } else if (lib_php->p_flags != existing_map->flags) {
+        // Access flags for this memory region are different between the library
+        // and coredump. It might be caused by mprotect() call at runtime.
+        // We should respect the coredump.
+        continue;
       } else {
+        // Read only segments in ELF should not be any different from PT_LOAD segments
+        // in the coredump.
+        // Also the first page of the ELF header might be included
+        // in the coredump (See JDK-7133122).
+        // Thus we need to replace the PT_LOAD segment with the library version.
+        //
         // Coredump stores value of p_memsz elf field
         // rounded up to page boundary.
 
@@ -823,14 +454,16 @@ static bool read_interp_segments(struct ps_prochandle* ph) {
   return true;
 }
 
-// process segments of a a.out
-static bool read_exec_segments(struct ps_prochandle* ph, ELF_EHDR* exec_ehdr) {
+// process segments of an a.out
+// returns base address of executable.
+static uintptr_t read_exec_segments(struct ps_prochandle* ph, ELF_EHDR* exec_ehdr) {
   int i = 0;
   ELF_PHDR* phbuf = NULL;
   ELF_PHDR* exec_php = NULL;
+  uintptr_t result = 0L;
 
   if ((phbuf = read_program_header_table(ph->core->exec_fd, exec_ehdr)) == NULL) {
-    return false;
+    return 0L;
   }
 
   for (exec_php = phbuf, i = 0; i < exec_ehdr->e_phnum; i++) {
@@ -840,7 +473,7 @@ static bool read_exec_segments(struct ps_prochandle* ph, ELF_EHDR* exec_ehdr) {
     case PT_LOAD: {
       // add only non-writable segments of non-zero filesz
       if (!(exec_php->p_flags & PF_W) && exec_php->p_filesz != 0) {
-        if (add_map_info(ph, ph->core->exec_fd, exec_php->p_offset, exec_php->p_vaddr, exec_php->p_filesz) == NULL) goto err;
+        if (add_map_info(ph, ph->core->exec_fd, exec_php->p_offset, exec_php->p_vaddr, exec_php->p_filesz, exec_php->p_flags) == NULL) goto err;
       }
       break;
     }
@@ -853,7 +486,11 @@ static bool read_exec_segments(struct ps_prochandle* ph, ELF_EHDR* exec_ehdr) {
       if (exec_php->p_filesz > BUF_SIZE) {
         goto err;
       }
-      pread(ph->core->exec_fd, interp_name, exec_php->p_filesz, exec_php->p_offset);
+      if (pread(ph->core->exec_fd, interp_name,
+                exec_php->p_filesz, exec_php->p_offset) != exec_php->p_filesz) {
+        print_debug("Unable to read in the ELF interpreter\n");
+        goto err;
+      }
       interp_name[exec_php->p_filesz] = '\0';
       print_debug("ELF interpreter %s\n", interp_name);
       // read interpreter segments as well
@@ -867,10 +504,14 @@ static bool read_exec_segments(struct ps_prochandle* ph, ELF_EHDR* exec_ehdr) {
     // from PT_DYNAMIC we want to read address of first link_map addr
     case PT_DYNAMIC: {
       if (exec_ehdr->e_type == ET_EXEC) {
+        result = exec_php->p_vaddr;
         ph->core->dynamic_addr = exec_php->p_vaddr;
       } else { // ET_DYN
+        // Base address of executable is based on entry point (AT_ENTRY).
+        result = ph->core->dynamic_addr - exec_ehdr->e_entry;
+
         // dynamic_addr has entry point of executable.
-        // Thus we should substract it.
+        // Thus we should subtract it.
         ph->core->dynamic_addr += exec_php->p_vaddr - exec_ehdr->e_entry;
       }
       print_debug("address of _DYNAMIC is 0x%lx\n", ph->core->dynamic_addr);
@@ -882,10 +523,10 @@ static bool read_exec_segments(struct ps_prochandle* ph, ELF_EHDR* exec_ehdr) {
   } // for
 
   free(phbuf);
-  return true;
+  return result;
  err:
   free(phbuf);
-  return false;
+  return 0L;
 }
 
 
@@ -893,7 +534,53 @@ static bool read_exec_segments(struct ps_prochandle* ph, ELF_EHDR* exec_ehdr) {
 #define LD_BASE_OFFSET        offsetof(struct r_debug,  r_ldbase)
 #define LINK_MAP_ADDR_OFFSET  offsetof(struct link_map, l_addr)
 #define LINK_MAP_NAME_OFFSET  offsetof(struct link_map, l_name)
+#define LINK_MAP_LD_OFFSET    offsetof(struct link_map, l_ld)
 #define LINK_MAP_NEXT_OFFSET  offsetof(struct link_map, l_next)
+
+#define INVALID_LOAD_ADDRESS -1L
+#define ZERO_LOAD_ADDRESS 0x0L
+
+// Calculate the load address of shared library
+// on prelink-enabled environment.
+//
+// In case of GDB, it would be calculated by offset of link_map.l_ld
+// and the address of .dynamic section.
+// See GDB implementation: lm_addr_check @ solib-svr4.c
+static uintptr_t calc_prelinked_load_address(struct ps_prochandle* ph, int lib_fd, ELF_EHDR* elf_ehdr, uintptr_t link_map_addr) {
+  ELF_PHDR *phbuf;
+  uintptr_t lib_ld;
+  uintptr_t lib_dyn_addr = 0L;
+  uintptr_t load_addr;
+  int i;
+
+  phbuf = read_program_header_table(lib_fd, elf_ehdr);
+  if (phbuf == NULL) {
+    print_debug("can't read program header of shared object\n");
+    return INVALID_LOAD_ADDRESS;
+  }
+
+  // Get the address of .dynamic section from shared library.
+  for (i = 0; i < elf_ehdr->e_phnum; i++) {
+    if (phbuf[i].p_type == PT_DYNAMIC) {
+      lib_dyn_addr = phbuf[i].p_vaddr;
+      break;
+    }
+  }
+
+  free(phbuf);
+
+  if (ps_pdread(ph, (psaddr_t)link_map_addr + LINK_MAP_LD_OFFSET,
+               &lib_ld, sizeof(uintptr_t)) != PS_OK) {
+    print_debug("can't read address of dynamic section in shared object\n");
+    return INVALID_LOAD_ADDRESS;
+  }
+
+  // Return the load address which is calculated by the address of .dynamic
+  // and link_map.l_ld .
+  load_addr = lib_ld - lib_dyn_addr;
+  print_debug("lib_ld = 0x%lx, lib_dyn_addr = 0x%lx -> lib_base_diff = 0x%lx\n", lib_ld, lib_dyn_addr, load_addr);
+  return load_addr;
+}
 
 // read shared library info from runtime linker's data structures.
 // This work is done by librtlb_db in Solaris
@@ -996,6 +683,14 @@ static bool read_shared_lib_info(struct ps_prochandle* ph) {
             // continue with other libraries...
          } else {
             if (read_elf_header(lib_fd, &elf_ehdr)) {
+               if (lib_base_diff == ZERO_LOAD_ADDRESS ) {
+                 lib_base_diff = calc_prelinked_load_address(ph, lib_fd, &elf_ehdr, link_map_addr);
+                 if (lib_base_diff == INVALID_LOAD_ADDRESS) {
+                   close(lib_fd);
+                   return false;
+                 }
+               }
+
                lib_base = lib_base_diff + find_base_address(lib_fd, &elf_ehdr);
                print_debug("reading library %s @ 0x%lx [ 0x%lx ]\n",
                            lib_name, lib_base, lib_base_diff);
@@ -1034,7 +729,6 @@ JNIEXPORT struct ps_prochandle* JNICALL
 Pgrab_core(const char* exec_file, const char* core_file) {
   ELF_EHDR core_ehdr;
   ELF_EHDR exec_ehdr;
-  ELF_EHDR lib_ehdr;
 
   struct ps_prochandle* ph = (struct ps_prochandle*) calloc(1, sizeof(struct ps_prochandle));
   if (ph == NULL) {
@@ -1083,13 +777,12 @@ Pgrab_core(const char* exec_file, const char* core_file) {
   }
 
   // process exec file segments
-  if (read_exec_segments(ph, &exec_ehdr) != true) {
+  uintptr_t exec_base_addr = read_exec_segments(ph, &exec_ehdr);
+  if (exec_base_addr == 0L) {
     goto err;
   }
-
-  // exec file is also treated like a shared object for symbol search
-  if (add_lib_info_fd(ph, exec_file, ph->core->exec_fd,
-                      (uintptr_t)0 + find_base_address(ph->core->exec_fd, &exec_ehdr)) == NULL) {
+  print_debug("exec_base_addr = 0x%lx\n", exec_base_addr);
+  if (add_lib_info_fd(ph, exec_file, ph->core->exec_fd, exec_base_addr) == NULL) {
     goto err;
   }
 

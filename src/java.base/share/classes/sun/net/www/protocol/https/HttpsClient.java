@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,15 +41,14 @@ import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.security.Principal;
 import java.security.cert.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.StringTokenizer;
-import java.util.Vector;
-
-import javax.security.auth.x500.X500Principal;
 
 import javax.net.ssl.*;
 import sun.net.www.http.HttpClient;
-import sun.net.www.protocol.http.AuthenticatorKeys;
+import sun.net.www.protocol.http.AuthCacheImpl;
 import sun.net.www.protocol.http.HttpURLConnection;
 import sun.security.action.*;
 
@@ -145,18 +144,18 @@ final class HttpsClient extends HttpClient
         String cipherString =
                 GetPropertyAction.privilegedGetProperty("https.cipherSuites");
 
-        if (cipherString == null || "".equals(cipherString)) {
+        if (cipherString == null || cipherString.isEmpty()) {
             ciphers = null;
         } else {
             StringTokenizer     tokenizer;
-            Vector<String>      v = new Vector<String>();
+            ArrayList<String>   v = new ArrayList<>();
 
             tokenizer = new StringTokenizer(cipherString, ",");
             while (tokenizer.hasMoreTokens())
-                v.addElement(tokenizer.nextToken());
+                v.add(tokenizer.nextToken());
             ciphers = new String [v.size()];
             for (int i = 0; i < ciphers.length; i++)
-                ciphers [i] = v.elementAt(i);
+                ciphers [i] = v.get(i);
         }
         return ciphers;
     }
@@ -169,18 +168,18 @@ final class HttpsClient extends HttpClient
         String protocolString =
                 GetPropertyAction.privilegedGetProperty("https.protocols");
 
-        if (protocolString == null || "".equals(protocolString)) {
+        if (protocolString == null || protocolString.isEmpty()) {
             protocols = null;
         } else {
             StringTokenizer     tokenizer;
-            Vector<String>      v = new Vector<String>();
+            ArrayList<String>   v = new ArrayList<>();
 
             tokenizer = new StringTokenizer(protocolString, ",");
             while (tokenizer.hasMoreTokens())
-                v.addElement(tokenizer.nextToken());
+                v.add(tokenizer.nextToken());
             protocols = new String [v.size()];
             for (int i = 0; i < protocols.length; i++) {
-                protocols [i] = v.elementAt(i);
+                protocols [i] = v.get(i);
             }
         }
         return protocols;
@@ -189,7 +188,7 @@ final class HttpsClient extends HttpClient
     private String getUserAgent() {
         String userAgent =
                 GetPropertyAction.privilegedGetProperty("https.agent");
-        if (userAgent == null || userAgent.length() == 0) {
+        if (userAgent == null || userAgent.isEmpty()) {
             userAgent = "JSSE";
         }
         return userAgent;
@@ -210,7 +209,7 @@ final class HttpsClient extends HttpClient
      * Use New to get new HttpsClient. This constructor is meant to be
      * used only by New method. New properly checks for URL spoofing.
      *
-     * @param URL https URL with which a connection must be established
+     * @param url https URL with which a connection must be established
      */
     private HttpsClient(SSLSocketFactory sf, URL url)
     throws IOException
@@ -332,19 +331,20 @@ final class HttpsClient extends HttpClient
             ret = (HttpsClient) kac.get(url, sf);
             if (ret != null && httpuc != null &&
                 httpuc.streaming() &&
-                httpuc.getRequestMethod() == "POST") {
+                "POST".equals(httpuc.getRequestMethod())) {
                 if (!ret.available())
                     ret = null;
             }
 
             if (ret != null) {
-                String ak = httpuc == null ? AuthenticatorKeys.DEFAULT
-                     : httpuc.getAuthenticatorKey();
+                AuthCacheImpl ak = httpuc == null ? null : httpuc.getAuthCache();
                 boolean compatible = ((ret.proxy != null && ret.proxy.equals(p)) ||
                     (ret.proxy == null && p == Proxy.NO_PROXY))
-                     && Objects.equals(ret.getAuthenticatorKey(), ak);
+                     && Objects.equals(ret.getAuthCache(), ak);
+
                 if (compatible) {
-                    synchronized (ret) {
+                    ret.lock();
+                    try {
                         ret.cachedHttpClient = true;
                         assert ret.inCache;
                         ret.inCache = false;
@@ -353,18 +353,23 @@ final class HttpsClient extends HttpClient
                         if (logger.isLoggable(PlatformLogger.Level.FINEST)) {
                             logger.finest("KeepAlive stream retrieved from the cache, " + ret);
                         }
+                    } finally {
+                        ret.unlock();
                     }
                 } else {
                     // We cannot return this connection to the cache as it's
                     // KeepAliveTimeout will get reset. We simply close the connection.
                     // This should be fine as it is very rare that a connection
                     // to the same host will not use the same proxy.
-                    synchronized(ret) {
+                    ret.lock();
+                    try {
                         if (logger.isLoggable(PlatformLogger.Level.FINEST)) {
                             logger.finest("Not returning this connection to cache: " + ret);
                         }
                         ret.inCache = false;
                         ret.closeServer();
+                    } finally {
+                        ret.unlock();
                     }
                     ret = null;
                 }
@@ -373,9 +378,10 @@ final class HttpsClient extends HttpClient
         if (ret == null) {
             ret = new HttpsClient(sf, url, p, connectTimeout);
             if (httpuc != null) {
-                ret.authenticatorKey = httpuc.getAuthenticatorKey();
+                ret.authcache = httpuc.getAuthCache();
             }
         } else {
+            @SuppressWarnings("removal")
             SecurityManager security = System.getSecurityManager();
             if (security != null) {
                 if (ret.proxy == Proxy.NO_PROXY || ret.proxy == null) {
@@ -421,12 +427,21 @@ final class HttpsClient extends HttpClient
             // unconnected sockets have not been implemented.
             //
             Throwable t = se.getCause();
-            if (t != null && t instanceof UnsupportedOperationException) {
+            if (t instanceof UnsupportedOperationException) {
                 return super.createSocket();
             } else {
                 throw se;
             }
         }
+    }
+
+    @Override
+    public void closeServer() {
+        try {
+            // SSLSocket.close may block up to timeout. Make sure it's short.
+            serverSocket.setSoTimeout(1);
+        } catch (Exception e) {}
+        super.closeServer();
     }
 
 
@@ -558,9 +573,13 @@ final class HttpsClient extends HttpClient
                 if (isDefaultHostnameVerifier) {
                     // If the HNV is the default from HttpsURLConnection, we
                     // will do the spoof checks in SSLSocket.
-                    SSLParameters paramaters = s.getSSLParameters();
-                    paramaters.setEndpointIdentificationAlgorithm("HTTPS");
-                    s.setSSLParameters(paramaters);
+                    SSLParameters parameters = s.getSSLParameters();
+                    parameters.setEndpointIdentificationAlgorithm("HTTPS");
+                    // host has been set previously for SSLSocketImpl
+                    if (!(s instanceof SSLSocketImpl)) {
+                        parameters.setServerNames(List.of(new SNIHostName(host)));
+                    }
+                    s.setSSLParameters(parameters);
 
                     needToCheckSpoofing = false;
                 }
@@ -636,7 +655,7 @@ final class HttpsClient extends HttpClient
             // ignore
         }
 
-        if ((cipher != null) && (cipher.indexOf("_anon_") != -1)) {
+        if ((cipher != null) && (cipher.contains("_anon_"))) {
             return;
         } else if ((hostnameVerifier != null) &&
                    (hostnameVerifier.verify(host, session))) {
@@ -652,12 +671,17 @@ final class HttpsClient extends HttpClient
 
     @Override
     protected void putInKeepAliveCache() {
-        if (inCache) {
-            assert false : "Duplicate put to keep alive cache";
-            return;
+        lock();
+        try {
+            if (inCache) {
+                assert false : "Duplicate put to keep alive cache";
+                return;
+            }
+            inCache = true;
+            kac.put(url, sslSocketFactory, this);
+        } finally {
+            unlock();
         }
-        inCache = true;
-        kac.put(url, sslSocketFactory, this);
     }
 
     /*
@@ -738,6 +762,13 @@ final class HttpsClient extends HttpClient
             }
         }
         return principal;
+    }
+
+    /**
+     * Returns the {@code SSLSession} in use on this connection.
+     */
+    SSLSession getSSLSession() {
+        return session;
     }
 
     /**

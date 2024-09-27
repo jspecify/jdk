@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
  */
 
 package sun.awt.image;
+
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.awt.image.RasterFormatException;
@@ -107,7 +108,7 @@ public class IntegerInterleavedRaster extends IntegerComponentRaster {
      * SampleModel must be of type SinglePixelPackedSampleModel.
      * When translated into the base Raster's
      * coordinate system, aRegion must be contained by the base Raster.
-     * Origin is the coodinate in the new Raster's coordinate system of
+     * Origin is the coordinate in the new Raster's coordinate system of
      * the origin of the base Raster.  (The base Raster is the Raster's
      * ancestor which has no parent.)
      *
@@ -215,7 +216,7 @@ public class IntegerInterleavedRaster extends IntegerComponentRaster {
             throw new ArrayIndexOutOfBoundsException
                 ("Coordinate out of bounds!");
         }
-        int outData[];
+        int[] outData;
         if (obj == null) {
             outData = new int[1];
         } else {
@@ -260,7 +261,7 @@ public class IntegerInterleavedRaster extends IntegerComponentRaster {
             throw new ArrayIndexOutOfBoundsException
                 ("Coordinate out of bounds!");
         }
-        int outData[];
+        int[] outData;
         if (obj instanceof int[]) {
             outData = (int[])obj;
         } else {
@@ -297,7 +298,7 @@ public class IntegerInterleavedRaster extends IntegerComponentRaster {
             throw new ArrayIndexOutOfBoundsException
                 ("Coordinate out of bounds!");
         }
-        int inData[] = (int[])obj;
+        int[] inData = (int[])obj;
 
         int off = (y-minY)*scanlineStride + (x-minX) + dataOffsets[0];
 
@@ -354,7 +355,7 @@ public class IntegerInterleavedRaster extends IntegerComponentRaster {
 
         int srcOffX = inRaster.getMinX();
         int srcOffY = inRaster.getMinY();
-        int tdata[] = null;
+        int[] tdata = null;
 
         if (inRaster instanceof IntegerInterleavedRaster) {
             IntegerInterleavedRaster ict = (IntegerInterleavedRaster) inRaster;
@@ -417,7 +418,7 @@ public class IntegerInterleavedRaster extends IntegerComponentRaster {
             throw new ArrayIndexOutOfBoundsException
                 ("Coordinate out of bounds!");
         }
-        int inData[] = (int[])obj;
+        int[] inData = (int[])obj;
         int yoff = (y-minY)*scanlineStride + (x-minX) + dataOffsets[0];
         int off = 0;
 
@@ -446,13 +447,13 @@ public class IntegerInterleavedRaster extends IntegerComponentRaster {
      * @param x0              Translated X origin of the subraster.
      * @param y0              Translated Y origin of the subraster.
      * @param bandList        Array of band indices.
-     * @exception RasterFormatException
+     * @throws RasterFormatException
      *            if the specified bounding box is outside of the parent raster.
      */
     public WritableRaster createWritableChild (int x, int y,
                                                int width, int height,
                                                int x0, int y0,
-                                               int bandList[]) {
+                                               int[] bandList) {
         if (x < this.minX) {
             throw new RasterFormatException("x lies outside raster");
         }
@@ -500,13 +501,13 @@ public class IntegerInterleavedRaster extends IntegerComponentRaster {
      * @param x0              Translated X origin of the subRaster.
      * @param y0              Translated Y origin of the subRaster.
      * @param bandList        Array of band indices.
-     * @exception RasterFormatException
+     * @throws RasterFormatException
      *            if the specified bounding box is outside of the parent raster.
      */
     public Raster createChild (int x, int y,
                                    int width, int height,
                                    int x0, int y0,
-                                   int bandList[]) {
+                                   int[] bandList) {
         return createWritableChild(x, y, width, height, x0, y0, bandList);
     }
 
@@ -537,12 +538,12 @@ public class IntegerInterleavedRaster extends IntegerComponentRaster {
     }
 
     public String toString() {
-        return new String ("IntegerInterleavedRaster: width = "+width
-                           +" height = " + height
-                           +" #Bands = " + numBands
-                           +" xOff = "+sampleModelTranslateX
-                           +" yOff = "+sampleModelTranslateY
-                           +" dataOffset[0] "+dataOffsets[0]);
+        return "IntegerInterleavedRaster: width = " + width
+                + " height = " + height
+                + " #Bands = " + numBands
+                + " xOff = " + sampleModelTranslateX
+                + " yOff = " + sampleModelTranslateY
+                + " dataOffset[0] " + dataOffsets[0];
     }
 
 //    /**

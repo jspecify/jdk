@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,8 +36,11 @@ import java.util.stream.StreamSupport;
 /**
  * The root interface in the <i>collection hierarchy</i>.  A collection
  * represents a group of objects, known as its <i>elements</i>.  Some
- * collections allow duplicate elements and others do not.  Some are ordered
- * and others unordered.  The JDK does not provide any <i>direct</i>
+ * collections allow duplicate elements and others do not.  Some are ordered,
+ * and others are unordered. Collections that have a defined
+ * <a href="SequencedCollection.html#encounter">encounter order</a>
+ * are generally subtypes of the {@link SequencedCollection} interface.
+ * The JDK does not provide any <i>direct</i>
  * implementations of this interface: it provides implementations of more
  * specific subinterfaces like {@code Set} and {@code List}.  This interface
  * is typically used to pass collections around and manipulate them where
@@ -124,8 +127,9 @@ import java.util.stream.StreamSupport;
  * Other examples of view collections include collections that provide a
  * different representation of the same elements, for example, as
  * provided by {@link List#subList List.subList},
- * {@link NavigableSet#subSet NavigableSet.subSet}, or
- * {@link Map#entrySet Map.entrySet}.
+ * {@link NavigableSet#subSet NavigableSet.subSet},
+ * {@link Map#entrySet Map.entrySet}, or
+ * {@link SequencedCollection#reversed SequencedCollection.reversed}.
  * Any changes made to the backing collection are visible in the view collection.
  * Correspondingly, any changes made to the view collection &mdash; if changes
  * are permitted &mdash; are written through to the backing collection.
@@ -191,6 +195,39 @@ import java.util.stream.StreamSupport;
  * or if the only reference to the backing collection is through an
  * unmodifiable view, the view can be considered effectively immutable.
  *
+ * <h2><a id="serializable">Serializability of Collections</a></h2>
+ *
+ * <p>Serializability of collections is optional. As such, none of the collections
+ * interfaces are declared to implement the {@link java.io.Serializable} interface.
+ * However, serializability is regarded as being generally useful, so most collection
+ * implementations are serializable.
+ *
+ * <p>The collection implementations that are public classes (such as {@code ArrayList}
+ * or {@code HashMap}) are declared to implement the {@code Serializable} interface if they
+ * are in fact serializable. Some collections implementations are not public classes,
+ * such as the <a href="#unmodifiable">unmodifiable collections.</a> In such cases, the
+ * serializability of such collections is described in the specification of the method
+ * that creates them, or in some other suitable place. In cases where the serializability
+ * of a collection is not specified, there is no guarantee about the serializability of such
+ * collections. In particular, many <a href="#view">view collections</a> are not serializable,
+ * even if the original collection is serializable.
+ *
+ * <p>A collection implementation that implements the {@code Serializable} interface cannot
+ * be guaranteed to be serializable. The reason is that in general, collections
+ * contain elements of other types, and it is not possible to determine statically
+ * whether instances of some element type are actually serializable. For example, consider
+ * a serializable {@code Collection<E>}, where {@code E} does not implement the
+ * {@code Serializable} interface. The collection may be serializable, if it contains only
+ * elements of some serializable subtype of {@code E}, or if it is empty. Collections are
+ * thus said to be <i>conditionally serializable,</i> as the serializability of the collection
+ * as a whole depends on whether the collection itself is serializable and on whether all
+ * contained elements are also serializable.
+ *
+ * <p>An additional case occurs with instances of {@link SortedSet} and {@link SortedMap}.
+ * These collections can be created with a {@link Comparator} that imposes an ordering on
+ * the set elements or map keys. Such a collection is serializable only if the provided
+ * {@code Comparator} is also serializable.
+ *
  * <p>This interface is a member of the
  * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">
  * Java Collections Framework</a>.
@@ -255,10 +292,10 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      *         element
      * @throws ClassCastException if the type of the specified element
      *         is incompatible with this collection
-     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
+     *         ({@linkplain Collection##optional-restrictions optional})
      * @throws NullPointerException if the specified element is null and this
      *         collection does not permit null elements
-     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
+     *         ({@linkplain Collection##optional-restrictions optional})
      */
     
     
@@ -444,10 +481,10 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      * @return {@code true} if an element was removed as a result of this call
      * @throws ClassCastException if the type of the specified element
      *         is incompatible with this collection
-     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
+     *         ({@linkplain Collection##optional-restrictions optional})
      * @throws NullPointerException if the specified element is null and this
      *         collection does not permit null elements
-     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
+     *         ({@linkplain Collection##optional-restrictions optional})
      * @throws UnsupportedOperationException if the {@code remove} operation
      *         is not supported by this collection
      */
@@ -466,11 +503,11 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      * @throws ClassCastException if the types of one or more elements
      *         in the specified collection are incompatible with this
      *         collection
-     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
+     *         ({@linkplain Collection##optional-restrictions optional})
      * @throws NullPointerException if the specified collection contains one
      *         or more null elements and this collection does not permit null
      *         elements
-     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>),
+     *         ({@linkplain Collection##optional-restrictions optional})
      *         or if the specified collection is null.
      * @see    #contains(Object)
      */
@@ -483,7 +520,9 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      * the specified collection is modified while the operation is in progress.
      * (This implies that the behavior of this call is undefined if the
      * specified collection is this collection, and this collection is
-     * nonempty.)
+     * nonempty.) If the specified collection has a defined
+     * <a href="SequencedCollection.html#encounter">encounter order</a>,
+     * processing of its elements generally occurs in that order.
      *
      * @param c collection containing elements to be added to this collection
      * @return {@code true} if this collection changed as a result of the call
@@ -512,16 +551,16 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      * @param c collection containing elements to be removed from this collection
      * @return {@code true} if this collection changed as a result of the
      *         call
-     * @throws UnsupportedOperationException if the {@code removeAll} method
+     * @throws UnsupportedOperationException if the {@code removeAll} operation
      *         is not supported by this collection
      * @throws ClassCastException if the types of one or more elements
      *         in this collection are incompatible with the specified
      *         collection
-     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
+     *         ({@linkplain Collection##optional-restrictions optional})
      * @throws NullPointerException if this collection contains one or more
      *         null elements and the specified collection does not support
      *         null elements
-     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>),
+     *         ({@linkplain Collection##optional-restrictions optional})
      *         or if the specified collection is null
      * @see #remove(Object)
      * @see #contains(Object)
@@ -530,8 +569,8 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
 
     /**
      * Removes all of the elements of this collection that satisfy the given
-     * predicate.  Errors or runtime exceptions thrown during iteration or by
-     * the predicate are relayed to the caller.
+     * predicate (optional operation).  Errors or runtime exceptions thrown during
+     * iteration or by the predicate are relayed to the caller.
      *
      * @implSpec
      * The default implementation traverses all elements of the collection using
@@ -544,10 +583,8 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      *        removed
      * @return {@code true} if any elements were removed
      * @throws NullPointerException if the specified filter is null
-     * @throws UnsupportedOperationException if elements cannot be removed
-     *         from this collection.  Implementations may throw this exception if a
-     *         matching element cannot be removed or if, in general, removal is not
-     *         supported.
+     * @throws UnsupportedOperationException if the {@code removeIf} operation
+     *         is not supported by this collection
      * @since 1.8
      */
     default boolean removeIf(Predicate<? super E> filter) {
@@ -576,11 +613,11 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      * @throws ClassCastException if the types of one or more elements
      *         in this collection are incompatible with the specified
      *         collection
-     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
+     *         ({@linkplain Collection##optional-restrictions optional})
      * @throws NullPointerException if this collection contains one or more
      *         null elements and the specified collection does not permit null
      *         elements
-     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>),
+     *         ({@linkplain Collection##optional-restrictions optional})
      *         or if the specified collection is null
      * @see #remove(Object)
      * @see #contains(Object)

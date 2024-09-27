@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@ import java.io.InvalidObjectException;
 public final class DirectoryIteratorException
     extends ConcurrentModificationException
 {
+    @java.io.Serial
     private static final long serialVersionUID = -6012699886086212874L;
 
     /**
@@ -74,10 +75,21 @@ public final class DirectoryIteratorException
     /**
      * Called to read the object from a stream.
      *
+     * @param   s
+     *          the {@code ObjectInputStream} to read
+     *
      * @throws  InvalidObjectException
      *          if the object is invalid or has a cause that is not
      *          an {@code IOException}
+     *
+     * @throws  IOException
+     *          if an I/O error occurs
+     *
+     * @throws  ClassNotFoundException
+     *          if the class of a serialized object could not be
+     *          found
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream s)
         throws IOException, ClassNotFoundException
     {

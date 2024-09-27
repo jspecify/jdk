@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,6 @@
 
 package netscape.javascript;
 
-import jdk.internal.netscape.javascript.spi.JSObjectProvider;
-import java.applet.Applet;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.Iterator;
-import java.util.ServiceLoader;
-
 /**
  * <p>
  * Allows Java code to manipulate JavaScript objects.
@@ -50,9 +43,8 @@ import java.util.ServiceLoader;
  * converted to Java data types. Certain data passed to the JavaScript
  * engine is converted to JavaScript data types.
  * </p>
- *
+ * @since 1.5
  */
-@SuppressWarnings("deprecation")
 public abstract class JSObject {
     /**
      * Constructs a new JSObject. Users should neither call this method nor
@@ -90,7 +82,7 @@ public abstract class JSObject {
      * "this.name" in JavaScript.
      *
      * @param name The name of the JavaScript property to be accessed.
-     * @return The value of the propery.
+     * @return The value of the property.
      * @throws JSException when an error is reported from the browser or
      * JavaScript engine.
      */
@@ -101,7 +93,7 @@ public abstract class JSObject {
      * "this.name = value" in JavaScript.
      *
      * @param name The name of the JavaScript property to be accessed.
-     * @param value The value of the propery.
+     * @param value The value of the property.
      * @throws JSException when an error is reported from the browser or
      * JavaScript engine.
      */
@@ -139,52 +131,4 @@ public abstract class JSObject {
      */
     public abstract void setSlot(int index, Object value) throws JSException;
 
-    /**
-     * Returns a JSObject for the window containing the given applet. This
-     * method only works when the Java code is running in a browser as an
-     * applet. The object returned may be used to access the HTML DOM directly.
-     *
-     * @param applet The applet.
-     * @return JSObject representing the window containing the given applet or
-     * {@code null} if we are not connected to a browser.
-     * @throws JSException when an error is reported from the browser or
-     * JavaScript engine or if applet is {@code null}
-     *
-     * @deprecated  The Applet API is deprecated. See the
-     * <a href="{@docRoot}/java.desktop/java/applet/package-summary.html">
-     * java.applet package documentation</a> for further information.
-     */
-
-    @Deprecated(since = "9")
-    @SuppressWarnings("exports")
-    public static JSObject getWindow(Applet applet) throws JSException {
-        return ProviderLoader.callGetWindow(applet);
-    }
-
-    private static class ProviderLoader {
-        private static final JSObjectProvider provider;
-
-        static {
-            provider = AccessController.doPrivileged(
-                new PrivilegedAction<>() {
-                    @Override
-                    public JSObjectProvider run() {
-                        Iterator<JSObjectProvider> providers =
-                            ServiceLoader.loadInstalled(JSObjectProvider.class).iterator();
-                        if (providers.hasNext()) {
-                            return providers.next();
-                        }
-                        return null;
-                    }
-                }
-            );
-        }
-
-        private static JSObject callGetWindow(Applet applet) {
-            if (provider != null) {
-                return provider.getWindow(applet);
-            }
-            return null;
-        }
-    }
 }

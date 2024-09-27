@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,14 +94,12 @@ import com.sun.tools.javac.util.Iterators;
 import com.sun.tools.javac.util.Pair;
 import com.sun.tools.javac.util.StringUtils;
 
+import static javax.tools.StandardLocation.SYSTEM_MODULES;
 import static javax.tools.StandardLocation.PLATFORM_CLASS_PATH;
 
 import static com.sun.tools.javac.main.Option.BOOT_CLASS_PATH;
-import static com.sun.tools.javac.main.Option.DJAVA_ENDORSED_DIRS;
-import static com.sun.tools.javac.main.Option.DJAVA_EXT_DIRS;
 import static com.sun.tools.javac.main.Option.ENDORSEDDIRS;
 import static com.sun.tools.javac.main.Option.EXTDIRS;
-import static com.sun.tools.javac.main.Option.XBOOTCLASSPATH;
 import static com.sun.tools.javac.main.Option.XBOOTCLASSPATH_APPEND;
 import static com.sun.tools.javac.main.Option.XBOOTCLASSPATH_PREPEND;
 
@@ -188,6 +186,12 @@ public class Locations {
         return h.isDefault();
     }
 
+    boolean isDefaultSystemModulesPath() {
+        SystemModulesLocationHandler h
+                = (SystemModulesLocationHandler) getHandler(SYSTEM_MODULES);
+        return !h.isExplicit();
+    }
+
     /**
      * Split a search path into its elements. Empty path elements will be ignored.
      *
@@ -229,7 +233,7 @@ public class Locations {
     }
 
     public void setMultiReleaseValue(String multiReleaseValue) {
-        fsEnv = Collections.singletonMap("multi-release", multiReleaseValue);
+        fsEnv = Collections.singletonMap("releaseVersion", multiReleaseValue);
     }
 
     private boolean contains(Collection<Path> searchPath, Path file) throws IOException {
@@ -276,7 +280,7 @@ public class Locations {
         private static final long serialVersionUID = 0;
 
         private boolean expandJarClassPaths = false;
-        private final Set<Path> canonicalValues = new HashSet<>();
+        private final transient Set<Path> canonicalValues = new HashSet<>();
 
         public SearchPath expandJarClassPaths(boolean x) {
             expandJarClassPaths = x;
@@ -286,7 +290,7 @@ public class Locations {
         /**
          * What to use when path element is the empty string
          */
-        private Path emptyPathDefault = null;
+        private transient Path emptyPathDefault = null;
 
         public SearchPath emptyPathDefault(Path x) {
             emptyPathDefault = x;
@@ -382,7 +386,7 @@ public class Locations {
                         /* Not a recognized extension; open it to see if
                          it looks like a valid zip file. */
                         try {
-                            FileSystems.newFileSystem(file, null).close();
+                            FileSystems.newFileSystem(file, (ClassLoader)null).close();
                             if (warn) {
                                 log.warning(Lint.LintCategory.PATH,
                                             Warnings.UnexpectedArchiveFile(file));
@@ -440,7 +444,7 @@ public class Locations {
      * @see #initHandlers
      * @see #getHandler
      */
-    protected static abstract class LocationHandler {
+    protected abstract static class LocationHandler {
 
         /**
          * @see JavaFileManager#handleOption
@@ -509,7 +513,7 @@ public class Locations {
     /**
      * A LocationHandler for a given Location, and associated set of options.
      */
-    private static abstract class BasicLocationHandler extends LocationHandler {
+    private abstract static class BasicLocationHandler extends LocationHandler {
 
         final Location location;
         final Set<Option> options;
@@ -949,7 +953,7 @@ public class Locations {
             Path modules = javaHome.resolve("modules");
             if (Files.isDirectory(modules.resolve("java.base"))) {
                 try (Stream<Path> listedModules = Files.list(modules)) {
-                    return listedModules.collect(Collectors.toList());
+                    return listedModules.toList();
                 }
             }
 
@@ -975,7 +979,7 @@ public class Locations {
     }
 
     /**
-     * A LocationHander to represent modules found from a module-oriented
+     * A LocationHandler to represent modules found from a module-oriented
      * location such as MODULE_SOURCE_PATH, UPGRADE_MODULE_PATH,
      * SYSTEM_MODULES and MODULE_PATH.
      *
@@ -1228,10 +1232,9 @@ public class Locations {
 
             for (Set<Location> set : listLocationsForModules()) {
                 for (Location locn : set) {
-                    if (locn instanceof ModuleLocationHandler) {
-                        ModuleLocationHandler l = (ModuleLocationHandler) locn;
-                        if (!moduleTable.nameMap.containsKey(l.moduleName)) {
-                            moduleTable.add(l);
+                    if (locn instanceof ModuleLocationHandler moduleLocationHandler) {
+                        if (!moduleTable.nameMap.containsKey(moduleLocationHandler.moduleName)) {
+                            moduleTable.add(moduleLocationHandler);
                         }
                     }
                 }
@@ -1533,7 +1536,62 @@ public class Locations {
             return true;
         }
 
+        /**
+         * Initializes the module table, based on a string containing the composition
+         * of a series of command-line options.
+         * At most one pattern to initialize a series of modules can be given.
+         * At most one module-specific search path per module can be given.
+         *
+         * @param value a series of values, separated by NUL.
+         */
         void init(String value) {
+            Pattern moduleSpecificForm = Pattern.compile("([\\p{Alnum}$_.]+)=(.*)");
+            List<String> pathsForModules = new ArrayList<>();
+            String modulePattern = null;
+            for (String v : value.split("\0")) {
+                if (moduleSpecificForm.matcher(v).matches()) {
+                    pathsForModules.add(v);
+                } else {
+                    modulePattern = v;
+                }
+            }
+            // set the general module pattern first, if given
+            if (modulePattern != null) {
+                initFromPattern(modulePattern);
+            }
+            pathsForModules.forEach(this::initForModule);
+        }
+
+        /**
+         * Initializes a module-specific override, using {@code setPathsForModule}.
+         *
+         * @param value a string of the form: module-name=search-path
+         */
+        void initForModule(String value) {
+            int eq = value.indexOf('=');
+            String name = value.substring(0, eq);
+            List<Path> paths = new ArrayList<>();
+            for (String v : value.substring(eq + 1).split(File.pathSeparator)) {
+                try {
+                    paths.add(Paths.get(v));
+                } catch (InvalidPathException e) {
+                    throw new IllegalArgumentException("invalid path: " + v, e);
+                }
+            }
+            try {
+                setPathsForModule(name, paths);
+            } catch (IOException e) {
+                e.printStackTrace();
+                throw new IllegalArgumentException("cannot set path for module " + name, e);
+            }
+        }
+
+        /**
+         * Initializes the module table based on a custom option syntax.
+         *
+         * @param value the value such as may be given to a --module-source-path option
+         */
+        void initFromPattern(String value) {
             Collection<String> segments = new ArrayList<>();
             for (String s: value.split(File.pathSeparator)) {
                 expandBraces(s, segments);
@@ -1848,9 +1906,12 @@ public class Locations {
         }
 
         private void update(Path p) {
-            if (!isCurrentPlatform(p) && !Files.exists(p.resolve("lib").resolve("jrt-fs.jar")) &&
-                    !Files.exists(systemJavaHome.resolve("modules")))
-                throw new IllegalArgumentException(p.toString());
+            if (!isCurrentPlatform(p)) {
+                var noJavaRuntimeFS = Files.notExists(resolveInJavaHomeLib(p, "jrt-fs.jar"));
+                var noModulesFile = Files.notExists(resolveInJavaHomeLib(p, "modules"));
+                if (noJavaRuntimeFS || noModulesFile)
+                    throw new IllegalArgumentException(p.toString());
+            }
             systemJavaHome = p;
             modules = null;
         }
@@ -1861,6 +1922,10 @@ public class Locations {
             } catch (IOException ex) {
                 throw new IllegalArgumentException(p.toString(), ex);
             }
+        }
+
+        private static Path resolveInJavaHomeLib(Path javaHomePath, String name) {
+            return javaHomePath.resolve("lib").resolve(name);
         }
 
         @Override
@@ -1909,10 +1974,10 @@ public class Locations {
                                     Collections.singletonMap("java.home", systemJavaHome.toString());
                             jrtfs = FileSystems.newFileSystem(jrtURI, attrMap);
                         } catch (ProviderNotFoundException ex) {
-                            URL javaHomeURL = systemJavaHome.resolve("jrt-fs.jar").toUri().toURL();
+                            URL jfsJar = resolveInJavaHomeLib(systemJavaHome, "jrt-fs.jar").toUri().toURL();
                             ClassLoader currentLoader = Locations.class.getClassLoader();
                             URLClassLoader fsLoader =
-                                    new URLClassLoader(new URL[] {javaHomeURL}, currentLoader);
+                                    new URLClassLoader(new URL[] {jfsJar}, currentLoader);
 
                             jrtfs = FileSystems.newFileSystem(jrtURI, Collections.emptyMap(), fsLoader);
 
@@ -1924,7 +1989,7 @@ public class Locations {
 
                     modules = jrtfs.getPath("/modules");
                 } catch (FileSystemNotFoundException | ProviderNotFoundException e) {
-                    modules = systemJavaHome.resolve("modules");
+                    modules = resolveInJavaHomeLib(systemJavaHome, "modules");
                     if (!Files.exists(modules))
                         throw new IOException("can't find system classes", e);
                 }
@@ -2141,8 +2206,8 @@ public class Locations {
 
     protected LocationHandler getHandler(Location location) {
         Objects.requireNonNull(location);
-        return (location instanceof LocationHandler)
-                ? (LocationHandler) location
+        return (location instanceof LocationHandler locationHandler)
+                ? locationHandler
                 : handlersForLocation.get(location);
     }
 

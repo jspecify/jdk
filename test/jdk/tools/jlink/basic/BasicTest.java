@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,14 @@
  * @test
  * @summary Basic test of jlink to create jmods and images
  * @author Andrei Eremeev
- * @library /lib/testlibrary /test/lib
+ * @library /test/lib
  * @modules java.base/jdk.internal.module
  *          jdk.jlink
  *          jdk.compiler
- * @build jdk.testlibrary.ProcessTools
- *        jdk.testlibrary.OutputAnalyzer
- *        JarUtils jdk.test.lib.compiler.CompilerUtils
+ * @build jdk.test.lib.process.ProcessTools
+ *        jdk.test.lib.process.OutputAnalyzer
+ *        jdk.test.lib.compiler.CompilerUtils
+ *        jdk.test.lib.util.JarUtils
  * @run main BasicTest
  */
 
@@ -46,8 +47,9 @@ import java.util.List;
 import java.util.spi.ToolProvider;
 
 import jdk.test.lib.compiler.CompilerUtils;
-import jdk.testlibrary.OutputAnalyzer;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.util.JarUtils;
 
 public class BasicTest {
     static final ToolProvider JMOD_TOOL = ToolProvider.findFirst("jmod")
@@ -98,7 +100,6 @@ public class BasicTest {
         runJmod(classes.toString(), TEST_MODULE, true);
         runJlink(image, TEST_MODULE, "--launcher", "bar=" + TEST_MODULE);
         execute(image, "bar");
-
         Files.delete(jmods.resolve(TEST_MODULE + ".jmod"));
 
         image = Paths.get("myimage2");
@@ -106,7 +107,28 @@ public class BasicTest {
         // specify main class in --launcher command line
         runJlink(image, TEST_MODULE, "--launcher", "bar2=" + TEST_MODULE + "/jdk.test.Test");
         execute(image, "bar2");
+        Files.delete(jmods.resolve(TEST_MODULE + ".jmod"));
 
+        image = Paths.get("myadder");
+        runJmod(classes.toString(), TEST_MODULE, false /* no ModuleMainClass! */);
+        // specify main class in --launcher command line
+        runJlink(image, TEST_MODULE, "--launcher", "adder=" + TEST_MODULE + "/jdk.test.Adder");
+        addAndCheck(image, "adder");
+    }
+
+    private void addAndCheck(Path image, String scriptName) throws Throwable {
+        String cmd = image.resolve("bin").resolve(scriptName).toString();
+        OutputAnalyzer analyzer;
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            analyzer = ProcessTools.executeProcess("sh.exe", cmd, "12", "8", "7", "--", "foo bar");
+        } else {
+            analyzer = ProcessTools.executeProcess(cmd, "12", "8", "7", "--", "foo bar");
+        }
+        if (analyzer.getExitValue() != 27) {
+            throw new AssertionError("Image invocation failed: expected 27, rc=" + analyzer.getExitValue());
+        }
+        // last argument contains space and should be properly quoted.
+        analyzer.stdoutShouldContain("Num args: 5");
     }
 
     private void execute(Path image, String scriptName) throws Throwable {

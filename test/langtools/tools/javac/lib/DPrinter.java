@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -437,7 +437,8 @@ public class DPrinter {
         Scope scope = (Scope) getField(e, e.getClass(), "scope");
         return "(" + sym.name + ":" + sym
                 + ",shdw:" + entryToString(callMethod(e, e.getClass(), "next"), table, true)
-                + ",sibl:" + entryToString(getField(e, e.getClass(), "sibling"), table, true)
+                + ",nextSibling:" + entryToString(getField(e, e.getClass(), "nextSibling"), table, true)
+                + ",prevSibling:" + entryToString(getField(e, e.getClass(), "prevSibling"), table, true)
                 + ((sym.owner != scope.owner)
                     ? (",BOGUS[" + sym.owner + "," + scope.owner + "]")
                     : "")
@@ -600,6 +601,7 @@ public class DPrinter {
     protected Object getField(Object o, Class<?> clazz, String name) {
         try {
             Field f = clazz.getDeclaredField(name);
+            @SuppressWarnings("deprecation")
             boolean prev = f.isAccessible();
             f.setAccessible(true);
             try {
@@ -617,6 +619,7 @@ public class DPrinter {
     protected Object callMethod(Object o, Class<?> clazz, String name) {
         try {
             Method m = clazz.getDeclaredMethod(name);
+            @SuppressWarnings("deprecation")
             boolean prev = m.isAccessible();
             m.setAccessible(true);
             try {
@@ -737,7 +740,7 @@ public class DPrinter {
 
         @Override
         public void visitCase(JCCase tree) {
-            printTree("pat", tree.pat);
+            printList("labels", tree.labels);
             printList("stats", tree.stats);
         }
 
@@ -783,6 +786,11 @@ public class DPrinter {
         @Override
         public void visitBreak(JCBreak tree) {
             printName("label", tree.label);
+        }
+
+        @Override
+        public void visitYield(JCYield tree) {
+            printTree("value", tree.value);
         }
 
         @Override
@@ -874,7 +882,7 @@ public class DPrinter {
         @Override
         public void visitTypeTest(JCInstanceOf tree) {
             printTree("expr", tree.expr);
-            printTree("clazz", tree.clazz);
+            printTree("pattern", tree.pattern);
         }
 
         @Override
@@ -1099,6 +1107,11 @@ public class DPrinter {
             return visitBlockTag(node, null);
         }
 
+        public Void visitRawText(RawTextTree node, Void p) {
+            printLimitedEscapedString("content", node.getContent());
+            return visitTree(node, null);
+        }
+
         public Void visitReference(ReferenceTree node, Void p) {
             printString("signature", node.getSignature());
             return visitTree(node, null);
@@ -1133,6 +1146,12 @@ public class DPrinter {
 
         public Void visitSince(SinceTree node, Void p) {
             printList("body", node.getBody());
+            return visitBlockTag(node, null);
+        }
+
+        public Void visitSpec(SpecTree node, Void p) {
+            printDocTree("url", node.getURL());
+            printList("title", node.getTitle());
             return visitBlockTag(node, null);
         }
 
@@ -1180,6 +1199,7 @@ public class DPrinter {
         }
 
         public Void visitValue(ValueTree node, Void p) {
+            printDocTree("format", node.getFormat());
             printDocTree("value", node.getReference());
             return visitInlineTag(node, null);
         }
@@ -1336,8 +1356,8 @@ public class DPrinter {
             // null or bot. So, only print the bound for subtypes of TypeVar,
             // or if the bound is (erroneously) not null or bot.
             if (!type.hasTag(TypeTag.TYPEVAR)
-                    || !(type.bound == null || type.bound.hasTag(TypeTag.BOT))) {
-                printType("bound", type.bound, Details.FULL);
+                    || !(type.getUpperBound() == null || type.getUpperBound().hasTag(TypeTag.BOT))) {
+                printType("bound", type.getUpperBound(), Details.FULL);
             }
             printType("lower", type.lower, Details.FULL);
             return visitType(type, null);

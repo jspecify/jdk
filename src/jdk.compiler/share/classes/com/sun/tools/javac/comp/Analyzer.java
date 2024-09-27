@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,26 @@
 
 package com.sun.tools.javac.comp;
 
-import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Queue;
+import java.util.stream.Collectors;
 
 import com.sun.source.tree.LambdaExpressionTree;
+import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.VariableTree;
+import com.sun.tools.javac.code.Flags;
+import com.sun.tools.javac.code.Kinds.Kind;
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Source.Feature;
+import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.comp.ArgumentAttr.LocalCacheContext;
+import com.sun.tools.javac.comp.DeferredAttr.AttributionMode;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCBlock;
@@ -48,7 +60,9 @@ import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.tree.JCTree.JCStatement;
 import com.sun.tools.javac.tree.JCTree.JCSwitch;
+import com.sun.tools.javac.tree.JCTree.JCTry;
 import com.sun.tools.javac.tree.JCTree.JCTypeApply;
+import com.sun.tools.javac.tree.JCTree.JCUnary;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.JCTree.JCWhileLoop;
 import com.sun.tools.javac.tree.JCTree.Tag;
@@ -56,29 +70,17 @@ import com.sun.tools.javac.tree.TreeCopier;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.tree.TreeScanner;
+import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
+import com.sun.tools.javac.util.DiagnosticSource;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Options;
 import com.sun.tools.javac.util.Position;
-
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Predicate;
-
-import com.sun.source.tree.NewClassTree;
-import com.sun.tools.javac.code.Flags;
-import com.sun.tools.javac.code.Kinds.Kind;
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.tree.JCTree.JCTry;
-import com.sun.tools.javac.tree.JCTree.JCUnary;
-import com.sun.tools.javac.util.Assert;
-import com.sun.tools.javac.util.DiagnosticSource;
 
 import static com.sun.tools.javac.code.Flags.GENERATEDCONSTR;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
@@ -116,6 +118,7 @@ public class Analyzer {
         return instance;
     }
 
+    @SuppressWarnings("this-escape")
     protected Analyzer(Context context) {
         context.put(analyzerKey, this);
         types = Types.instance(context);
@@ -138,13 +141,17 @@ public class Analyzer {
      * the {@code -XDfind} option.
      */
     enum AnalyzerMode {
-        DIAMOND("diamond", Feature.DIAMOND),
-        LAMBDA("lambda", Feature.LAMBDA),
-        METHOD("method", Feature.GRAPH_INFERENCE),
+        DIAMOND("diamond"),
+        LAMBDA("lambda"),
+        METHOD("method"),
         LOCAL("local", Feature.LOCAL_VARIABLE_TYPE_INFERENCE);
 
         final String opt;
         final Feature feature;
+
+        AnalyzerMode(String opt) {
+            this(opt, null);
+        }
 
         AnalyzerMode(String opt, Feature feature) {
             this.opt = opt;
@@ -167,10 +174,10 @@ public class Analyzer {
                 res = EnumSet.allOf(AnalyzerMode.class);
             }
             for (AnalyzerMode mode : values()) {
-                if (modes.contains(mode.opt)) {
-                    res.add(mode);
-                } else if (modes.contains("-" + mode.opt) || !mode.feature.allowedInSource(source)) {
+                if (modes.contains("-" + mode.opt) || (mode.feature != null && !mode.feature.allowedInSource(source))) {
                     res.remove(mode);
+                } else if (modes.contains(mode.opt)) {
+                    res.add(mode);
                 }
             }
             return res;
@@ -447,7 +454,7 @@ public class Analyzer {
      */
     Env<AttrContext> copyEnvIfNeeded(JCTree tree, Env<AttrContext> env) {
         if (!analyzerModes.isEmpty() &&
-                !env.info.isSpeculative &&
+                !env.info.attributionMode.isSpeculative &&
                 TreeInfo.isStatement(tree) &&
                 !tree.hasTag(LABELLED)) {
             Env<AttrContext> analyzeEnv =
@@ -475,7 +482,7 @@ public class Analyzer {
      * Analyze an AST node; this involves collecting a list of all the nodes that needs rewriting,
      * and speculatively type-check the rewritten code to compare results against previously attributed code.
      */
-    void analyze(JCStatement statement, Env<AttrContext> env) {
+    protected void analyze(JCStatement statement, Env<AttrContext> env) {
         StatementScanner statementScanner = new StatementScanner(statement, env);
         statementScanner.scan();
 
@@ -521,11 +528,11 @@ public class Analyzer {
      */
     DeferredAnalysisHelper queueDeferredHelper = new DeferredAnalysisHelper() {
 
-        Map<ClassSymbol, ArrayList<RewritingContext>> Q = new HashMap<>();
+        Map<ClassSymbol, Queue<RewritingContext>> Q = new HashMap<>();
 
         @Override
         public void queue(RewritingContext rewriting) {
-            ArrayList<RewritingContext> s = Q.computeIfAbsent(rewriting.env.enclClass.sym.outermostClass(), k -> new ArrayList<>());
+            Queue<RewritingContext> s = Q.computeIfAbsent(rewriting.env.enclClass.sym.outermostClass(), k -> new ArrayDeque<>());
             s.add(rewriting);
         }
 
@@ -535,9 +542,9 @@ public class Analyzer {
                 DeferredAnalysisHelper prevHelper = deferredAnalysisHelper;
                 try {
                     deferredAnalysisHelper = flushDeferredHelper;
-                    ArrayList<RewritingContext> rewritings = Q.get(flushEnv.enclClass.sym.outermostClass());
+                    Queue<RewritingContext> rewritings = Q.get(flushEnv.enclClass.sym.outermostClass());
                     while (rewritings != null && !rewritings.isEmpty()) {
-                        doAnalysis(rewritings.remove(0));
+                        doAnalysis(rewritings.remove());
                     }
                 } finally {
                     deferredAnalysisHelper = prevHelper;
@@ -555,18 +562,25 @@ public class Analyzer {
             log.useSource(rewriting.env.toplevel.getSourceFile());
 
             JCStatement treeToAnalyze = (JCStatement)rewriting.originalTree;
+            JCTree wrappedTree = null;
+
             if (rewriting.env.info.scope.owner.kind == Kind.TYP) {
                 //add a block to hoist potential dangling variable declarations
                 treeToAnalyze = make.at(Position.NOPOS)
                                     .Block(Flags.SYNTHETIC, List.of((JCStatement)rewriting.originalTree));
+                wrappedTree = rewriting.originalTree;
             }
 
             //TODO: to further refine the analysis, try all rewriting combinations
-            deferredAttr.attribSpeculative(treeToAnalyze, rewriting.env, attr.statInfo, new TreeRewriter(rewriting),
-                    t -> rewriting.diagHandler(), argumentAttr.withLocalCacheContext());
+            deferredAttr.attribSpeculative(treeToAnalyze, rewriting.env, attr.statInfo, new TreeRewriter(rewriting, wrappedTree),
+                    () -> rewriting.diagHandler(), AttributionMode.ANALYZER, argumentAttr.withLocalCacheContext());
             rewriting.analyzer.process(rewriting.oldTree, rewriting.replacement, rewriting.erroneous);
         } catch (Throwable ex) {
-            Assert.error("Analyzer error when processing: " + rewriting.originalTree);
+            Assert.error("Analyzer error when processing: " +
+                         rewriting.originalTree + ":" + ex.toString() + "\n" +
+                         Arrays.stream(ex.getStackTrace())
+                               .map(se -> se.toString())
+                               .collect(Collectors.joining("\n")));
         } finally {
             log.useSource(prevSource.getFile());
             localCacheContext.leave();
@@ -627,6 +641,11 @@ public class Analyzer {
         @Override
         public void visitBlock(JCBlock tree) {
             //do nothing (prevents seeing same stuff twice)
+        }
+
+        @Override
+        public void visitLambda(JCLambda tree) {
+            //do nothing (prevents seeing same stuff in lambda expression twice)
         }
 
         @Override
@@ -758,9 +777,11 @@ public class Analyzer {
    class TreeRewriter extends AnalyzerCopier {
 
         RewritingContext rewriting;
+        JCTree wrappedTree;
 
-        TreeRewriter(RewritingContext rewriting) {
+        TreeRewriter(RewritingContext rewriting, JCTree wrappedTree) {
             this.rewriting = rewriting;
+            this.wrappedTree = wrappedTree;
         }
 
         @Override
@@ -773,5 +794,19 @@ public class Analyzer {
             }
             return newTree;
         }
+
+        @Override
+        public JCTree visitVariable(VariableTree node, Void p) {
+            JCTree result = super.visitVariable(node, p);
+            if (node == wrappedTree) {
+                //The current tree is a field and has been wrapped by a block, so it effectivelly
+                //became local variable. If it has some modifiers (except for final), an error
+                //would be reported, causing the whole rewrite to fail. Removing the non-final
+                //modifiers from the variable here:
+                ((JCVariableDecl) result).mods.flags &= Flags.FINAL;
+            }
+            return result;
+        }
+
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,7 @@ import javax.management.openmbean.CompositeData;
  * It can be obtained by calling the
  * {@link PlatformManagedObject#getObjectName} method.
  *
- * <h3> Memory </h3>
+ * <h2> Memory </h2>
  * The memory system of the Java virtual machine manages
  * the following kinds of memory:
  *
@@ -87,7 +87,7 @@ import javax.management.openmbean.CompositeData;
  * machine code translated from the Java virtual machine code for
  * high performance.
  *
- * <h3>Memory Pools and Memory Managers</h3>
+ * <h2>Memory Pools and Memory Managers</h2>
  * {@link MemoryPoolMXBean Memory pools} and
  * {@link MemoryManagerMXBean memory managers} are the abstract entities
  * that monitor and manage the memory system
@@ -105,7 +105,7 @@ import javax.management.openmbean.CompositeData;
  * add or remove memory managers during execution.
  * A memory pool can be managed by more than one memory manager.
  *
- * <h3>Memory Usage Monitoring</h3>
+ * <h2>Memory Usage Monitoring</h2>
  *
  * Memory usage is a very important monitoring attribute for the memory system.
  * The memory usage, for example, could indicate:
@@ -131,7 +131,7 @@ import javax.management.openmbean.CompositeData;
  * certain threshold. It is not intended for an application to detect
  * and recover from a low memory condition.
  *
- * <h3>Notifications</h3>
+ * <h2>Notifications</h2>
  *
  * <p>This {@code MemoryMXBean} is a
  * {@link javax.management.NotificationEmitter NotificationEmitter}
@@ -169,7 +169,7 @@ import javax.management.openmbean.CompositeData;
  * MemoryNotificationInfo}.
  *
  * <hr>
- * <h3>NotificationEmitter</h3>
+ * <h2>NotificationEmitter</h2>
  * The {@code MemoryMXBean} object returned by
  * {@link ManagementFactory#getMemoryMXBean} implements
  * the {@link javax.management.NotificationEmitter NotificationEmitter}
@@ -207,9 +207,15 @@ public interface MemoryMXBean extends PlatformManagedObject {
      * Returns the approximate number of objects for which
      * finalization is pending.
      *
+     * @deprecated Finalization has been deprecated for removal.  See
+     * {@link java.lang.Object#finalize} for details.
+     *
      * @return the approximate number objects for which finalization
-     * is pending.
+     * is pending. If this MemoryMXBean contains information about a JVM in
+     * which finalization has been disabled or removed, this method always
+     * returns zero.
      */
+    @Deprecated(since="18")
     public int getObjectPendingFinalizationCount();
 
     /**
@@ -283,9 +289,9 @@ public interface MemoryMXBean extends PlatformManagedObject {
      * @param value {@code true} to enable verbose output;
      *              {@code false} to disable.
      *
-     * @exception  java.lang.SecurityException if a security manager
-     *             exists and the caller does not have
-     *             ManagementPermission("control").
+     * @throws java.lang.SecurityException if a security manager
+     *         exists and the caller does not have
+     *         ManagementPermission("control").
      */
     public void setVerbose(boolean value);
 

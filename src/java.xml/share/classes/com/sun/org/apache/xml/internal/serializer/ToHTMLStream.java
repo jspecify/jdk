@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -30,6 +30,8 @@ import org.xml.sax.SAXException;
 
 import com.sun.org.apache.xml.internal.serializer.utils.MsgKey;
 import com.sun.org.apache.xml.internal.serializer.utils.Utils;
+import javax.xml.transform.ErrorListener;
+import jdk.xml.internal.JdkXmlUtils;
 
 /**
  * This serializer takes a series of SAX or
@@ -40,6 +42,7 @@ import com.sun.org.apache.xml.internal.serializer.utils.Utils;
  * because it is used from another package.
  *
  * @xsl.usage internal
+ * @LastModified: July 2021
  */
 public final class ToHTMLStream extends ToStream
 {
@@ -637,12 +640,15 @@ public final class ToHTMLStream extends ToStream
      */
     public ToHTMLStream()
     {
+        this(null);
+    }
 
-        super();
+    public ToHTMLStream(ErrorListener l)
+    {
+        super(l);
         m_charInfo = m_htmlcharInfo;
         // initialize namespaces
         m_prefixMap = new NamespaceMappings();
-
     }
 
     /** The name of the current element. */
@@ -674,28 +680,10 @@ public final class ToHTMLStream extends ToStream
                 final java.io.Writer writer = m_writer;
                 try
                 {
-                writer.write("<!DOCTYPE html");
-
-                if (null != doctypePublic)
-                {
-                    writer.write(" PUBLIC \"");
-                    writer.write(doctypePublic);
-                    writer.write('"');
-                }
-
-                if (null != doctypeSystem)
-                {
-                    if (null == doctypePublic)
-                        writer.write(" SYSTEM \"");
-                    else
-                        writer.write(" \"");
-
-                    writer.write(doctypeSystem);
-                    writer.write('"');
-                }
-
-                writer.write('>');
-                outputLineSep();
+                    writer.write("<!DOCTYPE html");
+                    writer.write(JdkXmlUtils.getDTDExternalDecl(doctypePublic, doctypeSystem));
+                    writer.write('>');
+                    outputLineSep();
                 }
                 catch(IOException e)
                 {
@@ -718,7 +706,7 @@ public final class ToHTMLStream extends ToStream
     public final void endDocument() throws org.xml.sax.SAXException
     {
         if (m_doIndent) {
-            flushCharactersBuffer();
+            flushCharactersBuffer(false);
         }
         flushPending();
         if (m_doIndent && !m_isprevtext)
@@ -781,7 +769,7 @@ public final class ToHTMLStream extends ToStream
         if (m_doIndent) {
             // will add extra one if having namespace but no matter
             m_childNodeNum++;
-            flushCharactersBuffer();
+            flushCharactersBuffer(false);
         }
         ElemContext elemContext = m_elemContext;
 
@@ -922,7 +910,7 @@ public final class ToHTMLStream extends ToStream
         throws org.xml.sax.SAXException
     {
         if (m_doIndent) {
-            flushCharactersBuffer();
+            flushCharactersBuffer(false);
         }
         // deal with any pending issues
         if (m_cdataTagOpen)
@@ -1049,7 +1037,7 @@ public final class ToHTMLStream extends ToStream
         String name,
         String value,
         ElemDesc elemDesc)
-        throws IOException
+        throws IOException, SAXException
     {
         writer.write(' ');
 
@@ -1373,7 +1361,7 @@ public final class ToHTMLStream extends ToStream
      */
     public void writeAttrString(
         final java.io.Writer writer, String string, String encoding)
-        throws IOException
+        throws IOException, SAXException
     {
         final int end = string.length();
         if (end > m_attrBuff.length)
@@ -1425,40 +1413,34 @@ public final class ToHTMLStream extends ToStream
                 }
                 else
                 {
-                    if (Encodings.isHighUTF16Surrogate(ch))
+                    if (Encodings.isHighUTF16Surrogate(ch) ||
+                            Encodings.isLowUTF16Surrogate(ch))
                     {
-
-                            writeUTF16Surrogate(ch, chars, i, end);
-                            i++; // two input characters processed
-                                 // this increments by one and the for()
-                                 // loop itself increments by another one.
-                    }
-
-                    // The next is kind of a hack to keep from escaping in the case
-                    // of Shift_JIS and the like.
-
-                    /*
-                    else if ((ch < m_maxCharacter) && (m_maxCharacter == 0xFFFF)
-                    && (ch != 160))
-                    {
-                    writer.write(ch);  // no escaping in this case
-                    }
-                    else
-                    */
-                    String outputStringForChar = m_charInfo.getOutputStringForChar(ch);
-                    if (null != outputStringForChar)
-                    {
-                        writer.write(outputStringForChar);
-                    }
-                    else if (escapingNotNeeded(ch))
-                    {
-                        writer.write(ch); // no escaping in this case
+                        if (writeUTF16Surrogate(ch, chars, i, end) >= 0) {
+                            // move the index if the low surrogate is consumed
+                            // as writeUTF16Surrogate has written the pair
+                            if (Encodings.isHighUTF16Surrogate(ch)) {
+                                i++;
+                            }
+                        }
                     }
                     else
                     {
-                        writer.write("&#");
-                        writer.write(Integer.toString(ch));
-                        writer.write(';');
+                        String outputStringForChar = m_charInfo.getOutputStringForChar(ch);
+                        if (null != outputStringForChar)
+                        {
+                            writer.write(outputStringForChar);
+                        }
+                        else if (escapingNotNeeded(ch))
+                        {
+                            writer.write(ch); // no escaping in this case
+                        }
+                        else
+                        {
+                            writer.write("&#");
+                            writer.write(Integer.toString(ch));
+                            writer.write(';');
+                        }
                     }
                 }
                 cleanStart = i + 1;
@@ -1641,7 +1623,7 @@ public final class ToHTMLStream extends ToStream
     {
         if (m_doIndent) {
             m_childNodeNum++;
-            flushCharactersBuffer();
+            flushCharactersBuffer(false);
         }
         // Process any pending starDocument and startElement first.
         flushPending();

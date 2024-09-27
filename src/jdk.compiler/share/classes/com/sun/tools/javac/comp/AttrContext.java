@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Scope.WriteableScope;
+import com.sun.tools.javac.comp.DeferredAttr.AttributionMode;
 
 /** Contains information specific to the attribute and enter
  *  passes, to be used in place of the generic field in environments.
@@ -48,9 +49,9 @@ public class AttrContext {
      */
     int staticLevel = 0;
 
-    /** Is this an environment for a this(...) or super(...) call?
+    /** Are we in the 'prologue' part of a constructor, prior to an explicit this()/super()?
      */
-    boolean isSelfCall = false;
+    boolean ctorPrologue = false;
 
     /** Are we evaluating the selector of a `super' or type name?
      */
@@ -61,13 +62,17 @@ public class AttrContext {
      */
     boolean isSerializable = false;
 
+    /** Is this a serializable lambda?
+     */
+    boolean isSerializableLambda = false;
+
     /** Is this a lambda environment?
      */
     boolean isLambda = false;
 
     /** Is this a speculative attribution environment?
      */
-    boolean isSpeculative = false;
+    AttributionMode attributionMode = AttributionMode.FULL;
 
     /**
      *  Is this an attribution environment for an anonymous class instantiated using <> ?
@@ -82,6 +87,10 @@ public class AttrContext {
     /** Indicate if the type being visited is a service implementation
      */
     boolean visitingServiceImplementation = false;
+
+    /** Indicate protected access should be unconditionally allowed.
+     */
+    boolean allowProtectedAccess = false;
 
     /** Are arguments to current function applications boxed into an array for varargs?
      */
@@ -101,6 +110,11 @@ public class AttrContext {
      */
     Attr.ResultInfo returnResult = null;
 
+    /** ResultInfo to be used for attributing 'yield' statement expressions
+     * (set by Attr.visitSwitchExpression)
+     */
+    Attr.ResultInfo yieldResult = null;
+
     /** Symbol corresponding to the site of a qualified default super call
      */
     Type defaultSuperCallSite = null;
@@ -118,20 +132,23 @@ public class AttrContext {
         AttrContext info = new AttrContext();
         info.scope = scope;
         info.staticLevel = staticLevel;
-        info.isSelfCall = isSelfCall;
+        info.ctorPrologue = ctorPrologue;
         info.selectSuper = selectSuper;
         info.pendingResolutionPhase = pendingResolutionPhase;
         info.lint = lint;
         info.enclVar = enclVar;
         info.returnResult = returnResult;
+        info.yieldResult = yieldResult;
         info.defaultSuperCallSite = defaultSuperCallSite;
         info.isSerializable = isSerializable;
         info.isLambda = isLambda;
-        info.isSpeculative = isSpeculative;
+        info.isSerializableLambda = isSerializableLambda;
+        info.attributionMode = attributionMode;
         info.isAnonymousDiamond = isAnonymousDiamond;
         info.isNewClass = isNewClass;
         info.preferredTreeForDiagnostics = preferredTreeForDiagnostics;
         info.visitingServiceImplementation = visitingServiceImplementation;
+        info.allowProtectedAccess = allowProtectedAccess;
         return info;
     }
 

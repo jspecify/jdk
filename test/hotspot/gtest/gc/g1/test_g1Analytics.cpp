@@ -23,13 +23,13 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/g1/g1Predictions.hpp"
 #include "gc/g1/g1Analytics.hpp"
+#include "gc/g1/g1Predictions.hpp"
 #include "unittest.hpp"
 
 TEST_VM(G1Analytics, is_initialized) {
   G1Predictions p(0.888888); // the actual sigma value doesn't matter
   G1Analytics a(&p);
-  ASSERT_EQ(a.recent_avg_pause_time_ratio(), 0.0);
-  ASSERT_EQ(a.last_pause_time_ratio(), 0.0);
+  ASSERT_EQ(a.long_term_pause_time_ratio(), 0.0);
+  ASSERT_EQ(a.short_term_pause_time_ratio(), 0.0);
 }

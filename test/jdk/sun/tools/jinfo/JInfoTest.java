@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 import java.io.IOException;
 
 import jdk.test.lib.JDKToolLauncher;
+import jdk.test.lib.Utils;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.apps.LingeredApp;
@@ -59,17 +60,20 @@ public class JInfoTest {
         LingeredApp app1 = new JInfoTestLingeredApp();
         LingeredApp app2 = new JInfoTestLingeredApp();
         try {
-            ArrayList<String> params = new ArrayList<String>();
-            LingeredApp.startApp(params, app1);
-            LingeredApp.startApp(params, app2);
+            LingeredApp.startApp(app1);
+            LingeredApp.startApp(app2);
             OutputAnalyzer output = jinfo("-flag", "MinHeapFreeRatio=1", "JInfoTestLingeredApp");
             output.shouldHaveExitValue(0);
             output = jinfo("-flag", "MinHeapFreeRatio", "JInfoTestLingeredApp");
             output.shouldHaveExitValue(0);
             documentMatch(output.getStdout(), ".*MinHeapFreeRatio=1.*MinHeapFreeRatio=1.*");
         } finally {
-            JInfoTestLingeredApp.stopApp(app1);
-            JInfoTestLingeredApp.stopApp(app2);
+            // LingeredApp.stopApp can throw an exception
+            try {
+                JInfoTestLingeredApp.stopApp(app1);
+            } finally {
+                JInfoTestLingeredApp.stopApp(app2);
+            }
         }
     }
 
@@ -84,16 +88,19 @@ public class JInfoTest {
         LingeredApp app1 = new JInfoTestLingeredApp();
         LingeredApp app2 = new JInfoTestLingeredApp();
         try {
-            ArrayList<String> params = new ArrayList<String>();
-            LingeredApp.startApp(params, app1);
-            LingeredApp.startApp(params, app2);
+            LingeredApp.startApp(app1);
+            LingeredApp.startApp(app2);
             OutputAnalyzer output = jinfo("JInfoTestLingeredApp");
             output.shouldHaveExitValue(0);
             // "Runtime Environment" written once per proc
             documentMatch(output.getStdout(), ".*Runtime Environment.*Runtime Environment.*");
         } finally {
-            JInfoTestLingeredApp.stopApp(app1);
-            JInfoTestLingeredApp.stopApp(app2);
+            // LingeredApp.stopApp can throw an exception
+            try {
+                JInfoTestLingeredApp.stopApp(app1);
+            } finally {
+                JInfoTestLingeredApp.stopApp(app2);
+            }
         }
     }
 
@@ -106,6 +113,7 @@ public class JInfoTest {
 
     private static OutputAnalyzer jinfo(String... toolArgs) throws Exception {
         JDKToolLauncher launcher = JDKToolLauncher.createUsingTestJDK("jinfo");
+        launcher.addVMArgs(Utils.getTestJavaOpts());
         if (toolArgs != null) {
             for (String toolArg : toolArgs) {
                 launcher.addToolArg(toolArg);
@@ -122,4 +130,3 @@ public class JInfoTest {
 // Sometime there is LingeredApp's from other test still around
 class JInfoTestLingeredApp extends LingeredApp {
 }
-

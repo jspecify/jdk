@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,17 +34,16 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @build nsk.jdi.StackFrame.getArgumentValues.getArgumentValues002.getArgumentValues002
  *        nsk.jdi.StackFrame.getArgumentValues.getArgumentValues002.getArgumentValues002a
- * @run main/othervm PropertyResolvingWrapper
+ * @run driver
  *      nsk.jdi.StackFrame.getArgumentValues.getArgumentValues002.getArgumentValues002
  *      -verbose
  *      -arch=${os.family}-${os.simpleArch}
  *      -waittime=5
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
- *      "-debugee.vmkeys=${test.vm.opts} ${test.java.opts}"
+ *      -debugee.vmkeys="${test.vm.opts} ${test.java.opts}"
  */
 
 package nsk.jdi.StackFrame.getArgumentValues.getArgumentValues002;
@@ -64,7 +63,10 @@ import nsk.share.jdi.*;
  */
 public class getArgumentValues002 extends TestDebuggerType2 {
     public static void main(String argv[]) {
-        System.exit(run(argv, System.out) + Consts.JCK_STATUS_BASE);
+        int result = run(argv,System.out);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run(String argv[], PrintStream out) {

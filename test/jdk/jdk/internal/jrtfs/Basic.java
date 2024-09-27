@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,13 @@
 
 /*
  * @test
+ * @bug 8141521 8216553 8266291 8290047
  * @summary Basic test of jrt file system provider
  * @run testng Basic
  */
 
 import java.io.InputStream;
+import java.io.IOError;
 import java.io.IOException;
 import java.io.DataInputStream;
 import java.nio.file.DirectoryStream;
@@ -243,22 +245,30 @@ public class Basic {
         }
     }
 
-    @DataProvider(name = "topLevelPkgDirs")
-    private Object[][] topLevelPkgDirs() {
+    @DataProvider(name = "topLevelNonExistingDirs")
+    private Object[][] topLevelNonExistingDirs() {
         return new Object[][] {
             { "/java/lang" },
             { "java/lang"  },
             { "/java/util" },
             { "java/util"  },
+            { "/modules/modules"  },
+            { "/modules/modules/"  },
+            { "/modules/modules/java.base"  },
+            { "/modules/modules/java.base/"  },
+            { "/modules/modules/java.base/java/lang/Object.class"  },
+            { "/modules/modules/javax.scripting"  },
+            { "/modules/modules/javax.scripting/"  },
+            { "/modules/modules/javax.scripting/javax/script/ScriptEngine.class"  },
         };
     }
 
-    @Test(dataProvider = "topLevelPkgDirs")
+    @Test(dataProvider = "topLevelNonExistingDirs")
     public void testNotExists(String path) throws Exception {
         FileSystem fs = FileSystems.getFileSystem(URI.create("jrt:/"));
         Path dir = fs.getPath(path);
 
-        // package directories should not be there at top level
+        // These directories should not be there at top level
         assertTrue(Files.notExists(dir));
     }
 
@@ -271,15 +281,58 @@ public class Basic {
         Path top = fs.getPath("/");
         try (Stream<Path> stream = Files.walk(top)) {
             stream.forEach(path -> {
-                URI u = path.toUri();
+                String pathStr = path.toAbsolutePath().toString();
+                URI u = null;
+                try {
+                    u = path.toUri();
+                } catch (IOError e) {
+                    assertFalse(pathStr.startsWith("/modules"));
+                    return;
+                }
+
                 assertTrue(u.getScheme().equalsIgnoreCase("jrt"));
                 assertFalse(u.isOpaque());
                 assertTrue(u.getAuthority() == null);
-                assertEquals(u.getPath(), path.toAbsolutePath().toString());
+
+                pathStr = pathStr.substring("/modules".length());
+                if (pathStr.isEmpty()) {
+                    pathStr = "/";
+                }
+                assertEquals(u.getPath(), pathStr);
                 Path p = Paths.get(u);
                 assertEquals(p, path);
             });
         }
+    }
+
+    // @bug 8216553: JrtFIleSystemProvider getPath(URI) omits /modules element from file path
+    @Test
+    public void testPathToURIConversion() throws Exception {
+        var uri = URI.create("jrt:/java.base/module-info.class");
+        var path = Path.of(uri);
+        assertTrue(Files.exists(path));
+
+        uri = URI.create("jrt:/java.base/../java.base/module-info.class");
+        boolean seenIAE = false;
+        try {
+            Path.of(uri);
+        } catch (IllegalArgumentException iaExp) {
+            seenIAE = true;
+        }
+        assertTrue(seenIAE);
+
+        // check round-trip
+        var jrtfs = FileSystems.getFileSystem(URI.create("jrt:/"));
+        assertTrue(Files.exists(jrtfs.getPath(path.toString())));
+
+        path = jrtfs.getPath("/modules/../modules/java.base/");
+        boolean seenIOError = false;
+        try {
+            path.toUri();
+        } catch (IOError ioError) {
+            seenIOError = true;
+        }
+        assertTrue(seenIOError);
     }
 
     @Test
@@ -563,7 +616,6 @@ public class Basic {
             { "java.lang" },
             { "java.util" },
             { "java.nio"  },
-            { "jdk.nashorn.api.scripting" }
         };
     }
 
@@ -588,7 +640,6 @@ public class Basic {
             { "/packages/javax/java.xml"  },
             { "/packages/javax/java.management"  },
             { "/packages/java.util/java.base" },
-            { "/packages/jdk.nashorn.api.scripting/jdk.scripting.nashorn" },
         };
     }
 
@@ -607,7 +658,6 @@ public class Basic {
         return new Object[][] {
             { "java.base" },
             { "java.sql" },
-            { "jdk.scripting.nashorn" },
         };
     }
 
@@ -624,7 +674,6 @@ public class Basic {
         return new Object[][] {
             { "/modules/java.base/java/lang" },
             { "/modules/java.base/java/util/Vector.class" },
-            { "/modules/jdk.scripting.nashorn/jdk/nashorn" },
             { "/packages/java.lang/java.base/java/lang" },
             { "/packages/java.util/java.base/java/util/Vector.class" },
         };
@@ -715,6 +764,30 @@ public class Basic {
         Path classFile = fs.getPath(path);
 
         assertTrue(Files.size(classFile) > 0L);
+    }
+
+    // @bug 8266291: (jrtfs) Calling Files.exists may break the JRT filesystem
+    @Test
+    public void fileExistsCallBreaksFileSystem() throws Exception {
+        Path p = FileSystems.getFileSystem(URI.create("jrt:/")).getPath("modules");
+        boolean wasDirectory = Files.isDirectory(p);
+        Path m = p.resolve("modules");
+        Files.exists(m);
+        assertTrue(wasDirectory == Files.isDirectory(p));
+    }
+
+    @DataProvider(name = "badSyntaxAndPattern")
+    private Object[][] badSyntaxAndPattern() {
+        return new Object[][] {
+            { ":glob"},
+        };
+    }
+
+    @Test(dataProvider = "badSyntaxAndPattern",
+          expectedExceptions = IllegalArgumentException.class)
+    public void badSyntaxAndPatternTest(String syntaxAndPattern) {
+        FileSystem fs = FileSystems.getFileSystem(URI.create("jrt:/"));
+        PathMatcher pm = fs.getPathMatcher(syntaxAndPattern);
     }
 }
 

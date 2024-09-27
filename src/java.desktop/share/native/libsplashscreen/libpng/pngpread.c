@@ -29,10 +29,10 @@
  * However, the following notice accompanied the original version of this
  * file and, per its terms, should not be removed:
  *
- * Last changed in libpng 1.6.35 [July 15, 2018]
+ * Copyright (c) 2018-2024 Cosmin Truta
  * Copyright (c) 1998-2002,2004,2006-2018 Glenn Randers-Pehrson
- * (Version 0.96 Copyright (c) 1996, 1997 Andreas Dilger)
- * (Version 0.88 Copyright (c) 1995, 1996 Guy Eric Schalnat, Group 42, Inc.)
+ * Copyright (c) 1996-1997 Andreas Dilger
+ * Copyright (c) 1995-1996 Guy Eric Schalnat, Group 42, Inc.
  *
  * This code is released under the libpng license.
  * For conditions of distribution and use, see the disclaimer
@@ -173,10 +173,10 @@ png_push_read_sig(png_structrp png_ptr, png_inforp info_ptr)
        num_to_check);
    png_ptr->sig_bytes = (png_byte)(png_ptr->sig_bytes + num_to_check);
 
-   if (png_sig_cmp(info_ptr->signature, num_checked, num_to_check))
+   if (png_sig_cmp(info_ptr->signature, num_checked, num_to_check) != 0)
    {
       if (num_checked < 4 &&
-          png_sig_cmp(info_ptr->signature, num_checked, num_to_check - 4))
+          png_sig_cmp(info_ptr->signature, num_checked, num_to_check - 4) != 0)
          png_error(png_ptr, "Not a PNG file");
 
       else
@@ -320,6 +320,14 @@ png_push_read_chunk(png_structrp png_ptr, png_inforp info_ptr)
    {
       PNG_PUSH_SAVE_BUFFER_IF_FULL
       png_handle_cHRM(png_ptr, info_ptr, png_ptr->push_length);
+   }
+
+#endif
+#ifdef PNG_READ_eXIf_SUPPORTED
+   else if (png_ptr->chunk_name == png_eXIf)
+   {
+      PNG_PUSH_SAVE_BUFFER_IF_FULL
+      png_handle_eXIf(png_ptr, info_ptr, png_ptr->push_length);
    }
 
 #endif
@@ -1000,20 +1008,20 @@ png_read_push_finish_row(png_structrp png_ptr)
    /* Arrays to facilitate easy interlacing - use pass (0 - 6) as index */
 
    /* Start of interlace block */
-   static PNG_CONST png_byte png_pass_start[] = {0, 4, 0, 2, 0, 1, 0};
+   static const png_byte png_pass_start[] = {0, 4, 0, 2, 0, 1, 0};
 
    /* Offset to next interlace block */
-   static PNG_CONST png_byte png_pass_inc[] = {8, 8, 4, 4, 2, 2, 1};
+   static const png_byte png_pass_inc[] = {8, 8, 4, 4, 2, 2, 1};
 
    /* Start of interlace block in the y direction */
-   static PNG_CONST png_byte png_pass_ystart[] = {0, 0, 4, 0, 2, 0, 1};
+   static const png_byte png_pass_ystart[] = {0, 0, 4, 0, 2, 0, 1};
 
    /* Offset to next interlace block in the y direction */
-   static PNG_CONST png_byte png_pass_yinc[] = {8, 8, 8, 4, 4, 2, 2};
+   static const png_byte png_pass_yinc[] = {8, 8, 8, 4, 4, 2, 2};
 
    /* Height of interlace block.  This is not currently used - if you need
     * it, uncomment it here and in png.h
-   static PNG_CONST png_byte png_pass_height[] = {8, 8, 4, 4, 2, 2, 1};
+   static const png_byte png_pass_height[] = {8, 8, 4, 4, 2, 2, 1};
    */
 #endif
 
@@ -1117,7 +1125,7 @@ png_voidp PNGAPI
 png_get_progressive_ptr(png_const_structrp png_ptr)
 {
    if (png_ptr == NULL)
-      return (NULL);
+      return NULL;
 
    return png_ptr->io_ptr;
 }

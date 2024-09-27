@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,8 @@
  * questions.
  */
 
+import jdk.internal.javac.ParticipatesInPreview;
+
 /**
  * Defines tools for manipulating Java Archive (JAR) files,
  * including the <em>{@index jar jar tool}</em> and
@@ -36,17 +38,21 @@
  * or the {@linkplain java.util.ServiceLoader service loader} with the name
  * {@code "jar"}.
  *
- * <dl style="font-family:'DejaVu Sans', Arial, Helvetica, sans serif">
- * <dt class="simpleTagLabel">Tool Guides:
- * <dd>{@extLink jar_tool_reference jar},
- *     {@extLink jarsigner_tool_reference jarsigner}
- * </dl>
+ * @toolGuide jar
+ * @toolGuide jarsigner
+ *
+ * @provides java.util.spi.ToolProvider
+ *     Use {@link java.util.spi.ToolProvider#findFirst ToolProvider.findFirst("jar")}
+ *     to obtain an instance of a {@code ToolProvider} that provides the equivalent
+ *     of command-line access to the {@code jar} tool.
  *
  * @moduleGraph
  * @since 9
  */
+@ParticipatesInPreview
 module jdk.jartool {
-    exports com.sun.jarsigner;
+    requires jdk.internal.opt;
+
     exports jdk.security.jarsigner;
 
     provides java.util.spi.ToolProvider with

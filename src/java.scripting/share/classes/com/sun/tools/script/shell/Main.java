@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -114,7 +114,7 @@ public class Main {
                     System.setProperty(value.substring(0, eq),
                             value.substring(eq + 1));
                 } else {
-                    if (!value.equals("")) {
+                    if (!value.isEmpty()) {
                         System.setProperty(value, "");
                     } else {
                         // do not allow empty property name
@@ -540,7 +540,9 @@ public class Main {
             name = name + "/";
         }
         try {
-            return new URL("file", "", name);
+            @SuppressWarnings("deprecation")
+            var result = new URL("file", "", name);
+            return result;
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException("file");
         }

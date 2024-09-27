@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,18 +44,16 @@
  *    First time, with "setVerboseMode=yes" agent mode. Second
  *    time, with "setVerboseMode=no" agent mode and with
  *    "-verbose:gc" VM option. In both cases the output is
- *    searched for 'Full GC' string, unless ExplicitGCInvokesConcurrent
- *    is enabled and G1 or CMS GCs are enbled. If ExplicitGCInvokesConcurrent and
- *    either G1 or CMS GCs are enbled the test searches for 'GC' string in output.
+ *    searched for 'Pause Full' string, unless ExplicitGCInvokesConcurrent
+ *    is enabled and G1 is enabled. If ExplicitGCInvokesConcurrent and
+ *    G1 is enabled the test searches for 'GC' string in output.
  *    The test fails if this string is not found in the output.
  * COMMENTS
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/native
  *      -Xbootclasspath/a:.
  *      -XX:+UnlockDiagnosticVMOptions
@@ -63,24 +61,26 @@
  *      TestDriver
  */
 
-import sun.hotspot.code.Compiler;
+import jdk.test.whitebox.code.Compiler;
+import jdk.test.whitebox.WhiteBox;
+import jdk.test.whitebox.gc.GC;
 
 public class TestDriver {
     public static void main(String[] args) throws Exception {
-        sun.hotspot.WhiteBox wb = sun.hotspot.WhiteBox.getWhiteBox();
+        WhiteBox wb = WhiteBox.getWhiteBox();
         Boolean isExplicitGCInvokesConcurrentOn = wb.getBooleanVMFlag("ExplicitGCInvokesConcurrent");
-        Boolean isUseG1GCon = wb.getBooleanVMFlag("UseG1GC");
-        Boolean isUseConcMarkSweepGCon = wb.getBooleanVMFlag("UseConcMarkSweepGC");
-        Boolean isUseZGCon = wb.getBooleanVMFlag("UseZGC");
-        Boolean isUseEpsilonGCon = wb.getBooleanVMFlag("UseEpsilonGC");
+        boolean isUseG1GCon = GC.G1.isSelected();
+        boolean isUseZGCon = GC.Z.isSelected();
+        boolean isShenandoahGCon = GC.Shenandoah.isSelected();
+        boolean isUseEpsilonGCon = GC.Epsilon.isSelected();
 
         if (Compiler.isGraalEnabled() &&
-            (isUseConcMarkSweepGCon || isUseZGCon || isUseEpsilonGCon)) {
+            (isUseZGCon || isUseEpsilonGCon || isShenandoahGCon)) {
             return; // Graal does not support these GCs
         }
 
         String keyPhrase;
-        if ((isExplicitGCInvokesConcurrentOn && (isUseG1GCon || isUseConcMarkSweepGCon)) || isUseZGCon) {
+        if ((isExplicitGCInvokesConcurrentOn && isUseG1GCon) || isUseZGCon || isShenandoahGCon) {
             keyPhrase = "GC";
         } else {
             keyPhrase = "Pause Full";
@@ -89,8 +89,8 @@ public class TestDriver {
         nsk.jvmti.scenarios.general_functions.GF08.gf08t.main(new String[] {
                 "gf08t001",
                 nsk.jvmti.scenarios.general_functions.GF08.gf08t001.class.getName(),
-                keyPhrase,
-                "gc"});
+                "gc",
+                keyPhrase});
     }
 }
 

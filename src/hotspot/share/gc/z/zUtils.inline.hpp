@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,27 +24,26 @@
 #ifndef SHARE_GC_Z_ZUTILS_INLINE_HPP
 #define SHARE_GC_Z_ZUTILS_INLINE_HPP
 
-#include "gc/z/zOop.inline.hpp"
 #include "gc/z/zUtils.hpp"
+
+#include "gc/z/zAddress.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/os.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-inline size_t ZUtils::round_up_power_of_2(size_t value) {
-  assert(value != 0, "Invalid value");
+inline uintptr_t ZUtils::alloc_aligned_unfreeable(size_t alignment, size_t size) {
+  const size_t padded_size = size + (alignment - 1);
+  void* const addr = os::malloc(padded_size, mtGC);
+  void* const aligned_addr = align_up(addr, alignment);
 
-  if (is_power_of_2(value)) {
-    return value;
-  }
+  memset(aligned_addr, 0, size);
 
-  return (size_t)1 << (log2_intptr(value) + 1);
-}
-
-inline size_t ZUtils::round_down_power_of_2(size_t value) {
-  assert(value != 0, "Invalid value");
-  return (size_t)1 << log2_intptr(value);
+  // Since free expects pointers returned by malloc, aligned_addr cannot be
+  // freed since it is most likely not the same as addr after alignment.
+  return (uintptr_t)aligned_addr;
 }
 
 inline size_t ZUtils::bytes_to_words(size_t size_in_bytes) {
@@ -56,12 +55,18 @@ inline size_t ZUtils::words_to_bytes(size_t size_in_words) {
   return size_in_words << LogBytesPerWord;
 }
 
-inline size_t ZUtils::object_size(uintptr_t addr) {
-  return words_to_bytes(ZOop::to_oop(addr)->size());
+inline size_t ZUtils::object_size(zaddress addr) {
+  return words_to_bytes(to_oop(addr)->size());
 }
 
-inline void ZUtils::object_copy(uintptr_t from, uintptr_t to, size_t size) {
-  Copy::aligned_disjoint_words((HeapWord*)from, (HeapWord*)to, bytes_to_words(size));
+inline void ZUtils::object_copy_disjoint(zaddress from, zaddress to, size_t size) {
+  Copy::aligned_disjoint_words((HeapWord*)untype(from), (HeapWord*)untype(to), bytes_to_words(size));
+}
+
+inline void ZUtils::object_copy_conjoint(zaddress from, zaddress to, size_t size) {
+  if (from != to) {
+    Copy::aligned_conjoint_words((HeapWord*)untype(from), (HeapWord*)untype(to), bytes_to_words(size));
+  }
 }
 
 #endif // SHARE_GC_Z_ZUTILS_INLINE_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,10 @@
 
 #include "precompiled.hpp"
 #include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/classLoaderStats.hpp"
+#include "memory/classLoaderMetaspace.hpp"
+#include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -42,55 +45,60 @@ public:
   }
 };
 
-
 void ClassLoaderStatsClosure::do_cld(ClassLoaderData* cld) {
-  oop cl = cld->class_loader();
-  ClassLoaderStats* cls;
+  // Class loaders are not kept alive so this closure must only be
+  // used during a safepoint.
+  assert_at_safepoint();
+  oop cl = cld->class_loader_no_keepalive();
 
   // The hashtable key is the ClassLoader oop since we want to account
-  // for "real" classes and anonymous classes together
-  ClassLoaderStats** cls_ptr = _stats->get(cl);
-  if (cls_ptr == NULL) {
-    cls = new ClassLoaderStats();
-    _stats->put(cl, cls);
+  // for "real" classes and hidden classes together
+  bool added = false;
+  ClassLoaderStats* cls = _stats->put_if_absent(cl, &added);
+  if (added) {
+    cls->_class_loader = cl;
     _total_loaders++;
-  } else {
-    cls = *cls_ptr;
   }
+  assert(cls->_class_loader == cl, "Sanity");
 
-  if (!cld->is_anonymous()) {
+  if (!cld->has_class_mirror_holder()) {
     cls->_cld = cld;
   }
 
-  cls->_class_loader = cl;
-  if (cl != NULL) {
-    cls->_parent = java_lang_ClassLoader::parent(cl);
+  if (cl != nullptr) {
+    cls->_parent = java_lang_ClassLoader::parent_no_keepalive(cl);
     addEmptyParents(cls->_parent);
   }
 
   ClassStatsClosure csc;
   cld->classes_do(&csc);
-  if(cld->is_anonymous()) {
-    cls->_anon_classes_count += csc._num_classes;
+  bool is_hidden = false;
+  if(cld->has_class_mirror_holder()) {
+    // If cld has a class holder then it must be hidden.
+    // Either way, count it as a hidden class.
+    cls->_hidden_classes_count += csc._num_classes;
   } else {
     cls->_classes_count = csc._num_classes;
   }
   _total_classes += csc._num_classes;
 
   ClassLoaderMetaspace* ms = cld->metaspace_or_null();
-  if (ms != NULL) {
-    if(cld->is_anonymous()) {
-      cls->_anon_chunk_sz += ms->allocated_chunks_bytes();
-      cls->_anon_block_sz += ms->allocated_blocks_bytes();
+  if (ms != nullptr) {
+    size_t used_words, capacity_words;
+    ms->usage_numbers(&used_words, nullptr, &capacity_words);
+    size_t used_bytes = used_words * BytesPerWord;
+    size_t capacity_bytes = capacity_words * BytesPerWord;
+    if(cld->has_class_mirror_holder()) {
+      cls->_hidden_chunk_sz += capacity_bytes;
+      cls->_hidden_block_sz += used_bytes;
     } else {
-      cls->_chunk_sz = ms->allocated_chunks_bytes();
-      cls->_block_sz = ms->allocated_blocks_bytes();
+      cls->_chunk_sz = capacity_bytes;
+      cls->_block_sz = used_bytes;
     }
-    _total_chunk_sz += ms->allocated_chunks_bytes();
-    _total_block_sz += ms->allocated_blocks_bytes();
+    _total_chunk_sz += capacity_bytes;
+    _total_block_sz += used_bytes;
   }
 }
-
 
 // Handles the difference in pointer width on 32 and 64 bit platforms
 #ifdef _LP64
@@ -100,25 +108,25 @@ void ClassLoaderStatsClosure::do_cld(ClassLoaderData* cld) {
 #endif
 
 
-bool ClassLoaderStatsClosure::do_entry(oop const& key, ClassLoaderStats* const& cls) {
-  Klass* class_loader_klass = (cls->_class_loader == NULL ? NULL : cls->_class_loader->klass());
-  Klass* parent_klass = (cls->_parent == NULL ? NULL : cls->_parent->klass());
+bool ClassLoaderStatsClosure::do_entry(oop const& key, ClassLoaderStats const& cls) {
+  Klass* class_loader_klass = (cls._class_loader == nullptr ? nullptr : cls._class_loader->klass());
+  Klass* parent_klass = (cls._parent == nullptr ? nullptr : cls._parent->klass());
 
   _out->print(INTPTR_FORMAT "  " INTPTR_FORMAT "  " INTPTR_FORMAT "  " UINTX_FORMAT_W(6) "  " SIZE_FORMAT_W(8) "  " SIZE_FORMAT_W(8) "  ",
-      p2i(class_loader_klass), p2i(parent_klass), p2i(cls->_cld),
-      cls->_classes_count,
-      cls->_chunk_sz, cls->_block_sz);
-  if (class_loader_klass != NULL) {
+      p2i(class_loader_klass), p2i(parent_klass), p2i(cls._cld),
+      cls._classes_count,
+      cls._chunk_sz, cls._block_sz);
+  if (class_loader_klass != nullptr) {
     _out->print("%s", class_loader_klass->external_name());
   } else {
     _out->print("<boot class loader>");
   }
   _out->cr();
-  if (cls->_anon_classes_count > 0) {
-    _out->print_cr(SPACE SPACE SPACE "                                    " UINTX_FORMAT_W(6) "  " SIZE_FORMAT_W(8) "  " SIZE_FORMAT_W(8) "   + unsafe anonymous classes",
+  if (cls._hidden_classes_count > 0) {
+    _out->print_cr(SPACE SPACE SPACE "                                    " UINTX_FORMAT_W(6) "  " SIZE_FORMAT_W(8) "  " SIZE_FORMAT_W(8) "   + hidden classes",
         "", "", "",
-        cls->_anon_classes_count,
-        cls->_anon_chunk_sz, cls->_anon_block_sz);
+        cls._hidden_classes_count,
+        cls._hidden_chunk_sz, cls._hidden_block_sz);
   }
   return true;
 }
@@ -139,26 +147,25 @@ void ClassLoaderStatsClosure::print() {
 
 
 void ClassLoaderStatsClosure::addEmptyParents(oop cl) {
-  while (cl != NULL && java_lang_ClassLoader::loader_data(cl) == NULL) {
+  while (cl != nullptr && java_lang_ClassLoader::loader_data_acquire(cl) == nullptr) {
     // This classloader has not loaded any classes
-    ClassLoaderStats** cls_ptr = _stats->get(cl);
-    if (cls_ptr == NULL) {
-      // It does not exist in our table - add it
-      ClassLoaderStats* cls = new ClassLoaderStats();
+    bool added = false;
+    ClassLoaderStats* cls = _stats->put_if_absent(cl, &added);
+    if (added) {
       cls->_class_loader = cl;
-      cls->_parent = java_lang_ClassLoader::parent(cl);
-      _stats->put(cl, cls);
+      cls->_parent = java_lang_ClassLoader::parent_no_keepalive(cl);
       _total_loaders++;
     }
+    assert(cls->_class_loader == cl, "Sanity");
 
-    cl = java_lang_ClassLoader::parent(cl);
+    cl = java_lang_ClassLoader::parent_no_keepalive(cl);
   }
 }
 
 
 void ClassLoaderStatsVMOperation::doit() {
   ClassLoaderStatsClosure clsc (_out);
-  ClassLoaderDataGraph::cld_do(&clsc);
+  ClassLoaderDataGraph::loaded_cld_do(&clsc);
   clsc.print();
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,26 +22,27 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_AGETABLE_HPP
-#define SHARE_VM_GC_SHARED_AGETABLE_HPP
+#ifndef SHARE_GC_SHARED_AGETABLE_HPP
+#define SHARE_GC_SHARED_AGETABLE_HPP
 
-#include "oops/markOop.hpp"
+#include "memory/allocation.hpp"
+#include "oops/markWord.hpp"
 #include "oops/oop.hpp"
-#include "runtime/perfData.hpp"
+#include "runtime/perfDataTypes.hpp"
 
-/* Copyright (c) 1992, 2018, Oracle and/or its affiliates, and Stanford University.
+/* Copyright (c) 1992, 2021, Oracle and/or its affiliates, and Stanford University.
    See the LICENSE file for license information. */
 
 // Age table for adaptive feedback-mediated tenuring (scavenging)
 //
 // Note: all sizes are in oops
 
-class AgeTable {
+class AgeTable: public CHeapObj<mtGC> {
   friend class VMStructs;
 
  public:
   // constants
-  enum { table_size = markOopDesc::max_age + 1 };
+  enum { table_size = markWord::max_age + 1 };
 
   // instance variables
   size_t sizes[table_size];
@@ -53,25 +54,30 @@ class AgeTable {
   // clear table
   void clear();
 
+#ifndef PRODUCT
+  // check whether it's clear
+  bool is_clear() const;
+#endif // !PRODUCT
+
   // add entry
   inline void add(oop p, size_t oop_size);
 
   void add(uint age, size_t oop_size) {
-    assert(age > 0 && age < table_size, "invalid age of object");
+    assert(age < table_size, "invalid age of object");
     sizes[age] += oop_size;
   }
 
-  // Merge another age table with the current one.  Used
-  // for parallel young generation gc.
-  void merge(AgeTable* subTable);
+  // Merge another age table with the current one.
+  void merge(const AgeTable* subTable);
 
   // Calculate new tenuring threshold based on age information.
   uint compute_tenuring_threshold(size_t desired_survivor_size);
-  void print_age_table(uint tenuring_threshold);
+  void print_age_table();
+  void print_on(outputStream* st);
 
  private:
-
+  bool _use_perf_data;
   PerfVariable* _perf_sizes[table_size];
 };
 
-#endif // SHARE_VM_GC_SHARED_AGETABLE_HPP
+#endif // SHARE_GC_SHARED_AGETABLE_HPP

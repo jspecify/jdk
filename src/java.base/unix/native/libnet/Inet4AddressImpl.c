@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,9 +36,11 @@
 #include "net_util.h"
 
 #include "java_net_Inet4AddressImpl.h"
+#include "java_net_spi_InetAddressResolver_LookupPolicy.h"
 
 #if defined(MACOSX)
-extern jobjectArray lookupIfLocalhost(JNIEnv *env, const char *hostname, jboolean includeV6);
+extern jobjectArray lookupIfLocalhost(JNIEnv *env, const char *hostname, jboolean includeV6,
+                                      int addressesOrder);
 #endif
 
 #define SET_NONBLOCKING(fd) {       \
@@ -64,27 +66,8 @@ Java_java_net_Inet4AddressImpl_getLocalHostName(JNIEnv *env, jobject this) {
     if (gethostname(hostname, sizeof(hostname)) != 0) {
         strcpy(hostname, "localhost");
     } else {
-#if defined(__solaris__)
-        // try to resolve hostname via nameservice
-        // if it is known but getnameinfo fails, hostname will still be the
-        // value from gethostname
-        struct addrinfo hints, *res;
-
         // make sure string is null-terminated
         hostname[NI_MAXHOST] = '\0';
-        memset(&hints, 0, sizeof(hints));
-        hints.ai_flags = AI_CANONNAME;
-        hints.ai_family = AF_INET;
-
-        if (getaddrinfo(hostname, NULL, &hints, &res) == 0) {
-            getnameinfo(res->ai_addr, res->ai_addrlen, hostname, sizeof(hostname),
-                        NULL, 0, NI_NAMEREQD);
-            freeaddrinfo(res);
-        }
-#else
-        // make sure string is null-terminated
-        hostname[NI_MAXHOST] = '\0';
-#endif
     }
     return (*env)->NewStringUTF(env, hostname);
 }
@@ -117,7 +100,7 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
         JNU_ThrowNullPointerException(env, "host argument is null");
         return NULL;
     }
-    hostname = JNU_GetStringPlatformChars(env, host, JNI_FALSE);
+    hostname = JNU_GetStringPlatformCharsStrict(env, host, NULL);
     CHECK_NULL_RETURN(hostname, NULL);
 
     // try once, with our static buffer
@@ -130,7 +113,9 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
     if (error) {
 #if defined(MACOSX)
         // If getaddrinfo fails try getifaddrs, see bug 8170910.
-        ret = lookupIfLocalhost(env, hostname, JNI_FALSE);
+        // java_net_spi_InetAddressResolver_LookupPolicy_IPV4_FIRST and no ordering is ok
+        // here since only AF_INET addresses will be returned.
+        ret = lookupIfLocalhost(env, hostname, JNI_FALSE, java_net_spi_InetAddressResolver_LookupPolicy_IPV4);
         if (ret != NULL || (*env)->ExceptionCheck(env)) {
             goto cleanupAndReturn;
         }
@@ -218,7 +203,7 @@ cleanupAndReturn:
 /*
  * Class:     java_net_Inet4AddressImpl
  * Method:    getHostByAddr
- * Signature: (I)Ljava/lang/String;
+ * Signature: ([B)Ljava/lang/String;
  *
  * Theoretically the UnknownHostException could be enriched with gai error
  * information. But as it is silently ignored anyway, there's no need for this.
@@ -278,7 +263,11 @@ tcp_ping4(JNIEnv *env, SOCKETADDRESS *sa, SOCKETADDRESS *netif, jint timeout,
 
     // set TTL
     if (ttl > 0) {
-        setsockopt(fd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
+        if (setsockopt(fd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl)) < 0) {
+            NET_ThrowNew(env, errno, "setsockopt IP_TTL failed");
+            close(fd);
+            return JNI_FALSE;
+        }
     }
 
     // A network interface was specified, so let's bind to it.
@@ -294,7 +283,7 @@ tcp_ping4(JNIEnv *env, SOCKETADDRESS *sa, SOCKETADDRESS *netif, jint timeout,
     SET_NONBLOCKING(fd);
 
     sa->sa4.sin_port = htons(7); // echo port
-    connect_rv = NET_Connect(fd, &sa->sa, sizeof(struct sockaddr_in));
+    connect_rv = connect(fd, &sa->sa, sizeof(struct sockaddr_in));
 
     // connection established or refused immediately, either way it means
     // we were able to reach the host!
@@ -361,14 +350,22 @@ ping4(JNIEnv *env, jint fd, SOCKETADDRESS *sa, SOCKETADDRESS *netif,
     struct ip *ip;
     struct sockaddr_in sa_recv;
     jchar pid;
-    struct timeval tv;
-    size_t plen = ICMP_ADVLENMIN + sizeof(tv);
+    struct timeval tv = { 0, 0 };
+    const size_t plen = ICMP_MINLEN + sizeof(tv);
 
-    setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size)) < 0) {
+        NET_ThrowNew(env, errno, "setsockopt SO_RCVBUF failed");
+        close(fd);
+        return JNI_FALSE;
+    }
 
     // sets the ttl (max number of hops)
     if (ttl > 0) {
-        setsockopt(fd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
+        if (setsockopt(fd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl)) < 0) {
+            NET_ThrowNew(env, errno, "setsockopt IP_TTL failed");
+            close(fd);
+            return JNI_FALSE;
+        }
     }
 
     // a specific interface was specified, so let's bind the socket
@@ -434,7 +431,7 @@ ping4(JNIEnv *env, jint fd, SOCKETADDRESS *sa, SOCKETADDRESS *netif,
                 ip = (struct ip *)recvbuf;
                 hlen = ((jint)(unsigned int)(ip->ip_hl)) << 2;
                 // check if we received enough data
-                if (n < (jint)(hlen + sizeof(struct icmp))) {
+                if (n < (jint)(hlen + plen)) {
                     continue;
                 }
                 icmp = (struct icmp *)(recvbuf + hlen);

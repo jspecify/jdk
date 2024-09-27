@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,8 +49,7 @@ final class P11DSAKeyFactory extends P11KeyFactory {
 
     PublicKey implTranslatePublicKey(PublicKey key) throws InvalidKeyException {
         try {
-            if (key instanceof DSAPublicKey) {
-                DSAPublicKey dsaKey = (DSAPublicKey)key;
+            if (key instanceof DSAPublicKey dsaKey) {
                 DSAParams params = dsaKey.getParams();
                 return generatePublic(
                     dsaKey.getY(),
@@ -75,8 +74,7 @@ final class P11DSAKeyFactory extends P11KeyFactory {
     PrivateKey implTranslatePrivateKey(PrivateKey key)
             throws InvalidKeyException {
         try {
-            if (key instanceof DSAPrivateKey) {
-                DSAPrivateKey dsaKey = (DSAPrivateKey)key;
+            if (key instanceof DSAPrivateKey dsaKey) {
                 DSAParams params = dsaKey.getParams();
                 return generatePrivate(
                     dsaKey.getX(),
@@ -112,7 +110,7 @@ final class P11DSAKeyFactory extends P11KeyFactory {
                         ("Could not create DSA public key", e);
             }
         }
-        if (keySpec instanceof DSAPublicKeySpec == false) {
+        if (!(keySpec instanceof DSAPublicKeySpec)) {
             throw new InvalidKeySpecException("Only DSAPublicKeySpec and "
                 + "X509EncodedKeySpec supported for DSA public keys");
         }
@@ -144,7 +142,7 @@ final class P11DSAKeyFactory extends P11KeyFactory {
                         ("Could not create DSA private key", e);
             }
         }
-        if (keySpec instanceof DSAPrivateKeySpec == false) {
+        if (!(keySpec instanceof DSAPrivateKeySpec)) {
             throw new InvalidKeySpecException("Only DSAPrivateKeySpec and "
                 + "PKCS8EncodedKeySpec supported for DSA private keys");
         }
@@ -210,7 +208,7 @@ final class P11DSAKeyFactory extends P11KeyFactory {
 
     <T extends KeySpec> T implGetPublicKeySpec(P11Key key, Class<T> keySpec,
             Session[] session) throws PKCS11Exception, InvalidKeySpecException {
-        if (DSAPublicKeySpec.class.isAssignableFrom(keySpec)) {
+        if (keySpec.isAssignableFrom(DSAPublicKeySpec.class)) {
             session[0] = token.getObjSession();
             CK_ATTRIBUTE[] attributes = new CK_ATTRIBUTE[] {
                 new CK_ATTRIBUTE(CKA_VALUE),
@@ -218,7 +216,12 @@ final class P11DSAKeyFactory extends P11KeyFactory {
                 new CK_ATTRIBUTE(CKA_SUBPRIME),
                 new CK_ATTRIBUTE(CKA_BASE),
             };
-            token.p11.C_GetAttributeValue(session[0].id(), key.keyID, attributes);
+            long keyID = key.getKeyID();
+            try {
+                token.p11.C_GetAttributeValue(session[0].id(), keyID, attributes);
+            } finally {
+                key.releaseKeyID();
+            }
             KeySpec spec = new DSAPublicKeySpec(
                 attributes[0].getBigInteger(),
                 attributes[1].getBigInteger(),
@@ -234,7 +237,7 @@ final class P11DSAKeyFactory extends P11KeyFactory {
 
     <T extends KeySpec> T implGetPrivateKeySpec(P11Key key, Class<T> keySpec,
             Session[] session) throws PKCS11Exception, InvalidKeySpecException {
-        if (DSAPrivateKeySpec.class.isAssignableFrom(keySpec)) {
+        if (keySpec.isAssignableFrom(DSAPrivateKeySpec.class)) {
             session[0] = token.getObjSession();
             CK_ATTRIBUTE[] attributes = new CK_ATTRIBUTE[] {
                 new CK_ATTRIBUTE(CKA_VALUE),
@@ -242,7 +245,12 @@ final class P11DSAKeyFactory extends P11KeyFactory {
                 new CK_ATTRIBUTE(CKA_SUBPRIME),
                 new CK_ATTRIBUTE(CKA_BASE),
             };
-            token.p11.C_GetAttributeValue(session[0].id(), key.keyID, attributes);
+            long keyID = key.getKeyID();
+            try {
+                token.p11.C_GetAttributeValue(session[0].id(), keyID, attributes);
+            } finally {
+                key.releaseKeyID();
+            }
             KeySpec spec = new DSAPrivateKeySpec(
                 attributes[0].getBigInteger(),
                 attributes[1].getBigInteger(),

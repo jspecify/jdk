@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,12 +39,17 @@ import javax.accessibility.*;
 
 public class AccessibilityListenerList {
     /* A null array to be shared by all empty listener lists */
-    private final static Object[] NULL_ARRAY = new Object[0];
+    private static final Object[] NULL_ARRAY = new Object[0];
 
     /**
      * The list of listener type, listener pairs
      */
     protected transient Object[] listenerList = NULL_ARRAY;
+
+    /**
+     * Constructs an {@code AccessibilityListenerList}.
+     */
+    public AccessibilityListenerList() {}
 
     /**
      * Passes back the event listener list as an array of listener type, listener pairs.

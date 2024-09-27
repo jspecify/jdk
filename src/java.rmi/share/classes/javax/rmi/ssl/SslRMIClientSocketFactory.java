@@ -55,14 +55,14 @@ import javax.net.ssl.SSLSocketFactory;
  * #hashCode() hashCode} may also need to be overridden.</p>
  *
  * <p>If the system property
- * <code>javax.rmi.ssl.client.enabledCipherSuites</code> is specified,
+ * {@systemProperty javax.rmi.ssl.client.enabledCipherSuites} is specified,
  * the {@link #createSocket(String,int)} method will call {@link
  * SSLSocket#setEnabledCipherSuites(String[])} before returning the
  * socket.  The value of this system property is a string that is a
  * comma-separated list of SSL/TLS cipher suites to enable.</p>
  *
  * <p>If the system property
- * <code>javax.rmi.ssl.client.enabledProtocols</code> is specified,
+ * {@systemProperty javax.rmi.ssl.client.enabledProtocols} is specified,
  * the {@link #createSocket(String,int)} method will call {@link
  * SSLSocket#setEnabledProtocols(String[])} before returning the
  * socket.  The value of this system property is a string that is a
@@ -98,7 +98,7 @@ public class SslRMIClientSocketFactory
      * <p>Creates an SSL socket.</p>
      *
      * <p>If the system property
-     * <code>javax.rmi.ssl.client.enabledCipherSuites</code> is
+     * {@systemProperty javax.rmi.ssl.client.enabledCipherSuites} is
      * specified, this method will call {@link
      * SSLSocket#setEnabledCipherSuites(String[])} before returning
      * the socket. The value of this system property is a string that
@@ -106,7 +106,7 @@ public class SslRMIClientSocketFactory
      * enable.</p>
      *
      * <p>If the system property
-     * <code>javax.rmi.ssl.client.enabledProtocols</code> is
+     * {@systemProperty javax.rmi.ssl.client.enabledProtocols} is
      * specified, this method will call {@link
      * SSLSocket#setEnabledProtocols(String[])} before returning the
      * socket. The value of this system property is a string that is a
@@ -135,8 +135,7 @@ public class SslRMIClientSocketFactory
             try {
                 sslSocket.setEnabledCipherSuites(enabledCipherSuitesList);
             } catch (IllegalArgumentException e) {
-                throw (IOException)
-                    new IOException(e.getMessage()).initCause(e);
+                throw new IOException(e.getMessage(), e);
             }
         }
         // Set the SSLSocket Enabled Protocols
@@ -153,8 +152,7 @@ public class SslRMIClientSocketFactory
             try {
                 sslSocket.setEnabledProtocols(enabledProtocolsList);
             } catch (IllegalArgumentException e) {
-                throw (IOException)
-                    new IOException(e.getMessage()).initCause(e);
+                throw new IOException(e.getMessage(), e);
             }
         }
         // Return the preconfigured SSLSocket

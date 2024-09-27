@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,28 +26,28 @@
 package sun.awt;
 
 import java.awt.AWTPermission;
-import java.awt.GraphicsDevice;
-import java.awt.GraphicsConfiguration;
-import java.awt.GraphicsEnvironment;
 import java.awt.DisplayMode;
 import java.awt.EventQueue;
 import java.awt.Frame;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.awt.Window;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
-import java.awt.geom.Point2D;
 import java.awt.image.ColorModel;
-import java.util.ArrayList;
-import java.util.Vector;
 import java.awt.peer.WindowPeer;
-import java.security.AccessController;
+import java.util.ArrayList;
+
 import sun.awt.windows.WWindowPeer;
 import sun.java2d.SunGraphicsEnvironment;
 import sun.java2d.opengl.WGLGraphicsConfig;
 import sun.java2d.windows.WindowsFlags;
-import sun.security.action.GetPropertyAction;
+
+import static java.awt.peer.ComponentPeer.SET_BOUNDS;
+
 import static sun.awt.Win32GraphicsEnvironment.debugScaleX;
 import static sun.awt.Win32GraphicsEnvironment.debugScaleY;
 
@@ -97,6 +97,7 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
         // is run as an NT service.  To prevent the loading of ddraw.dll
         // completely, sun.awt.nopixfmt should be set as well.  Apps which use
         // OpenGL w/ Java probably don't want to set this.
+        @SuppressWarnings("removal")
         String nopixfmt = java.security.AccessController.doPrivileged(
             new sun.security.action.GetPropertyAction("sun.awt.nopixfmt"));
         pfDisabled = (nopixfmt != null);
@@ -131,6 +132,7 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
      * @see #TYPE_PRINTER
      * @see #TYPE_IMAGE_BUFFER
      */
+    @Override
     public int getType() {
         return TYPE_RASTER_SCREEN;
     }
@@ -168,7 +170,7 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
     }
 
     /**
-     * Returns whether this is a valid devicie. Device can become
+     * Returns whether this is a valid device. Device can become
      * invalid as a result of device removal event.
      */
     public boolean isValid() {
@@ -189,6 +191,7 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
      * Returns the identification string associated with this graphics
      * device.
      */
+    @Override
     public String getIDstring() {
         return idString;
     }
@@ -198,6 +201,7 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
      * Returns all of the graphics
      * configurations associated with this graphics device.
      */
+    @Override
     public GraphicsConfiguration[] getConfigurations() {
         if (configs==null) {
             if (WindowsFlags.isOGLEnabled() && isDefaultDevice()) {
@@ -211,12 +215,12 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
 
             int max = getMaxConfigs(screen);
             int defaultPixID = getDefaultPixID(screen);
-            Vector<GraphicsConfiguration> v = new Vector<>( max );
+            ArrayList<GraphicsConfiguration> v = new ArrayList<>( max );
             if (defaultPixID == 0) {
                 // Workaround for failing GDI calls
                 defaultConfig = Win32GraphicsConfig.getConfig(this,
                                                               defaultPixID);
-                v.addElement(defaultConfig);
+                v.add(defaultConfig);
             }
             else {
                 for (int i = 1; i <= max; i++) {
@@ -224,17 +228,16 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
                         if (i == defaultPixID) {
                             defaultConfig = Win32GraphicsConfig.getConfig(
                              this, i);
-                            v.addElement(defaultConfig);
+                            v.add(defaultConfig);
                         }
                         else {
-                            v.addElement(Win32GraphicsConfig.getConfig(
+                            v.add(Win32GraphicsConfig.getConfig(
                              this, i));
                         }
                     }
                 }
             }
-            configs = new GraphicsConfiguration[v.size()];
-            v.copyInto(configs);
+            configs = v.toArray(new GraphicsConfiguration[0]);
         }
         return configs.clone();
     }
@@ -290,6 +293,7 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
      * Returns the default graphics configuration
      * associated with this graphics device.
      */
+    @Override
     public GraphicsConfiguration getDefaultConfiguration() {
         if (defaultConfig == null) {
             // first try to create a WGLGraphicsConfig if OGL is enabled
@@ -329,6 +333,7 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
         return defaultConfig;
     }
 
+    @Override
     public String toString() {
         return valid ? descString + "]" : descString + ", removed]";
     }
@@ -344,6 +349,7 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
     }
 
     private static boolean isFSExclusiveModeAllowed() {
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             if (fullScreenExclusivePermission == null) {
@@ -437,6 +443,21 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
     protected native void enterFullScreenExclusive(int screen, WindowPeer w);
     protected native void exitFullScreenExclusive(int screen, WindowPeer w);
 
+    /**
+     * Reapplies the size of this graphics device to
+     * the given full-screen window.
+     * @param w a Window that needs resizing
+     * @param b new full-screen window bounds
+     */
+    private static void resizeFSWindow(final Window w, final Rectangle b) {
+        if (w != null) {
+            WindowPeer peer = AWTAccessor.getComponentAccessor().getPeer(w);
+            if (peer != null) {
+                peer.setBounds(b.x, b.y, b.width, b.height, SET_BOUNDS);
+            }
+        }
+    }
+
     @Override
     public boolean isDisplayChangeSupported() {
         return (isFullScreenSupported() && getFullScreenWindow() != null);
@@ -459,13 +480,9 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
             WWindowPeer peer = AWTAccessor.getComponentAccessor().getPeer(w);
             configDisplayMode(screen, peer, dm.getWidth(), dm.getHeight(),
                 dm.getBitDepth(), dm.getRefreshRate());
-            // resize the fullscreen window to the dimensions of the new
-            // display mode
-            Rectangle screenBounds = getDefaultConfiguration().getBounds();
-            w.setBounds(screenBounds.x, screenBounds.y,
-                        dm.getWidth(), dm.getHeight());
-            // Note: no call to replaceSurfaceData is required here since
-            // replacement will be caused by an upcoming display change event
+            // Note: the full-screen window will get resized to the dimensions of the new
+            // display mode in the upcoming display change event, when the DPI scales
+            // would already be correctly set etc.
         } else {
             throw new IllegalStateException("Must be in fullscreen mode " +
                                             "in order to set display mode");
@@ -519,11 +536,16 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
      * Called from Win32GraphicsEnvironment when the display settings have
      * changed.
      */
+    @Override
     public void displayChanged() {
         dynamicColorModel = null;
         defaultConfig = null;
         configs = null;
         initScaleFactors();
+
+        Rectangle screenBounds = getDefaultConfiguration().getBounds();
+        resizeFSWindow(getFullScreenWindow(), screenBounds);
+
         // pass on to all top-level windows on this display
         topLevels.notifyListeners();
     }
@@ -532,6 +554,7 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
      * Part of the DisplayChangedListener interface: devices
      * do not need to react to this event
      */
+    @Override
     public void paletteChanged() {
     }
 
@@ -594,7 +617,7 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
         }
 
         private void setFSWindowsState(Window other, int state) {
-            GraphicsDevice gds[] =
+            GraphicsDevice[] gds =
                     GraphicsEnvironment.getLocalGraphicsEnvironment().
                     getScreenDevices();
             // check if the de/activation was caused by other
@@ -659,6 +682,7 @@ public class Win32GraphicsDevice extends GraphicsDevice implements
         // Fix for 6709453. Using invokeLater to avoid listening
         // for the events already posted to the queue.
         EventQueue.invokeLater(new Runnable() {
+            @Override
             public void run() {
                 w.addWindowListener(fsWindowListener);
             }

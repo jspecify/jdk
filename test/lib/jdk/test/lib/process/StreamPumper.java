@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,14 +41,14 @@ public final class StreamPumper implements Runnable {
     /**
      * Pump will be called by the StreamPumper to process the incoming data
      */
-    abstract public static class Pump {
+    public abstract static class Pump {
         abstract void register(StreamPumper d);
     }
 
     /**
      * OutputStream -> Pump adapter
      */
-    final public static class StreamPump extends Pump {
+    public final static class StreamPump extends Pump {
         private final OutputStream out;
         public StreamPump(OutputStream out) {
             this.out = out;
@@ -63,13 +63,13 @@ public final class StreamPumper implements Runnable {
     /**
      * Used to process the incoming data line-by-line
      */
-    abstract public static class LinePump extends Pump {
+    public abstract static class LinePump extends Pump {
         @Override
         final void register(StreamPumper sp) {
             sp.addLineProcessor(this);
         }
 
-        abstract protected void processLine(String line);
+        protected abstract void processLine(String line);
     }
 
     private final InputStream in;
@@ -77,7 +77,6 @@ public final class StreamPumper implements Runnable {
     private final Set<LinePump> linePumps = new HashSet<>();
 
     private final AtomicBoolean processing = new AtomicBoolean(false);
-    private final FutureTask<Void> processingTask = new FutureTask<>(this, null);
 
     public StreamPumper(InputStream in) {
         this.in = in;
@@ -96,19 +95,21 @@ public final class StreamPumper implements Runnable {
 
     /**
      * Implements Thread.run(). Continuously read from {@code in} and write to
-     * {@code out} until {@code in} has reached end of stream. Abort on
-     * interruption. Abort on IOExceptions.
+     * {@code out} until {@code in} has reached end of stream.
+     * Additionally this method also splits the data read from the buffer into lines,
+     * and processes each line using linePumps.
+     * Abort on interruption. Abort on IOExceptions.
      */
     @Override
     public void run() {
-        try (BufferedInputStream is = new BufferedInputStream(in)) {
-            ByteArrayOutputStream lineBos = new ByteArrayOutputStream();
+        try (BufferedInputStream is = new BufferedInputStream(in);
+            ByteArrayOutputStream lineBos = new ByteArrayOutputStream()) {
             byte[] buf = new byte[BUF_SIZE];
             int len = 0;
             int linelen = 0;
 
             while ((len = is.read(buf)) > 0 && !Thread.interrupted()) {
-                for(OutputStream out : outStreams) {
+                for (OutputStream out : outStreams) {
                     out.write(buf, 0, len);
                 }
                 if (!linePumps.isEmpty()) {
@@ -125,9 +126,7 @@ public final class StreamPumper implements Runnable {
                             if (linelen > 0) {
                                 lineBos.flush();
                                 final String line = lineBos.toString();
-                                linePumps.stream().forEach((lp) -> {
-                                    lp.processLine(line);
-                                });
+                                linePumps.forEach((lp) -> lp.processLine(line));
                                 lineBos.reset();
                                 linelen = 0;
                             }
@@ -136,6 +135,10 @@ public final class StreamPumper implements Runnable {
 
                         i++;
                     }
+                    // If no crlf was found, or there was additional data after the last crlf was found, then write the leftover data
+                    // in lineBos. If there is more data to read it will be concatenated with the current data on the next iteration.
+                    // If there is no more data, or no more crlf found, all the remaining data will be processed after the loop, as the
+                    // final line.
                     if (lastcrlf == -1) {
                         lineBos.write(buf, 0, len);
                         linelen += len;
@@ -146,10 +149,18 @@ public final class StreamPumper implements Runnable {
                 }
             }
 
+            // If there was no terminating crlf the remaining data has been written to lineBos,
+            // but this final line of data now needs to be processed by the linePumper.
+            final String line = lineBos.toString();
+            if (!line.isEmpty()) {
+                linePumps.forEach((lp) -> lp.processLine(line));
+            }
         } catch (IOException e) {
-            e.printStackTrace();
+            if (!e.getMessage().equalsIgnoreCase("stream closed")) {
+                e.printStackTrace();
+            }
         } finally {
-            for(OutputStream out : outStreams) {
+            for (OutputStream out : outStreams) {
                 try {
                     out.flush();
                 } catch (IOException e) {}
@@ -168,30 +179,26 @@ public final class StreamPumper implements Runnable {
         linePumps.add(lp);
     }
 
-    final public StreamPumper addPump(Pump ... pump) {
+    public final StreamPumper addPump(Pump ... pump) {
         if (processing.get()) {
             throw new IllegalStateException("Can not modify pumper while " +
                                             "processing is in progress");
         }
-        for(Pump p : pump) {
+        for (Pump p : pump) {
             p.register(this);
         }
         return this;
     }
 
-    final public Future<Void> process() {
+    public final Future<Void> process() {
         if (!processing.compareAndSet(false, true)) {
             throw new IllegalStateException("Can not re-run the processing");
         }
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                processingTask.run();
-            }
-        });
+        FutureTask<Void> result = new FutureTask<>(this, null);
+        Thread t = new Thread(result);
         t.setDaemon(true);
         t.start();
 
-        return processingTask;
+        return result;
     }
 }

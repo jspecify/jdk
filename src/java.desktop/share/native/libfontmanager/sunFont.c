@@ -67,7 +67,7 @@ int isNullScalerContext(void *context) {
  */
 JNIEXPORT jlong JNICALL Java_sun_font_NullFontScaler_getGlyphImage
   (JNIEnv *env, jobject scaler, jlong pContext, jint glyphCode) {
-    void *nullscaler = calloc(sizeof(GlyphInfo), 1);
+    void *nullscaler = calloc(1, sizeof(GlyphInfo));
     return ptr_to_jlong(nullscaler);
 }
 
@@ -173,9 +173,9 @@ static void initFontIDs(JNIEnv *env) {
 
      CHECK_NULL(tmpClass = (*env)->FindClass(env, "sun/font/GlyphList"));
      CHECK_NULL(sunFontIDs.glyphListX =
-         (*env)->GetFieldID(env, tmpClass, "x", "F"));
+         (*env)->GetFieldID(env, tmpClass, "gposx", "F"));
      CHECK_NULL(sunFontIDs.glyphListY =
-         (*env)->GetFieldID(env, tmpClass, "y", "F"));
+         (*env)->GetFieldID(env, tmpClass, "gposy", "F"));
      CHECK_NULL(sunFontIDs.glyphListLen =
          (*env)->GetFieldID(env, tmpClass, "len", "I"));
      CHECK_NULL(sunFontIDs.glyphImages =
@@ -199,12 +199,6 @@ Java_sun_font_SunFontManager_initIDs
     (JNIEnv *env, jclass cls) {
 
     initFontIDs(env);
-}
-
-JNIEXPORT FontManagerNativeIDs getSunFontIDs(JNIEnv *env) {
-
-    initFontIDs(env);
-    return sunFontIDs;
 }
 
 /*
@@ -306,70 +300,9 @@ JNIEXPORT void JNICALL Java_sun_font_StrikeCache_freeLongMemory
     }
 }
 
-JNIEXPORT void JNICALL
-Java_sun_font_StrikeCache_getGlyphCacheDescription
-  (JNIEnv *env, jclass cls, jlongArray results) {
+JNIEXPORT jlong JNICALL
+Java_sun_font_StrikeCache_getInvisibleGlyphPtr(JNIEnv *env, jclass cls) {
 
-    jlong* nresults;
-    GlyphInfo *info;
-    size_t baseAddr;
-
-    if ((*env)->GetArrayLength(env, results) < 13) {
-        return;
-    }
-
-    nresults = (jlong*)(*env)->GetPrimitiveArrayCritical(env, results, NULL);
-    if (nresults == NULL) {
-        return;
-    }
-    info = (GlyphInfo*) calloc(1, sizeof(GlyphInfo));
-    if (info == NULL) {
-        (*env)->ReleasePrimitiveArrayCritical(env, results, nresults, 0);
-        return;
-    }
-    baseAddr = (size_t)info;
-    nresults[0] = sizeof(void*);
-    nresults[1] = sizeof(GlyphInfo);
-    nresults[2] = 0;
-    nresults[3] = (size_t)&(info->advanceY)-baseAddr;
-    nresults[4] = (size_t)&(info->width)-baseAddr;
-    nresults[5] = (size_t)&(info->height)-baseAddr;
-    nresults[6] = (size_t)&(info->rowBytes)-baseAddr;
-    nresults[7] = (size_t)&(info->topLeftX)-baseAddr;
-    nresults[8] = (size_t)&(info->topLeftY)-baseAddr;
-    nresults[9] = (size_t)&(info->image)-baseAddr;
-    nresults[10] = (jlong)(uintptr_t)info; /* invisible glyph */
-    nresults[11] = (size_t)&(info->cellInfo)-baseAddr;
-    nresults[12] = (size_t)&(info->managed)-baseAddr;
-
-    (*env)->ReleasePrimitiveArrayCritical(env, results, nresults, 0);
-}
-
-JNIEXPORT TTLayoutTableCache* newLayoutTableCache() {
-  TTLayoutTableCache* ltc = calloc(1, sizeof(TTLayoutTableCache));
-  if (ltc) {
-    int i;
-    for(i=0;i<LAYOUTCACHE_ENTRIES;i++) {
-      ltc->entries[i].len = -1;
-    }
-    ltc->entries[0].tag = GDEF_TAG;
-    ltc->entries[1].tag = GPOS_TAG;
-    ltc->entries[2].tag = GSUB_TAG;
-    ltc->entries[3].tag = HEAD_TAG;
-    ltc->entries[4].tag = KERN_TAG;
-    ltc->entries[5].tag = MORT_TAG;
-    ltc->entries[6].tag = MORX_TAG;
-  }
-  return ltc;
-}
-
-JNIEXPORT void freeLayoutTableCache(TTLayoutTableCache* ltc) {
-  if (ltc) {
-    int i;
-    for(i=0;i<LAYOUTCACHE_ENTRIES;i++) {
-      if(ltc->entries[i].ptr) free (ltc->entries[i].ptr);
-    }
-    if (ltc->kernPairs) free(ltc->kernPairs);
-    free(ltc);
-  }
+    GlyphInfo *info = (GlyphInfo*) calloc(1, sizeof(GlyphInfo));
+    return (jlong)(uintptr_t)info; /* invisible glyph */
 }

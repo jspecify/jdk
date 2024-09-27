@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,15 +32,15 @@
 #include "c1/c1_Runtime1.hpp"
 #include "c1/c1_ValueType.hpp"
 #include "compiler/compileBroker.hpp"
+#include "compiler/compilerDirectives.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "jfr/support/jfrIntrinsics.hpp"
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
-#include "prims/nativeLookup.hpp"
-#include "runtime/arguments.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/vm_version.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/macros.hpp"
 
@@ -50,15 +50,14 @@ Compiler::Compiler() : AbstractCompiler(compiler_c1) {
 
 void Compiler::init_c1_runtime() {
   BufferBlob* buffer_blob = CompilerThread::current()->get_buffer_blob();
-  Arena* arena = new (mtCompiler) Arena(mtCompiler);
   Runtime1::initialize(buffer_blob);
   FrameMap::initialize();
   // initialize data structures
-  ValueType::initialize(arena);
+  ValueType::initialize();
   GraphBuilder::initialize();
   // note: to use more than one instance of LinearScan at a time this function call has to
   //       be moved somewhere outside of this constructor:
-  Interval::initialize(arena);
+  Interval::initialize();
 }
 
 
@@ -67,7 +66,7 @@ void Compiler::initialize() {
   BufferBlob* buffer_blob = init_buffer_blob();
 
   if (should_perform_init()) {
-    if (buffer_blob == NULL) {
+    if (buffer_blob == nullptr) {
       // When we come here we are in state 'initializing'; entire C1 compilation
       // can be shut down.
       set_state(failed);
@@ -78,23 +77,19 @@ void Compiler::initialize() {
   }
 }
 
-int Compiler::code_buffer_size() {
-  assert(SegmentedCodeCache, "Should be only used with a segmented code cache");
+uint Compiler::code_buffer_size() {
   return Compilation::desired_max_code_buffer_size() + Compilation::desired_max_constant_size();
 }
 
 BufferBlob* Compiler::init_buffer_blob() {
   // Allocate buffer blob once at startup since allocation for each
   // compilation seems to be too expensive (at least on Intel win32).
-  assert (CompilerThread::current()->get_buffer_blob() == NULL, "Should initialize only once");
+  assert (CompilerThread::current()->get_buffer_blob() == nullptr, "Should initialize only once");
 
   // setup CodeBuffer.  Preallocate a BufferBlob of size
   // NMethodSizeLimit plus some extra space for constants.
-  int code_buffer_size = Compilation::desired_max_code_buffer_size() +
-    Compilation::desired_max_constant_size();
-
-  BufferBlob* buffer_blob = BufferBlob::create("C1 temporary CodeBuffer", code_buffer_size);
-  if (buffer_blob != NULL) {
+  BufferBlob* buffer_blob = BufferBlob::create("C1 temporary CodeBuffer", code_buffer_size());
+  if (buffer_blob != nullptr) {
     CompilerThread::current()->set_buffer_blob(buffer_blob);
   }
 
@@ -109,10 +104,12 @@ bool Compiler::is_intrinsic_supported(const methodHandle& method) {
     // C1 does not support intrinsification of synchronized methods.
     return false;
   }
+  return Compiler::is_intrinsic_supported(id);
+}
 
+bool Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   switch (id) {
   case vmIntrinsics::_compareAndSetLong:
-    if (!VM_Version::supports_cx8()) return false;
     break;
   case vmIntrinsics::_getAndAddInt:
     if (!VM_Version::supports_atomic_getadd4()) return false;
@@ -126,7 +123,7 @@ bool Compiler::is_intrinsic_supported(const methodHandle& method) {
   case vmIntrinsics::_getAndSetLong:
     if (!VM_Version::supports_atomic_getset8()) return false;
     break;
-  case vmIntrinsics::_getAndSetObject:
+  case vmIntrinsics::_getAndSetReference:
 #ifdef _LP64
     if (!UseCompressedOops && !VM_Version::supports_atomic_getset8()) return false;
     if (UseCompressedOops && !VM_Version::supports_atomic_getset4()) return false;
@@ -136,6 +133,10 @@ bool Compiler::is_intrinsic_supported(const methodHandle& method) {
     break;
   case vmIntrinsics::_onSpinWait:
     if (!VM_Version::supports_on_spin_wait()) return false;
+    break;
+  case vmIntrinsics::_floatToFloat16:
+  case vmIntrinsics::_float16ToFloat:
+    if (!VM_Version::supports_float16()) return false;
     break;
   case vmIntrinsics::_arraycopy:
   case vmIntrinsics::_currentTimeMillis:
@@ -147,6 +148,7 @@ bool Compiler::is_intrinsic_supported(const methodHandle& method) {
     // since GC can change its value.
   case vmIntrinsics::_loadFence:
   case vmIntrinsics::_storeFence:
+  case vmIntrinsics::_storeStoreFence:
   case vmIntrinsics::_fullFence:
   case vmIntrinsics::_floatToRawIntBits:
   case vmIntrinsics::_intBitsToFloat:
@@ -155,19 +157,26 @@ bool Compiler::is_intrinsic_supported(const methodHandle& method) {
   case vmIntrinsics::_getClass:
   case vmIntrinsics::_isInstance:
   case vmIntrinsics::_isPrimitive:
+  case vmIntrinsics::_getModifiers:
+  case vmIntrinsics::_currentCarrierThread:
   case vmIntrinsics::_currentThread:
+  case vmIntrinsics::_scopedValueCache:
   case vmIntrinsics::_dabs:
   case vmIntrinsics::_dsqrt:
+  case vmIntrinsics::_dsqrt_strict:
   case vmIntrinsics::_dsin:
   case vmIntrinsics::_dcos:
   case vmIntrinsics::_dtan:
+  #if defined(AMD64)
+  case vmIntrinsics::_dtanh:
+  #endif
   case vmIntrinsics::_dlog:
   case vmIntrinsics::_dlog10:
   case vmIntrinsics::_dexp:
   case vmIntrinsics::_dpow:
   case vmIntrinsics::_fmaD:
   case vmIntrinsics::_fmaF:
-  case vmIntrinsics::_getObject:
+  case vmIntrinsics::_getReference:
   case vmIntrinsics::_getBoolean:
   case vmIntrinsics::_getByte:
   case vmIntrinsics::_getShort:
@@ -176,7 +185,7 @@ bool Compiler::is_intrinsic_supported(const methodHandle& method) {
   case vmIntrinsics::_getLong:
   case vmIntrinsics::_getFloat:
   case vmIntrinsics::_getDouble:
-  case vmIntrinsics::_putObject:
+  case vmIntrinsics::_putReference:
   case vmIntrinsics::_putBoolean:
   case vmIntrinsics::_putByte:
   case vmIntrinsics::_putShort:
@@ -185,7 +194,7 @@ bool Compiler::is_intrinsic_supported(const methodHandle& method) {
   case vmIntrinsics::_putLong:
   case vmIntrinsics::_putFloat:
   case vmIntrinsics::_putDouble:
-  case vmIntrinsics::_getObjectVolatile:
+  case vmIntrinsics::_getReferenceVolatile:
   case vmIntrinsics::_getBooleanVolatile:
   case vmIntrinsics::_getByteVolatile:
   case vmIntrinsics::_getShortVolatile:
@@ -194,7 +203,7 @@ bool Compiler::is_intrinsic_supported(const methodHandle& method) {
   case vmIntrinsics::_getLongVolatile:
   case vmIntrinsics::_getFloatVolatile:
   case vmIntrinsics::_getDoubleVolatile:
-  case vmIntrinsics::_putObjectVolatile:
+  case vmIntrinsics::_putReferenceVolatile:
   case vmIntrinsics::_putBooleanVolatile:
   case vmIntrinsics::_putByteVolatile:
   case vmIntrinsics::_putShortVolatile:
@@ -211,26 +220,29 @@ bool Compiler::is_intrinsic_supported(const methodHandle& method) {
   case vmIntrinsics::_putCharUnaligned:
   case vmIntrinsics::_putIntUnaligned:
   case vmIntrinsics::_putLongUnaligned:
-  case vmIntrinsics::_checkIndex:
+  case vmIntrinsics::_Preconditions_checkIndex:
+  case vmIntrinsics::_Preconditions_checkLongIndex:
   case vmIntrinsics::_updateCRC32:
   case vmIntrinsics::_updateBytesCRC32:
   case vmIntrinsics::_updateByteBufferCRC32:
-#if defined(SPARC) || defined(S390) || defined(PPC64) || defined(AARCH64)
+#if defined(S390) || defined(PPC64) || defined(AARCH64)
   case vmIntrinsics::_updateBytesCRC32C:
   case vmIntrinsics::_updateDirectByteBufferCRC32C:
 #endif
   case vmIntrinsics::_vectorizedMismatch:
   case vmIntrinsics::_compareAndSetInt:
-  case vmIntrinsics::_compareAndSetObject:
+  case vmIntrinsics::_compareAndSetReference:
   case vmIntrinsics::_getCharStringU:
   case vmIntrinsics::_putCharStringU:
 #ifdef JFR_HAVE_INTRINSICS
   case vmIntrinsics::_counterTime:
-  case vmIntrinsics::_getEventWriter:
-#if defined(_LP64) || !defined(TRACE_ID_SHIFT)
-  case vmIntrinsics::_getClassId:
 #endif
+  case vmIntrinsics::_getObjectSize:
+#if defined(X86) || defined(AARCH64) || defined(S390) || defined(RISCV) || defined(PPC64)
+  case vmIntrinsics::_clone:
 #endif
+    break;
+  case vmIntrinsics::_blackhole:
     break;
   default:
     return false; // Intrinsics not on the previous list are not available.
@@ -239,16 +251,16 @@ bool Compiler::is_intrinsic_supported(const methodHandle& method) {
   return true;
 }
 
-void Compiler::compile_method(ciEnv* env, ciMethod* method, int entry_bci, DirectiveSet* directive) {
+void Compiler::compile_method(ciEnv* env, ciMethod* method, int entry_bci, bool install_code, DirectiveSet* directive) {
   BufferBlob* buffer_blob = CompilerThread::current()->get_buffer_blob();
-  assert(buffer_blob != NULL, "Must exist");
+  assert(buffer_blob != nullptr, "Must exist");
   // invoke compilation
   {
     // We are nested here because we need for the destructor
     // of Compilation to occur before we release the any
     // competing compiler thread
     ResourceMark rm;
-    Compilation c(this, env, method, entry_bci, buffer_blob, directive);
+    Compilation c(this, env, method, entry_bci, buffer_blob, install_code, directive);
   }
 }
 

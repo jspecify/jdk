@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,16 +48,17 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import sun.nio.cs.UTF_8;
+
 import jdk.internal.loader.BootLoader;
 import jdk.internal.loader.ClassLoaders;
-import jdk.internal.misc.JavaLangAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.VM;
 import jdk.internal.module.ServicesCatalog;
 import jdk.internal.module.ServicesCatalog.ServiceProvider;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
-
 
 /**
  * A facility to load implementations of a service.
@@ -68,19 +69,21 @@ import jdk.internal.reflect.Reflection;
  * interface or class. A {@code ServiceLoader} is an object that locates and
  * loads service providers deployed in the run time environment at a time of an
  * application's choosing. Application code refers only to the service, not to
- * service providers, and is assumed to be capable of differentiating between
- * multiple service providers as well as handling the possibility that no service
- * providers are located.
+ * service providers, and is assumed to be capable of choosing between multiple
+ * service providers (based on the functionality they expose through the service),
+ * and handling the possibility that no service providers are located.
  *
- * <h3> Obtaining a service loader </h3>
+ * <h2> Obtaining a service loader </h2>
  *
  * <p> An application obtains a service loader for a given service by invoking
- * one of the static {@code load} methods of ServiceLoader. If the application
- * is a module, then its module declaration must have a <i>uses</i> directive
- * that specifies the service; this helps to locate providers and ensure they
- * will execute reliably. In addition, if the service is not in the application
- * module, then the module declaration must have a <i>requires</i> directive
- * that specifies the module which exports the service.
+ * one of the static {@code load} methods of {@code ServiceLoader}. If the
+ * application is a module, then its module declaration must have a <i>uses</i>
+ * directive that specifies the service; this helps to locate providers and ensure
+ * they will execute reliably. In addition, if the application module does not
+ * contain the service, then its module declaration must have a <i>requires</i>
+ * directive that specifies the module which exports the service. It is strongly
+ * recommended that the application module does <b>not</b> require modules which
+ * contain providers of the service.
  *
  * <p> A service loader can be used to locate and instantiate providers of the
  * service by means of the {@link #iterator() iterator} method. {@code ServiceLoader}
@@ -142,7 +145,7 @@ import jdk.internal.reflect.Reflection;
  *   <li> {@code get()} yields an instance of {@code CodecFactory} </li>
  * </ol>
  *
- * <h3> Designing services </h3>
+ * <h2> Designing services </h2>
  *
  * <p> A service is a single type, usually an interface or abstract class. A
  * concrete class can be used, but this is not recommended. The type may have
@@ -168,7 +171,7 @@ import jdk.internal.reflect.Reflection;
  *   or complicated to produce certain codecs. </p></li>
  * </ol>
  *
- * <h3> <a id="developing-service-providers">Developing service providers</a> </h3>
+ * <h2> <a id="developing-service-providers">Developing service providers</a> </h2>
  *
  * <p> A service provider is a single type, usually a concrete class. An
  * interface or abstract class is permitted because it may declare a static
@@ -189,7 +192,7 @@ import jdk.internal.reflect.Reflection;
  * the service loader's stream, without knowledge of the service providers'
  * locations.
  *
- * <h3> Deploying service providers as modules </h3>
+ * <h2> Deploying service providers as modules </h2>
  *
  * <p> A service provider that is developed in a module must be specified in a
  * <i>provides</i> directive in the module declaration. The provides directive
@@ -199,7 +202,7 @@ import jdk.internal.reflect.Reflection;
  * module does not export the package containing the service provider. There is
  * no support for a module specifying, in a <i>provides</i> directive, a service
  * provider in another module.
-
+ *
  * <p> A service provider that is developed in a module has no control over when
  * it is instantiated, since that occurs at the behest of the application, but it
  * does have control over how it is instantiated:
@@ -227,10 +230,10 @@ import jdk.internal.reflect.Reflection;
  * the application module path must have a provider constructor. There is no
  * support for a provider method in this case.
  *
- * <p> As an example, suppose a module specifies the following directives:
+ * <p> As an example, suppose a module specifies the following directive:
  * <pre>{@code
- *     provides com.example.CodecFactory with com.example.impl.StandardCodecs;
- *     provides com.example.CodecFactory with com.example.impl.ExtendedCodecsFactory;
+ *     provides com.example.CodecFactory with com.example.impl.StandardCodecs,
+ *              com.example.impl.ExtendedCodecsFactory;
  * }</pre>
  *
  * <p> where
@@ -254,7 +257,7 @@ import jdk.internal.reflect.Reflection;
  * the service provider) will be instantiated by an entity (that is, a service
  * loader) which is outside the class's package.
  *
- * <h3> Deploying service providers on the class path </h3>
+ * <h2> Deploying service providers on the class path </h2>
  *
  * A service provider that is packaged as a JAR file for the class path is
  * identified by placing a <i>provider-configuration file</i> in the resource
@@ -280,7 +283,7 @@ import jdk.internal.reflect.Reflection;
  * <p><a id="format">The provider-configuration file must be encoded in UTF-8. </a>
  * Space and tab characters surrounding each service provider's name, as well as
  * blank lines, are ignored. The comment character is {@code '#'}
- * ({@code '&#92;u0023'} <span style="font-size:smaller;">NUMBER SIGN</span>);
+ * ({@code U+0023} <span style="font-size:smaller;">NUMBER SIGN</span>);
  * on each line all characters following the first comment character are ignored.
  * If a service provider class name is listed more than once in a
  * provider-configuration file then the duplicate is ignored. If a service
@@ -294,7 +297,7 @@ import jdk.internal.reflect.Reflection;
  * not necessarily the class loader which ultimately locates the
  * provider-configuration file.
  *
- * <h3> Timing of provider discovery </h3>
+ * <h2> Timing of provider discovery </h2>
  *
  * <p> Service providers are loaded and instantiated lazily, that is, on demand.
  * A service loader maintains a cache of the providers that have been loaded so
@@ -307,7 +310,7 @@ import jdk.internal.reflect.Reflection;
  * locates any remaining providers. Caches are cleared via the {@link #reload
  * reload} method.
  *
- * <h3> <a id="errors">Errors</a> </h3>
+ * <h2> <a id="errors">Errors</a> </h2>
  *
  * <p> When using the service loader's {@code iterator}, the {@link
  * Iterator#hasNext() hasNext} and {@link Iterator#next() next} methods will
@@ -362,7 +365,7 @@ import jdk.internal.reflect.Reflection;
  *
  * </ul>
  *
- * <h3> Security </h3>
+ * <h2> Security </h2>
  *
  * <p> Service loaders always execute in the security context of the caller
  * of the iterator or stream methods and may also be restricted by the security
@@ -371,7 +374,7 @@ import jdk.internal.reflect.Reflection;
  * the methods of the iterators which they return, from within a privileged
  * security context.
  *
- * <h3> Concurrency </h3>
+ * <h2> Concurrency </h2>
  *
  * <p> Instances of this class are not safe for use by multiple concurrent
  * threads.
@@ -386,8 +389,6 @@ import jdk.internal.reflect.Reflection;
  *
  * @author Mark Reinhold
  * @since 1.6
- * @revised 9
- * @spec JPMS
  */
 
 @NullMarked
@@ -409,6 +410,7 @@ public final  class ServiceLoader<S>
     private final ClassLoader loader;
 
     // The access control context taken when the ServiceLoader is created
+    @SuppressWarnings("removal")
     private final AccessControlContext acc;
 
     // The lazy-lookup iterator for iterator operations
@@ -423,10 +425,7 @@ public final  class ServiceLoader<S>
     // Incremented when reload is called
     private int reloadCount;
 
-    private static JavaLangAccess LANG_ACCESS;
-    static {
-        LANG_ACCESS = SharedSecrets.getJavaLangAccess();
-    }
+    private static final JavaLangAccess LANG_ACCESS = SharedSecrets.getJavaLangAccess();
 
     /**
      * Represents a service provider located by {@code ServiceLoader}.
@@ -438,7 +437,6 @@ public final  class ServiceLoader<S>
      *
      * @param  <S> The service type
      * @since 9
-     * @spec JPMS
      */
     public static interface Provider<S> extends Supplier<S> {
         /**
@@ -477,6 +475,7 @@ public final  class ServiceLoader<S>
      *         If {@code svc} is not accessible to {@code caller} or the caller
      *         module does not use the service type.
      */
+    @SuppressWarnings("removal")
     private ServiceLoader(Class<?> caller, ModuleLayer layer, Class<S> svc) {
         Objects.requireNonNull(caller);
         Objects.requireNonNull(layer);
@@ -500,6 +499,7 @@ public final  class ServiceLoader<S>
      *         If {@code svc} is not accessible to {@code caller} or the caller
      *         module does not use the service type.
      */
+    @SuppressWarnings("removal")
     private ServiceLoader(Class<?> caller, Class<S> svc, ClassLoader cl) {
         Objects.requireNonNull(svc);
 
@@ -542,6 +542,7 @@ public final  class ServiceLoader<S>
      * @throws ServiceConfigurationError
      *         If the caller module does not use the service type.
      */
+    @SuppressWarnings("removal")
     private ServiceLoader(Module callerModule, Class<S> svc, ClassLoader cl) {
         if (!callerModule.canUse(svc)) {
             fail(svc, callerModule + " does not declare `uses`");
@@ -613,6 +614,7 @@ public final  class ServiceLoader<S>
      *         provider method or there is more than one public static
      *         provider method
      */
+    @SuppressWarnings("removal")
     private Method findStaticProviderMethod(Class<?> clazz) {
         List<Method> methods = null;
         try {
@@ -655,6 +657,7 @@ public final  class ServiceLoader<S>
      * @throws ServiceConfigurationError if the class does not have
      *         public no-arg constructor
      */
+    @SuppressWarnings("removal")
     private Constructor<?> getConstructor(Class<?> clazz) {
         PrivilegedExceptionAction<Constructor<?>> pa
             = new PrivilegedExceptionAction<>() {
@@ -688,12 +691,13 @@ public final  class ServiceLoader<S>
         final Class<? extends S> type;
         final Method factoryMethod;  // factory method or null
         final Constructor<? extends S> ctor; // public no-args constructor or null
+        @SuppressWarnings("removal")
         final AccessControlContext acc;
 
         ProviderImpl(Class<S> service,
                      Class<? extends S> type,
                      Method factoryMethod,
-                     AccessControlContext acc) {
+                     @SuppressWarnings("removal") AccessControlContext acc) {
             this.service = service;
             this.type = type;
             this.factoryMethod = factoryMethod;
@@ -704,7 +708,7 @@ public final  class ServiceLoader<S>
         ProviderImpl(Class<S> service,
                      Class<? extends S> type,
                      Constructor<? extends S> ctor,
-                     AccessControlContext acc) {
+                     @SuppressWarnings("removal") AccessControlContext acc) {
             this.service = service;
             this.type = type;
             this.factoryMethod = null;
@@ -732,6 +736,7 @@ public final  class ServiceLoader<S>
          * permissions that are restricted by the security context of whatever
          * created this loader.
          */
+        @SuppressWarnings("removal")
         private S invokeFactoryMethod() {
             Object result = null;
             Throwable exc = null;
@@ -775,6 +780,7 @@ public final  class ServiceLoader<S>
          * with a security manager then the constructor runs with permissions that
          * are restricted by the security context of whatever created this loader.
          */
+        @SuppressWarnings("removal")
         private S newInstance() {
             S p = null;
             Throwable exc = null;
@@ -821,11 +827,8 @@ public final  class ServiceLoader<S>
 
         @Override
         public boolean equals(Object ob) {
-            if (!(ob instanceof ProviderImpl))
-                return false;
-            @SuppressWarnings("unchecked")
-            ProviderImpl<?> that = (ProviderImpl<?>)ob;
-            return this.service == that.service
+            return ob instanceof @SuppressWarnings("unchecked")ProviderImpl<?> that
+                    && this.service == that.service
                     && this.type == that.type
                     && Objects.equals(this.acc, that.acc);
         }
@@ -841,6 +844,7 @@ public final  class ServiceLoader<S>
      *         isn't the expected sub-type (or doesn't define a provider
      *         factory method that returns the expected type)
      */
+    @SuppressWarnings("removal")
     private Provider<S> loadProvider(ServiceProvider provider) {
         Module module = provider.module();
         if (!module.canRead(service.getModule())) {
@@ -940,8 +944,7 @@ public final  class ServiceLoader<S>
                     List<ModuleLayer> parents = layer.parents();
                     for (int i = parents.size() - 1; i >= 0; i--) {
                         ModuleLayer parent = parents.get(i);
-                        if (!visited.contains(parent)) {
-                            visited.add(parent);
+                        if (visited.add(parent)) {
                             stack.push(parent);
                         }
                     }
@@ -1010,6 +1013,7 @@ public final  class ServiceLoader<S>
         /**
          * Returns the class loader that a module is defined to
          */
+        @SuppressWarnings("removal")
         private ClassLoader loaderFor(Module module) {
             SecurityManager sm = System.getSecurityManager();
             if (sm == null) {
@@ -1167,7 +1171,7 @@ public final  class ServiceLoader<S>
                 uc.setUseCaches(false);
                 try (InputStream in = uc.getInputStream();
                      BufferedReader r
-                         = new BufferedReader(new InputStreamReader(in, "utf-8")))
+                         = new BufferedReader(new InputStreamReader(in, UTF_8.INSTANCE)))
                 {
                     int lc = 1;
                     while ((lc = parseLine(u, r, lc, names)) >= 0);
@@ -1262,6 +1266,7 @@ public final  class ServiceLoader<S>
             }
         }
 
+        @SuppressWarnings("removal")
         @Override
         public boolean hasNext() {
             if (acc == null) {
@@ -1274,6 +1279,7 @@ public final  class ServiceLoader<S>
             }
         }
 
+        @SuppressWarnings("removal")
         @Override
         public Provider<T> next() {
             if (acc == null) {
@@ -1352,9 +1358,6 @@ public final  class ServiceLoader<S>
      *
      * @return  An iterator that lazily loads providers for this loader's
      *          service
-     *
-     * @revised 9
-     * @spec JPMS
      */
     
     public Iterator<S> iterator() {
@@ -1445,7 +1448,6 @@ public final  class ServiceLoader<S>
      * @return  A stream that lazily loads providers for this loader's service
      *
      * @since 9
-     * @spec JPMS
      */
     public Stream<Provider<S>> stream() {
         // use cached providers as the source when all providers loaded
@@ -1582,7 +1584,7 @@ public final  class ServiceLoader<S>
      *   are located in the order that its module descriptor {@linkplain
      *   java.lang.module.ModuleDescriptor.Provides#providers() lists the
      *   providers}. Providers added dynamically by instrumentation agents (see
-     *   {@link java.lang.instrument.Instrumentation#redefineModule redefineModule})
+     *   {@link java.instrument/java.lang.instrument.Instrumentation#redefineModule redefineModule})
      *   are always located after providers declared by the module. </p> </li>
      *
      *   <li> <p> Step 2: Locate providers in unnamed modules. </p>
@@ -1640,11 +1642,9 @@ public final  class ServiceLoader<S>
      *         if the service type is not accessible to the caller or the
      *         caller is in an explicit module and its module descriptor does
      *         not declare that it uses {@code service}
-     *
-     * @revised 9
-     * @spec JPMS
      */
     @CallerSensitive
+    @SuppressWarnings("doclint:reference") // cross-module links
     public static <S> ServiceLoader<S> load(Class<S> service,
                                             @Nullable ClassLoader loader)
     {
@@ -1686,9 +1686,6 @@ public final  class ServiceLoader<S>
      *         if the service type is not accessible to the caller or the
      *         caller is in an explicit module and its module descriptor does
      *         not declare that it uses {@code service}
-     *
-     * @revised 9
-     * @spec JPMS
      */
     @CallerSensitive
     public static <S> ServiceLoader<S> load(Class<S> service) {
@@ -1722,9 +1719,6 @@ public final  class ServiceLoader<S>
      *         if the service type is not accessible to the caller or the
      *         caller is in an explicit module and its module descriptor does
      *         not declare that it uses {@code service}
-     *
-     * @revised 9
-     * @spec JPMS
      */
     @CallerSensitive
     public static <S> ServiceLoader<S> loadInstalled(Class<S> service) {
@@ -1777,7 +1771,6 @@ public final  class ServiceLoader<S>
      *         not declare that it uses {@code service}
      *
      * @since 9
-     * @spec JPMS
      */
     @CallerSensitive
     public static <S> ServiceLoader<S> load(ModuleLayer layer, Class<S> service) {
@@ -1806,7 +1799,6 @@ public final  class ServiceLoader<S>
      *         specified in the <a href="#errors">Errors</a> section above.
      *
      * @since 9
-     * @spec JPMS
      */
     public Optional<S> findFirst() {
         Iterator<S> iterator = iterator();

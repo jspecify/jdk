@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,10 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 import sun.jvm.hotspot.debugger.*;
+import sun.jvm.hotspot.debugger.aarch64.*;
 import sun.jvm.hotspot.debugger.amd64.*;
 import sun.jvm.hotspot.debugger.x86.*;
+import sun.jvm.hotspot.debugger.windbg.aarch64.*;
 import sun.jvm.hotspot.debugger.windbg.amd64.*;
 import sun.jvm.hotspot.debugger.windbg.x86.*;
 import sun.jvm.hotspot.debugger.win32.coff.*;
@@ -52,6 +54,7 @@ import sun.jvm.hotspot.runtime.*;
     RuntimeException if they are called before the debugger is
     configured with the Java primitive type sizes. </P> */
 
+@SuppressWarnings("restricted")
 public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger {
   private PageCache cache;
   private boolean   attached;
@@ -59,15 +62,15 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
 
   // Symbol lookup support
   // This is a map of library names to DLLs
-  private Map nameToDllMap;
+  private Map<String, DLL> nameToDllMap;
 
   // C/C++ debugging support
-  private List/*<LoadObject>*/ loadObjects;
+  private List<LoadObject> loadObjects;
   private CDebugger cdbg;
 
   // thread access
-  private Map threadIntegerRegisterSet;
-  private List threadList;
+  private Map<Long, long[]> threadIntegerRegisterSet;
+  private List<ThreadProxy> threadList;
 
   // windbg native interface pointers
 
@@ -93,42 +96,21 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
   public WindbgDebuggerLocal(MachineDescription machDesc,
                             boolean useCache) throws DebuggerException {
     this.machDesc = machDesc;
-    utils = new DebuggerUtilities(machDesc.getAddressSize(), machDesc.isBigEndian()) {
-           public void checkAlignment(long address, long alignment) {
-             // Need to override default checkAlignment because we need to
-             // relax alignment constraints on Windows/x86
-             if ( (address % alignment != 0)
-                &&(alignment != 8 || address % 4 != 0)) {
-                throw new UnalignedAddressException(
-                        "Trying to read at address: "
-                      + addressValueToString(address)
-                      + " with alignment: " + alignment,
-                        address);
-             }
-           }
-        };
+    utils = new DebuggerUtilities(machDesc.getAddressSize(), machDesc.isBigEndian(),
+                                  machDesc.supports32bitAlignmentOf64bitTypes());
 
     String cpu = PlatformInfo.getCPU();
     if (cpu.equals("x86")) {
        threadFactory = new WindbgX86ThreadFactory(this);
     } else if (cpu.equals("amd64")) {
        threadFactory = new WindbgAMD64ThreadFactory(this);
+    } else if (cpu.equals("aarch64")) {
+      threadFactory = new WindbgAARCH64ThreadFactory(this);
     }
 
     if (useCache) {
-      // Cache portion of the remote process's address space.
-      // Fetching data over the socket connection to dbx is slow.
-      // Might be faster if we were using a binary protocol to talk to
-      // dbx, but would have to test. For now, this cache works best
-      // if it covers the entire heap of the remote process. FIXME: at
-      // least should make this tunable from the outside, i.e., via
-      // the UI. This is a cache of 4096 4K pages, or 16 MB. The page
-      // size must be adjusted to be the hardware's page size.
-      // (FIXME: should pick this up from the debugger.)
-      initCache(4096, 4096);
+      initCache(4096, parseCacheNumPagesProperty(1024 * 64));
     }
-    // FIXME: add instantiation of thread factory
-
   }
 
   /** From the Debugger interface via JVMDebugger */
@@ -137,7 +119,7 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
   }
 
   /** From the Debugger interface via JVMDebugger */
-  public List getProcessList() throws DebuggerException {
+  public List<ProcessInfo> getProcessList() throws DebuggerException {
     return null;
   }
 
@@ -158,7 +140,7 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
     isCore = true;
   }
 
-  public List getLoadObjectList() {
+  public List<LoadObject> getLoadObjectList() {
     requireAttach();
     return loadObjects;
   }
@@ -276,22 +258,6 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
     return getThreadIdFromSysId0(sysId);
   }
 
-  //----------------------------------------------------------------------
-  // Overridden from DebuggerBase because we need to relax alignment
-  // constraints on x86
-
-  public long readJLong(long address)
-    throws UnmappedAddressException, UnalignedAddressException {
-    checkJavaConfigured();
-    // FIXME: allow this to be configurable. Undesirable to add a
-    // dependency on the runtime package here, though, since this
-    // package should be strictly underneath it.
-    //    utils.checkAlignment(address, jlongSize);
-    utils.checkAlignment(address, jintSize);
-    byte[] data = readBytes(address, jlongSize);
-    return utils.dataToJLong(data, jlongSize);
-  }
-
   //--------------------------------------------------------------------------------
   // Internal routines (for implementation of WindbgAddress).
   // These must not be called until the MachineDescription has been set up.
@@ -341,7 +307,7 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
 
   private synchronized void setThreadIntegerRegisterSet(long threadId,
                                                long[] regs) {
-    threadIntegerRegisterSet.put(new Long(threadId), regs);
+    threadIntegerRegisterSet.put(threadId, regs);
   }
 
   private synchronized void addThread(long sysId) {
@@ -351,10 +317,10 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
   public synchronized long[] getThreadIntegerRegisterSet(long threadId)
     throws DebuggerException {
     requireAttach();
-    return (long[]) threadIntegerRegisterSet.get(new Long(threadId));
+    return threadIntegerRegisterSet.get(threadId);
   }
 
-  public synchronized List getThreadList() throws DebuggerException {
+  public synchronized List<ThreadProxy> getThreadList() throws DebuggerException {
     requireAttach();
     return threadList;
   }
@@ -408,7 +374,7 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
   /** From the Debugger interface */
   public long getAddressValue(Address addr) {
     if (addr == null) return 0;
-    return ((WindbgAddress) addr).getValue();
+    return addr.asLongValue();
   }
 
   /** From the WindbgDebugger interface */
@@ -438,10 +404,10 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
 
   private void attachInit() {
     checkAttached();
-    loadObjects = new ArrayList();
-    nameToDllMap = new HashMap();
-    threadIntegerRegisterSet = new HashMap();
-    threadList = new ArrayList();
+    loadObjects = new ArrayList<>();
+    nameToDllMap = new HashMap<>();
+    threadIntegerRegisterSet = new HashMap<>();
+    threadList = new ArrayList<>();
   }
 
   private void resetNativePointers() {
@@ -463,13 +429,13 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
       } // else fallthru...
     }
 
-    DLL dll = (DLL) nameToDllMap.get(objectName);
+    DLL dll = nameToDllMap.get(objectName);
     // The DLL can be null because we use this to search through known
     // DLLs in HotSpotTypeDataBase (for example)
     if (dll != null) {
       WindbgAddress addr = (WindbgAddress) dll.lookupSymbol(symbol);
       if (addr != null) {
-        return addr.getValue();
+        return addr.asLongValue();
       }
     }
     return 0L;
@@ -495,12 +461,6 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
       }
     }
     return null;
-  }
-
-  public void writeBytesToProcess(long address, long numBytes, byte[] data)
-    throws UnmappedAddressException, DebuggerException {
-    // FIXME
-    throw new DebuggerException("Unimplemented");
   }
 
   private static String  imagePath;
@@ -539,7 +499,7 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
     String dbgengPath   = null;
     String dbghelpPath  = null;
     String saprocPath = null;
-    List   searchList   = new ArrayList();
+    List<String> searchList = new ArrayList<>();
 
     boolean loadLibraryDEBUG =
         System.getProperty("sun.jvm.hotspot.loadLibrary.DEBUG") != null;
@@ -548,7 +508,7 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
       // First place to search is co-located with saproc.dll in
       // $JAVA_HOME/jre/bin (java.home property is set to $JAVA_HOME/jre):
       searchList.add(System.getProperty("java.home") + File.separator + "bin");
-      saprocPath = (String) searchList.get(0) + File.separator +
+      saprocPath = searchList.get(0) + File.separator +
           "saproc.dll";
 
       // second place to search is specified by an environment variable:
@@ -577,7 +537,7 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
     }
 
     for (int i = 0; i < searchList.size(); i++) {
-      File dir = new File((String) searchList.get(i));
+      File dir = new File(searchList.get(i));
       if (!dir.exists()) {
         if (loadLibraryDEBUG) {
           System.err.println("DEBUG: '" + searchList.get(i) +
@@ -587,8 +547,8 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
         continue;
       }
 
-      dbgengPath = (String) searchList.get(i) + File.separator + "dbgeng.dll";
-      dbghelpPath = (String) searchList.get(i) + File.separator + "dbghelp.dll";
+      dbgengPath = searchList.get(i) + File.separator + "dbgeng.dll";
+      dbghelpPath = searchList.get(i) + File.separator + "dbghelp.dll";
 
       File feng = new File(dbgengPath);
       File fhelp = new File(dbghelpPath);

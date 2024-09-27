@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,14 +27,14 @@ package sun.security.jgss;
 
 import java.lang.reflect.InvocationTargetException;
 import org.ietf.jgss.*;
-import java.security.AccessController;
 import java.security.Provider;
 import java.security.Security;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
-import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.Objects;
+
 import sun.security.jgss.spi.*;
 import sun.security.jgss.wrapper.NativeGSSFactory;
 import sun.security.jgss.wrapper.SunNativeProvider;
@@ -52,7 +52,7 @@ import sun.security.action.GetPropertyAction;
  * mechanisms.) When it finds such an entry, the corresponding
  * provider is approached for the mechanism's factory class.
  * At instantiation time this list in initialized to contain those
- * system wide providers that contain a property of the form
+ * system-wide providers that contain a property of the form
  * "GssApiMechanism.x.y.z..." where "x.y.z..." is a numeric object
  * identifier with numbers x, y, z, etc. Such a property is defined
  * to map to that provider's implementation of the MechanismFactory
@@ -74,9 +74,9 @@ import sun.security.action.GetPropertyAction;
  * the system ones don't suffice.<p>
  *
  * If a mechanism's factory is being obtained from a provider as a
- * result of encountering a entryof the form {@code <provider, oid>} where
+ * result of encountering an entry of the form {@code <provider, oid>} where
  * oid is non-null, then the assumption is that the application added
- * this entry and it wants this mechanism to be obtained from this
+ * this entry, and it wants this mechanism to be obtained from this
  * provider. Thus is the provider does not actually contain the
  * requested mechanism, an exception will be thrown. However, if the
  * entry were of the form {@code <provider, null>}, then it is viewed more
@@ -93,10 +93,6 @@ public final class ProviderList {
     private static final String SPI_MECH_FACTORY_TYPE
         = "sun.security.jgss.spi.MechanismFactory";
 
-    // Undocumented property?
-    private static final String DEFAULT_MECH_PROP =
-        "sun.security.jgss.mechanism";
-
     public static final Oid DEFAULT_MECH_OID;
 
     static {
@@ -106,8 +102,8 @@ public final class ProviderList {
          * with a valid OID value
          */
         Oid defOid = null;
-        String defaultOidStr = AccessController.doPrivileged
-            (new GetPropertyAction(DEFAULT_MECH_PROP));
+        String defaultOidStr = GetPropertyAction
+                .privilegedGetProperty("sun.security.jgss.mechanism");
         if (defaultOidStr != null) {
             defOid = GSSUtil.createOid(defaultOidStr);
         }
@@ -115,13 +111,13 @@ public final class ProviderList {
             (defOid == null ? GSSUtil.GSS_KRB5_MECH_OID : defOid);
    }
 
-    private ArrayList<PreferencesEntry> preferences =
-                        new ArrayList<PreferencesEntry>(5);
-    private HashMap<PreferencesEntry, MechanismFactory> factories =
-                        new HashMap<PreferencesEntry, MechanismFactory>(5);
-    private HashSet<Oid> mechs = new HashSet<Oid>(5);
+    private final ArrayList<PreferencesEntry> preferences =
+            new ArrayList<>(5);
+    private final HashMap<PreferencesEntry, MechanismFactory> factories =
+            new HashMap<>(5);
+    private final HashSet<Oid> mechs = new HashSet<>(5);
 
-    final private GSSCaller caller;
+    private final GSSCaller caller;
 
     public ProviderList(GSSCaller caller, boolean useNative) {
         this.caller = caller;
@@ -139,8 +135,10 @@ public final class ProviderList {
                 addProviderAtEnd(prov, null);
             } catch (GSSException ge) {
                 // Move on to the next provider
-                GSSUtil.debug("Error in adding provider " +
-                              prov.getName() + ": " + ge);
+                if (GSSUtil.DEBUG != null) {
+                    GSSUtil.debug("Error in adding provider " +
+                            prov.getName() + ": " + ge);
+                }
             }
         } // End of for loop
     }
@@ -165,7 +163,7 @@ public final class ProviderList {
     }
 
     // So the existing code do not have to be changed
-    synchronized public MechanismFactory getMechFactory(Oid mechOid)
+    public synchronized MechanismFactory getMechFactory(Oid mechOid)
         throws GSSException {
         if (mechOid == null) mechOid = ProviderList.DEFAULT_MECH_OID;
         return getMechFactory(mechOid, null);
@@ -182,15 +180,14 @@ public final class ProviderList {
      * support the desired mechanism, or when no provider supports
      * the desired mechanism.
      */
-    synchronized public MechanismFactory getMechFactory(Oid mechOid,
+    public synchronized MechanismFactory getMechFactory(Oid mechOid,
                                                         Provider p)
         throws GSSException {
 
         if (mechOid == null) mechOid = ProviderList.DEFAULT_MECH_OID;
 
         if (p == null) {
-            // Iterate thru all preferences to find right provider
-            String className;
+            // Iterate through all preferences to find right provider
             PreferencesEntry entry;
 
             Iterator<PreferencesEntry> list = preferences.iterator();
@@ -203,7 +200,7 @@ public final class ProviderList {
             } // end of while loop
             throw new GSSExceptionImpl(GSSException.BAD_MECH, mechOid);
         } else {
-            // Use the impl from the specified provider; return null if the
+            // Use the impl from the specified provider; return null if
             // the mech is unsupported by the specified provider.
             PreferencesEntry entry = new PreferencesEntry(p, mechOid);
             return getMechFactory(entry, mechOid);
@@ -309,17 +306,9 @@ public final class ProviderList {
                 throw createGSSException(p, className, "is not a " +
                                          SPI_MECH_FACTORY_TYPE, null);
             }
-        } catch (ClassNotFoundException e) {
-            throw createGSSException(p, className, "cannot be created", e);
-        } catch (NoSuchMethodException e) {
-            throw createGSSException(p, className, "cannot be created", e);
-        } catch (InvocationTargetException e) {
-            throw createGSSException(p, className, "cannot be created", e);
-        } catch (InstantiationException e) {
-            throw createGSSException(p, className, "cannot be created", e);
-        } catch (IllegalAccessException e) {
-            throw createGSSException(p, className, "cannot be created", e);
-        } catch (SecurityException e) {
+        } catch (ClassNotFoundException | NoSuchMethodException |
+                 InvocationTargetException | InstantiationException |
+                 IllegalAccessException | SecurityException e) {
             throw createGSSException(p, className, "cannot be created", e);
         }
     }
@@ -340,7 +329,7 @@ public final class ProviderList {
         return mechs.toArray(new Oid[] {});
     }
 
-    synchronized public void addProviderAtFront(Provider p, Oid mechOid)
+    public synchronized void addProviderAtFront(Provider p, Oid mechOid)
         throws GSSException {
 
         PreferencesEntry newEntry = new PreferencesEntry(p, mechOid);
@@ -372,7 +361,7 @@ public final class ProviderList {
         }
     }
 
-    synchronized public void addProviderAtEnd(Provider p, Oid mechOid)
+    public synchronized void addProviderAtEnd(Provider p, Oid mechOid)
         throws GSSException {
 
         PreferencesEntry newEntry = new PreferencesEntry(p, mechOid);
@@ -407,9 +396,9 @@ public final class ProviderList {
     }
 
     /**
-     * Helper routine to go through all properties contined in a
+     * Helper routine to go through all properties contained in a
      * provider and add its mechanisms to the list of supported
-     * mechanisms. If no default mechanism has been assinged so far,
+     * mechanisms. If no default mechanism has been assigned so far,
      * it sets the default MechanismFactory and Oid as well.
      * @param p the provider to query
      * @return true if there is at least one mechanism that this
@@ -420,12 +409,9 @@ public final class ProviderList {
         String prop;
         boolean retVal = false;
 
-        // Get all props for this provider
-        Enumeration<Object> props = p.keys();
-
         // See if there are any GSS prop's
-        while (props.hasMoreElements()) {
-            prop = (String) props.nextElement();
+        for (Object o : p.keySet()) {
+            prop = (String) o;
             if (isMechFactoryProperty(prop)) {
                 // Ok! This is a GSS provider!
                 try {
@@ -434,11 +420,13 @@ public final class ProviderList {
                     retVal = true;
                 } catch (GSSException e) {
                     // Skip to next property
-                    GSSUtil.debug("Ignore the invalid property " +
-                                  prop + " from provider " + p.getName());
+                    if (GSSUtil.DEBUG != null) {
+                        GSSUtil.debug("Ignore the invalid property " +
+                                prop + " from provider " + p.getName());
+                    }
                 }
             } // Processed GSS property
-        } // while loop
+        } // for loop
 
         return retVal;
 
@@ -449,9 +437,9 @@ public final class ProviderList {
      * provider should be used for the mechanism. If the mechanism
      * Oid is null, then it indicates that this preference holds for
      * any mechanism.<p>
-     *
+     * <p>
      * The ProviderList maintains an ordered list of
-     * PreferencesEntry's and iterates thru them as it tries to
+     * PreferencesEntry's and iterates through them as it tries to
      * instantiate MechanismFactory's.
      */
     private static final class PreferencesEntry {
@@ -462,36 +450,23 @@ public final class ProviderList {
             this.oid = oid;
         }
 
+        @Override
         public boolean equals(Object other) {
             if (this == other) {
                 return true;
             }
 
-            if (!(other instanceof PreferencesEntry)) {
+            if (!(other instanceof PreferencesEntry that)) {
                 return false;
             }
 
-            PreferencesEntry that = (PreferencesEntry)other;
-            if (this.p.getName().equals(that.p.getName())) {
-                if (this.oid != null && that.oid != null) {
-                    return this.oid.equals(that.oid);
-                } else {
-                    return (this.oid == null && that.oid == null);
-                }
-            }
-
-            return false;
+            return this.p.getName().equals(that.p.getName())
+                    && Objects.equals(this.oid, that.oid);
         }
 
+        @Override
         public int hashCode() {
-            int result = 17;
-
-            result = 37 * result + p.getName().hashCode();
-            if (oid != null) {
-                result = 37 * result + oid.hashCode();
-            }
-
-            return result;
+            return Objects.hash(p.getName(), oid);
         }
 
         /**
@@ -503,11 +478,10 @@ public final class ProviderList {
          */
         boolean implies(Object other) {
 
-            if (other instanceof PreferencesEntry) {
-                PreferencesEntry temp = (PreferencesEntry) other;
+            if (other instanceof PreferencesEntry temp) {
                 return (equals(temp) ||
                         p.getName().equals(temp.p.getName()) &&
-                        oid == null);
+                                oid == null);
             } else {
                 return false;
             }
@@ -526,6 +500,7 @@ public final class ProviderList {
          * mechanism. The entry is applicable to the desired mech if
          * it contains the same oid or if it contains a null oid
          * indicating that it is applicable to all mechs.
+         *
          * @param mechOid the desired mechanism
          * @return true if the provider in this entry should be
          * queried for this mechanism.
@@ -536,12 +511,10 @@ public final class ProviderList {
 
         // For debugging
         public String toString() {
-            StringBuilder sb = new StringBuilder("<");
-            sb.append(p.getName());
-            sb.append(", ");
-            sb.append(oid);
-            sb.append(">");
-            return sb.toString();
+            return "<" + p.getName() +
+                    ", " +
+                    oid +
+                    ">";
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package sun.java2d.opengl;
 
 import java.awt.AlphaComposite;
 import java.awt.Composite;
+import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.awt.Transparency;
@@ -177,24 +178,28 @@ public abstract class OGLSurfaceData extends SurfaceData
     static {
         if (!GraphicsEnvironment.isHeadless()) {
             // fbobject currently enabled by default; use "false" to disable
+            @SuppressWarnings("removal")
             String fbo = java.security.AccessController.doPrivileged(
                 new sun.security.action.GetPropertyAction(
                     "sun.java2d.opengl.fbobject"));
             isFBObjectEnabled = !"false".equals(fbo);
 
             // lcdshader currently enabled by default; use "false" to disable
+            @SuppressWarnings("removal")
             String lcd = java.security.AccessController.doPrivileged(
                 new sun.security.action.GetPropertyAction(
                     "sun.java2d.opengl.lcdshader"));
             isLCDShaderEnabled = !"false".equals(lcd);
 
             // biopshader currently enabled by default; use "false" to disable
+            @SuppressWarnings("removal")
             String biop = java.security.AccessController.doPrivileged(
                 new sun.security.action.GetPropertyAction(
                     "sun.java2d.opengl.biopshader"));
             isBIOpShaderEnabled = !"false".equals(biop);
 
             // gradshader currently enabled by default; use "false" to disable
+            @SuppressWarnings("removal")
             String grad = java.security.AccessController.doPrivileged(
                 new sun.security.action.GetPropertyAction(
                     "sun.java2d.opengl.gradshader"));
@@ -578,16 +583,16 @@ public abstract class OGLSurfaceData extends SurfaceData
      * (referenced by the pData parameter).  This method is invoked from
      * the native Dispose() method from the Disposer thread when the
      * Java-level OGLSurfaceData object is about to go away.  Note that we
-     * also pass a reference to the native GLX/WGLGraphicsConfigInfo
-     * (pConfigInfo) for the purposes of making a context current.
+     * also pass a reference to the OGLGraphicsConfig
+     * for the purposes of making a context current.
      */
-    static void dispose(long pData, long pConfigInfo) {
+    static void dispose(long pData, OGLGraphicsConfig gc) {
         OGLRenderQueue rq = OGLRenderQueue.getInstance();
         rq.lock();
         try {
             // make sure we have a current context before
             // disposing the native resources (e.g. texture object)
-            OGLContext.setScratchSurface(pConfigInfo);
+            OGLContext.setScratchSurface(gc);
 
             RenderBuffer buf = rq.getBuffer();
             rq.ensureCapacityAndAlignment(12, 4);

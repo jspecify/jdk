@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,7 +57,7 @@ public class OSXOffScreenSurfaceData extends OSXSurfaceData // implements Raster
     // these are extra image types we can handle
     private static final int TYPE_3BYTE_RGB = BufferedImage.TYPE_BYTE_INDEXED + 1;
 
-    // these are for callbacks when pixes have been touched
+    // these are for callbacks when pixels have been touched
     protected ByteBuffer fImageInfo;
     IntBuffer fImageInfoInt;
     private static final int kNeedToSyncFromJavaPixelsIndex = 0;
@@ -171,7 +171,7 @@ public class OSXOffScreenSurfaceData extends OSXSurfaceData // implements Raster
                 int pixelSize = cm.getPixelSize();
                 int numOfComponents = cm.getNumColorComponents();
                 if ((numOfComponents == 3) && (cm instanceof ComponentColorModel) && (sm instanceof PixelInterleavedSampleModel)) {
-                    int sizes[] = cm.getComponentSize();
+                    int[] sizes = cm.getComponentSize();
                     boolean validsizes = (sizes[0] == 8) && (sizes[1] == 8) && (sizes[2] == 8);
                     int[] offs = ((ComponentSampleModel) sm).getBandOffsets();
                     int numBands = raster.getNumBands();
@@ -505,7 +505,7 @@ public class OSXOffScreenSurfaceData extends OSXSurfaceData // implements Raster
         // src coordinates are in the coordinate space of the image)
         // sg2d.drawImage expects the destination rect to be in the coord space
         // of the graphics2d. <rdar://3746194> (vm)
-        // we need to substract the transX and transY to move it
+        // we need to subtract the transX and transY to move it
         // to the coordinate space of the graphics2d.
         int dstX = x + dx - sg2d.transX;
         int dstY = y + dy - sg2d.transY;

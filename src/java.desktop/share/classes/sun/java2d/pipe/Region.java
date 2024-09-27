@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -269,7 +269,7 @@ public final class Region {
             return EMPTY_REGION;
         }
 
-        int box[] = new int[4];
+        int[] box = new int[4];
         ShapeSpanIterator sr = new ShapeSpanIterator(normalize);
         try {
             sr.setOutputArea(devBounds);
@@ -348,7 +348,7 @@ public final class Region {
      * This method can also be used to create a simple rectangular
      * region.
      */
-    public static Region getInstance(int box[]) {
+    public static Region getInstance(int[] box) {
         return new Region(box[0], box[1], box[2], box[3]);
     }
 
@@ -372,7 +372,7 @@ public final class Region {
      * it must have a Y range equal to the highest Y band in the region and a
      * higher X coordinate than any of the spans in that band.
      */
-    public static Region getInstance(int box[], SpanIterator si) {
+    public static Region getInstance(int[] box, SpanIterator si) {
         Region ret = new Region(box[0], box[1], box[2], box[3]);
         ret.appendSpans(si);
         return ret;
@@ -413,10 +413,10 @@ public final class Region {
         int thix = clipScale(hix, sx);
         int thiy = clipScale(hiy, sy);
         Region ret = new Region(tlox, tloy, thix, thiy);
-        int bands[] = this.bands;
+        int[] bands = this.bands;
         if (bands != null) {
             int end = endIndex;
-            int newbands[] = new int[end];
+            int[] newbands = new int[end];
             int i = 0; // index for source bands
             int j = 0; // index for translated newbands
             int ncol;
@@ -490,11 +490,11 @@ public final class Region {
             return getSafeTranslatedRegion(dx, dy);
         }
         Region ret = new Region(tlox, tloy, thix, thiy);
-        int bands[] = this.bands;
+        int[] bands = this.bands;
         if (bands != null) {
             int end = endIndex;
             ret.endIndex = end;
-            int newbands[] = new int[end];
+            int[] newbands = new int[end];
             ret.bands = newbands;
             int i = 0;
             int ncol;
@@ -517,10 +517,10 @@ public final class Region {
         int thix = clipAdd(hix, dx);
         int thiy = clipAdd(hiy, dy);
         Region ret = new Region(tlox, tloy, thix, thiy);
-        int bands[] = this.bands;
+        int[] bands = this.bands;
         if (bands != null) {
             int end = endIndex;
-            int newbands[] = new int[end];
+            int[] newbands = new int[end];
             int i = 0; // index for source bands
             int j = 0; // index for translated newbands
             int ncol;
@@ -748,15 +748,15 @@ public final class Region {
     private static final int INCLUDE_COMMON = 4;
 
     private void filterSpans(Region ra, Region rb, int flags) {
-        int abands[] = ra.bands;
-        int bbands[] = rb.bands;
+        int[] abands = ra.bands;
+        int[] bbands = rb.bands;
         if (abands == null) {
             abands = new int[] {ra.loy, ra.hiy, 1, ra.lox, ra.hix};
         }
         if (bbands == null) {
             bbands = new int[] {rb.loy, rb.hiy, 1, rb.lox, rb.hix};
         }
-        int box[] = new int[6];
+        int[] box = new int[6];
         int acolstart = 0;
         int ay1 = abands[acolstart++];
         int ay2 = abands[acolstart++];
@@ -967,7 +967,7 @@ public final class Region {
      * highest Y band in the region and a higher X coordinate
      * than any of the spans in that band.
      */
-    private void appendSpan(int box[]) {
+    private void appendSpan(int[] box) {
         int spanlox, spanloy, spanhix, spanhiy;
         if ((spanlox = box[0]) < lox) spanlox = lox;
         if ((spanloy = box[1]) < loy) spanloy = loy;
@@ -1013,7 +1013,7 @@ public final class Region {
         }
     }
 
-    private void endRow(int box[]) {
+    private void endRow(int[] box) {
         int cur = box[4];
         int prev = box[5];
         if (cur > prev) {
@@ -1275,7 +1275,7 @@ public final class Region {
     /**
      * Gets the bbox of the available spans, clipped to the OutputArea.
      */
-    public void getBounds(int pathbox[]) {
+    public void getBounds(int[] pathbox) {
         pathbox[0] = lox;
         pathbox[1] = loy;
         pathbox[2] = hix;
@@ -1285,7 +1285,7 @@ public final class Region {
     /**
      * Clips the indicated bbox array to the bounds of this Region.
      */
-    public void clipBoxToBounds(int bbox[]) {
+    public void clipBoxToBounds(int[] bbox) {
         if (bbox[0] < lox) bbox[0] = lox;
         if (bbox[1] < loy) bbox[1] = loy;
         if (bbox[2] > hix) bbox[2] = hix;
@@ -1310,7 +1310,7 @@ public final class Region {
      * Gets a span iterator object that iterates over the spans in this region
      * but clipped to the bounds given in the argument (xlo, ylo, xhi, yhi).
      */
-    public SpanIterator getSpanIterator(int bbox[]) {
+    public SpanIterator getSpanIterator(int[] bbox) {
         SpanIterator result = getSpanIterator();
         result.intersectClipBox(bbox[0], bbox[1], bbox[2], bbox[3]);
         return result;
@@ -1399,8 +1399,8 @@ public final class Region {
         if (this.endIndex != r.endIndex) {
             return false;
         }
-        int abands[] = this.bands;
-        int bbands[] = r.bands;
+        int[] abands = this.bands;
+        int[] bbands = r.bands;
         for (int i = 0; i < endIndex; i++) {
             if (abands[i] != bbands[i]) {
                 return false;

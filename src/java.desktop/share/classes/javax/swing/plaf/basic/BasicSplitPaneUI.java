@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -286,6 +286,10 @@ public class BasicSplitPaneUI extends SplitPaneUI
     /** If true, setDividerLocation does nothing. */
     boolean             ignoreDividerLocationChange;
 
+    /**
+     * Constructs a {@code BasicSplitPaneUI}.
+     */
+    public BasicSplitPaneUI() {}
 
     /**
      * Creates a new instance of {@code BasicSplitPaneUI}.
@@ -340,7 +344,7 @@ public class BasicSplitPaneUI extends SplitPaneUI
 
         Border    b = divider.getBorder();
 
-        if (b == null || !(b instanceof UIResource)) {
+        if (!(b instanceof UIResource)) {
             divider.setBorder(UIManager.getBorder("SplitPaneDivider.border"));
         }
 
@@ -710,6 +714,11 @@ public class BasicSplitPaneUI extends SplitPaneUI
      */
     public class PropertyHandler implements PropertyChangeListener
     {
+        /**
+         * Constructs a {@code PropertyHandler}.
+         */
+        public PropertyHandler() {}
+
         // NOTE: This class exists only for backward compatibility. All
         // its functionality has been moved into Handler. If you need to add
         // new functionality add it to the Handler, but make sure this
@@ -734,6 +743,11 @@ public class BasicSplitPaneUI extends SplitPaneUI
      */
     public class FocusHandler extends FocusAdapter
     {
+        /**
+         * Constructs a {@code FocusHandler}.
+         */
+        public FocusHandler() {}
+
         // NOTE: This class exists only for backward compatibility. All
         // its functionality has been moved into Handler. If you need to add
         // new functionality add it to the Handler, but make sure this
@@ -757,6 +771,11 @@ public class BasicSplitPaneUI extends SplitPaneUI
      */
     public class KeyboardUpLeftHandler implements ActionListener
     {
+        /**
+         * Constructs a {@code KeyboardUpLeftHandler}.
+         */
+        public KeyboardUpLeftHandler() {}
+
         public void actionPerformed(ActionEvent ev) {
             if (dividerKeyboardResize) {
                 splitPane.setDividerLocation(Math.max(0,getDividerLocation
@@ -774,6 +793,11 @@ public class BasicSplitPaneUI extends SplitPaneUI
      */
     public class KeyboardDownRightHandler implements ActionListener
     {
+        /**
+         * Constructs a {@code KeyboardDownRightHandler}.
+         */
+        public KeyboardDownRightHandler() {}
+
         public void actionPerformed(ActionEvent ev) {
             if (dividerKeyboardResize) {
                 splitPane.setDividerLocation(getDividerLocation(splitPane) +
@@ -792,6 +816,11 @@ public class BasicSplitPaneUI extends SplitPaneUI
      */
     public class KeyboardHomeHandler implements ActionListener
     {
+        /**
+         * Constructs a {@code KeyboardHomeHandler}.
+         */
+        public KeyboardHomeHandler() {}
+
         public void actionPerformed(ActionEvent ev) {
             if (dividerKeyboardResize) {
                 splitPane.setDividerLocation(0);
@@ -809,6 +838,11 @@ public class BasicSplitPaneUI extends SplitPaneUI
      */
     public class KeyboardEndHandler implements ActionListener
     {
+        /**
+         * Constructs a {@code KeyboardEndHandler}.
+         */
+        public KeyboardEndHandler() {}
+
         public void actionPerformed(ActionEvent ev) {
             if (dividerKeyboardResize) {
                 Insets   insets = splitPane.getInsets();
@@ -837,6 +871,11 @@ public class BasicSplitPaneUI extends SplitPaneUI
      */
     public class KeyboardResizeToggleHandler implements ActionListener
     {
+        /**
+         * Constructs a {@code KeyboardResizeToggleHandler}.
+         */
+        public KeyboardResizeToggleHandler() {}
+
         public void actionPerformed(ActionEvent ev) {
             if (!dividerKeyboardResize) {
                 splitPane.requestFocus();
@@ -1323,7 +1362,8 @@ public class BasicSplitPaneUI extends SplitPaneUI
      * LayoutManager for JSplitPanes that have an orientation of
      * HORIZONTAL_SPLIT.
      */
-    public class BasicHorizontalLayoutManager implements LayoutManager2
+    public sealed class BasicHorizontalLayoutManager implements LayoutManager2
+         permits BasicVerticalLayoutManager
     {
         /* left, right, divider. (in this exact order) */
         /**
@@ -1338,7 +1378,7 @@ public class BasicSplitPaneUI extends SplitPaneUI
         private int             lastSplitPaneSize;
         /** True if resetToPreferredSizes has been invoked. */
         private boolean         doReset;
-        /** Axis, 0 for horizontal, or 1 for veritcal. */
+        /** Axis, 0 for horizontal, or 1 for vertical. */
         private int             axis;
 
 
@@ -2103,7 +2143,7 @@ public class BasicSplitPaneUI extends SplitPaneUI
      * VERTICAL_SPLIT.
      *
      */
-    public class BasicVerticalLayoutManager extends
+    public non-sealed class BasicVerticalLayoutManager extends
             BasicHorizontalLayoutManager
     {
         /**
@@ -2320,8 +2360,7 @@ public class BasicSplitPaneUI extends SplitPaneUI
         }
 
         private Component getFirstAvailableComponent(Component c) {
-            if (c!=null && c instanceof JSplitPane) {
-                JSplitPane sp = (JSplitPane)c;
+            if (c instanceof JSplitPane sp) {
                 Component left = getFirstAvailableComponent(sp.getLeftComponent());
                 if (left != null) {
                     c = left;

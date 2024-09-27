@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,7 @@
 
 package java.awt.geom;
 
-import org.jspecify.annotations.Nullable;
-
+import java.io.Serial;
 import java.io.Serializable;
 
 /**
@@ -134,9 +133,10 @@ public abstract class Point2D implements Cloneable {
             return "Point2D.Float["+x+", "+y+"]";
         }
 
-        /*
-         * JDK 1.6 serialVersionUID
+        /**
+         * Use serialVersionUID from JDK 1.6 for interoperability.
          */
+        @Serial
         private static final long serialVersionUID = -2870572449815403710L;
     }
 
@@ -218,9 +218,10 @@ public abstract class Point2D implements Cloneable {
             return "Point2D.Double["+x+", "+y+"]";
         }
 
-        /*
-         * JDK 1.6 serialVersionUID
+        /**
+         * Use serialVersionUID from JDK 1.6 for interoperability.
          */
+        @Serial
         private static final long serialVersionUID = 6150783262733311327L;
     }
 
@@ -386,7 +387,7 @@ public abstract class Point2D implements Cloneable {
      * Creates a new object of the same class and with the
      * same contents as this object.
      * @return     a clone of this instance.
-     * @exception  OutOfMemoryError            if there is not enough memory.
+     * @throws  OutOfMemoryError            if there is not enough memory.
      * @see        java.lang.Cloneable
      * @since      1.2
      */
@@ -420,9 +421,7 @@ public abstract class Point2D implements Cloneable {
      *         the same values; {@code false} otherwise.
      * @since 1.2
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (obj instanceof Point2D) {
             Point2D p2d = (Point2D) obj;
             return (getX() == p2d.getX()) && (getY() == p2d.getY());

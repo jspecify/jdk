@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,8 +59,6 @@
  * - /system/proxy/ftp_port                     int
  * - /system/proxy/secure_port                  int
  * - /system/proxy/no_proxy_for                 list
- * - /system/proxy/gopher_host                  string
- * - /system/proxy/gopher_port                  int
  *
  * The following keys are not used in the new gnome 3
  * - /system/http_proxy/use_http_proxy
@@ -76,7 +74,6 @@ gconf_client_get_default_func* my_get_default_func = NULL;
 gconf_client_get_string_func* my_get_string_func = NULL;
 gconf_client_get_int_func* my_get_int_func = NULL;
 gconf_client_get_bool_func* my_get_bool_func = NULL;
-gconf_init_func* my_gconf_init_func = NULL;
 g_type_init_func* my_g_type_init_func = NULL;
 
 
@@ -94,12 +91,13 @@ g_type_init_func* my_g_type_init_func = NULL;
 typedef struct _GProxyResolver GProxyResolver;
 typedef struct _GSocketConnectable GSocketConnectable;
 typedef struct GError GError;
-typedef GProxyResolver* g_proxy_resolver_get_default_func();
-typedef char** g_proxy_resolver_lookup_func();
-typedef GSocketConnectable* g_network_address_parse_uri_func();
-typedef const char* g_network_address_get_hostname_func();
-typedef unsigned short g_network_address_get_port_func();
-typedef void g_strfreev_func();
+typedef GProxyResolver* g_proxy_resolver_get_default_func(void);
+typedef char** g_proxy_resolver_lookup_func(GProxyResolver* resolver, char* uri, void *null, GError **error_p);
+typedef GSocketConnectable* g_network_address_parse_uri_func(char* proxy, unsigned short default_port, GError **error_p);
+typedef const char* g_network_address_get_hostname_func(GSocketConnectable* conn);
+typedef unsigned short g_network_address_get_port_func(GSocketConnectable* conn);
+typedef void g_strfreev_func(char** proxies);
+typedef void g_clear_error_func(GError **error_p);
 
 static g_proxy_resolver_get_default_func* g_proxy_resolver_get_default = NULL;
 static g_proxy_resolver_lookup_func* g_proxy_resolver_lookup = NULL;
@@ -107,6 +105,7 @@ static g_network_address_parse_uri_func* g_network_address_parse_uri = NULL;
 static g_network_address_get_hostname_func* g_network_address_get_hostname = NULL;
 static g_network_address_get_port_func* g_network_address_get_port = NULL;
 static g_strfreev_func* g_strfreev = NULL;
+static g_clear_error_func* g_clear_error = NULL;
 
 static void* gconf_client = NULL;
 static int use_gproxyResolver = 0;
@@ -224,18 +223,6 @@ static jobjectArray getProxyByGConf(JNIEnv *env, const char* cproto,
             }
 
             /**
-             * GOPHER:
-             * /system/proxy/mode (string) [ "manual" means use proxy settings ]
-             * /system/proxy/gopher_host (string)
-             * /system/proxy/gopher_port (integer)
-             */
-            if (strcasecmp(cproto, "gopher") == 0) {
-                phost = (*my_get_string_func)(gconf_client, "/system/proxy/gopher_host", NULL);
-                pport = (*my_get_int_func)(gconf_client, "/system/proxy/gopher_port", NULL);
-                use_proxy = (phost != NULL && pport != 0);
-            }
-
-            /**
              * SOCKS:
              * /system/proxy/mode (string) [ "manual" means use proxy settings ]
              * /system/proxy/socks_host (string)
@@ -252,7 +239,6 @@ static jobjectArray getProxyByGConf(JNIEnv *env, const char* cproto,
     }
 
     if (use_proxy) {
-        jstring jhost;
         char *noproxyfor;
         char *s;
 
@@ -333,13 +319,16 @@ static int initGProxyResolver() {
 
     g_strfreev = (g_strfreev_func*)dlsym(gio_handle, "g_strfreev");
 
+    g_clear_error = (g_clear_error_func*)dlsym(gio_handle, "g_clear_error");
+
     if (!my_g_type_init_func ||
         !g_proxy_resolver_get_default ||
         !g_proxy_resolver_lookup ||
         !g_network_address_parse_uri ||
         !g_network_address_get_hostname ||
         !g_network_address_get_port ||
-        !g_strfreev)
+        !g_strfreev ||
+        !g_clear_error)
     {
         dlclose(gio_handle);
         return 0;
@@ -428,7 +417,13 @@ static jobjectArray getProxyByGProxyResolver(JNIEnv *env, const char *cproto,
                                     proxy_array = NULL;
                                     break;
                                 }
+                            } else {
+                                proxy_array = NULL;
+                                break;
                             }
+                        } else {
+                            proxy_array = NULL;
+                            break;
                         }
                     } else {
                         /* direct connection - no proxy */
@@ -448,6 +443,9 @@ static jobjectArray getProxyByGProxyResolver(JNIEnv *env, const char *cproto,
             }
         }
         (*g_strfreev)(proxies);
+         // as per API doc, g_clear_error doesn't complain if error is NULL, so it's safe to
+         // call without null checks
+        (*g_clear_error)(&error);
     }
 
     return proxy_array;

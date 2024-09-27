@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,30 +27,36 @@ package sun.nio.ch;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
+import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.ProtocolFamily;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
 import java.net.SocketOption;
-import java.net.StandardProtocolFamily;
+import java.net.SocketTimeoutException;
 import java.net.StandardSocketOptions;
+import java.net.UnixDomainSocketAddress;
 import java.nio.channels.AlreadyBoundException;
 import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.ClosedChannelException;
+import java.nio.channels.IllegalBlockingModeException;
 import java.nio.channels.NotYetBoundException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.SelectorProvider;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
+import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
+import static java.net.StandardProtocolFamily.INET;
+import static java.net.StandardProtocolFamily.INET6;
+import static java.net.StandardProtocolFamily.UNIX;
 
 import sun.net.NetHooks;
 import sun.net.ext.ExtendedSocketOptions;
-import static sun.net.ext.ExtendedSocketOptions.SOCK_STREAM;
 
 /**
  * An implementation of ServerSocketChannels
@@ -61,7 +67,10 @@ class ServerSocketChannelImpl
     implements SelChImpl
 {
     // Used to make native close and configure calls
-    private static NativeDispatcher nd;
+    private static final NativeDispatcher nd = new SocketDispatcher();
+
+    // The protocol family of the socket
+    private final ProtocolFamily family;
 
     // Our file descriptor
     private final FileDescriptor fd;
@@ -79,15 +88,14 @@ class ServerSocketChannelImpl
     // Channel state, increases monotonically
     private static final int ST_INUSE = 0;
     private static final int ST_CLOSING = 1;
-    private static final int ST_KILLPENDING = 2;
-    private static final int ST_KILLED = 3;
+    private static final int ST_CLOSED = 2;
     private int state;
 
     // ID of native thread currently blocked in this channel, for signalling
     private long thread;
 
     // Binding
-    private InetSocketAddress localAddress; // null => unbound
+    private SocketAddress localAddress; // null => unbound
 
     // set true when exclusive binding is on and SO_REUSEADDR is emulated
     private boolean isReuseAddress;
@@ -95,26 +103,79 @@ class ServerSocketChannelImpl
     // Our socket adaptor, if any
     private ServerSocket socket;
 
+    // True if the channel's socket has been forced into non-blocking mode
+    // by a virtual thread. It cannot be reset. When the channel is in
+    // blocking mode and the channel's socket is in non-blocking mode then
+    // operations that don't complete immediately will poll the socket and
+    // preserve the semantics of blocking operations.
+    private volatile boolean forcedNonBlocking;
+
     // -- End of fields protected by stateLock
 
-
     ServerSocketChannelImpl(SelectorProvider sp) throws IOException {
-        super(sp);
-        this.fd =  Net.serverSocket(true);
-        this.fdVal = IOUtil.fdVal(fd);
+        this(sp, Net.isIPv6Available() ? INET6 : INET);
     }
 
-    ServerSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
+    ServerSocketChannelImpl(SelectorProvider sp, ProtocolFamily family)
         throws IOException
     {
         super(sp);
-        this.fd =  fd;
+        Objects.requireNonNull(family, "'family' is null");
+        if ((family != INET) && (family != INET6) && (family != UNIX)) {
+            throw new UnsupportedOperationException("Protocol family not supported");
+        }
+        if (family == INET6 && !Net.isIPv6Available()) {
+            throw new UnsupportedOperationException("IPv6 not available");
+        }
+
+        this.family = family;
+        if (family == UNIX) {
+            this.fd = UnixDomainSockets.socket();
+        } else {
+            this.fd = Net.serverSocket(family, true);
+        }
         this.fdVal = IOUtil.fdVal(fd);
+    }
+
+    ServerSocketChannelImpl(SelectorProvider sp,
+                            ProtocolFamily family,
+                            FileDescriptor fd,
+                            boolean bound)
+        throws IOException
+    {
+        super(sp);
+
+        if (family == UNIX) {
+            this.family = UNIX;
+        } else {
+            this.family = Net.isIPv6Available() ? INET6 : INET;
+        }
+        this.fd = fd;
+        this.fdVal = IOUtil.fdVal(fd);
+
         if (bound) {
             synchronized (stateLock) {
-                localAddress = Net.localAddress(fd);
+                if (family == UNIX) {
+                    localAddress = UnixDomainSockets.localAddress(fd);
+                } else {
+                    localAddress = Net.localAddress(fd);
+                }
             }
         }
+    }
+
+    /**
+     * Returns true if this channel is to a INET or INET6 socket.
+     */
+    private boolean isNetSocket() {
+        return (family == INET) || (family == INET6);
+    }
+
+    /**
+     * Returns true if this channel is to a UNIX socket.
+     */
+    boolean isUnixSocket() {
+        return (family == UNIX);
     }
 
     // @throws ClosedChannelException if channel is closed
@@ -126,8 +187,13 @@ class ServerSocketChannelImpl
     @Override
     public ServerSocket socket() {
         synchronized (stateLock) {
-            if (socket == null)
-                socket = ServerSocketAdaptor.create(this);
+            if (socket == null) {
+                if (isNetSocket()) {
+                    socket = ServerSocketAdaptor.create(this);
+                } else {
+                    throw new UnsupportedOperationException("Not supported");
+                }
+            }
             return socket;
         }
     }
@@ -136,9 +202,11 @@ class ServerSocketChannelImpl
     public SocketAddress getLocalAddress() throws IOException {
         synchronized (stateLock) {
             ensureOpen();
-            return (localAddress == null)
-                    ? null
-                    : Net.getRevealedLocalAddress(localAddress);
+            if (isUnixSocket()) {
+                return UnixDomainSockets.getRevealedLocalAddress(localAddress);
+            } else {
+                return Net.getRevealedLocalAddress(localAddress);
+            }
         }
     }
 
@@ -149,19 +217,16 @@ class ServerSocketChannelImpl
         Objects.requireNonNull(name);
         if (!supportedOptions().contains(name))
             throw new UnsupportedOperationException("'" + name + "' not supported");
+        if (!name.type().isInstance(value))
+            throw new IllegalArgumentException("Invalid value '" + value + "'");
+
         synchronized (stateLock) {
             ensureOpen();
-
-            if (name == StandardSocketOptions.IP_TOS) {
-                ProtocolFamily family = Net.isIPv6Available() ?
-                    StandardProtocolFamily.INET6 : StandardProtocolFamily.INET;
-                Net.setSocketOption(fd, family, name, value);
-                return this;
-            }
-
-            if (name == StandardSocketOptions.SO_REUSEADDR && Net.useExclusiveBind()) {
+            if (isNetSocket()
+                    && name == StandardSocketOptions.SO_REUSEADDR
+                    && Net.useExclusiveBind()) {
                 // SO_REUSEADDR emulated when using exclusive bind
-                isReuseAddress = (Boolean)value;
+                isReuseAddress = (Boolean) value;
             } else {
                 // no options that require special handling
                 Net.setSocketOption(fd, Net.UNSPEC, name, value);
@@ -181,34 +246,47 @@ class ServerSocketChannelImpl
 
         synchronized (stateLock) {
             ensureOpen();
-            if (name == StandardSocketOptions.SO_REUSEADDR && Net.useExclusiveBind()) {
+            if (isNetSocket()
+                    && name == StandardSocketOptions.SO_REUSEADDR
+                    && Net.useExclusiveBind()) {
                 // SO_REUSEADDR emulated when using exclusive bind
-                return (T)Boolean.valueOf(isReuseAddress);
+                return (T) Boolean.valueOf(isReuseAddress);
+            } else {
+                // no options that require special handling
+                return (T) Net.getSocketOption(fd, Net.UNSPEC, name);
             }
-            // no options that require special handling
-            return (T) Net.getSocketOption(fd, Net.UNSPEC, name);
         }
     }
 
     private static class DefaultOptionsHolder {
-        static final Set<SocketOption<?>> defaultOptions = defaultOptions();
+        static final Set<SocketOption<?>> defaultInetOptions = defaultInetOptions();
+        static final Set<SocketOption<?>> defaultUnixDomainOptions = defaultUnixDomainOptions();
 
-        private static Set<SocketOption<?>> defaultOptions() {
+        private static Set<SocketOption<?>> defaultInetOptions() {
             HashSet<SocketOption<?>> set = new HashSet<>();
             set.add(StandardSocketOptions.SO_RCVBUF);
             set.add(StandardSocketOptions.SO_REUSEADDR);
             if (Net.isReusePortAvailable()) {
                 set.add(StandardSocketOptions.SO_REUSEPORT);
             }
-            set.add(StandardSocketOptions.IP_TOS);
-            set.addAll(ExtendedSocketOptions.options(SOCK_STREAM));
+            set.addAll(ExtendedSocketOptions.serverSocketOptions());
+            return Collections.unmodifiableSet(set);
+        }
+
+        private static Set<SocketOption<?>> defaultUnixDomainOptions() {
+            HashSet<SocketOption<?>> set = new HashSet<>();
+            set.add(StandardSocketOptions.SO_RCVBUF);
             return Collections.unmodifiableSet(set);
         }
     }
 
     @Override
     public final Set<SocketOption<?>> supportedOptions() {
-        return DefaultOptionsHolder.defaultOptions;
+        if (isUnixSocket()) {
+            return DefaultOptionsHolder.defaultUnixDomainOptions;
+        } else {
+            return DefaultOptionsHolder.defaultInetOptions;
+        }
     }
 
     @Override
@@ -217,18 +295,55 @@ class ServerSocketChannelImpl
             ensureOpen();
             if (localAddress != null)
                 throw new AlreadyBoundException();
-            InetSocketAddress isa = (local == null)
-                                    ? new InetSocketAddress(0)
-                                    : Net.checkAddress(local);
-            SecurityManager sm = System.getSecurityManager();
-            if (sm != null)
-                sm.checkListen(isa.getPort());
-            NetHooks.beforeTcpBind(fd, isa.getAddress(), isa.getPort());
-            Net.bind(fd, isa.getAddress(), isa.getPort());
-            Net.listen(fd, backlog < 1 ? 50 : backlog);
-            localAddress = Net.localAddress(fd);
+            if (isUnixSocket()) {
+                localAddress = unixBind(local, backlog);
+            } else {
+                localAddress = netBind(local, backlog);
+            }
         }
         return this;
+    }
+
+    private SocketAddress unixBind(SocketAddress local, int backlog) throws IOException {
+        UnixDomainSockets.checkPermission();
+        if (local == null) {
+            // Attempt up to 10 times to find an unused name in temp directory.
+            // If local address supplied then bind called only once
+            boolean bound = false;
+            int attempts = 0;
+            while (attempts < 10 && !bound) {
+                try {
+                    Path path = UnixDomainSockets.generateTempName().getPath();
+                    UnixDomainSockets.bind(fd, path);
+                    bound = true;
+                } catch (BindException e) { }
+                attempts++;
+            }
+            if (!bound)
+                throw new BindException("Could not bind to temporary name");
+        } else {
+            Path path = UnixDomainSockets.checkAddress(local).getPath();
+            UnixDomainSockets.bind(fd, path);
+        }
+        Net.listen(fd, backlog < 1 ? 50 : backlog);
+        return UnixDomainSockets.localAddress(fd);
+    }
+
+    private SocketAddress netBind(SocketAddress local, int backlog) throws IOException {
+        InetSocketAddress isa;
+        if (local == null) {
+            isa = new InetSocketAddress(Net.anyLocalAddress(family), 0);
+        } else {
+            isa = Net.checkAddress(local, family);
+        }
+        @SuppressWarnings("removal")
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null)
+            sm.checkListen(isa.getPort());
+        NetHooks.beforeTcpBind(fd, isa.getAddress(), isa.getPort());
+        Net.bind(family, fd, isa.getAddress(), isa.getPort());
+        Net.listen(fd, backlog < 1 ? 50 : backlog);
+        return Net.localAddress(fd);
     }
 
     /**
@@ -261,9 +376,8 @@ class ServerSocketChannelImpl
         if (blocking) {
             synchronized (stateLock) {
                 thread = 0;
-                // notify any thread waiting in implCloseSelectableChannel
                 if (state == ST_CLOSING) {
-                    stateLock.notifyAll();
+                    tryFinishClose();
                 }
             }
             end(completed);
@@ -272,46 +386,129 @@ class ServerSocketChannelImpl
 
     @Override
     public SocketChannel accept() throws IOException {
+        int n = 0;
+        FileDescriptor newfd = new FileDescriptor();
+        SocketAddress[] saa = new SocketAddress[1];
+
         acceptLock.lock();
         try {
-            int n = 0;
-            FileDescriptor newfd = new FileDescriptor();
-            InetSocketAddress[] isaa = new InetSocketAddress[1];
-
+            ensureOpen();
             boolean blocking = isBlocking();
             try {
                 begin(blocking);
-                do {
-                    n = accept(this.fd, newfd, isaa);
-                } while (n == IOStatus.INTERRUPTED && isOpen());
+                configureSocketNonBlockingIfVirtualThread();
+                n = implAccept(this.fd, newfd, saa);
+                if (blocking) {
+                    while (IOStatus.okayToRetry(n) && isOpen()) {
+                        park(Net.POLLIN);
+                        n = implAccept(this.fd, newfd, saa);
+                    }
+                }
             } finally {
                 end(blocking, n > 0);
                 assert IOStatus.check(n);
             }
+        } finally {
+            acceptLock.unlock();
+        }
 
-            if (n < 1)
-                return null;
+        if (n > 0) {
+            return finishAccept(newfd, saa[0]);
+        } else {
+            return null;
+        }
+    }
 
+    private int implAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] saa)
+        throws IOException
+    {
+        if (isUnixSocket()) {
+            UnixDomainSockets.checkPermission();
+            String[] pa = new String[1];
+            int n = UnixDomainSockets.accept(fd, newfd, pa);
+            if (n > 0)
+                saa[0] = UnixDomainSocketAddress.of(pa[0]);
+            return n;
+        } else {
+            InetSocketAddress[] issa = new InetSocketAddress[1];
+            int n = Net.accept(fd, newfd, issa);
+            if (n > 0)
+                saa[0] = issa[0];
+            return n;
+        }
+    }
+
+    /**
+     * Accepts a new connection with a given timeout. This method requires the
+     * channel to be configured in blocking mode.
+     *
+     * @apiNote This method is for use by the socket adaptor.
+     *
+     * @param nanos the timeout, in nanoseconds
+     * @throws IllegalBlockingModeException if the channel is configured non-blocking
+     * @throws SocketTimeoutException if the timeout expires
+     */
+    SocketChannel blockingAccept(long nanos) throws IOException {
+        int n = 0;
+        FileDescriptor newfd = new FileDescriptor();
+        SocketAddress[] saa = new SocketAddress[1];
+
+        acceptLock.lock();
+        try {
+            // check that channel is configured blocking
+            if (!isBlocking())
+                throw new IllegalBlockingModeException();
+
+            try {
+                begin(true);
+                // change socket to non-blocking
+                lockedConfigureBlocking(false);
+                try {
+                    long startNanos = System.nanoTime();
+                    n = implAccept(fd, newfd, saa);
+                    while (n == IOStatus.UNAVAILABLE && isOpen()) {
+                        long remainingNanos = nanos - (System.nanoTime() - startNanos);
+                        if (remainingNanos <= 0) {
+                            throw new SocketTimeoutException("Accept timed out");
+                        }
+                        park(Net.POLLIN, remainingNanos);
+                        n = implAccept(fd, newfd, saa);
+                    }
+                } finally {
+                    // restore socket to blocking mode (if channel is open)
+                    tryLockedConfigureBlocking(true);
+                }
+            } finally {
+                end(true, n > 0);
+            }
+        } finally {
+            acceptLock.unlock();
+        }
+
+        assert n > 0;
+        return finishAccept(newfd, saa[0]);
+    }
+
+    private SocketChannel finishAccept(FileDescriptor newfd, SocketAddress sa)
+        throws IOException
+    {
+        try {
             // newly accepted socket is initially in blocking mode
             IOUtil.configureBlocking(newfd, true);
 
-            InetSocketAddress isa = isaa[0];
-            SocketChannel sc = new SocketChannelImpl(provider(), newfd, isa);
-
             // check permitted to accept connections from the remote address
-            SecurityManager sm = System.getSecurityManager();
-            if (sm != null) {
-                try {
+            if (isNetSocket()) {
+                @SuppressWarnings("removal")
+                SecurityManager sm = System.getSecurityManager();
+                if (sm != null) {
+                    InetSocketAddress isa = (InetSocketAddress) sa;
                     sm.checkAccept(isa.getAddress().getHostAddress(), isa.getPort());
-                } catch (SecurityException x) {
-                    sc.close();
-                    throw x;
                 }
             }
-            return sc;
-
-        } finally {
-            acceptLock.unlock();
+            return new SocketChannelImpl(provider(), family, newfd, sa);
+        } catch (Exception e) {
+            nd.close(newfd);
+            throw e;
         }
     }
 
@@ -319,88 +516,150 @@ class ServerSocketChannelImpl
     protected void implConfigureBlocking(boolean block) throws IOException {
         acceptLock.lock();
         try {
-            synchronized (stateLock) {
-                ensureOpen();
-                IOUtil.configureBlocking(fd, block);
-            }
+            lockedConfigureBlocking(block);
         } finally {
             acceptLock.unlock();
         }
     }
 
     /**
+     * Adjusts the blocking mode.
+     */
+    private void lockedConfigureBlocking(boolean block) throws IOException {
+        assert acceptLock.isHeldByCurrentThread();
+        synchronized (stateLock) {
+            ensureOpen();
+            // do nothing if virtual thread has forced the socket to be non-blocking
+            if (!forcedNonBlocking) {
+                IOUtil.configureBlocking(fd, block);
+            }
+        }
+    }
+
+    /**
+     * Attempts to adjust the blocking mode if the channel is open.
+     * @return {@code true} if the blocking mode was adjusted
+     */
+    private boolean tryLockedConfigureBlocking(boolean block) throws IOException {
+        assert acceptLock.isHeldByCurrentThread();
+        synchronized (stateLock) {
+            // do nothing if virtual thread has forced the socket to be non-blocking
+            if (!forcedNonBlocking && isOpen()) {
+                IOUtil.configureBlocking(fd, block);
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Ensures that the socket is configured non-blocking when on a virtual thread.
+     */
+    private void configureSocketNonBlockingIfVirtualThread() throws IOException {
+        assert acceptLock.isHeldByCurrentThread();
+        if (!forcedNonBlocking && Thread.currentThread().isVirtual()) {
+            synchronized (stateLock) {
+                ensureOpen();
+                IOUtil.configureBlocking(fd, false);
+                forcedNonBlocking = true;
+            }
+        }
+    }
+
+    /**
+     * Closes the socket if there are no accept in progress and the channel is
+     * not registered with a Selector.
+     */
+    private boolean tryClose() throws IOException {
+        assert Thread.holdsLock(stateLock) && state == ST_CLOSING;
+        if ((thread == 0) && !isRegistered()) {
+            state = ST_CLOSED;
+            nd.close(fd);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Invokes tryClose to attempt to close the socket.
+     *
+     * This method is used for deferred closing by I/O and Selector operations.
+     */
+    private void tryFinishClose() {
+        try {
+            tryClose();
+        } catch (IOException ignore) { }
+    }
+
+    /**
+     * Closes this channel when configured in blocking mode.
+     *
+     * If there is an accept in progress then the socket is pre-closed and the
+     * accept thread is signalled, in which case the final close is deferred
+     * until the accept aborts.
+     */
+    private void implCloseBlockingMode() throws IOException {
+        synchronized (stateLock) {
+            assert state < ST_CLOSING;
+            state = ST_CLOSING;
+            if (!tryClose()) {
+                long th = thread;
+                if (th != 0) {
+                    if (NativeThread.isVirtualThread(th)) {
+                        Poller.stopPoll(fdVal);
+                    } else {
+                        nd.preClose(fd);
+                        NativeThread.signal(th);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Closes this channel when configured in non-blocking mode.
+     *
+     * If the channel is registered with a Selector then the close is deferred
+     * until the channel is flushed from all Selectors.
+     */
+    private void implCloseNonBlockingMode() throws IOException {
+        synchronized (stateLock) {
+            assert state < ST_CLOSING;
+            state = ST_CLOSING;
+        }
+        // wait for any accept to complete before trying to close
+        acceptLock.lock();
+        acceptLock.unlock();
+        synchronized (stateLock) {
+            if (state == ST_CLOSING) {
+                tryClose();
+            }
+        }
+    }
+
+    /**
      * Invoked by implCloseChannel to close the channel.
-     *
-     * This method waits for outstanding I/O operations to complete. When in
-     * blocking mode, the socket is pre-closed and the threads in blocking I/O
-     * operations are signalled to ensure that the outstanding I/O operations
-     * complete quickly.
-     *
-     * The socket is closed by this method when it is not registered with a
-     * Selector. Note that a channel configured blocking may be registered with
-     * a Selector. This arises when a key is canceled and the channel configured
-     * to blocking mode before the key is flushed from the Selector.
      */
     @Override
     protected void implCloseSelectableChannel() throws IOException {
         assert !isOpen();
-
-        boolean interrupted = false;
-        boolean blocking;
-
-        // set state to ST_CLOSING
-        synchronized (stateLock) {
-            assert state < ST_CLOSING;
-            state = ST_CLOSING;
-            blocking = isBlocking();
-        }
-
-        // wait for any outstanding accept to complete
-        if (blocking) {
-            synchronized (stateLock) {
-                assert state == ST_CLOSING;
-                long th = thread;
-                if (th != 0) {
-                    nd.preClose(fd);
-                    NativeThread.signal(th);
-
-                    // wait for accept operation to end
-                    while (thread != 0) {
-                        try {
-                            stateLock.wait();
-                        } catch (InterruptedException e) {
-                            interrupted = true;
-                        }
-                    }
-                }
-            }
+        if (isBlocking()) {
+            implCloseBlockingMode();
         } else {
-            // non-blocking mode: wait for accept to complete
-            acceptLock.lock();
-            acceptLock.unlock();
+            implCloseNonBlockingMode();
         }
-
-        // set state to ST_KILLPENDING
-        synchronized (stateLock) {
-            assert state == ST_CLOSING;
-            state = ST_KILLPENDING;
-        }
-
-        // close socket if not registered with Selector
-        if (!isRegistered())
-            kill();
-
-        // restore interrupt status
-        if (interrupted)
-            Thread.currentThread().interrupt();
     }
 
     @Override
-    public void kill() throws IOException {
+    public void kill() {
+        // wait for any accept operation to complete before trying to close
+        acceptLock.lock();
+        acceptLock.unlock();
         synchronized (stateLock) {
-            if (state == ST_KILLPENDING) {
-                state = ST_KILLED;
-                nd.close(fd);
+            if (state == ST_CLOSING) {
+                tryFinishClose();
             }
         }
     }
@@ -417,31 +676,9 @@ class ServerSocketChannelImpl
     /**
      * Returns the local address, or null if not bound
      */
-    InetSocketAddress localAddress() {
+    SocketAddress localAddress() {
         synchronized (stateLock) {
             return localAddress;
-        }
-    }
-
-    /**
-     * Poll this channel's socket for a new connection up to the given timeout.
-     * @return {@code true} if there is a connection to accept
-     */
-    boolean pollAccept(long timeout) throws IOException {
-        assert Thread.holdsLock(blockingLock()) && isBlocking();
-        acceptLock.lock();
-        try {
-            boolean polled = false;
-            try {
-                begin(true);
-                int events = Net.poll(fd, Net.POLLIN, timeout);
-                polled = (events != 0);
-            } finally {
-                end(true, polled);
-            }
-            return polled;
-        } finally {
-            acceptLock.unlock();
         }
     }
 
@@ -508,9 +745,11 @@ class ServerSocketChannelImpl
             sb.append("closed");
         } else {
             synchronized (stateLock) {
-                InetSocketAddress addr = localAddress;
+                SocketAddress addr = localAddress;
                 if (addr == null) {
                     sb.append("unbound");
+                } else if (isUnixSocket()) {
+                    sb.append(UnixDomainSockets.getRevealedLocalAddressAsString(addr));
                 } else {
                     sb.append(Net.getRevealedLocalAddressAsString(addr));
                 }
@@ -519,38 +758,4 @@ class ServerSocketChannelImpl
         sb.append(']');
         return sb.toString();
     }
-
-    /**
-     * Accept a connection on a socket.
-     *
-     * @implNote Wrap native call to allow instrumentation.
-     */
-    private int accept(FileDescriptor ssfd,
-                       FileDescriptor newfd,
-                       InetSocketAddress[] isaa)
-        throws IOException
-    {
-        return accept0(ssfd, newfd, isaa);
-    }
-
-    // -- Native methods --
-
-    // Accepts a new connection, setting the given file descriptor to refer to
-    // the new socket and setting isaa[0] to the socket's remote address.
-    // Returns 1 on success, or IOStatus.UNAVAILABLE (if non-blocking and no
-    // connections are pending) or IOStatus.INTERRUPTED.
-    //
-    private native int accept0(FileDescriptor ssfd,
-                               FileDescriptor newfd,
-                               InetSocketAddress[] isaa)
-        throws IOException;
-
-    private static native void initIDs();
-
-    static {
-        IOUtil.load();
-        initIDs();
-        nd = new SocketDispatcher();
-    }
-
 }

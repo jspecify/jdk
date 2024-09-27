@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,52 +23,28 @@
 
 #include "precompiled.hpp"
 #include "gc/z/zThread.hpp"
-#include "runtime/thread.hpp"
-#include "utilities/debug.hpp"
+#include "runtime/mutexLocker.hpp"
 
-__thread bool      ZThread::_initialized;
-__thread uintptr_t ZThread::_id;
-__thread bool      ZThread::_is_vm;
-__thread bool      ZThread::_is_java;
-__thread bool      ZThread::_is_worker;
-__thread uint      ZThread::_worker_id;
+void ZThread::run_service() {
+  run_thread();
 
-void ZThread::initialize() {
-  assert(!_initialized, "Already initialized");
-  const Thread* const thread = Thread::current();
-  _initialized = true;
-  _id = (uintptr_t)thread;
-  _is_vm = thread->is_VM_thread();
-  _is_java = thread->is_Java_thread();
-  _is_worker = thread->is_Worker_thread();
-  _worker_id = (uint)-1;
+  MonitorLocker ml(Terminator_lock, Monitor::_no_safepoint_check_flag);
+
+  // Wait for signal to terminate
+  while (!should_terminate()) {
+    ml.wait();
+  }
 }
 
-const char* ZThread::name() {
-  const Thread* const thread = Thread::current();
-  if (thread->is_Named_thread()) {
-    const NamedThread* const named = (const NamedThread*)thread;
-    return named->name();
-  } else if (thread->is_Java_thread()) {
-    return "Java";
+void ZThread::stop_service() {
+  {
+    // Signal thread to terminate
+    // The should_terminate() flag should be true, and this notifies waiters
+    // to wake up.
+    MonitorLocker ml(Terminator_lock);
+    assert(should_terminate(), "This should be called when should_terminate has been set");
+    ml.notify_all();
   }
 
-  return "Unknown";
-}
-
-bool ZThread::has_worker_id() {
-  return _initialized &&
-         _is_worker &&
-         _worker_id != (uint)-1;
-}
-
-void ZThread::set_worker_id(uint worker_id) {
-  ensure_initialized();
-  assert(!has_worker_id(), "Worker id already initialized");
-  _worker_id = worker_id;
-}
-
-void ZThread::clear_worker_id() {
-  assert(has_worker_id(), "Worker id not initialized");
-  _worker_id = (uint)-1;
+  terminate();
 }

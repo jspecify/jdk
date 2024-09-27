@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,38 +22,35 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_UTILITIES_JFRREFCOUNTPOINTER_HPP
-#define SHARE_VM_JFR_UTILITIES_JFRREFCOUNTPOINTER_HPP
+#ifndef SHARE_JFR_UTILITIES_JFRREFCOUNTPOINTER_HPP
+#define SHARE_JFR_UTILITIES_JFRREFCOUNTPOINTER_HPP
 
 #include "jfr/utilities/jfrAllocation.hpp"
 #include "runtime/atomic.hpp"
 
 template <typename T>
 class RefCountHandle {
-  template <typename, typename>
-  friend class RefCountPointer;
  private:
   const T* _ptr;
 
   RefCountHandle(const T* ptr) : _ptr(ptr) {
-    assert(_ptr != NULL, "invariant");
+    assert(_ptr != nullptr, "invariant");
     _ptr->add_ref();
   }
 
  public:
-  RefCountHandle() : _ptr(NULL) {}
+  RefCountHandle() : _ptr(nullptr) {}
 
   RefCountHandle(const RefCountHandle<T>& rhs) : _ptr(rhs._ptr) {
-    if (_ptr != NULL) {
+    if (_ptr != nullptr) {
       _ptr->add_ref();
     }
   }
 
   ~RefCountHandle() {
-    if (_ptr != NULL) {
-      const T* temp = _ptr;
-      _ptr = NULL;
-      temp->remove_ref();
+    if (_ptr != nullptr) {
+      _ptr->remove_ref();
+      _ptr = nullptr;
     }
   }
 
@@ -73,34 +70,61 @@ class RefCountHandle {
   }
 
   bool valid() const {
-    return _ptr != NULL;
+    return _ptr != nullptr;
   }
 
-  const T & operator->() const {
+  const T& operator->() const {
     return *_ptr;
   }
 
   T& operator->() {
     return *const_cast<T*>(_ptr);
   }
+
+  static RefCountHandle<T> make(const T* ptr) {
+    return ptr;
+  }
+};
+
+class SingleThreadedRefCounter {
+ private:
+  mutable intptr_t _refs;
+ public:
+  SingleThreadedRefCounter() : _refs(0) {}
+
+  void inc() const {
+    ++_refs;
+  }
+
+  bool dec() const {
+    return --_refs == 0;
+  }
+
+  intptr_t current() const {
+    return _refs;
+  }
 };
 
 class MultiThreadedRefCounter {
  private:
-  mutable volatile int _refs;
+  mutable volatile intptr_t _refs;
  public:
   MultiThreadedRefCounter() : _refs(0) {}
 
   void inc() const {
-    Atomic::add(1, &_refs);
+    Atomic::inc(&_refs, memory_order_relaxed);
   }
 
   bool dec() const {
-    return 0 == Atomic::add((-1), &_refs);
+    if (0 == Atomic::sub(&_refs, 1, memory_order_release)) {
+      OrderAccess::acquire();
+      return true;
+    }
+    return false;
   }
 
-  int current() const {
-   return _refs;
+  intptr_t current() const {
+    return Atomic::load(&_refs);
   }
 };
 
@@ -133,7 +157,7 @@ class RefCountPointer : public JfrCHeapObj {
   }
 
   RefCountPointer(const T* ptr) : _ptr(ptr), _refs() {
-    assert(_ptr != NULL, "invariant");
+    assert(_ptr != nullptr, "invariant");
   }
 
  public:
@@ -146,9 +170,8 @@ class RefCountPointer : public JfrCHeapObj {
   }
 
   static RefHandle make(const T* ptr) {
-    assert(ptr != NULL, "invariant");
-    return RefHandle(new RefCountPointer<T, RefCountImpl>(ptr));
+    return RefHandle::make(new RefCountPointer<T, RefCountImpl>(ptr));
   }
 };
 
-#endif // SHARE_VM_JFR_UTILITIES_JFRREFCOUNTPOINTER_HPP
+#endif // SHARE_JFR_UTILITIES_JFRREFCOUNTPOINTER_HPP

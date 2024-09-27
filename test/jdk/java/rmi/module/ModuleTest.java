@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,20 +23,23 @@
 
 /**
  * @test
- * @library /lib/testlibrary /test/lib
- * @build jdk.testlibrary.ProcessTools
- *        ModuleTest jdk.test.lib.compiler.CompilerUtils JarUtils
+ * @library /test/lib
+ * @build jdk.test.lib.process.ProcessTools
+ *        jdk.test.lib.compiler.CompilerUtils
+ *        jdk.test.lib.util.JarUtils
+ *        ModuleTest
  * @run testng ModuleTest
  * @summary Basic tests for using rmi in module world
  */
 
-import static jdk.testlibrary.ProcessTools.executeTestJava;
+import static jdk.test.lib.process.ProcessTools.executeTestJava;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 import java.io.File;
 import java.nio.file.Paths;
 import jdk.test.lib.compiler.CompilerUtils;
+import jdk.test.lib.util.JarUtils;
 
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
@@ -146,7 +149,7 @@ public class ModuleTest {
      * @throws Exception
      */
     @Test
-    public void testClientInUnamedModule() throws Exception {
+    public void testClientInUnnamedModule() throws Exception {
         assertEquals(executeTestJava("--module-path", pathJoin(MTEST_JAR, SERVER_JAR),
                 "--add-modules", "mserver",
                 "-cp", CLIENT_JAR,

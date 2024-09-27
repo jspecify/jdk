@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2008, 2009, 2010 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_ZERO_VM_STACK_ZERO_HPP
-#define CPU_ZERO_VM_STACK_ZERO_HPP
+#ifndef CPU_ZERO_STACK_ZERO_HPP
+#define CPU_ZERO_STACK_ZERO_HPP
 
 #include "utilities/align.hpp"
 #include "utilities/sizes.hpp"
@@ -42,7 +42,7 @@ class ZeroStack {
   ZeroStack();
 
   bool needs_setup() const {
-    return _base == NULL;
+    return _base == nullptr;
   }
 
   int suggest_size(Thread *thread) const;
@@ -59,9 +59,9 @@ class ZeroStack {
     assert(!needs_setup(), "not set up");
     assert(_sp == _top, "stuff on stack at teardown");
 
-    _base = NULL;
-    _top  = NULL;
-    _sp   = NULL;
+    _base = nullptr;
+    _top  = nullptr;
+    _sp   = nullptr;
   }
 
   intptr_t *sp() const {
@@ -212,4 +212,4 @@ class ZeroFrame {
                         int       buflen) const;
 };
 
-#endif // CPU_ZERO_VM_STACK_ZERO_HPP
+#endif // CPU_ZERO_STACK_ZERO_HPP

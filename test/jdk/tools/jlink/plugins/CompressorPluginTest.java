@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -95,17 +95,19 @@ public class CompressorPluginTest {
 
         // compress level 0 == no compression
         Properties options0 = new Properties();
-        options0.setProperty(DefaultCompressPlugin.NAME,
-                "0");
-        checkCompress(classes, new DefaultCompressPlugin(),
+        DefaultCompressPlugin compressPlugin = new DefaultCompressPlugin();
+        options0.setProperty(compressPlugin.getName(),
+                DefaultCompressPlugin.LEVEL_0);
+        checkCompress(classes, compressPlugin,
                 options0,
                 new ResourceDecompressorFactory[]{
                 });
 
         // compress level 1 == String sharing
         Properties options1 = new Properties();
-        options1.setProperty(DefaultCompressPlugin.NAME, "1");
-        checkCompress(classes, new DefaultCompressPlugin(),
+        compressPlugin = new DefaultCompressPlugin();
+        options1.setProperty(compressPlugin.getName(), DefaultCompressPlugin.LEVEL_1);
+        checkCompress(classes, compressPlugin,
                 options1,
                 new ResourceDecompressorFactory[]{
                     new StringSharingDecompressorFactory()
@@ -114,8 +116,9 @@ public class CompressorPluginTest {
         // compress level 1 == String sharing + filter
         options1.setProperty(DefaultCompressPlugin.FILTER,
                 "**Exception.class");
-        options1.setProperty(DefaultCompressPlugin.NAME, "1");
-        checkCompress(classes, new DefaultCompressPlugin(),
+        compressPlugin = new DefaultCompressPlugin();
+        options1.setProperty(compressPlugin.getName(), DefaultCompressPlugin.LEVEL_1);
+        checkCompress(classes, compressPlugin,
                 options1,
                 new ResourceDecompressorFactory[]{
                     new StringSharingDecompressorFactory()
@@ -125,8 +128,9 @@ public class CompressorPluginTest {
         Properties options2 = new Properties();
         options2.setProperty(DefaultCompressPlugin.FILTER,
                 "**Exception.class");
-        options2.setProperty(DefaultCompressPlugin.NAME, "2");
-        checkCompress(classes, new DefaultCompressPlugin(),
+        compressPlugin = new DefaultCompressPlugin();
+        options2.setProperty(compressPlugin.getName(), DefaultCompressPlugin.LEVEL_2);
+        checkCompress(classes, compressPlugin,
                 options2,
                 new ResourceDecompressorFactory[]{
                     new ZipDecompressorFactory()
@@ -135,12 +139,74 @@ public class CompressorPluginTest {
         // compress level 2 == ZIP + filter
         options2.setProperty(DefaultCompressPlugin.FILTER,
                 "**Exception.class");
-        options2.setProperty(DefaultCompressPlugin.NAME, "2");
-        checkCompress(classes, new DefaultCompressPlugin(),
+        compressPlugin = new DefaultCompressPlugin();
+        options2.setProperty(compressPlugin.getName(), DefaultCompressPlugin.LEVEL_2);
+        checkCompress(classes, compressPlugin,
                 options2,
                 new ResourceDecompressorFactory[]{
                     new ZipDecompressorFactory(),
                 }, Collections.singletonList(".*Exception.class"));
+
+        // compress level zip-0 == no compression
+        Properties optionsZip0 = new Properties();
+        DefaultCompressPlugin compressPluginZip0 = new DefaultCompressPlugin();
+        optionsZip0.setProperty(compressPluginZip0.getName(), "zip-0");
+        checkCompress(classes, compressPluginZip0,
+                optionsZip0,
+                new ResourceDecompressorFactory[]{
+                });
+
+        // compress level zip-[1-9] == varied compression levels
+        for(int i = 1; i < 10; i++) {
+            Properties optionsZip = new Properties();
+            compressPlugin = new DefaultCompressPlugin();
+            optionsZip.setProperty(compressPlugin.getName(), "zip-" + i);
+            checkCompress(classes, compressPlugin,
+                    optionsZip,
+                    new ResourceDecompressorFactory[]{
+                            new ZipDecompressorFactory(),
+                    });
+        }
+
+        // compress level zip-[1-9] == varied compression levels + filter
+        for(int i = 1; i < 10; i++) {
+            Properties optionsZip = new Properties();
+            compressPlugin = new DefaultCompressPlugin();
+            optionsZip.setProperty(DefaultCompressPlugin.FILTER, "**Exception.class");
+            optionsZip.setProperty(compressPlugin.getName(), "zip-" + i);
+            checkCompress(classes, compressPlugin,
+                    optionsZip,
+                    new ResourceDecompressorFactory[]{
+                            new ZipDecompressorFactory(),
+                    }, Collections.singletonList(".*Exception.class"));
+        }
+
+        testBadCompressProps(classes, "zip-10");
+        testBadCompressProps(classes, "zip-badarg");
+        testBadCompressProps(classes, "zip-10000000");
+
+    }
+
+    private void testBadCompressProps(ResourcePool classes, String compressArg) throws Exception {
+        Properties badProps = new Properties();
+        DefaultCompressPlugin compressPlugin = new DefaultCompressPlugin();
+        badProps.setProperty(compressPlugin.getName(), compressArg);
+        try {
+            checkCompress(classes, compressPlugin,
+                    badProps,
+                    new ResourceDecompressorFactory[]{
+                            new ZipDecompressorFactory(),
+                    });
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage().contains("Invalid compression level")) {
+                return;
+            } else {
+                throw e;
+            }
+        }
+
+        throw new Exception("Expected compression IAE with " + compressArg + " but didn't get one.");
+
     }
 
     private ResourcePool gatherResources(Path module) throws Exception {
@@ -304,7 +370,7 @@ public class CompressorPluginTest {
             byte[] decompressed = compressed.contentBytes();
             for (ResourceDecompressorFactory factory : decompressors) {
                 try {
-                    ResourceDecompressor decompressor = factory.newDecompressor(new Properties());
+                    ResourceDecompressor decompressor = factory.newDecompressor();
                     decompressed = decompressor.decompress(
                         strings::get, decompressed,
                         CompressedResourceHeader.getSize(), header.getUncompressedSize());

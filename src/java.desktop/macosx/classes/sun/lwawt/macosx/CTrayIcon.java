@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,8 @@ import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
 import java.awt.peer.TrayIconPeer;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 
 import javax.swing.Icon;
 import javax.swing.UIManager;
@@ -55,7 +57,7 @@ import static sun.awt.AWTAccessor.MenuComponentAccessor;
 import static sun.awt.AWTAccessor.getMenuComponentAccessor;
 
 public class CTrayIcon extends CFRetainedResource implements TrayIconPeer {
-    private TrayIcon target;
+    private final TrayIcon target;
     private PopupMenu popup;
 
     // In order to construct MouseEvent object, we need to specify a
@@ -68,6 +70,11 @@ public class CTrayIcon extends CFRetainedResource implements TrayIconPeer {
     // on MOUSE_RELEASE. Click events are only generated if there were no drag
     // events between MOUSE_PRESSED and MOUSE_RELEASED for particular button
     private static int mouseClickButtons = 0;
+
+    @SuppressWarnings("removal")
+    private static final boolean useTemplateImages = AccessController.doPrivileged((PrivilegedAction<Boolean>)
+        () -> Boolean.getBoolean("apple.awt.enableTemplateImages")
+    );
 
     CTrayIcon(TrayIcon target) {
         super(0, true);
@@ -166,7 +173,6 @@ public class CTrayIcon extends CFRetainedResource implements TrayIconPeer {
         }
 
         LWCToolkit.targetDisposedPeer(target, this);
-        target = null;
 
         super.dispose();
     }
@@ -208,14 +214,16 @@ public class CTrayIcon extends CFRetainedResource implements TrayIconPeer {
 
         CImage cimage = CImage.getCreator().createFromImage(image, observer);
         boolean imageAutoSize = target.isImageAutoSize();
-        cimage.execute(imagePtr -> {
-            execute(ptr -> {
-                setNativeImage(ptr, imagePtr, imageAutoSize);
+        if (cimage != null) {
+            cimage.execute(imagePtr -> {
+                execute(ptr -> {
+                    setNativeImage(ptr, imagePtr, imageAutoSize, useTemplateImages);
+                });
             });
-        });
+        }
     }
 
-    private native void setNativeImage(final long model, final long nsimage, final boolean autosize);
+    private native void setNativeImage(final long model, final long nsimage, final boolean autosize, final boolean template);
 
     private void postEvent(final AWTEvent event) {
         SunToolkit.executeOnEventHandlerThread(target, new Runnable() {
@@ -245,7 +253,7 @@ public class CTrayIcon extends CFRetainedResource implements TrayIconPeer {
 
         int jmodifiers = NSEvent.nsToJavaModifiers(
                 nsEvent.getModifierFlags());
-        boolean isPopupTrigger = NSEvent.isPopupTrigger(jmodifiers);
+        boolean isPopupTrigger = NSEvent.isPopupTrigger(jmodifiers, jeventType);
 
         int eventButtonMask = (jbuttonNumber > 0)?
                 MouseEvent.getMaskForButton(jbuttonNumber) : 0;
@@ -303,7 +311,7 @@ public class CTrayIcon extends CFRetainedResource implements TrayIconPeer {
      *
      * @param icon        icon to scale
      * @param scaleFactor scale factor to use
-     * @return scaled icon as BuffedredImage
+     * @return scaled icon as BufferedImage
      */
     private static BufferedImage scaleIcon(Icon icon, double scaleFactor) {
         if (icon == null) {
@@ -357,7 +365,7 @@ public class CTrayIcon extends CFRetainedResource implements TrayIconPeer {
     class IconObserver implements ImageObserver {
         @Override
         public boolean imageUpdate(Image image, int flags, int x, int y, int width, int height) {
-            if (image != target.getImage()) // if the image has been changed
+            if (image != target.getImage()) //if the image has been changed
             {
                 return false;
             }

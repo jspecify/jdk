@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -25,10 +23,12 @@
 
 import java.io.IOException;
 import java.net.Authenticator;
+import java.net.BindException;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
+import java.time.Duration;
 import javax.net.ssl.HttpsURLConnection;
 
 /**
@@ -37,7 +37,35 @@ import javax.net.ssl.HttpsURLConnection;
  */
 public class HTTPTestClient extends HTTPTest {
 
+    public static final long DELAY_BEFORE_RETRY = 2500; // milliseconds
+
     public static void connect(HttpProtocolType protocol,
+                               HTTPTestServer server,
+                               HttpAuthType authType,
+                               Authenticator auth)
+            throws IOException {
+        try {
+            doConnect(protocol, server, authType, auth);
+        } catch (BindException ex) {
+            // sleep a bit then try again once
+            System.out.println("WARNING: Unexpected BindException: " + ex);
+            System.out.println("\tSleeping a bit and try again...");
+            long start = System.nanoTime();
+            System.gc();
+            try {
+                Thread.sleep(DELAY_BEFORE_RETRY);
+            } catch (InterruptedException iex) {
+                // ignore
+            }
+            System.gc();
+            System.out.println("\tRetrying after "
+                    + Duration.ofNanos(System.nanoTime() - start).toMillis()
+                    + " milliseconds");
+            doConnect(protocol, server, authType, auth);
+        }
+    }
+
+    public static void doConnect(HttpProtocolType protocol,
                                HTTPTestServer server,
                                HttpAuthType authType,
                                Authenticator auth)

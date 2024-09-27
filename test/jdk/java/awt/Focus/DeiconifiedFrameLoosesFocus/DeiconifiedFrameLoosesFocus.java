@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,34 +22,36 @@
  */
 
 /*
-  test
-  @bug       6480534
-  @summary   A Frame changing its state from ICONIFIED to NORMAL should regain focus.
-  @author    anton.tarasov@...: area=awt.focus
-  @run       applet DeiconifiedFrameLoosesFocus.html
+  @test
+  @key headful
+  @bug        6480534
+  @summary    A Frame changing its state from ICONIFIED to NORMAL should regain focus.
+  @library    ../../regtesthelpers
+  @build      Util
+  @run        main DeiconifiedFrameLoosesFocus
 */
 
-import java.awt.*;
-import java.applet.Applet;
+import java.awt.Frame;
+import java.awt.Robot;
+import java.awt.Toolkit;
 import test.java.awt.regtesthelpers.Util;
 
-public class DeiconifiedFrameLoosesFocus extends Applet {
+public class DeiconifiedFrameLoosesFocus {
     Robot robot;
     static final Frame frame = new Frame("Frame");
 
     public static void main(String[] args) {
         DeiconifiedFrameLoosesFocus app = new DeiconifiedFrameLoosesFocus();
         app.init();
-        app.start();
+        try {
+            app.start();
+        } finally {
+            frame.dispose();
+        }
     }
 
     public void init() {
         robot = Util.createRobot();
-
-        // Create instructions for the user here, as well as set up
-        // the environment -- set the layout manager, add buttons,
-        // etc.
-        this.setLayout (new BorderLayout ());
     }
 
     public void start() {
@@ -65,6 +67,7 @@ public class DeiconifiedFrameLoosesFocus extends Applet {
         frame.setVisible(true);
 
         Util.waitForIdle(robot);
+        robot.delay(1000);
 
         if (!frame.isFocused()) {
             Util.clickOnTitle(frame, robot);
@@ -83,10 +86,12 @@ public class DeiconifiedFrameLoosesFocus extends Applet {
         frame.setExtendedState(Frame.ICONIFIED);
 
         Util.waitForIdle(robot);
+        robot.delay(500);
 
         frame.setExtendedState(Frame.NORMAL);
 
         Util.waitForIdle(robot);
+        robot.delay(500);
 
         if (!frame.isFocused()) {
             throw new TestFailedException("the Frame didn't regain focus after restoring!");

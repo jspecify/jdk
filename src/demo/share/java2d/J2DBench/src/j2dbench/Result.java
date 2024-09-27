@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,11 +40,11 @@
 
 package j2dbench;
 
-import java.util.Vector;
-import java.util.Hashtable;
-import java.util.Enumeration;
 import java.io.PrintWriter;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Vector;
 
 public class Result {
     public static final int RATE_UNKNOWN    = 0;
@@ -70,7 +70,7 @@ public class Result {
         resultoptroot = new Group(TestEnvironment.globaloptroot,
                                   "results", "Result Options");
 
-        String workStrings[] = {
+        String[] workStrings = {
             "units",
             "kilounits",
             "megaunits",
@@ -80,7 +80,7 @@ public class Result {
             "megaops",
             "autoops",
         };
-        String workDescriptions[] = {
+        String[] workDescriptions = {
             "Test Units",
             "Thousands of Test Units",
             "Millions of Test Units",
@@ -90,7 +90,7 @@ public class Result {
             "Millions of Operations",
             "Auto-scaled Operations",
         };
-        Integer workObjects[] = {
+        Integer[] workObjects = {
             new Integer(WORK_UNITS),
             new Integer(WORK_THOUSANDS),
             new Integer(WORK_MILLIONS),
@@ -105,21 +105,21 @@ public class Result {
                                           workStrings, workObjects,
                                           workStrings, workDescriptions,
                                           0);
-        String timeStrings[] = {
+        String[] timeStrings = {
             "sec",
             "msec",
             "usec",
             "nsec",
             "autosec",
         };
-        String timeDescriptions[] = {
+        String[] timeDescriptions = {
             "Seconds",
             "Milliseconds",
             "Microseconds",
             "Nanoseconds",
             "Auto-scaled seconds",
         };
-        Integer timeObjects[] = {
+        Integer[] timeObjects = {
             new Integer(TIME_SECONDS),
             new Integer(TIME_MILLIS),
             new Integer(TIME_MICROS),
@@ -131,15 +131,15 @@ public class Result {
                                           timeStrings, timeObjects,
                                           timeStrings, timeDescriptions,
                                           0);
-        String rateStrings[] = {
+        String[] rateStrings = {
             "unitspersec",
             "secsperunit",
         };
-        String rateDescriptions[] = {
+        String[] rateDescriptions = {
             "Work units per Time",
             "Time units per Work",
         };
-        Boolean rateObjects[] = {
+        Boolean[] rateObjects = {
             Boolean.FALSE,
             Boolean.TRUE,
         };
@@ -243,7 +243,7 @@ public class Result {
     int repsPerRun;
     int unitsPerRep;
     Vector times;
-    Hashtable modifiers;
+    LinkedHashMap modifiers;
     Throwable error;
 
     public Result(Test test) {
@@ -277,7 +277,7 @@ public class Result {
         this.error = t;
     }
 
-    public void setModifiers(Hashtable modifiers) {
+    public void setModifiers(LinkedHashMap modifiers) {
         this.modifiers = modifiers;
     }
 
@@ -297,7 +297,7 @@ public class Result {
         return ((long) getRepsPerRun()) * ((long) getUnitsPerRep());
     }
 
-    public Hashtable getModifiers() {
+    public LinkedHashMap getModifiers() {
         return modifiers;
     }
 
@@ -423,11 +423,11 @@ public class Result {
             System.out.println(test+" averaged "+getAverageString());
         }
         if (true) {
-            Enumeration enum_ = modifiers.keys();
+            Iterator iter_ = modifiers.keySet().iterator();
             System.out.print("    with");
             String sep = " ";
-            while (enum_.hasMoreElements()) {
-                Modifier mod = (Modifier) enum_.nextElement();
+            while (iter_.hasNext()) {
+                Modifier mod = (Modifier) iter_.next();
                 Object v = modifiers.get(mod);
                 System.out.print(sep);
                 System.out.print(mod.getAbbreviatedModifierDescription(v));
@@ -442,9 +442,9 @@ public class Result {
                    "num-reps=\""+getRepsPerRun()+"\" "+
                    "num-units=\""+getUnitsPerRep()+"\" "+
                    "name=\""+test.getTreeName()+"\">");
-        Enumeration enum_ = modifiers.keys();
-        while (enum_.hasMoreElements()) {
-            Modifier mod = (Modifier) enum_.nextElement();
+        Iterator iter_ = modifiers.keySet().iterator();
+        while (iter_.hasNext()) {
+            Modifier mod = (Modifier) iter_.next();
             Object v = modifiers.get(mod);
             String val = mod.getModifierValueName(v);
             pw.println("    <option "+

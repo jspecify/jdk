@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,11 +31,8 @@ package javax.lang.model.type;
  *
  * <p>Note that it is possible additional type kinds will be added to
  * accommodate new, currently unknown, language structures added to
- * future versions of the Java&trade; programming language.
+ * future versions of the Java programming language.
  *
- * @author Joseph D. Darcy
- * @author Scott Seligman
- * @author Peter von der Ah&eacute;
  * @see TypeMirror
  * @since 1.6
  */
@@ -157,14 +154,12 @@ public enum TypeKind {
      * A pseudo-type corresponding to a module element.
      * @see NoType
      * @since 9
-     * @spec JPMS
      */
     MODULE;
 
     /**
-     * Returns {@code true} if this kind corresponds to a primitive
-     * type and {@code false} otherwise.
-     * @return {@code true} if this kind corresponds to a primitive type
+     * {@return {@code true} if this kind corresponds to a primitive
+     * type and {@code false} otherwise}
      */
     public boolean isPrimitive() {
         switch(this) {

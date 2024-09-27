@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,19 +28,23 @@
  * @modules java.desktop
  *          java.sql
  *          jdk.jdeps/com.sun.tools.jdeps
+ *          jdk.unsupported
+ * @library ../lib
+ * @build CompilerUtils
  * @run testng DotFileTest
  */
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.spi.ToolProvider;
-import java.util.stream.Collectors;
 
+import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -50,48 +54,60 @@ import static org.testng.Assert.assertEquals;
 public class DotFileTest {
     private static final ToolProvider JDEPS = ToolProvider.findFirst("jdeps")
         .orElseThrow(() -> new RuntimeException("jdeps not found"));
+    private static final ToolProvider JAR = ToolProvider.findFirst("jar")
+        .orElseThrow(() -> new RuntimeException("jar not found"));
 
+    private static final String TEST_SRC = System.getProperty("test.src");
     private static final Path DOTS_DIR = Paths.get("dots");
     private static final Path SPEC_DIR = Paths.get("spec");
+    private static final Path MODS = Paths.get("mods");
+
+
+    @BeforeTest
+    public void setup() throws Exception {
+        assertTrue(CompilerUtils.compile(Paths.get(TEST_SRC, "src", "unsafe"), MODS));
+    }
 
     @DataProvider(name = "modules")
     public Object[][] modules() {
         return new Object[][]{
-            {"java.desktop", Set.of("java.datatransfer -> java.base",
-                                    "java.desktop -> java.datatransfer",
-                                    "java.desktop -> java.prefs",
-                                    "java.prefs -> java.xml",
-                                    "java.xml -> java.base" )
+            // the edges for each module are printed in lexicographical order
+            {"java.desktop", List.of("java.datatransfer -> java.base",
+                                     "java.desktop -> java.datatransfer",
+                                     "java.desktop -> java.prefs",
+                                     "java.prefs -> java.xml",
+                                     "java.xml -> java.base" )
             },
-            { "java.sql",    Set.of("java.logging -> java.base",
-                                    "java.transaction.xa -> java.base",
-                                    "java.sql -> java.logging",
-                                    "java.sql -> java.transaction.xa",
-                                    "java.sql -> java.xml",
-                                    "java.xml -> java.base" )
+            { "java.sql",    List.of("java.logging -> java.base",
+                                     "java.sql -> java.logging",
+                                     "java.sql -> java.transaction.xa",
+                                     "java.sql -> java.xml",
+                                     "java.transaction.xa -> java.base",
+                                     "java.xml -> java.base" )
             }
         };
     }
     @DataProvider(name = "specVersion")
     public Object[][] specVersion() {
         return new Object[][]{
-            {"java.desktop", Set.of("java.datatransfer -> java.base",
-                                    "java.desktop -> java.datatransfer",
-                                    "java.desktop -> java.xml",
-                                    "java.xml -> java.base")
+             // the edges for each module are printed in lexicographical order
+             {"java.desktop", List.of("java.datatransfer -> java.base",
+                                      "java.desktop -> java.datatransfer",
+                                      "java.desktop -> java.xml",
+                                      "java.xml -> java.base")
             },
-            { "java.sql",    Set.of("java.logging -> java.base",
-                                    "java.transaction.xa -> java.base",
-                                    "java.sql -> java.logging",
-                                    "java.sql -> java.transaction.xa",
-                                    "java.sql -> java.xml",
-                                    "java.xml -> java.base" )
+            { "java.sql",    List.of("java.logging -> java.base",
+                                     "java.sql -> java.logging",
+                                     "java.sql -> java.transaction.xa",
+                                     "java.sql -> java.xml",
+                                     "java.transaction.xa -> java.base",
+                                     "java.xml -> java.base" )
             }
         };
     }
 
     @Test(dataProvider = "modules")
-    public void test(String name, Set<String> edges) throws Exception {
+    public void test(String name, List<String> edges) throws Exception {
         String[] options = new String[] {
             "-dotoutput", DOTS_DIR.toString(),
             "-s", "-m", name
@@ -100,15 +116,15 @@ public class DotFileTest {
 
         Path path = DOTS_DIR.resolve(name + ".dot");
         assertTrue(Files.exists(path));
-        Set<String> lines = Files.readAllLines(path).stream()
+        List<String> lines = Files.readAllLines(path).stream()
                                  .filter(l -> l.contains(" -> "))
                                  .map(this::split)
-                                 .collect(Collectors.toSet());
+                                 .toList();
         assertEquals(lines, edges);
     }
 
     @Test(dataProvider = "specVersion")
-    public void testAPIOnly(String name, Set<String> edges) throws Exception {
+    public void testAPIOnly(String name, List<String> edges) throws Exception {
         String[] options = new String[]{
             "-dotoutput", SPEC_DIR.toString(),
             "-s", "-apionly",
@@ -118,11 +134,84 @@ public class DotFileTest {
 
         Path path = SPEC_DIR.resolve(name + ".dot");
         assertTrue(Files.exists(path));
-        Set<String> lines = Files.readAllLines(path).stream()
+        List<String> lines = Files.readAllLines(path).stream()
                                  .filter(l -> l.contains(" -> "))
                                  .map(this::split)
-                                 .collect(Collectors.toSet());
+                                 .toList();
         assertEquals(lines, edges);
+    }
+
+    /*
+     * Test if the file name of the dot output file matches the input filename
+     */
+    @Test
+    public void testModularJar() throws Exception {
+        String filename = "org.unsafe-v1.0.jar";
+        assertTrue(JAR.run(System.out, System.out, "cf", filename,
+                           "-C", MODS.toString(), ".") == 0);
+
+        // assertTrue(JDEPS.run(System.out, System.out,
+        //              "--dot-output", DOTS_DIR.toString(), filename) == 0);
+        assertTrue(JDEPS.run(System.out, System.out,
+                             "--dot-output", DOTS_DIR.toString(),
+                             "--module-path", filename,
+                             "-m", "unsafe") == 0);
+
+        Path path = DOTS_DIR.resolve(filename + ".dot");
+        assertTrue(Files.exists(path));
+
+        // package dependences
+        List<String> expected = List.of(
+            "org.indirect -> java.lang",
+            "org.indirect -> org.unsafe",
+            "org.safe -> java.io",
+            "org.safe -> java.lang",
+            "org.unsafe -> java.lang",
+            "org.unsafe -> sun.misc"
+        );
+
+        Pattern pattern = Pattern.compile("(.*) -> +([^ ]*) (.*)");
+        List<String> lines = new ArrayList<>();
+        for (String line : Files.readAllLines(path)) {
+            line = line.replace('"', ' ').replace(';', ' ');
+            Matcher pm = pattern.matcher(line);
+            if (pm.find()) {
+                String origin = pm.group(1).trim();
+                String target = pm.group(2).trim();
+                lines.add(origin + " -> " + target);
+            }
+        }
+        assertEquals(lines, expected);
+    }
+
+    /*
+     * Test module summary with -m option
+     */
+    @Test
+    public void testModuleSummary() throws Exception {
+        String filename = "org.unsafe-v2.0.jar";
+        assertTrue(JAR.run(System.out, System.out, "cf", filename,
+                           "-C", MODS.toString(), ".") == 0);
+
+        assertTrue(JDEPS.run(System.out, System.out, "-s",
+                             "--dot-output", DOTS_DIR.toString(),
+                             "--module-path", filename,
+                             "-m", "unsafe") == 0);
+
+        Path path = DOTS_DIR.resolve(filename + ".dot");
+        assertTrue(Files.exists(path));
+
+        // module dependences
+        List<String> expected = List.of(
+            "jdk.unsupported -> java.base",
+            "unsafe -> jdk.unsupported"
+        );
+
+        List<String> lines = Files.readAllLines(path).stream()
+                                 .filter(l -> l.contains(" -> "))
+                                 .map(this::split)
+                                 .toList();
+        assertEquals(lines, expected);
     }
 
     static Pattern PATTERN = Pattern.compile(" *\"(\\S+)\" -> \"(\\S+)\" .*");

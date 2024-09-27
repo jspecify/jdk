@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,23 +23,28 @@
 
 /* @test
  * @bug 8004502
+ * @library /test/lib
  * @summary Sanity check that NTLM will not be selected by the http protocol
  *    handler when running on a profile that does not support NTLM
- * @modules java.base/sun.net.www
- *          java.base/sun.net.www.protocol.http:open
- * @run main/othervm NoNTLM
+ * @modules java.base/sun.net.www.protocol.http:open
+ * @run main/othervm -Dhttp.auth.digest.reEnabledAlgorithms=MD5 NoNTLM
+ * @run main/othervm -Dhttp.auth.digest.reEnabledAlgorithms=MD5
+ *                   -Djava.net.preferIPv6Addresses=true NoNTLM
  */
 
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.Authenticator;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.PasswordAuthentication;
 import java.net.Proxy;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
-import sun.net.www.MessageHeader;
+
+import jdk.test.lib.net.HttpHeaderParser;
+import jdk.test.lib.net.URIBuilder;
 
 public class NoNTLM {
 
@@ -57,7 +62,13 @@ public class NoNTLM {
         private volatile int respCode;
 
         Client(int port) throws IOException {
-            this.url = new URL("http://127.0.0.1:" + port + "/foo.html");
+            this.url = URIBuilder.newBuilder()
+                .scheme("http")
+                .loopback()
+                .port(port)
+                .path("/foo.html")
+                .toURLUnchecked();
+            System.out.println("Client URL: " + this.url);
         }
 
         public void run() {
@@ -146,14 +157,14 @@ public class NoNTLM {
         System.out.println("====================================");
         System.out.println("Expect client to choose: " + expected);
         System.out.println(reply);
-
-        try (ServerSocket ss = new ServerSocket(0)) {
+        InetAddress loopback = InetAddress.getLoopbackAddress();
+        try (ServerSocket ss = new ServerSocket(0, 0, loopback)) {
             Client.start(ss.getLocalPort());
 
             // client ---- GET ---> server
             // client <--- 401 ---- server
             try (Socket s = ss.accept()) {
-                new MessageHeader().parseHeader(s.getInputStream());
+                new HttpHeaderParser().parse(s.getInputStream());
                 s.getOutputStream().write(reply.getBytes("US-ASCII"));
             }
 
@@ -161,10 +172,10 @@ public class NoNTLM {
             // client <--- 200 ---- server
             String auth;
             try (Socket s = ss.accept()) {
-                MessageHeader mh = new MessageHeader();
-                mh.parseHeader(s.getInputStream());
+                HttpHeaderParser mh = new HttpHeaderParser();
+                mh.parse(s.getInputStream());
                 s.getOutputStream().write(OKAY.getBytes("US-ASCII"));
-                auth = mh.findValue("Authorization");
+                auth = mh.getHeaderValue("Authorization").get(0);
             }
 
             // check Authorization header
@@ -189,7 +200,8 @@ public class NoNTLM {
         System.out.println("Expect client to fail with 401 Unauthorized");
         System.out.println(reply);
 
-        try (ServerSocket ss = new ServerSocket(0)) {
+        InetAddress loopback = InetAddress.getLoopbackAddress();
+        try (ServerSocket ss = new ServerSocket(0, 0, loopback)) {
             Client client = new Client(ss.getLocalPort());
             Thread thr = new Thread(client);
             thr.start();
@@ -197,7 +209,7 @@ public class NoNTLM {
             // client ---- GET ---> server
             // client <--- 401 ---- client
             try (Socket s = ss.accept()) {
-                new MessageHeader().parseHeader(s.getInputStream());
+                new HttpHeaderParser().parse(s.getInputStream());
                 s.getOutputStream().write(reply.getBytes("US-ASCII"));
             }
 
@@ -216,13 +228,14 @@ public class NoNTLM {
     }
 
     public static void main(String[] args) throws Exception {
+        boolean ntlmSupported = false;
         try {
             Class<?> ntlmProxyClass = Class.forName("sun.net.www.protocol.http.NTLMAuthenticationProxy", true, NoNTLM.class.getClassLoader());
             Field ntlmSupportedField = ntlmProxyClass.getDeclaredField("supported");
             ntlmSupportedField.setAccessible(true);
             if (ntlmSupportedField.getBoolean(null)) {
-                System.out.println("NTLM is supported. Nothing to do. Exiting.");
-                return;
+                System.out.println("NTLM is supported.");
+                ntlmSupported = true;
             }
         } catch (ClassNotFoundException okay) { }
 
@@ -238,15 +251,26 @@ public class NoNTLM {
         test("Basic");
         test("Digest");
         test("Basic", "Digest");
-        test("Basic", "NTLM");
+
+        if (ntlmSupported) {
+            System.out.println("====================================");
+            System.out.println("NTLM is supported: client would select NTLM: skipping `test(\"Basic\", \"NTLM\")`..");
+        } else {
+            test("Basic", "NTLM");
+        }
+
         test("Digest", "NTLM");
         test("Basic", "Digest", "NTLM");
 
-        // test NTLM only, this should fail with "401 Unauthorized"
-        testNTLM();
+        if (ntlmSupported) {
+            System.out.println("====================================");
+            System.out.println("NTLM is supported: client would select NTLM: skipping `testNTLM()`..");
+        } else {
+            // test NTLM only, this should fail with "401 Unauthorized"
+            testNTLM();
+        }
 
         System.out.println();
         System.out.println("TEST PASSED");
     }
 }
-

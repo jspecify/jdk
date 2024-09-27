@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 /*
  *
  * @test
+ * @bug 8206120 8306116
  * @modules jdk.localedata
  */
 
@@ -44,6 +45,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.format.FormatStyle;
+import java.time.format.ResolverStyle;
 import java.time.format.TextStyle;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalQueries;
@@ -69,8 +71,8 @@ public class TestNonIsoFormatter {
 
     private static final LocalDate IsoDate = LocalDate.of(2013, 2, 11);
 
-    private static final Locale ARABIC = new Locale("ar");
-    private static final Locale thTH = new Locale("th", "TH");
+    private static final Locale ARABIC = Locale.of("ar");
+    private static final Locale thTH = Locale.of("th", "TH");
     private static final Locale thTHTH = Locale.forLanguageTag("th-TH-u-nu-thai");
     private static final Locale jaJPJP = Locale.forLanguageTag("ja-JP-u-ca-japanese");
 
@@ -117,7 +119,7 @@ public class TestNonIsoFormatter {
             // Chronology, Locale, Chronology Name
             { ISO8601,  Locale.ENGLISH, "ISO" },    // No data in CLDR; Use Id.
             { BUDDHIST, Locale.ENGLISH, "Buddhist Calendar" },
-            { HIJRAH,   Locale.ENGLISH, "Islamic Calendar (Umm al-Qura)" },
+            { HIJRAH,   Locale.ENGLISH, "Hijri Calendar (Umm al-Qura)" },
             { JAPANESE, Locale.ENGLISH, "Japanese Calendar" },
             { MINGUO,   Locale.ENGLISH, "Minguo Calendar" },
 
@@ -130,8 +132,18 @@ public class TestNonIsoFormatter {
             { BUDDHIST, thTH, "\u0e1b\u0e0f\u0e34\u0e17\u0e34\u0e19\u0e1e\u0e38\u0e17\u0e18" },
 
             { HIJRAH,   ARABIC, "\u0627\u0644\u062a\u0642\u0648\u064a\u0645 "
-                                + "\u0627\u0644\u0625\u0633\u0644\u0627\u0645\u064a "
+                                + "\u0627\u0644\u0647\u062c\u0631\u064a "
                                 + "(\u0623\u0645 \u0627\u0644\u0642\u0631\u0649)" },
+        };
+    }
+
+    @DataProvider(name="lenient_eraYear")
+    Object[][] lenientEraYear() {
+        return new Object[][] {
+            // Chronology, lenient era/year, strict era/year
+            { JAPANESE, "Meiji 123", "Heisei 2" },
+            { JAPANESE, "Sh\u014dwa 65", "Heisei 2" },
+            { JAPANESE, "Heisei 32", "Reiwa 2" },
         };
     }
 
@@ -172,5 +184,16 @@ public class TestNonIsoFormatter {
         TemporalAccessor ta = dtf.parse(text);
         Chronology cal = ta.query(TemporalQueries.chronology());
         assertEquals(cal, chrono);
+    }
+
+    @Test(dataProvider="lenient_eraYear")
+    public void test_lenientEraYear(Chronology chrono, String lenient, String strict) {
+        String mdStr = "-01-01";
+        DateTimeFormatter dtf = new DateTimeFormatterBuilder()
+            .appendPattern("GGGG y-M-d")
+            .toFormatter(Locale.ROOT)
+            .withChronology(chrono);
+        DateTimeFormatter dtfLenient = dtf.withResolverStyle(ResolverStyle.LENIENT);
+        assertEquals(LocalDate.parse(lenient+mdStr, dtfLenient), LocalDate.parse(strict+mdStr, dtf));
     }
 }

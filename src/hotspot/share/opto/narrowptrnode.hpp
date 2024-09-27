@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_NARROWPTRNODE_HPP
-#define SHARE_VM_OPTO_NARROWPTRNODE_HPP
+#ifndef SHARE_OPTO_NARROWPTRNODE_HPP
+#define SHARE_OPTO_NARROWPTRNODE_HPP
 
 #include "opto/node.hpp"
 #include "opto/opcodes.hpp"
@@ -34,7 +34,7 @@ class EncodeNarrowPtrNode : public TypeNode {
   EncodeNarrowPtrNode(Node* value, const Type* type):
   TypeNode(type, 2) {
     init_class_id(Class_EncodeNarrowPtr);
-    init_req(0, NULL);
+    init_req(0, nullptr);
     init_req(1, value);
   }
   public:
@@ -77,7 +77,7 @@ class DecodeNarrowPtrNode : public TypeNode {
   DecodeNarrowPtrNode(Node* value, const Type* type):
   TypeNode(type, 2) {
     init_class_id(Class_DecodeNarrowPtr);
-    init_req(0, NULL);
+    init_req(0, nullptr);
     init_req(1, value);
   }
   public:
@@ -114,5 +114,4 @@ class DecodeNKlassNode : public DecodeNarrowPtrNode {
   virtual Node* Identity(PhaseGVN* phase);
 };
 
-#endif // SHARE_VM_OPTO_NARROWPTRNODE_HPP
-
+#endif // SHARE_OPTO_NARROWPTRNODE_HPP

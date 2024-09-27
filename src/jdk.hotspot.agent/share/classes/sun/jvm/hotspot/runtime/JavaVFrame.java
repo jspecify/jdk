@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,7 +61,12 @@ public abstract class JavaVFrame extends VFrame {
                  lockState, hobj.asLongValue());
 
       Klass klass = Oop.getKlassForOopHandle(hobj);
-      String klassName = klass.getName().asString();
+      String klassName;
+      if (klass != null) {
+        klassName = klass.getName().asString();
+      } else {
+        klassName = "<unknown class>";
+      }
       tty.print("(a ");
       if (klassName.equals("java/lang/Class")) {
         Oop obj = VM.getVM().getObjectHeap().newOop(hobj);
@@ -77,6 +82,10 @@ public abstract class JavaVFrame extends VFrame {
     if (mark.hasMonitor() &&
         ( // we have marked ourself as pending on this monitor
           mark.monitor().equals(thread.getCurrentPendingMonitor()) ||
+          // Owned anonymously means that we are not the owner of
+          // the monitor and must be waiting for the owner to
+          // exit it.
+          mark.monitor().isOwnedAnonymous() ||
           // we are not the owner of this monitor
           !mark.monitor().isEntered(thread)
         )) {
@@ -91,7 +100,7 @@ public abstract class JavaVFrame extends VFrame {
     // then print out the receiver. Locals are not always available,
     // e.g., compiled native frames have no scope so there are no locals.
     if (frameCount == 0) {
-      if (getMethod().getName().asString().equals("wait") &&
+      if (getMethod().getName().asString().equals("wait0") &&
           getMethod().getMethodHolder().getName().asString().equals("java/lang/Object")) {
         String waitState = "waiting on"; // assume we are waiting
         // If earlier in the output we reported java.lang.Thread.State ==
@@ -99,13 +108,14 @@ public abstract class JavaVFrame extends VFrame {
         // we are still waiting for notification or timeout. Otherwise if
         // we earlier reported java.lang.Thread.State == "BLOCKED (on object
         // monitor)", then we are actually waiting to re-lock the monitor.
-        // At this level we can't distinguish the two cases to report
-        // "waited on" rather than "waiting on" for the second case.
         StackValueCollection locs = getLocals();
         if (!locs.isEmpty()) {
           StackValue sv = locs.get(0);
           if (sv.getType() == BasicType.getTObject()) {
             OopHandle o = sv.getObject();
+            if (OopUtilities.threadOopGetThreadStatus(thread.getThreadObj()) == OopUtilities.THREAD_STATUS_BLOCKED_ON_MONITOR_ENTER) {
+              waitState = "waiting to re-lock in wait()";
+            }
             printLockedObjectClassName(tty, o, waitState);
           }
         } else {
@@ -146,13 +156,6 @@ public abstract class JavaVFrame extends VFrame {
             // an inflated monitor that is first on the monitor list in
             // the first frame can block us on a monitor enter.
             lockState = identifyLockState(monitor, "waiting to lock");
-          } else if (frameCount != 0) {
-            // This is not the first frame so we either own this monitor
-            // or we owned the monitor before and called wait(). Because
-            // wait() could have been called on any monitor in a lower
-            // numbered frame on the stack, we have to check all the
-            // monitors on the list for this frame.
-            lockState = identifyLockState(monitor, "waiting to re-lock in wait()");
           }
           printLockedObjectClassName(tty, monitor.owner(), lockState);
           foundFirstMonitor = true;
@@ -204,13 +207,11 @@ public abstract class JavaVFrame extends VFrame {
   }
 
   public boolean equals(Object o) {
-      if (o == null || !(o instanceof JavaVFrame)) {
+      if (!(o instanceof JavaVFrame other)) {
           return false;
       }
 
-      JavaVFrame other = (JavaVFrame) o;
-
-      // Check static part
+    // Check static part
       if (!getMethod().equals(other.getMethod())) {
           return false;
       }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package sun.net.www.protocol.http.spnego;
 
 import java.io.IOException;
+import java.util.Locale;
 
 import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSException;
@@ -34,10 +35,16 @@ import org.ietf.jgss.Oid;
 
 import sun.net.www.protocol.http.HttpCallerInfo;
 import sun.net.www.protocol.http.Negotiator;
+import sun.security.action.GetPropertyAction;
 import sun.security.jgss.GSSManagerImpl;
 import sun.security.jgss.GSSContextImpl;
 import sun.security.jgss.GSSUtil;
 import sun.security.jgss.HttpCaller;
+import sun.security.jgss.krb5.internal.TlsChannelBindingImpl;
+import sun.security.util.ChannelBindingException;
+import sun.security.util.TlsChannelBinding;
+
+import static sun.security.krb5.internal.Krb5.DEBUG;
 
 /**
  * This class encapsulates all JAAS and JGSS API calls in a separate class
@@ -48,10 +55,6 @@ import sun.security.jgss.HttpCaller;
  * @since 1.6
  */
 public class NegotiatorImpl extends Negotiator {
-
-    private static final boolean DEBUG =
-        java.security.AccessController.doPrivileged(
-              new sun.security.action.GetBooleanAction("sun.security.krb5.debug"));
 
     private GSSContext context;
     private byte[] oneToken;
@@ -64,21 +67,15 @@ public class NegotiatorImpl extends Negotiator {
      * <li>Creating GSSContext
      * <li>A first call to initSecContext</ul>
      */
-    private void init(HttpCallerInfo hci) throws GSSException {
+    private void init(HttpCallerInfo hci) throws GSSException, ChannelBindingException {
         final Oid oid;
 
         if (hci.scheme.equalsIgnoreCase("Kerberos")) {
             // we can only use Kerberos mech when the scheme is kerberos
             oid = GSSUtil.GSS_KRB5_MECH_OID;
         } else {
-            String pref = java.security.AccessController.doPrivileged(
-                    new java.security.PrivilegedAction<String>() {
-                        public String run() {
-                            return System.getProperty(
-                                "http.auth.preference",
-                                "spnego");
-                        }
-                    });
+            String pref = GetPropertyAction
+                    .privilegedGetProperty("http.auth.preference", "spnego");
             if (pref.equalsIgnoreCase("kerberos")) {
                 oid = GSSUtil.GSS_KRB5_MECH_OID;
             } else {
@@ -92,7 +89,7 @@ public class NegotiatorImpl extends Negotiator {
 
         // RFC 4559 4.1 uses uppercase service name "HTTP".
         // RFC 4120 6.2.1 demands the host be lowercase
-        String peerName = "HTTP@" + hci.host.toLowerCase();
+        String peerName = "HTTP@" + hci.host.toLowerCase(Locale.ROOT);
 
         GSSName serverName = manager.createName(peerName,
                 GSSName.NT_HOSTBASED_SERVICE);
@@ -105,6 +102,14 @@ public class NegotiatorImpl extends Negotiator {
         if (context instanceof GSSContextImpl) {
             ((GSSContextImpl)context).requestDelegPolicy(true);
         }
+        if (hci.serverCert != null) {
+            if (DEBUG != null) {
+                DEBUG.println("Negotiate: Setting CBT");
+            }
+            // set the channel binding token
+            TlsChannelBinding b = TlsChannelBinding.create(hci.serverCert);
+            context.setChannelBinding(new TlsChannelBindingImpl(b.getData()));
+        }
         oneToken = context.initSecContext(new byte[0], 0, 0);
     }
 
@@ -115,15 +120,18 @@ public class NegotiatorImpl extends Negotiator {
     public NegotiatorImpl(HttpCallerInfo hci) throws IOException {
         try {
             init(hci);
-        } catch (GSSException e) {
-            if (DEBUG) {
-                System.out.println("Negotiate support not initiated, will " +
+        } catch (GSSException | ChannelBindingException e) {
+            if (DEBUG != null) {
+                DEBUG.println("Negotiate support not initiated, will " +
                         "fallback to other scheme if allowed. Reason:");
                 e.printStackTrace();
             }
-            IOException ioe = new IOException("Negotiate support not initiated");
-            ioe.initCause(e);
-            throw ioe;
+            try {
+                disposeContext();
+            } catch (Exception ex) {
+                //dispose context silently
+            }
+            throw new IOException("Negotiate support not initiated", e);
         }
     }
 
@@ -145,15 +153,38 @@ public class NegotiatorImpl extends Negotiator {
     @Override
     public byte[] nextToken(byte[] token) throws IOException {
         try {
+            if (context == null) {
+                throw new IOException("Negotiate support cannot continue. Context is invalidated");
+            }
             return context.initSecContext(token, 0, token.length);
         } catch (GSSException e) {
-            if (DEBUG) {
-                System.out.println("Negotiate support cannot continue. Reason:");
-                e.printStackTrace();
+            if (DEBUG != null) {
+                DEBUG.println("Negotiate support cannot continue. Reason:");
+                e.printStackTrace(DEBUG.getPrintStream());
             }
-            IOException ioe = new IOException("Negotiate support cannot continue");
-            ioe.initCause(e);
-            throw ioe;
+            throw new IOException("Negotiate support cannot continue", e);
         }
+    }
+
+    /**
+     * Releases any system resources and cryptographic information stored in
+     * the context object and invalidates the context.
+     *
+     * @throws IOException containing a reason of failure in the cause
+     */
+    @Override
+    public void disposeContext() throws IOException {
+        try {
+            if (context != null) {
+                context.dispose();
+            }
+        } catch (GSSException e) {
+            if (DEBUG != null) {
+                DEBUG.println("Cannot release resources. Reason:");
+                e.printStackTrace(DEBUG.getPrintStream());
+            }
+            throw new IOException("Cannot release resources", e);
+        };
+        context = null;
     }
 }

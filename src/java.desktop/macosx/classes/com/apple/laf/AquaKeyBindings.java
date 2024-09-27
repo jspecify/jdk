@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,6 +67,7 @@ public class AquaKeyBindings {
         "DELETE", DefaultEditorKit.deleteNextCharAction,
         "alt DELETE", "delete-next-word",
         "BACK_SPACE", DefaultEditorKit.deletePrevCharAction,
+        "shift BACK_SPACE", DefaultEditorKit.deletePrevCharAction,
         "alt BACK_SPACE", "delete-previous-word",
 
         "LEFT", DefaultEditorKit.backwardAction,
@@ -89,6 +90,8 @@ public class AquaKeyBindings {
         "alt KP_LEFT", DefaultEditorKit.previousWordAction,
         "alt RIGHT", DefaultEditorKit.nextWordAction,
         "alt KP_RIGHT", DefaultEditorKit.nextWordAction,
+        "alt UP", DefaultEditorKit.beginLineUpAction,
+        "alt DOWN", DefaultEditorKit.endLineDownAction,
         "shift alt LEFT", DefaultEditorKit.selectionPreviousWordAction,
         "shift alt KP_LEFT", DefaultEditorKit.selectionPreviousWordAction,
         "shift alt RIGHT", DefaultEditorKit.selectionNextWordAction,
@@ -219,6 +222,10 @@ public class AquaKeyBindings {
             "KP_UP", "aquaSelectPrevious",
             "DOWN", "aquaSelectNext",
             "KP_DOWN", "aquaSelectNext",
+            "alt DOWN", "aquaOpenPopupOrhighlightLast",
+            "alt KP_DOWN", "aquaOpenPopupOrhighlightLast",
+            "alt UP", "aquaOpenPopupOrhighlightFirst",
+            "alt KP_UP", "aquaOpenPopupOrhighlightFirst",
             "SPACE", "aquaSpacePressed" // "spacePopup"
         }));
     }
@@ -378,7 +385,12 @@ public class AquaKeyBindings {
             "ENTER", "selectNextRowCell",
             "shift ENTER", "selectPreviousRowCell",
             "alt TAB", "focusHeader",
-            "alt shift TAB", "focusHeader"
+            "alt shift TAB", "focusHeader",
+            "F8", "focusHeader",
+            "ctrl shift UP", "selectFirstRowExtendSelection",
+            "ctrl shift DOWN", "selectLastRowExtendSelection",
+            "ctrl shift RIGHT", "selectLastColumnExtendSelection",
+            "ctrl shift LEFT", "selectFirstColumnExtendSelection"
         }));
     }
 

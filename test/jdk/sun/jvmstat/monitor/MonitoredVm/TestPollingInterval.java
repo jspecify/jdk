@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,8 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
-import jdk.testlibrary.Asserts;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.Asserts;
+import jdk.test.lib.Utils;
 import jdk.test.lib.apps.LingeredApp;
 import sun.jvmstat.monitor.MonitorException;
 import sun.jvmstat.monitor.MonitoredHost;
@@ -41,10 +41,8 @@ import sun.jvmstat.monitor.VmIdentifier;
  * @bug 6672135
  * @summary setInterval() for local MonitoredHost and local MonitoredVm
  *
- * @library /lib/testlibrary
  * @library /test/lib
  *
- * @build jdk.testlibrary.*
  * @build jdk.test.lib.apps.*
  * @run main TestPollingInterval
  */
@@ -56,10 +54,7 @@ public class TestPollingInterval {
             MonitorException, URISyntaxException {
         LingeredApp app = null;
         try {
-            List<String> vmArgs = new ArrayList<String>();
-            vmArgs.add("-XX:+UsePerfData");
-            vmArgs.addAll(Utils.getVmOptions());
-            app = LingeredApp.startApp(vmArgs);
+            app = LingeredApp.startApp("-XX:+UsePerfData");
 
             MonitoredHost localHost = MonitoredHost.getMonitoredHost("localhost");
             String uriString = "//" + app.getPid() + "?mode=r"; // NOI18N

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,8 +58,11 @@ import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
+
+import sun.nio.cs.UTF_8;
 
 import jdk.internal.jmod.JmodFile;
 import jdk.internal.jmod.JmodFile.Section;
@@ -217,7 +219,7 @@ public class ModulePath implements ModuleFinder {
         try {
             attrs = Files.readAttributes(entry, BasicFileAttributes.class);
         } catch (NoSuchFileException e) {
-            return Collections.emptyMap();
+            return Map.of();
         } catch (IOException ioe) {
             throw new FindException(ioe);
         }
@@ -236,7 +238,7 @@ public class ModulePath implements ModuleFinder {
             ModuleReference mref = readModule(entry, attrs);
             if (mref != null) {
                 String name = mref.descriptor().name();
-                return Collections.singletonMap(name, mref);
+                return Map.of(name, mref);
             }
 
             // not recognized
@@ -526,7 +528,6 @@ public class ModulePath implements ModuleFinder {
         Set<String> packages = classFiles.stream()
                 .map(this::toPackageName)
                 .flatMap(Optional::stream)
-                .distinct()
                 .collect(Collectors.toSet());
 
         // all packages are exported and open
@@ -544,13 +545,13 @@ public class ModulePath implements ModuleFinder {
             List<String> providerClasses = new ArrayList<>();
             try (InputStream in = jf.getInputStream(entry)) {
                 BufferedReader reader
-                    = new BufferedReader(new InputStreamReader(in, "UTF-8"));
+                    = new BufferedReader(new InputStreamReader(in, UTF_8.INSTANCE));
                 String cn;
                 while ((cn = nextLine(reader)) != null) {
-                    if (cn.length() > 0) {
+                    if (!cn.isEmpty()) {
                         String pn = packageName(cn);
                         if (!packages.contains(pn)) {
-                            String msg = "Provider class " + cn + " not in module";
+                            String msg = "Provider class " + cn + " not in JAR file " + fn;
                             throw new InvalidModuleDescriptorException(msg);
                         }
                         providerClasses.add(cn);
@@ -565,7 +566,7 @@ public class ModulePath implements ModuleFinder {
         if (attrs != null) {
             String mainClass = attrs.getValue(Attributes.Name.MAIN_CLASS);
             if (mainClass != null) {
-                mainClass = mainClass.replace("/", ".");
+                mainClass = mainClass.replace('/', '.');
                 if (Checks.isClassName(mainClass)) {
                     String pn = packageName(mainClass);
                     if (packages.contains(pn)) {
@@ -600,7 +601,7 @@ public class ModulePath implements ModuleFinder {
         mn = Patterns.REPEATING_DOTS.matcher(mn).replaceAll(".");
 
         // drop leading dots
-        if (mn.length() > 0 && mn.charAt(0) == '.')
+        if (!mn.isEmpty() && mn.charAt(0) == '.')
             mn = Patterns.LEADING_DOTS.matcher(mn).replaceAll("");
 
         // drop trailing dots
@@ -662,13 +663,13 @@ public class ModulePath implements ModuleFinder {
     // -- exploded directories --
 
     private Set<String> explodedPackages(Path dir) {
-        try {
-            return Files.find(dir, Integer.MAX_VALUE,
-                    ((path, attrs) -> attrs.isRegularFile() && !isHidden(path)))
-                    .map(path -> dir.relativize(path))
-                    .map(this::toPackageName)
-                    .flatMap(Optional::stream)
-                    .collect(Collectors.toSet());
+        String separator = dir.getFileSystem().getSeparator();
+        try (Stream<Path> stream = Files.find(dir, Integer.MAX_VALUE,
+                (path, attrs) -> attrs.isRegularFile() && !isHidden(path))) {
+            return stream.map(dir::relativize)
+                .map(path -> toPackageName(path, separator))
+                .flatMap(Optional::stream)
+                .collect(Collectors.toSet());
         } catch (IOException x) {
             throw new UncheckedIOException(x);
         }
@@ -737,7 +738,7 @@ public class ModulePath implements ModuleFinder {
      * @throws InvalidModuleDescriptorException if the name is a class file in
      *         the top-level directory (and it's not module-info.class)
      */
-    private Optional<String> toPackageName(Path file) {
+    private Optional<String> toPackageName(Path file, String separator) {
         assert file.getRoot() == null;
 
         Path parent = file.getParent();
@@ -751,7 +752,7 @@ public class ModulePath implements ModuleFinder {
             return Optional.empty();
         }
 
-        String pn = parent.toString().replace(File.separatorChar, '.');
+        String pn = parent.toString().replace(separator, ".");
         if (Checks.isPackageName(pn)) {
             return Optional.of(pn);
         } else {

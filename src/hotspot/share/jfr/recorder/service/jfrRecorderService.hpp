@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_RECORDER_SERVICE_JFRRECORDERSERVICE_HPP
-#define SHARE_VM_JFR_RECORDER_SERVICE_JFRRECORDERSERVICE_HPP
+#ifndef SHARE_JFR_RECORDER_SERVICE_JFRRECORDERSERVICE_HPP
+#define SHARE_JFR_RECORDER_SERVICE_JFRRECORDERSERVICE_HPP
 
 #include "jfr/utilities/jfrAllocation.hpp"
 
@@ -35,6 +35,8 @@ class JfrStorage;
 class JfrStringPool;
 
 class JfrRecorderService : public StackObj {
+  friend class JfrSafepointClearVMOperation;
+  friend class JfrSafepointWriteVMOperation;
  private:
   JfrCheckpointManager& _checkpoint_manager;
   JfrChunkWriter& _chunkwriter;
@@ -46,11 +48,9 @@ class JfrRecorderService : public StackObj {
   void open_new_chunk(bool vm_error = false);
   void chunk_rotation();
   void in_memory_rotation();
-  void serialize_storage_from_in_memory_recording();
   void finalize_current_chunk();
-  void finalize_current_chunk_on_vm_error();
-  void prepare_for_vm_error_rotation();
   void vm_error_rotation();
+  void invoke_flush();
 
   void clear();
   void pre_safepoint_clear();
@@ -67,11 +67,13 @@ class JfrRecorderService : public StackObj {
  public:
   JfrRecorderService();
   void start();
+  size_t flush();
   void rotate(int msgs);
+  void flushpoint();
   void process_full_buffers();
-  void scavenge();
   void evaluate_chunk_size_for_rotation();
+  void emit_leakprofiler_events(int64_t cutoff_ticks, bool emit_all, bool skip_bfs);
   static bool is_recording();
 };
 
-#endif // SHARE_VM_JFR_RECORDER_SERVICE_JFRRECORDERSERVICE_HPP
+#endif // SHARE_JFR_RECORDER_SERVICE_JFRRECORDERSERVICE_HPP

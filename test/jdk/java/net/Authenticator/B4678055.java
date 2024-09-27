@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,38 +24,54 @@
 /**
  * @test
  * @bug 4678055
- * @modules java.base/sun.net.www
- * @library ../../../sun/net/www/httptest/
- * @build HttpCallback TestHttpServer ClosedChannelList HttpTransaction
- * @run main B4678055
+ * @library /test/lib
+ * @run main/othervm B4678055
+ * @run main/othervm -Djava.net.preferIPv6Addresses=true B4678055
  * @summary Basic Authentication fails with multiple realms
  */
 
-import java.io.*;
-import java.net.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintWriter;
+import java.net.Authenticator;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.PasswordAuthentication;
+import java.net.ProxySelector;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.concurrent.Executors;
 
-public class B4678055 implements HttpCallback {
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+import jdk.test.lib.net.URIBuilder;
 
-    static int count = 0;
-    static String authstring;
+public class B4678055 implements HttpHandler {
 
-    void errorReply (HttpTransaction req, String reply) throws IOException {
-        req.addResponseHeader ("Connection", "close");
-        req.addResponseHeader ("WWW-Authenticate", reply);
-        req.sendResponse (401, "Unauthorized");
-        req.orderlyClose();
+    static volatile int count = 0;
+    static volatile String authstring;
+
+    private void errorReply(HttpExchange req, String reply) throws IOException {
+        req.getResponseHeaders().set("Connection", "close");
+        req.getResponseHeaders().set("WWW-Authenticate", reply);
+        req.sendResponseHeaders(401, -1);
     }
 
-    void okReply (HttpTransaction req) throws IOException {
-        req.setResponseEntityBody ("Hello .");
-        req.sendResponse (200, "Ok");
-        req.orderlyClose();
+    private void okReply (HttpExchange req) throws IOException {
+        req.sendResponseHeaders(200, 0);
+        try(PrintWriter pw = new PrintWriter(req.getResponseBody())) {
+            pw.print("Hello .");
+        }
     }
 
-    public void request (HttpTransaction req) {
+    public void handle (HttpExchange req) {
         try {
-            authstring = req.getRequestHeader ("Authorization");
-            System.out.println (authstring);
+            System.out.println("Server handling case: "+ count);
+            if(req.getRequestHeaders().get("Authorization") != null) {
+                authstring = req.getRequestHeaders().get("Authorization").get(0);
+                System.out.println(authstring);
+            }
             switch (count) {
             case 0:
                 errorReply (req, "Basic realm=\"wallyworld\"");
@@ -93,6 +109,7 @@ public class B4678055 implements HttpCallback {
             }
             count ++;
         } catch (IOException e) {
+            System.err.println("Unexpected exception for case " + count + ": " + e);
             e.printStackTrace();
         }
     }
@@ -120,20 +137,35 @@ public class B4678055 implements HttpCallback {
         is.close();
     }
 
-    static TestHttpServer server;
+    static HttpServer server;
 
     public static void main (String[] args) throws Exception {
+        B4678055 b4678055 = new B4678055();
         MyAuthenticator auth = new MyAuthenticator ();
         Authenticator.setDefault (auth);
+        ProxySelector.setDefault(ProxySelector.of(null)); // no proxy
         try {
-            server = new TestHttpServer (new B4678055(), 1, 10, 0);
-            System.out.println ("Server: listening on port: " + server.getLocalPort());
-            client ("http://localhost:"+server.getLocalPort()+"/d1/foo.html");
-            client ("http://localhost:"+server.getLocalPort()+"/d2/foo.html");
-            client ("http://localhost:"+server.getLocalPort()+"/d2/foo.html");
+            InetAddress loopback = InetAddress.getLoopbackAddress();
+            server = HttpServer.create(new InetSocketAddress(loopback, 0), 10);
+            server.createContext("/", b4678055);
+            server.setExecutor(Executors.newSingleThreadExecutor());
+            server.start();
+            String serverURL = URIBuilder.newBuilder()
+                .scheme("http")
+                .loopback()
+                .port(server.getAddress().getPort())
+                .path("/")
+                .build()
+                .toString();
+            System.out.println("Server: listening at: " + serverURL);
+            client(serverURL + "d1/foo.html");
+            client(serverURL + "d2/foo.html");
+            client(serverURL + "d2/foo.html");
         } catch (Exception e) {
+            System.out.println("Client got exception: " + e);
+            System.out.println("Terminating server");
             if (server != null) {
-                server.terminate();
+                server.stop(1);
             }
             throw e;
         }
@@ -145,11 +177,14 @@ public class B4678055 implements HttpCallback {
         if (!checkFinalAuth()) {
             except ("Wrong authorization string received from client");
         }
-        server.terminate();
+        System.out.println("Terminating server");
+        server.stop(1);
     }
 
     public static void except (String s) {
-        server.terminate();
+        System.out.println("Check failed: " + s);
+        System.out.println("Terminating server");
+        server.stop(1);
         throw new RuntimeException (s);
     }
 
@@ -158,7 +193,7 @@ public class B4678055 implements HttpCallback {
             super ();
         }
 
-        int count = 0;
+        volatile int count = 0;
 
         public PasswordAuthentication getPasswordAuthentication () {
             PasswordAuthentication pw;

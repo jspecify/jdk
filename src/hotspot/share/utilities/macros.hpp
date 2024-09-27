@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_MACROS_HPP
-#define SHARE_VM_UTILITIES_MACROS_HPP
+#ifndef SHARE_UTILITIES_MACROS_HPP
+#define SHARE_UTILITIES_MACROS_HPP
 
 // Use this to mark code that needs to be cleaned up (for development only)
 #define NEEDS_CLEANUP
@@ -40,14 +40,24 @@
 // Apply pre-processor token pasting to the expansions of x and y.
 // The token pasting operator (##) prevents its arguments from being
 // expanded.  This macro allows expansion of its arguments before the
-// concatenation is performed.  Note: One auxilliary level ought to be
+// concatenation is performed.  Note: One auxiliary level ought to be
 // sufficient, but two are used because of bugs in some preprocesors.
 #define PASTE_TOKENS(x, y) PASTE_TOKENS_AUX(x, y)
 #define PASTE_TOKENS_AUX(x, y) PASTE_TOKENS_AUX2(x, y)
 #define PASTE_TOKENS_AUX2(x, y) x ## y
 
+// Convenience macro that produces a string literal with the filename
+// and linenumber of the location where the macro was used.
+#ifndef FILE_AND_LINE
+#define FILE_AND_LINE __FILE__ ":" XSTR(__LINE__)
+#endif
+
 // -DINCLUDE_<something>=0 | 1 can be specified on the command line to include
 // or exclude functionality.
+
+#ifndef FILE_AND_LINE
+#define FILE_AND_LINE __FILE__ ":" XSTR(__LINE__)
+#endif
 
 #ifndef INCLUDE_JVMTI
 #define INCLUDE_JVMTI 1
@@ -126,28 +136,12 @@
 #if INCLUDE_MANAGEMENT
 #define NOT_MANAGEMENT_RETURN        /* next token must be ; */
 #define NOT_MANAGEMENT_RETURN_(code) /* next token must be ; */
+#define MANAGEMENT_ONLY(x) x
 #else
 #define NOT_MANAGEMENT_RETURN        {}
 #define NOT_MANAGEMENT_RETURN_(code) { return code; }
+#define MANAGEMENT_ONLY(x)
 #endif // INCLUDE_MANAGEMENT
-
-#ifndef INCLUDE_CMSGC
-#define INCLUDE_CMSGC 1
-#endif // INCLUDE_CMSGC
-
-#if INCLUDE_CMSGC
-#define CMSGC_ONLY(x) x
-#define CMSGC_ONLY_ARG(arg) arg,
-#define NOT_CMSGC(x)
-#define NOT_CMSGC_RETURN        /* next token must be ; */
-#define NOT_CMSGC_RETURN_(code) /* next token must be ; */
-#else
-#define CMSGC_ONLY(x)
-#define CMSGC_ONLY_ARG(x)
-#define NOT_CMSGC(x) x
-#define NOT_CMSGC_RETURN        {}
-#define NOT_CMSGC_RETURN_(code) { return code; }
-#endif // INCLUDE_CMSGC
 
 #ifndef INCLUDE_EPSILONGC
 #define INCLUDE_EPSILONGC 1
@@ -221,6 +215,24 @@
 #define NOT_SERIALGC_RETURN_(code) { return code; }
 #endif // INCLUDE_SERIALGC
 
+#ifndef INCLUDE_SHENANDOAHGC
+#define INCLUDE_SHENANDOAHGC 1
+#endif // INCLUDE_SHENANDOAHGC
+
+#if INCLUDE_SHENANDOAHGC
+#define SHENANDOAHGC_ONLY(x) x
+#define SHENANDOAHGC_ONLY_ARG(arg) arg,
+#define NOT_SHENANDOAHGC(x)
+#define NOT_SHENANDOAHGC_RETURN        /* next token must be ; */
+#define NOT_SHENANDOAHGC_RETURN_(code) /* next token must be ; */
+#else
+#define SHENANDOAHGC_ONLY(x)
+#define SHENANDOAHGC_ONLY_ARG(arg)
+#define NOT_SHENANDOAHGC(x) x
+#define NOT_SHENANDOAHGC_RETURN        {}
+#define NOT_SHENANDOAHGC_RETURN_(code) { return code; }
+#endif // INCLUDE_SHENANDOAHGC
+
 #ifndef INCLUDE_ZGC
 #define INCLUDE_ZGC 1
 #endif // INCLUDE_ZGC
@@ -239,42 +251,22 @@
 #define NOT_ZGC_RETURN_(code) { return code; }
 #endif // INCLUDE_ZGC
 
-#ifndef INCLUDE_NMT
-#define INCLUDE_NMT 1
-#endif // INCLUDE_NMT
-
-#if INCLUDE_NMT
-#define NOT_NMT_RETURN        /* next token must be ; */
-#define NOT_NMT_RETURN_(code) /* next token must be ; */
-#define NMT_ONLY(x) x
-#define NOT_NMT(x)
-#else
-#define NOT_NMT_RETURN        {}
-#define NOT_NMT_RETURN_(code) { return code; }
-#define NMT_ONLY(x)
-#define NOT_NMT(x) x
-#endif // INCLUDE_NMT
-
 #ifndef INCLUDE_JFR
 #define INCLUDE_JFR 1
 #endif
 
 #if INCLUDE_JFR
 #define JFR_ONLY(code) code
+#define NOT_JFR_RETURN()      /* next token must be ; */
+#define NOT_JFR_RETURN_(code) /* next token must be ; */
 #else
 #define JFR_ONLY(code)
+#define NOT_JFR_RETURN()      {}
+#define NOT_JFR_RETURN_(code) { return code; }
 #endif
 
 #ifndef INCLUDE_JVMCI
 #define INCLUDE_JVMCI 1
-#endif
-
-#ifndef INCLUDE_AOT
-#define INCLUDE_AOT 1
-#endif
-
-#if INCLUDE_AOT && !INCLUDE_JVMCI
-#  error "Must have JVMCI for AOT"
 #endif
 
 #if INCLUDE_JVMCI
@@ -287,21 +279,8 @@
 #define NOT_JVMCI_RETURN {}
 #endif // INCLUDE_JVMCI
 
-#if INCLUDE_AOT
-#define AOT_ONLY(code) code
-#define NOT_AOT(code)
-#define NOT_AOT_RETURN /* next token must be ; */
-#else
-#define AOT_ONLY(code)
-#define NOT_AOT(code) code
-#define NOT_AOT_RETURN {}
-#endif // INCLUDE_AOT
-
 // COMPILER1 variant
 #ifdef COMPILER1
-#ifdef COMPILER2
-  #define TIERED
-#endif
 #define COMPILER1_PRESENT(code) code
 #define NOT_COMPILER1(code)
 #else // COMPILER1
@@ -323,19 +302,33 @@
 #define COMPILER2_OR_JVMCI 1
 #define COMPILER2_OR_JVMCI_PRESENT(code) code
 #define NOT_COMPILER2_OR_JVMCI(code)
+#define NOT_COMPILER2_OR_JVMCI_RETURN        /* next token must be ; */
+#define NOT_COMPILER2_OR_JVMCI_RETURN_(code) /* next token must be ; */
 #else
 #define COMPILER2_OR_JVMCI 0
 #define COMPILER2_OR_JVMCI_PRESENT(code)
 #define NOT_COMPILER2_OR_JVMCI(code) code
+#define NOT_COMPILER2_OR_JVMCI_RETURN {}
+#define NOT_COMPILER2_OR_JVMCI_RETURN_(code) { return code; }
 #endif
 
-#ifdef TIERED
-#define TIERED_ONLY(code) code
-#define NOT_TIERED(code)
-#else // TIERED
-#define TIERED_ONLY(code)
-#define NOT_TIERED(code) code
-#endif // TIERED
+// COMPILER1 and COMPILER2
+#if defined(COMPILER1) && defined(COMPILER2)
+#define COMPILER1_AND_COMPILER2 1
+#define COMPILER1_AND_COMPILER2_PRESENT(code) code
+#else
+#define COMPILER1_AND_COMPILER2 0
+#define COMPILER1_AND_COMPILER2_PRESENT(code)
+#endif
+
+// COMPILER1 or COMPILER2
+#if defined(COMPILER1) || defined(COMPILER2)
+#define COMPILER1_OR_COMPILER2 1
+#define COMPILER1_OR_COMPILER2_PRESENT(code) code
+#else
+#define COMPILER1_OR_COMPILER2 0
+#define COMPILER1_OR_COMPILER2_PRESENT(code)
+#endif
 
 
 // PRODUCT variant
@@ -362,14 +355,6 @@
 #define CHECK_UNHANDLED_OOPS_ONLY(code)
 #define NOT_CHECK_UNHANDLED_OOPS(code)  code
 #endif // CHECK_UNHANDLED_OOPS
-
-#ifdef CC_INTERP
-#define CC_INTERP_ONLY(code) code
-#define NOT_CC_INTERP(code)
-#else
-#define CC_INTERP_ONLY(code)
-#define NOT_CC_INTERP(code) code
-#endif // CC_INTERP
 
 #ifdef ASSERT
 #define DEBUG_ONLY(code) code
@@ -400,20 +385,20 @@
 #define NOT_LINUX(code) code
 #endif
 
+#ifdef __APPLE__
+#define MACOS_ONLY(code) code
+#define NOT_MACOS(code)
+#else
+#define MACOS_ONLY(code)
+#define NOT_MACOS(code) code
+#endif
+
 #ifdef AIX
 #define AIX_ONLY(code) code
 #define NOT_AIX(code)
 #else
 #define AIX_ONLY(code)
 #define NOT_AIX(code) code
-#endif
-
-#ifdef SOLARIS
-#define SOLARIS_ONLY(code) code
-#define NOT_SOLARIS(code)
-#else
-#define SOLARIS_ONLY(code)
-#define NOT_SOLARIS(code) code
 #endif
 
 #ifdef _WINDOWS
@@ -446,9 +431,11 @@
 #if defined(ZERO)
 #define ZERO_ONLY(code) code
 #define NOT_ZERO(code)
+#define NOT_ZERO_RETURN {}
 #else
 #define ZERO_ONLY(code)
 #define NOT_ZERO(code) code
+#define NOT_ZERO_RETURN
 #endif
 
 #if defined(IA32) || defined(AMD64)
@@ -497,14 +484,6 @@
 #define NOT_S390(code) code
 #endif
 
-#ifdef SPARC
-#define SPARC_ONLY(code) code
-#define NOT_SPARC(code)
-#else
-#define SPARC_ONLY(code)
-#define NOT_SPARC(code) code
-#endif
-
 #if defined(PPC32) || defined(PPC64)
 #ifndef PPC
 #define PPC
@@ -541,10 +520,9 @@
 #define NOT_E500V2(code) code
 #endif
 
-// Note: There are three ARM ports. They set the following in the makefiles:
-// 1. Closed 32-bit port:   -DARM -DARM32           -DTARGET_ARCH_arm
-// 2. Closed 64-bit port:   -DARM -DAARCH64 -D_LP64 -DTARGET_ARCH_arm
-// 3. Open   64-bit port:         -DAARCH64 -D_LP64 -DTARGET_ARCH_aaarch64
+// Note: There are two ARM ports. They set the following in the makefiles:
+// 1. 32-bit port:   -DARM -DARM32 -DTARGET_ARCH_arm
+// 2. 64-bit port:   -DAARCH64 -D_LP64 -DTARGET_ARCH_aarch64
 #ifdef ARM
 #define ARM_ONLY(code) code
 #define NOT_ARM(code)
@@ -569,6 +547,40 @@
 #define NOT_AARCH64(code) code
 #endif
 
+#ifdef TARGET_ARCH_aarch64
+#define AARCH64_PORT_ONLY(code) code
+#else
+#define AARCH64_PORT_ONLY(code)
+#endif
+
+#define MACOS_AARCH64_ONLY(x) MACOS_ONLY(AARCH64_ONLY(x))
+
+#if defined(RISCV32) || defined(RISCV64)
+#define RISCV
+#define RISCV_ONLY(code) code
+#define NOT_RISCV(code)
+#else
+#undef RISCV
+#define RISCV_ONLY(code)
+#define NOT_RISCV(code) code
+#endif
+
+#ifdef RISCV32
+#define RISCV32_ONLY(code) code
+#define NOT_RISCV32(code)
+#else
+#define RISCV32_ONLY(code)
+#define NOT_RISCV32(code) code
+#endif
+
+#ifdef RISCV64
+#define RISCV64_ONLY(code) code
+#define NOT_RISCV64(code)
+#else
+#define RISCV64_ONLY(code)
+#define NOT_RISCV64(code) code
+#endif
+
 #ifdef VM_LITTLE_ENDIAN
 #define LITTLE_ENDIAN_ONLY(code) code
 #define BIG_ENDIAN_ONLY(code)
@@ -590,9 +602,9 @@
 // This macro constructs from basename and INCLUDE_SUFFIX_OS /
 // INCLUDE_SUFFIX_CPU / INCLUDE_SUFFIX_COMPILER, which are set on
 // the command line, the name of platform dependent files to be included.
-// Example: INCLUDE_SUFFIX_OS=_linux / INCLUDE_SUFFIX_CPU=_sparc
-//   CPU_HEADER_INLINE(macroAssembler) --> macroAssembler_sparc.inline.hpp
-//   OS_CPU_HEADER(vmStructs)          --> vmStructs_linux_sparc.hpp
+// Example: INCLUDE_SUFFIX_OS=_linux / INCLUDE_SUFFIX_CPU=_x86
+//   CPU_HEADER_INLINE(macroAssembler) --> macroAssembler_x86.inline.hpp
+//   OS_CPU_HEADER(vmStructs)          --> vmStructs_linux_x86.hpp
 //
 // basename<cpu>.hpp / basename<cpu>.inline.hpp
 #define CPU_HEADER_H(basename)         XSTR(CPU_HEADER_STEM(basename).h)
@@ -609,27 +621,7 @@
 #define COMPILER_HEADER(basename)        XSTR(COMPILER_HEADER_STEM(basename).hpp)
 #define COMPILER_HEADER_INLINE(basename) XSTR(COMPILER_HEADER_STEM(basename).inline.hpp)
 
-// To use Atomic::inc(jshort* dest) and Atomic::dec(jshort* dest), the address must be specially
-// aligned, such that (*dest) occupies the upper 16 bits of an aligned 32-bit word. The best way to
-// achieve is to place your short value next to another short value, which doesn't need atomic ops.
-//
-// Example
-//  ATOMIC_SHORT_PAIR(
-//    volatile short _refcount,  // needs atomic operation
-//    unsigned short _length     // number of UTF8 characters in the symbol (does not need atomic op)
-//  );
-
-#ifdef VM_LITTLE_ENDIAN
-  #define ATOMIC_SHORT_PAIR(atomic_decl, non_atomic_decl)  \
-    non_atomic_decl;                                       \
-    atomic_decl
-#else
-  #define ATOMIC_SHORT_PAIR(atomic_decl, non_atomic_decl)  \
-    atomic_decl;                                           \
-    non_atomic_decl
-#endif
-
-#if INCLUDE_CDS && INCLUDE_G1GC && defined(_LP64) && !defined(_WINDOWS)
+#if INCLUDE_CDS && INCLUDE_G1GC && defined(_LP64)
 #define INCLUDE_CDS_JAVA_HEAP 1
 #define CDS_JAVA_HEAP_ONLY(x) x
 #define NOT_CDS_JAVA_HEAP(x)
@@ -643,4 +635,10 @@
 #define NOT_CDS_JAVA_HEAP_RETURN_(code) { return code; }
 #endif
 
-#endif // SHARE_VM_UTILITIES_MACROS_HPP
+#ifdef ADDRESS_SANITIZER
+#define INCLUDE_ASAN 1
+#else
+#define INCLUDE_ASAN 0
+#endif
+
+#endif // SHARE_UTILITIES_MACROS_HPP

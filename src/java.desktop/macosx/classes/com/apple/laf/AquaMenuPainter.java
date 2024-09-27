@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,21 +25,39 @@
 
 package com.apple.laf;
 
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Insets;
+import java.awt.Rectangle;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 
-import javax.swing.*;
+import javax.swing.ButtonModel;
+import javax.swing.Icon;
+import javax.swing.JComponent;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
+import javax.swing.KeyStroke;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import javax.swing.border.Border;
 import javax.swing.plaf.basic.BasicHTML;
 import javax.swing.text.View;
 
-import sun.swing.SwingUtilities2;
-
-import apple.laf.JRSUIConstants.*;
-
+import apple.laf.JRSUIConstants.State;
+import apple.laf.JRSUIConstants.Widget;
 import com.apple.laf.AquaIcon.InvertableIcon;
 import com.apple.laf.AquaUtils.RecyclableSingleton;
 import com.apple.laf.AquaUtils.RecyclableSingletonFromDefaultConstructor;
+import sun.swing.MnemonicHandler;
+import sun.swing.SwingUtilities2;
 
 /**
  * AquaMenuPainter, implements paintMenuItem to avoid code duplication
@@ -253,9 +271,9 @@ public class AquaMenuPainter {
         }
 
         // Draw the accelerator first in case the HTML renderer changes the color
-        if (keyString != null && !keyString.equals("")) {
+        if (keyString != null && !keyString.isEmpty()) {
             final int yAccel = acceleratorRect.y + fm.getAscent();
-            if (modifiersString.equals("")) {
+            if (modifiersString.isEmpty()) {
                 // just draw the keyString
                 SwingUtilities2.drawString(c, g, keyString, acceleratorRect.x, yAccel);
             } else {
@@ -282,12 +300,12 @@ public class AquaMenuPainter {
         }
 
         // Draw the Text
-        if (text != null && !text.equals("")) {
+        if (text != null && !text.isEmpty()) {
             final View v = (View)c.getClientProperty(BasicHTML.propertyKey);
             if (v != null) {
                 v.paint(g, textRect);
             } else {
-                final int mnemonic = (AquaMnemonicHandler.isMnemonicHidden() ? -1 : model.getMnemonic());
+                final int mnemonic = (MnemonicHandler.isMnemonicHidden() ? -1 : model.getMnemonic());
                 drawString(g, c, text, mnemonic, textRect.x, textRect.y + fm.getAscent(), isEnabled, isSelected);
             }
         }
@@ -342,7 +360,7 @@ public class AquaMenuPainter {
         //   r = iconRect.union(textRect);
 
         // Add in the accelerator
-        boolean acceleratorTextIsEmpty = (keyString == null) || keyString.equals("");
+        boolean acceleratorTextIsEmpty = (keyString == null) || keyString.isEmpty();
 
         if (!acceleratorTextIsEmpty) {
             r.width += acceleratorRect.width;
@@ -444,7 +462,7 @@ public class AquaMenuPainter {
         // Force it to do "LEFT", then flip the rects if we're right-to-left
         SwingUtilities.layoutCompoundLabel(menuItem, fm, text, icon, verticalAlignment, SwingConstants.LEFT, verticalTextPosition, horizontalTextPosition, viewR, iconR, textR, textIconGap);
 
-        final boolean acceleratorTextIsEmpty = (keyString == null) || keyString.equals("");
+        final boolean acceleratorTextIsEmpty = (keyString == null) || keyString.isEmpty();
 
         if (acceleratorTextIsEmpty) {
             acceleratorR.width = acceleratorR.height = 0;
@@ -494,13 +512,15 @@ public class AquaMenuPainter {
         if (!isTopLevelMenu) {
             //    if ( GetSysDirection() < 0 ) hierRect.right = hierRect.left + w + 4;
             //    else hierRect.left = hierRect.right - w - 4;
-            arrowIconR.x = (viewR.width - arrowIconR.width) + 1;
-            arrowIconR.y = viewR.y + (labelR.height / 2) - (arrowIconR.height / 2) + 1;
 
-            checkIconR.y = viewR.y + (labelR.height / 2) - (checkIconR.height / 2);
+            arrowIconR.x = Math.abs((viewR.width - arrowIconR.width) + 1);
+            arrowIconR.y = Math.abs(viewR.y + (labelR.height / 2) - (arrowIconR.height / 2) + 1);
+
+            checkIconR.y = Math.abs(viewR.y + (labelR.height / 2) - (checkIconR.height / 2));
             checkIconR.x = 5;
 
             textR.width += 8;
+
         }
 
         /*System.out.println("Layout: " +horizontalAlignment+ " v=" +viewR+"  c="+checkIconR+" i="+

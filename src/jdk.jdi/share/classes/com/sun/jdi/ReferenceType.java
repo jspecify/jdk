@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import com.sun.jdi.event.VMDisconnectEvent;
 /**
  * The type of an object in a target VM. ReferenceType encompasses
  * classes, interfaces, and array types as defined in
- * <cite>The Java&trade; Language Specification</cite>.
+ * <cite>The Java Language Specification</cite>.
  * All ReferenceType objects belong to one of the following
  * subinterfaces:
  * {@link ClassType} for classes,
@@ -84,22 +84,19 @@ public interface ReferenceType
     extends Type, Comparable<ReferenceType>, Accessible
 {
     /**
-     * Gets the fully qualified name of this type. The returned name
-     * is formatted as it might appear in a Java programming langauge
-     * declaration for objects of this type.
-     * <p>
-     * For primitive classes
-     * the returned name is the name of the corresponding primitive
-     * type; for example, "int" is returned as the name of the class
-     * represented by {@link java.lang.Integer#TYPE Integer.TYPE}.
+     * Returns the name of this {@code ReferenceType} object.
+     * The returned name is of the same form as the name returned by
+     * {@link Class#getName()}.
+     *
      * @return a string containing the type name.
+     * @see Class#getName()
      */
     String name();
 
     /**
      * Gets the generic signature for this type if there is one.
      * Generic signatures are described in the
-     * <cite>The Java&trade; Virtual Machine Specification</cite>.
+     * <cite>The Java Virtual Machine Specification</cite>.
      *
      * @return a string containing the generic signature, or <code>null</code>
      * if there is no generic signature.
@@ -416,13 +413,13 @@ public interface ReferenceType
     /**
      * Returns a list containing each {@link Method}
      * declared or inherited by this type. Methods from superclasses
-     * or superinterfaces that that have been hidden or overridden
+     * or superinterfaces that have been hidden or overridden
      * are not included.
      * <p>
      * Note that despite this exclusion, multiple inherited methods
      * with the same signature can be present in the returned list, but
      * at most one can be a member of a {@link ClassType}.
-     * See JLS section 8.4.6 for details.
+     * See JLS section 8.4.8 for details.
      * <p>
      * For arrays ({@link ArrayType}) and primitive classes, the returned
      * list is always empty.
@@ -457,7 +454,7 @@ public interface ReferenceType
      * find overloaded methods.
      * <p>
      * Overridden and hidden methods are not included.
-     * See JLS (8.4.6) for details.
+     * See JLS (8.4.8) for details.
      * <p>
      * For arrays ({@link ArrayType}) and primitive classes, the returned
      * list is always empty.
@@ -481,7 +478,7 @@ public interface ReferenceType
      * <li><code>(IIII)Z</code>
      * </ul>
      * This method follows the inheritance rules specified
-     * in the JLS (8.4.6) to determine visibility.
+     * in the JLS (8.4.8) to determine visibility.
      * <p>
      * At most one method in the list is a concrete method and a
      * component of {@link ClassType}; any other methods in the list

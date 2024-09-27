@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@
 
 #include "ProcessHandleImpl_unix.h"
 
-
 #include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -45,17 +44,10 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-/* For POSIX-compliant getpwuid_r on Solaris */
-#if defined(__solaris__)
-#define _POSIX_PTHREAD_SEMANTICS
-#endif
 #include <pwd.h>
 
-#ifdef _AIX
-#include <sys/procfs.h>
-#endif
-#ifdef __solaris__
-#include <procfs.h>
+#if defined(_AIX)
+  #include <sys/procfs.h>
 #endif
 
 /**
@@ -89,7 +81,7 @@
  * Example 1:
  * ----------
  * The implementation of Java_java_lang_ProcessHandleImpl_initNative()
- * is the same on all platforms except on Linux where it initilizes one
+ * is the same on all platforms except on Linux where it initializes one
  * additional field. So we place the implementation right into
  * Java_java_lang_ProcessHandleImpl_initNative() but add call to
  * os_init() at the end of the function which is empty on all platforms
@@ -130,31 +122,13 @@
 #define WTERMSIG(status) ((status)&0x7F)
 #endif
 
-#ifdef __solaris__
 /* The child exited because of a signal.
  * The best value to return is 0x80 + signal number,
  * because that is what all Unix shells do, and because
  * it allows callers to distinguish between process exit and
  * process death by signal.
- * Unfortunately, the historical behavior on Solaris is to return
- * the signal number, and we preserve this for compatibility. */
-#define WTERMSIG_RETURN(status) WTERMSIG(status)
-#else
+ */
 #define WTERMSIG_RETURN(status) (WTERMSIG(status) + 0x80)
-#endif
-
-#define RESTARTABLE(_cmd, _result) do { \
-  do { \
-    _result = _cmd; \
-  } while((_result == -1) && (errno == EINTR)); \
-} while(0)
-
-#define RESTARTABLE_RETURN_PTR(_cmd, _result) do { \
-  do { \
-    _result = _cmd; \
-  } while((_result == NULL) && (errno == EINTR)); \
-} while(0)
-
 
 /* Field id for jString 'command' in java.lang.ProcessHandleImpl.Info */
 jfieldID ProcessHandleImpl_Info_commandID;
@@ -492,18 +466,28 @@ void unix_getUserInfo(JNIEnv* env, jobject jinfo, uid_t uid) {
 }
 
 /*
- * The following functions are common on Solaris, Linux and AIX.
+ * The following functions are for Linux
  */
 
-#if defined(__solaris__) || defined (__linux__) || defined(_AIX)
+#if defined (__linux__)
 
 /*
- * Returns the children of the requested pid and optionally each parent and
- * start time.
- * Reads /proc and accumulates any process who parent pid matches.
- * The resulting pids are stored into the array of longs.
+ * Return pids of active processes, and optionally parent pids and
+ * start times for each process.
+ * For a specific non-zero pid, only the direct children are returned.
+ * If the pid is zero, all active processes are returned.
+ * Reads /proc and accumulates any process following the rules above.
+ * The resulting pids are stored into an array of longs named jarray.
  * The number of pids is returned if they all fit.
- * If the array is too short, the negative of the desired length is returned.
+ * If the parentArray is non-null, store also the parent pid.
+ * In this case the parentArray must have the same length as the result pid array.
+ * Of course in the case of a given non-zero pid all entries in the parentArray
+ * will contain this pid, so this array does only make sense in the case of a given
+ * zero pid.
+ * If the jstimesArray is non-null, store also the start time of the pid.
+ * In this case the jstimesArray must have the same length as the result pid array.
+ * If the array(s) (is|are) too short, excess pids are not stored and
+ * the desired length is returned.
  */
 jint unix_getChildren(JNIEnv *env, jlong jpid, jlongArray jarray,
                       jlongArray jparentArray, jlongArray jstimesArray) {
@@ -544,7 +528,7 @@ jint unix_getChildren(JNIEnv *env, jlong jpid, jlongArray jarray,
      * position integer as a filename.
      */
     if ((dir = opendir("/proc")) == NULL) {
-        JNU_ThrowByNameWithLastError(env,
+        JNU_ThrowByNameWithMessageAndLastError(env,
             "java/lang/RuntimeException", "Unable to open /proc");
         return -1;
     }
@@ -614,13 +598,13 @@ jint unix_getChildren(JNIEnv *env, jlong jpid, jlongArray jarray,
     return count;
 }
 
-#endif // defined(__solaris__) || defined (__linux__) || defined(_AIX)
+#endif // defined (__linux__)
 
 /*
- * The following functions are common on Solaris and AIX.
+ * The following functions are for AIX.
  */
 
-#if defined(__solaris__) || defined(_AIX)
+#if defined(_AIX)
 
 /**
  * Helper function to get the 'psinfo_t' data from "/proc/%d/psinfo".
@@ -629,7 +613,7 @@ jint unix_getChildren(JNIEnv *env, jlong jpid, jlongArray jarray,
 static int getPsinfo(pid_t pid, psinfo_t *psinfo) {
     FILE* fp;
     char fn[32];
-    int ret;
+    size_t ret;
 
     /*
      * Try to open /proc/%d/psinfo
@@ -677,24 +661,8 @@ pid_t unix_getParentPidAndTimings(JNIEnv *env, pid_t pid,
 
 void unix_getCmdlineAndUserInfo(JNIEnv *env, jobject jinfo, pid_t pid) {
     psinfo_t psinfo;
-    char fn[32];
-    char exePath[PATH_MAX];
     char prargs[PRARGSZ + 1];
     jstring cmdexe = NULL;
-    int ret;
-
-    /*
-     * On Solaris, the full path to the executable command is the link in
-     * /proc/<pid>/paths/a.out. But it is only readable for processes we own.
-     */
-#if defined(__solaris__)
-    snprintf(fn, sizeof fn, "/proc/%d/path/a.out", pid);
-    if ((ret = readlink(fn, exePath, PATH_MAX - 1)) > 0) {
-        // null terminate and create String to store for command
-        exePath[ret] = '\0';
-        CHECK_NULL(cmdexe = JNU_NewStringPlatform(env, exePath));
-    }
-#endif
 
     /*
      * Now try to open /proc/%d/psinfo
@@ -725,4 +693,4 @@ void unix_getCmdlineAndUserInfo(JNIEnv *env, jobject jinfo, pid_t pid) {
                       prargs[0] == '\0' ? NULL : prargs);
 }
 
-#endif // defined(__solaris__) || defined(_AIX)
+#endif // defined(_AIX)

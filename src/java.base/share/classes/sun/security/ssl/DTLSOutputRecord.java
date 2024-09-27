@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@ import sun.security.ssl.SSLCipher.SSLWriteCipher;
  */
 final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
 
-    private DTLSFragmenter fragmenter = null;
+    private DTLSFragmenter fragmenter;
 
     int                 writeEpoch;
 
@@ -44,7 +44,7 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
     Authenticator       prevWriteAuthenticator;
     SSLWriteCipher      prevWriteCipher;
 
-    private volatile boolean isCloseWaiting = false;
+    private volatile boolean isCloseWaiting;
 
     DTLSOutputRecord(HandshakeHash handshakeHash) {
         super(handshakeHash, SSLWriteCipher.nullDTlsWriteCipher());
@@ -58,13 +58,18 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
     }
 
     @Override
-    public synchronized void close() throws IOException {
-        if (!isClosed) {
-            if (fragmenter != null && fragmenter.hasAlert()) {
-                isCloseWaiting = true;
-            } else {
-                super.close();
+    public void close() throws IOException {
+        recordLock.lock();
+        try {
+            if (!isClosed) {
+                if (fragmenter != null && fragmenter.hasAlert()) {
+                    isCloseWaiting = true;
+                } else {
+                    super.close();
+                }
             }
+        } finally {
+            recordLock.unlock();
         }
     }
 
@@ -85,7 +90,7 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
 
     @Override
     void changeWriteCiphers(SSLWriteCipher writeCipher,
-            boolean useChangeCipherSpec) throws IOException {
+            boolean useChangeCipherSpec) {
         if (isClosed()) {
             if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
                 SSLLogger.warning("outbound has closed, ignore outbound " +
@@ -113,7 +118,7 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
     }
 
     @Override
-    void encodeAlert(byte level, byte description) throws IOException {
+    void encodeAlert(byte level, byte description) {
         if (isClosed()) {
             if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
                 SSLLogger.warning("outbound has closed, ignore outbound " +
@@ -130,7 +135,7 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
     }
 
     @Override
-    void encodeChangeCipherSpec() throws IOException {
+    void encodeChangeCipherSpec() {
         if (isClosed()) {
             if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
                 SSLLogger.warning("outbound has closed, ignore outbound " +
@@ -147,7 +152,7 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
 
     @Override
     void encodeHandshake(byte[] source,
-            int offset, int length) throws IOException {
+            int offset, int length) {
         if (isClosed()) {
             if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
                 SSLLogger.warning("outbound has closed, ignore outbound " +
@@ -205,7 +210,7 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
             throw new SSLHandshakeException("sequence number overflow");
         }
 
-        // Don't process the incoming record until all of the buffered records
+        // Don't process the incoming record until all buffered records
         // get handled.  May need retransmission if no sources specified.
         if (!isEmpty() || sources == null || sources.length == 0) {
             Ciphertext ct = acquireCiphertext(destination);
@@ -239,9 +244,8 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
             fragLen = Record.maxDataSize;
         }
 
-        if (fragmentSize > 0) {
-            fragLen = Math.min(fragLen, fragmentSize);
-        }
+        // Calculate more impact, for example TLS 1.3 padding.
+        fragLen = calculateFragmentSize(fragLen);
 
         int dstPos = destination.position();
         int dstLim = destination.limit();
@@ -267,7 +271,7 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
 
         if (SSLLogger.isOn && SSLLogger.isOn("record")) {
             SSLLogger.fine(
-                    "WRITE: " + protocolVersion + " " +
+                    "WRITE: " + protocolVersion.name + " " +
                     ContentType.APPLICATION_DATA.name +
                     ", length = " + destination.remaining());
         }
@@ -349,10 +353,10 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
         // In this implementation, two times of retransmits would be attempted
         // before backing off.  The back off is supported only if the packet
         // size is bigger than 256 bytes.
-        private int retransmits = 2;            // attemps of retransmits
+        private int retransmits = 2;            // attempts of retransmits
 
         void queueUpHandshake(byte[] buf,
-                int offset, int length) throws IOException {
+                int offset, int length) {
 
             // Cleanup if a new flight starts.
             if (flightIsReady) {
@@ -414,7 +418,7 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
             handshakeMemos.add(memo);
         }
 
-        void queueUpAlert(byte level, byte description) throws IOException {
+        void queueUpAlert(byte level, byte description) {
             RecordMemo memo = new RecordMemo();
 
             memo.contentType = ContentType.ALERT.id;
@@ -459,9 +463,8 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
                 fragLen = Record.maxDataSize;
             }
 
-            if (fragmentSize > 0) {
-                fragLen = Math.min(fragLen, fragmentSize);
-            }
+            // Calculate more impact, for example TLS 1.3 padding.
+            fragLen = calculateFragmentSize(fragLen);
 
             int dstPos = dstBuf.position();
             int dstLim = dstBuf.limit();
@@ -496,7 +499,7 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
 
             if (SSLLogger.isOn && SSLLogger.isOn("record")) {
                 SSLLogger.fine(
-                        "WRITE: " + protocolVersion + " " +
+                        "WRITE: " + protocolVersion.name + " " +
                         ContentType.nameOf(memo.contentType) +
                         ", length = " + dstBuf.remaining());
             }
@@ -578,12 +581,8 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
         }
 
         boolean isEmpty() {
-            if (!flightIsReady || handshakeMemos.isEmpty() ||
-                    acquireIndex >= handshakeMemos.size()) {
-                return true;
-            }
-
-            return false;
+            return !flightIsReady || handshakeMemos.isEmpty() ||
+                    acquireIndex >= handshakeMemos.size();
         }
 
         boolean hasAlert() {
@@ -604,8 +603,7 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
         private void setRetransmission() {
             acquireIndex = 0;
             for (RecordMemo memo : handshakeMemos) {
-                if (memo instanceof HandshakeMemo) {
-                    HandshakeMemo hmemo = (HandshakeMemo)memo;
+                if (memo instanceof HandshakeMemo hmemo) {
                     hmemo.acquireOffset = 0;
                 }
             }
@@ -620,7 +618,7 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
 
                 // shrink packet size
                 shrinkPacketSize();
-                retransmits = 2;        // attemps of retransmits
+                retransmits = 2;        // attempts of retransmits
             }
         }
 

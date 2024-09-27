@@ -25,9 +25,6 @@
 
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -107,10 +104,7 @@ import sun.awt.image.SunVolatileImage;
  * implements the interface for that capability.
  *
  */
-
-
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class GraphicsConfiguration {
+public abstract class GraphicsConfiguration {
 
     private static BufferCapabilities defaultBufferCaps;
     private static ImageCapabilities defaultImageCaps;
@@ -267,7 +261,7 @@ public abstract @UsesObjectEquals class GraphicsConfiguration {
      * @param width the width of the returned {@code VolatileImage}
      * @param height the height of the returned {@code VolatileImage}
      * @param caps the image capabilities
-     * @exception AWTException if the supplied image capabilities could not
+     * @throws AWTException if the supplied image capabilities could not
      * be met by this graphics configuration
      * @since 1.4
      */
@@ -300,7 +294,7 @@ public abstract @UsesObjectEquals class GraphicsConfiguration {
      * @see Transparency#BITMASK
      * @see Transparency#TRANSLUCENT
      * @throws IllegalArgumentException if the transparency is not a valid value
-     * @exception AWTException if the supplied image capabilities could not
+     * @throws AWTException if the supplied image capabilities could not
      * be met by this graphics configuration
      * @see Component#createVolatileImage(int, int)
      * @since 1.5

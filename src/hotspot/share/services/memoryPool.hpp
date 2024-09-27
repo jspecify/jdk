@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_SERVICES_MEMORYPOOL_HPP
-#define SHARE_VM_SERVICES_MEMORYPOOL_HPP
+#ifndef SHARE_SERVICES_MEMORYPOOL_HPP
+#define SHARE_SERVICES_MEMORYPOOL_HPP
 
 #include "memory/heap.hpp"
 #include "oops/oop.hpp"
@@ -73,7 +73,8 @@ class MemoryPool : public CHeapObj<mtInternal> {
   SensorInfo*      _usage_sensor;
   SensorInfo*      _gc_usage_sensor;
 
-  volatile instanceOop _memory_pool_obj;
+  OopHandle _memory_pool_obj;
+  volatile bool _memory_pool_obj_initialized;
 
   void add_manager(MemoryManager* mgr);
 
@@ -85,6 +86,8 @@ class MemoryPool : public CHeapObj<mtInternal> {
              bool support_usage_threshold,
              bool support_gc_threshold);
 
+  virtual ~MemoryPool() { }
+
   const char* name()                       { return _name; }
   bool        is_heap()                    { return _type == Heap; }
   bool        is_non_heap()                { return _type == NonHeap; }
@@ -93,7 +96,7 @@ class MemoryPool : public CHeapObj<mtInternal> {
   // max size could be changed
   virtual size_t max_size()    const       { return _max_size; }
 
-  bool is_pool(instanceHandle pool) { return oopDesc::equals(pool(), _memory_pool_obj); }
+  bool is_pool(instanceHandle pool) const;
 
   bool available_for_allocation()   { return _available_for_allocation; }
   bool set_available_for_allocation(bool value) {
@@ -134,9 +137,6 @@ class MemoryPool : public CHeapObj<mtInternal> {
   virtual size_t      used_in_bytes() = 0;
   virtual bool        is_collected_pool()         { return false; }
   virtual MemoryUsage get_last_collection_usage() { return _after_gc_usage; }
-
-  // GC support
-  void oops_do(OopClosure* f);
 };
 
 class CollectedMemoryPool : public MemoryPool {
@@ -170,4 +170,4 @@ class CompressedKlassSpacePool : public MemoryPool {
   size_t used_in_bytes();
 };
 
-#endif // SHARE_VM_SERVICES_MEMORYPOOL_HPP
+#endif // SHARE_SERVICES_MEMORYPOOL_HPP

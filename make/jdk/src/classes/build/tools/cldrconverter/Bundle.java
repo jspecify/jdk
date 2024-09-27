@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,9 @@
 
 package build.tools.cldrconverter;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -33,6 +36,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 class Bundle {
     static enum Type {
@@ -45,15 +51,21 @@ class Bundle {
                                                     FORMATDATA);
     }
 
-    private final static Map<String, Bundle> bundles = new HashMap<>();
+    private static final Map<String, Bundle> bundles = new HashMap<>();
 
-    private final static String[] NUMBER_PATTERN_KEYS = {
+    private static final String[] NUMBER_PATTERN_KEYS = {
         "NumberPatterns/decimal",
         "NumberPatterns/currency",
-        "NumberPatterns/percent"
+        "NumberPatterns/percent",
+        "NumberPatterns/accounting"
     };
 
-    private final static String[] NUMBER_ELEMENT_KEYS = {
+    private static final String[] COMPACT_NUMBER_PATTERN_KEYS = {
+        "short.CompactNumberPatterns",
+        "long.CompactNumberPatterns"
+    };
+
+    private static final String[] NUMBER_ELEMENT_KEYS = {
         "NumberElements/decimal",
         "NumberElements/group",
         "NumberElements/list",
@@ -64,44 +76,56 @@ class Bundle {
         "NumberElements/exponential",
         "NumberElements/permille",
         "NumberElements/infinity",
-        "NumberElements/nan"
+        "NumberElements/nan",
+        "NumberElements/currencyDecimal",
+        "NumberElements/currencyGroup",
     };
 
-    private final static String[] TIME_PATTERN_KEYS = {
+    private static final String[] TIME_PATTERN_KEYS = {
         "DateTimePatterns/full-time",
         "DateTimePatterns/long-time",
         "DateTimePatterns/medium-time",
         "DateTimePatterns/short-time",
     };
 
-    private final static String[] DATE_PATTERN_KEYS = {
+    private static final String[] DATE_PATTERN_KEYS = {
         "DateTimePatterns/full-date",
         "DateTimePatterns/long-date",
         "DateTimePatterns/medium-date",
         "DateTimePatterns/short-date",
     };
 
-    private final static String[] DATETIME_PATTERN_KEYS = {
+    private static final String[] DATETIME_PATTERN_KEYS = {
         "DateTimePatterns/full-dateTime",
         "DateTimePatterns/long-dateTime",
         "DateTimePatterns/medium-dateTime",
         "DateTimePatterns/short-dateTime",
     };
 
-    private final static String[] ERA_KEYS = {
+    private static final String[] ERA_KEYS = {
         "long.Eras",
         "Eras",
         "narrow.Eras"
     };
 
+    static final String[] LIST_PATTERN_KEYS = {
+            "ListPatterns_standard",
+            "ListPatterns_or",
+            "ListPatterns_unit",
+    };
+
+    // DateFormatItem prefix
+    static final String DATEFORMATITEM_KEY_PREFIX = "DateFormatItem.";
+    static final String DATEFORMATITEM_INPUT_REGIONS_PREFIX = "DateFormatItemInputRegions.";
+
     // Keys for individual time zone names
-    private final static String TZ_GEN_LONG_KEY = "timezone.displayname.generic.long";
-    private final static String TZ_GEN_SHORT_KEY = "timezone.displayname.generic.short";
-    private final static String TZ_STD_LONG_KEY = "timezone.displayname.standard.long";
-    private final static String TZ_STD_SHORT_KEY = "timezone.displayname.standard.short";
-    private final static String TZ_DST_LONG_KEY = "timezone.displayname.daylight.long";
-    private final static String TZ_DST_SHORT_KEY = "timezone.displayname.daylight.short";
-    private final static String[] ZONE_NAME_KEYS = {
+    private static final String TZ_GEN_LONG_KEY = "timezone.displayname.generic.long";
+    private static final String TZ_GEN_SHORT_KEY = "timezone.displayname.generic.short";
+    private static final String TZ_STD_LONG_KEY = "timezone.displayname.standard.long";
+    private static final String TZ_STD_SHORT_KEY = "timezone.displayname.standard.short";
+    private static final String TZ_DST_LONG_KEY = "timezone.displayname.daylight.long";
+    private static final String TZ_DST_SHORT_KEY = "timezone.displayname.daylight.short";
+    private static final String[] ZONE_NAME_KEYS = {
         TZ_STD_LONG_KEY,
         TZ_STD_SHORT_KEY,
         TZ_DST_LONG_KEY,
@@ -146,13 +170,6 @@ class Bundle {
         return id;
     }
 
-    String getJavaID() {
-        // Tweak ISO compatibility for bundle generation
-        return id.replaceFirst("^he", "iw")
-            .replaceFirst("^id", "in")
-            .replaceFirst("^yi", "ji");
-    }
-
     boolean isRoot() {
         return "root".equals(id);
     }
@@ -181,12 +198,12 @@ class Bundle {
         String[] cldrBundles = getCLDRPath().split(",");
 
         // myMap contains resources for id.
+        @SuppressWarnings("unchecked")
         Map<String, Object> myMap = new HashMap<>();
         int index;
         for (index = 0; index < cldrBundles.length; index++) {
             if (cldrBundles[index].equals(id)) {
                 myMap.putAll(CLDRConverter.getCLDRBundle(cldrBundles[index]));
-                CLDRConverter.handleAliases(myMap);
                 break;
             }
         }
@@ -194,10 +211,7 @@ class Bundle {
         // parentsMap contains resources from id's parents.
         Map<String, Object> parentsMap = new HashMap<>();
         for (int i = cldrBundles.length - 1; i > index; i--) {
-            if (!("no".equals(cldrBundles[i]) || cldrBundles[i].startsWith("no_"))) {
-                parentsMap.putAll(CLDRConverter.getCLDRBundle(cldrBundles[i]));
-                CLDRConverter.handleAliases(parentsMap);
-            }
+            parentsMap.putAll(CLDRConverter.getCLDRBundle(cldrBundles[i]));
         }
         // Duplicate myMap as parentsMap for "root" so that the
         // fallback works. This is a hack, though.
@@ -208,68 +222,59 @@ class Bundle {
 
         // merge individual strings into arrays
 
-        // if myMap has any of the NumberPatterns members
-        for (String k : NUMBER_PATTERN_KEYS) {
-            if (myMap.containsKey(k)) {
-                String[] numberPatterns = new String[NUMBER_PATTERN_KEYS.length];
-                for (int i = 0; i < NUMBER_PATTERN_KEYS.length; i++) {
-                    String key = NUMBER_PATTERN_KEYS[i];
-                    String value = (String) myMap.remove(key);
-                    if (value == null) {
-                        value = (String) parentsMap.remove(key);
-                    }
-                    if (value.length() == 0) {
-                        CLDRConverter.warning("empty pattern for " + key);
-                    }
-                    numberPatterns[i] = value;
-                }
-                myMap.put("NumberPatterns", numberPatterns);
-                break;
-            }
-        }
-
-        // if myMap has any of NUMBER_ELEMENT_KEYS, create a complete NumberElements.
-        String defaultScript = (String) myMap.get("DefaultNumberingSystem");
+        // if myMap has any of the NumberPatterns/NumberElements members, create a
+        // complete array of patterns/elements.
         @SuppressWarnings("unchecked")
         List<String> scripts = (List<String>) myMap.get("numberingScripts");
-        if (defaultScript == null && scripts != null) {
-            // Some locale data has no default script for numbering even with mutiple scripts.
-            // Take the first one as default in that case.
-            defaultScript = scripts.get(0);
-            myMap.put("DefaultNumberingSystem", defaultScript);
-        }
         if (scripts != null) {
             for (String script : scripts) {
-                for (String k : NUMBER_ELEMENT_KEYS) {
-                    String[] numberElements = new String[NUMBER_ELEMENT_KEYS.length];
-                    for (int i = 0; i < NUMBER_ELEMENT_KEYS.length; i++) {
-                        String key = script + "." + NUMBER_ELEMENT_KEYS[i];
-                        String value = (String) myMap.remove(key);
-                        if (value == null) {
-                            if (key.endsWith("/pattern")) {
-                                value = "#";
-                            } else {
-                                value = (String) parentsMap.get(key);
-                                if (value == null) {
-                                    // the last resort is "latn"
-                                    key = "latn." + NUMBER_ELEMENT_KEYS[i];
-                                    value = (String) parentsMap.get(key);
-                                    if (value == null) {
-                                        throw new InternalError("NumberElements: null for " + key);
-                                    }
-                                }
-                            }
-                        }
-                        numberElements[i] = value;
-                    }
-                    myMap.put(script + "." + "NumberElements", numberElements);
-                    break;
-                }
+                myMap.put(script + ".NumberPatterns",
+                        createNumberArray(myMap, parentsMap, NUMBER_PATTERN_KEYS, script));
+                myMap.put(script + ".NumberElements",
+                        createNumberArray(myMap, parentsMap, NUMBER_ELEMENT_KEYS, script));
             }
         }
 
+        for (String k : COMPACT_NUMBER_PATTERN_KEYS) {
+            @SuppressWarnings("unchecked")
+            List<String> patterns = (List<String>) myMap.remove(k);
+            if (patterns != null) {
+                // Convert the map value from List<String> to String[], replacing any missing
+                // entry from the parents map, if any.
+                @SuppressWarnings("unchecked")
+                final List<String> pList = (List<String>)parentsMap.get(k);
+                int size = patterns.size();
+                int psize = pList != null ? pList.size() : 0;
+                String[] arrPatterns = IntStream.range(0, Math.max(size, psize))
+                    .mapToObj(i -> {
+                        String pattern;
+                        // first try itself.
+                        if (i < size) {
+                            pattern = patterns.get(i);
+                            if (!pattern.isEmpty()) {
+                                return "{" + pattern + "}";
+                            }
+                        }
+                        // if not found, try parent
+                        if (i < psize) {
+                            pattern = pList.get(i);
+                            if (!pattern.isEmpty()) {
+                                return "{" + pattern + "}";
+                            }
+                        }
+                        // bail out with empty string
+                        return "";
+                    })
+                    .toArray(String[]::new);
+                myMap.put(k, arrPatterns);
+            }
+        }
+
+        // Processes aliases here
+        CLDRConverter.handleAliases(myMap);
+
         // another hack: parentsMap is not used for date-time resources.
-        if ("root".equals(id)) {
+        if (isRoot()) {
             parentsMap = null;
         }
 
@@ -289,15 +294,22 @@ class Bundle {
             handleMultipleInheritance(myMap, parentsMap, calendarPrefix + "QuarterAbbreviations");
             handleMultipleInheritance(myMap, parentsMap, calendarPrefix + "QuarterNarrows");
 
-            adjustEraNames(myMap, calendarType);
+            adjustEraNames(myMap, parentsMap, calendarType);
 
             handleDateTimeFormatPatterns(TIME_PATTERN_KEYS, myMap, parentsMap, calendarType, "TimePatterns");
             handleDateTimeFormatPatterns(DATE_PATTERN_KEYS, myMap, parentsMap, calendarType, "DatePatterns");
             handleDateTimeFormatPatterns(DATETIME_PATTERN_KEYS, myMap, parentsMap, calendarType, "DateTimePatterns");
+
+            // Skeleton
+            handleSkeletonPatterns(myMap, calendarType);
+        }
+
+        // Skeleton input regions
+        if (isRoot()) {
+            skeletonInputRegions(myMap);
         }
 
         // First, weed out any empty timezone or metazone names from myMap.
-        // Fill in any missing abbreviations if locale is "en".
         for (Iterator<String> it = myMap.keySet().iterator(); it.hasNext();) {
             String key = it.next();
             if (key.startsWith(CLDRConverter.TIMEZONE_ID_PREFIX)
@@ -309,10 +321,6 @@ class Bundle {
                     // Remove those from the map.
                     it.remove();
                     continue;
-                }
-
-                if (id.equals("en")) {
-                    fillInJREs(key, nameMap);
                 }
             }
         }
@@ -380,6 +388,16 @@ class Bundle {
             }
         }
 
+        // rules
+        String rule = CLDRConverter.pluralRules.get(id);
+        if (rule != null) {
+            myMap.put("PluralRules", rule);
+        }
+        rule = CLDRConverter.dayPeriodRules.get(id);
+        if (rule != null) {
+            myMap.put("DayPeriodRules", rule);
+        }
+
         // Remove all duplicates
         if (Objects.nonNull(parentsMap)) {
             for (Iterator<String> it = myMap.keySet().iterator(); it.hasNext();) {
@@ -396,33 +414,31 @@ class Bundle {
     }
 
     private void handleMultipleInheritance(Map<String, Object> map, Map<String, Object> parents, String key) {
-        String formatKey = key + "/format";
-        Object format = map.get(formatKey);
+        String formatMapKey = key + "/format";
+        Object format = map.get(formatMapKey);
         if (format != null) {
-            map.remove(formatKey);
+            map.remove(formatMapKey);
             map.put(key, format);
-            if (fillInElements(parents, formatKey, format)) {
+            if (fillInElements(parents, formatMapKey, format)) {
                 map.remove(key);
             }
         }
-        String standaloneKey = key + "/stand-alone";
-        Object standalone = map.get(standaloneKey);
+        String standaloneMapKey = key + "/stand-alone";
+        Object standalone = map.get(standaloneMapKey);
         if (standalone != null) {
-            map.remove(standaloneKey);
-            String realKey = key;
-            if (format != null) {
-                realKey = "standalone." + key;
-            }
-            map.put(realKey, standalone);
-            if (fillInElements(parents, standaloneKey, standalone)) {
-                map.remove(realKey);
+            map.remove(standaloneMapKey);
+            String standaloneResourceKey = "standalone." + key;
+            map.put(standaloneResourceKey, standalone);
+            if (fillInElements(parents, standaloneMapKey, standalone)) {
+                map.remove(standaloneResourceKey);
             }
         }
     }
 
     /**
-     * Fills in any empty elements with its parent element. Returns true if the resulting array is
-     * identical to its parent array.
+     * Fills in any empty elements with its parent element, falling back to
+     * aliased one if parent element is not found. Returns true if the resulting
+     * array is identical to its parent array.
      *
      * @param parents
      * @param key
@@ -434,7 +450,7 @@ class Bundle {
             return false;
         }
         if (value instanceof String[]) {
-            Object pvalue = parents.get(key);
+            Object pvalue = parents.getOrDefault(key, parents.get(CLDRConverter.aliases.get(key)));
             if (pvalue != null && pvalue instanceof String[]) {
                 String[] strings = (String[]) value;
                 String[] pstrings = (String[]) pvalue;
@@ -453,7 +469,7 @@ class Bundle {
      * Adjusts String[] for era names because JRE's Calendars use different
      * ERA value indexes in the Buddhist, Japanese Imperial, and Islamic calendars.
      */
-    private void adjustEraNames(Map<String, Object> map, CalendarType type) {
+    private void adjustEraNames(Map<String, Object> map, Map<String, Object> pMap, CalendarType type) {
         String[][] eraNames = new String[ERA_KEYS.length][];
         String[] realKeys = new String[ERA_KEYS.length];
         int index = 0;
@@ -461,6 +477,9 @@ class Bundle {
             String realKey = type.keyElementName() + key;
             String[] value = (String[]) map.get(realKey);
             if (value != null) {
+                // first fill in missing elements from parents map.
+                fillInElements(pMap, realKey, value);
+
                 switch (type) {
                 case GREGORIAN:
                     break;
@@ -476,6 +495,11 @@ class Bundle {
                         }
                         System.arraycopy(value, 0, newValue, 1, value.length);
                         value = newValue;
+
+                        // fix up 'Reiwa' era, which can be missing in some locales
+                        if (value[value.length - 1] == null) {
+                            value[value.length - 1] = (key.startsWith("narrow.") ? "R" : "Reiwa");
+                        }
                     }
                     break;
 
@@ -489,9 +513,8 @@ class Bundle {
                     value = new String[] {"", value[0]};
                     break;
                 }
-                if (!key.equals(realKey)) {
-                    map.put(realKey, value);
-                }
+                map.put(realKey, value);
+                map.put("java.time." + realKey, value);
             }
             realKeys[index] = realKey;
             eraNames[index++] = value;
@@ -509,36 +532,44 @@ class Bundle {
         for (String k : patternKeys) {
             if (myMap.containsKey(calendarPrefix + k)) {
                 int len = patternKeys.length;
-                List<String> rawPatterns = new ArrayList<>(len);
-                List<String> patterns = new ArrayList<>(len);
+                List<String> dateTimePatterns = new ArrayList<>(len);
+                List<String> sdfPatterns = new ArrayList<>(len);
                 for (int i = 0; i < len; i++) {
                     String key = calendarPrefix + patternKeys[i];
                     String pattern = (String) myMap.remove(key);
                     if (pattern == null) {
                         pattern = (String) parentsMap.remove(key);
                     }
-                    rawPatterns.add(i, pattern);
                     if (pattern != null) {
-                        patterns.add(i, translateDateFormatLetters(calendarType, pattern));
+                        // Perform date-time format pattern conversion which is
+                        // applicable to both SimpleDateFormat and j.t.f.DateTimeFormatter.
+                        String transPattern = translateDateFormatLetters(calendarType, pattern, this::convertDateTimePatternLetter);
+                        dateTimePatterns.add(i, transPattern);
+                        // Additionally, perform SDF specific date-time format pattern conversion
+                        sdfPatterns.add(i, translateDateFormatLetters(calendarType, transPattern, this::convertSDFLetter));
                     } else {
-                        patterns.add(i, null);
+                        dateTimePatterns.add(i, null);
+                        sdfPatterns.add(i, null);
                     }
                 }
-                // If patterns is empty or has any nulls, discard patterns.
-                if (patterns.isEmpty()) {
+                // If empty, discard patterns
+                if (sdfPatterns.isEmpty()) {
                     return;
                 }
                 String key = calendarPrefix + name;
-                if (!rawPatterns.equals(patterns)) {
-                    myMap.put("java.time." + key, rawPatterns.toArray(new String[len]));
+
+                // If additional changes are made in the SDF specific conversion,
+                // keep the commonly converted patterns as java.time patterns
+                if (!dateTimePatterns.equals(sdfPatterns)) {
+                    myMap.put("java.time." + key, dateTimePatterns.toArray(String[]::new));
                 }
-                myMap.put(key, patterns.toArray(new String[len]));
+                myMap.put(key, sdfPatterns.toArray(new String[len]));
                 break;
             }
         }
     }
 
-    private String translateDateFormatLetters(CalendarType calendarType, String cldrFormat) {
+    private String translateDateFormatLetters(CalendarType calendarType, String cldrFormat, ConvertDateTimeLetters converter) {
         String pattern = cldrFormat;
         int length = pattern.length();
         boolean inQuote = false;
@@ -557,7 +588,7 @@ class Bundle {
                     if (nextc == '\'') {
                         i++;
                         if (count != 0) {
-                            convert(calendarType, lastLetter, count, jrePattern);
+                            converter.convert(calendarType, lastLetter, count, jrePattern);
                             lastLetter = 0;
                             count = 0;
                         }
@@ -567,7 +598,7 @@ class Bundle {
                 }
                 if (!inQuote) {
                     if (count != 0) {
-                        convert(calendarType, lastLetter, count, jrePattern);
+                        converter.convert(calendarType, lastLetter, count, jrePattern);
                         lastLetter = 0;
                         count = 0;
                     }
@@ -584,7 +615,7 @@ class Bundle {
             }
             if (!(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z')) {
                 if (count != 0) {
-                    convert(calendarType, lastLetter, count, jrePattern);
+                    converter.convert(calendarType, lastLetter, count, jrePattern);
                     lastLetter = 0;
                     count = 0;
                 }
@@ -597,7 +628,7 @@ class Bundle {
                 count++;
                 continue;
             }
-            convert(calendarType, lastLetter, count, jrePattern);
+            converter.convert(calendarType, lastLetter, count, jrePattern);
             lastLetter = c;
             count = 1;
         }
@@ -607,7 +638,7 @@ class Bundle {
         }
 
         if (count != 0) {
-            convert(calendarType, lastLetter, count, jrePattern);
+            converter.convert(calendarType, lastLetter, count, jrePattern);
         }
         if (cldrFormat.contentEquals(jrePattern)) {
             return cldrFormat;
@@ -626,107 +657,92 @@ class Bundle {
         return null;
     }
 
-    static List<Object[]> jreTimeZoneNames = Arrays.asList(TimeZoneNames.getContents());
-    private void fillInJREs(String key, Map<String, String> map) {
-        String tzid = null;
+    /**
+     * Perform a generic conversion of CLDR date-time format pattern letter based
+     * on the support given by the SimpleDateFormat and the j.t.f.DateTimeFormatter
+     * for date-time formatting.
+     */
+    private void convertDateTimePatternLetter(CalendarType calendarType, char cldrLetter, int count, StringBuilder sb) {
+        switch (cldrLetter) {
+            case 'u':
+            case 'U':
+                // Change cldr letter 'u'/'U' to 'y', as 'u' is interpreted as
+                // "Extended year (numeric)", and 'U' as "Cyclic year" in CLDR/LDML,
+                // which is not supported in SimpleDateFormat and
+                // j.t.f.DateTimeFormatter, so it is replaced with 'y'
+                // as the best approximation
+                appendN('y', count, sb);
+                break;
+            default:
+                appendN(cldrLetter, count, sb);
+                break;
 
-        if (key.startsWith(CLDRConverter.METAZONE_ID_PREFIX)) {
-            // Look for tzid
-            String meta = key.substring(CLDRConverter.METAZONE_ID_PREFIX.length());
-            if (meta.equals("GMT")) {
-                tzid = meta;
-            } else {
-                for (String tz : CLDRConverter.handlerMetaZones.keySet()) {
-                    if (CLDRConverter.handlerMetaZones.get(tz).equals(meta)) {
-                        tzid = tz;
-                        break;
-                    }
-                }
-            }
-        } else {
-            tzid = key.substring(CLDRConverter.TIMEZONE_ID_PREFIX.length());
-        }
-
-        if (tzid != null) {
-            for (Object[] jreZone : jreTimeZoneNames) {
-                if (jreZone[0].equals(tzid)) {
-                    for (int i = 0; i < ZONE_NAME_KEYS.length; i++) {
-                        if (map.get(ZONE_NAME_KEYS[i]) == null) {
-                            String[] jreNames = (String[])jreZone[1];
-                            map.put(ZONE_NAME_KEYS[i], jreNames[i]);
-                        }
-                    }
-                    break;
-                }
-            }
         }
     }
 
-    private void convert(CalendarType calendarType, char cldrLetter, int count, StringBuilder sb) {
+    /**
+     * Perform a conversion of CLDR date-time format pattern letter which is
+     * specific to the SimpleDateFormat.
+     */
+    private void convertSDFLetter(CalendarType calendarType, char cldrLetter, int count, StringBuilder sb) {
         switch (cldrLetter) {
-        case 'G':
-            if (calendarType != CalendarType.GREGORIAN) {
-                // Adjust the number of 'G's for JRE SimpleDateFormat
-                if (count == 5) {
-                    // CLDR narrow -> JRE short
-                    count = 1;
-                } else if (count == 1) {
-                    // CLDR abbr -> JRE long
-                    count = 4;
+            case 'G':
+                if (calendarType != CalendarType.GREGORIAN) {
+                    // Adjust the number of 'G's for JRE SimpleDateFormat
+                    if (count == 5) {
+                        // CLDR narrow -> JRE short
+                        count = 1;
+                    } else if (count == 1) {
+                        // CLDR abbr -> JRE long
+                        count = 4;
+                    }
                 }
-            }
-            appendN(cldrLetter, count, sb);
-            break;
-
-        // TODO: support 'c' and 'e' in JRE SimpleDateFormat
-        // Use 'u' and 'E' for now.
-        case 'c':
-        case 'e':
-            switch (count) {
-            case 1:
-                sb.append('u');
+                appendN(cldrLetter, count, sb);
                 break;
-            case 3:
-            case 4:
-                appendN('E', count, sb);
+
+            // TODO: support 'c' and 'e' in JRE SimpleDateFormat
+            // Use 'u' and 'E' for now.
+            case 'c':
+            case 'e':
+                switch (count) {
+                    case 1:
+                        sb.append('u');
+                        break;
+                    case 3:
+                    case 4:
+                        appendN('E', count, sb);
+                        break;
+                    case 5:
+                        appendN('E', 3, sb);
+                        break;
+                }
                 break;
-            case 5:
-                appendN('E', 3, sb);
+
+            case 'v':
+            case 'V':
+                appendN('z', count, sb);
                 break;
-            }
-            break;
 
-        case 'l':
-            // 'l' is deprecated as a pattern character. Should be ignored.
-            break;
+            case 'Z':
+                if (count == 4 || count == 5) {
+                    sb.append("XXX");
+                }
+                break;
 
-        case 'u':
-            // Use 'y' for now.
-            appendN('y', count, sb);
-            break;
+            case 'B':
+                // 'B' character (day period) is not supported by SimpleDateFormat,
+                // this is a workaround in which 'B' character
+                // appearing in CLDR date-time pattern is replaced
+                // with 'a' character and hence resolved with am/pm strings.
+                // This workaround is based on the fallback mechanism
+                // specified in LDML spec for 'B' character, when a locale
+                // does not have data for day period ('B')
+                appendN('a', count, sb);
+                break;
 
-        case 'v':
-        case 'V':
-            appendN('z', count, sb);
-            break;
-
-        case 'Z':
-            if (count == 4 || count == 5) {
-                sb.append("XXX");
-            }
-            break;
-
-        case 'U':
-        case 'q':
-        case 'Q':
-        case 'g':
-        case 'j':
-        case 'A':
-            throw new InternalError(String.format("Unsupported letter: '%c', count=%d, id=%s%n",
-                                                  cldrLetter, count, id));
-        default:
-            appendN(cldrLetter, count, sb);
-            break;
+            default:
+                appendN(cldrLetter, count, sb);
+                break;
         }
     }
 
@@ -743,5 +759,77 @@ class Bundle {
             }
         }
         return false;
+    }
+
+    private void handleSkeletonPatterns(Map<String, Object> myMap, CalendarType calendarType) {
+        String calendarPrefix = calendarType.keyElementName();
+        myMap.putAll(myMap.entrySet().stream()
+            .filter(e -> e.getKey().startsWith(Bundle.DATEFORMATITEM_KEY_PREFIX))
+            .collect(Collectors.toMap(
+                e -> calendarPrefix + e.getKey(),
+                e -> translateDateFormatLetters(calendarType,
+                        (String)e.getValue(),
+                        this::convertDateTimePatternLetter)
+            ))
+        );
+    }
+
+    @FunctionalInterface
+    private interface ConvertDateTimeLetters {
+        void convert(CalendarType calendarType, char cldrLetter, int count, StringBuilder sb);
+    }
+
+    /**
+     * Returns a complete string array for NumberElements or NumberPatterns. If any
+     * array element is missing, it will fall back to parents map, as well as
+     * numbering script fallback.
+     */
+    private String[] createNumberArray(Map<String, Object> myMap, Map<String, Object>parentsMap,
+                                        String[] keys, String script) {
+        String[] numArray = new String[keys.length];
+        for (int i = 0; i < keys.length; i++) {
+            String key = script + "." + keys[i];
+            final int idx = i;
+            Optional.ofNullable(
+                myMap.getOrDefault(key,
+                    // if value not found in myMap, search for parentsMap
+                    parentsMap.getOrDefault(key,
+                        parentsMap.getOrDefault(keys[i],
+                            // the last resort is "latn"
+                            parentsMap.get("latn." + keys[i])))))
+                .ifPresentOrElse(v -> numArray[idx] = (String)v, () -> {
+                    if (keys == NUMBER_PATTERN_KEYS) {
+                        // NumberPatterns
+                        if (!key.endsWith("accounting")) {
+                            // throw error unless it is for "accounting",
+                            // which may be missing.
+                            throw new InternalError("NumberPatterns: null for " +
+                                                    key + ", id: " + id);
+                        }
+                    } else {
+                        // NumberElements
+                        assert keys == NUMBER_ELEMENT_KEYS;
+                        if (key.endsWith("/pattern")) {
+                            numArray[idx] = "#";
+                        } else if (!key.endsWith("currencyDecimal") &&
+                                   !key.endsWith("currencyGroup")) {
+                            // throw error unless it is for "currencyDecimal/Group",
+                            // which may be missing.
+                            throw new InternalError("NumberElements: null for " +
+                                                    key + ", id: " + id);
+                        }
+                    }});
+        }
+        return numArray;
+    }
+
+    private static void skeletonInputRegions(Map<String, Object> myMap) {
+        myMap.putAll(myMap.entrySet().stream()
+                .filter(e -> e.getKey().startsWith(Bundle.DATEFORMATITEM_INPUT_REGIONS_PREFIX))
+                .collect(Collectors.toMap(
+                        e -> e.getKey(),
+                        e -> ((String)e.getValue()).trim()
+                ))
+        );
     }
 }

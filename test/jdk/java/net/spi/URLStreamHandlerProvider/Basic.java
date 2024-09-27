@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,8 +45,10 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
+
+import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.util.FileUtils;
-import jdk.testlibrary.JDKToolFinder;
+import jdk.test.lib.JDKToolFinder;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 
@@ -55,10 +57,10 @@ import static java.util.Arrays.asList;
  * @bug 8064924
  * @modules jdk.compiler
  * @summary Basic test for URLStreamHandlerProvider
- * @library /lib/testlibrary /test/lib
+ * @library /test/lib
  * @build jdk.test.lib.Platform
  *        jdk.test.lib.util.FileUtils
- *        jdk.testlibrary.JDKToolFinder
+ *        jdk.test.lib.JDKToolFinder
  * @compile Basic.java Child.java
  * @run main Basic
  */
@@ -83,9 +85,17 @@ public class Basic {
         viaBadProvider("jerry", SCE);
     }
 
+    static final String SECURITY_MANAGER_DEPRECATED
+            = "WARNING: The Security Manager is deprecated and will be removed in a future release."
+                    + System.getProperty("line.separator");
+
+    private static String withoutWarning(String in) {
+        return in.lines().filter(s -> !s.startsWith("WARNING:")).collect(Collectors.joining());
+    }
+
     static final Consumer<Result> KNOWN = r -> {
-        if (r.exitValue != 0 || !r.output.isEmpty())
-            throw new RuntimeException(r.output);
+        if (r.exitValue != 0 || !withoutWarning(r.output).isEmpty())
+            throw new RuntimeException("[" + r.output + "]");
     };
     static final Consumer<Result> UNKNOWN = r -> {
         if (r.exitValue == 0 ||
@@ -226,12 +236,8 @@ public class Basic {
 
     static Result java(List<String> sysProps, Collection<Path> classpath,
                        String classname, String arg) {
-        String java = getJDKTool("java");
 
-        List<String> commands = new ArrayList<>();
-        commands.add(java);
-        for (String prop : sysProps)
-            commands.add(prop);
+        List<String> commands = new ArrayList<>(sysProps);
 
         String cp = classpath.stream()
                 .map(Path::toString)
@@ -241,7 +247,7 @@ public class Basic {
         commands.add(classname);
         commands.add(arg);
 
-        return run(new ProcessBuilder(commands));
+        return run(ProcessTools.createTestJavaProcessBuilder(commands));
     }
 
     static Result run(ProcessBuilder pb) {

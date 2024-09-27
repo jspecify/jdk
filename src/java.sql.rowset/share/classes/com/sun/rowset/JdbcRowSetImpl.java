@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,7 @@ public class JdbcRowSetImpl extends BaseRowSet implements JdbcRowSet, Joinable {
      * current connection to the database.  This field is set
      * internally when the connection is established.
      */
+    @SuppressWarnings("serial")
     private Connection conn;
 
     /**
@@ -56,6 +57,7 @@ public class JdbcRowSetImpl extends BaseRowSet implements JdbcRowSet, Joinable {
      * {@code execute} creates the {@code PreparedStatement}
      * object.
      */
+    @SuppressWarnings("serial")
     private PreparedStatement ps;
 
     /**
@@ -64,6 +66,7 @@ public class JdbcRowSetImpl extends BaseRowSet implements JdbcRowSet, Joinable {
      * {@code execute} executes the rowset's command and thereby
      * creates the rowset's {@code ResultSet} object.
      */
+    @SuppressWarnings("serial")
     private ResultSet rs;
 
     /**
@@ -80,6 +83,7 @@ public class JdbcRowSetImpl extends BaseRowSet implements JdbcRowSet, Joinable {
      * {@code RowSetMetaDataImpl} is formed and which  helps in getting
      * the metadata information.
      */
+    @SuppressWarnings("serial")
     private ResultSetMetaData resMD;
 
 
@@ -624,7 +628,7 @@ public class JdbcRowSetImpl extends BaseRowSet implements JdbcRowSet, Joinable {
                     (getDataSourceName());
                 //return ds.getConnection(getUsername(),getPassword());
 
-                if(getUsername() != null && !getUsername().equals("")) {
+                if(getUsername() != null && !getUsername().isEmpty()) {
                      return ds.getConnection(getUsername(),getPassword());
                 } else {
                      return ds.getConnection();
@@ -1133,7 +1137,7 @@ public class JdbcRowSetImpl extends BaseRowSet implements JdbcRowSet, Joinable {
      * as a stream of Unicode characters.
      * The value can then be read in chunks from the
      * stream. This method is particularly
-     * suitable for retrieving large{@code LONGVARCHAR}values.  The JDBC driver will
+     * suitable for retrieving large{@code LONGVARCHAR} values.  The JDBC driver will
      * do any necessary conversion from the database format into Unicode.
      * The byte format of the Unicode stream must be Java UTF-8,
      * as specified in the Java virtual machine specification.
@@ -3873,7 +3877,7 @@ public class JdbcRowSetImpl extends BaseRowSet implements JdbcRowSet, Joinable {
     public void setMatchColumn(String[] columnNames) throws SQLException {
 
         for(int j = 0; j < columnNames.length; j++) {
-           if( columnNames[j] == null || columnNames[j].equals("")) {
+           if( columnNames[j] == null || columnNames[j].isEmpty()) {
               throw new SQLException(resBundle.handleGetObject("jdbcrowsetimpl.matchcols2").toString());
            }
         }
@@ -3928,7 +3932,7 @@ public class JdbcRowSetImpl extends BaseRowSet implements JdbcRowSet, Joinable {
      */
     public void setMatchColumn(String columnName) throws SQLException {
         // validate, if col is ok to be set
-        if(columnName == null || (columnName= columnName.trim()).equals("")) {
+        if(columnName == null || (columnName= columnName.trim()).isEmpty()) {
             throw new SQLException(resBundle.handleGetObject("jdbcrowsetimpl.matchcols2").toString());
         } else {
             // set strMatchColumn
@@ -6188,7 +6192,7 @@ public class JdbcRowSetImpl extends BaseRowSet implements JdbcRowSet, Joinable {
    * @param parameterIndex index of the first parameter is 1, the second is 2, ...
    * @param reader An object that contains the data to set the parameter value to.
    * @throws SQLException if a database access error occurs, this method is called on
-   *         a closed {@code PreparedStatement}or if parameterIndex does not correspond to a parameter
+   *         a closed {@code PreparedStatement} or if parameterIndex does not correspond to a parameter
    *         marker in the SQL statement
    *
    * @throws SQLFeatureNotSupportedException  if the JDBC driver does not support this method

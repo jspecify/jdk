@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,15 @@
  */
 
 #include "precompiled.hpp"
-#include "jvm.h"
 #include "asm/macroAssembler.inline.hpp"
+#include "jvm.h"
 #include "memory/resourceArea.hpp"
+#include "runtime/arguments.hpp"
+#include "runtime/globals_extension.hpp"
 #include "runtime/java.hpp"
 #include "runtime/os.inline.hpp"
 #include "runtime/stubCodeGenerator.hpp"
-#include "vm_version_arm.hpp"
+#include "runtime/vm_version.hpp"
 
 int  VM_Version::_stored_pc_adjustment = 4;
 int  VM_Version::_arm_arch             = 5;
@@ -40,6 +42,7 @@ extern "C" {
   typedef int (*get_cpu_info_t)();
   typedef bool (*check_vfp_t)(double *d);
   typedef bool (*check_simd_t)();
+  typedef bool (*check_mp_ext_t)(int *addr);
 }
 
 #define __ _masm->
@@ -95,6 +98,20 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
 
     return start;
   };
+
+  address generate_check_mp_ext() {
+    StubCodeMark mark(this, "VM_Version", "check_mp_ext");
+    address start = __ pc();
+
+    // PLDW is available with Multiprocessing Extensions only
+    __ pldw(Address(R0));
+    // Return true if instruction caused no signals
+    __ mov(R0, 1);
+    // JVM_handle_linux_signal moves PC here if SIGILL happens
+    __ bx(LR);
+
+    return start;
+  };
 };
 
 #undef __
@@ -103,6 +120,7 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
 extern "C" address check_vfp3_32_fault_instr;
 extern "C" address check_vfp_fault_instr;
 extern "C" address check_simd_fault_instr;
+extern "C" address check_mp_ext_fault_instr;
 
 void VM_Version::early_initialize() {
 
@@ -110,10 +128,16 @@ void VM_Version::early_initialize() {
   // use proper dmb instruction
   get_os_cpu_info();
 
+  // Future cleanup: if SUPPORTS_NATIVE_CX8 is defined then we should not need
+  // any alternative solutions. At present this allows for the theoretical
+  // possibility of building for ARMv7 and then running on ARMv5 or 6. If that
+  // is impossible then the ARM port folk should clean this up.
   _kuser_helper_version = *(int*)KUSER_HELPER_VERSION_ADDR;
+#ifndef SUPPORTS_NATIVE_CX8
   // armv7 has the ldrexd instruction that can be used to implement cx8
   // armv5 with linux >= 3.1 can use kernel helper routine
   _supports_cx8 = (supports_ldrexd() || supports_kuser_cmpxchg64());
+#endif
 }
 
 void VM_Version::initialize() {
@@ -122,7 +146,7 @@ void VM_Version::initialize() {
   // Making this stub must be FIRST use of assembler
   const int stub_size = 128;
   BufferBlob* stub_blob = BufferBlob::create("get_cpu_info", stub_size);
-  if (stub_blob == NULL) {
+  if (stub_blob == nullptr) {
     vm_exit_during_initialization("Unable to allocate get_cpu_info stub");
   }
 
@@ -165,6 +189,13 @@ void VM_Version::initialize() {
 #endif
 #endif
 
+  address check_mp_ext_pc = g.generate_check_mp_ext();
+  check_mp_ext_t check_mp_ext = CAST_TO_FN_PTR(check_mp_ext_t, check_mp_ext_pc);
+  check_mp_ext_fault_instr = (address)check_mp_ext;
+  int dummy_local_variable;
+  if (check_mp_ext(&dummy_local_variable)) {
+    _features |= mp_ext_m;
+  }
 
   if (UseAESIntrinsics && !FLAG_IS_DEFAULT(UseAESIntrinsics)) {
     warning("AES intrinsics are not available on this CPU");
@@ -186,6 +217,11 @@ void VM_Version::initialize() {
     FLAG_SET_DEFAULT(UseFMA, false);
   }
 
+  if (UseMD5Intrinsics) {
+    warning("MD5 intrinsics are not available on this CPU");
+    FLAG_SET_DEFAULT(UseMD5Intrinsics, false);
+  }
+
   if (UseSHA) {
     warning("SHA instructions are not available on this CPU");
     FLAG_SET_DEFAULT(UseSHA, false);
@@ -204,6 +240,11 @@ void VM_Version::initialize() {
   if (UseSHA512Intrinsics) {
     warning("Intrinsics for SHA-384 and SHA-512 crypto hash functions not available on this CPU.");
     FLAG_SET_DEFAULT(UseSHA512Intrinsics, false);
+  }
+
+  if (UseSHA3Intrinsics) {
+    warning("Intrinsics for SHA3-224, SHA3-256, SHA3-384 and SHA3-512 crypto hash functions not available on this CPU.");
+    FLAG_SET_DEFAULT(UseSHA3Intrinsics, false);
   }
 
   if (UseCRC32Intrinsics) {
@@ -243,15 +284,16 @@ void VM_Version::initialize() {
   _supports_atomic_getadd8 = supports_ldrexd();
 
 #ifdef COMPILER2
-  assert(_supports_cx8 && _supports_atomic_getset4 && _supports_atomic_getadd4
+  assert(supports_cx8() && _supports_atomic_getset4 && _supports_atomic_getadd4
          && _supports_atomic_getset8 && _supports_atomic_getadd8, "C2: atomic operations must be supported");
 #endif
   char buf[512];
-  jio_snprintf(buf, sizeof(buf), "(ARMv%d)%s%s%s",
+  jio_snprintf(buf, sizeof(buf), "(ARMv%d)%s%s%s%s",
                _arm_arch,
                (has_vfp() ? ", vfp" : ""),
                (has_vfp3_32() ? ", vfp3-32" : ""),
-               (has_simd() ? ", simd" : ""));
+               (has_simd() ? ", simd" : ""),
+               (has_multiprocessing_extensions() ? ", mp_ext" : ""));
 
   // buf is started with ", " or is empty
   _features_string = os::strdup(buf);
@@ -260,6 +302,8 @@ void VM_Version::initialize() {
     if (FLAG_IS_DEFAULT(UsePopCountInstruction)) {
       FLAG_SET_DEFAULT(UsePopCountInstruction, true);
     }
+  } else {
+    FLAG_SET_DEFAULT(UsePopCountInstruction, false);
   }
 
   if (FLAG_IS_DEFAULT(AllocatePrefetchDistance)) {
@@ -274,10 +318,12 @@ void VM_Version::initialize() {
     // SIMD/NEON can use 16, but default is 8 because currently
     // larger than 8 will disable instruction scheduling
     FLAG_SET_DEFAULT(MaxVectorSize, 8);
-  }
-
-  if (MaxVectorSize > 16) {
-    FLAG_SET_DEFAULT(MaxVectorSize, 8);
+  } else {
+    int max_vector_size = has_simd() ? 16 : 8;
+    if (MaxVectorSize > max_vector_size) {
+      warning("MaxVectorSize must be at most %i on this platform", max_vector_size);
+      FLAG_SET_DEFAULT(MaxVectorSize, max_vector_size);
+    }
   }
 #endif
 
@@ -294,6 +340,8 @@ void VM_Version::initialize() {
     Tier3MinInvocationThreshold = 500;
   }
 
+  UNSUPPORTED_OPTION(TypeProfileLevel);
+
   FLAG_SET_DEFAULT(TypeProfileLevel, 0); // unsupported
 
   // This machine does not allow unaligned memory accesses
@@ -306,32 +354,16 @@ void VM_Version::initialize() {
   _is_initialized = true;
 }
 
-bool VM_Version::use_biased_locking() {
-  get_os_cpu_info();
-  // The cost of CAS on uniprocessor ARM v6 and later is low compared to the
-  // overhead related to slightly longer Biased Locking execution path.
-  // Testing shows no improvement when running with Biased Locking enabled
-  // on an ARMv6 and higher uniprocessor systems.  The situation is different on
-  // ARMv5 and MP systems.
-  //
-  // Therefore the Biased Locking is enabled on ARMv5 and ARM MP only.
-  //
-  return (!os::is_MP() && (arm_arch() > 5)) ? false : true;
-}
+void VM_Version::initialize_cpu_information(void) {
+  // do nothing if cpu info has been initialized
+  if (_initialized) {
+    return;
+  }
 
-#define EXP
-
-// Temporary override for experimental features
-// Copied from Abstract_VM_Version
-const char* VM_Version::vm_info_string() {
-  switch (Arguments::mode()) {
-    case Arguments::_int:
-      return UseSharedSpaces ? "interpreted mode, sharing" EXP : "interpreted mode" EXP;
-    case Arguments::_mixed:
-      return UseSharedSpaces ? "mixed mode, sharing" EXP    :  "mixed mode" EXP;
-    case Arguments::_comp:
-      return UseSharedSpaces ? "compiled mode, sharing" EXP   : "compiled mode" EXP;
-  };
-  ShouldNotReachHere();
-  return "";
+  _no_of_cores  = os::processor_count();
+  _no_of_threads = _no_of_cores;
+  _no_of_sockets = _no_of_cores;
+  snprintf(_cpu_name, CPU_TYPE_DESC_BUF_SIZE - 1, "ARM%d", _arm_arch);
+  snprintf(_cpu_desc, CPU_DETAILED_DESC_BUF_SIZE, "%s", _features_string);
+  _initialized = true;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,9 @@ package com.sun.source.util;
 
 import java.util.List;
 
+import javax.lang.model.element.Element;
 import javax.lang.model.element.Name;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 
@@ -43,12 +45,14 @@ import com.sun.source.doctree.DocTypeTree;
 import com.sun.source.doctree.EndElementTree;
 import com.sun.source.doctree.EntityTree;
 import com.sun.source.doctree.ErroneousTree;
+import com.sun.source.doctree.EscapeTree;
 import com.sun.source.doctree.HiddenTree;
 import com.sun.source.doctree.IdentifierTree;
 import com.sun.source.doctree.IndexTree;
 import com.sun.source.doctree.InheritDocTree;
 import com.sun.source.doctree.LinkTree;
 import com.sun.source.doctree.LiteralTree;
+import com.sun.source.doctree.RawTextTree;
 import com.sun.source.doctree.ParamTree;
 import com.sun.source.doctree.ProvidesTree;
 import com.sun.source.doctree.ReferenceTree;
@@ -58,8 +62,11 @@ import com.sun.source.doctree.SerialDataTree;
 import com.sun.source.doctree.SerialFieldTree;
 import com.sun.source.doctree.SerialTree;
 import com.sun.source.doctree.SinceTree;
+import com.sun.source.doctree.SnippetTree;
+import com.sun.source.doctree.SpecTree;
 import com.sun.source.doctree.StartElementTree;
 import com.sun.source.doctree.SummaryTree;
+import com.sun.source.doctree.SystemPropertyTree;
 import com.sun.source.doctree.TextTree;
 import com.sun.source.doctree.ThrowsTree;
 import com.sun.source.doctree.UnknownBlockTagTree;
@@ -69,62 +76,61 @@ import com.sun.source.doctree.ValueTree;
 import com.sun.source.doctree.VersionTree;
 
 /**
- *  Factory for creating {@code DocTree} nodes.
+ * Factory for creating {@code DocTree} nodes.
  *
- *  @implNote The methods in an implementation of this interface may only accept {@code DocTree}
- *  nodes that have been created by the same implementation.
+ * @implNote The methods in an implementation of this interface may only accept {@code DocTree}
+ * nodes that have been created by the same implementation.
  *
- *  @since 9
+ * @since 9
  */
 public interface DocTreeFactory {
     /**
-     * Create a new {@code AttributeTree} object, to represent an HTML attribute in an HTML tag.
+     * Creates a new {@code AttributeTree} object, to represent an attribute in an HTML element or tag.
      * @param name  the name of the attribute
-     * @param vkind the kind of attribute value
+     * @param vkind the kind of the attribute value
      * @param value the value, if any, of the attribute
      * @return an {@code AttributeTree} object
      */
     AttributeTree newAttributeTree(Name name, ValueKind vkind, List<? extends DocTree> value);
 
     /**
-     * Create a new {@code AuthorTree} object, to represent an {@code {@author } } tag.
+     * Creates a new {@code AuthorTree} object, to represent an {@code @author} tag.
      * @param name the name of the author
      * @return an {@code AuthorTree} object
      */
     AuthorTree newAuthorTree(List<? extends DocTree> name);
 
     /**
-     * Create a new {@code CodeTree} object, to represent a {@code {@code } } tag.
+     * Creates a new {@code LiteralTree} object, to represent a {@code {@code }} tag.
      * @param text the content of the tag
-     * @return a {@code CodeTree} object
+     * @return a {@code LiteralTree} object
      */
     LiteralTree newCodeTree(TextTree text);
 
     /**
-     * Create a new {@code CommentTree}, to represent an HTML comment.
+     * Creates a new {@code CommentTree}, to represent an HTML comment.
      * @param text the content of the comment
      * @return a {@code CommentTree} object
      */
     CommentTree newCommentTree(String text);
 
     /**
-     * Create a new {@code DeprecatedTree} object, to represent an {@code {@deprecated } } tag.
+     * Creates a new {@code DeprecatedTree} object, to represent an {@code @deprecated} tag.
      * @param text the content of the tag
      * @return a {@code DeprecatedTree} object
      */
     DeprecatedTree newDeprecatedTree(List<? extends DocTree> text);
 
     /**
-     * Create a new {@code DocCommentTree} object, to represent a complete doc comment.
+     * Creates a new {@code DocCommentTree} object, to represent a complete doc comment.
      * @param fullBody the entire body of the doc comment
      * @param tags the block tags in the doc comment
      * @return a {@code DocCommentTree} object
      */
     DocCommentTree newDocCommentTree(List<? extends DocTree> fullBody, List<? extends DocTree> tags);
 
-
     /**
-     * Create a new {@code DocCommentTree} object, to represent the enitire doc comment.
+     * Creates a new {@code DocCommentTree} object, to represent the entire doc comment.
      * @param fullBody the entire body of the doc comment
      * @param tags the block tags in the doc comment
      * @param preamble the meta content of an html file including the body tag
@@ -137,67 +143,90 @@ public interface DocTreeFactory {
                                      List<? extends DocTree> preamble,
                                      List<? extends DocTree> postamble);
     /**
-     * Create a new {@code DocRootTree} object, to represent an {@code {@docroot} } tag.
+     * Creates a new {@code DocRootTree} object, to represent an {@code {@docRoot}} tag.
      * @return a {@code DocRootTree} object
      */
     DocRootTree newDocRootTree();
 
     /**
-     * Create a new {@code DocTypeTree}, to represent a {@code DOCTYPE} HTML declaration.
+     * Creates a new {@code DocTypeTree}, to represent a {@code DOCTYPE} HTML declaration.
      * @param text the content of the declaration
-     * @return a {@code CommentTree} object
+     * @return a {@code DocTypeTree} object
      * @since 10
      */
     DocTypeTree newDocTypeTree(String text);
 
     /**
-     * Create a new {@code EndElement} object, to represent the end of an HTML element.
+     * Creates a new {@code EndElement} object, to represent the end of an HTML element.
      * @param name the name of the HTML element
      * @return an {@code EndElementTree} object
      */
     EndElementTree newEndElementTree(Name name);
 
     /**
-     * Create a new {@code EntityTree} object, to represent an HTML entity.
-     * @param name the name of the entity, representing the characters between '&lt;' and ';'
+     * Creates a new {@code EntityTree} object, to represent an HTML entity.
+     * @param name the name of the entity, representing the characters between '&amp;' and ';'
      * in the representation of the entity in an HTML document
      * @return an {@code EntityTree} object
      */
     EntityTree newEntityTree(Name name);
 
     /**
-     * Create a new {@code ErroneousTree} object, to represent some unparseable input.
+     * Creates a new {@code ErroneousTree} object, to represent some unparseable input.
      * @param text the unparseable text
-     * @param diag a diagnostic associated with the unparseable text, or null
+     * @param diag a diagnostic associated with the unparseable text, or {@code null}
      * @return an {@code ErroneousTree} object
      */
     ErroneousTree newErroneousTree(String text, Diagnostic<JavaFileObject> diag);
 
     /**
-     * Create a new {@code ExceptionTree} object, to represent an {@code @exception } tag.
+     * Creates a new {@code EscapeTree} object, to represent an escaped character.
+     *
+     * @apiNote This method does not itself constrain the set of valid escape sequences,
+     * although the set may be effectively constrained to those defined in the
+     * <a href="{@docRoot}/../specs/javadoc/doc-comment-spec.html#escape-sequences">
+     * Documentation Comment Specification for the Standard Doclet</a>,
+     * including the following context-sensitive escape sequences:
+     *
+     * <ul>
+     * <li>{@code @@}, representing {@code @}, where it would otherwise be treated as introducing a block or inline tag,
+     * <li>{@code @/}, representing {@code /}, as part of {@code *@/} to represent <code>&ast;&sol;</code>, and
+     * <li>{@code @*}, representing {@code *}, where it would otherwise be {@linkplain Elements#getDocComment(Element) discarded},
+     *     after whitespace at the beginning of a line.
+     * </ul>
+     *
+     * @param ch the character
+     * @return an {@code EscapeTree} object
+     *
+     * @since 21
+     */
+    EscapeTree newEscapeTree(char ch);
+
+    /**
+     * Creates a new {@code ThrowsTree} object, to represent an {@code @exception} tag.
      * @param name the name of the exception
      * @param description a description of why the exception might be thrown
-     * @return an {@code ExceptionTree} object
+     * @return an {@code ThrowsTree} object
      */
     ThrowsTree newExceptionTree(ReferenceTree name, List<? extends DocTree> description);
 
     /**
-     * Create a new {@code HiddenTree} object, to represent an {@code {@hidden } } tag.
+     * Creates a new {@code HiddenTree} object, to represent an {@code @hidden} tag.
      * @param text the content of the tag
      * @return a {@code HiddenTree} object
      */
     HiddenTree newHiddenTree(List<? extends DocTree> text);
 
     /**
-     * Create a new {@code IdentifierTree} object, to represent an identifier, such as in a
-     * {@code @param } tag.
+     * Creates a new {@code IdentifierTree} object, to represent an identifier, such as in a
+     * {@code @param} tag.
      * @param name the name of the identifier
      * @return an {@code IdentifierTree} object
      */
     IdentifierTree newIdentifierTree(Name name);
 
     /**
-     * Create a new {@code IndexTree} object, to represent an {@code {@index } } tag.
+     * Creates a new {@code IndexTree} object, to represent an {@code {@index }} tag.
      * @param term the search term
      * @param description an optional description of the search term
      * @return an {@code IndexTree} object
@@ -205,13 +234,24 @@ public interface DocTreeFactory {
     IndexTree newIndexTree(DocTree term, List<? extends DocTree> description);
 
     /**
-     * Create a new {@code InheritDocTree} object, to represent an {@code {@inheritDoc} } tag.
+     * Creates a new {@code InheritDocTree} object, to represent an {@code {@inheritDoc}} tag.
      * @return an {@code InheritDocTree} object
      */
     InheritDocTree newInheritDocTree();
 
     /**
-     * Create a new {@code LinkTree} object, to represent a {@code {@link } } tag.
+     * Creates a new {@code InheritDocTree} object, to represent an {@code {@inheritDoc}} tag.
+     * @param supertype a superclass or superinterface reference
+     * @return an {@code InheritDocTree} object
+     * @implSpec This implementation throws {@code UnsupportedOperationException}.
+     * @since 22
+     */
+    default InheritDocTree newInheritDocTree(ReferenceTree supertype) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Creates a new {@code LinkTree} object, to represent a {@code {@link }} tag.
      * @param ref the API element being referenced
      * @param label an optional label for the link
      * @return a {@code LinkTree} object
@@ -219,23 +259,23 @@ public interface DocTreeFactory {
     LinkTree newLinkTree(ReferenceTree ref, List<? extends DocTree> label);
 
     /**
-     * Create a new {@code LinkPlainTree} object, to represent a {@code {@linkplain } } tag.
+     * Creates a new {@code LinkTree} object, to represent a {@code {@linkplain }} tag.
      * @param ref the API element being referenced
      * @param label an optional label for the link
-     * @return a {@code LinkPlainTree} object
+     * @return a {@code LinkTree} object
      */
     LinkTree newLinkPlainTree(ReferenceTree ref, List<? extends DocTree> label);
 
     /**
-     * Create a new {@code LiteralTree} object, to represent a {@code {@literal } } tag.
+     * Creates a new {@code LiteralTree} object, to represent a {@code {@literal }} tag.
      * @param text the content of the tag
      * @return a {@code LiteralTree} object
      */
     LiteralTree newLiteralTree(TextTree text);
 
     /**
-     * Create a new {@code ParamTree} object, to represent a {@code @param } tag.
-     * @param isTypeParameter true if this is a type parameter, and false otherwise
+     * Creates a new {@code ParamTree} object, to represent a {@code @param} tag.
+     * @param isTypeParameter {@code true} if this is a type parameter, and {@code false} otherwise
      * @param name the parameter being described
      * @param description the description of the parameter
      * @return a {@code ParamTree} object
@@ -243,7 +283,7 @@ public interface DocTreeFactory {
     ParamTree newParamTree(boolean isTypeParameter, IdentifierTree name, List<? extends DocTree> description);
 
     /**
-     * Create a new {@code ProvidesTree} object, to represent a {@code @provides } tag.
+     * Creates a new {@code ProvidesTree} object, to represent a {@code @provides} tag.
      * @param name the name of the service type
      * @param description a description of the service being provided
      * @return a {@code ProvidesTree} object
@@ -251,7 +291,19 @@ public interface DocTreeFactory {
     ProvidesTree newProvidesTree(ReferenceTree name, List<? extends DocTree> description);
 
     /**
-     * Create a new {@code ReferenceTree} object, to represent a reference to an API element.
+     * Creates a new {@code RawTextTree} object, to represent a fragment of uninterpreted raw text.
+     *
+     * @param kind the kind of text
+     * @param code the code
+     * @return a {@code RawTextTree} object
+     * @throws IllegalArgumentException if the kind is not a recognized kind for raw text
+     *
+     * @since 23
+     */
+    RawTextTree newRawTextTree(DocTree.Kind kind, String code);
+
+    /**
+     * Creates a new {@code ReferenceTree} object, to represent a reference to an API element.
      *
      * @param signature the doc comment signature of the reference
      * @return a {@code ReferenceTree} object
@@ -259,35 +311,59 @@ public interface DocTreeFactory {
     ReferenceTree newReferenceTree(String signature);
 
     /**
-     * Create a new {@code ReturnTree} object, to represent a {@code @return } tag.
+     * Creates a new {@code ReturnTree} object, to represent a {@code @return} tag.
      * @param description the description of the return value of a method
      * @return a {@code ReturnTree} object
      */
     ReturnTree newReturnTree(List<? extends DocTree> description);
 
     /**
-     * Create a new {@code SeeTree} object, to represent a {@code @see } tag.
+     * Creates a new {@code ReturnTree} object, to represent a {@code @return} tag
+     * or {@code {@return}} tag.
+     *
+     * @param isInline    {@code true} if this instance is as an inline tag,
+     *                    and {@code false} otherwise
+     * @param description the description of the return value of a method
+     *
+     * @return a {@code ReturnTree} object
+     * @throws UnsupportedOperationException if inline {@code {@return}} tags are
+     *                                       not supported
+     *
+     * @implSpec This implementation throws {@code UnsupportedOperationException} if
+     * {@code isInline} is {@code true}, and calls {@link #newReturnTree(List)} otherwise.
+     *
+     * @since 16
+     */
+    default ReturnTree newReturnTree(boolean isInline, List<? extends DocTree> description) {
+        if (isInline) {
+            throw new UnsupportedOperationException();
+        }
+        return newReturnTree(description);
+    }
+
+    /**
+     * Creates a new {@code SeeTree} object, to represent a {@code @see} tag.
      * @param reference the reference
      * @return a {@code SeeTree} object
      */
     SeeTree newSeeTree(List<? extends DocTree> reference);
 
     /**
-     * Create a new {@code SerialTree} object, to represent a {@code @serial } tag.
+     * Creates a new {@code SerialTree} object, to represent a {@code @serial} tag.
      * @param description the description for the tag
      * @return a {@code SerialTree} object
      */
     SerialTree newSerialTree(List<? extends DocTree> description);
 
     /**
-     * Create a new {@code SerialDataTree} object, to represent a {@code @serialData } tag.
+     * Creates a new {@code SerialDataTree} object, to represent a {@code @serialData} tag.
      * @param description the description for the tag
      * @return a {@code SerialDataTree} object
      */
     SerialDataTree newSerialDataTree(List<? extends DocTree> description);
 
     /**
-     * Create a new {@code SerialFieldTree} object, to represent a {@code @serialField } tag.
+     * Creates a new {@code SerialFieldTree} object, to represent a {@code @serialField} tag.
      * @param name the name of the field
      * @param type the type of the field
      * @param description the description of the field
@@ -296,23 +372,41 @@ public interface DocTreeFactory {
     SerialFieldTree newSerialFieldTree(IdentifierTree name, ReferenceTree type, List<? extends DocTree> description);
 
     /**
-     * Create a new {@code SinceTree} object, to represent a {@code @since } tag.
+     * Creates a new {@code SinceTree} object, to represent a {@code @since} tag.
      * @param text the content of the tag
      * @return a {@code SinceTree} object
      */
     SinceTree newSinceTree(List<? extends DocTree> text);
 
     /**
-     * Create a new {@code StartElementTree} object, to represent the start of an HTML element.
+     * Creates a new {@code SnippetTree} object, to represent a {@code {@snippet }} tag.
+     * @param attributes the attributes of the tag
+     * @param text the body of the tag, or {@code null} if the tag has no body (not to be confused with an empty body)
+     * @return a {@code SnippetTree} object
+     * @since 18
+     */
+    SnippetTree newSnippetTree(List<? extends DocTree> attributes, TextTree text);
+
+    /**
+     * Creates a new {@code SpecTree} object, to represent an {@code @spec} tag.
+     * @param url    the url
+     * @param title  the title
+     * @return a {@code SpecTree} object
+     * @since 20
+     */
+    SpecTree newSpecTree(TextTree url, List<? extends DocTree> title);
+
+    /**
+     * Creates a new {@code StartElementTree} object, to represent the start of an HTML element.
      * @param name the name of the HTML element
      * @param attrs the attributes
-     * @param selfClosing true if the start element is marked as self-closing; otherwise false
+     * @param selfClosing {@code true} if the start element is marked as self-closing; otherwise {@code false}
      * @return a {@code StartElementTree} object
      */
     StartElementTree newStartElementTree(Name name, List<? extends DocTree> attrs, boolean selfClosing);
 
     /**
-     * Create a new {@code SummaryTree} object, to represent a {@code @summary } tag.
+     * Creates a new {@code SummaryTree} object, to represent a {@code {@summary }} tag.
      *
      * @implSpec This implementation throws {@code UnsupportedOperationException}.
      *
@@ -325,14 +419,23 @@ public interface DocTreeFactory {
     }
 
     /**
-     * Create a new {@code TextTree} object, to represent some plain text.
+     * Creates a new {@code SystemPropertyTree} object, to represent a {@code {@systemProperty }} tag.
+     *
+     * @param propertyName the system property name
+     * @return a {@code SystemPropertyTree} object
+     * @since 12
+     */
+    SystemPropertyTree newSystemPropertyTree(Name propertyName);
+
+    /**
+     * Creates a new {@code TextTree} object, to represent some plain text.
      * @param text the text
      * @return a {@code TextTree} object
      */
     TextTree newTextTree(String text);
 
     /**
-     * Create a new {@code ThrowsTree} object, to represent a {@code @throws } tag.
+     * Creates a new {@code ThrowsTree} object, to represent a {@code @throws} tag.
      * @param name the name of the exception
      * @param description a description of why the exception might be thrown
      * @return a {@code ThrowsTree} object
@@ -340,7 +443,7 @@ public interface DocTreeFactory {
     ThrowsTree newThrowsTree(ReferenceTree name, List<? extends DocTree> description);
 
     /**
-     * Create a new {@code UnknownBlockTagTree} object, to represent an unrecognized block tag.
+     * Creates a new {@code UnknownBlockTagTree} object, to represent an unrecognized block tag.
      * @param name the name of the block tag
      * @param content the content
      * @return an {@code UnknownBlockTagTree} object
@@ -348,7 +451,7 @@ public interface DocTreeFactory {
     UnknownBlockTagTree newUnknownBlockTagTree(Name name, List<? extends DocTree> content);
 
     /**
-     * Create a new {@code UnknownInlineTagTree} object, to represent an unrecognized inline tag.
+     * Creates a new {@code UnknownInlineTagTree} object, to represent an unrecognized inline tag.
      * @param name the name of the inline tag
      * @param content the content
      * @return an {@code UnknownInlineTagTree} object
@@ -356,7 +459,7 @@ public interface DocTreeFactory {
     UnknownInlineTagTree newUnknownInlineTagTree(Name name, List<? extends DocTree> content);
 
     /**
-     * Create a new {@code UsesTree} object, to represent a {@code @uses } tag.
+     * Creates a new {@code UsesTree} object, to represent a {@code @uses} tag.
      * @param name the name of the service type
      * @param description a description of how the service will be used
      * @return a {@code UsesTree} object
@@ -364,21 +467,34 @@ public interface DocTreeFactory {
     UsesTree newUsesTree(ReferenceTree name, List<? extends DocTree> description);
 
     /**
-     * Create a new {@code ValueTree} object, to represent a {@code {@value } } tag.
+     * Creates a new {@code ValueTree} object, to represent a {@code {@value }} tag.
      * @param ref a reference to the value
      * @return a {@code ValueTree} object
      */
     ValueTree newValueTree(ReferenceTree ref);
 
     /**
-     * Create a new {@code VersionTree} object, to represent a {@code {@version } } tag.
+     * Creates a new {@code ValueTree} object, to represent a {@code {@value }} tag.
+     * @param format a format string for the value
+     * @param ref a reference to the value
+     * @return a {@code ValueTree} object
+     *
+     * @implSpec This implementation calls {@link #newValueTree(ReferenceTree) newValueTree(ref)}.
+     * @since 20
+     */
+    default ValueTree newValueTree(TextTree format, ReferenceTree ref) {
+        return newValueTree(ref);
+    }
+
+    /**
+     * Creates a new {@code VersionTree} object, to represent a {@code {@version }} tag.
      * @param text the content of the tag
      * @return a {@code VersionTree} object
      */
     VersionTree newVersionTree(List<? extends DocTree> text);
 
     /**
-     * Set the position to be recorded in subsequent tree nodes created by this factory.
+     * Sets the position to be recorded in subsequent tree nodes created by this factory.
      * The position should be a character offset relative to the beginning of the source file
      * or {@link javax.tools.Diagnostic#NOPOS NOPOS}.
      * @param pos the position
@@ -387,13 +503,13 @@ public interface DocTreeFactory {
     DocTreeFactory at(int pos);
 
     /**
-     * Get the first sentence contained in a list of content.
+     * Gets the first sentence contained in a list of content.
      * The determination of the first sentence is implementation specific, and may
      * involve the use of a locale-specific {@link java.text.BreakIterator BreakIterator}
      * and other heuristics.
      * The resulting list may share a common set of initial items with the input list.
      * @param list the list
-     * @return a list containing the first sentence of the list.
+     * @return a list containing the first sentence of the list
      */
     List<DocTree> getFirstSentence(List<? extends DocTree> list);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_PRIMS_JVMTIREDEFINECLASSES_HPP
-#define SHARE_VM_PRIMS_JVMTIREDEFINECLASSES_HPP
+#ifndef SHARE_PRIMS_JVMTIREDEFINECLASSES_HPP
+#define SHARE_PRIMS_JVMTIREDEFINECLASSES_HPP
 
 #include "jvmtifiles/jvmtiEnv.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperation.hpp"
 
 // Introduction:
 //
@@ -302,12 +302,6 @@
 //
 // - How do we serialize the RedefineClasses() API without deadlocking?
 //
-// - SystemDictionary::parse_stream() was called with a NULL protection
-//   domain since the initial version. This has been changed to pass
-//   the_class->protection_domain(). This change has been tested with
-//   all NSK tests and nothing broke, but what will adding it now break
-//   in ways that we don't test?
-//
 // - GenerateOopMap::rewrite_load_or_store() has a comment in its
 //   (indirect) use of the Relocator class that the max instruction
 //   size is 4 bytes. goto_w and jsr_w are 5 bytes and wide/iinc is
@@ -338,20 +332,25 @@ struct JvmtiCachedClassFileData {
 class VM_RedefineClasses: public VM_Operation {
  private:
   // These static fields are needed by ClassLoaderDataGraph::classes_do()
-  // facility and the AdjustCpoolCacheAndVtable helper:
+  // facility and the CheckClass and AdjustAndCleanMetadata helpers.
   static Array<Method*>* _old_methods;
   static Array<Method*>* _new_methods;
-  static Method**      _matching_old_methods;
-  static Method**      _matching_new_methods;
-  static Method**      _deleted_methods;
-  static Method**      _added_methods;
+  static Method**        _matching_old_methods;
+  static Method**        _matching_new_methods;
+  static Method**        _deleted_methods;
+  static Method**        _added_methods;
   static int             _matching_methods_length;
   static int             _deleted_methods_length;
   static int             _added_methods_length;
-  static Klass*          _the_class;
+  static bool            _has_redefined_Object;
+  static bool            _has_null_class_loader;
+
+  // Used by JFR to group class redefininition events together.
+  static u8              _id_counter;
 
   // The instance fields are used to pass information from
   // doit_prologue() to doit() and doit_epilogue().
+  Klass*                      _the_class;
   jint                        _class_count;
   const jvmtiClassDefinition *_class_defs;  // ptr to _class_count defs
 
@@ -384,7 +383,11 @@ class VM_RedefineClasses: public VM_Operation {
   // the heavy lifting.
   elapsedTimer  _timer_rsc_phase1;
   elapsedTimer  _timer_rsc_phase2;
+  elapsedTimer  _timer_vm_op_doit;
   elapsedTimer  _timer_vm_op_prologue;
+
+  // Redefinition id used by JFR
+  u8 _id;
 
   // These routines are roughly in call order unless otherwise noted.
 
@@ -392,7 +395,7 @@ class VM_RedefineClasses: public VM_Operation {
   // Constant pool merging work is done here as needed. Also calls
   // compare_and_normalize_class_versions() to verify the class
   // definition(s).
-  jvmtiError load_new_class_versions(TRAPS);
+  jvmtiError load_new_class_versions();
 
   // Verify that the caller provided class definition(s) that meet
   // the restrictions of RedefineClasses. Normalize the order of
@@ -413,30 +416,28 @@ class VM_RedefineClasses: public VM_Operation {
   void transfer_old_native_function_registrations(InstanceKlass* the_class);
 
   // Install the redefinition of a class
-  void redefine_single_class(jclass the_jclass,
-    InstanceKlass* scratch_class_oop, TRAPS);
+  void redefine_single_class(Thread* current, jclass the_jclass,
+                             InstanceKlass* scratch_class_oop);
 
   void swap_annotations(InstanceKlass* new_class,
                         InstanceKlass* scratch_class);
 
   // Increment the classRedefinedCount field in the specific InstanceKlass
   // and in all direct and indirect subclasses.
-  void increment_class_counter(InstanceKlass *ik, TRAPS);
+  void increment_class_counter(InstanceKlass* ik);
 
   // Support for constant pool merging (these routines are in alpha order):
   void append_entry(const constantPoolHandle& scratch_cp, int scratch_i,
-    constantPoolHandle *merge_cp_p, int *merge_cp_length_p, TRAPS);
+    constantPoolHandle *merge_cp_p, int *merge_cp_length_p);
   void append_operand(const constantPoolHandle& scratch_cp, int scratch_bootstrap_spec_index,
-    constantPoolHandle *merge_cp_p, int *merge_cp_length_p, TRAPS);
+    constantPoolHandle *merge_cp_p, int *merge_cp_length_p);
   void finalize_operands_merge(const constantPoolHandle& merge_cp, TRAPS);
-  int find_or_append_indirect_entry(const constantPoolHandle& scratch_cp, int scratch_i,
-    constantPoolHandle *merge_cp_p, int *merge_cp_length_p, TRAPS);
+  u2 find_or_append_indirect_entry(const constantPoolHandle& scratch_cp, int scratch_i,
+    constantPoolHandle *merge_cp_p, int *merge_cp_length_p);
   int find_or_append_operand(const constantPoolHandle& scratch_cp, int scratch_bootstrap_spec_index,
-    constantPoolHandle *merge_cp_p, int *merge_cp_length_p, TRAPS);
-  int find_new_index(int old_index);
+    constantPoolHandle *merge_cp_p, int *merge_cp_length_p);
+  u2 find_new_index(int old_index);
   int find_new_operand_index(int old_bootstrap_spec_index);
-  bool is_unresolved_class_mismatch(const constantPoolHandle& cp1, int index1,
-    const constantPoolHandle& cp2, int index2);
   void map_index(const constantPoolHandle& scratch_cp, int old_index, int new_index);
   void map_operand_index(int old_bootstrap_spec_index, int new_bootstrap_spec_index);
   bool merge_constant_pools(const constantPoolHandle& old_cp,
@@ -446,58 +447,57 @@ class VM_RedefineClasses: public VM_Operation {
     InstanceKlass* scratch_class, TRAPS);
   u2 rewrite_cp_ref_in_annotation_data(
     AnnotationArray* annotations_typeArray, int &byte_i_ref,
-    const char * trace_mesg, TRAPS);
-  bool rewrite_cp_refs(InstanceKlass* scratch_class, TRAPS);
+    const char * trace_mesg);
+  bool rewrite_cp_refs(InstanceKlass* scratch_class);
   bool rewrite_cp_refs_in_annotation_struct(
-    AnnotationArray* class_annotations, int &byte_i_ref, TRAPS);
+    AnnotationArray* class_annotations, int &byte_i_ref);
   bool rewrite_cp_refs_in_annotations_typeArray(
-    AnnotationArray* annotations_typeArray, int &byte_i_ref, TRAPS);
-  bool rewrite_cp_refs_in_class_annotations(
-    InstanceKlass* scratch_class, TRAPS);
+    AnnotationArray* annotations_typeArray, int &byte_i_ref);
+  bool rewrite_cp_refs_in_class_annotations(InstanceKlass* scratch_class);
   bool rewrite_cp_refs_in_element_value(
-    AnnotationArray* class_annotations, int &byte_i_ref, TRAPS);
+    AnnotationArray* class_annotations, int &byte_i_ref);
   bool rewrite_cp_refs_in_type_annotations_typeArray(
     AnnotationArray* type_annotations_typeArray, int &byte_i_ref,
-    const char * location_mesg, TRAPS);
+    const char * location_mesg);
   bool rewrite_cp_refs_in_type_annotation_struct(
     AnnotationArray* type_annotations_typeArray, int &byte_i_ref,
-    const char * location_mesg, TRAPS);
+    const char * location_mesg);
   bool skip_type_annotation_target(
     AnnotationArray* type_annotations_typeArray, int &byte_i_ref,
-    const char * location_mesg, TRAPS);
+    const char * location_mesg);
   bool skip_type_annotation_type_path(
-    AnnotationArray* type_annotations_typeArray, int &byte_i_ref, TRAPS);
-  bool rewrite_cp_refs_in_fields_annotations(
-    InstanceKlass* scratch_class, TRAPS);
+    AnnotationArray* type_annotations_typeArray, int &byte_i_ref);
+  bool rewrite_cp_refs_in_fields_annotations(InstanceKlass* scratch_class);
   bool rewrite_cp_refs_in_nest_attributes(InstanceKlass* scratch_class);
+  bool rewrite_cp_refs_in_record_attribute(InstanceKlass* scratch_class);
+  bool rewrite_cp_refs_in_permitted_subclasses_attribute(InstanceKlass* scratch_class);
+
   void rewrite_cp_refs_in_method(methodHandle method,
     methodHandle * new_method_p, TRAPS);
-  bool rewrite_cp_refs_in_methods(InstanceKlass* scratch_class, TRAPS);
-  bool rewrite_cp_refs_in_methods_annotations(
-    InstanceKlass* scratch_class, TRAPS);
-  bool rewrite_cp_refs_in_methods_default_annotations(
-    InstanceKlass* scratch_class, TRAPS);
-  bool rewrite_cp_refs_in_methods_parameter_annotations(
-    InstanceKlass* scratch_class, TRAPS);
-  bool rewrite_cp_refs_in_class_type_annotations(
-    InstanceKlass* scratch_class, TRAPS);
-  bool rewrite_cp_refs_in_fields_type_annotations(
-    InstanceKlass* scratch_class, TRAPS);
-  bool rewrite_cp_refs_in_methods_type_annotations(
-    InstanceKlass* scratch_class, TRAPS);
-  void rewrite_cp_refs_in_stack_map_table(const methodHandle& method, TRAPS);
+  bool rewrite_cp_refs_in_methods(InstanceKlass* scratch_class);
+
+  bool rewrite_cp_refs_in_methods_annotations(InstanceKlass* scratch_class);
+  bool rewrite_cp_refs_in_methods_default_annotations(InstanceKlass* scratch_class);
+  bool rewrite_cp_refs_in_methods_parameter_annotations(InstanceKlass* scratch_class);
+  bool rewrite_cp_refs_in_class_type_annotations(InstanceKlass* scratch_class);
+  bool rewrite_cp_refs_in_fields_type_annotations(InstanceKlass* scratch_class);
+  bool rewrite_cp_refs_in_methods_type_annotations(InstanceKlass* scratch_class);
+
+  void rewrite_cp_refs_in_stack_map_table(const methodHandle& method);
   void rewrite_cp_refs_in_verification_type_info(
          address& stackmap_addr_ref, address stackmap_end, u2 frame_i,
-         u1 frame_size, TRAPS);
+         u1 frame_size);
   void set_new_constant_pool(ClassLoaderData* loader_data,
          InstanceKlass* scratch_class,
          constantPoolHandle scratch_cp, int scratch_cp_length, TRAPS);
 
-  void flush_dependent_code(InstanceKlass* ik, TRAPS);
+  void flush_dependent_code();
 
   // lock classes to redefine since constant pool merging isn't thread safe.
   void lock_classes();
   void unlock_classes();
+
+  u8 next_id();
 
   static void dump_methods();
 
@@ -512,20 +512,14 @@ class VM_RedefineClasses: public VM_Operation {
   // Unevolving classes may point to methods of the_class directly
   // from their constant pool caches, itables, and/or vtables. We
   // use the ClassLoaderDataGraph::classes_do() facility and this helper
-  // to fix up these pointers.
-  class AdjustCpoolCacheAndVtable : public KlassClosure {
+  // to fix up these pointers and clean MethodData out.
+  class AdjustAndCleanMetadata : public KlassClosure {
     Thread* _thread;
    public:
-    AdjustCpoolCacheAndVtable(Thread* t) : _thread(t) {}
+    AdjustAndCleanMetadata(Thread* t) : _thread(t) {}
     void do_klass(Klass* k);
   };
 
-  // Clean MethodData out
-  class MethodDataCleaner : public KlassClosure {
-   public:
-    MethodDataCleaner() {}
-    void do_klass(Klass* k);
-  };
  public:
   VM_RedefineClasses(jint class_count,
                      const jvmtiClassDefinition *class_defs,
@@ -537,19 +531,20 @@ class VM_RedefineClasses: public VM_Operation {
 
   bool allow_nested_vm_operations() const        { return true; }
   jvmtiError check_error()                       { return _res; }
+  u8 id()                                        { return _id; }
 
   // Modifiable test must be shared between IsModifiableClass query
   // and redefine implementation
   static bool is_modifiable_class(oop klass_mirror);
 
   static jint get_cached_class_file_len(JvmtiCachedClassFileData *cache) {
-    return cache == NULL ? 0 : cache->length;
+    return cache == nullptr ? 0 : cache->length;
   }
   static unsigned char * get_cached_class_file_bytes(JvmtiCachedClassFileData *cache) {
-    return cache == NULL ? NULL : cache->data;
+    return cache == nullptr ? nullptr : cache->data;
   }
 
   // Error printing
   void print_on_error(outputStream* st) const;
 };
-#endif // SHARE_VM_PRIMS_JVMTIREDEFINECLASSES_HPP
+#endif // SHARE_PRIMS_JVMTIREDEFINECLASSES_HPP

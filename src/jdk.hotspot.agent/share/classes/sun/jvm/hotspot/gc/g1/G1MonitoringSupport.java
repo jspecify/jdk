@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,8 @@
 
 package sun.jvm.hotspot.gc.g1;
 
-import java.util.Observable;
-import java.util.Observer;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 import sun.jvm.hotspot.debugger.Address;
 import sun.jvm.hotspot.runtime.VM;
@@ -37,18 +37,18 @@ import sun.jvm.hotspot.types.TypeDataBase;
 // Mirror class for G1MonitoringSupport.
 
 public class G1MonitoringSupport extends VMObject {
-    // size_t _eden_committed;
-    static private CIntegerField edenCommittedField;
-    // size_t _eden_used;
-    static private CIntegerField edenUsedField;
-    // size_t _survivor_committed;
-    static private CIntegerField survivorCommittedField;
-    // size_t _survivor_used;
-    static private CIntegerField survivorUsedField;
-    // size_t _old_committed;
-    static private CIntegerField oldCommittedField;
-    // size_t _old_used;
-    static private CIntegerField oldUsedField;
+    // size_t _eden_space_committed;
+    private static CIntegerField edenSpaceCommittedField;
+    // size_t _eden_space_used;
+    private static CIntegerField edenSpaceUsedField;
+    // size_t _survivor_space_committed;
+    private static CIntegerField survivorSpaceCommittedField;
+    // size_t _survivor_space_used;
+    private static CIntegerField survivorSpaceUsedField;
+    // size_t _old_gen_committed;
+    private static CIntegerField oldGenCommittedField;
+    // size_t _old_gen_used;
+    private static CIntegerField oldGenUsedField;
 
     static {
         VM.registerVMInitializedObserver(new Observer() {
@@ -58,47 +58,47 @@ public class G1MonitoringSupport extends VMObject {
             });
     }
 
-    static private synchronized void initialize(TypeDataBase db) {
+    private static synchronized void initialize(TypeDataBase db) {
         Type type = db.lookupType("G1MonitoringSupport");
 
-        edenCommittedField = type.getCIntegerField("_eden_committed");
-        edenUsedField = type.getCIntegerField("_eden_used");
-        survivorCommittedField = type.getCIntegerField("_survivor_committed");
-        survivorUsedField = type.getCIntegerField("_survivor_used");
-        oldCommittedField = type.getCIntegerField("_old_committed");
-        oldUsedField = type.getCIntegerField("_old_used");
+        edenSpaceCommittedField = type.getCIntegerField("_eden_space_committed");
+        edenSpaceUsedField = type.getCIntegerField("_eden_space_used");
+        survivorSpaceCommittedField = type.getCIntegerField("_survivor_space_committed");
+        survivorSpaceUsedField = type.getCIntegerField("_survivor_space_used");
+        oldGenCommittedField = type.getCIntegerField("_old_gen_committed");
+        oldGenUsedField = type.getCIntegerField("_old_gen_used");
     }
 
-    public long edenCommitted() {
-        return edenCommittedField.getValue(addr);
+    public long edenSpaceCommitted() {
+        return edenSpaceCommittedField.getValue(addr);
     }
 
-    public long edenUsed() {
-        return edenUsedField.getValue(addr);
+    public long edenSpaceUsed() {
+        return edenSpaceUsedField.getValue(addr);
     }
 
-    public long edenRegionNum() {
-        return edenUsed() / HeapRegion.grainBytes();
+    public long edenSpaceRegionNum() {
+        return edenSpaceUsed() / G1HeapRegion.grainBytes();
     }
 
-    public long survivorCommitted() {
-        return survivorCommittedField.getValue(addr);
+    public long survivorSpaceCommitted() {
+        return survivorSpaceCommittedField.getValue(addr);
     }
 
-    public long survivorUsed() {
-        return survivorUsedField.getValue(addr);
+    public long survivorSpaceUsed() {
+        return survivorSpaceUsedField.getValue(addr);
     }
 
-    public long survivorRegionNum() {
-        return survivorUsed() / HeapRegion.grainBytes();
+    public long survivorSpaceRegionNum() {
+        return survivorSpaceUsed() / G1HeapRegion.grainBytes();
     }
 
-    public long oldCommitted() {
-        return oldCommittedField.getValue(addr);
+    public long oldGenCommitted() {
+        return oldGenCommittedField.getValue(addr);
     }
 
-    public long oldUsed() {
-        return oldUsedField.getValue(addr);
+    public long oldGenUsed() {
+        return oldGenUsedField.getValue(addr);
     }
 
     public G1MonitoringSupport(Address addr) {

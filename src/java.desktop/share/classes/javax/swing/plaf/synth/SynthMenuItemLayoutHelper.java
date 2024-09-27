@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -134,7 +134,7 @@ class SynthMenuItemLayoutHelper extends MenuItemLayoutHelper {
         }
 
         // accRect
-        if (!getAccText().equals("")) {
+        if (!getAccText().isEmpty()) {
              getAccSize().setWidth(accGu.computeStringWidth(getAccContext(),
                     getAccFontMetrics().getFont(), getAccFontMetrics(),
                     getAccText()));
@@ -144,7 +144,7 @@ class SynthMenuItemLayoutHelper extends MenuItemLayoutHelper {
         // textRect
         if (getText() == null) {
             setText("");
-        } else if (!getText().equals("")) {
+        } else if (!getText().isEmpty()) {
             if (getHtmlView() != null) {
                 // Text is HTML
                 getTextSize().setWidth(
@@ -227,7 +227,7 @@ class SynthMenuItemLayoutHelper extends MenuItemLayoutHelper {
             calcMaxWidth(getLabelSize(), MAX_LABEL_WIDTH);
             // If maxLabelWidth is wider
             // than the widest icon + the widest text + gap,
-            // we should update the maximal text witdh
+            // we should update the maximal text width
             int candidateTextWidth = getLabelSize().getMaxWidth() -
                     getIconSize().getMaxWidth();
             if (getIconSize().getMaxWidth() > 0) {

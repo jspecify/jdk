@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,7 @@ import java.util.HashMap;
 import jdk.test.lib.cds.CDSTestUtils;
 import jdk.test.lib.cds.CDSOptions;
 import jdk.test.lib.apps.LingeredApp;
+import jtreg.SkippedException;
 
 public class ClhsdbCDSJstackPrintAll {
 
@@ -50,11 +51,10 @@ public class ClhsdbCDSJstackPrintAll {
             CDSTestUtils.createArchiveAndCheck(opts);
 
             ClhsdbLauncher test = new ClhsdbLauncher();
-            List<String> vmArgs = Arrays.asList(
+            theApp = LingeredApp.startApp(
                 "-XX:+UnlockDiagnosticVMOptions",
                 "-XX:SharedArchiveFile=" + sharedArchiveName,
                 "-Xshare:auto");
-            theApp = LingeredApp.startApp(vmArgs);
             System.out.println("Started LingeredApp with pid " + theApp.getPid());
 
             // Ensure that UseSharedSpaces is turned on.
@@ -64,17 +64,15 @@ public class ClhsdbCDSJstackPrintAll {
                                                     null, null);
 
             if (useSharedSpacesOutput == null) {
-                // Attach permission issues.
-                System.out.println("Could not determine the UseSharedSpaces value - test skipped.");
                 LingeredApp.stopApp(theApp);
-                return;
+                // Attach permission issues.
+                throw new SkippedException("Could not determine the UseSharedSpaces value");
             }
 
-            if (!useSharedSpacesOutput.contains("true")) {
+            if (useSharedSpacesOutput.contains("UseSharedSpaces = false")) {
                 // CDS archive is not mapped. Skip the rest of the test.
-                System.out.println("The CDS archive is not mapped - test skipped.");
                 LingeredApp.stopApp(theApp);
-                return;
+                throw new SkippedException("The CDS archive is not mapped");
             }
 
             cmds = List.of("jstack -v", "printall", "where -a");
@@ -86,7 +84,7 @@ public class ClhsdbCDSJstackPrintAll {
                 "Common-Cleaner",
                 "Signal Dispatcher",
                 "Method*",
-                "LingeredApp.main"));
+                "LingeredApp.steadyState"));
             unExpStrMap.put("jstack -v", List.of(
                 "sun.jvm.hotspot.types.WrongTypeException",
                 "No suitable match for type of address"));
@@ -96,7 +94,7 @@ public class ClhsdbCDSJstackPrintAll {
                 "_nofast_getfield",
                 "_nofast_putfield",
                 "Constant Pool of",
-                "public static void main(java.lang.String[])",
+                "public static void main\\(java.lang.String\\[\\]\\)",
                 "Bytecode",
                 "invokevirtual",
                 "checkcast",
@@ -107,12 +105,14 @@ public class ClhsdbCDSJstackPrintAll {
                 "illegal code",
                 "Failure occurred at bci"));
             expStrMap.put("where -a", List.of(
-                "Java Stack Trace for main",
-                "public static void main"));
+                "Java Stack Trace for SteadyStateThread",
+                "private static void steadyState"));
             unExpStrMap.put("where -a", List.of(
                 "illegal code",
                 "Failure occurred at bci"));
             test.run(theApp.getPid(), cmds, expStrMap, unExpStrMap);
+        } catch (SkippedException e) {
+            throw e;
         } catch (Exception ex) {
             throw new RuntimeException("Test ERROR " + ex, ex);
         } finally {

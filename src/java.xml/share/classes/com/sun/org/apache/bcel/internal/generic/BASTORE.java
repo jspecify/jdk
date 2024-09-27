@@ -22,9 +22,10 @@ package com.sun.org.apache.bcel.internal.generic;
 
 /**
  * BASTORE - Store into byte or boolean array
- * <PRE>Stack: ..., arrayref, index, value -&gt; ...</PRE>
  *
- * @version $Id: BASTORE.java 1747278 2016-06-07 17:28:43Z britter $
+ * <PRE>
+ * Stack: ..., arrayref, index, value -&gt; ...
+ * </PRE>
  */
 public class BASTORE extends ArrayInstruction implements StackConsumer {
 
@@ -36,10 +37,8 @@ public class BASTORE extends ArrayInstruction implements StackConsumer {
     }
 
     /**
-     * Call corresponding visitor method(s). The order is: Call visitor methods
-     * of implemented interfaces first, then call methods according to the class
-     * hierarchy in descending order, i.e., the most specific visitXXX() call
-     * comes last.
+     * Call corresponding visitor method(s). The order is: Call visitor methods of implemented interfaces first, then call
+     * methods according to the class hierarchy in descending order, i.e., the most specific visitXXX() call comes last.
      *
      * @param v Visitor object
      */

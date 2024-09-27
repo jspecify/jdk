@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,8 @@ import org.netbeans.jemmy.drivers.trees.JTreeMouseDriver;
 import org.netbeans.jemmy.drivers.windows.DefaultFrameDriver;
 import org.netbeans.jemmy.drivers.windows.DefaultInternalFrameDriver;
 import org.netbeans.jemmy.drivers.windows.DefaultWindowDriver;
+import org.netbeans.jemmy.drivers.windows.InternalFramePopupMenuDriver;
+import org.netbeans.jemmy.util.LookAndFeel;
 
 /**
  * Installs all necessary drivers for Jemmy operators except low-level drivers
@@ -117,9 +119,9 @@ public class DefaultDriverInstaller extends ArrayDriverInstaller {
                     new ChoiceDriver(),
                     new DefaultFrameDriver(),
                     new DefaultWindowDriver(),
-                    new DefaultInternalFrameDriver(),
-                    new DefaultInternalFrameDriver(),
-                    new DefaultInternalFrameDriver(),
+                    LookAndFeel.isMotif()? new InternalFramePopupMenuDriver(): new DefaultInternalFrameDriver(),
+                    LookAndFeel.isMotif()? new InternalFramePopupMenuDriver(): new DefaultInternalFrameDriver(),
+                    LookAndFeel.isMotif()? new InternalFramePopupMenuDriver(): new DefaultInternalFrameDriver(),
                     new APIFocusDriver(),
                     new MouseFocusDriver(),
                     (shortcutEvents ? new QueueJMenuDriver() : new DefaultJMenuDriver()),

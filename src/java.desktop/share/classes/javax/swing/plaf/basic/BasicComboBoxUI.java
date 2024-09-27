@@ -54,8 +54,8 @@ import sun.swing.UIAction;
  * event listeners or subclassing from the ones supplied in this class.
  * <p>
  * For adding specific actions,
- * overide <code>installKeyboardActions</code> to add actions in response to
- * KeyStroke bindings. See the article <a href="http://docs.oracle.com/javase/tutorial/uiswing/misc/keybinding.html">How to Use Key Bindings</a>
+ * override <code>installKeyboardActions</code> to add actions in response to
+ * KeyStroke bindings. See the article <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/keybinding.html">How to Use Key Bindings</a>
  *
  * @author Arnaud Weber
  * @author Tom Santos
@@ -95,7 +95,7 @@ public class BasicComboBoxUI extends ComboBoxUI {
     protected ComboPopup popup;
 
     /**
-     * The Component that the @{code ComboBoxEditor} uses for editing.
+     * The Component that the {@code ComboBoxEditor} uses for editing.
      */
     protected Component editor;
 
@@ -169,7 +169,7 @@ public class BasicComboBoxUI extends ComboBoxUI {
     private Handler handler;
 
     /**
-     * The time factor to treate the series of typed alphanumeric key
+     * The time factor to treat the series of typed alphanumeric key
      * as prefix for first letter navigation.
      */
     private long timeFactor = 1000L;
@@ -231,6 +231,11 @@ public class BasicComboBoxUI extends ComboBoxUI {
      * @since 1.7
      */
     protected Insets padding;
+
+    /**
+     * Constructs a {@code BasicComboBoxUI}.
+     */
+    public BasicComboBoxUI() {}
 
     // Used for calculating the default size.
     private static ListCellRenderer<Object> getDefaultListCellRenderer() {
@@ -592,6 +597,11 @@ public class BasicComboBoxUI extends ComboBoxUI {
      * <code>BasicComboBoxUI</code>.
      */
     public class KeyHandler extends KeyAdapter {
+        /**
+         * Constructs a {@code KeyHandler}.
+         */
+        public KeyHandler() {}
+
         @Override
         public void keyPressed( KeyEvent e ) {
             getHandler().keyPressed(e);
@@ -607,6 +617,11 @@ public class BasicComboBoxUI extends ComboBoxUI {
      * <code>BasicComboBoxUI</code>.
      */
     public class FocusHandler implements FocusListener {
+        /**
+         * Constructs a {@code FocusHandler}.
+         */
+        public FocusHandler() {}
+
         public void focusGained( FocusEvent e ) {
             getHandler().focusGained(e);
         }
@@ -627,6 +642,11 @@ public class BasicComboBoxUI extends ComboBoxUI {
      * @see #createListDataListener
      */
     public class ListDataHandler implements ListDataListener {
+        /**
+         * Constructs a {@code ListDataHandler}.
+         */
+        public ListDataHandler() {}
+
         public void contentsChanged( ListDataEvent e ) {
             getHandler().contentsChanged(e);
         }
@@ -651,6 +671,11 @@ public class BasicComboBoxUI extends ComboBoxUI {
      * @see #createItemListener
      */
     public class ItemHandler implements ItemListener {
+        /**
+         * Constructs a {@code ItemHandler}.
+         */
+        public ItemHandler() {}
+
         // This class used to implement behavior which is now redundant.
         public void itemStateChanged(ItemEvent e) {}
     }
@@ -670,13 +695,18 @@ public class BasicComboBoxUI extends ComboBoxUI {
      * @see #createPropertyChangeListener
      */
     public class PropertyChangeHandler implements PropertyChangeListener {
+        /**
+         * Constructs a {@code PropertyChangeHandler}.
+         */
+        public PropertyChangeHandler() {}
+
         public void propertyChange(PropertyChangeEvent e) {
             getHandler().propertyChange(e);
         }
     }
 
 
-    // Syncronizes the ToolTip text for the components within the combo box to be the
+    // Synchronizes the ToolTip text for the components within the combo box to be the
     // same value as the combo box ToolTip text.
     private void updateToolTipTextForChildren() {
         Component[] children = comboBox.getComponents();
@@ -697,6 +727,11 @@ public class BasicComboBoxUI extends ComboBoxUI {
      * <code>BasicComboBoxUI</code>.
      */
     public class ComboBoxLayoutManager implements LayoutManager {
+        /**
+         * Constructs a {@code ComboBoxLayoutManager}.
+         */
+        public ComboBoxLayoutManager() {}
+
         public void addLayoutComponent(String name, Component comp) {}
 
         public void removeLayoutComponent(Component comp) {}
@@ -905,17 +940,19 @@ public class BasicComboBoxUI extends ComboBoxUI {
      * Tells if the popup is visible or not.
      */
     public boolean isPopupVisible( JComboBox<?> c ) {
-        return popup.isVisible();
+        return popup != null && popup.isVisible();
     }
 
     /**
      * Hides the popup.
      */
     public void setPopupVisible( JComboBox<?> c, boolean v ) {
-        if ( v ) {
-            popup.show();
-        } else {
-            popup.hide();
+        if (popup != null) {
+            if (v) {
+                popup.show();
+            } else {
+                popup.hide();
+            }
         }
     }
 
@@ -942,6 +979,8 @@ public class BasicComboBoxUI extends ComboBoxUI {
             paintCurrentValueBackground(g,r,hasFocus);
             paintCurrentValue(g,r,hasFocus);
         }
+        // Empty out the renderer pane, allowing renderers to be gc'ed.
+        currentValuePane.removeAll();
     }
 
     @Override
@@ -1625,7 +1664,7 @@ public class BasicComboBoxUI extends ComboBoxUI {
             else if (key == ENTER) {
                 if (comboBox.isPopupVisible()) {
                     // If ComboBox.noActionOnKeyNavigation is set,
-                    // forse selection of list item
+                    // force selection of list item
                     if (UIManager.getBoolean("ComboBox.noActionOnKeyNavigation")) {
                         Object listItem = ui.popup.getList().getSelectedValue();
                         if (listItem != null) {
@@ -1709,8 +1748,20 @@ public class BasicComboBoxUI extends ComboBoxUI {
 
         @Override
         public boolean accept(Object c) {
-            if (getName() == HIDE) {
+            if (getName() == HIDE ) {
                 return (c != null && ((JComboBox)c).isPopupVisible());
+            } else if (getName() == ENTER) {
+                JRootPane root = SwingUtilities.getRootPane((JComboBox)c);
+                if (root != null && (c != null && !((JComboBox)c).isPopupVisible())) {
+                    InputMap im = root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+                    ActionMap am = root.getActionMap();
+                    if (im != null && am != null) {
+                        Object obj = im.get(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0));
+                        if (obj == null) {
+                            return false;
+                        }
+                    }
+                }
             }
             return true;
         }

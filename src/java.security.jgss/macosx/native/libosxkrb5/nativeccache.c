@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,6 @@
  * Statics for this module
  */
 
-static jclass derValueClass = NULL;
 static jclass ticketClass = NULL;
 static jclass principalNameClass = NULL;
 static jclass encryptionKeyClass = NULL;
@@ -54,7 +53,6 @@ static jclass javaLangIntegerClass = NULL;
 static jclass hostAddressClass = NULL;
 static jclass hostAddressesClass = NULL;
 
-static jmethodID derValueConstructor = 0;
 static jmethodID ticketConstructor = 0;
 static jmethodID principalNameConstructor = 0;
 static jmethodID encryptionKeyConstructor = 0;
@@ -83,7 +81,7 @@ static jclass FindClass(JNIEnv *env, char *className)
     jclass cls = (*env)->FindClass(env, className);
 
     if (cls == NULL) {
-        printf("Couldn't find %s\n", className);
+        fprintf(stderr, "Couldn't find %s\n", className);
         return NULL;
     }
 
@@ -108,9 +106,6 @@ JNIEXPORT jint JNICALL DEF_JNI_OnLoad(JavaVM *jvm, void *reserved)
     principalNameClass = FindClass(env, "sun/security/krb5/PrincipalName");
     if (principalNameClass == NULL) return JNI_ERR;
 
-    derValueClass = FindClass(env, "sun/security/util/DerValue");
-    if (derValueClass == NULL) return JNI_ERR;
-
     encryptionKeyClass = FindClass(env, "sun/security/krb5/EncryptionKey");
     if (encryptionKeyClass == NULL) return JNI_ERR;
 
@@ -132,57 +127,51 @@ JNIEXPORT jint JNICALL DEF_JNI_OnLoad(JavaVM *jvm, void *reserved)
     hostAddressesClass = FindClass(env,"sun/security/krb5/internal/HostAddresses");
     if (hostAddressesClass == NULL) return JNI_ERR;
 
-    derValueConstructor = (*env)->GetMethodID(env, derValueClass, "<init>", "([B)V");
-    if (derValueConstructor == 0) {
-        printf("Couldn't find DerValue constructor\n");
-        return JNI_ERR;
-    }
-
-    ticketConstructor = (*env)->GetMethodID(env, ticketClass, "<init>", "(Lsun/security/util/DerValue;)V");
+    ticketConstructor = (*env)->GetMethodID(env, ticketClass, "<init>", "([B)V");
     if (ticketConstructor == 0) {
-        printf("Couldn't find Ticket constructor\n");
+        fprintf(stderr, "Couldn't find Ticket constructor\n");
         return JNI_ERR;
     }
 
     principalNameConstructor = (*env)->GetMethodID(env, principalNameClass, "<init>", "(Ljava/lang/String;I)V");
     if (principalNameConstructor == 0) {
-        printf("Couldn't find PrincipalName constructor\n");
+        fprintf(stderr, "Couldn't find PrincipalName constructor\n");
         return JNI_ERR;
     }
 
     encryptionKeyConstructor = (*env)->GetMethodID(env, encryptionKeyClass, "<init>", "(I[B)V");
     if (encryptionKeyConstructor == 0) {
-        printf("Couldn't find EncryptionKey constructor\n");
+        fprintf(stderr, "Couldn't find EncryptionKey constructor\n");
         return JNI_ERR;
     }
 
     ticketFlagsConstructor = (*env)->GetMethodID(env, ticketFlagsClass, "<init>", "(I[B)V");
     if (ticketFlagsConstructor == 0) {
-        printf("Couldn't find TicketFlags constructor\n");
+        fprintf(stderr, "Couldn't find TicketFlags constructor\n");
         return JNI_ERR;
     }
 
     kerberosTimeConstructor = (*env)->GetMethodID(env, kerberosTimeClass, "<init>", "(J)V");
     if (kerberosTimeConstructor == 0) {
-        printf("Couldn't find KerberosTime constructor\n");
+        fprintf(stderr, "Couldn't find KerberosTime constructor\n");
         return JNI_ERR;
     }
 
     integerConstructor = (*env)->GetMethodID(env, javaLangIntegerClass, "<init>", "(I)V");
     if (integerConstructor == 0) {
-        printf("Couldn't find Integer constructor\n");
+        fprintf(stderr, "Couldn't find Integer constructor\n");
         return JNI_ERR;
     }
 
     hostAddressConstructor = (*env)->GetMethodID(env, hostAddressClass, "<init>", "(I[B)V");
     if (hostAddressConstructor == 0) {
-        printf("Couldn't find HostAddress constructor\n");
+        fprintf(stderr, "Couldn't find HostAddress constructor\n");
         return JNI_ERR;
     }
 
     hostAddressesConstructor = (*env)->GetMethodID(env, hostAddressesClass, "<init>", "([Lsun/security/krb5/internal/HostAddress;)V");
     if (hostAddressesConstructor == 0) {
-        printf("Couldn't find HostAddresses constructor\n");
+        fprintf(stderr, "Couldn't find HostAddresses constructor\n");
         return JNI_ERR;
     }
 
@@ -203,9 +192,6 @@ JNIEXPORT void JNICALL DEF_JNI_OnUnload(JavaVM *jvm, void *reserved)
 
     if (ticketClass != NULL) {
         (*env)->DeleteWeakGlobalRef(env,ticketClass);
-    }
-    if (derValueClass != NULL) {
-        (*env)->DeleteWeakGlobalRef(env,derValueClass);
     }
     if (principalNameClass != NULL) {
         (*env)->DeleteWeakGlobalRef(env,principalNameClass);
@@ -261,6 +247,7 @@ JNIEXPORT jobject JNICALL Java_sun_security_krb5_Credentials_acquireDefaultNativ
 
     int netypes;
     jint *etypes = NULL;
+    int proxy_flag = 0;
 
     /* Initialize the Kerberos 5 context */
     err = krb5_init_context (&kcontext);
@@ -272,6 +259,48 @@ JNIEXPORT jobject JNICALL Java_sun_security_krb5_Credentials_acquireDefaultNativ
     if (!err) {
         err = krb5_cc_set_flags (kcontext, ccache, flags); /* turn off OPENCLOSE */
     }
+
+    // First round read. The proxy_impersonator config flag is not supported.
+    // This ccache will not be used if this flag exists.
+    if (!err) {
+        err = krb5_cc_start_seq_get (kcontext, ccache, &cursor);
+    }
+
+    if (!err) {
+        while ((err = krb5_cc_next_cred (kcontext, ccache, &cursor, &creds)) == 0) {
+            char *serverName = NULL;
+
+            if (!err) {
+                err = krb5_unparse_name (kcontext, creds.server, &serverName);
+                printiferr (err, "while unparsing server name");
+            }
+
+            if (!err) {
+                if (!strcmp(serverName, "krb5_ccache_conf_data/proxy_impersonator@X-CACHECONF:")) {
+                    proxy_flag = 1;
+                }
+            }
+
+            if (serverName != NULL) { krb5_free_unparsed_name (kcontext, serverName); }
+
+            krb5_free_cred_contents (kcontext, &creds);
+
+            if (proxy_flag) break;
+        }
+
+        if (err == KRB5_CC_END) { err = 0; }
+        printiferr (err, "while retrieving a ticket");
+    }
+
+    if (!err) {
+        err = krb5_cc_end_seq_get (kcontext, ccache, &cursor);
+        printiferr (err, "while finishing ticket retrieval");
+    }
+
+    if (proxy_flag) {
+        goto outer_cleanup;
+    }
+    // End of first round read
 
     if (!err) {
         err = krb5_cc_start_seq_get (kcontext, ccache, &cursor);
@@ -345,9 +374,9 @@ JNIEXPORT jobject JNICALL Java_sun_security_krb5_Credentials_acquireDefaultNativ
 
                     if (krbcredsConstructor == 0) {
                         krbcredsConstructor = (*env)->GetMethodID(env, krbcredsClass, "<init>",
-                                                                  "(Lsun/security/krb5/internal/Ticket;Lsun/security/krb5/PrincipalName;Lsun/security/krb5/PrincipalName;Lsun/security/krb5/EncryptionKey;Lsun/security/krb5/internal/TicketFlags;Lsun/security/krb5/internal/KerberosTime;Lsun/security/krb5/internal/KerberosTime;Lsun/security/krb5/internal/KerberosTime;Lsun/security/krb5/internal/KerberosTime;Lsun/security/krb5/internal/HostAddresses;)V");
+                                                                  "(Lsun/security/krb5/internal/Ticket;Lsun/security/krb5/PrincipalName;Lsun/security/krb5/PrincipalName;Lsun/security/krb5/PrincipalName;Lsun/security/krb5/PrincipalName;Lsun/security/krb5/EncryptionKey;Lsun/security/krb5/internal/TicketFlags;Lsun/security/krb5/internal/KerberosTime;Lsun/security/krb5/internal/KerberosTime;Lsun/security/krb5/internal/KerberosTime;Lsun/security/krb5/internal/KerberosTime;Lsun/security/krb5/internal/HostAddresses;)V");
                         if (krbcredsConstructor == 0) {
-                            printf("Couldn't find sun.security.krb5.internal.Ticket constructor\n");
+                            fprintf(stderr, "Couldn't find sun.security.krb5.internal.Ticket constructor\n");
                             break;
                         }
                     }
@@ -359,7 +388,9 @@ JNIEXPORT jobject JNICALL Java_sun_security_krb5_Credentials_acquireDefaultNativ
                                                  krbcredsConstructor,
                                                  ticket,
                                                  clientPrincipal,
+                                                 NULL,
                                                  targetPrincipal,
+                                                 NULL,
                                                  encryptionKey,
                                                  ticketFlags,
                                                  authTime,
@@ -400,6 +431,7 @@ cleanup:
         printiferr (err, "while finishing ticket retrieval");
     }
 
+outer_cleanup:
     if (!err) {
         flags = KRB5_TC_OPENCLOSE; /* restore OPENCLOSE mode */
         err = krb5_cc_set_flags (kcontext, ccache, flags);
@@ -419,11 +451,9 @@ cleanup:
 
 jobject BuildTicket(JNIEnv *env, krb5_data *encodedTicket)
 {
-    /* To build a Ticket, we first need to build a DerValue out of the EncodedTicket.
-    * But before we can do that, we need to make a byte array out of the ET.
-    */
+    // To build a Ticket, we need to make a byte array out of the EncodedTicket.
 
-    jobject derValue, ticket;
+    jobject ticket;
     jbyteArray ary;
 
     ary = (*env)->NewByteArray(env, encodedTicket->length);
@@ -437,19 +467,12 @@ jobject BuildTicket(JNIEnv *env, krb5_data *encodedTicket)
         return (jobject) NULL;
     }
 
-    derValue = (*env)->NewObject(env, derValueClass, derValueConstructor, ary);
+    ticket = (*env)->NewObject(env, ticketClass, ticketConstructor, ary);
     if ((*env)->ExceptionCheck(env)) {
         (*env)->DeleteLocalRef(env, ary);
         return (jobject) NULL;
     }
-
     (*env)->DeleteLocalRef(env, ary);
-    ticket = (*env)->NewObject(env, ticketClass, ticketConstructor, derValue);
-    if ((*env)->ExceptionCheck(env)) {
-        (*env)->DeleteLocalRef(env, derValue);
-        return (jobject) NULL;
-    }
-    (*env)->DeleteLocalRef(env, derValue);
     return ticket;
 }
 
@@ -570,7 +593,7 @@ jobject BuildAddressList(JNIEnv *env, krb5_address **addresses) {
         if (address == NULL) {
             return (jobject) NULL;
         }
-        // Add the HostAddress to the arrray.
+        // Add the HostAddress to the array.
         (*env)->SetObjectArrayElement(env, address_list, index, address);
 
         if ((*env)->ExceptionCheck(env)) {

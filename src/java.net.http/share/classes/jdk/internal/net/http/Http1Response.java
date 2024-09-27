@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,12 @@ package jdk.internal.net.http;
 
 import java.io.EOFException;
 import java.lang.System.Logger.Level;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.net.http.HttpResponse.BodySubscriber;
 import java.nio.ByteBuffer;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Flow;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -69,15 +68,16 @@ class Http1Response<T> {
     private final Http1AsyncReceiver asyncReceiver;
     private volatile EOFException eof;
     private volatile BodyParser bodyParser;
+    private volatile boolean closeWhenFinished;
     // max number of bytes of (fixed length) body to ignore on redirect
-    private final static int MAX_IGNORE = 1024;
+    private static final int MAX_IGNORE = 1024;
 
     // Revisit: can we get rid of this?
-    static enum State {INITIAL, READING_HEADERS, READING_BODY, DONE}
+    enum State {INITIAL, READING_HEADERS, READING_BODY, DONE}
     private volatile State readProgress = State.INITIAL;
 
     final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
-    final static AtomicLong responseCount = new AtomicLong();
+    static final AtomicLong responseCount = new AtomicLong();
     final long id = responseCount.incrementAndGet();
     private Http1HeaderParser hd;
 
@@ -113,34 +113,41 @@ class Http1Response<T> {
     }
 
     // The ClientRefCountTracker is used to track the state
-    // of a pending operation. Altough there usually is a single
+    // of a pending operation. Although there usually is a single
     // point where the operation starts, it may terminate at
     // different places.
-    private final class ClientRefCountTracker {
-        final HttpClientImpl client = connection.client();
+    private static final class ClientRefCountTracker {
+        final HttpClientImpl client;
+        final Logger debug;
         // state & 0x01 != 0 => acquire called
         // state & 0x02 != 0 => tryRelease called
-        byte state;
+        volatile byte state;
 
-        public synchronized void acquire() {
-            if (state == 0) {
+        ClientRefCountTracker(HttpClientImpl client, Logger logger) {
+            this.client = client;
+            this.debug = logger;
+        }
+
+        public boolean acquire() {
+            if (STATE.compareAndSet(this, (byte) 0, (byte) 0x01)) {
                 // increment the reference count on the HttpClientImpl
                 // to prevent the SelectorManager thread from exiting
                 // until our operation is complete.
                 if (debug.on())
                     debug.log("Operation started: incrementing ref count for %s", client);
                 client.reference();
-                state = 0x01;
+                return true;
             } else {
                 if (debug.on())
                     debug.log("Operation ref count for %s is already %s",
                               client, ((state & 0x2) == 0x2) ? "released." : "incremented!" );
                 assert (state & 0x01) == 0 : "reference count already incremented";
+                return false;
             }
         }
 
-        public synchronized void tryRelease() {
-            if (state == 0x01) {
+        public void tryRelease() {
+            if (STATE.compareAndSet(this, (byte) 0x01, (byte) 0x03)) {
                 // decrement the reference count on the HttpClientImpl
                 // to allow the SelectorManager thread to exit if no
                 // other operation is pending and the facade is no
@@ -150,12 +157,21 @@ class Http1Response<T> {
                 client.unreference();
             } else if (state == 0) {
                 if (debug.on())
-                    debug.log("Operation finished: releasing ref count for %s", client);
+                    debug.log("Operation not started: releasing ref count for %s", client);
             } else if ((state & 0x02) == 0x02) {
                 if (debug.on())
                     debug.log("ref count for %s already released", client);
             }
-            state |= 0x02;
+        }
+
+        private static final VarHandle STATE;
+        static {
+            try {
+                STATE = MethodHandles.lookup().findVarHandle(
+                        ClientRefCountTracker.class, "state", byte.class);
+            } catch (NoSuchFieldException | IllegalAccessException e) {
+                throw new ExceptionInInitializerError(e);
+            }
         }
     }
 
@@ -236,20 +252,20 @@ class Http1Response<T> {
      * Return known fixed content length or -1 if chunked, or -2 if no content-length
      * information in which case, connection termination delimits the response body
      */
-    int fixupContentLen(int clen) {
+    long fixupContentLen(long clen) {
         if (request.method().equalsIgnoreCase("HEAD") || responseCode == HTTP_NOT_MODIFIED) {
-            return 0;
+            return 0L;
         }
-        if (clen == -1) {
+        if (clen == -1L) {
             if (headers.firstValue("Transfer-encoding").orElse("")
                        .equalsIgnoreCase("chunked")) {
-                return -1;
+                return -1L;
             }
             if (responseCode == 101) {
                 // this is a h2c or websocket upgrade, contentlength must be zero
-                return 0;
+                return 0L;
             }
-            return -2;
+            return -2L;
         }
         return clen;
     }
@@ -263,140 +279,51 @@ class Http1Response<T> {
             connection.close();
             return MinimalFuture.completedFuture(null); // not treating as error
         } else {
-            return readBody(discarding(), true, executor);
+            return readBody(discarding(), !request.isWebSocket(), executor);
         }
     }
 
-    static final Flow.Subscription NOP = new Flow.Subscription() {
-        @Override
-        public void request(long n) { }
-        public void cancel() { }
-    };
-
-    /**
-     * The Http1AsyncReceiver ensures that all calls to
-     * the subscriber, including onSubscribe, occur sequentially.
-     * There could however be some race conditions that could happen
-     * in case of unexpected errors thrown at unexpected places, which
-     * may cause onError to be called multiple times.
-     * The Http1BodySubscriber will ensure that the user subscriber
-     * is actually completed only once - and only after it is
-     * subscribed.
-     * @param <U> The type of response.
-     */
-    final static class Http1BodySubscriber<U> implements HttpResponse.BodySubscriber<U> {
-        final HttpResponse.BodySubscriber<U> userSubscriber;
-        final AtomicBoolean completed = new AtomicBoolean();
-        volatile Throwable withError;
-        volatile boolean subscribed;
-        Http1BodySubscriber(HttpResponse.BodySubscriber<U> userSubscriber) {
-            this.userSubscriber = userSubscriber;
-        }
-
-        // propagate the error to the user subscriber, even if not
-        // subscribed yet.
-        private void propagateError(Throwable t) {
-            assert t != null;
-            try {
-                // if unsubscribed at this point, it will not
-                // get subscribed later - so do it now and
-                // propagate the error
-                if (subscribed == false) {
-                    subscribed = true;
-                    userSubscriber.onSubscribe(NOP);
-                }
-            } finally  {
-                // if onError throws then there is nothing to do
-                // here: let the caller deal with it by logging
-                // and closing the connection.
-                userSubscriber.onError(t);
-            }
-        }
-
-        // complete the subscriber, either normally or exceptionally
-        // ensure that the subscriber is completed only once.
-        private void complete(Throwable t) {
-            if (completed.compareAndSet(false, true)) {
-                t  = withError = Utils.getCompletionCause(t);
-                if (t == null) {
-                    assert subscribed;
-                    try {
-                        userSubscriber.onComplete();
-                    } catch (Throwable x) {
-                        // Simply propagate the error by calling
-                        // onError on the user subscriber, and let the
-                        // connection be reused since we should have received
-                        // and parsed all the bytes when we reach here.
-                        // If onError throws in turn, then we will simply
-                        // let that new exception flow up to the caller
-                        // and let it deal with it.
-                        // (i.e: log and close the connection)
-                        // Note that rethrowing here could introduce a
-                        // race that might cause the next send() operation to
-                        // fail as the connection has already been put back
-                        // into the cache when we reach here.
-                        propagateError(t = withError = Utils.getCompletionCause(x));
-                    }
-                } else {
-                    propagateError(t);
-                }
-            }
-        }
-
-        @Override
-        public CompletionStage<U> getBody() {
-            return userSubscriber.getBody();
-        }
-        @Override
-        public void onSubscribe(Flow.Subscription subscription) {
-            if (!subscribed) {
-                subscribed = true;
-                userSubscriber.onSubscribe(subscription);
-            } else {
-                // could be already subscribed and completed
-                // if an unexpected error occurred before the actual
-                // subscription - though that's not supposed
-                // happen.
-                assert completed.get();
-            }
-        }
-        @Override
-        public void onNext(List<ByteBuffer> item) {
-            assert !completed.get();
-            userSubscriber.onNext(item);
-        }
-        @Override
-        public void onError(Throwable throwable) {
-            complete(throwable);
-        }
-        @Override
-        public void onComplete() {
-            complete(null);
+    // Used for those response codes that have no body associated
+    public void nullBody(HttpResponse<T> resp, Throwable t) {
+        if (t != null) connection.close();
+        else {
+            return2Cache = !request.isWebSocket();
+            onFinished();
         }
     }
+
 
     public <U> CompletableFuture<U> readBody(HttpResponse.BodySubscriber<U> p,
                                          boolean return2Cache,
                                          Executor executor) {
+        if (debug.on()) {
+            debug.log("readBody: return2Cache: " + return2Cache);
+            if (request.isWebSocket() && return2Cache && connection != null) {
+                debug.log("websocket connection will be returned to cache: "
+                        + connection.getClass() + "/" + connection);
+            }
+        }
+        assert !return2Cache || !request.isWebSocket();
         this.return2Cache = return2Cache;
-        final Http1BodySubscriber<U> subscriber = new Http1BodySubscriber<>(p);
+        final BodySubscriber<U> subscriber = p;
+
 
         final CompletableFuture<U> cf = new MinimalFuture<>();
 
-        int clen0 = (int)headers.firstValueAsLong("Content-Length").orElse(-1);
-
-        final int clen = fixupContentLen(clen0);
+        long clen0 = headers.firstValueAsLong("Content-Length").orElse(-1L);
+        final long clen = fixupContentLen(clen0);
 
         // expect-continue reads headers and body twice.
         // if we reach here, we must reset the headersReader state.
         asyncReceiver.unsubscribe(headersReader);
         headersReader.reset();
-        ClientRefCountTracker refCountTracker = new ClientRefCountTracker();
+        ClientRefCountTracker refCountTracker = new ClientRefCountTracker(connection.client(), debug);
 
         // We need to keep hold on the client facade until the
         // tracker has been incremented.
         connection.client().reference();
         executor.execute(() -> {
+            boolean acquired = false;
             try {
                 content = new ResponseContent(
                         connection, clen, headers, subscriber,
@@ -410,7 +337,8 @@ class Http1Response<T> {
                 // increment the reference count on the HttpClientImpl
                 // to prevent the SelectorManager thread from exiting until
                 // the body is fully read.
-                refCountTracker.acquire();
+                acquired = refCountTracker.acquire();
+                assert acquired == true;
                 bodyParser = content.getBodyParser(
                     (t) -> {
                         try {
@@ -434,7 +362,7 @@ class Http1Response<T> {
                 assert bodyReaderCF != null : "parsing not started";
                 // Make sure to keep a reference to asyncReceiver from
                 // within this
-                CompletableFuture<?> trailingOp = bodyReaderCF.whenComplete((s,t) ->  {
+                CompletableFuture<?> trailingOp = bodyReaderCF.whenComplete((s, t) -> {
                     t = Utils.getCompletionCause(t);
                     try {
                         if (t == null) {
@@ -456,29 +384,25 @@ class Http1Response<T> {
                 });
                 connection.addTrailingOperation(trailingOp);
             } catch (Throwable t) {
-               if (debug.on()) debug.log("Failed reading body: " + t);
+                if (debug.on()) debug.log("Failed reading body: " + t);
                 try {
                     subscriber.onError(t);
                     cf.completeExceptionally(t);
                 } finally {
+                    if (acquired) refCountTracker.tryRelease();
                     asyncReceiver.onReadError(t);
                 }
             } finally {
                 connection.client().unreference();
             }
         });
-        try {
-            p.getBody().whenComplete((U u, Throwable t) -> {
-                if (t == null)
-                    cf.complete(u);
-                else
-                    cf.completeExceptionally(t);
-            });
-        } catch (Throwable t) {
+
+        ResponseSubscribers.getBodyAsync(executor, p, cf, (t) -> {
+            subscriber.onError(t);
             cf.completeExceptionally(t);
             asyncReceiver.setRetryOnError(false);
             asyncReceiver.onReadError(t);
-        }
+        });
 
         return cf.whenComplete((s,t) -> {
             if (t != null) {
@@ -497,7 +421,11 @@ class Http1Response<T> {
 
     private void onFinished() {
         asyncReceiver.clear();
-        if (return2Cache) {
+        if (closeWhenFinished) {
+            if (debug.on())
+                debug.log("Closing Connection when finished");
+            connection.close();
+        } else if (return2Cache) {
             Log.logTrace("Attempting to return connection to the pool: {0}", connection);
             // TODO: need to do something here?
             // connection.setAsyncCallbacks(null, null, null);
@@ -507,6 +435,10 @@ class Http1Response<T> {
                 debug.log(connection.getConnectionFlow() + ": return to HTTP/1.1 pool");
             connection.closeOrReturnToCache(eof == null ? headers : null);
         }
+    }
+
+    void closeWhenFinished() {
+        closeWhenFinished = true;
     }
 
     HttpHeaders responseHeaders() {
@@ -559,15 +491,16 @@ class Http1Response<T> {
     }
 
     Receiver<?> receiver(State state) {
-        switch(state) {
-            case READING_HEADERS: return headersReader;
-            case READING_BODY: return bodyReader;
-            default: return null;
-        }
+        return switch (state) {
+            case READING_HEADERS    -> headersReader;
+            case READING_BODY       -> bodyReader;
+
+            default -> null;
+        };
 
     }
 
-    static abstract class Receiver<T>
+    abstract static class Receiver<T>
             implements Http1AsyncReceiver.Http1AsyncDelegate {
         abstract void start(T parser);
         abstract CompletableFuture<State> completion();
@@ -734,12 +667,14 @@ class Http1Response<T> {
 
         @Override
         public final void onReadError(Throwable t) {
-            if (t instanceof EOFException && bodyParser != null &&
-                    bodyParser instanceof UnknownLengthBodyParser) {
-                ((UnknownLengthBodyParser)bodyParser).complete();
+            BodyParser parser = bodyParser;
+            if (t instanceof EOFException && parser != null &&
+                    parser instanceof UnknownLengthBodyParser ulBodyParser) {
+                ulBodyParser.complete();
                 return;
             }
             t = wrapWithExtraDetail(t, parser::currentStateMessage);
+            parser.onError(t);
             Http1Response.this.onReadError(t);
         }
 
@@ -806,11 +741,25 @@ class Http1Response<T> {
                     cf.complete(State.READING_BODY);
                 }
             }
+            if (error != null) {
+                // makes sure the parser gets the error
+                BodyParser parser = this.parser;
+                if (parser != null) {
+                    if (debug.on()) {
+                        debug.log("propagating error to parser: " + error);
+                    }
+                    parser.onError(error);
+                } else {
+                    if (debug.on()) {
+                        debug.log("no parser - error not propagated: " + error);
+                    }
+                }
+            }
         }
 
         @Override
         public String toString() {
-            return super.toString() + "/parser=" + String.valueOf(parser);
+            return super.toString() + "/parser=" + parser;
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,17 +22,22 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_COLLECTEDHEAP_HPP
-#define SHARE_VM_GC_SHARED_COLLECTEDHEAP_HPP
+#ifndef SHARE_GC_SHARED_COLLECTEDHEAP_HPP
+#define SHARE_GC_SHARED_COLLECTEDHEAP_HPP
 
 #include "gc/shared/gcCause.hpp"
 #include "gc/shared/gcWhen.hpp"
+#include "gc/shared/softRefPolicy.hpp"
+#include "gc/shared/verifyOption.hpp"
 #include "memory/allocation.hpp"
+#include "memory/metaspace.hpp"
+#include "memory/universe.hpp"
+#include "oops/stackChunkOop.hpp"
 #include "runtime/handles.hpp"
-#include "runtime/perfData.hpp"
+#include "runtime/perfDataTypes.hpp"
 #include "runtime/safepoint.hpp"
+#include "services/memoryUsage.hpp"
 #include "utilities/debug.hpp"
-#include "utilities/events.hpp"
 #include "utilities/formatBuffer.hpp"
 #include "utilities/growableArray.hpp"
 
@@ -41,76 +46,84 @@
 // class defines the functions that a heap must implement, and contains
 // infrastructure common to all heaps.
 
-class AdaptiveSizePolicy;
-class BarrierSet;
-class CollectorPolicy;
+class GCHeapLog;
 class GCHeapSummary;
 class GCTimer;
 class GCTracer;
 class GCMemoryManager;
 class MemoryPool;
 class MetaspaceSummary;
-class SoftRefPolicy;
+class ReservedHeapSpace;
 class Thread;
 class ThreadClosure;
 class VirtualSpaceSummary;
-class WorkGang;
+class WorkerThreads;
 class nmethod;
 
-class GCMessage : public FormatBuffer<1024> {
- public:
-  bool is_before;
-
- public:
-  GCMessage() {}
+class ParallelObjectIteratorImpl : public CHeapObj<mtGC> {
+public:
+  virtual ~ParallelObjectIteratorImpl() {}
+  virtual void object_iterate(ObjectClosure* cl, uint worker_id) = 0;
 };
 
-class CollectedHeap;
+// User facing parallel object iterator. This is a StackObj, which ensures that
+// the _impl is allocated and deleted in the scope of this object. This ensures
+// the life cycle of the implementation is as required by ThreadsListHandle,
+// which is sometimes used by the root iterators.
+class ParallelObjectIterator : public StackObj {
+  ParallelObjectIteratorImpl* _impl;
 
-class GCHeapLog : public EventLogBase<GCMessage> {
- private:
-  void log_heap(CollectedHeap* heap, bool before);
-
- public:
-  GCHeapLog() : EventLogBase<GCMessage>("GC Heap History") {}
-
-  void log_heap_before(CollectedHeap* heap) {
-    log_heap(heap, true);
-  }
-  void log_heap_after(CollectedHeap* heap) {
-    log_heap(heap, false);
-  }
+public:
+  ParallelObjectIterator(uint thread_num);
+  ~ParallelObjectIterator();
+  void object_iterate(ObjectClosure* cl, uint worker_id);
 };
 
 //
 // CollectedHeap
-//   GenCollectedHeap
-//     SerialHeap
-//     CMSHeap
+//   SerialHeap
 //   G1CollectedHeap
 //   ParallelScavengeHeap
+//   ShenandoahHeap
 //   ZCollectedHeap
 //
-class CollectedHeap : public CHeapObj<mtInternal> {
+class CollectedHeap : public CHeapObj<mtGC> {
   friend class VMStructs;
   friend class JVMCIVMStructs;
-  friend class IsGCActiveMark; // Block structured external access to _is_gc_active
+  friend class IsSTWGCActiveMark; // Block structured external access to _is_stw_gc_active
   friend class MemAllocator;
 
  private:
-#ifdef ASSERT
-  static int       _fire_out_of_memory_count;
-#endif
-
   GCHeapLog* _gc_heap_log;
 
-  MemRegion _reserved;
+  // Historic gc information
+  size_t _capacity_at_last_gc;
+  size_t _used_at_last_gc;
+
+  SoftRefPolicy _soft_ref_policy;
+
+  // First, set it to java_lang_Object.
+  // Then, set it to FillerObject after the FillerObject_klass loading is complete.
+  static Klass* _filler_object_klass;
 
  protected:
-  bool _is_gc_active;
+  // Not used by all GCs
+  MemRegion _reserved;
 
+  bool _is_stw_gc_active;
+
+  // (Minimum) Alignment reserve for TLABs and PLABs.
+  static size_t _lab_alignment_reserve;
   // Used for filler objects (static, but initialized in ctor).
   static size_t _filler_array_max_size;
+
+  static size_t _stack_chunk_max_size; // 0 for no limit
+
+  // Last time the whole heap has been examined in support of RMI
+  // MaxObjectInspectionAge.
+  // This timestamp must be monotonically non-decreasing to avoid
+  // time-warp warnings.
+  jlong _last_whole_heap_examined_time_ns;
 
   unsigned int _total_collections;          // ... started
   unsigned int _total_full_collections;     // ... started
@@ -134,10 +147,7 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // returned in actual_size.
   virtual HeapWord* allocate_new_tlab(size_t min_size,
                                       size_t requested_size,
-                                      size_t* actual_size);
-
-  // Accumulate statistics on all tlabs.
-  virtual void accumulate_statistics_all_tlabs();
+                                      size_t* actual_size) = 0;
 
   // Reinitialize tlabs before resuming mutators.
   virtual void resize_all_tlabs();
@@ -151,8 +161,11 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
   // Filler object utilities.
   static inline size_t filler_array_hdr_size();
-  static inline size_t filler_array_min_size();
 
+  static size_t filler_array_min_size();
+
+protected:
+  static inline void zap_filler_array_with(HeapWord* start, size_t words, juint value);
   DEBUG_ONLY(static void fill_args_check(HeapWord* start, size_t words);)
   DEBUG_ONLY(static void zap_filler_array(HeapWord* start, size_t words, bool zap = true);)
 
@@ -166,8 +179,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   virtual void trace_heap(GCWhen::Type when, const GCTracer* tracer);
 
   // Verification functions
-  virtual void check_for_non_bad_heap_word_value(HeapWord* addr, size_t size)
-    PRODUCT_RETURN;
   debug_only(static void check_for_valid_allocation_state();)
 
  public:
@@ -175,14 +186,40 @@ class CollectedHeap : public CHeapObj<mtInternal> {
     None,
     Serial,
     Parallel,
-    CMS,
     G1,
     Epsilon,
-    Z
+    Z,
+    Shenandoah
   };
+
+ protected:
+  // Get a pointer to the derived heap object.  Used to implement
+  // derived class heap() functions rather than being called directly.
+  template<typename T>
+  static T* named_heap(Name kind) {
+    CollectedHeap* heap = Universe::heap();
+    assert(heap != nullptr, "Uninitialized heap");
+    assert(kind == heap->kind(), "Heap kind %u should be %u",
+           static_cast<uint>(heap->kind()), static_cast<uint>(kind));
+    return static_cast<T*>(heap);
+  }
+
+ public:
 
   static inline size_t filler_array_max_size() {
     return _filler_array_max_size;
+  }
+
+  static inline size_t stack_chunk_max_size() {
+    return _stack_chunk_max_size;
+  }
+
+  static inline Klass* filler_object_klass() {
+    return _filler_object_klass;
+  }
+
+  static inline void set_filler_object_klass(Klass* k) {
+    _filler_object_klass = k;
   }
 
   virtual Name kind() const = 0;
@@ -207,12 +244,18 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   virtual void safepoint_synchronize_begin() {}
   virtual void safepoint_synchronize_end() {}
 
-  void initialize_reserved_region(HeapWord *start, HeapWord *end);
-  MemRegion reserved_region() const { return _reserved; }
-  address base() const { return (address)reserved_region().start(); }
+  void initialize_reserved_region(const ReservedHeapSpace& rs);
 
   virtual size_t capacity() const = 0;
   virtual size_t used() const = 0;
+
+  // Returns unused capacity.
+  virtual size_t unused() const;
+
+  // Historic gc information
+  size_t free_at_last_gc() const { return _capacity_at_last_gc - _used_at_last_gc; }
+  size_t used_at_last_gc() const { return _used_at_last_gc; }
+  void update_capacity_and_used_at_gc();
 
   // Return "true" if the part of the heap that allocates Java
   // objects has reached the maximal committed limit that it can
@@ -227,67 +270,19 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // spaces).
   virtual size_t max_capacity() const = 0;
 
-  // Returns "TRUE" if "p" points into the reserved area of the heap.
-  bool is_in_reserved(const void* p) const {
-    return _reserved.contains(p);
-  }
-
-  bool is_in_reserved_or_null(const void* p) const {
-    return p == NULL || is_in_reserved(p);
-  }
-
   // Returns "TRUE" iff "p" points into the committed areas of the heap.
   // This method can be expensive so avoid using it in performance critical
   // code.
   virtual bool is_in(const void* p) const = 0;
 
-  DEBUG_ONLY(bool is_in_or_null(const void* p) const { return p == NULL || is_in(p); })
+  DEBUG_ONLY(bool is_in_or_null(const void* p) const { return p == nullptr || is_in(p); })
 
-  // Let's define some terms: a "closed" subset of a heap is one that
-  //
-  // 1) contains all currently-allocated objects, and
-  //
-  // 2) is closed under reference: no object in the closed subset
-  //    references one outside the closed subset.
-  //
-  // Membership in a heap's closed subset is useful for assertions.
-  // Clearly, the entire heap is a closed subset, so the default
-  // implementation is to use "is_in_reserved".  But this may not be too
-  // liberal to perform useful checking.  Also, the "is_in" predicate
-  // defines a closed subset, but may be too expensive, since "is_in"
-  // verifies that its argument points to an object head.  The
-  // "closed_subset" method allows a heap to define an intermediate
-  // predicate, allowing more precise checking than "is_in_reserved" at
-  // lower cost than "is_in."
-
-  // One important case is a heap composed of disjoint contiguous spaces,
-  // such as the Garbage-First collector.  Such heaps have a convenient
-  // closed subset consisting of the allocated portions of those
-  // contiguous spaces.
-
-  // Return "TRUE" iff the given pointer points into the heap's defined
-  // closed subset (which defaults to the entire heap).
-  virtual bool is_in_closed_subset(const void* p) const {
-    return is_in_reserved(p);
-  }
-
-  bool is_in_closed_subset_or_null(const void* p) const {
-    return p == NULL || is_in_closed_subset(p);
-  }
-
-  void set_gc_cause(GCCause::Cause v) {
-     if (UsePerfData) {
-       _gc_lastcause = _gc_cause;
-       _perf_gc_lastcause->set_value(GCCause::to_string(_gc_lastcause));
-       _perf_gc_cause->set_value(GCCause::to_string(v));
-     }
-    _gc_cause = v;
-  }
+  void set_gc_cause(GCCause::Cause v);
   GCCause::Cause gc_cause() { return _gc_cause; }
 
-  virtual oop obj_allocate(Klass* klass, int size, TRAPS);
-  virtual oop array_allocate(Klass* klass, int size, int length, bool do_zero, TRAPS);
-  virtual oop class_allocate(Klass* klass, int size, TRAPS);
+  oop obj_allocate(Klass* klass, size_t size, TRAPS);
+  virtual oop array_allocate(Klass* klass, size_t size, int length, bool do_zero, TRAPS);
+  oop class_allocate(Klass* klass, size_t size, TRAPS);
 
   // Utilities for turning raw memory into filler objects.
   //
@@ -311,32 +306,13 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   }
 
   virtual void fill_with_dummy_object(HeapWord* start, HeapWord* end, bool zap);
-
-  // Return the address "addr" aligned by "alignment_in_bytes" if such
-  // an address is below "end".  Return NULL otherwise.
-  inline static HeapWord* align_allocation_or_fail(HeapWord* addr,
-                                                   HeapWord* end,
-                                                   unsigned short alignment_in_bytes);
-
-  // Some heaps may offer a contiguous region for shared non-blocking
-  // allocation, via inlined code (by exporting the address of the top and
-  // end fields defining the extent of the contiguous allocation region.)
-
-  // This function returns "true" iff the heap supports this kind of
-  // allocation.  (Default is "no".)
-  virtual bool supports_inline_contig_alloc() const {
-    return false;
+  static constexpr size_t min_dummy_object_size() {
+    return oopDesc::header_size();
   }
-  // These functions return the addresses of the fields that define the
-  // boundaries of the contiguous allocation area.  (These fields should be
-  // physically near to one another.)
-  virtual HeapWord* volatile* top_addr() const {
-    guarantee(false, "inline contiguous allocation not supported");
-    return NULL;
-  }
-  virtual HeapWord** end_addr() const {
-    guarantee(false, "inline contiguous allocation not supported");
-    return NULL;
+
+  static size_t lab_alignment_reserve() {
+    assert(_lab_alignment_reserve != SIZE_MAX, "uninitialized");
+    return _lab_alignment_reserve;
   }
 
   // Some heaps may be in an unparseable state at certain times between
@@ -350,18 +326,11 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // super::ensure_parsability so that the non-generational
   // part of the work gets done. See implementation of
   // CollectedHeap::ensure_parsability and, for instance,
-  // that of GenCollectedHeap::ensure_parsability().
+  // that of ParallelScavengeHeap::ensure_parsability().
   // The argument "retire_tlabs" controls whether existing TLABs
   // are merely filled or also retired, thus preventing further
   // allocation from them and necessitating allocation of new TLABs.
   virtual void ensure_parsability(bool retire_tlabs);
-
-  // Section on thread-local allocation buffers (TLABs)
-  // If the heap supports thread-local allocation buffers, it should override
-  // the following methods:
-  // Returns "true" iff the heap supports thread-local allocation buffers.
-  // The default is "no".
-  virtual bool supports_tlab_allocation() const = 0;
 
   // The amount of space available for thread-local allocation buffers.
   virtual size_t tlab_capacity(Thread *thr) const = 0;
@@ -374,10 +343,7 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // An estimate of the maximum allocation that could be performed
   // for thread-local allocation buffers without triggering any
   // collection or expansion activity.
-  virtual size_t unsafe_max_tlab_alloc(Thread *thr) const {
-    guarantee(false, "thread-local allocation buffers not supported");
-    return 0;
-  }
+  virtual size_t unsafe_max_tlab_alloc(Thread *thr) const = 0;
 
   // Perform a collection of the heap; intended for use in implementing
   // "System.gc".  This probably implies as full a collection as the
@@ -397,17 +363,23 @@ class CollectedHeap : public CHeapObj<mtInternal> {
                                                        size_t size,
                                                        Metaspace::MetadataType mdtype);
 
-  // Returns "true" iff there is a stop-world GC in progress.  (I assume
-  // that it should answer "false" for the concurrent part of a concurrent
-  // collector -- dld).
-  bool is_gc_active() const { return _is_gc_active; }
+  // Return true, if accesses to the object would require barriers.
+  // This is used by continuations to copy chunks of a thread stack into StackChunk object or out of a StackChunk
+  // object back into the thread stack. These chunks may contain references to objects. It is crucial that
+  // the GC does not attempt to traverse the object while we modify it, because its structure (oopmap) is changed
+  // when stack chunks are stored into it.
+  // StackChunk objects may be reused, the GC must not assume that a StackChunk object is always a freshly
+  // allocated object.
+  virtual bool requires_barriers(stackChunkOop obj) const = 0;
+
+  // Returns "true" iff there is a stop-world GC in progress.
+  bool is_stw_gc_active() const { return _is_stw_gc_active; }
 
   // Total number of GC collections (started)
   unsigned int total_collections() const { return _total_collections; }
   unsigned int total_full_collections() const { return _total_full_collections;}
 
   // Increment total number of GC collections (started)
-  // Should be protected but used by PSMarkSweep - cleanup for 1.4.2
   void increment_total_collections(bool full = false) {
     _total_collections++;
     if (full) {
@@ -417,58 +389,35 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
   void increment_total_full_collections() { _total_full_collections++; }
 
-  // Return the CollectorPolicy for the heap
-  virtual CollectorPolicy* collector_policy() const = 0;
-
   // Return the SoftRefPolicy for the heap;
-  virtual SoftRefPolicy* soft_ref_policy() = 0;
+  SoftRefPolicy* soft_ref_policy() { return &_soft_ref_policy; }
 
+  virtual MemoryUsage memory_usage();
   virtual GrowableArray<GCMemoryManager*> memory_managers() = 0;
   virtual GrowableArray<MemoryPool*> memory_pools() = 0;
 
   // Iterate over all objects, calling "cl.do_object" on each.
   virtual void object_iterate(ObjectClosure* cl) = 0;
 
-  // Similar to object_iterate() except iterates only
-  // over live objects.
-  virtual void safe_object_iterate(ObjectClosure* cl) = 0;
+  virtual ParallelObjectIteratorImpl* parallel_object_iterator(uint thread_num) {
+    return nullptr;
+  }
 
-  // NOTE! There is no requirement that a collector implement these
-  // functions.
-  //
-  // A CollectedHeap is divided into a dense sequence of "blocks"; that is,
-  // each address in the (reserved) heap is a member of exactly
-  // one block.  The defining characteristic of a block is that it is
-  // possible to find its size, and thus to progress forward to the next
-  // block.  (Blocks may be of different sizes.)  Thus, blocks may
-  // represent Java objects, or they might be free blocks in a
-  // free-list-based heap (or subheap), as long as the two kinds are
-  // distinguishable and the size of each is determinable.
-
-  // Returns the address of the start of the "block" that contains the
-  // address "addr".  We say "blocks" instead of "object" since some heaps
-  // may not pack objects densely; a chunk may either be an object or a
-  // non-object.
-  virtual HeapWord* block_start(const void* addr) const = 0;
-
-  // Requires "addr" to be the start of a chunk, and returns its size.
-  // "addr + size" is required to be the start of a new chunk, or the end
-  // of the active area of the heap.
-  virtual size_t block_size(const HeapWord* addr) const = 0;
-
-  // Requires "addr" to be the start of a block, and returns "TRUE" iff
-  // the block is an object.
-  virtual bool block_is_obj(const HeapWord* addr) const = 0;
-
-  // Returns the longest time (in ms) that has elapsed since the last
-  // time that any part of the heap was examined by a garbage collection.
-  virtual jlong millis_since_last_gc() = 0;
+  // Keep alive an object that was loaded with AS_NO_KEEPALIVE.
+  virtual void keep_alive(oop obj) {}
 
   // Perform any cleanup actions necessary before allowing a verification.
   virtual void prepare_for_verify() = 0;
 
-  // Generate any dumps preceding or following a full gc
+  // Returns the longest time (in ms) that has elapsed since the last
+  // time that the whole heap has been examined by a garbage collection.
+  jlong millis_since_last_whole_heap_examined();
+  // GC should call this when the next whole heap analysis has completed to
+  // satisfy above requirement.
+  void record_whole_heap_examined_timestamp();
+
  private:
+  // Generate any dumps preceding or following a full gc
   void full_gc_dump(GCTimer* timer, bool before);
 
   virtual void initialize_serviceability() = 0;
@@ -482,12 +431,17 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
   MetaspaceSummary create_metaspace_summary();
 
+  // GCs are free to represent the bit representation for null differently in memory,
+  // which is typically not observable when using the Access API. However, if for
+  // some reason a context doesn't allow using the Access API, then this function
+  // explicitly checks if the given memory location contains a null value.
+  virtual bool contains_null(const oop* p) const;
+
   // Print heap information on the given outputStream.
   virtual void print_on(outputStream* st) const = 0;
   // The default behavior is to call print_on() on tty.
-  virtual void print() const {
-    print_on(tty);
-  }
+  virtual void print() const;
+
   // Print more detailed heap information on the given
   // outputStream. The default behavior is to call print_on(). It is
   // up to each subclass to override it and add any additional output
@@ -498,13 +452,9 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
   virtual void print_on_error(outputStream* st) const;
 
-  // Print all GC threads (other than the VM thread)
-  // used by this heap.
-  virtual void print_gc_threads_on(outputStream* st) const = 0;
-  // The default behavior is to call print_gc_threads_on() on tty.
-  void print_gc_threads() {
-    print_gc_threads_on(tty);
-  }
+  // Used to print information about locations in the hs_err file.
+  virtual bool print_location(outputStream* st, void* addr) const = 0;
+
   // Iterator for all GC threads (other than VM thread)
   virtual void gc_threads_do(ThreadClosure* tc) const = 0;
 
@@ -515,14 +465,10 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   void print_heap_before_gc();
   void print_heap_after_gc();
 
-  // An object is scavengable if its location may move during a scavenge.
-  // (A scavenge is a GC which is not a full GC.)
-  virtual bool is_scavengable(oop obj) = 0;
   // Registering and unregistering an nmethod (compiled code) with the heap.
-  // Override with specific mechanism for each specialized heap type.
-  virtual void register_nmethod(nmethod* nm) {}
-  virtual void unregister_nmethod(nmethod* nm) {}
-  virtual void verify_nmethod(nmethod* nmethod) {}
+  virtual void register_nmethod(nmethod* nm) = 0;
+  virtual void unregister_nmethod(nmethod* nm) = 0;
+  virtual void verify_nmethod(nmethod* nm) = 0;
 
   void trace_heap_before_gc(const GCTracer* gc_tracer);
   void trace_heap_after_gc(const GCTracer* gc_tracer);
@@ -530,53 +476,35 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // Heap verification
   virtual void verify(VerifyOption option) = 0;
 
-  // Return true if concurrent phase control (via
-  // request_concurrent_phase_control) is supported by this collector.
-  // The default implementation returns false.
-  virtual bool supports_concurrent_phase_control() const;
+  // Return true if concurrent gc control via WhiteBox is supported by
+  // this collector.  The default implementation returns false.
+  virtual bool supports_concurrent_gc_breakpoints() const;
 
-  // Return a NULL terminated array of concurrent phase names provided
-  // by this collector.  Supports Whitebox testing.  These are the
-  // names recognized by request_concurrent_phase(). The default
-  // implementation returns an array of one NULL element.
-  virtual const char* const* concurrent_phases() const;
-
-  // Request the collector enter the indicated concurrent phase, and
-  // wait until it does so.  Supports WhiteBox testing.  Only one
-  // request may be active at a time.  Phases are designated by name;
-  // the set of names and their meaning is GC-specific.  Once the
-  // requested phase has been reached, the collector will attempt to
-  // avoid transitioning to a new phase until a new request is made.
-  // [Note: A collector might not be able to remain in a given phase.
-  // For example, a full collection might cancel an in-progress
-  // concurrent collection.]
-  //
-  // Returns true when the phase is reached.  Returns false for an
-  // unknown phase.  The default implementation returns false.
-  virtual bool request_concurrent_phase(const char* phase);
-
-  // Provides a thread pool to SafepointSynchronize to use
-  // for parallel safepoint cleanup.
-  // GCs that use a GC worker thread pool may want to share
-  // it for use during safepoint cleanup. This is only possible
-  // if the GC can pause and resume concurrent work (e.g. G1
-  // concurrent marking) for an intermittent non-GC safepoint.
-  // If this method returns NULL, SafepointSynchronize will
-  // perform cleanup tasks serially in the VMThread.
-  virtual WorkGang* get_safepoint_workers() { return NULL; }
+  // Workers used in non-GC safepoints for parallel safepoint cleanup. If this
+  // method returns null, cleanup tasks are done serially in the VMThread. See
+  // `SafepointSynchronize::do_cleanup_tasks` for details.
+  // GCs using a GC worker thread pool inside GC safepoints may opt to share
+  // that pool with non-GC safepoints, avoiding creating extraneous threads.
+  // Such sharing is safe, because GC safepoints and non-GC safepoints never
+  // overlap. For example, `G1CollectedHeap::workers()` (for GC safepoints) and
+  // `G1CollectedHeap::safepoint_workers()` (for non-GC safepoints) return the
+  // same thread-pool.
+  virtual WorkerThreads* safepoint_workers() { return nullptr; }
 
   // Support for object pinning. This is used by JNI Get*Critical()
-  // and Release*Critical() family of functions. If supported, the GC
-  // must guarantee that pinned objects never move.
-  virtual bool supports_object_pinning() const;
-  virtual oop pin_object(JavaThread* thread, oop obj);
-  virtual void unpin_object(JavaThread* thread, oop obj);
+  // and Release*Critical() family of functions. The GC must guarantee
+  // that pinned objects never move and don't get reclaimed as garbage.
+  // These functions are potentially safepointing.
+  virtual void pin_object(JavaThread* thread, oop obj) = 0;
+  virtual void unpin_object(JavaThread* thread, oop obj) = 0;
 
-  // Deduplicate the string, iff the GC supports string deduplication.
-  virtual void deduplicate_string(oop str);
+  // Support for loading objects from CDS archive into the heap
+  // (usually as a snapshot of the old generation).
+  virtual bool can_load_archived_objects() const { return false; }
+  virtual HeapWord* allocate_loaded_archive_space(size_t size) { return nullptr; }
+  virtual void complete_loaded_archive_space(MemRegion archive_space) { }
 
   virtual bool is_oop(oop object) const;
-
   // Non product verification and debugging.
 #ifndef PRODUCT
   // Support for PromotionFailureALot.  Return true if it's time to cause a
@@ -590,12 +518,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   void reset_promotion_should_fail(volatile size_t* count);
   void reset_promotion_should_fail();
 #endif  // #ifndef PRODUCT
-
-#ifdef ASSERT
-  static int fired_fake_oom() {
-    return (CIFireOOMAt > 1 && _fire_out_of_memory_count >= CIFireOOMAt);
-  }
-#endif
 };
 
 // Class to set and reset the GC cause for a CollectedHeap.
@@ -615,4 +537,4 @@ class GCCauseSetter : StackObj {
   }
 };
 
-#endif // SHARE_VM_GC_SHARED_COLLECTEDHEAP_HPP
+#endif // SHARE_GC_SHARED_COLLECTEDHEAP_HPP

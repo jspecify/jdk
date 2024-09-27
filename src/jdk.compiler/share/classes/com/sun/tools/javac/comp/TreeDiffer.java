@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018, Google LLC. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +26,7 @@
 
 package com.sun.tools.javac.comp;
 
+import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCAnnotatedType;
@@ -35,6 +37,7 @@ import com.sun.tools.javac.tree.JCTree.JCAssert;
 import com.sun.tools.javac.tree.JCTree.JCAssign;
 import com.sun.tools.javac.tree.JCTree.JCAssignOp;
 import com.sun.tools.javac.tree.JCTree.JCBinary;
+import com.sun.tools.javac.tree.JCTree.JCBindingPattern;
 import com.sun.tools.javac.tree.JCTree.JCBlock;
 import com.sun.tools.javac.tree.JCTree.JCBreak;
 import com.sun.tools.javac.tree.JCTree.JCCase;
@@ -42,7 +45,9 @@ import com.sun.tools.javac.tree.JCTree.JCCatch;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCConditional;
+import com.sun.tools.javac.tree.JCTree.JCConstantCaseLabel;
 import com.sun.tools.javac.tree.JCTree.JCContinue;
+import com.sun.tools.javac.tree.JCTree.JCDefaultCaseLabel;
 import com.sun.tools.javac.tree.JCTree.JCDoWhileLoop;
 import com.sun.tools.javac.tree.JCTree.JCEnhancedForLoop;
 import com.sun.tools.javac.tree.JCTree.JCErroneous;
@@ -62,15 +67,19 @@ import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCModifiers;
 import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
+import com.sun.tools.javac.tree.JCTree.JCModuleImport;
 import com.sun.tools.javac.tree.JCTree.JCNewArray;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.tree.JCTree.JCOpens;
 import com.sun.tools.javac.tree.JCTree.JCPackageDecl;
+import com.sun.tools.javac.tree.JCTree.JCPatternCaseLabel;
 import com.sun.tools.javac.tree.JCTree.JCPrimitiveTypeTree;
 import com.sun.tools.javac.tree.JCTree.JCProvides;
+import com.sun.tools.javac.tree.JCTree.JCRecordPattern;
 import com.sun.tools.javac.tree.JCTree.JCRequires;
 import com.sun.tools.javac.tree.JCTree.JCReturn;
 import com.sun.tools.javac.tree.JCTree.JCSwitch;
+import com.sun.tools.javac.tree.JCTree.JCSwitchExpression;
 import com.sun.tools.javac.tree.JCTree.JCSynchronized;
 import com.sun.tools.javac.tree.JCTree.JCThrow;
 import com.sun.tools.javac.tree.JCTree.JCTry;
@@ -84,6 +93,7 @@ import com.sun.tools.javac.tree.JCTree.JCUses;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.JCTree.JCWhileLoop;
 import com.sun.tools.javac.tree.JCTree.JCWildcard;
+import com.sun.tools.javac.tree.JCTree.JCYield;
 import com.sun.tools.javac.tree.JCTree.LetExpr;
 import com.sun.tools.javac.tree.JCTree.TypeBoundKind;
 import com.sun.tools.javac.tree.TreeInfo;
@@ -251,6 +261,23 @@ public class TreeDiffer extends TreeScanner {
     }
 
     @Override
+    public void visitBindingPattern(JCBindingPattern tree) {
+        JCBindingPattern that = (JCBindingPattern) parameter;
+        result = scan(tree.var, that.var);
+        if (!result) {
+            return;
+        }
+    }
+
+    @Override
+    public void visitRecordPattern(JCTree.JCRecordPattern tree) {
+        JCRecordPattern that = (JCRecordPattern) parameter;
+        result =
+                scan(tree.deconstructor, that.deconstructor)
+                        && scan(tree.nested, that.nested);
+    }
+
+    @Override
     public void visitBlock(JCBlock tree) {
         JCBlock that = (JCBlock) parameter;
         result = tree.flags == that.flags && scan(tree.stats, that.stats);
@@ -263,9 +290,34 @@ public class TreeDiffer extends TreeScanner {
     }
 
     @Override
+    public void visitYield(JCYield tree) {
+        JCYield that = (JCYield) parameter;
+        result = scan(tree.value, that.value);
+    }
+
+    @Override
     public void visitCase(JCCase tree) {
         JCCase that = (JCCase) parameter;
-        result = scan(tree.pat, that.pat) && scan(tree.stats, that.stats);
+        result = scan(tree.labels, that.labels) &&
+                 scan(tree.guard, that.guard) &&
+                 scan(tree.stats, that.stats);
+    }
+
+    @Override
+    public void visitConstantCaseLabel(JCConstantCaseLabel tree) {
+        JCConstantCaseLabel that = (JCConstantCaseLabel) parameter;
+        result = scan(tree.expr, that.expr);
+    }
+
+    @Override
+    public void visitPatternCaseLabel(JCPatternCaseLabel tree) {
+        JCPatternCaseLabel that = (JCPatternCaseLabel) parameter;
+        result = scan(tree.pat, that.pat);
+    }
+
+    @Override
+    public void visitDefaultCaseLabel(JCDefaultCaseLabel tree) {
+        result = true;
     }
 
     @Override
@@ -357,6 +409,12 @@ public class TreeDiffer extends TreeScanner {
     public void visitImport(JCImport tree) {
         JCImport that = (JCImport) parameter;
         result = tree.staticImport == that.staticImport && scan(tree.qualid, that.qualid);
+    }
+
+    @Override
+    public void visitModuleImport(JCModuleImport tree) {
+        JCModuleImport that = (JCModuleImport) parameter;
+        result = scan(tree.module, that.module);
     }
 
     @Override
@@ -499,6 +557,12 @@ public class TreeDiffer extends TreeScanner {
     }
 
     @Override
+    public void visitSwitchExpression(JCSwitchExpression tree) {
+        JCSwitchExpression that = (JCSwitchExpression) parameter;
+        result = scan(tree.selector, that.selector) && scan(tree.cases, that.cases);
+    }
+
+    @Override
     public void visitSynchronized(JCSynchronized tree) {
         JCSynchronized that = (JCSynchronized) parameter;
         result = scan(tree.lock, that.lock) && scan(tree.body, that.body);
@@ -577,7 +641,7 @@ public class TreeDiffer extends TreeScanner {
     @Override
     public void visitTypeTest(JCInstanceOf tree) {
         JCInstanceOf that = (JCInstanceOf) parameter;
-        result = scan(tree.expr, that.expr) && scan(tree.clazz, that.clazz);
+        result = scan(tree.expr, that.expr) && scan(tree.pattern, that.pattern);
     }
 
     @Override

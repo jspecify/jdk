@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,7 +57,7 @@ import jdk.jfr.Recording;
  * See the package {@code jdk.jfr} documentation for descriptions of the settings
  * syntax and the {@link ConfigurationInfo} class documentation for configuration information.
  *
- * <h3>Recording options</h3>
+ * <h2>Recording options</h2>
  * <p>
  * The following table shows the options names to use with {@link #setRecordingOptions(long, Map)}
  * and {@link #getRecordingOptions(long)}.
@@ -205,12 +205,10 @@ public interface FlightRecorderMXBean extends PlatformManagedObject {
      * The caller must close the recording when access to the data is no longer
      * needed.
      *
-     * @return a snapshot of all available recording data, not {@code null}
+     * @return a unique ID that can be used for reading recording data
      *
      * @throws java.lang.SecurityException if a security manager exists and the
      *         caller does not have {@code ManagementPermission("control")}
-     *
-     * @return a unique ID that can be used for reading recording data.
      *
      * @see Recording
      */
@@ -348,12 +346,22 @@ public interface FlightRecorderMXBean extends PlatformManagedObject {
      * <td>{@code "50000"},<br>
      * {@code "1000000"},<br>
      * </tr>
+     * <tr>
+     * <th scope="row">{@code streamVersion}</th>
+     * <td>Specifies format to use when reading data from a running recording
+     * </td>
+     * <td>{@code "1.0"}</td>
+     * <td>A version number with a major and minor.<br>
+     * <br>
+     * To be able to read from a running recording the value must be set</td>
+     * <td>{@code "1.0"}
+     * </tr>
      * </tbody>
      * </table>
      * If an option is omitted from the map the default value is used.
      * <p>
      * The recording with the specified ID must be stopped before a stream can
-     * be opened. This restriction might be lifted in future releases.
+     * be opened, unless the option {@code "streamVersion"} is specified.
      *
      * @param recordingId ID of the recording to open the stream for
      *
@@ -517,7 +525,6 @@ public interface FlightRecorderMXBean extends PlatformManagedObject {
      * event type is obtained by invoking
      * {@link jdk.jfr.EventType#getSettingDescriptors()} and
      * {@link jdk.jfr.ValueDescriptor#getName()}.
-     * <p>
      *
      * @param recordingId ID of the recording
      *

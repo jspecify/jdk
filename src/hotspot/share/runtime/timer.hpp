@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_TIMER_HPP
-#define SHARE_VM_RUNTIME_TIMER_HPP
+#ifndef SHARE_RUNTIME_TIMER_HPP
+#define SHARE_RUNTIME_TIMER_HPP
 
 #include "utilities/globalDefinitions.hpp"
 
@@ -37,8 +37,8 @@ class elapsedTimer {
   bool  _active;
  public:
   elapsedTimer()             { _active = false; reset(); }
-  elapsedTimer(jlong time, jlong timeUnitsPerSecond);
   void add(elapsedTimer t);
+  void add_nanoseconds(jlong ns);
   void start();
   void stop();
   void reset()               { _counter = 0; }
@@ -55,7 +55,6 @@ class TimeStamp {
   jlong _counter;
  public:
   TimeStamp()  { _counter = 0; }
-  void clear() { _counter = 0; }
   // has the timestamp been updated since being created or cleared?
   bool is_updated() const { return _counter != 0; }
   // update to current elapsed time
@@ -72,28 +71,12 @@ class TimeStamp {
   jlong ticks_since_update() const;
 };
 
-class TraceCPUTime: public StackObj {
- private:
-  bool _active;                 // true if times will be measured and printed
-  bool _print_cr;               // if true print carriage return at end
-  double _starting_user_time;   // user time at start of measurement
-  double _starting_system_time; // system time at start of measurement
-  double _starting_real_time;   // real time at start of measurement
-  outputStream* _logfile;       // output is printed to this stream
-  bool _error;                  // true if an error occurred, turns off output
-
- public:
-  TraceCPUTime(bool doit = true,
-               bool print_cr = true,
-               outputStream *logfile = NULL);
-  ~TraceCPUTime();
-};
-
 class TimeHelper {
  public:
   static double counter_to_seconds(jlong counter);
   static double counter_to_millis(jlong counter);
   static jlong millis_to_counter(jlong millis);
+  static jlong micros_to_counter(jlong micros);
 };
 
-#endif // SHARE_VM_RUNTIME_TIMER_HPP
+#endif // SHARE_RUNTIME_TIMER_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,18 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_MATCHER_HPP
-#define SHARE_VM_OPTO_MATCHER_HPP
+#ifndef SHARE_OPTO_MATCHER_HPP
+#define SHARE_OPTO_MATCHER_HPP
 
 #include "libadt/vectset.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/compressedKlass.hpp"
+#include "oops/compressedOops.hpp"
 #include "opto/node.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/regmask.hpp"
+#include "opto/subnode.hpp"
+#include "runtime/vm_version.hpp"
 
 class Compile;
 class Node;
@@ -42,6 +46,9 @@ class Matcher : public PhaseTransform {
   friend class VMStructs;
 
 public:
+
+  // Machine-dependent definitions
+#include CPU_HEADER(matcher)
 
   // State and MStack class used in xform() and find_shared() iterative methods.
   enum Node_State { Pre_Visit,  // node has to be pre-visited
@@ -82,6 +89,9 @@ private:
   // Private arena of State objects
   ResourceArea _states_arena;
 
+  // Map old nodes to new nodes
+  Node_List   _new_nodes;
+
   VectorSet   _visited;         // Visit bits
 
   // Used to control the Label pass
@@ -118,15 +128,16 @@ private:
 
   // Find shared Nodes, or Nodes that otherwise are Matcher roots
   void find_shared( Node *n );
-#ifdef X86
-  bool is_bmi_pattern(Node *n, Node *m);
-#endif
+  bool find_shared_visit(MStack& mstack, Node* n, uint opcode, bool& mem_op, int& mem_addr_idx);
+  void find_shared_post_visit(Node* n, uint opcode);
+
+  bool is_vshift_con_pattern(Node* n, Node* m);
 
   // Debug and profile information for nodes in old space:
   GrowableArray<Node_Notes*>* _old_node_note_array;
 
   // Node labeling iterator for instruction selection
-  Node *Label_Root( const Node *n, State *svec, Node *control, const Node *mem );
+  Node* Label_Root(const Node* n, State* svec, Node* control, Node*& mem);
 
   Node *transform( Node *dummy );
 
@@ -134,23 +145,25 @@ private:
 
   Node_Array _shared_nodes;
 
-  debug_only(Node_Array _old2new_map;)   // Map roots of ideal-trees to machine-roots
-  debug_only(Node_Array _new2old_map;)   // Maps machine nodes back to ideal
+#ifndef PRODUCT
+  Node_Array _old2new_map;    // Map roots of ideal-trees to machine-roots
+  Node_Array _new2old_map;    // Maps machine nodes back to ideal
+  VectorSet _reused;          // Ideal IGV identifiers reused by machine nodes
+#endif // !PRODUCT
 
-  // Accessors for the inherited field PhaseTransform::_nodes:
   void   grow_new_node_array(uint idx_limit) {
-    _nodes.map(idx_limit-1, NULL);
+    _new_nodes.map(idx_limit-1, nullptr);
   }
   bool    has_new_node(const Node* n) const {
-    return _nodes.at(n->_idx) != NULL;
+    return _new_nodes.at(n->_idx) != nullptr;
   }
   Node*       new_node(const Node* n) const {
     assert(has_new_node(n), "set before get");
-    return _nodes.at(n->_idx);
+    return _new_nodes.at(n->_idx);
   }
   void    set_new_node(const Node* n, Node *nn) {
     assert(!has_new_node(n), "set only once");
-    _nodes.map(n->_idx, nn);
+    _new_nodes.map(n->_idx, nn);
   }
 
 #ifdef ASSERT
@@ -160,7 +173,7 @@ private:
   Node* _mem_node;   // Ideal memory node consumed by mach node
 #endif
 
-  // Mach node for ConP #NULL
+  // Mach node for ConP #null
   MachNode* _mach_null;
 
   void handle_precedence_edges(Node* n, MachNode *mach);
@@ -177,6 +190,10 @@ public:
   static uint mreg2regmask_max;
   static RegMask mreg2regmask[];
   static RegMask STACK_ONLY_mask;
+  static RegMask caller_save_regmask;
+  static RegMask caller_save_regmask_exclude_soe;
+  static RegMask mh_caller_save_regmask;
+  static RegMask mh_caller_save_regmask_exclude_soe;
 
   MachNode* mach_null() const { return _mach_null; }
 
@@ -220,6 +237,10 @@ public:
   // Maps from machine register to boolean; true if machine register holds
   // a spillable argument.
   static bool is_spillable_arg( int reg );
+  // Number of integer live ranges that constitute high register pressure
+  static uint int_pressure_limit();
+  // Number of float live ranges that constitute high register pressure
+  static uint float_pressure_limit();
 
   // List of IfFalse or IfTrue Nodes that indicate a taken null test.
   // List is valid in the post-matching space.
@@ -299,59 +320,72 @@ public:
   RegMask *_calling_convention_mask; // Array of RegMasks per argument
 
   // Does matcher have a match rule for this ideal node?
-  static const bool has_match_rule(int opcode);
+  static bool has_match_rule(int opcode);
   static const bool _hasMatchRule[_last_opcode];
 
   // Does matcher have a match rule for this ideal node and is the
   // predicate (if there is one) true?
   // NOTE: If this function is used more commonly in the future, ADLC
   // should generate this one.
-  static const bool match_rule_supported(int opcode);
+  static bool match_rule_supported(int opcode);
+
+  // Identify extra cases that we might want to vectorize automatically
+  // And exclude cases which are not profitable to auto-vectorize.
+  static bool match_rule_supported_auto_vectorization(int opcode, int vlen, BasicType bt);
 
   // identify extra cases that we might want to provide match rules for
   // e.g. Op_ vector nodes and other intrinsics while guarding with vlen
-  static const bool match_rule_supported_vector(int opcode, int vlen);
+  static bool match_rule_supported_vector(int opcode, int vlen, BasicType bt);
 
-  // Some microarchitectures have mask registers used on vectors
-  static const bool has_predicated_vectors(void);
+  static bool match_rule_supported_vector_masked(int opcode, int vlen, BasicType bt);
 
-  // Some uarchs have different sized float register resources
-  static const int float_pressure(int default_pressure_threshold);
+  static bool vector_needs_partial_operations(Node* node, const TypeVect* vt);
 
-  // Used to determine if we have fast l2f conversion
-  // USII has it, USIII doesn't
-  static const bool convL2FSupported(void);
+  static const RegMask* predicate_reg_mask(void);
+  static const TypeVectMask* predicate_reg_type(const Type* elemTy, int length);
 
   // Vector width in bytes
-  static const int vector_width_in_bytes(BasicType bt);
+  static int vector_width_in_bytes(BasicType bt);
 
   // Limits on vector size (number of elements).
-  static const int max_vector_size(const BasicType bt);
-  static const int min_vector_size(const BasicType bt);
-  static const bool vector_size_supported(const BasicType bt, int size) {
+  static int max_vector_size(const BasicType bt);
+  static int min_vector_size(const BasicType bt);
+  static bool vector_size_supported(const BasicType bt, int size) {
     return (Matcher::max_vector_size(bt) >= size &&
             Matcher::min_vector_size(bt) <= size);
   }
+  // Limits on max vector size (number of elements) for auto-vectorization.
+  static int max_vector_size_auto_vectorization(const BasicType bt);
+
+  // Actual max scalable vector register length.
+  static int scalable_vector_reg_size(const BasicType bt);
+  // Actual max scalable predicate register length.
+  static int scalable_predicate_reg_slots();
 
   // Vector ideal reg
-  static const uint vector_ideal_reg(int len);
-  static const uint vector_shift_count_ideal_reg(int len);
+  static uint vector_ideal_reg(int len);
 
-  // CPU supports misaligned vectors store/load.
-  static const bool misaligned_vectors_ok();
+  // Vector length
+  static uint vector_length(const Node* n);
+  static uint vector_length(const MachNode* use, const MachOper* opnd);
 
-  // Should original key array reference be passed to AES stubs
-  static const bool pass_original_key_for_aes();
+  // Vector length in bytes
+  static uint vector_length_in_bytes(const Node* n);
+  static uint vector_length_in_bytes(const MachNode* use, const MachOper* opnd);
 
-  // Used to determine a "low complexity" 64-bit constant.  (Zero is simple.)
-  // The standard of comparison is one (StoreL ConL) vs. two (StoreI ConI).
-  // Depends on the details of 64-bit constant generation on the CPU.
-  static const bool isSimpleConstant64(jlong con);
+  // Vector element basic type
+  static BasicType vector_element_basic_type(const Node* n);
+  static BasicType vector_element_basic_type(const MachNode* use, const MachOper* opnd);
+
+  // Vector element basic type is non double word integral type.
+  static bool is_non_long_integral_vector(const Node* n);
+
+  // Check if given booltest condition is unsigned or not
+  static inline bool is_unsigned_booltest_pred(int bt) {
+    return ((bt & BoolTest::unsigned_compare) == BoolTest::unsigned_compare);
+  }
 
   // These calls are all generated by the ADLC
-
-  // TRUE - grows up, FALSE - grows down (Intel)
-  virtual bool stack_direction() const;
 
   // Java-Java calling convention
   // (what you use when Java calls Java)
@@ -365,20 +399,16 @@ public:
     return stack_alignment_in_bytes() / (VMRegImpl::stack_slot_size);
   }
 
-  // Array mapping arguments to registers.  Argument 0 is usually the 'this'
-  // pointer.  Registers can include stack-slots and regular registers.
-  static void calling_convention( BasicType *, VMRegPair *, uint len, bool is_outgoing );
-
   // Convert a sig into a calling convention register layout
   // and find interesting things about it.
-  static OptoReg::Name  find_receiver( bool is_outgoing );
+  static OptoReg::Name  find_receiver();
   // Return address register.  On Intel it is a stack-slot.  On PowerPC
   // it is the Link register.  On Sparc it is r31?
   virtual OptoReg::Name return_addr() const;
   RegMask              _return_addr_mask;
-  // Return value register.  On Intel it is EAX.  On Sparc i0/o0.
-  static OptoRegPair   return_value(uint ideal_reg, bool is_outgoing);
-  static OptoRegPair c_return_value(uint ideal_reg, bool is_outgoing);
+  // Return value register.  On Intel it is EAX.
+  static OptoRegPair   return_value(uint ideal_reg);
+  static OptoRegPair c_return_value(uint ideal_reg);
   RegMask                     _return_value_mask;
   // Inline Cache Register
   static OptoReg::Name  inline_cache_reg();
@@ -408,14 +438,7 @@ public:
   static int  number_of_saved_registers();
 
   // The Method-klass-holder may be passed in the inline_cache_reg
-  // and then expanded into the inline_cache_reg and a method_oop register
-
-  static OptoReg::Name  interpreter_method_oop_reg();
-  static int            interpreter_method_oop_reg_encode();
-
-  static OptoReg::Name  compiler_method_oop_reg();
-  static const RegMask &compiler_method_oop_reg_mask();
-  static int            compiler_method_oop_reg_encode();
+  // and then expanded into the inline_cache_reg and a method_ptr register
 
   // Interpreter's Frame Pointer Register
   static OptoReg::Name  interpreter_frame_pointer_reg();
@@ -423,42 +446,30 @@ public:
   // Java-Native calling convention
   // (what you use when intercalling between Java and C++ code)
 
-  // Array mapping arguments to registers.  Argument 0 is usually the 'this'
-  // pointer.  Registers can include stack-slots and regular registers.
-  static void c_calling_convention( BasicType*, VMRegPair *, uint );
   // Frame pointer. The frame pointer is kept at the base of the stack
   // and so is probably the stack pointer for most machines.  On Intel
   // it is ESP.  On the PowerPC it is R1.  On Sparc it is SP.
   OptoReg::Name  c_frame_pointer() const;
   static RegMask c_frame_ptr_mask;
 
-  // !!!!! Special stuff for building ScopeDescs
-  virtual int      regnum_to_fpu_offset(int regnum);
+  // Java-Native vector calling convention
+  static bool supports_vector_calling_convention();
+  static OptoRegPair vector_return_value(uint ideal_reg);
 
   // Is this branch offset small enough to be addressed by a short branch?
   bool is_short_branch_offset(int rule, int br_size, int offset);
 
-  // Optional scaling for the parameter to the ClearArray/CopyArray node.
-  static const bool init_array_count_is_in_bytes;
-
-  // Some hardware needs 2 CMOV's for longs.
-  static const int long_cmove_cost();
-
-  // Some hardware have expensive CMOV for float and double.
-  static const int float_cmove_cost();
+  // Should the input 'm' of node 'n' be cloned during matching?
+  // Reports back whether the node was cloned or not.
+  bool    clone_node(Node* n, Node* m, Matcher::MStack& mstack);
+  bool pd_clone_node(Node* n, Node* m, Matcher::MStack& mstack);
 
   // Should the Matcher clone shifts on addressing modes, expecting them to
   // be subsumed into complex addressing expressions or compute them into
   // registers?  True for Intel but false for most RISCs
-  bool clone_address_expressions(AddPNode* m, MStack& mstack, VectorSet& address_visited);
+  bool pd_clone_address_expressions(AddPNode* m, MStack& mstack, VectorSet& address_visited);
   // Clone base + offset address expression
   bool clone_base_plus_offset_address(AddPNode* m, MStack& mstack, VectorSet& address_visited);
-
-  static bool narrow_oop_use_complex_address();
-  static bool narrow_klass_use_complex_address();
-
-  static bool const_oop_prefer_decode();
-  static bool const_klass_prefer_decode();
 
   // Generate implicit null check for narrow oops if it can fold
   // into address expression (x64).
@@ -484,57 +495,26 @@ public:
   // [oop_reg + offset]
   // NullCheck oop_reg
   //
-  inline static bool gen_narrow_oop_implicit_null_checks() {
-    // Advice matcher to perform null checks on the narrow oop side.
-    // Implicit checks are not possible on the uncompressed oop side anyway
-    // (at least not for read accesses).
-    // Performs significantly better (especially on Power 6).
-    if (!os::zero_page_read_protected()) {
-      return true;
-    }
-    return Universe::narrow_oop_use_implicit_null_checks() &&
-           (narrow_oop_use_complex_address() ||
-            Universe::narrow_oop_base() != NULL);
-  }
+  static bool gen_narrow_oop_implicit_null_checks();
 
-  // Is it better to copy float constants, or load them directly from memory?
-  // Intel can load a float constant from a direct address, requiring no
-  // extra registers.  Most RISCs will have to materialize an address into a
-  // register first, so they may as well materialize the constant immediately.
-  static const bool rematerialize_float_constants;
+ private:
+  void do_postselect_cleanup();
 
-  // If CPU can load and store mis-aligned doubles directly then no fixup is
-  // needed.  Else we split the double into 2 integer pieces and move it
-  // piece-by-piece.  Only happens when passing doubles into C code or when
-  // calling i2c adapters as the Java calling convention forces doubles to be
-  // aligned.
-  static const bool misaligned_doubles_ok;
+  void specialize_generic_vector_operands();
+  void specialize_mach_node(MachNode* m);
+  void specialize_temp_node(MachTempNode* tmp, MachNode* use, uint idx);
+  MachOper* specialize_vector_operand(MachNode* m, uint opnd_idx);
 
-  // Does the CPU require postalloc expand (see block.cpp for description of
-  // postalloc expand)?
-  static const bool require_postalloc_expand;
+  static MachOper* pd_specialize_generic_vector_operand(MachOper* generic_opnd, uint ideal_reg, bool is_temp);
+  static bool is_reg2reg_move(MachNode* m);
+  static bool is_generic_vector(MachOper* opnd);
 
-  // Perform a platform dependent implicit null fixup.  This is needed
-  // on windows95 to take care of some unusual register constraints.
-  void pd_implicit_null_fixup(MachNode *load, uint idx);
+  const RegMask* regmask_for_ideal_register(uint ideal_reg, Node* ret);
 
-  // Advertise here if the CPU requires explicit rounding operations
-  // to implement the UseStrictFP mode.
-  static const bool strict_fp_requires_explicit_rounding;
+  // Graph verification code
+  DEBUG_ONLY( bool verify_after_postselect_cleanup(); )
 
-  // Are floats conerted to double when stored to stack during deoptimization?
-  static bool float_in_double();
-  // Do ints take an entire long register or just half?
-  static const bool int_in_long;
-
-  // Do the processor's shift instructions only use the low 5/6 bits
-  // of the count for 32/64 bit ints? If not we need to do the masking
-  // ourselves.
-  static const bool need_masked_shift_count;
-
-  // Whether code generation need accurate ConvI2L types.
-  static const bool convi2l_type_required;
-
+ public:
   // This routine is run whenever a graph fails to match.
   // If it returns, the compiler should bailout to interpreter without error.
   // In non-product mode, SoftMatchFailure is false to detect non-canonical
@@ -552,13 +532,16 @@ public:
   // Does n lead to an uncommon trap that can cause deoptimization?
   static bool branches_to_uncommon_trap(const Node *n);
 
-#ifdef ASSERT
+#ifndef PRODUCT
+  // Record mach-to-Ideal mapping, reusing the Ideal IGV identifier if possible.
+  void record_new2old(Node* newn, Node* old);
+
   void dump_old2new_map();      // machine-independent to machine-dependent
 
-  Node* find_old_node(Node* new_node) {
+  Node* find_old_node(const Node* new_node) {
     return _new2old_map[new_node->_idx];
   }
-#endif
+#endif // !PRODUCT
 };
 
-#endif // SHARE_VM_OPTO_MATCHER_HPP
+#endif // SHARE_OPTO_MATCHER_HPP

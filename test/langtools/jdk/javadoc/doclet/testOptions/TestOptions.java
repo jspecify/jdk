@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,41 +23,43 @@
 
 /*
  * @test
- * @bug      4749567 8071982 8175200 8186332 8185371 8182765
- * @summary  Test the output for -header, -footer, -nooverview, -nodeprecatedlist, -nonavbar, -notree,
- *           -stylesheetfile, --main-stylesheet, --add-stylesheet options.
- * @author   Bhavesh Patel
- * @library  ../lib
+ * @bug      4749567 8071982 8175200 8186332 8185371 8182765 8217034 8261976 8261976
+ *           8275786
+ * @summary  Test the output for -header, -footer, -nooverview, -nodeprecatedlist,
+ *           -nonavbar, -notree, -stylesheetfile, --main-stylesheet, --add-stylesheet,
+ *           --add-script options.
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestOptions
  */
 
 import java.io.File;
 
+import javadoc.tester.JavadocTester;
+
 public class TestOptions extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestOptions tester = new TestOptions();
+        var tester = new TestOptions();
         tester.runTests();
     }
 
     @Test
-    void testHeaderFooter() {
+    public void testHeader() {
         javadoc("-d", "out-1",
                 "-header", "Test header",
-                "-footer", "Test footer",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
 
         checkOutput("pkg/package-summary.html", true,
-                "<div class=\"aboutLanguage\">Test header</div>",
-                "<div class=\"aboutLanguage\">Test footer</div>");
+                """
+                    <div class="about-language">Test header</div>""");
     }
 
     @Test
-    void testNoOverview() {
+    public void testNoOverview() {
         javadoc("-d", "out-4",
                 "-nooverview",
                 "-sourcepath", testSrc,
@@ -69,7 +71,7 @@ public class TestOptions extends JavadocTester {
     }
 
     @Test
-    void testNoDeprecatedList() {
+    public void testNoDeprecatedList() {
         javadoc("-d", "out-5",
                 "-nodeprecatedlist",
                 "-sourcepath", testSrc,
@@ -80,7 +82,7 @@ public class TestOptions extends JavadocTester {
     }
 
     @Test
-    void testNoNavbar() {
+    public void testNoNavbar() {
         javadoc("-d", "out-6",
                 "-nonavbar",
                 "-bottom", "Bottom text",
@@ -93,7 +95,7 @@ public class TestOptions extends JavadocTester {
     }
 
     @Test
-    void testNoTree() {
+    public void testNoTree() {
         javadoc("-d", "out-7",
                 "-notree",
                 "-sourcepath", testSrc,
@@ -102,37 +104,38 @@ public class TestOptions extends JavadocTester {
 
         checkFiles(false, "overview-tree.html");
         checkFiles(false, "pkg/package-tree.html");
-        checkOutput("pkg/Foo.html", false, "<li><a href=\"package-tree.html\">Tree</a></li>");
+        checkOutput("pkg/Foo.html", false, """
+            <li><a href="package-tree.html">Tree</a></li>""");
     }
 
     @Test
-    void testStylesheetFile() {
+    public void testStylesheetFile() {
         javadoc("-d", "out-8",
                 "-stylesheetfile", new File(testSrc, "custom-stylesheet.css").getAbsolutePath(),
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
 
-        checkOutput("custom-stylesheet.css", true, "Custom javadoc style sheet");
-        checkOutput("pkg/Foo.html", true, "<link rel=\"stylesheet\" type=\"text/css\" "
-                + "href=\"../custom-stylesheet.css\" title=\"Style\">");
+        checkOutput("resource-files/custom-stylesheet.css", true, "Custom javadoc style sheet");
+        checkOutput("pkg/Foo.html", true, """
+            <link rel="stylesheet" type="text/css" href="../resource-files/custom-stylesheet.css" title="Style">""");
     }
 
     @Test
-    void testStylesheetFileAltOption() {
+    public void testStylesheetFileAltOption() {
         javadoc("-d", "out-stylesheet-file",
                 "--main-stylesheet", new File(testSrc, "custom-stylesheet.css").getAbsolutePath(),
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
 
-        checkOutput("custom-stylesheet.css", true, "Custom javadoc style sheet");
-        checkOutput("pkg/Foo.html", true, "<link rel=\"stylesheet\" type=\"text/css\" "
-                + "href=\"../custom-stylesheet.css\" title=\"Style\">");
+        checkOutput("resource-files/custom-stylesheet.css", true, "Custom javadoc style sheet");
+        checkOutput("pkg/Foo.html", true, """
+            <link rel="stylesheet" type="text/css" href="../resource-files/custom-stylesheet.css" title="Style">""");
     }
 
     @Test
-    void testAdditionalStylesheetFile() {
+    public void testAdditionalStylesheetFile() {
         javadoc("-d", "out-additional-css",
                 "--add-stylesheet", new File(testSrc, "additional-stylesheet-1.css").getAbsolutePath(),
                 "--add-stylesheet", new File(testSrc, "additional-stylesheet-2.css").getAbsolutePath(),
@@ -141,17 +144,18 @@ public class TestOptions extends JavadocTester {
                 "pkg");
         checkExit(Exit.OK);
 
-        checkOutput("additional-stylesheet-1.css", true, "Additional javadoc style sheet 1");
-        checkOutput("additional-stylesheet-2.css", true, "Additional javadoc style sheet 2");
-        checkOutput("additional-stylesheet-3.css", true, "Additional javadoc style sheet 3");
+        checkOutput("resource-files/additional-stylesheet-1.css", true, "Additional javadoc style sheet 1");
+        checkOutput("resource-files/additional-stylesheet-2.css", true, "Additional javadoc style sheet 2");
+        checkOutput("resource-files/additional-stylesheet-3.css", true, "Additional javadoc style sheet 3");
         checkOutput("pkg/Foo.html", true,
-                "<link rel=\"stylesheet\" type=\"text/css\" href=\"../additional-stylesheet-1.css\" title=\"Style\">\n"
-                + "<link rel=\"stylesheet\" type=\"text/css\" href=\"../additional-stylesheet-2.css\" title=\"Style\">\n"
-                + "<link rel=\"stylesheet\" type=\"text/css\" href=\"../additional-stylesheet-3.css\" title=\"Style\">");
+                """
+                    <link rel="stylesheet" type="text/css" href="../resource-files/additional-stylesheet-1.css" title="Style">
+                    <link rel="stylesheet" type="text/css" href="../resource-files/additional-stylesheet-2.css" title="Style">
+                    <link rel="stylesheet" type="text/css" href="../resource-files/additional-stylesheet-3.css" title="Style">""");
     }
 
     @Test
-    void testInvalidStylesheetFile() {
+    public void testInvalidStylesheetFile() {
         javadoc("-d", "out-invalid-css",
                 "--main-stylesheet", new File(testSrc, "custom-stylesheet-1.css").getAbsolutePath(),
                 "-sourcepath", testSrc,
@@ -159,12 +163,12 @@ public class TestOptions extends JavadocTester {
         checkExit(Exit.ERROR);
 
         checkOutput(Output.OUT, true,
-                "javadoc: error - File not found:",
+                "error: File not found:",
                 "custom-stylesheet-1.css");
     }
 
     @Test
-    void testInvalidAdditionalStylesheetFiles() {
+    public void testInvalidAdditionalStylesheetFiles() {
         javadoc("-d", "out-invalid-additional-css",
                 "--add-stylesheet", new File(testSrc, "additional-stylesheet-4.css").getAbsolutePath(),
                 "-sourcepath", testSrc,
@@ -172,120 +176,145 @@ public class TestOptions extends JavadocTester {
         checkExit(Exit.ERROR);
 
         checkOutput(Output.OUT, true,
-                "javadoc: error - File not found:",
+                "error: File not found:",
                 "additional-stylesheet-4.css");
     }
 
     @Test
-    void testLinkSource() {
+    public void testAdditionalScriptFile() {
+        javadoc("-d", "out-additional-script",
+                "--add-script", new File(testSrc, "additional-script-1.js").getAbsolutePath(),
+                "--add-script", new File(testSrc, "additional-script-2.js").getAbsolutePath(),
+                "-sourcepath", testSrc,
+                "pkg");
+        checkExit(Exit.OK);
+
+        checkOutput("script-files/additional-script-1.js", true, "Additional script file 1");
+        checkOutput("script-files/additional-script-2.js", true, "Additional script file 2");
+        checkOutput("pkg/Foo.html", true,
+                """
+                    <script type="text/javascript" src="../script-files/additional-script-1.js"></script>
+                    <script type="text/javascript" src="../script-files/additional-script-2.js"></script>
+                    """);
+    }
+
+    @Test
+    public void testInvalidAdditionalScriptFile() {
+        javadoc("-d", "out-invalid-additional-script",
+                "--add-script", new File(testSrc, "additional-script-3.js").getAbsolutePath(),
+                "-sourcepath", testSrc,
+                "pkg");
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT, true,
+                "error: File not found:",
+                "additional-script-3.js");
+    }
+
+    @Test
+    public void testLinkSource() {
         javadoc("-d", "out-9",
                 "-linksource",
+                "--no-platform-links",
                 "-javafx",
                 "--disable-javafx-strict-checks",
                 "-sourcepath", testSrc,
                 "-package",
                 "linksource");
         checkExit(Exit.OK);
-
+        checkLinks();
         checkOutput("linksource/AnnotationTypeField.html", true,
-                "<pre>@Documented\npublic @interface <a href="
-                + "\"../src-html/linksource/AnnotationTypeField.html#line.31\">"
-                + "AnnotationTypeField</a></pre>",
-                "<h4>DEFAULT_NAME</h4>\n<pre>static final&nbsp;java.lang.String&nbsp;"
-                + "<a href=\"../src-html/linksource/AnnotationTypeField.html#line.32\">"
-                + "DEFAULT_NAME</a></pre>",
-                "<h4>name</h4>\n<pre>java.lang.String&nbsp;<a href="
-                + "\"../src-html/linksource/AnnotationTypeField.html#line.34\">name</a></pre>");
+                """
+                    <div class="type-signature"><span class="annotations">@Documented
+                    </span><span class="modifiers">public @interface </span><span class="element-name"><a hr\
+                    ef="../src-html/linksource/AnnotationTypeField.html#line-31">AnnotationTypeField\
+                    </a></span></div>""",
+                """
+                    <section class="detail" id="DEFAULT_NAME">
+                    <h3>DEFAULT_NAME</h3>
+                    <div class="horizontal-scroll">
+                    <div class="member-signature"><span class="modifiers">static final</span>&nbsp;<\
+                    span class="return-type">java.lang.String</span>&nbsp;<span class="element-name"><a href\
+                    ="../src-html/linksource/AnnotationTypeField.html#line-32">DEFAULT_NAME</a></spa\
+                    n></div>""",
+                """
+                    <section class="detail" id="name()">
+                    <h3>name</h3>
+                    <div class="horizontal-scroll">
+                    <div class="member-signature"><span class="return-type">java.lang.String</span>&\
+                    nbsp;<span class="element-name"><a href="../src-html/linksource/AnnotationTypeField.html\
+                    #line-34">name</a></span></div>""");
 
         checkOutput("src-html/linksource/AnnotationTypeField.html", true,
                 "<title>Source code</title>",
-                "<span class=\"sourceLineNo\">031</span><a id=\"line.31\">"
-                + "@Documented public @interface AnnotationTypeField {</a>");
+                """
+                    <span class="source-line-no">031</span><span id="line-31">@Documented public @interface AnnotationTypeField {</span>""");
 
         checkOutput("linksource/Properties.html", true,
-                "<pre>public class <a href=\"../src-html/linksource/Properties.html#line.29\">"
-                + "Properties</a>",
-                "<pre>public&nbsp;java.lang.Object <a href="
-                + "\"../src-html/linksource/Properties.html#line.31\">someProperty</a></pre>",
-                "<pre class=\"methodSignature\">public&nbsp;java.lang.Object&nbsp;<a href="
-                + "\"../src-html/linksource/Properties.html#line.31\">someProperty</a>()</pre>");
+                """
+                    <div class="type-signature"><span class="modifiers">public class </span><span cl\
+                    ass="element-name"><a href="../src-html/linksource/Properties.html#line-29">Properties</a>""",
+                """
+                    <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span c\
+                    lass="return-type">java.lang.Object</span>&nbsp;<span class="element-name"><a href="../s\
+                    rc-html/linksource/Properties.html#line-31">someProperty</a></span></div>""");
 
         checkOutput("src-html/linksource/Properties.html", true,
                 "<title>Source code</title>",
-                "<span class=\"sourceLineNo\">031</span><a id=\"line.31\">    "
-                + "public Object someProperty() {</a>");
+                """
+                    <span class="source-line-no">031</span><span id="line-31">    public Object someProperty() {</span>""");
 
         checkOutput("linksource/SomeClass.html", true,
-                "<pre>public class <a href=\"../src-html/linksource/SomeClass.html#line.29\">"
-                + "SomeClass</a>\nextends java.lang.Object</pre>",
-                "<pre>public&nbsp;int <a href=\"../src-html/linksource/SomeClass.html#line.31\">"
-                + "field</a></pre>",
-                "<pre>public&nbsp;<a href=\"../src-html/linksource/SomeClass.html#line.33\">"
-                + "SomeClass</a>()</pre>",
-                "<pre class=\"methodSignature\">public&nbsp;int&nbsp;<a href=\"../src-html/linksource/SomeClass.html#line.36\">"
-                + "method</a>()</pre>");
+                """
+                    <div class="type-signature"><span class="modifiers">public class </span><span cl\
+                    ass="element-name"><a href="../src-html/linksource/SomeClass.html#line-29">SomeC\
+                    lass</a></span>
+                    <span class="extends-implements">extends java.lang.Object</span></div>""",
+                """
+                    <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span c\
+                    lass="return-type">int</span>&nbsp;<span class="element-name"><a href="../src-html/links\
+                    ource/SomeClass.html#line-31">field</a></span></div>""",
+                """
+                    <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span c\
+                    lass="element-name"><a href="../src-html/linksource/SomeClass.html#line-33">Some\
+                    Class</a></span>()</div>""",
+                """
+                    <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span c\
+                    lass="return-type">int</span>&nbsp;<span class="element-name"><a href="../src-html/links\
+                    ource/SomeClass.html#line-36">method</a></span>()</div>""");
 
         checkOutput("src-html/linksource/SomeClass.html", true,
                 "<title>Source code</title>",
-                "<span class=\"sourceLineNo\">029</span><a id=\"line.29\">"
-                + "public class SomeClass {</a>",
-                "<span class=\"sourceLineNo\">031</span><a id=\"line.31\">    "
-                + "public int field;</a>",
-                "<span class=\"sourceLineNo\">033</span><a id=\"line.33\">    "
-                + "public SomeClass() {</a>",
-                "<span class=\"sourceLineNo\">036</span><a id=\"line.36\">    "
-                + "public int method() {</a>");
+                """
+                    <span class="source-line-no">029</span><span id="line-29">public class SomeClass {</span>""",
+                """
+                    <span class="source-line-no">031</span><span id="line-31">    public int field;</span>""",
+                """
+                    <span class="source-line-no">033</span><span id="line-33">    public SomeClass() {</span>""",
+                """
+                    <span class="source-line-no">036</span><span id="line-36">    public int method() {</span>""");
 
         checkOutput("linksource/SomeEnum.html", true,
-                "<pre>public static final&nbsp;<a href=\"SomeEnum.html\" "
-                + "title=\"enum in linksource\">SomeEnum</a> <a href="
-                + "\"../src-html/linksource/SomeEnum.html#line.29\">VALUE1</a></pre>",
-                "<pre>public static final&nbsp;<a href=\"SomeEnum.html\" "
-                + "title=\"enum in linksource\">SomeEnum</a> <a href="
-                + "\"../src-html/linksource/SomeEnum.html#line.30\">VALUE2</a></pre>");
+                """
+                    <div class="member-signature"><span class="modifiers">public static final</span>\
+                    &nbsp;<span class="return-type"><a href="SomeEnum.html" title="enum class in linksourc\
+                    e">SomeEnum</a></span>&nbsp;<span class="element-name"><a href="../src-html/linksource/S\
+                    omeEnum.html#line-29">VALUE1</a></span></div>""",
+                """
+                    <div class="member-signature"><span class="modifiers">public static final</span>\
+                    &nbsp;<span class="return-type"><a href="SomeEnum.html" title="enum class in linksourc\
+                    e">SomeEnum</a></span>&nbsp;<span class="element-name"><a href="../src-html/linksource/S\
+                    omeEnum.html#line-30">VALUE2</a></span></div>""");
 
         checkOutput("src-html/linksource/SomeEnum.html", true,
-                "<span class=\"sourceLineNo\">029</span><a id=\"line.29\">    VALUE1,</a>",
-                "<span class=\"sourceLineNo\">030</span><a id=\"line.30\">    VALUE2</a>");
+                """
+                    <span class="source-line-no">029</span><span id="line-29">    VALUE1,</span>""",
+                """
+                    <span class="source-line-no">030</span><span id="line-30">    VALUE2</span>""");
     }
 
     @Test
-    void testLinkSource_html4() {
-        javadoc("-d", "out-9-html4",
-                "-html4",
-                "-linksource",
-                "-javafx",
-                "--disable-javafx-strict-checks",
-                "-sourcepath", testSrc,
-                "-package",
-                "linksource");
-        checkExit(Exit.OK);
-
-        checkOutput("src-html/linksource/AnnotationTypeField.html", true,
-                "<span class=\"sourceLineNo\">031</span><a name=\"line.31\">"
-                + "@Documented public @interface AnnotationTypeField {</a>");
-
-        checkOutput("src-html/linksource/Properties.html", true,
-                "<span class=\"sourceLineNo\">031</span><a name=\"line.31\">    "
-                + "public Object someProperty() {</a>");
-
-        checkOutput("src-html/linksource/SomeClass.html", true,
-                "<span class=\"sourceLineNo\">029</span><a name=\"line.29\">"
-                + "public class SomeClass {</a>",
-                "<span class=\"sourceLineNo\">031</span><a name=\"line.31\">    "
-                + "public int field;</a>",
-                "<span class=\"sourceLineNo\">033</span><a name=\"line.33\">    "
-                + "public SomeClass() {</a>",
-                "<span class=\"sourceLineNo\">036</span><a name=\"line.36\">    "
-                + "public int method() {</a>");
-
-        checkOutput("src-html/linksource/SomeEnum.html", true,
-                "<span class=\"sourceLineNo\">029</span><a name=\"line.29\">    VALUE1,</a>",
-                "<span class=\"sourceLineNo\">030</span><a name=\"line.30\">    VALUE2</a>");
-    }
-
-    @Test
-    void testNoQualifier() {
+    public void testNoQualifier() {
         javadoc("-d", "out-10",
                 "-noqualifier", "pkg",
                 "-sourcepath", testSrc,
@@ -293,9 +322,11 @@ public class TestOptions extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("pkg/Foo.html", true,
-                "<li>Foo</li>");
+                """
+                    <div class="inheritance">Foo</div>""");
         checkOutput("deprecated/Foo.html", true,
-                "<li>deprecated.Foo</li>");
+                """
+                    <div class="inheritance">deprecated.Foo</div>""");
 
         javadoc("-d", "out-10a",
                 "-noqualifier", "all",
@@ -304,8 +335,10 @@ public class TestOptions extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("pkg/Foo.html", true,
-                "<li>Foo</li>");
+                """
+                    <div class="inheritance">Foo</div>""");
         checkOutput("deprecated/Foo.html", true,
-                "<li>Foo</li>");
+                """
+                    <div class="inheritance">Foo</div>""");
     }
 }

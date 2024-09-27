@@ -36,12 +36,15 @@ import java.util.stream.Stream;
  */
 class MaskCommentsAndModifiers {
 
-    private final static Set<String> IGNORED_MODIFIERS =
-            Stream.of( "public", "protected", "private", "static", "final" )
+    private static final Set<String> IGNORED_MODIFIERS =
+            Stream.of( "public", "protected", "private", "static" )
                     .collect( Collectors.toSet() );
 
-    private final static Set<String> OTHER_MODIFIERS =
-            Stream.of( "abstract", "strictfp", "transient", "volatile", "synchronized", "native", "default" )
+    private static final Set<String> ALL_MODIFIERS =
+            Stream.of(
+                    "public", "protected", "private",
+                    "static", "abstract", "final",
+                    "strictfp", "transient", "volatile", "synchronized", "native", "default" )
                     .collect( Collectors.toSet() );
 
     // Builder to accumulate non-masked characters
@@ -56,6 +59,9 @@ class MaskCommentsAndModifiers {
     // Entire input string length
     private final int length;
 
+    // Which modifiers to mask-out
+    private final Set<String> ignoredModifiers;
+
     // The next character position
     private int next = 0;
 
@@ -67,12 +73,21 @@ class MaskCommentsAndModifiers {
     private boolean maskModifiers;
 
     // Does the string end with an unclosed '/*' style comment?
-    private boolean openComment = false;
+    private boolean openToken = false;
 
     MaskCommentsAndModifiers(String s, boolean maskModifiers) {
+        this(s, maskModifiers, IGNORED_MODIFIERS);
+    }
+
+    MaskCommentsAndModifiers(String s, Set<String> ignoredModifiers) {
+        this(s, true, ignoredModifiers);
+    }
+
+    MaskCommentsAndModifiers(String s, boolean maskModifiers, Set<String> ignoredModifiers) {
         this.str = s;
         this.length = s.length();
         this.maskModifiers = maskModifiers;
+        this.ignoredModifiers = ignoredModifiers;
         read();
         while (c >= 0) {
             next();
@@ -88,11 +103,11 @@ class MaskCommentsAndModifiers {
         return sbMask.toString();
     }
 
-    boolean endsWithOpenComment() {
-        return openComment;
+    boolean endsWithOpenToken() {
+        return openToken;
     }
 
-    /****** private implementation methods ******/
+    //****** private implementation methods ******
 
     /**
      * Read the next character
@@ -139,10 +154,36 @@ class MaskCommentsAndModifiers {
         }
     }
 
+    @SuppressWarnings("fallthrough")
     private void next() {
         switch (c) {
-            case '\'':
-            case '"':
+            case '"': {
+                int pos = next - 1;
+                maskModifiers = false;
+                if (str.startsWith("\"\"\"", next - 1)) {
+                    //text block/multi-line string literal:
+                    int searchPoint = next + 2;
+                    int end;
+                    while ((end = str.indexOf("\"\"\"", searchPoint)) != (-1)) {
+                        if (str.charAt(end - 1) != '\\')
+                            break;
+                        searchPoint = end + 1;
+                    }
+                    if (end == (-1)) {
+                        openToken = true;
+                        end = str.length();
+                    } else {
+                        end += 3;
+                    }
+                    write(c);
+                    while (next < end) {
+                        write(read());
+                    }
+                    break;
+                }
+            }
+            //intentional fall-through:
+            case '\'': {
                 maskModifiers = false;
                 write(c);
                 int match = c;
@@ -154,6 +195,7 @@ class MaskCommentsAndModifiers {
                 }
                 write(c); // write match // line-end
                 break;
+            }
             case '/':
                 read();
                 switch (c) {
@@ -166,7 +208,7 @@ class MaskCommentsAndModifiers {
                             prevc = c;
                         }
                         writeMask(c);
-                        openComment = c < 0;
+                        openToken = c < 0;
                         break;
                     case '/':
                         writeMask('/');
@@ -223,11 +265,11 @@ class MaskCommentsAndModifiers {
                     } while (Character.isJavaIdentifierPart(c));
                     unread();
                     String id = sb.toString();
-                    if (maskModifiers && IGNORED_MODIFIERS.contains(id)) {
+                    if (maskModifiers && ignoredModifiers.contains(id)) {
                         writeMask(sb);
                     } else {
                         write(sb);
-                        if (maskModifiers && !OTHER_MODIFIERS.contains(id)) {
+                        if (maskModifiers && !ALL_MODIFIERS.contains(id)) {
                             maskModifiers = false;
                         }
                     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,11 +31,11 @@ import org.checkerframework.checker.index.qual.Positive;
 
 /**
  * An object that can be used to get information about the types
- * and properties of the columns in a <code>ResultSet</code> object.
- * The following code fragment creates the <code>ResultSet</code> object rs,
- * creates the <code>ResultSetMetaData</code> object rsmd, and uses rsmd
+ * and properties of the columns in a {@code ResultSet} object.
+ * The following code fragment creates the {@code ResultSet} object rs,
+ * creates the {@code ResultSetMetaData} object rsmd, and uses rsmd
  * to find out how many columns rs has and whether the first column in rs
- * can be used in a <code>WHERE</code> clause.
+ * can be used in a {@code WHERE} clause.
  * <PRE>
  *
  *     ResultSet rs = stmt.executeQuery("SELECT a, b, c FROM TABLE2");
@@ -51,10 +51,10 @@ import org.checkerframework.checker.index.qual.Positive;
 public interface ResultSetMetaData extends Wrapper {
 
     /**
-     * Returns the number of columns in this <code>ResultSet</code> object.
+     * Returns the number of columns in this {@code ResultSet} object.
      *
      * @return the number of columns
-     * @exception SQLException if a database access error occurs
+     * @throws SQLException if a database access error occurs
      */
     @NonNegative int getColumnCount() throws SQLException;
 
@@ -62,8 +62,8 @@ public interface ResultSetMetaData extends Wrapper {
      * Indicates whether the designated column is automatically numbered.
      *
      * @param column the first column is 1, the second is 2, ...
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @exception SQLException if a database access error occurs
+     * @return {@code true} if so; {@code false} otherwise
+     * @throws SQLException if a database access error occurs
      */
     boolean isAutoIncrement(@Positive int column) throws SQLException;
 
@@ -71,8 +71,8 @@ public interface ResultSetMetaData extends Wrapper {
      * Indicates whether a column's case matters.
      *
      * @param column the first column is 1, the second is 2, ...
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @exception SQLException if a database access error occurs
+     * @return {@code true} if so; {@code false} otherwise
+     * @throws SQLException if a database access error occurs
      */
     boolean isCaseSensitive(@Positive int column) throws SQLException;
 
@@ -80,8 +80,8 @@ public interface ResultSetMetaData extends Wrapper {
      * Indicates whether the designated column can be used in a where clause.
      *
      * @param column the first column is 1, the second is 2, ...
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @exception SQLException if a database access error occurs
+     * @return {@code true} if so; {@code false} otherwise
+     * @throws SQLException if a database access error occurs
      */
     boolean isSearchable(@Positive int column) throws SQLException;
 
@@ -89,8 +89,8 @@ public interface ResultSetMetaData extends Wrapper {
      * Indicates whether the designated column is a cash value.
      *
      * @param column the first column is 1, the second is 2, ...
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @exception SQLException if a database access error occurs
+     * @return {@code true} if so; {@code false} otherwise
+     * @throws SQLException if a database access error occurs
      */
     boolean isCurrency(@Positive int column) throws SQLException;
 
@@ -98,21 +98,21 @@ public interface ResultSetMetaData extends Wrapper {
      * Indicates the nullability of values in the designated column.
      *
      * @param column the first column is 1, the second is 2, ...
-     * @return the nullability status of the given column; one of <code>columnNoNulls</code>,
-     *          <code>columnNullable</code> or <code>columnNullableUnknown</code>
-     * @exception SQLException if a database access error occurs
+     * @return the nullability status of the given column; one of {@code columnNoNulls},
+     *          {@code columnNullable} or {@code columnNullableUnknown}
+     * @throws SQLException if a database access error occurs
      */
     @IntVal({0,1,2}) int isNullable(@Positive int column) throws SQLException;
 
     /**
      * The constant indicating that a
-     * column does not allow <code>NULL</code> values.
+     * column does not allow {@code NULL} values.
      */
     @IntVal(0) int columnNoNulls = 0;
 
     /**
      * The constant indicating that a
-     * column allows <code>NULL</code> values.
+     * column allows {@code NULL} values.
      */
     @IntVal(1) int columnNullable = 1;
 
@@ -126,8 +126,8 @@ public interface ResultSetMetaData extends Wrapper {
      * Indicates whether values in the designated column are signed numbers.
      *
      * @param column the first column is 1, the second is 2, ...
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @exception SQLException if a database access error occurs
+     * @return {@code true} if so; {@code false} otherwise
+     * @throws SQLException if a database access error occurs
      */
     boolean isSigned(@Positive int column) throws SQLException;
 
@@ -137,20 +137,20 @@ public interface ResultSetMetaData extends Wrapper {
      * @param column the first column is 1, the second is 2, ...
      * @return the normal maximum number of characters allowed as the width
      *          of the designated column
-     * @exception SQLException if a database access error occurs
+     * @throws SQLException if a database access error occurs
      */
     @NonNegative int getColumnDisplaySize(@Positive int column) throws SQLException;
 
     /**
      * Gets the designated column's suggested title for use in printouts and
-     * displays. The suggested title is usually specified by the SQL <code>AS</code>
-     * clause.  If a SQL <code>AS</code> is not specified, the value returned from
-     * <code>getColumnLabel</code> will be the same as the value returned by the
-     * <code>getColumnName</code> method.
+     * displays. The suggested title is usually specified by the SQL {@code AS}
+     * clause.  If a SQL {@code AS} is not specified, the value returned from
+     * {@code getColumnLabel} will be the same as the value returned by the
+     * {@code getColumnName} method.
      *
      * @param column the first column is 1, the second is 2, ...
      * @return the suggested column title
-     * @exception SQLException if a database access error occurs
+     * @throws SQLException if a database access error occurs
      */
     String getColumnLabel(@Positive int column) throws SQLException;
 
@@ -159,7 +159,7 @@ public interface ResultSetMetaData extends Wrapper {
      *
      * @param column the first column is 1, the second is 2, ...
      * @return column name
-     * @exception SQLException if a database access error occurs
+     * @throws SQLException if a database access error occurs
      */
     String getColumnName(@Positive int column) throws SQLException;
 
@@ -168,7 +168,7 @@ public interface ResultSetMetaData extends Wrapper {
      *
      * @param column the first column is 1, the second is 2, ...
      * @return schema name or "" if not applicable
-     * @exception SQLException if a database access error occurs
+     * @throws SQLException if a database access error occurs
      */
     String getSchemaName(@Positive int column) throws SQLException;
 
@@ -182,7 +182,7 @@ public interface ResultSetMetaData extends Wrapper {
      *
      * @param column the first column is 1, the second is 2, ...
      * @return precision
-     * @exception SQLException if a database access error occurs
+     * @throws SQLException if a database access error occurs
      */
     @NonNegative int getPrecision(@Positive int column) throws SQLException;
 
@@ -192,7 +192,7 @@ public interface ResultSetMetaData extends Wrapper {
      *
      * @param column the first column is 1, the second is 2, ...
      * @return scale
-     * @exception SQLException if a database access error occurs
+     * @throws SQLException if a database access error occurs
      */
     @NonNegative int getScale(@Positive int column) throws SQLException;
 
@@ -201,7 +201,7 @@ public interface ResultSetMetaData extends Wrapper {
      *
      * @param column the first column is 1, the second is 2, ...
      * @return table name or "" if not applicable
-     * @exception SQLException if a database access error occurs
+     * @throws SQLException if a database access error occurs
      */
     String getTableName(@Positive int column) throws SQLException;
 
@@ -211,7 +211,7 @@ public interface ResultSetMetaData extends Wrapper {
      * @param column the first column is 1, the second is 2, ...
      * @return the name of the catalog for the table in which the given column
      *          appears or "" if not applicable
-     * @exception SQLException if a database access error occurs
+     * @throws SQLException if a database access error occurs
      */
     String getCatalogName(@Positive int column) throws SQLException;
 
@@ -220,7 +220,7 @@ public interface ResultSetMetaData extends Wrapper {
      *
      * @param column the first column is 1, the second is 2, ...
      * @return SQL type from java.sql.Types
-     * @exception SQLException if a database access error occurs
+     * @throws SQLException if a database access error occurs
      * @see Types
      */
     int getColumnType(@Positive int column) throws SQLException;
@@ -231,7 +231,7 @@ public interface ResultSetMetaData extends Wrapper {
      * @param column the first column is 1, the second is 2, ...
      * @return type name used by the database. If the column type is
      * a user-defined type, then a fully-qualified type name is returned.
-     * @exception SQLException if a database access error occurs
+     * @throws SQLException if a database access error occurs
      */
     String getColumnTypeName(@Positive int column) throws SQLException;
 
@@ -239,8 +239,8 @@ public interface ResultSetMetaData extends Wrapper {
      * Indicates whether the designated column is definitely not writable.
      *
      * @param column the first column is 1, the second is 2, ...
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @exception SQLException if a database access error occurs
+     * @return {@code true} if so; {@code false} otherwise
+     * @throws SQLException if a database access error occurs
      */
     boolean isReadOnly(@Positive int column) throws SQLException;
 
@@ -248,8 +248,8 @@ public interface ResultSetMetaData extends Wrapper {
      * Indicates whether it is possible for a write on the designated column to succeed.
      *
      * @param column the first column is 1, the second is 2, ...
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @exception SQLException if a database access error occurs
+     * @return {@code true} if so; {@code false} otherwise
+     * @throws SQLException if a database access error occurs
      */
     boolean isWritable(@Positive int column) throws SQLException;
 
@@ -257,8 +257,8 @@ public interface ResultSetMetaData extends Wrapper {
      * Indicates whether a write on the designated column will definitely succeed.
      *
      * @param column the first column is 1, the second is 2, ...
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @exception SQLException if a database access error occurs
+     * @return {@code true} if so; {@code false} otherwise
+     * @throws SQLException if a database access error occurs
      */
     boolean isDefinitelyWritable(@Positive int column) throws SQLException;
 
@@ -266,17 +266,17 @@ public interface ResultSetMetaData extends Wrapper {
 
     /**
      * <p>Returns the fully-qualified name of the Java class whose instances
-     * are manufactured if the method <code>ResultSet.getObject</code>
+     * are manufactured if the method {@code ResultSet.getObject}
      * is called to retrieve a value
-     * from the column.  <code>ResultSet.getObject</code> may return a subclass of the
+     * from the column.  {@code ResultSet.getObject} may return a subclass of the
      * class returned by this method.
      *
      * @param column the first column is 1, the second is 2, ...
      * @return the fully-qualified name of the class in the Java programming
      *         language that would be used by the method
-     * <code>ResultSet.getObject</code> to retrieve the value in the specified
+     * {@code ResultSet.getObject} to retrieve the value in the specified
      * column. This is the class name used for custom mapping.
-     * @exception SQLException if a database access error occurs
+     * @throws SQLException if a database access error occurs
      * @since 1.2
      */
     String getColumnClassName(@Positive int column) throws SQLException;

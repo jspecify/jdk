@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package sun.java2d;
 
 import java.awt.AWTError;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.GraphicsConfiguration;
@@ -39,10 +40,6 @@ import java.awt.Toolkit;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.peer.ComponentPeer;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
 import java.security.AccessController;
 import java.util.Locale;
 import java.util.TreeMap;
@@ -65,65 +62,16 @@ import sun.security.action.GetPropertyAction;
 public abstract class SunGraphicsEnvironment extends GraphicsEnvironment
     implements DisplayChangedListener {
 
-    public static boolean isOpenSolaris;
-    private static Font defaultFont;
+    /** Establish the default font to be used by SG2D. */
+    private final Font defaultFont = new Font(Font.DIALOG, Font.PLAIN, 12);
 
-    private static final boolean uiScaleEnabled;
-    private static final double debugScale;
+    @SuppressWarnings("removal")
+    private static final boolean uiScaleEnabled
+            = "true".equals(AccessController.doPrivileged(
+            new GetPropertyAction("sun.java2d.uiScale.enabled", "true")));
 
-    static {
-        uiScaleEnabled = "true".equals(AccessController.doPrivileged(
-                new GetPropertyAction("sun.java2d.uiScale.enabled", "true")));
-        debugScale = uiScaleEnabled ? getScaleFactor("sun.java2d.uiScale") : -1;
-    }
-
-    public SunGraphicsEnvironment() {
-        java.security.AccessController.doPrivileged(
-                                    new java.security.PrivilegedAction<Object>() {
-            public Object run() {
-                String osName = System.getProperty("os.name");
-                if ("SunOS".equals(osName)) {
-                    String version = System.getProperty("os.version", "0.0");
-                    try {
-                        float ver = Float.parseFloat(version);
-                        if (ver > 5.10f) {
-                            File f = new File("/etc/release");
-                            FileInputStream fis = new FileInputStream(f);
-                            InputStreamReader isr
-                                = new InputStreamReader(fis, "ISO-8859-1");
-                            BufferedReader br = new BufferedReader(isr);
-                            String line = br.readLine();
-                            if (line.indexOf("OpenSolaris") >= 0) {
-                                isOpenSolaris = true;
-                            } else {
-                                /* We are using isOpenSolaris as meaning
-                                 * we know the Solaris commercial fonts aren't
-                                 * present. "Solaris Next" (03/10) did not
-                                 * include these even though its was not
-                                 * OpenSolaris. Need to revisit how this is
-                                 * handled but for now as in 6ux, we'll use
-                                 * the test for a standard font resource as
-                                 * being an indicator as to whether we need
-                                 * to treat this as OpenSolaris from a font
-                                 * config perspective.
-                                 */
-                                String courierNew =
-                                    "/usr/openwin/lib/X11/fonts/TrueType/CourierNew.ttf";
-                                File courierFile = new File(courierNew);
-                                isOpenSolaris = !courierFile.exists();
-                            }
-                            fis.close();
-                        }
-                    } catch (Exception e) {
-                    }
-                }
-                /* Establish the default font to be used by SG2D etc */
-                defaultFont = new Font(Font.DIALOG, Font.PLAIN, 12);
-
-                return null;
-            }
-        });
-    }
+    private static final double debugScale =
+            uiScaleEnabled ? getScaleFactor("sun.java2d.uiScale") : -1;
 
     protected GraphicsDevice[] screens;
 
@@ -238,11 +186,7 @@ public abstract class SunGraphicsEnvironment extends GraphicsEnvironment
                 map.put(installed[i].toLowerCase(requestedLocale),
                         installed[i]);
             }
-            String[] retval =  new String[map.size()];
-            Object [] keyNames = map.keySet().toArray();
-            for (int i=0; i < keyNames.length; i++) {
-                retval[i] = map.get(keyNames[i]);
-            }
+            String[] retval = map.values().toArray(new String[0]);
             return retval;
         }
     }
@@ -349,6 +293,7 @@ public abstract class SunGraphicsEnvironment extends GraphicsEnvironment
 
     public static double getScaleFactor(String propertyName) {
 
+        @SuppressWarnings("removal")
         String scaleFactor = AccessController.doPrivileged(
                 new GetPropertyAction(propertyName, "-1"));
 
@@ -401,22 +346,124 @@ public abstract class SunGraphicsEnvironment extends GraphicsEnvironment
     }
 
     /**
+     * Returns the bounds of the graphics configuration in device space.
+     *
+     * @param  config the graphics configuration which bounds are requested
+     * @return the bounds of the area covered by this
+     *         {@code GraphicsConfiguration} in device space (pixels)
+     */
+    public static Rectangle getGCDeviceBounds(GraphicsConfiguration config) {
+        AffineTransform tx = config.getDefaultTransform();
+        Rectangle bounds = config.getBounds();
+        bounds.width *= tx.getScaleX();
+        bounds.height *= tx.getScaleY();
+        return bounds;
+    }
+
+    /**
+     * Converts the size (w, h) from the device space to the user's space using
+     * passed graphics configuration.
+     *
+     * @param  gc the graphics configuration to be used for transformation
+     * @param  w the width in the device space
+     * @param  h the height in the device space
+     * @return the size in the user's space
+     */
+    public static Dimension toUserSpace(GraphicsConfiguration gc,
+                                        int w, int h) {
+        AffineTransform tx = gc.getDefaultTransform();
+        return new Dimension(
+                Region.clipRound(w / tx.getScaleX()),
+                Region.clipRound(h / tx.getScaleY())
+        );
+    }
+
+    /**
+     * Converts absolute coordinates from the user's space to the device space
+     * using appropriate device transformation.
+     *
+     * @param  x absolute coordinate in the user's space
+     * @param  y absolute coordinate in the user's space
+     * @return the point which uses device space (pixels)
+     */
+    public static Point toDeviceSpaceAbs(int x, int y) {
+        GraphicsConfiguration gc = getLocalGraphicsEnvironment()
+                .getDefaultScreenDevice().getDefaultConfiguration();
+        gc = getGraphicsConfigurationAtPoint(gc, x, y);
+        return toDeviceSpaceAbs(gc, x, y, 0, 0).getLocation();
+    }
+
+    /**
+     * Converts the rectangle from the user's space to the device space using
+     * appropriate device transformation.
+     *
+     * @param  rect the rectangle in the user's space
+     * @return the rectangle which uses device space (pixels)
+     */
+    public static Rectangle toDeviceSpaceAbs(Rectangle rect) {
+        GraphicsConfiguration gc = getLocalGraphicsEnvironment()
+                .getDefaultScreenDevice().getDefaultConfiguration();
+        gc = getGraphicsConfigurationAtPoint(gc, rect.x, rect.y);
+        return toDeviceSpaceAbs(gc, rect.x, rect.y, rect.width, rect.height);
+    }
+
+    /**
+     * Converts absolute coordinates (x, y) and the size (w, h) from the user's
+     * space to the device space using passed graphics configuration.
+     *
+     * @param  gc the graphics configuration to be used for transformation
+     * @param  x absolute coordinate in the user's space
+     * @param  y absolute coordinate in the user's space
+     * @param  w the width in the user's space
+     * @param  h the height in the user's space
+     * @return the rectangle which uses device space (pixels)
+     */
+    public static Rectangle toDeviceSpaceAbs(GraphicsConfiguration gc,
+                                             int x, int y, int w, int h) {
+        AffineTransform tx = gc.getDefaultTransform();
+        Rectangle screen = gc.getBounds();
+        return new Rectangle(
+                screen.x + Region.clipRound((x - screen.x) * tx.getScaleX()),
+                screen.y + Region.clipRound((y - screen.y) * tx.getScaleY()),
+                Region.clipRound(w * tx.getScaleX()),
+                Region.clipRound(h * tx.getScaleY())
+        );
+    }
+
+    /**
      * Converts coordinates from the user's space to the device space using
      * appropriate device transformation.
      *
-     * @param  x coordinate in the user space
-     * @param  y coordinate in the user space
-     * @return the point which uses device space(pixels)
+     * @param  x coordinate in the user's space
+     * @param  y coordinate in the user's space
+     * @return the point which uses device space (pixels)
      */
-    public static Point convertToDeviceSpace(double x, double y) {
+    public static Point toDeviceSpace(int x, int y) {
         GraphicsConfiguration gc = getLocalGraphicsEnvironment()
-                        .getDefaultScreenDevice().getDefaultConfiguration();
+                .getDefaultScreenDevice().getDefaultConfiguration();
         gc = getGraphicsConfigurationAtPoint(gc, x, y);
+        return toDeviceSpace(gc, x, y, 0, 0).getLocation();
+    }
 
+    /**
+     * Converts coordinates (x, y) and the size (w, h) from the user's
+     * space to the device space using passed graphics configuration.
+     *
+     * @param  gc the graphics configuration to be used for transformation
+     * @param  x coordinate in the user's space
+     * @param  y coordinate in the user's space
+     * @param  w the width in the user's space
+     * @param  h the height in the user's space
+     * @return the rectangle which uses device space (pixels)
+     */
+    public static Rectangle toDeviceSpace(GraphicsConfiguration gc,
+                                          int x, int y, int w, int h) {
         AffineTransform tx = gc.getDefaultTransform();
-        x = Region.clipRound(x * tx.getScaleX());
-        y = Region.clipRound(y * tx.getScaleY());
-
-        return new Point((int) x, (int) y);
+        return new Rectangle(
+                Region.clipRound(x * tx.getScaleX()),
+                Region.clipRound(y * tx.getScaleY()),
+                Region.clipRound(w * tx.getScaleX()),
+                Region.clipRound(h * tx.getScaleY())
+        );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,11 @@
 /*
  * @test
  * @bug 8087112
- * @library /lib/testlibrary/
+ * @library /test/lib
  * @modules java.net.http
  *          java.logging
  *          jdk.httpserver
- * @build jdk.testlibrary.SimpleSSLContext jdk.testlibrary.Utils
+ * @build jdk.test.lib.net.SimpleSSLContext jdk.test.lib.Utils
  * @compile ../../../../com/sun/net/httpserver/LogFilter.java
  * @compile ../../../../com/sun/net/httpserver/FileServerHandler.java
  * @compile ../ProxyServer.java
@@ -55,7 +55,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.Utils;
+import jdk.test.lib.process.ProcessTools;
 
 /**
  * Driver for tests
@@ -70,6 +71,8 @@ public class Driver {
         runtest("10.policy", "10");
         runtest("11.policy", "11");
         runtest("12.policy", "12");
+        runtest("16.policy", "16", "-Djdk.httpclient.allowRestrictedHeaders=Host");
+        runtest("17.policy", "17", "-Djdk.httpclient.allowRestrictedHeaders=Host");
         System.out.println("DONE");
     }
 
@@ -114,18 +117,20 @@ public class Driver {
     }
 
     public static void runtest(String policy, String testnum) throws Throwable {
+        runtest(policy, testnum, null);
+    }
 
+
+    public static void runtest(String policy, String testnum, String addProp) throws Throwable {
         String testJdk = System.getProperty("test.jdk", "?");
         String testSrc = System.getProperty("test.src", "?");
         String testClassPath = System.getProperty("test.class.path", "?");
         String testClasses = System.getProperty("test.classes", "?");
         String sep = System.getProperty("file.separator", "?");
-        String javaCmd = testJdk + sep + "bin" + sep + "java";
         int retval = 10; // 10 is special exit code denoting a bind error
                          // in which case, we retry
         while (retval == 10) {
             List<String> cmd = new ArrayList<>();
-            cmd.add(javaCmd);
             cmd.add("-ea");
             cmd.add("-esa");
             cmd.add("-Dtest.jdk=" + testJdk);
@@ -136,12 +141,15 @@ public class Driver {
             cmd.add("-Dport.number=" + Integer.toString(Utils.getFreePort()));
             cmd.add("-Dport.number1=" + Integer.toString(Utils.getFreePort()));
             cmd.add("-Djdk.httpclient.HttpClient.log=all,frames:all");
+            if (addProp != null) {
+                cmd.add(addProp);
+            }
             cmd.add("-cp");
             cmd.add(testClassPath);
             cmd.add("Security");
             cmd.add(testnum);
 
-            ProcessBuilder processBuilder = new ProcessBuilder(cmd)
+            ProcessBuilder processBuilder = ProcessTools.createTestJavaProcessBuilder(cmd)
                 .redirectOutput(ProcessBuilder.Redirect.PIPE)
                 .redirectErrorStream(true);
 

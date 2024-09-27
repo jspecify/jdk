@@ -107,6 +107,7 @@ public class ConcurrentSkipListSet<E>
      * element.  This field is declared final for the sake of thread
      * safety, which entails some ugliness in clone().
      */
+    @SuppressWarnings("serial") // Conditionally serializable
     private final ConcurrentNavigableMap<E,Object> m;
 
     /**
@@ -140,6 +141,7 @@ public class ConcurrentSkipListSet<E>
      * @throws NullPointerException if the specified collection or any
      *         of its elements are null
      */
+    @SuppressWarnings("this-escape")
     public ConcurrentSkipListSet(Collection<? extends E> c) {
         m = new ConcurrentSkipListMap<E,Object>();
         addAll(c);
@@ -153,6 +155,7 @@ public class ConcurrentSkipListSet<E>
      * @throws NullPointerException if the specified sorted set or any
      *         of its elements are null
      */
+    @SuppressWarnings("this-escape")
     public ConcurrentSkipListSet(SortedSet<E> s) {
         m = new ConcurrentSkipListMap<E,Object>(s.comparator());
         addAll(s);
@@ -191,14 +194,9 @@ public class ConcurrentSkipListSet<E>
      * contains more than {@code Integer.MAX_VALUE} elements, it
      * returns {@code Integer.MAX_VALUE}.
      *
-     * <p>Beware that, unlike in most collections, this method is
-     * <em>NOT</em> a constant-time operation. Because of the
-     * asynchronous nature of these sets, determining the current
-     * number of elements requires traversing them all to count them.
-     * Additionally, it is possible for the size to change during
-     * execution of this method, in which case the returned result
-     * will be inaccurate. Thus, this method is typically not very
-     * useful in concurrent applications.
+     * <p>It is possible for the size to change during execution of this method,
+     * in which case the returned result will be inaccurate.
+     * Thus, this method is typically not very useful in concurrent applications.
      *
      * @return the number of elements in this set
      */
@@ -415,6 +413,30 @@ public class ConcurrentSkipListSet<E>
     }
 
     /**
+     * Throws {@code UnsupportedOperationException}. The encounter order induced by this
+     * set's comparison method determines the position of elements, so explicit positioning
+     * is not supported.
+     *
+     * @throws UnsupportedOperationException always
+     * @since 21
+     */
+    public void addFirst(E e) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Throws {@code UnsupportedOperationException}. The encounter order induced by this
+     * set's comparison method determines the position of elements, so explicit positioning
+     * is not supported.
+     *
+     * @throws UnsupportedOperationException always
+     * @since 21
+     */
+    public void addLast(E e) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
      * @throws ClassCastException {@inheritDoc}
      * @throws NullPointerException if {@code fromElement} or
      *         {@code toElement} is null
@@ -519,6 +541,7 @@ public class ConcurrentSkipListSet<E>
 
     /** Initializes map field; for use in clone. */
     private void setMap(ConcurrentNavigableMap<E,Object> map) {
+        @SuppressWarnings("removal")
         Field mapField = java.security.AccessController.doPrivileged(
             (java.security.PrivilegedAction<Field>) () -> {
                 try {

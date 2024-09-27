@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,32 +23,29 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_STUBROUTINES_AARCH64_HPP
-#define CPU_AARCH64_VM_STUBROUTINES_AARCH64_HPP
+#ifndef CPU_AARCH64_STUBROUTINES_AARCH64_HPP
+#define CPU_AARCH64_STUBROUTINES_AARCH64_HPP
 
 // This file holds the platform specific parts of the StubRoutines
 // definition. See stubRoutines.hpp for a description on how to
 // extend it.
 
-// n.b. if we are notifying entry/exit to the simulator then the call
-// stub does a notify at normal return placing
-// call_stub_return_address one instruction beyond the notify. the
-// latter address is sued by the stack unwind code when doign an
-// exception return.
 static bool    returns_to_call_stub(address return_pc)   {
-  return return_pc == _call_stub_return_address + (NotifySimulator ? -4 : 0);
+  return return_pc == _call_stub_return_address;
 }
 
 enum platform_dependent_constants {
-  code_size1 = 19000,          // simply increase if too small (assembler will crash if too small)
-  code_size2 = 28000           // simply increase if too small (assembler will crash if too small)
+  // simply increase sizes if too small (assembler will crash if too small)
+  _initial_stubs_code_size      = 10000,
+  _continuation_stubs_code_size =  2000,
+  _compiler_stubs_code_size     = 30000 ZGC_ONLY(+10000),
+  _final_stubs_code_size        = 20000 ZGC_ONLY(+100000)
 };
 
 class aarch64 {
  friend class StubGenerator;
 
  private:
-  static address _get_previous_fp_entry;
   static address _get_previous_sp_entry;
 
   static address _f2i_fixup;
@@ -56,6 +53,7 @@ class aarch64 {
   static address _d2i_fixup;
   static address _d2l_fixup;
 
+  static address _vector_iota_indices;
   static address _float_sign_mask;
   static address _float_sign_flip;
   static address _double_sign_mask;
@@ -63,8 +61,6 @@ class aarch64 {
 
   static address _zero_blocks;
 
-  static address _has_negatives;
-  static address _has_negatives_long;
   static address _large_array_equals;
   static address _compare_long_string_LL;
   static address _compare_long_string_LU;
@@ -74,14 +70,15 @@ class aarch64 {
   static address _string_indexof_linear_uu;
   static address _string_indexof_linear_ul;
   static address _large_byte_array_inflate;
+
+  static address _spin_wait;
+
   static bool _completed;
 
  public:
 
-  static address get_previous_fp_entry()
-  {
-    return _get_previous_fp_entry;
-  }
+  static address _count_positives;
+  static address _count_positives_long;
 
   static address get_previous_sp_entry()
   {
@@ -108,6 +105,10 @@ class aarch64 {
     return _d2l_fixup;
   }
 
+  static address vector_iota_indices() {
+    return _vector_iota_indices;
+  }
+
   static address float_sign_mask()
   {
     return _float_sign_mask;
@@ -132,12 +133,12 @@ class aarch64 {
     return _zero_blocks;
   }
 
-  static address has_negatives() {
-    return _has_negatives;
+  static address count_positives() {
+    return _count_positives;
   }
 
-  static address has_negatives_long() {
-      return _has_negatives_long;
+  static address count_positives_long() {
+      return _count_positives_long;
   }
 
   static address large_array_equals() {
@@ -176,6 +177,10 @@ class aarch64 {
       return _large_byte_array_inflate;
   }
 
+  static address spin_wait() {
+    return _spin_wait;
+  }
+
   static bool complete() {
     return _completed;
   }
@@ -186,6 +191,7 @@ class aarch64 {
 
 private:
   static juint    _crc_table[];
+  static jubyte   _adler_table[];
   // begin trigonometric tables block. See comments in .cpp file
   static juint    _npio2_hw[];
   static jdouble   _two_over_pi[];
@@ -195,4 +201,4 @@ private:
   // end trigonometric tables block
 };
 
-#endif // CPU_AARCH64_VM_STUBROUTINES_AARCH64_HPP
+#endif // CPU_AARCH64_STUBROUTINES_AARCH64_HPP

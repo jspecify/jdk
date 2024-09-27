@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,13 +30,13 @@
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "prims/methodHandles.hpp"
-#include "runtime/biasedLocking.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) // nothing
@@ -61,7 +61,7 @@ int Assembler::patched_branch(int dest_pos, int inst, int inst_pos) {
   case bc_op: m = bd(-1); v = bd(disp(dest_pos, inst_pos)); break;
     default: ShouldNotReachHere();
   }
-  return inst & ~m | v;
+  return (inst & ~m) | v;
 }
 
 // Return the offset, relative to _code_begin, of the destination of
@@ -78,15 +78,15 @@ int Assembler::branch_destination(int inst, int pos) {
 
 // Low-level andi-one-instruction-macro.
 void Assembler::andi(Register a, Register s, const long ui16) {
-  if (is_power_of_2_long(((jlong) ui16)+1)) {
+  if (is_power_of_2(((unsigned long) ui16)+1)) {
     // pow2minus1
-    clrldi(a, s, 64-log2_long((((jlong) ui16)+1)));
-  } else if (is_power_of_2_long((jlong) ui16)) {
+    clrldi(a, s, 64 - log2i_exact((((unsigned long) ui16)+1)));
+  } else if (is_power_of_2((jlong) ui16)) {
     // pow2
-    rlwinm(a, s, 0, 31-log2_long((jlong) ui16), 31-log2_long((jlong) ui16));
-  } else if (is_power_of_2_long((jlong)-ui16)) {
+    rlwinm(a, s, 0, 31 - log2i_exact((jlong) ui16), 31 - log2i_exact((jlong) ui16));
+  } else if (is_power_of_2((jlong)-ui16)) {
     // negpow2
-    clrrdi(a, s, log2_long((jlong)-ui16));
+    clrrdi(a, s, log2i_exact((jlong)-ui16));
   } else {
     assert(is_uimm(ui16, 16), "must be 16-bit unsigned immediate");
     andi_(a, s, ui16);
@@ -292,31 +292,54 @@ void Assembler::stb(Register d, RegisterOrConstant roc, Register s1, Register tm
   }
 }
 
-void Assembler::add(Register d, RegisterOrConstant roc, Register s1) {
+void Assembler::add(Register d, Register s, RegisterOrConstant roc) {
   if (roc.is_constant()) {
     intptr_t c = roc.as_constant();
     assert(is_simm(c, 16), "too big");
-    addi(d, s1, (int)c);
+    addi(d, s, (int)c);
+  } else {
+    add(d, s, roc.as_register());
   }
-  else add(d, roc.as_register(), s1);
 }
 
-void Assembler::subf(Register d, RegisterOrConstant roc, Register s1) {
+void Assembler::sub(Register d, Register s, RegisterOrConstant roc) {
   if (roc.is_constant()) {
     intptr_t c = roc.as_constant();
     assert(is_simm(-c, 16), "too big");
-    addi(d, s1, (int)-c);
+    addi(d, s, (int)-c);
+  } else {
+    sub(d, s, roc.as_register());
   }
-  else subf(d, roc.as_register(), s1);
 }
 
-void Assembler::cmpd(ConditionRegister d, RegisterOrConstant roc, Register s1) {
+void Assembler::xorr(Register d, Register s, RegisterOrConstant roc) {
+  if (roc.is_constant()) {
+    intptr_t c = roc.as_constant();
+    assert(is_uimm(c, 16), "too big");
+    xori(d, s, (int)c);
+  } else {
+    xorr(d, s, roc.as_register());
+  }
+}
+
+void Assembler::cmpw(ConditionRegister d, Register s, RegisterOrConstant roc) {
   if (roc.is_constant()) {
     intptr_t c = roc.as_constant();
     assert(is_simm(c, 16), "too big");
-    cmpdi(d, s1, (int)c);
+    cmpwi(d, s, (int)c);
+  } else {
+    cmpw(d, s, roc.as_register());
   }
-  else cmpd(d, roc.as_register(), s1);
+}
+
+void Assembler::cmpd(ConditionRegister d, Register s, RegisterOrConstant roc) {
+  if (roc.is_constant()) {
+    intptr_t c = roc.as_constant();
+    assert(is_simm(c, 16), "too big");
+    cmpdi(d, s, (int)c);
+  } else {
+    cmpd(d, s, roc.as_register());
+  }
 }
 
 // Load a 64 bit constant. Patchable.
@@ -343,7 +366,7 @@ void Assembler::load_const(Register d, long x, Register tmp) {
   }
 }
 
-// Load a 64 bit constant, optimized, not identifyable.
+// Load a 64 bit constant, optimized, not identifiable.
 // Tmp can be used to increase ILP. Set return_simm16_rest=true to get a
 // 16 bit immediate offset.
 int Assembler::load_const_optimized(Register d, long x, Register tmp, bool return_simm16_rest) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,8 +65,6 @@ import java.nio.file.Paths;
 import java.text.ParsePosition;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -76,6 +74,7 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * A compiler that reads a set of TZDB time-zone files and builds a single
@@ -256,14 +255,16 @@ public final class TzdbZoneRulesCompiler {
             for (String regionId : regionArray) {
                 out.writeUTF(regionId);
             }
-            // rules  -- hashset -> remove the dup
-            List<ZoneRules> rulesList = new ArrayList<>(new HashSet<>(builtZones.values()));
+            // rules  -- remove the dup
+            List<ZoneRules> rulesList = builtZones.values().stream()
+                .distinct()
+                .collect(Collectors.toList());
             out.writeShort(rulesList.size());
             ByteArrayOutputStream baos = new ByteArrayOutputStream(1024);
             for (ZoneRules rules : rulesList) {
                 baos.reset();
                 DataOutputStream dataos = new DataOutputStream(baos);
-                rules.writeExternal(dataos);
+                Ser.write(rules, dataos);
                 dataos.close();
                 byte[] bytes = baos.toByteArray();
                 out.writeShort(bytes.length);
@@ -272,7 +273,7 @@ public final class TzdbZoneRulesCompiler {
             // link version-region-rules
             out.writeShort(builtZones.size());
             for (Map.Entry<String, ZoneRules> entry : builtZones.entrySet()) {
-                 int regionIndex = Arrays.binarySearch(regionArray, entry.getKey());
+                 int regionIndex = findRegionIndex(regionArray, entry.getKey());
                  int rulesIndex = rulesList.indexOf(entry.getValue());
                  out.writeShort(regionIndex);
                  out.writeShort(rulesIndex);
@@ -280,8 +281,8 @@ public final class TzdbZoneRulesCompiler {
             // alias-region
             out.writeShort(links.size());
             for (Map.Entry<String, String> entry : links.entrySet()) {
-                 int aliasIndex = Arrays.binarySearch(regionArray, entry.getKey());
-                 int regionIndex = Arrays.binarySearch(regionArray, entry.getValue());
+                 int aliasIndex = findRegionIndex(regionArray, entry.getKey());
+                 int regionIndex = findRegionIndex(regionArray, entry.getValue());
                  out.writeShort(aliasIndex);
                  out.writeShort(regionIndex);
             }
@@ -293,11 +294,19 @@ public final class TzdbZoneRulesCompiler {
         }
     }
 
+    private static int findRegionIndex(String[] regionArray, String region) {
+        int index = Arrays.binarySearch(regionArray, region);
+        if (index < 0) {
+            throw new IllegalArgumentException("Unknown region: " + region);
+        }
+        return index;
+    }
+
     /** Whether to output verbose messages. */
     private boolean verbose;
 
     /**
-     * private contructor
+     * private constructor
      */
     private TzdbZoneRulesCompiler() {}
 

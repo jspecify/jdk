@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,25 +22,36 @@
  *
  */
 
-#ifndef SHARE_GC_G1_COMMANDLINEFLAGCONSTRAINTSG1_HPP
-#define SHARE_GC_G1_COMMANDLINEFLAGCONSTRAINTSG1_HPP
+#ifndef SHARE_GC_G1_JVMFLAGCONSTRAINTSG1_HPP
+#define SHARE_GC_G1_JVMFLAGCONSTRAINTSG1_HPP
 
-#include "runtime/globals.hpp"
+#include "runtime/flags/jvmFlag.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-// G1 Flag Constraints
-JVMFlag::Error G1RSetRegionEntriesConstraintFunc(intx value, bool verbose);
-JVMFlag::Error G1RSetSparseRegionEntriesConstraintFunc(intx value, bool verbose);
-JVMFlag::Error G1HeapRegionSizeConstraintFunc(size_t value, bool verbose);
-JVMFlag::Error G1NewSizePercentConstraintFunc(uintx value, bool verbose);
-JVMFlag::Error G1MaxNewSizePercentConstraintFunc(uintx value, bool verbose);
+#define G1_GC_CONSTRAINTS(f)                          \
+                                                      \
+  /* G1 Remembered Sets Constraints */                \
+  f(uint,   G1RemSetArrayOfCardsEntriesConstraintFunc)\
+  f(uint,   G1RemSetHowlMaxNumBucketsConstraintFunc)  \
+  f(uint,   G1RemSetHowlNumBucketsConstraintFunc)     \
+                                                      \
+  /* G1 Heap Size Constraints */                      \
+  f(size_t, G1HeapRegionSizeConstraintFunc)           \
+  f(uint,  G1NewSizePercentConstraintFunc)           \
+  f(uint,  G1MaxNewSizePercentConstraintFunc)        \
+                                                      \
+  /* G1 Subconstraints */                             \
+  f(uintx,  MaxGCPauseMillisConstraintFuncG1)         \
+  f(uintx,  GCPauseIntervalMillisConstraintFuncG1)    \
+  f(size_t, NewSizeConstraintFuncG1)                  \
+                                                      \
+  /* G1 PtrQueue buffer size constraints */           \
+  f(size_t, G1SATBBufferSizeConstraintFunc)           \
+  f(size_t, G1UpdateBufferSizeConstraintFunc)         \
+  /* */
 
-// G1 Subconstraints
-JVMFlag::Error MaxGCPauseMillisConstraintFuncG1(uintx value, bool verbose);
-JVMFlag::Error GCPauseIntervalMillisConstraintFuncG1(uintx value, bool verbose);
-JVMFlag::Error MaxSizeForHeapAlignmentG1(const char* name, size_t value, bool verbose);
-JVMFlag::Error NewSizeConstraintFuncG1(size_t value, bool verbose);
+G1_GC_CONSTRAINTS(DECLARE_CONSTRAINT)
 
 size_t MaxSizeForHeapAlignmentG1();
 
-#endif // SHARE_GC_SHARED_COMMANDLINEFLAGCONSTRAINTSG1_HPP
+#endif // SHARE_GC_G1_JVMFLAGCONSTRAINTSG1_HPP

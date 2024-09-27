@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.io.IOException;
 
+import static sun.nio.fs.UnixConstants.*;
 import static sun.nio.fs.UnixNativeDispatcher.*;
 
 class UnixFileAttributeViews {
@@ -73,15 +74,26 @@ class UnixFileAttributeViews {
 
             boolean haveFd = false;
             boolean useFutimes = false;
+            boolean useFutimens = false;
+            boolean useLutimes = false;
             int fd = -1;
             try {
-                fd = file.openForAttributeAccess(followLinks);
-                if (fd != -1) {
-                    haveFd = true;
-                    useFutimes = futimesSupported();
+                if (!followLinks) {
+                    useLutimes = lutimesSupported() &&
+                        UnixFileAttributes.get(file, false).isSymbolicLink();
+                }
+                if (!useLutimes) {
+                    fd = file.openForAttributeAccess(followLinks);
+                    if (fd != -1) {
+                        haveFd = true;
+                        if (!(useFutimens = futimensSupported())) {
+                            useFutimes = futimesSupported();
+                        }
+                    }
                 }
             } catch (UnixException x) {
-                if (x.errno() != UnixConstants.ENXIO) {
+                if (!(x.errno() == UnixConstants.ENXIO ||
+                     (x.errno() == UnixConstants.ELOOP && useLutimes))) {
                     x.rethrowAsIOException(file);
                 }
             }
@@ -104,14 +116,20 @@ class UnixFileAttributeViews {
                     }
                 }
 
-                // uptime times
-                long modValue = lastModifiedTime.to(TimeUnit.MICROSECONDS);
-                long accessValue= lastAccessTime.to(TimeUnit.MICROSECONDS);
+                // update times
+                TimeUnit timeUnit = useFutimens ?
+                    TimeUnit.NANOSECONDS : TimeUnit.MICROSECONDS;
+                long modValue = lastModifiedTime.to(timeUnit);
+                long accessValue= lastAccessTime.to(timeUnit);
 
                 boolean retry = false;
                 try {
-                    if (useFutimes) {
+                    if (useFutimens) {
+                        futimens(fd, accessValue, modValue);
+                    } else if (useFutimes) {
                         futimes(fd, accessValue, modValue);
+                    } else if (useLutimes) {
+                        lutimes(file, accessValue, modValue);
                     } else {
                         utimes(file, accessValue, modValue);
                     }
@@ -129,8 +147,12 @@ class UnixFileAttributeViews {
                     if (modValue < 0L) modValue = 0L;
                     if (accessValue < 0L) accessValue= 0L;
                     try {
-                        if (useFutimes) {
+                        if (useFutimens) {
+                            futimens(fd, accessValue, modValue);
+                        } else if (useFutimes) {
                             futimes(fd, accessValue, modValue);
+                        } else if (useLutimes) {
+                            lutimes(file, accessValue, modValue);
                         } else {
                             utimes(file, accessValue, modValue);
                         }
@@ -139,12 +161,12 @@ class UnixFileAttributeViews {
                     }
                 }
             } finally {
-                close(fd);
+                close(fd, e -> null);
             }
         }
     }
 
-    private static class Posix extends Basic implements PosixFileAttributeView {
+    static class Posix extends Basic implements PosixFileAttributeView {
         private static final String PERMISSIONS_NAME = "permissions";
         private static final String OWNER_NAME = "owner";
         private static final String GROUP_NAME = "group";
@@ -158,6 +180,7 @@ class UnixFileAttributeViews {
         }
 
         final void checkReadExtended() {
+            @SuppressWarnings("removal")
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 file.checkRead();
@@ -166,6 +189,7 @@ class UnixFileAttributeViews {
         }
 
         final void checkWriteExtended() {
+            @SuppressWarnings("removal")
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 file.checkWrite();
@@ -239,19 +263,44 @@ class UnixFileAttributeViews {
         // chmod
         final void setMode(int mode) throws IOException {
             checkWriteExtended();
-            try {
-                if (followLinks) {
+
+            if (followLinks) {
+                try {
                     chmod(file, mode);
-                } else {
-                    int fd = file.openForAttributeAccess(false);
-                    try {
-                        fchmod(fd, mode);
-                    } finally {
-                        close(fd);
-                    }
+                } catch (UnixException e) {
+                    e.rethrowAsIOException(file);
                 }
-            } catch (UnixException x) {
-                x.rethrowAsIOException(file);
+                return;
+            }
+
+            if (O_NOFOLLOW == 0) {
+                throw new IOException("NOFOLLOW_LINKS is not supported on this platform");
+            }
+
+            int fd = -1;
+            try {
+                fd = open(file, O_RDONLY, O_NOFOLLOW);
+            } catch (UnixException e1) {
+                if (e1.errno() == EACCES) {
+                    // retry with write access if there is no read permission
+                    try {
+                        fd = open(file, O_WRONLY, O_NOFOLLOW);
+                    } catch (UnixException e2) {
+                        e2.rethrowAsIOException(file);
+                    }
+                } else {
+                    e1.rethrowAsIOException(file);
+                }
+            }
+
+            try {
+                try {
+                    fchmod(fd, mode);
+                } finally {
+                    close(fd);
+                }
+            } catch (UnixException e) {
+                e.rethrowAsIOException(file);
             }
         }
 
@@ -308,7 +357,7 @@ class UnixFileAttributeViews {
         }
     }
 
-    private static class Unix extends Posix {
+    static class Unix extends Posix {
         private static final String MODE_NAME = "mode";
         private static final String INO_NAME = "ino";
         private static final String DEV_NAME = "dev";

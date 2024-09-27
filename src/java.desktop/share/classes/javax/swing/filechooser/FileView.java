@@ -57,7 +57,7 @@ import javax.swing.*;
  * <code><i>yourJDK</i>/demo/jfc/FileChooserDemo/ExampleFileView.java</code>.
  * For more information and examples see
  * <a
- href="http://docs.oracle.com/javase/tutorial/uiswing/components/filechooser.html">How to Use File Choosers</a>,
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/filechooser.html">How to Use File Choosers</a>,
  * a section in <em>The Java Tutorial</em>.
  *
  * @see javax.swing.JFileChooser
@@ -67,6 +67,11 @@ import javax.swing.*;
  */
 public abstract class FileView {
     /**
+     * Constructor for subclasses to call.
+     */
+    protected FileView() {}
+
+    /**
      * The name of the file. Normally this would be simply
      * <code>f.getName()</code>.
      *
@@ -75,7 +80,7 @@ public abstract class FileView {
      */
     public String getName(File f) {
         return null;
-    };
+    }
 
     /**
      * A human readable description of the file. For example,

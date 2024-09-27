@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,8 @@ import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.utilities.*;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class ObjectSynchronizer {
   static {
@@ -41,22 +43,10 @@ public class ObjectSynchronizer {
   }
 
   private static synchronized void initialize(TypeDataBase db) throws WrongTypeException {
-    Type type;
-    try {
-      type = db.lookupType("ObjectSynchronizer");
-      gBlockList = type.getAddressField("gBlockList").getValue();
-      blockSize = db.lookupIntConstant("ObjectSynchronizer::_BLOCKSIZE").intValue();
-      defaultCacheLineSize = db.lookupIntConstant("DEFAULT_CACHE_LINE_SIZE").intValue();
-    } catch (RuntimeException e) { }
-    type = db.lookupType("ObjectMonitor");
-    objectMonitorTypeSize = type.getSize();
-    if ((objectMonitorTypeSize % defaultCacheLineSize) != 0) {
-      // sizeof(ObjectMonitor) is not already a multiple of a cache line.
-      // The ObjectMonitor allocation code in ObjectSynchronizer pads each
-      // ObjectMonitor in a block to the next cache line boundary.
-      int needLines = ((int)objectMonitorTypeSize / defaultCacheLineSize) + 1;
-      objectMonitorTypeSize = needLines * defaultCacheLineSize;
-    }
+    Type objectSynchronizerType = db.lookupType("ObjectSynchronizer");
+    Type monitorListType = db.lookupType("MonitorList");
+    Address monitorListAddr = objectSynchronizerType.getField("_in_use_list").getStaticFieldAddress();
+    inUseListHead = monitorListType.getAddressField("_head").getAddress(monitorListAddr);
   }
 
   public long identityHashValueFor(Oop obj) {
@@ -65,6 +55,9 @@ public class ObjectSynchronizer {
       // FIXME: can not generate marks in debugging system
       return mark.hash();
     } else if (mark.hasMonitor()) {
+      if (VM.getVM().getCommandLineFlag("UseObjectMonitorTable").getBool()) {
+        return mark.hash();
+      }
       ObjectMonitor monitor = mark.monitor();
       Mark temp = monitor.header();
       return temp.hash();
@@ -82,56 +75,41 @@ public class ObjectSynchronizer {
   }
 
   public static Iterator objectMonitorIterator() {
-    if (gBlockList != null) {
-      return new ObjectMonitorIterator();
-    } else {
-      return null;
-    }
+    return new ObjectMonitorIterator();
   }
 
   private static class ObjectMonitorIterator implements Iterator {
 
-    // JVMTI raw monitors are not pointed by gBlockList
-    // and are not included by this Iterator. May add them later.
+    // JVMTI raw monitors are not included in _in_use_list and
+    // are not returned by this Iterator.
 
     ObjectMonitorIterator() {
-      blockAddr = gBlockList;
-      index = blockSize - 1;
-      block = new ObjectMonitor(blockAddr);
+      mon = inUseListHead == null ? null : new ObjectMonitor(inUseListHead);
     }
 
     public boolean hasNext() {
-      return (index > 0 || block.freeNext() != null);
+      return (mon != null);
     }
 
     public Object next() {
-      Address addr;
-      if (index == 0) {
-        // advance to next block
-        blockAddr = block.freeNext();
-        if (blockAddr == null) {
-          throw new NoSuchElementException();
-        }
-        block = new ObjectMonitor(blockAddr);
-        index = blockSize - 1;
+      ObjectMonitor ret = mon;
+      if (ret == null) {
+        throw new NoSuchElementException();
       }
-      addr = blockAddr.addOffsetTo(index*objectMonitorTypeSize);
-      index --;
-      return new ObjectMonitor(addr);
+      // advance to next entry
+      Address nextMon = mon.nextOM();
+      mon = nextMon == null ? null : new ObjectMonitor(nextMon);
+
+      return ret;
     }
 
     public void remove() {
       throw new UnsupportedOperationException();
     }
 
-    private ObjectMonitor block;
-    private int index;
-    private Address blockAddr;
+    private ObjectMonitor mon;
   }
 
-  private static Address gBlockList;
-  private static int blockSize;
-  private static int defaultCacheLineSize;
-  private static long objectMonitorTypeSize;
+  private static Address inUseListHead;
 
 }

@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018,2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -48,7 +46,7 @@ import javax.net.ssl.TrustManagerFactory;
 
 /*
  * @test
- * @bug 8206355
+ * @bug 8206355 8225438
  * @summary Test principal that was sent to the peer during handshake.
  * @run main/othervm TestSessionLocalPrincipal
  */
@@ -131,7 +129,6 @@ public class TestSessionLocalPrincipal {
             latch.countDown();
             try (SSLSocket sslSocket = (SSLSocket) sslServerSocket.accept()) {
                 sslSocket.setNeedClientAuth(this.clientAuth);
-                sslSocket.setSoTimeout(5000);
                 try (InputStream sslIS = sslSocket.getInputStream();
                         OutputStream sslOS = sslSocket.getOutputStream();) {
                     sslIS.read();

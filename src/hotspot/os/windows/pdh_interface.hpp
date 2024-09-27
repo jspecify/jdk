@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,10 @@
  *
  */
 
-#ifndef OS_WINDOWS_VM_PDH_INTERFACE_HPP
-#define OS_WINDOWS_VM_PDH_INTERFACE_HPP
+#ifndef OS_WINDOWS_PDH_INTERFACE_HPP
+#define OS_WINDOWS_PDH_INTERFACE_HPP
 
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 #include <pdh.h>
 #include <pdhmsg.h>
 
@@ -45,6 +45,7 @@ class PdhDll: public AllStatic {
   static PDH_STATUS (WINAPI *_PdhRemoveCounter)(HCOUNTER);
   static PDH_STATUS (WINAPI *_PdhLookupPerfNameByIndex)(LPCSTR, DWORD, LPSTR, LPDWORD);
   static PDH_STATUS (WINAPI *_PdhMakeCounterPath)(PPDH_COUNTER_PATH_ELEMENTS, LPTSTR, LPDWORD, DWORD);
+  static PDH_STATUS (WINAPI *_PdhExpandWildCardPath)(LPCSTR, LPCSTR, PZZSTR, LPDWORD, DWORD);
 
  public:
   static PDH_STATUS PdhAddCounter(HQUERY, LPCSTR, DWORD, HCOUNTER*);
@@ -56,9 +57,10 @@ class PdhDll: public AllStatic {
   static PDH_STATUS PdhRemoveCounter(HCOUNTER);
   static PDH_STATUS PdhLookupPerfNameByIndex(LPCSTR, DWORD, LPSTR, LPDWORD);
   static PDH_STATUS PdhMakeCounterPath(PPDH_COUNTER_PATH_ELEMENTS, LPTSTR, LPDWORD, DWORD);
+  static PDH_STATUS PdhExpandWildCardPath(LPCSTR, LPCSTR, PZZSTR, LPDWORD, DWORD);
   static bool       PdhStatusFail(PDH_STATUS pdhStat);
   static bool       PdhAttach();
   static bool       PdhDetach();
 };
 
-#endif // OS_WINDOWS_VM_PDH_INTERFACE_HPP
+#endif // OS_WINDOWS_PDH_INTERFACE_HPP

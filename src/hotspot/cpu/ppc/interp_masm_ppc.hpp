@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2017 SAP SE. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_PPC_VM_INTERP_MASM_PPC_HPP
-#define CPU_PPC_VM_INTERP_MASM_PPC_HPP
+#ifndef CPU_PPC_INTERP_MASM_PPC_HPP
+#define CPU_PPC_INTERP_MASM_PPC_HPP
 
 #include "asm/macroAssembler.hpp"
 #include "interpreter/invocationCounter.hpp"
@@ -38,6 +38,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   InterpreterMacroAssembler(CodeBuffer* code) : MacroAssembler(code) {}
 
   void null_check_throw(Register a, int offset, Register temp_reg);
+  void load_klass_check_null_throw(Register dst, Register src, Register temp_reg);
 
   void jump_to_entry(address entry, Register Rscratch);
 
@@ -77,7 +78,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
                          Register tmp1, Register tmp2, Register tmp3, Label &ok_is_subtype);
 
   // Load object from cpool->resolved_references(index).
-  void load_resolved_reference_at_index(Register result, Register index, Label *L_handle_null = NULL);
+  void load_resolved_reference_at_index(Register result, Register index, Register tmp1, Register tmp2,
+                                        Label *L_handle_null = nullptr);
 
   // load cpool->resolved_klass_at(index)
   void load_resolved_klass_at_offset(Register Rcpool, Register Roffset, Register Rklass);
@@ -122,7 +124,9 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   void get_cache_index_at_bcp(Register Rdst, int bcp_offset, size_t index_size);
 
-  void get_cache_and_index_at_bcp(Register cache, int bcp_offset, size_t index_size = sizeof(u2));
+  void load_resolved_indy_entry(Register cache, Register index);
+  void load_field_entry(Register cache, Register index, int bcp_offset = 1);
+  void load_method_entry(Register cache, Register index, int bcp_offset = 1);
 
   void get_u4(Register Rdst, Register Rsrc, int offset, signedOrNot is_signed);
 
@@ -196,10 +200,9 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void static_dload_or_store(int which_local, LoadOrStore direction);
 
   void save_interpreter_state(Register scratch);
-  void restore_interpreter_state(Register scratch, bool bcp_and_mdx_only = false);
+  void restore_interpreter_state(Register scratch, bool bcp_and_mdx_only = false, bool restore_top_frame_sp = false);
 
   void increment_backedge_counter(const Register Rcounters, Register Rtmp, Register Rtmp2, Register Rscratch);
-  void test_backedge_count_for_osr(Register backedge_count, Register method_counters, Register target_bcp, Register disp, Register Rtmp);
 
   void record_static_call_in_profile(Register Rentry, Register Rtmp);
   void record_receiver_call_in_profile(Register Rklass, Register Rentry, Register Rtmp);
@@ -209,13 +212,12 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   // Object locking
   void lock_object  (Register lock_reg, Register obj_reg);
-  void unlock_object(Register lock_reg, bool check_for_exceptions = true);
+  void unlock_object(Register lock_reg);
 
   // Interpreter profiling operations
   void set_method_data_pointer_for_bcp();
   void test_method_data_pointer(Label& zero_continue);
   void verify_method_data_pointer();
-  void test_invocation_counter_for_mdp(Register invocation_count, Register method_counters, Register Rscratch, Label &profile_continue);
 
   void set_mdp_data_at(int constant, Register value);
 
@@ -239,13 +241,12 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void profile_final_call(Register scratch1, Register scratch2);
   void profile_virtual_call(Register Rreceiver, Register Rscratch1, Register Rscratch2,  bool receiver_can_be_null);
   void profile_typecheck(Register Rklass, Register Rscratch1, Register Rscratch2);
-  void profile_typecheck_failed(Register Rscratch1, Register Rscratch2);
   void profile_ret(TosState state, Register return_bci, Register scratch1, Register scratch2);
   void profile_switch_default(Register scratch1, Register scratch2);
   void profile_switch_case(Register index, Register scratch1,Register scratch2, Register scratch3);
   void profile_null_seen(Register Rscratch1, Register Rscratch2);
-  void record_klass_in_profile(Register receiver, Register scratch1, Register scratch2, bool is_virtual_call);
-  void record_klass_in_profile_helper(Register receiver, Register scratch1, Register scratch2, int start_row, Label& done, bool is_virtual_call);
+  void record_klass_in_profile(Register receiver, Register scratch1, Register scratch2);
+  void record_klass_in_profile_helper(Register receiver, Register scratch1, Register scratch2, int start_row, Label& done);
 
   // Argument and return type profiling.
   void profile_obj_type(Register obj, Register mdo_addr_base, RegisterOrConstant mdo_addr_offs, Register tmp, Register tmp2);
@@ -266,4 +267,4 @@ class InterpreterMacroAssembler: public MacroAssembler {
                           NotifyMethodExitMode mode, bool check_exceptions);
 };
 
-#endif // CPU_PPC_VM_INTERP_MASM_PPC_HPP
+#endif // CPU_PPC_INTERP_MASM_PPC_HPP

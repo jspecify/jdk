@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,12 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_INTRINSICNODE_HPP
-#define SHARE_VM_OPTO_INTRINSICNODE_HPP
+#ifndef SHARE_OPTO_INTRINSICNODE_HPP
+#define SHARE_OPTO_INTRINSICNODE_HPP
 
 #include "opto/node.hpp"
 #include "opto/opcodes.hpp"
+#include "opto/connode.hpp"
 
 
 //----------------------PartialSubtypeCheckNode--------------------------------
@@ -46,10 +47,11 @@ class PartialSubtypeCheckNode : public Node {
 // Base class for Ideal nodes used in String intrinsic code.
 class StrIntrinsicNode: public Node {
  public:
-  // Possible encodings of the two parameters passed to the string intrinsic.
+  // Possible encodings of the parameters passed to the string intrinsic.
   // 'L' stands for Latin1 and 'U' stands for UTF16. For example, 'LU' means that
   // the first string is Latin1 encoded and the second string is UTF16 encoded.
-  typedef enum ArgEncoding { LL, LU, UL, UU, none } ArgEnc;
+  // 'L' means that the single string is Latin1 encoded
+  typedef enum ArgEncoding { LL, LU, UL, UU, L, U, none } ArgEnc;
 
  protected:
   // Encoding of strings. Used to select the right version of the intrinsic.
@@ -155,21 +157,20 @@ class AryEqNode: public StrIntrinsicNode {
   virtual const Type* bottom_type() const { return TypeInt::BOOL; }
 };
 
-//------------------------------HasNegatives---------------------------------
-class HasNegativesNode: public StrIntrinsicNode {
+//------------------------------CountPositives------------------------------
+class CountPositivesNode: public StrIntrinsicNode {
  public:
-  HasNegativesNode(Node* control, Node* char_array_mem, Node* s1, Node* c1):
+  CountPositivesNode(Node* control, Node* char_array_mem, Node* s1, Node* c1):
   StrIntrinsicNode(control, char_array_mem, s1, c1, none) {};
   virtual int Opcode() const;
-  virtual const Type* bottom_type() const { return TypeInt::BOOL; }
+  virtual const Type* bottom_type() const { return TypeInt::POS; }
 };
 
-
-//------------------------------EncodeISOArray--------------------------------
-// encode char[] to byte[] in ISO_8859_1
-class EncodeISOArrayNode: public Node {
+//------------------------------VectorizedHashCodeNode----------------------
+class VectorizedHashCodeNode: public Node {
  public:
-  EncodeISOArrayNode(Node* control, Node* arymem, Node* s1, Node* s2, Node* c): Node(control, arymem, s1, s2, c) {};
+  VectorizedHashCodeNode(Node* control, Node* ary_mem, Node* arg1, Node* cnt1, Node* result, Node* basic_type)
+    : Node(control, ary_mem, arg1, cnt1, result, basic_type) {};
   virtual int Opcode() const;
   virtual bool depends_only_on_test() const { return false; }
   virtual const Type* bottom_type() const { return TypeInt::INT; }
@@ -180,4 +181,162 @@ class EncodeISOArrayNode: public Node {
   virtual const Type* Value(PhaseGVN* phase) const;
 };
 
-#endif // SHARE_VM_OPTO_INTRINSICNODE_HPP
+//------------------------------EncodeISOArray--------------------------------
+// encode char[] to byte[] in ISO_8859_1 or ASCII
+class EncodeISOArrayNode: public Node {
+  bool ascii;
+ public:
+  EncodeISOArrayNode(Node* control, Node* arymem, Node* s1, Node* s2, Node* c, bool ascii)
+    : Node(control, arymem, s1, s2, c), ascii(ascii) {}
+
+  bool is_ascii() { return ascii; }
+  virtual int Opcode() const;
+  virtual bool depends_only_on_test() const { return false; }
+  virtual const Type* bottom_type() const { return TypeInt::INT; }
+  virtual const TypePtr* adr_type() const { return TypePtr::BOTTOM; }
+  virtual uint match_edge(uint idx) const;
+  virtual uint ideal_reg() const { return Op_RegI; }
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
+  virtual const Type* Value(PhaseGVN* phase) const;
+};
+
+//-------------------------------DigitNode----------------------------------------
+class DigitNode : public Node {
+public:
+  DigitNode(Node* control, Node *in1) : Node(control, in1) {}
+  virtual int Opcode() const;
+  const Type* bottom_type() const { return TypeInt::BOOL; }
+  virtual uint ideal_reg() const { return Op_RegI; }
+};
+
+//------------------------------LowerCaseNode------------------------------------
+class LowerCaseNode : public Node {
+public:
+  LowerCaseNode(Node* control, Node *in1) : Node(control, in1) {}
+  virtual int Opcode() const;
+  const Type* bottom_type() const { return TypeInt::BOOL; }
+  virtual uint ideal_reg() const { return Op_RegI; }
+};
+
+//------------------------------UpperCaseNode------------------------------------
+class UpperCaseNode : public Node {
+public:
+  UpperCaseNode(Node* control, Node *in1) : Node(control, in1) {}
+  virtual int Opcode() const;
+  const Type* bottom_type() const { return TypeInt::BOOL; }
+  virtual uint ideal_reg() const { return Op_RegI; }
+};
+
+//------------------------------WhitespaceCode-----------------------------------
+class WhitespaceNode : public Node {
+public:
+  WhitespaceNode(Node* control, Node *in1) : Node(control, in1) {}
+  virtual int Opcode() const;
+  const Type* bottom_type() const { return TypeInt::BOOL; }
+  virtual uint ideal_reg() const { return Op_RegI; }
+};
+
+//------------------------------CopySign-----------------------------------------
+class CopySignDNode : public Node {
+ protected:
+  CopySignDNode(Node* in1, Node* in2, Node* in3) : Node(nullptr, in1, in2, in3) {}
+ public:
+  static CopySignDNode* make(PhaseGVN& gvn, Node* in1, Node* in2);
+  virtual int Opcode() const;
+  const Type* bottom_type() const { return TypeLong::DOUBLE; }
+  virtual uint ideal_reg() const { return Op_RegD; }
+};
+
+class CopySignFNode : public Node {
+ public:
+  CopySignFNode(Node* in1, Node* in2) : Node(nullptr, in1, in2) {}
+  virtual int Opcode() const;
+  const Type* bottom_type() const { return TypeLong::FLOAT; }
+  virtual uint ideal_reg() const { return Op_RegF; }
+};
+
+//------------------------------Signum-------------------------------------------
+class SignumDNode : public Node {
+ protected:
+  SignumDNode(Node* in1, Node* in2, Node* in3) : Node(nullptr, in1, in2, in3) {}
+ public:
+  static SignumDNode* make(PhaseGVN& gvn, Node* in);
+  virtual int Opcode() const;
+  virtual const Type* bottom_type() const { return Type::DOUBLE; }
+  virtual uint ideal_reg() const { return Op_RegD; }
+};
+
+class SignumFNode : public Node {
+ protected:
+  SignumFNode(Node* in1, Node* in2, Node* in3) : Node(nullptr, in1, in2, in3) {}
+ public:
+  static SignumFNode* make(PhaseGVN& gvn, Node* in);
+  virtual int Opcode() const;
+  virtual const Type* bottom_type() const { return Type::FLOAT; }
+  virtual uint ideal_reg() const { return Op_RegF; }
+};
+
+//----------------------------CompressBits/ExpandBits---------------------------
+class CompressBitsNode : public TypeNode {
+ public:
+  CompressBitsNode(Node* in1, Node* in2, const Type* type) : TypeNode(type, 3) {
+    init_req(1, in1);
+    init_req(2, in2);
+  }
+  virtual int Opcode() const;
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
+  virtual Node* Identity(PhaseGVN* phase);
+  virtual const Type* Value(PhaseGVN* phase) const;
+  static jlong compress_bits(jlong src, jlong mask, int bit_size);
+};
+
+class ExpandBitsNode : public TypeNode {
+ public:
+  ExpandBitsNode(Node* in1, Node* in2, const Type* type) : TypeNode(type, 3) {
+    init_req(1, in1);
+    init_req(2, in2);
+  }
+  virtual int Opcode() const;
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
+  virtual Node* Identity(PhaseGVN* phase);
+  virtual const Type* Value(PhaseGVN* phase) const;
+  static jlong expand_bits(jlong src, jlong mask, int bit_size);
+};
+
+//---------- IsInfiniteFNode -----------------------------------------------------
+class IsInfiniteFNode : public Node {
+  public:
+  IsInfiniteFNode(Node* in1) : Node(nullptr, in1) {}
+  virtual int   Opcode() const;
+  const Type* bottom_type() const { return TypeInt::BOOL; }
+  virtual uint ideal_reg() const { return Op_RegI; }
+};
+
+//---------- IsInfiniteDNode -----------------------------------------------------
+class IsInfiniteDNode : public Node {
+  public:
+  IsInfiniteDNode(Node* in1) : Node(nullptr, in1) {}
+  virtual int   Opcode() const;
+  const Type* bottom_type() const { return TypeInt::BOOL; }
+  virtual uint ideal_reg() const { return Op_RegI; }
+};
+
+//---------- IsFiniteFNode -----------------------------------------------------
+class IsFiniteFNode : public Node {
+  public:
+  IsFiniteFNode(Node* in1) : Node(nullptr, in1) {}
+  virtual int   Opcode() const;
+  const Type* bottom_type() const { return TypeInt::BOOL; }
+  virtual uint ideal_reg() const { return Op_RegI; }
+};
+
+//---------- IsFiniteDNode -----------------------------------------------------
+class IsFiniteDNode : public Node {
+  public:
+  IsFiniteDNode(Node* in1) : Node(nullptr, in1) {}
+  virtual int   Opcode() const;
+  const Type* bottom_type() const { return TypeInt::BOOL; }
+  virtual uint ideal_reg() const { return Op_RegI; }
+};
+
+#endif // SHARE_OPTO_INTRINSICNODE_HPP

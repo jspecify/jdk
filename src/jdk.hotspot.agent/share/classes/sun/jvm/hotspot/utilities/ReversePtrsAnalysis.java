@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@ import sun.jvm.hotspot.gc.shared.*;
 import sun.jvm.hotspot.memory.*;
 import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.runtime.*;
-import sun.jvm.hotspot.utilities.*;
 
 /** For a set of known roots, descends recursively into the object
     graph, for each object recording those objects (and their fields)
@@ -92,9 +91,9 @@ public class ReversePtrsAnalysis {
     heap = vm.getObjectHeap();
 
     // Do each thread's roots
-    for (JavaThread thread = VM.getVM().getThreads().first();
-         thread != null;
-         thread = thread.next()) {
+    Threads threads = VM.getVM().getThreads();
+    for (int i = 0; i < threads.getNumberOfThreads(); i++) {
+      JavaThread thread = threads.getJavaThreadAt(i);
       ByteArrayOutputStream bos = new ByteArrayOutputStream();
       thread.printThreadIDOn(new PrintStream(bos));
       String threadDesc =
@@ -206,7 +205,7 @@ public class ReversePtrsAnalysis {
     // Root of work list for objects to be visited.  A simple
     // stack for saving new objects to be analyzed.
 
-    final Stack workList = new Stack();
+    final Stack<Oop> workList = new Stack<>();
 
     // Next object to be visited.
     Oop next = obj;
@@ -255,13 +254,10 @@ public class ReversePtrsAnalysis {
         }
 
         // Get the next object to visit.
-        next = (Oop) workList.pop();
+        next = workList.pop();
       }
     } catch (EmptyStackException e) {
       // Done
-    } catch (NullPointerException e) {
-      System.err.println("ReversePtrs: WARNING: " + e +
-        " during traversal");
     } catch (Exception e) {
       System.err.println("ReversePtrs: WARNING: " + e +
         " during traversal");

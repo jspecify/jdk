@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,6 @@
 package sun.nio.fs;
 
 import java.nio.file.*;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.*;
 import java.io.IOException;
 import jdk.internal.misc.Unsafe;
@@ -72,7 +70,7 @@ class LinuxWatchService
             socketpair(sp);
             configureBlocking(sp[0], false);
         } catch (UnixException x) {
-            UnixNativeDispatcher.close(ifd);
+            UnixNativeDispatcher.close(ifd, e -> null);
             throw new IOException(x.errorString());
         }
 
@@ -228,15 +226,13 @@ class LinuxWatchService
             }
 
             // no modifiers supported at this time
-            if (modifiers.length > 0) {
-                for (WatchEvent.Modifier modifier: modifiers) {
-                    if (modifier == null)
-                        return new NullPointerException();
-                    if (!ExtendedOptions.SENSITIVITY_HIGH.matches(modifier) &&
-                            !ExtendedOptions.SENSITIVITY_MEDIUM.matches(modifier) &&
-                            !ExtendedOptions.SENSITIVITY_LOW.matches(modifier)) {
-                        return new UnsupportedOperationException("Modifier not supported");
-                    }
+            for (WatchEvent.Modifier modifier : modifiers) {
+                if (modifier == null)
+                    return new NullPointerException();
+                if (!ExtendedOptions.SENSITIVITY_HIGH.matches(modifier) &&
+                        !ExtendedOptions.SENSITIVITY_MEDIUM.matches(modifier) &&
+                        !ExtendedOptions.SENSITIVITY_LOW.matches(modifier)) {
+                    return new UnsupportedOperationException("Modifier not supported");
                 }
             }
 
@@ -252,15 +248,10 @@ class LinuxWatchService
             }
 
             // register with inotify (replaces existing mask if already registered)
-            int wd = -1;
-            try {
-                NativeBuffer buffer =
-                    NativeBuffers.asNativeBuffer(dir.getByteArrayForSysCalls());
-                try {
-                    wd = inotifyAddWatch(ifd, buffer.address(), mask);
-                } finally {
-                    buffer.release();
-                }
+            int wd;
+            try (NativeBuffer buffer =
+                 NativeBuffers.asNativeBuffer(dir.getByteArrayForSysCalls())) {
+                wd = inotifyAddWatch(ifd, buffer.address(), mask);
             } catch (UnixException x) {
                 if (x.errno() == ENOSPC) {
                     return new IOException("User limit of inotify watches reached");
@@ -298,9 +289,9 @@ class LinuxWatchService
 
             // free resources
             unsafe.freeMemory(address);
-            UnixNativeDispatcher.close(socketpair[0]);
-            UnixNativeDispatcher.close(socketpair[1]);
-            UnixNativeDispatcher.close(ifd);
+            UnixNativeDispatcher.close(socketpair[0], e -> null);
+            UnixNativeDispatcher.close(socketpair[1], e -> null);
+            UnixNativeDispatcher.close(ifd, e -> null);
         }
 
         /**
@@ -459,10 +450,6 @@ class LinuxWatchService
     private static native int poll(int fd1, int fd2) throws UnixException;
 
     static {
-        AccessController.doPrivileged(new PrivilegedAction<>() {
-            public Void run() {
-                System.loadLibrary("nio");
-                return null;
-        }});
+        jdk.internal.loader.BootLoader.loadLibrary("nio");
     }
 }

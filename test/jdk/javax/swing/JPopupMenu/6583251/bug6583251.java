@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -26,7 +24,7 @@
 /*
  * @test
  * @key headful
- * @bug 6583251
+ * @bug 6583251 8217377
  * @summary One more ClassCastException in Swing with TrayIcon
  * @author Alexander Potochkin
  * @run main bug6583251
@@ -57,22 +55,32 @@ public class bug6583251 {
     }
 
     public static void main(String[] args) throws Exception {
+        if (SystemTray.isSupported()) {
+            SwingUtilities.invokeAndWait(new Runnable() {
+                public void run() {
+                    createGui();
+                }
+            });
 
-        SwingUtilities.invokeAndWait(new Runnable() {
-            public void run() {
-                createGui();
-            }
-        });
+            Robot robot = new Robot();
+            robot.waitForIdle();
+            menu.show(frame, 0, 0);
+            robot.waitForIdle();
 
-        Robot robot = new Robot();
-        robot.waitForIdle();
-        menu.show(frame, 0, 0);
-        robot.waitForIdle();
+            TrayIcon trayIcon = new TrayIcon(new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB));
+            MouseEvent ev = new MouseEvent(
+                    new JButton(), MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(), 0, 0, 0, 1, false);
+            ev.setSource(trayIcon);
+            Toolkit.getDefaultToolkit().getSystemEventQueue().postEvent(ev);
 
-        TrayIcon trayIcon = new TrayIcon(new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB));
-        MouseEvent ev = new MouseEvent(
-                new JButton(), MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(), 0, 0, 0, 1, false);
-        ev.setSource(trayIcon);
-        Toolkit.getDefaultToolkit().getSystemEventQueue().postEvent(ev);
+            SwingUtilities.invokeAndWait(new Runnable() {
+                public void run() {
+                    frame.dispose();
+                }
+            });
+
+        } else {
+            System.out.println("SystemTray not supported. " + "Skipping the test.");
+        }
     }
 }

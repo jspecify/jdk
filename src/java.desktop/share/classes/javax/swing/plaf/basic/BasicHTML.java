@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,10 +31,12 @@ import java.io.*;
 import java.awt.*;
 import java.net.URL;
 
+import javax.accessibility.AccessibleContext;
 import javax.swing.*;
 import javax.swing.text.*;
 import javax.swing.text.html.*;
 
+import sun.swing.SwingAccessor;
 import sun.swing.SwingUtilities2;
 
 /**
@@ -48,6 +50,11 @@ import sun.swing.SwingUtilities2;
  */
 @AnnotatedFor({"interning"})
 public class BasicHTML {
+
+    /**
+     * Constructs a {@code BasicHTML}.
+     */
+    public BasicHTML() {}
 
     /**
      * Create an html renderer for the given component and
@@ -218,7 +225,7 @@ public class BasicHTML {
         View value = null;
         View oldValue = (View)c.getClientProperty(BasicHTML.propertyKey);
         Boolean htmlDisabled = (Boolean) c.getClientProperty(htmlDisable);
-        if (htmlDisabled != Boolean.TRUE && BasicHTML.isHTMLString(text)) {
+        if (!(Boolean.TRUE.equals(htmlDisabled)) && BasicHTML.isHTMLString(text)) {
             value = BasicHTML.createHTMLView(c, text);
         }
         if (value != oldValue && oldValue != null) {
@@ -227,6 +234,34 @@ public class BasicHTML {
             }
         }
         c.putClientProperty(BasicHTML.propertyKey, value);
+        String currentAccessibleNameProperty =
+            (String) c.getClientProperty(AccessibleContext.ACCESSIBLE_NAME_PROPERTY);
+        String previousParsedText = null;
+        if (currentAccessibleNameProperty != null && oldValue != null) {
+            try {
+                previousParsedText =
+                    (oldValue.getDocument().getText(0, oldValue.getDocument().getLength())).strip();
+            } catch (BadLocationException e) {
+            }
+        }
+
+        // AccessibleContext.ACCESSIBLE_NAME_PROPERTY should be set from here only if,
+        // 1. If AccessibleContext.ACCESSIBLE_NAME_PROPERTY was NOT set before
+        //        i.e. currentAccessibleNameProperty is null. and,
+        // 2. If AccessibleContext.ACCESSIBLE_NAME_PROPERTY was previously set from this method
+        //        using the value.getDocument().getText().
+        if (currentAccessibleNameProperty == null ||
+                currentAccessibleNameProperty.equals(previousParsedText)) {
+            String parsedText = null;
+            if (value != null) {
+                try {
+                    parsedText =
+                        (value.getDocument().getText(0, value.getDocument().getLength())).strip();
+                } catch (BadLocationException e) {
+                }
+            }
+            c.putClientProperty(AccessibleContext.ACCESSIBLE_NAME_PROPERTY, parsedText);
+        }
     }
 
     /**
@@ -297,7 +332,7 @@ public class BasicHTML {
         private static StyleSheet defaultStyles;
 
         /**
-         * Overriden to return our own slimmed down style sheet.
+         * Overridden to return our own slimmed down style sheet.
          */
         public StyleSheet getStyleSheet() {
             if (defaultStyles == null) {
@@ -346,15 +381,36 @@ public class BasicHTML {
      */
     static class BasicHTMLViewFactory extends HTMLEditorKit.HTMLFactory {
         public View create(Element elem) {
-            View view = super.create(elem);
 
+            View view = null;
+            try {
+                setAllowHTMLObject();
+                view = super.create(elem);
+            } finally {
+                clearAllowHTMLObject();
+            }
             if (view instanceof ImageView) {
                 ((ImageView)view).setLoadsSynchronously(true);
             }
             return view;
         }
-    }
 
+        private static Boolean useOV = null;
+
+        @SuppressWarnings("removal")
+        private static void setAllowHTMLObject() {
+            if (useOV == null) {
+                useOV = java.security.AccessController.doPrivileged(
+                    new sun.security.action.GetBooleanAction(
+                        "swing.html.object"));
+            };
+            SwingAccessor.setAllowHTMLObject(useOV);
+        }
+
+        private static void clearAllowHTMLObject() {
+            SwingAccessor.setAllowHTMLObject(null);
+        }
+    }
 
     /**
      * The subclass of HTMLDocument that is used as the model. getForeground
@@ -555,9 +611,9 @@ public class BasicHTML {
          *  position is a boundary of two views.
          * @param a the allocated region to render into
          * @return the bounding box of the given position is returned
-         * @exception BadLocationException  if the given position does
+         * @throws BadLocationException  if the given position does
          *   not represent a valid location in the associated document
-         * @exception IllegalArgumentException for an invalid bias argument
+         * @throws IllegalArgumentException for an invalid bias argument
          * @see View#viewToModel
          */
         public Shape modelToView(int p0, Position.Bias b0, int p1,

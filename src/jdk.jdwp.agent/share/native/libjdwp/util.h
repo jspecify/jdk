@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,12 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+#ifdef LINUX
+// Note. On Alpine Linux pthread.h includes calloc/malloc functions declaration.
+// We need to include pthread.h before the following stdlib names poisoning.
+#include <pthread.h>
+#endif
+
 #ifdef DEBUG
     /* Just to make sure these interfaces are not used here. */
     #undef free
@@ -59,7 +65,8 @@ typedef struct RefNode {
     jobject      ref;           /* could be strong or weak */
     struct RefNode *next;       /* next RefNode* in bucket chain */
     jint         count;         /* count of references */
-    unsigned     isStrong : 1;  /* 1 means this is a string reference */
+    jboolean     isPinAll;      /* true if this is a strong reference due to a commonRef_pinAll() */
+    jboolean     isCommonPin;   /* true if this is a strong reference due to a commonRef_pin() */
 } RefNode;
 
 /* Value of a NULL ID */
@@ -77,9 +84,13 @@ typedef struct {
     volatile jboolean vmDead; /* Once VM is dead it stays that way - don't put in init */
     jboolean assertOn;
     jboolean assertFatal;
+    jboolean vthreadsSupported; /* If true, debugging support for vthreads is enabled. */
+    jboolean includeVThreads;   /* If true, VM.AllThreads includes vthreads. */
+    jboolean rememberVThreadsWhenDisconnected;
     jboolean doerrorexit;
     jboolean modifiedUtf8;
     jboolean quiet;
+    jboolean jvmti_data_dump; /* If true, then support JVMTI DATA_DUMP_REQUEST events. */
 
     /* Debug flags (bit mask) */
     int      debugflags;
@@ -97,7 +108,6 @@ typedef struct {
     jclass              systemClass;
     jmethodID           threadConstructor;
     jmethodID           threadSetDaemon;
-    jmethodID           threadResume;
     jmethodID           systemGetProperty;
     jmethodID           setProperty;
     jthreadGroup        systemThreadGroup;
@@ -122,12 +132,16 @@ typedef struct {
     /* Common References static data */
     jrawMonitorID refLock;
     jlong         nextSeqNum;
+    unsigned      pinAllCount;
     RefNode     **objectsByID;
     int           objectsByIDsize;
     int           objectsByIDcount;
 
-     /* Indication that the agent has been loaded */
-     jboolean isLoaded;
+    /* Indication that the agent has been loaded */
+    jboolean isLoaded;
+
+    /* Indication that VM_DEATH has been received and the JVMTI callbacks have been cleared. */
+    volatile jboolean jvmtiCallBacksCleared;
 
 } BackendGlobalData;
 
@@ -147,7 +161,7 @@ typedef enum {
         EI_THREAD_START         =  5,
         EI_THREAD_END           =  6,
         EI_CLASS_PREPARE        =  7,
-        EI_GC_FINISH            =  8,
+        EI_CLASS_UNLOAD         =  8,
         EI_CLASS_LOAD           =  9,
         EI_FIELD_ACCESS         = 10,
         EI_FIELD_MODIFICATION   = 11,
@@ -160,7 +174,10 @@ typedef enum {
         EI_MONITOR_WAITED       = 18,
         EI_VM_INIT              = 19,
         EI_VM_DEATH             = 20,
-        EI_max                  = 20
+        EI_VIRTUAL_THREAD_START = 21,
+        EI_VIRTUAL_THREAD_END   = 22,
+
+        EI_max                  = 22
 } EventIndex;
 
 /* Agent errors that might be in a jvmtiError for JDWP or internal.
@@ -201,6 +218,7 @@ typedef struct {
 
     EventIndex  ei;
     jthread     thread;
+    jboolean    is_vthread;
     jclass      clazz;
     jmethodID   method;
     jlocation   location;
@@ -252,13 +270,6 @@ typedef struct ObjectBatch {
 } ObjectBatch;
 
 /*
- * JNI signature constants, beyond those defined in JDWP_TAG(*)
- */
-#define SIGNATURE_BEGIN_ARGS    '('
-#define SIGNATURE_END_ARGS      ')'
-#define SIGNATURE_END_CLASS     ';'
-
-/*
  * Modifier flags for classes, fields, methods
  */
 #define MOD_PUBLIC       0x0001     /* visible to everyone */
@@ -268,7 +279,7 @@ typedef struct ObjectBatch {
 #define MOD_FINAL        0x0010     /* no further subclassing, overriding */
 #define MOD_SYNCHRONIZED 0x0020     /* wrap method call in monitor lock */
 #define MOD_VOLATILE     0x0040     /* can cache in registers */
-#define MOD_TRANSIENT    0x0080     /* not persistant */
+#define MOD_TRANSIENT    0x0080     /* not persistent */
 #define MOD_NATIVE       0x0100     /* implemented in C */
 #define MOD_INTERFACE    0x0200     /* class is an interface */
 #define MOD_ABSTRACT     0x0400     /* no definition provided */
@@ -291,7 +302,6 @@ jbyte referenceTypeTag(jclass clazz);
 jbyte specificTypeKey(JNIEnv *env, jobject object);
 jboolean isObjectTag(jbyte tag);
 jvmtiError spawnNewThread(jvmtiStartFunction func, void *arg, char *name);
-void convertSignatureToClassname(char *convert);
 void writeCodeLocation(struct PacketOutputStream *out, jclass clazz,
                        jmethodID method, jlocation location);
 
@@ -325,6 +335,7 @@ jvmtiError classLoader(jclass, jobject *);
  */
 JNIEnv *getEnv(void);
 jboolean isClass(jobject object);
+jboolean isVThread(jobject object);
 jboolean isThread(jobject object);
 jboolean isThreadGroup(jobject object);
 jboolean isString(jobject object);
@@ -339,13 +350,11 @@ jint jvmtiMajorVersion(void);
 jint jvmtiMinorVersion(void);
 jint jvmtiMicroVersion(void);
 jvmtiError getSourceDebugExtension(jclass clazz, char **extensionPtr);
-jboolean canSuspendResumeThreadLists(void);
 
 jrawMonitorID debugMonitorCreate(char *name);
 void debugMonitorEnter(jrawMonitorID theLock);
 void debugMonitorExit(jrawMonitorID theLock);
 void debugMonitorWait(jrawMonitorID theLock);
-void debugMonitorTimedWait(jrawMonitorID theLock, jlong millis);
 void debugMonitorNotify(jrawMonitorID theLock);
 void debugMonitorNotifyAll(jrawMonitorID theLock);
 void debugMonitorDestroy(jrawMonitorID theLock);
@@ -381,6 +390,7 @@ void *jvmtiAllocate(jint numBytes);
 void jvmtiDeallocate(void *buffer);
 
 void             eventIndexInit(void);
+char*            eventIndex2EventName(EventIndex ei);
 jdwpEvent        eventIndex2jdwp(EventIndex i);
 jvmtiEvent       eventIndex2jvmti(EventIndex i);
 EventIndex       jdwp2EventIndex(jdwpEvent eventType);
@@ -413,5 +423,7 @@ void createLocalRefSpace(JNIEnv *env, jint capacity);
 
 void saveGlobalRef(JNIEnv *env, jobject obj, jobject *pobj);
 void tossGlobalRef(JNIEnv *env, jobject *pobj);
+
+jvmtiEnv* getSpecialJvmti(void);
 
 #endif

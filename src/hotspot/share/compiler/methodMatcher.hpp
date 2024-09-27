@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_COMPILER_METHODMATCHER_HPP
-#define SHARE_VM_COMPILER_METHODMATCHER_HPP
+#ifndef SHARE_COMPILER_METHODMATCHER_HPP
+#define SHARE_COMPILER_METHODMATCHER_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/handles.hpp"
@@ -74,14 +74,14 @@ private:
 public:
 
   BasicMatcher() : MethodMatcher(),
-    _next(NULL) {
+    _next(nullptr) {
   }
 
   BasicMatcher(BasicMatcher* next) :
     _next(next) {
   }
 
-  static BasicMatcher* parse_method_pattern(char* line, const char*& error_msg);
+  static BasicMatcher* parse_method_pattern(char* line, const char*& error_msg, bool expect_trailing_chars);
   bool match(const methodHandle& method);
   void set_next(BasicMatcher* next) { _next = next; }
   BasicMatcher* next() { return _next; }
@@ -89,7 +89,7 @@ public:
   void print(outputStream* st) { print_base(st); }
   void print_all(outputStream* st) {
     print_base(st);
-    if (_next != NULL) {
+    if (_next != nullptr) {
       _next->print_all(st);
     }
   }
@@ -108,7 +108,7 @@ private:
   InlineMatcher * _next;
 
   InlineMatcher() : MethodMatcher(),
-    _inline_action(unknown_inline), _next(NULL) {
+    _inline_action(unknown_inline), _next(nullptr) {
   }
 
 public:
@@ -123,5 +123,4 @@ public:
   InlineMatcher* clone();
 };
 
-#endif // SHARE_VM_COMPILER_METHODMATCHER_HPP
-
+#endif // SHARE_COMPILER_METHODMATCHER_HPP

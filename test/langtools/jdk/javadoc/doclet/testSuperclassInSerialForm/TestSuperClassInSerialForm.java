@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,29 +26,33 @@
  * @bug 4671694
  * @summary Test to make sure link to superclass is generated for
  * each class in serialized form page.
- * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestSuperClassInSerialForm
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestSuperClassInSerialForm extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestSuperClassInSerialForm tester = new TestSuperClassInSerialForm();
+        var tester = new TestSuperClassInSerialForm();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
+                "--no-platform-links",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
 
         checkOutput("serialized-form.html", true,
-                "<a href=\"pkg/SubClass.html\" title=\"class in pkg\">pkg.SubClass</a>"
-                + " extends <a href=\"pkg/SuperClass.html\" title=\"class in pkg\">SuperClass</a>");
+                """
+                    <h3>Class&nbsp;<a href="pkg/SubClass.html" title="class in pkg">pkg.SubClass</a></h3>
+                    <div class="type-signature">class SubClass extends <a href="pkg/SuperClass.html" tit\
+                    le="class in pkg">SuperClass</a> implements java.io.Serializable</div>""");
     }
 }

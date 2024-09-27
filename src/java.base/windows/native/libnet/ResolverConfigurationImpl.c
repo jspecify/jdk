@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,17 +24,17 @@
  */
 
 #include <stdlib.h>
-#include <windows.h>
 #include <stdio.h>
 #include <stddef.h>
-#include <iprtrmib.h>
 #include <time.h>
 #include <assert.h>
-#include <iphlpapi.h>
 
+#include "net_util.h"
 #include "jni_util.h"
 
-#define MAX_STR_LEN         256
+#define MAX_STR_LEN         1024
+#define BUFF_SIZE           15360
+#define MAX_TRIES           3
 
 #define STS_NO_CONFIG       0x0             /* no configuration found */
 #define STS_SL_FOUND        0x1             /* search list found */
@@ -49,8 +49,81 @@ static jfieldID searchlistID;
 static jfieldID nameserversID;
 
 /*
- * Utility routine to append s2 to s1 with a space delimiter.
- *  strappend(s1="abc", "def")  => "abc def"
+ * return an array of IP_ADAPTER_ADDRESSES containing one element
+ * for each adapter on the system. Returned in *adapters.
+ * Buffer is malloc'd and must be freed (unless error returned)
+ */
+static int getAdapters (JNIEnv *env, int flags, IP_ADAPTER_ADDRESSES **adapters) {
+    DWORD ret;
+    IP_ADAPTER_ADDRESSES *adapterInfo;
+    ULONG len;
+    int try;
+
+    *adapters = NULL;
+
+    adapterInfo = (IP_ADAPTER_ADDRESSES *) malloc(BUFF_SIZE);
+    if (adapterInfo == NULL) {
+        JNU_ThrowByName(env, "java/lang/OutOfMemoryError",
+            "Native heap allocation failure");
+        return -1;
+    }
+
+    len = BUFF_SIZE;
+    ret = GetAdaptersAddresses(AF_UNSPEC, flags, NULL, adapterInfo, &len);
+
+    for (try = 0; ret == ERROR_BUFFER_OVERFLOW && try < MAX_TRIES; ++try) {
+        IP_ADAPTER_ADDRESSES * newAdapterInfo = NULL;
+        if (len < (ULONG_MAX - BUFF_SIZE)) {
+            len += BUFF_SIZE;
+        }
+        newAdapterInfo =
+            (IP_ADAPTER_ADDRESSES *) realloc (adapterInfo, len);
+        if (newAdapterInfo == NULL) {
+            free(adapterInfo);
+            JNU_ThrowByName(env, "java/lang/OutOfMemoryError",
+                "Native heap allocation failure");
+            return -1;
+        }
+
+        adapterInfo = newAdapterInfo;
+
+        ret = GetAdaptersAddresses(AF_UNSPEC, flags, NULL, adapterInfo, &len);
+    }
+
+    if (ret != ERROR_SUCCESS) {
+        free (adapterInfo);
+        switch (ret) {
+            case ERROR_INVALID_PARAMETER:
+                JNU_ThrowInternalError(env,
+                    "IP Helper Library GetAdaptersAddresses function failed: "
+                    "invalid parameter");
+                break;
+            case ERROR_NOT_ENOUGH_MEMORY:
+                JNU_ThrowOutOfMemoryError(env,
+                    "IP Helper Library GetAdaptersAddresses function failed: "
+                    "not enough memory");
+                break;
+            case ERROR_NO_DATA:
+                // not an error
+                *adapters = NULL;
+                return ERROR_SUCCESS;
+            default:
+                SetLastError(ret);
+                JNU_ThrowByNameWithMessageAndLastError(env,
+                    JNU_JAVANETPKG "SocketException",
+                    "IP Helper Library GetAdaptersAddresses function failed");
+                break;
+        }
+
+        return -1;
+    }
+    *adapters = adapterInfo;
+    return ERROR_SUCCESS;
+}
+
+/*
+ * Utility routine to append s2 to s1 with a comma delimiter.
+ *  strappend(s1="abc", "def")  => "abc,def"
  *  strappend(s1="", "def")     => "def
  */
 void strappend(char *s1, char *s2) {
@@ -60,41 +133,32 @@ void strappend(char *s1, char *s2) {
         return;
 
     len = strlen(s1)+1;
-    if (s1[0] != 0)                         /* needs space character */
+    if (s1[0] != 0)                         /* needs comma character */
         len++;
     if (len + strlen(s2) > MAX_STR_LEN)     /* insufficient space */
         return;
 
     if (s1[0] != 0) {
-        strcat(s1, " ");
+        strcat(s1, ",");
     }
     strcat(s1, s2);
 }
 
 /*
- * Windows 2000/XP
- *
- * Use registry approach based on settings described in Appendix C
- * of "Microsoft Windows 2000 TCP/IP Implementation Details".
- *
- * DNS suffix list is obtained from SearchList registry setting. If
- * this is not specified we compile suffix list based on the
- * per-connection domain suffix.
- *
- * DNS name servers and domain settings are on a per-connection
- * basic. We therefore enumerate the network adapters to get the
- * names of each adapter and then query the corresponding registry
- * settings to obtain NameServer/DhcpNameServer and Domain/DhcpDomain.
+ * Use DNS server addresses returned by GetAdaptersAddresses for currently
+ * active interfaces.
  */
-static int loadConfig(char *sl, char *ns) {
-    IP_ADAPTER_INFO *adapterP;
-    ULONG size;
-    DWORD ret;
+static int loadConfig(JNIEnv *env, char *sl, char *ns) {
+    IP_ADAPTER_ADDRESSES *adapters, *adapter;
+    IP_ADAPTER_DNS_SERVER_ADDRESS *dnsServer;
+    WCHAR *suffix;
+    DWORD ret, flags;
     DWORD dwLen;
     ULONG ulType;
     char result[MAX_STR_LEN];
     HANDLE hKey;
-    int gotSearchList = 0;
+    SOCKADDR *sockAddr;
+    struct sockaddr_in6 *sockAddrIpv6;
 
     /*
      * First see if there is a global suffix list specified.
@@ -112,128 +176,74 @@ static int loadConfig(char *sl, char *ns) {
             assert(ulType == REG_SZ);
             if (strlen(result) > 0) {
                 strappend(sl, result);
-                gotSearchList = 1;
             }
         }
         RegCloseKey(hKey);
     }
 
-    /*
-     * Ask the IP Helper library to enumerate the adapters
-     */
-    size = sizeof(IP_ADAPTER_INFO);
-    adapterP = (IP_ADAPTER_INFO *)malloc(size);
-    if (adapterP == NULL) {
+
+    // We only need DNS server addresses so skip everything else.
+    flags = GAA_FLAG_SKIP_UNICAST;
+    flags |= GAA_FLAG_SKIP_ANYCAST;
+    flags |= GAA_FLAG_SKIP_MULTICAST;
+    flags |= GAA_FLAG_SKIP_FRIENDLY_NAME;
+    ret = getAdapters(env, flags, &adapters);
+
+    if (ret != ERROR_SUCCESS) {
         return STS_ERROR;
     }
-    ret = GetAdaptersInfo(adapterP, &size);
-    if (ret == ERROR_BUFFER_OVERFLOW) {
-        IP_ADAPTER_INFO *newAdapterP = (IP_ADAPTER_INFO *)realloc(adapterP, size);
-        if (newAdapterP == NULL) {
-            free(adapterP);
-            return STS_ERROR;
-        }
-        adapterP = newAdapterP;
 
-        ret = GetAdaptersInfo(adapterP, &size);
-    }
-
-    /*
-     * Iterate through the list of adapters as registry settings are
-     * keyed on the adapter name (GUID).
-     */
-    if (ret == ERROR_SUCCESS) {
-        IP_ADAPTER_INFO *curr = adapterP;
-        while (curr != NULL) {
-            char key[MAX_STR_LEN];
-
-            sprintf(key,
-                "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces\\%s",
-                curr->AdapterName);
-
-            ret = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-                               key,
-                               0,
-                               KEY_READ,
-                               (PHKEY)&hKey);
-            if (ret == ERROR_SUCCESS) {
-                DWORD enableDhcp = 0;
-
-                /*
-                 * Is DHCP enabled on this interface
-                 */
-                dwLen = sizeof(enableDhcp);
-                ret = RegQueryValueEx(hKey, "EnableDhcp", NULL, &ulType,
-                                     (LPBYTE)&enableDhcp, &dwLen);
-
-                /*
-                 * If we don't have the suffix list when get the Domain
-                 * or DhcpDomain. If DHCP is enabled then Domain overides
-                 * DhcpDomain
-                 */
-                if (!gotSearchList) {
-                    result[0] = '\0';
-                    dwLen = sizeof(result);
-                    ret = RegQueryValueEx(hKey, "Domain", NULL, &ulType,
-                                         (LPBYTE)&result, &dwLen);
-                    if (((ret != ERROR_SUCCESS) || (strlen(result) == 0)) &&
-                        enableDhcp) {
-                        dwLen = sizeof(result);
-                        ret = RegQueryValueEx(hKey, "DhcpDomain", NULL, &ulType,
-                                              (LPBYTE)&result, &dwLen);
-                    }
-                    if (ret == ERROR_SUCCESS) {
-                        assert(ulType == REG_SZ);
-                        strappend(sl, result);
+    adapter = adapters;
+    while (adapter != NULL) {
+        // Only load config from enabled adapters.
+        if (adapter->OperStatus == IfOperStatusUp) {
+            dnsServer = adapter->FirstDnsServerAddress;
+            while (dnsServer != NULL) {
+                sockAddr = dnsServer->Address.lpSockaddr;
+                if (sockAddr->sa_family == AF_INET6) {
+                    sockAddrIpv6 = (struct sockaddr_in6 *)sockAddr;
+                    if (sockAddrIpv6->sin6_scope_id != 0) {
+                        // An address with a scope is either link-local or
+                        // site-local, which aren't valid for DNS queries so
+                        // we can skip them.
+                        dnsServer = dnsServer->Next;
+                        continue;
                     }
                 }
 
-                /*
-                 * Get DNS servers based on NameServer or DhcpNameServer
-                 * registry setting. If NameServer is set then it overrides
-                 * DhcpNameServer (even if DHCP is enabled).
-                 */
-                result[0] = '\0';
                 dwLen = sizeof(result);
-                ret = RegQueryValueEx(hKey, "NameServer", NULL, &ulType,
-                                     (LPBYTE)&result, &dwLen);
-                if (((ret != ERROR_SUCCESS) || (strlen(result) == 0)) &&
-                    enableDhcp) {
-                    dwLen = sizeof(result);
-                    ret = RegQueryValueEx(hKey, "DhcpNameServer", NULL, &ulType,
-                                          (LPBYTE)&result, &dwLen);
-                }
-                if (ret == ERROR_SUCCESS) {
-                    assert(ulType == REG_SZ);
+                ret = WSAAddressToStringA(sockAddr,
+                          dnsServer->Address.iSockaddrLength, NULL,
+                          result, &dwLen);
+                if (ret == 0) {
                     strappend(ns, result);
                 }
 
-                /*
-                 * Finished with this registry key
-                 */
-                RegCloseKey(hKey);
+                dnsServer = dnsServer->Next;
             }
 
-            /*
-             * Onto the next adapeter
-             */
-            curr = curr->Next;
+            // Add connection-specific search domains in addition to global one.
+            suffix = adapter->DnsSuffix;
+            if (suffix != NULL) {
+                ret = WideCharToMultiByte(CP_UTF8, 0, suffix, -1,
+                    result, sizeof(result), NULL, NULL);
+                if (ret != 0) {
+                    strappend(sl, result);
+                }
+            }
         }
+
+        adapter = adapter->Next;
     }
 
-    /*
-     * Free the adpater structure
-     */
-    if (adapterP) {
-        free(adapterP);
-    }
+    free(adapters);
 
     return STS_SL_FOUND & STS_NS_FOUND;
 }
 
 
 /*
- * Initialize JNI field IDs.
+ * Initialize JNI field IDs and classes.
  */
 JNIEXPORT void JNICALL
 Java_sun_net_dns_ResolverConfigurationImpl_init0(JNIEnv *env, jclass cls)
@@ -260,7 +270,7 @@ Java_sun_net_dns_ResolverConfigurationImpl_loadDNSconfig0(JNIEnv *env, jclass cl
     searchlist[0] = '\0';
     nameservers[0] = '\0';
 
-    if (loadConfig(searchlist, nameservers) != STS_ERROR) {
+    if (loadConfig(env, searchlist, nameservers) != STS_ERROR) {
 
         /*
          * Populate static fields in sun.net.DefaultResolverConfiguration
@@ -272,8 +282,6 @@ Java_sun_net_dns_ResolverConfigurationImpl_loadDNSconfig0(JNIEnv *env, jclass cl
         obj = (*env)->NewStringUTF(env, nameservers);
         CHECK_NULL(obj);
         (*env)->SetStaticObjectField(env, cls, nameserversID, obj);
-    } else {
-        JNU_ThrowOutOfMemoryError(env, "native memory allocation failed");
     }
 }
 

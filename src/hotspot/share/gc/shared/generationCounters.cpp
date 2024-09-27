@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "gc/shared/generationCounters.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "runtime/perfData.hpp"
 
 void GenerationCounters::initialize(const char* name, int ordinal, int spaces,
                                     size_t min_capacity, size_t max_capacity,
@@ -66,7 +67,7 @@ GenerationCounters::GenerationCounters(const char* name,
                                        size_t min_capacity, size_t max_capacity,
                                        VirtualSpace* v)
   : _virtual_space(v) {
-  assert(v != NULL, "don't call this constructor if v == NULL");
+  assert(v != nullptr, "don't call this constructor if v == nullptr");
   initialize(name, ordinal, spaces,
              min_capacity, max_capacity, v->committed_size());
 }
@@ -75,17 +76,15 @@ GenerationCounters::GenerationCounters(const char* name,
                                        int ordinal, int spaces,
                                        size_t min_capacity, size_t max_capacity,
                                        size_t curr_capacity)
-  : _virtual_space(NULL) {
+  : _virtual_space(nullptr) {
   initialize(name, ordinal, spaces, min_capacity, max_capacity, curr_capacity);
 }
 
 GenerationCounters::~GenerationCounters() {
-  if (_name_space != NULL) {
-    FREE_C_HEAP_ARRAY(char, _name_space);
-  }
+  FREE_C_HEAP_ARRAY(char, _name_space);
 }
 
 void GenerationCounters::update_all() {
-  assert(_virtual_space != NULL, "otherwise, override this method");
+  assert(_virtual_space != nullptr, "otherwise, override this method");
   _current_size->set_value(_virtual_space->committed_size());
 }

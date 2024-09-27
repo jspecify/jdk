@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_PERIODIC_JFRDCMDEVENT_HPP
-#define SHARE_VM_JFR_PERIODIC_JFRDCMDEVENT_HPP
+#ifndef SHARE_JFR_PERIODIC_JFRTHREADDUMPEVENT_HPP
+#define SHARE_JFR_PERIODIC_JFRTHREADDUMPEVENT_HPP
 
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 
 /*
  *  Helper for generating jfr events using output data from Dcmd's.
@@ -36,4 +36,4 @@ class JfrDcmdEvent : public AllStatic {
   static const char* thread_dump();
 };
 
-#endif // SHARE_VM_JFR_PERIODIC_JFRDCMDEVENT_HPP
+#endif // SHARE_JFR_PERIODIC_JFRTHREADDUMPEVENT_HPP

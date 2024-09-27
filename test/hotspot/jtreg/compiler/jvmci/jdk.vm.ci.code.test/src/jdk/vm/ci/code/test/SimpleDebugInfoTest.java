@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,17 +23,19 @@
 
 /**
  * @test
- * @requires vm.jvmci & (vm.simpleArch == "x64" | vm.simpleArch == "sparcv9")
+ * @requires vm.jvmci
+ * @requires vm.simpleArch == "x64" | vm.simpleArch == "aarch64" | vm.simpleArch == "riscv64"
  * @library /
  * @modules jdk.internal.vm.ci/jdk.vm.ci.hotspot
  *          jdk.internal.vm.ci/jdk.vm.ci.meta
  *          jdk.internal.vm.ci/jdk.vm.ci.code
  *          jdk.internal.vm.ci/jdk.vm.ci.code.site
  *          jdk.internal.vm.ci/jdk.vm.ci.runtime
+ *          jdk.internal.vm.ci/jdk.vm.ci.aarch64
  *          jdk.internal.vm.ci/jdk.vm.ci.amd64
- *          jdk.internal.vm.ci/jdk.vm.ci.sparc
- * @compile CodeInstallationTest.java DebugInfoTest.java TestAssembler.java TestHotSpotVMConfig.java amd64/AMD64TestAssembler.java sparc/SPARCTestAssembler.java
- * @run junit/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -Djvmci.Compiler=null jdk.vm.ci.code.test.SimpleDebugInfoTest
+ *          jdk.internal.vm.ci/jdk.vm.ci.riscv64
+ * @compile CodeInstallationTest.java DebugInfoTest.java TestAssembler.java TestHotSpotVMConfig.java amd64/AMD64TestAssembler.java aarch64/AArch64TestAssembler.java riscv64/RISCV64TestAssembler.java
+ * @run junit/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -XX:-UseJVMCICompiler jdk.vm.ci.code.test.SimpleDebugInfoTest
  */
 
 package jdk.vm.ci.code.test;
@@ -197,85 +199,5 @@ public class SimpleDebugInfoTest extends DebugInfoTest {
         };
         testLongOnStack(compiler);
         testLongInLocal(compiler);
-    }
-
-    public static Class<?> objectOnStack() {
-        return SimpleDebugInfoTest.class;
-    }
-
-    private void testObjectOnStack(DebugInfoCompiler compiler) {
-        test(compiler, getMethod("objectOnStack"), 2, JavaKind.Object);
-    }
-
-    public static Class<?> objectInLocal() {
-        Class<?> local = SimpleDebugInfoTest.class;
-        return local;
-    }
-
-    private void testObjectInLocal(DebugInfoCompiler compiler) {
-        test(compiler, getMethod("objectInLocal"), 3, JavaKind.Object);
-    }
-
-    @Test
-    public void testConstObject() {
-        ResolvedJavaType type = metaAccess.lookupJavaType(objectOnStack());
-        DebugInfoCompiler compiler = (asm, values) -> {
-            values[0] = constantReflection.asJavaClass(type);
-            return null;
-        };
-        testObjectOnStack(compiler);
-        testObjectInLocal(compiler);
-    }
-
-    @Test
-    public void testRegObject() {
-        ResolvedJavaType type = metaAccess.lookupJavaType(objectOnStack());
-        DebugInfoCompiler compiler = (asm, values) -> {
-            Register reg = asm.emitLoadPointer((HotSpotConstant) constantReflection.asJavaClass(type));
-            values[0] = reg.asValue(asm.getValueKind(JavaKind.Object));
-            return null;
-        };
-        testObjectOnStack(compiler);
-        testObjectInLocal(compiler);
-    }
-
-    @Test
-    public void testStackObject() {
-        ResolvedJavaType type = metaAccess.lookupJavaType(objectOnStack());
-        DebugInfoCompiler compiler = (asm, values) -> {
-            Register reg = asm.emitLoadPointer((HotSpotConstant) constantReflection.asJavaClass(type));
-            values[0] = asm.emitPointerToStack(reg);
-            return null;
-        };
-        testObjectOnStack(compiler);
-        testObjectInLocal(compiler);
-    }
-
-    @Test
-    public void testRegNarrowObject() {
-        Assume.assumeTrue(config.useCompressedOops);
-        ResolvedJavaType type = metaAccess.lookupJavaType(objectOnStack());
-        DebugInfoCompiler compiler = (asm, values) -> {
-            HotSpotConstant wide = (HotSpotConstant) constantReflection.asJavaClass(type);
-            Register reg = asm.emitLoadPointer((HotSpotConstant) wide.compress());
-            values[0] = reg.asValue(asm.narrowOopKind);
-            return null;
-        };
-        testObjectOnStack(compiler);
-        testObjectInLocal(compiler);
-    }
-
-    @Test
-    public void testStackNarrowObject() {
-        Assume.assumeTrue(config.useCompressedOops);
-        ResolvedJavaType type = metaAccess.lookupJavaType(objectOnStack());
-        DebugInfoCompiler compiler = (asm, values) -> {
-            HotSpotConstant wide = (HotSpotConstant) constantReflection.asJavaClass(type);
-            Register reg = asm.emitLoadPointer((HotSpotConstant) wide.compress());
-            values[0] = asm.emitNarrowPointerToStack(reg);
-            return null;
-        };
-        testObjectOnStack(compiler);
-        testObjectInLocal(compiler);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,9 +48,9 @@ import java.io.*;
  * To check up on the method, a debugger,                       <BR>
  * upon getting new set for the EventSet,                       <BR>
  * suspends VM with the method VirtualMachine.suspend(),        <BR>
- * gets the List of geduggee's threads calling VM.allThreads(), <BR>
+ * gets the List of debuggee's threads calling VM.allThreads(), <BR>
  * invokes the method EventSet.resume(), and                    <BR>
- * gets another List of geduggee's threads.                     <BR>
+ * gets another List of debuggee's threads.                     <BR>
  * The debugger then compares values of                         <BR>
  * each thread's suspendCount from first and second Lists.      <BR>
  * <BR>
@@ -85,26 +85,15 @@ import java.io.*;
  * <BR>
  */
 
-public class resume003 {
-
-    //----------------------------------------------------- templete section
-    static final int PASSED = 0;
-    static final int FAILED = 2;
-    static final int PASS_BASE = 95;
-
-    //----------------------------------------------------- templete parameters
-    static final String
-    sHeader1 = "\n==> nsk/jdi/EventSet/resume/resume003 ",
-    sHeader2 = "--> debugger: ",
-    sHeader3 = "##> debugger: ";
-
-    //----------------------------------------------------- main method
+public class resume003 extends JDIBase {
 
     public static void main (String argv[]) {
 
         int result = run(argv, System.out);
 
-        System.exit(result + PASS_BASE);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run (String argv[], PrintStream out) {
@@ -114,21 +103,7 @@ public class resume003 {
         if (exitCode != PASSED) {
             System.out.println("TEST FAILED");
         }
-        return testExitCode;
-    }
-
-    //--------------------------------------------------   log procedures
-
-    private static Log  logHandler;
-
-    private static void log1(String message) {
-        logHandler.display(sHeader1 + message);
-    }
-    private static void log2(String message) {
-        logHandler.display(sHeader2 + message);
-    }
-    private static void log3(String message) {
-        logHandler.complain(sHeader3 + message);
+        return exitCode;
     }
 
     //  ************************************************    test parameters
@@ -140,31 +115,6 @@ public class resume003 {
       "nsk.jdi.EventSet.resume.resume003aTestClass";
 
     //====================================================== test program
-    //------------------------------------------------------ common section
-
-    static Debugee          debuggee;
-    static ArgumentHandler  argsHandler;
-
-    static int waitTime;
-
-    static VirtualMachine      vm            = null;
-    static EventRequestManager eventRManager = null;
-    static EventQueue          eventQueue    = null;
-    static EventSet            eventSet      = null;
-    static EventIterator       eventIterator = null;
-
-    static ReferenceType       debuggeeClass = null;
-
-    static int  testExitCode = PASSED;
-
-
-    class JDITestRuntimeException extends RuntimeException {
-        JDITestRuntimeException(String str) {
-            super("JDITestRuntimeException : " + str);
-        }
-    }
-
-    //------------------------------------------------------ methods
 
     private int runThis (String argv[], PrintStream out) {
 
@@ -313,7 +263,7 @@ public class resume003 {
         String bPointMethod = "methodForCommunication";
         String lineForComm  = "lineForComm";
         BreakpointRequest bpRequest;
-        ThreadReference   mainThread = threadByName("main");
+        ThreadReference   mainThread = debuggee.threadByNameOrThrow("main");
         bpRequest = settingBreakpoint(mainThread,
                                       debuggeeClass,
                                       bPointMethod, lineForComm, "zero");
@@ -503,115 +453,12 @@ public class resume003 {
 
             log2("......--> vm.resume()");
             vm.resume();
+            informDebuggeeTestCase(i);
+
             //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         }
         log1("    TESTING ENDS");
         return;
-    }
-
-    private ThreadReference threadByName(String name)
-                 throws JDITestRuntimeException {
-
-        List         all = vm.allThreads();
-        ListIterator li  = all.listIterator();
-
-        for (; li.hasNext(); ) {
-            ThreadReference thread = (ThreadReference) li.next();
-            if (thread.name().equals(name))
-                return thread;
-        }
-        throw new JDITestRuntimeException("** Thread IS NOT found ** : " + name);
-    }
-
-   /*
-    * private BreakpointRequest settingBreakpoint(ThreadReference, ReferenceType,
-    *                                             String, String, String)
-    *
-    * It sets up a breakpoint at given line number within a given method in a given class
-    * for a given thread.
-    *
-    * Return value: BreakpointRequest object  in case of success
-    *
-    * JDITestRuntimeException   in case of an Exception thrown within the method
-    */
-
-    private BreakpointRequest settingBreakpoint ( ThreadReference thread,
-                                                  ReferenceType testedClass,
-                                                  String methodName,
-                                                  String bpLine,
-                                                  String property)
-            throws JDITestRuntimeException {
-
-        log2("......setting up a breakpoint:");
-        log2("       thread: " + thread + "; class: " + testedClass +
-                        "; method: " + methodName + "; line: " + bpLine);
-
-        List              alllineLocations = null;
-        Location          lineLocation     = null;
-        BreakpointRequest breakpRequest    = null;
-
-        try {
-            Method  method  = (Method) testedClass.methodsByName(methodName).get(0);
-
-            alllineLocations = method.allLineLocations();
-
-            int n =
-                ( (IntegerValue) testedClass.getValue(testedClass.fieldByName(bpLine) ) ).value();
-            if (n > alllineLocations.size()) {
-                log3("ERROR:  TEST_ERROR_IN_settingBreakpoint(): number is out of bound of method's lines");
-            } else {
-                lineLocation = (Location) alllineLocations.get(n);
-                try {
-                    breakpRequest = eventRManager.createBreakpointRequest(lineLocation);
-                    breakpRequest.putProperty("number", property);
-                    breakpRequest.addThreadFilter(thread);
-                    breakpRequest.setSuspendPolicy( EventRequest.SUSPEND_EVENT_THREAD);
-                } catch ( Exception e1 ) {
-                    log3("ERROR: inner Exception within settingBreakpoint() : " + e1);
-                    breakpRequest    = null;
-                }
-            }
-        } catch ( Exception e2 ) {
-            log3("ERROR: ATTENTION:  outer Exception within settingBreakpoint() : " + e2);
-            breakpRequest    = null;
-        }
-
-        if (breakpRequest == null) {
-            log2("      A BREAKPOINT HAS NOT BEEN SET UP");
-            throw new JDITestRuntimeException("**FAILURE to set up a breakpoint**");
-        }
-
-        log2("      a breakpoint has been set up");
-        return breakpRequest;
-    }
-
-
-    private void getEventSet()
-                 throws JDITestRuntimeException {
-        try {
-//            log2("       eventSet = eventQueue.remove(waitTime);");
-            eventSet = eventQueue.remove(waitTime);
-            if (eventSet == null) {
-                throw new JDITestRuntimeException("** TIMEOUT while waiting for event **");
-            }
-//            log2("       eventIterator = eventSet.eventIterator;");
-            eventIterator = eventSet.eventIterator();
-        } catch ( Exception e ) {
-            throw new JDITestRuntimeException("** EXCEPTION while waiting for event ** : " + e);
-        }
-    }
-
-
-    private void breakpointForCommunication()
-                 throws JDITestRuntimeException {
-
-        log2("breakpointForCommunication");
-        getEventSet();
-
-        if (eventIterator.nextEvent() instanceof BreakpointEvent)
-            return;
-
-        throw new JDITestRuntimeException("** event IS NOT a breakpoint **");
     }
 
     // ============================== test's additional methods
@@ -642,5 +489,22 @@ public class resume003 {
             throw new JDITestRuntimeException("** FAILURE to set up ModificationWatchpointRequest **");
         }
     }
-
+    /**
+     * Inform debuggee which thread test the debugger has completed.
+     * Used for synchronization, so the debuggee does not move too quickly.
+     * @param testCase index of just completed test
+     */
+    void informDebuggeeTestCase(int testCase) {
+        try {
+            ((ClassType)debuggeeClass)
+                .setValue(debuggeeClass.fieldByName("testCase"),
+                          vm.mirrorOf(testCase));
+        } catch (InvalidTypeException ite) {
+            throw new Failure("** FAILURE setting testCase  **");
+        } catch (ClassNotLoadedException cnle) {
+            throw new Failure("** FAILURE notifying debuggee  **");
+        } catch (VMDisconnectedException e) {
+            throw new Failure("** FAILURE debuggee connection **");
+        }
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,6 @@
 /*
  * @test
  * @bug 8004802
- * @key nmt jcmd regression
  * @summary Regression test for invoking a jcmd with baseline=false, result was that the target VM crashed
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
@@ -47,7 +46,8 @@ public class BaselineWithParameter {
 
     // Run 'jcmd <pid> VM.native_memory baseline=false'
     pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.native_memory", "baseline=false"});
-    pb.start().waitFor();
+    output = new OutputAnalyzer(pb.start());
+    output.shouldContain("Total: reserved");
 
     // Run 'jcmd <pid> VM.native_memory summary=false'
     pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.native_memory", "summary=false"});

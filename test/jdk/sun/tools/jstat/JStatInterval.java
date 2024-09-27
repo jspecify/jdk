@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,17 +24,19 @@
 /**
  * @test
  * @bug 8035668
- * @library /lib/testlibrary
+ * @requires vm.flagless
+ * @library /test/lib
  * @summary Test checks case when target application finishes execution and jstat didn't complete work.
             jstat is started with interval = 100 (jstat -compiler 100) and monitored application finishes
             after 500ms. This shouldn't cause crash or hang in target application or in jstat.
  * @modules java.management
- * @build jdk.testlibrary.* JStatInterval
+ * @build JStatInterval
  * @run main JStatInterval
  */
 
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.JDKToolLauncher;
+import jdk.test.lib.JDKToolLauncher;
+import jdk.test.lib.Utils;
+import jdk.test.lib.process.ProcessTools;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -59,9 +61,7 @@ public class JStatInterval {
         }
     }
     public static void main(String[] args) throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-            "-cp",
-            System.getProperty("test.class.path"),
+        ProcessBuilder pb = ProcessTools.createTestJavaProcessBuilder(
             "-XX:+UsePerfData",
             Application.class.getName()
         );
@@ -87,6 +87,7 @@ public class JStatInterval {
 
         String pidStr = String.valueOf(app.pid());
         JDKToolLauncher l = JDKToolLauncher.createUsingTestJDK("jstat");
+        l.addVMArgs(Utils.getTestJavaOpts());
         l.addToolArg("-compiler");
         l.addToolArg(pidStr);
         l.addToolArg("100");

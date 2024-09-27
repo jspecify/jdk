@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_TASKQUEUE_HPP
-#define SHARE_VM_GC_SHARED_TASKQUEUE_HPP
+#ifndef SHARE_GC_SHARED_TASKQUEUE_HPP
+#define SHARE_GC_SHARED_TASKQUEUE_HPP
 
 #include "memory/allocation.hpp"
+#include "memory/padded.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "runtime/atomic.hpp"
+#include "utilities/debug.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/stack.hpp"
 
@@ -52,7 +56,11 @@ public:
     pop,              // number of taskqueue pops
     pop_slow,         // subset of taskqueue pops that were done slow-path
     steal_attempt,    // number of taskqueue steal attempts
-    steal,            // number of taskqueue steals
+    steal_empty,      // number of empty taskqueues
+    steal_contended,  // number of contended steals
+    steal_success,    // number of successful steals
+    steal_max_contended_in_a_row, // maximum number of contended steals in a row
+    steal_bias_drop,  // number of times the bias has been dropped
     overflow,         // number of overflow pushes
     overflow_max_len, // max length of overflow stack
     last_stat_id
@@ -61,10 +69,19 @@ public:
 public:
   inline TaskQueueStats()       { reset(); }
 
-  inline void record_push()     { ++_stats[push]; }
-  inline void record_pop()      { ++_stats[pop]; }
-  inline void record_pop_slow() { record_pop(); ++_stats[pop_slow]; }
-  inline void record_steal(bool success);
+  inline void record_push()          { ++_stats[push]; }
+  inline void record_pop()           { ++_stats[pop]; }
+  inline void record_pop_slow()      { record_pop(); ++_stats[pop_slow]; }
+  inline void record_steal_attempt(uint kind) {
+    ++_stats[steal_attempt];
+    ++_stats[steal_empty + kind];
+  }
+  inline void record_contended_in_a_row(uint in_a_row) {
+    if (_stats[steal_max_contended_in_a_row] < in_a_row) {
+      _stats[steal_max_contended_in_a_row] = in_a_row;
+    }
+  }
+  inline void record_bias_drop() { ++_stats[steal_bias_drop]; }
   inline void record_overflow(size_t new_length);
 
   TaskQueueStats & operator +=(const TaskQueueStats & addend);
@@ -76,9 +93,9 @@ public:
 
   // Print the specified line of the header (does not include a line separator).
   static void print_header(unsigned int line, outputStream* const stream = tty,
-                           unsigned int width = 10);
+                           unsigned int width = 11);
   // Print the statistics (does not include a line separator).
-  void print(outputStream* const stream = tty, unsigned int width = 10) const;
+  void print(outputStream* const stream = tty, unsigned int width = 11) const;
 
   DEBUG_ONLY(void verify() const;)
 
@@ -86,11 +103,6 @@ private:
   size_t                    _stats[last_stat_id];
   static const char * const _names[last_stat_id];
 };
-
-void TaskQueueStats::record_steal(bool success) {
-  ++_stats[steal_attempt];
-  if (success) ++_stats[steal];
-}
 
 void TaskQueueStats::record_overflow(size_t new_len) {
   ++_stats[overflow];
@@ -104,36 +116,28 @@ void TaskQueueStats::reset() {
 
 // TaskQueueSuper collects functionality common to all GenericTaskQueue instances.
 
-template <unsigned int N, MEMFLAGS F>
-class TaskQueueSuper: public CHeapObj<F> {
+template <unsigned int N, MemTag MT>
+class TaskQueueSuper: public CHeapObj<MT> {
 protected:
   // Internal type for indexing the queue; also used for the tag.
   typedef NOT_LP64(uint16_t) LP64_ONLY(uint32_t) idx_t;
+  STATIC_ASSERT(N == idx_t(N)); // Ensure N fits in an idx_t.
 
-  // The first free element after the last one pushed (mod N).
-  volatile uint _bottom;
-
-  enum { MOD_N_MASK = N - 1 };
+  // N must be a power of 2 for computing modulo via masking.
+  // N must be >= 2 for the algorithm to work at all, though larger is better.
+  STATIC_ASSERT(N >= 2);
+  STATIC_ASSERT(is_power_of_2(N));
+  static const uint MOD_N_MASK = N - 1;
 
   class Age {
+    friend class TaskQueueSuper;
+
   public:
-    Age(size_t data = 0)         { _data = data; }
-    Age(const Age& age)          { _data = age._data; }
-    Age(idx_t top, idx_t tag)    { _fields._top = top; _fields._tag = tag; }
+    explicit Age(size_t data = 0) : _data(data) {}
+    Age(idx_t top, idx_t tag) { _fields._top = top; _fields._tag = tag; }
 
-    Age   get()        const volatile { return _data; }
-    void  set(Age age) volatile       { _data = age._data; }
-
-    idx_t top()        const volatile { return _fields._top; }
-    idx_t tag()        const volatile { return _fields._tag; }
-
-    // Increment top; if it wraps, increment tag also.
-    void increment() {
-      _fields._top = increment_index(_fields._top);
-      if (_fields._top == 0) ++_fields._tag;
-    }
-
-    Age cmpxchg(const Age new_age, const Age old_age) volatile;
+    idx_t top() const { return _fields._top; }
+    idx_t tag() const { return _fields._tag; }
 
     bool operator ==(const Age& other) const { return _data == other._data; }
 
@@ -146,9 +150,41 @@ protected:
       size_t _data;
       fields _fields;
     };
+    STATIC_ASSERT(sizeof(size_t) >= sizeof(fields));
   };
 
-  volatile Age _age;
+  uint bottom_relaxed() const {
+    return Atomic::load(&_bottom);
+  }
+
+  uint bottom_acquire() const {
+    return Atomic::load_acquire(&_bottom);
+  }
+
+  void set_bottom_relaxed(uint new_bottom) {
+    Atomic::store(&_bottom, new_bottom);
+  }
+
+  void release_set_bottom(uint new_bottom) {
+    Atomic::release_store(&_bottom, new_bottom);
+  }
+
+  Age age_relaxed() const {
+    return Age(Atomic::load(&_age._data));
+  }
+
+  void set_age_relaxed(Age new_age) {
+    Atomic::store(&_age._data, new_age._data);
+  }
+
+  Age cmpxchg_age(Age old_age, Age new_age) {
+    return Age(Atomic::cmpxchg(&_age._data, old_age._data, new_age._data));
+  }
+
+  idx_t age_top_relaxed() const {
+    // Atomically accessing a subfield of an "atomic" member.
+    return Atomic::load(&_age._fields._top);
+  }
 
   // These both operate mod N.
   static uint increment_index(uint ind) {
@@ -165,7 +201,7 @@ protected:
   }
 
   // Returns the size corresponding to the given "bot" and "top".
-  uint size(uint bot, uint top) const {
+  uint clean_size(uint bot, uint top) const {
     uint sz = dirty_size(bot, top);
     // Has the queue "wrapped", so that bottom is less than top?  There's a
     // complicated special case here.  A pair of threads could perform pop_local
@@ -178,41 +214,81 @@ protected:
     // threads attempting to perform the pop_global will all perform the same
     // CAS, and only one can succeed.)  Any stealing thread that reads after
     // either the increment or decrement will see an empty queue, and will not
-    // join the competitors.  The "sz == -1 || sz == N-1" state will not be
-    // modified by concurrent queues, so the owner thread can reset the state to
-    // _bottom == top so subsequent pushes will be performed normally.
+    // join the competitors.  The "sz == -1" / "sz == N-1" state will not be
+    // modified by concurrent threads, so the owner thread can reset the state
+    // to _bottom == top so subsequent pushes will be performed normally.
     return (sz == N - 1) ? 0 : sz;
   }
+
+  // Assert that we're not in the underflow state where bottom has
+  // been decremented past top, so that _bottom+1 mod N == top.  See
+  // the discussion in clean_size.
+
+  void assert_not_underflow(uint bot, uint top) const {
+    assert_not_underflow(dirty_size(bot, top));
+  }
+
+  void assert_not_underflow(uint dirty_size) const {
+    assert(dirty_size != N - 1, "invariant");
+  }
+
+private:
+  DEFINE_PAD_MINUS_SIZE(0, DEFAULT_PADDING_SIZE, 0);
+
+  // Index of the first free element after the last one pushed (mod N).
+  volatile uint _bottom;
+  DEFINE_PAD_MINUS_SIZE(1, DEFAULT_PADDING_SIZE, sizeof(uint));
+
+  // top() is the index of the oldest pushed element (mod N), and tag()
+  // is the associated epoch, to distinguish different modifications of
+  // the age.  There is no available element if top() == _bottom or
+  // (_bottom - top()) mod N == N-1; the latter indicates underflow
+  // during concurrent pop_local/pop_global.
+  volatile Age _age;
+  DEFINE_PAD_MINUS_SIZE(2, DEFAULT_PADDING_SIZE, sizeof(Age));
+
+  NONCOPYABLE(TaskQueueSuper);
 
 public:
   TaskQueueSuper() : _bottom(0), _age() {}
 
-  // Return true if the TaskQueue contains/does not contain any tasks.
-  bool peek()     const { return _bottom != _age.top(); }
-  bool is_empty() const { return size() == 0; }
+  // Assert the queue is empty.
+  // Unreliable if there are concurrent pushes or pops.
+  void assert_empty() const {
+    assert(bottom_relaxed() == age_top_relaxed(), "not empty");
+  }
+
+  bool is_empty() const {
+    return size() == 0;
+  }
 
   // Return an estimate of the number of elements in the queue.
-  // The "careful" version admits the possibility of pop_local/pop_global
-  // races.
+  // Treats pop_local/pop_global race that underflows as empty.
   uint size() const {
-    return size(_bottom, _age.top());
+    return clean_size(bottom_relaxed(), age_top_relaxed());
   }
 
-  uint dirty_size() const {
-    return dirty_size(_bottom, _age.top());
-  }
-
+  // Discard the contents of the queue.
   void set_empty() {
-    _bottom = 0;
-    _age.set(0);
+    set_bottom_relaxed(0);
+    set_age_relaxed(Age());
   }
 
   // Maximum number of elements allowed in the queue.  This is two less
-  // than the actual queue size, for somewhat complicated reasons.
+  // than the actual queue size, so that a full queue can be distinguished
+  // from underflow involving pop_local and concurrent pop_global operations
+  // in GenericTaskQueue.
   uint max_elems() const { return N - 2; }
 
-  // Total size of queue.
-  static const uint total_size() { return N; }
+  // The result of a pop_global operation. The value order of this must correspond
+  // to the order in the corresponding TaskQueueStats StatId.
+  enum class PopResult : uint {
+    Empty     = 0, // Queue has been empty. t is undefined.
+    Contended = 1, // Contention prevented successful retrieval, queue most likely contains elements. t is undefined.
+    Success   = 2  // Successfully retrieved an element, t contains it.
+  };
+
+  TASKQUEUE_STATS_ONLY(void record_steal_attempt(PopResult kind) { stats.record_steal_attempt((uint)kind); })
 
   TASKQUEUE_STATS_ONLY(TaskQueueStats stats;)
 };
@@ -248,29 +324,43 @@ public:
 // practice of parallel programming (PPoPP 2013), 69-80
 //
 
-template <class E, MEMFLAGS F, unsigned int N = TASKQUEUE_SIZE>
-class GenericTaskQueue: public TaskQueueSuper<N, F> {
+template <class E, MemTag MT, unsigned int N = TASKQUEUE_SIZE>
+class GenericTaskQueue: public TaskQueueSuper<N, MT> {
 protected:
-  typedef typename TaskQueueSuper<N, F>::Age Age;
-  typedef typename TaskQueueSuper<N, F>::idx_t idx_t;
+  typedef typename TaskQueueSuper<N, MT>::Age Age;
+  typedef typename TaskQueueSuper<N, MT>::idx_t idx_t;
 
-  using TaskQueueSuper<N, F>::_bottom;
-  using TaskQueueSuper<N, F>::_age;
-  using TaskQueueSuper<N, F>::increment_index;
-  using TaskQueueSuper<N, F>::decrement_index;
-  using TaskQueueSuper<N, F>::dirty_size;
+  using TaskQueueSuper<N, MT>::MOD_N_MASK;
+
+  using TaskQueueSuper<N, MT>::bottom_relaxed;
+  using TaskQueueSuper<N, MT>::bottom_acquire;
+
+  using TaskQueueSuper<N, MT>::set_bottom_relaxed;
+  using TaskQueueSuper<N, MT>::release_set_bottom;
+
+  using TaskQueueSuper<N, MT>::age_relaxed;
+  using TaskQueueSuper<N, MT>::set_age_relaxed;
+  using TaskQueueSuper<N, MT>::cmpxchg_age;
+  using TaskQueueSuper<N, MT>::age_top_relaxed;
+
+  using TaskQueueSuper<N, MT>::increment_index;
+  using TaskQueueSuper<N, MT>::decrement_index;
+  using TaskQueueSuper<N, MT>::dirty_size;
+  using TaskQueueSuper<N, MT>::clean_size;
+  using TaskQueueSuper<N, MT>::assert_not_underflow;
 
 public:
-  using TaskQueueSuper<N, F>::max_elems;
-  using TaskQueueSuper<N, F>::size;
+  typedef typename TaskQueueSuper<N, MT>::PopResult PopResult;
+
+  using TaskQueueSuper<N, MT>::max_elems;
+  using TaskQueueSuper<N, MT>::size;
 
 #if  TASKQUEUE_STATS
-  using TaskQueueSuper<N, F>::stats;
+  using TaskQueueSuper<N, MT>::stats;
 #endif
 
 private:
-  // Slow paths for push, pop_local.  (pop_global has no fast path.)
-  bool push_slow(E t, uint dirty_n_elems);
+  // Slow path for pop_local, dealing with possible conflict with pop_global.
   bool pop_local_slow(uint localBot, Age oldAge);
 
 public:
@@ -279,20 +369,19 @@ public:
   // Initializes the queue to empty.
   GenericTaskQueue();
 
-  void initialize();
-
   // Push the task "t" on the queue.  Returns "false" iff the queue is full.
   inline bool push(E t);
 
   // Attempts to claim a task from the "local" end of the queue (the most
   // recently pushed) as long as the number of entries exceeds the threshold.
-  // If successful, returns true and sets t to the task; otherwise, returns false
-  // (the queue is empty or the number of elements below the threshold).
-  inline bool pop_local(volatile E& t, uint threshold = 0);
+  // If successfully claims a task, returns true and sets t to the task;
+  // otherwise, returns false and t is unspecified.  May fail and return
+  // false because of a successful steal by pop_global.
+  inline bool pop_local(E& t, uint threshold = 0);
 
   // Like pop_local(), but uses the "global" end of the queue (the least
   // recently pushed).
-  bool pop_global(volatile E& t);
+  PopResult pop_global(E& t);
 
   // Delete any resource associated with the queue.
   ~GenericTaskQueue();
@@ -302,14 +391,31 @@ public:
   template<typename Fn> void iterate(Fn fn);
 
 private:
-  // Element array.
-  volatile E* _elems;
-};
+  // Base class has trailing padding.
 
-template<class E, MEMFLAGS F, unsigned int N>
-GenericTaskQueue<E, F, N>::GenericTaskQueue() {
-  assert(sizeof(Age) == sizeof(size_t), "Depends on this.");
-}
+  // Element array.
+  E* _elems;
+
+  DEFINE_PAD_MINUS_SIZE(1, DEFAULT_PADDING_SIZE, sizeof(E*));
+  // Queue owner local variables. Not to be accessed by other threads.
+
+  static const uint InvalidQueueId = uint(-1);
+  uint _last_stolen_queue_id; // The id of the queue we last stole from
+
+  int _seed; // Current random seed used for selecting a random queue during stealing.
+
+  DEFINE_PAD_MINUS_SIZE(2, DEFAULT_PADDING_SIZE, sizeof(uint) + sizeof(int));
+public:
+  int next_random_queue_id();
+
+  void set_last_stolen_queue_id(uint id)     { _last_stolen_queue_id = id; }
+  uint last_stolen_queue_id() const          { return _last_stolen_queue_id; }
+  bool is_last_stolen_queue_id_valid() const { return _last_stolen_queue_id != InvalidQueueId; }
+  void invalidate_last_stolen_queue_id()     {
+    TASKQUEUE_STATS_ONLY(stats.record_bias_drop();)
+    _last_stolen_queue_id = InvalidQueueId;
+  }
+};
 
 // OverflowTaskQueue is a TaskQueue that also includes an overflow stack for
 // elements that do not fit in the TaskQueue.
@@ -322,12 +428,12 @@ GenericTaskQueue<E, F, N>::GenericTaskQueue() {
 // Note that size() is not hidden--it returns the number of elements in the
 // TaskQueue, and does not include the size of the overflow stack.  This
 // simplifies replacement of GenericTaskQueues with OverflowTaskQueues.
-template<class E, MEMFLAGS F, unsigned int N = TASKQUEUE_SIZE>
-class OverflowTaskQueue: public GenericTaskQueue<E, F, N>
+template<class E, MemTag MT, unsigned int N = TASKQUEUE_SIZE>
+class OverflowTaskQueue: public GenericTaskQueue<E, MT, N>
 {
 public:
-  typedef Stack<E, F>               overflow_t;
-  typedef GenericTaskQueue<E, F, N> taskqueue_t;
+  typedef Stack<E, MT>               overflow_t;
+  typedef GenericTaskQueue<E, MT, N> taskqueue_t;
 
   TASKQUEUE_STATS_ONLY(using taskqueue_t::stats;)
 
@@ -352,65 +458,94 @@ private:
 };
 
 class TaskQueueSetSuper {
-protected:
-  static int randomParkAndMiller(int* seed0);
 public:
-  // Returns "true" if some TaskQueue in the set contains a task.
-  virtual bool peek() = 0;
+  // Assert all queues in the set are empty.
+  NOT_DEBUG(void assert_empty() const {})
+  DEBUG_ONLY(virtual void assert_empty() const = 0;)
+
+  // Tasks in queue
+  virtual uint tasks() const = 0;
 };
 
-template <MEMFLAGS F> class TaskQueueSetSuperImpl: public CHeapObj<F>, public TaskQueueSetSuper {
+template <MemTag MT> class TaskQueueSetSuperImpl: public CHeapObj<MT>, public TaskQueueSetSuper {
 };
 
-template<class T, MEMFLAGS F>
-class GenericTaskQueueSet: public TaskQueueSetSuperImpl<F> {
+template<class T, MemTag MT>
+class GenericTaskQueueSet: public TaskQueueSetSuperImpl<MT> {
+public:
+  typedef typename T::element_type E;
+  typedef typename T::PopResult PopResult;
+
 private:
   uint _n;
   T** _queues;
 
-public:
-  typedef typename T::element_type E;
+  // Attempts to steal an element from a foreign queue (!= queue_num), setting
+  // the result in t. Validity of this value and the return value is the same
+  // as for the last pop_global() operation.
+  PopResult steal_best_of_2(uint queue_num, E& t);
 
-  GenericTaskQueueSet(int n);
+public:
+  GenericTaskQueueSet(uint n);
   ~GenericTaskQueueSet();
 
-  bool steal_best_of_2(uint queue_num, int* seed, E& t);
-
+  // Set the i'th queue to the provided queue.
+  // Does not transfer ownership of the queue to this queue set.
   void register_queue(uint i, T* q);
 
   T* queue(uint n);
 
-  // The thread with queue number "queue_num" (and whose random number seed is
-  // at "seed") is trying to steal a task from some other queue.  (It may try
-  // several queues, according to some configuration parameter.)  If some steal
-  // succeeds, returns "true" and sets "t" to the stolen task, otherwise returns
-  // false.
-  bool steal(uint queue_num, int* seed, E& t);
+  // Try to steal a task from some other queue than queue_num. It may perform several attempts at doing so.
+  // Returns if stealing succeeds, and sets "t" to the stolen task.
+  bool steal(uint queue_num, E& t);
 
-  bool peek();
+  DEBUG_ONLY(virtual void assert_empty() const;)
+
+  virtual uint tasks() const;
 
   uint size() const { return _n; }
+
+#if TASKQUEUE_STATS
+private:
+  static void print_taskqueue_stats_hdr(outputStream* const st, const char* label);
+public:
+  void print_taskqueue_stats(outputStream* const st, const char* label);
+  void reset_taskqueue_stats();
+
+  // Prints taskqueue set statistics into gc+task+stats=trace and resets
+  // its statistics.
+  void print_and_reset_taskqueue_stats(const char* label);
+#endif // TASKQUEUE_STATS
 };
 
-template<class T, MEMFLAGS F> void
-GenericTaskQueueSet<T, F>::register_queue(uint i, T* q) {
+template<class T, MemTag MT> void
+GenericTaskQueueSet<T, MT>::register_queue(uint i, T* q) {
   assert(i < _n, "index out of range.");
   _queues[i] = q;
 }
 
-template<class T, MEMFLAGS F> T*
-GenericTaskQueueSet<T, F>::queue(uint i) {
+template<class T, MemTag MT> T*
+GenericTaskQueueSet<T, MT>::queue(uint i) {
+  assert(i < _n, "index out of range.");
   return _queues[i];
 }
 
-template<class T, MEMFLAGS F>
-bool GenericTaskQueueSet<T, F>::peek() {
-  // Try all the queues.
+#ifdef ASSERT
+template<class T, MemTag MT>
+void GenericTaskQueueSet<T, MT>::assert_empty() const {
   for (uint j = 0; j < _n; j++) {
-    if (_queues[j]->peek())
-      return true;
+    _queues[j]->assert_empty();
   }
-  return false;
+}
+#endif // ASSERT
+
+template<class T, MemTag MT>
+uint GenericTaskQueueSet<T, MT>::tasks() const {
+  uint n = 0;
+  for (uint j = 0; j < _n; j++) {
+    n += _queues[j]->size();
+  }
+  return n;
 }
 
 // When to terminate from the termination protocol.
@@ -419,130 +554,14 @@ public:
   virtual bool should_exit_termination() = 0;
 };
 
-// A class to aid in the termination of a set of parallel tasks using
-// TaskQueueSet's for work stealing.
-
-#undef TRACESPINNING
-
-class ParallelTaskTerminator: public StackObj {
-private:
-  uint _n_threads;
-  TaskQueueSetSuper* _queue_set;
-  volatile uint _offered_termination;
-
-#ifdef TRACESPINNING
-  static uint _total_yields;
-  static uint _total_spins;
-  static uint _total_peeks;
-#endif
-
-  bool peek_in_queue_set();
-protected:
-  virtual void yield();
-  void sleep(uint millis);
-
-public:
-
-  // "n_threads" is the number of threads to be terminated.  "queue_set" is a
-  // queue sets of work queues of other threads.
-  ParallelTaskTerminator(uint n_threads, TaskQueueSetSuper* queue_set);
-
-  // The current thread has no work, and is ready to terminate if everyone
-  // else is.  If returns "true", all threads are terminated.  If returns
-  // "false", available work has been observed in one of the task queues,
-  // so the global task is not complete.
-  bool offer_termination() {
-    return offer_termination(NULL);
-  }
-
-  // As above, but it also terminates if the should_exit_termination()
-  // method of the terminator parameter returns true. If terminator is
-  // NULL, then it is ignored.
-  bool offer_termination(TerminatorTerminator* terminator);
-
-  // Reset the terminator, so that it may be reused again.
-  // The caller is responsible for ensuring that this is done
-  // in an MT-safe manner, once the previous round of use of
-  // the terminator is finished.
-  void reset_for_reuse();
-  // Same as above but the number of parallel threads is set to the
-  // given number.
-  void reset_for_reuse(uint n_threads);
-
-#ifdef TRACESPINNING
-  static uint total_yields() { return _total_yields; }
-  static uint total_spins() { return _total_spins; }
-  static uint total_peeks() { return _total_peeks; }
-  static void print_termination_counts();
-#endif
-};
-
-typedef GenericTaskQueue<oop, mtGC>             OopTaskQueue;
-typedef GenericTaskQueueSet<OopTaskQueue, mtGC> OopTaskQueueSet;
-
-#ifdef _MSC_VER
-#pragma warning(push)
-// warning C4522: multiple assignment operators specified
-#pragma warning(disable:4522)
-#endif
-
-// This is a container class for either an oop* or a narrowOop*.
-// Both are pushed onto a task queue and the consumer will test is_narrow()
-// to determine which should be processed.
-class StarTask {
-  void*  _holder;        // either union oop* or narrowOop*
-
-  enum { COMPRESSED_OOP_MASK = 1 };
-
- public:
-  StarTask(narrowOop* p) {
-    assert(((uintptr_t)p & COMPRESSED_OOP_MASK) == 0, "Information loss!");
-    _holder = (void *)((uintptr_t)p | COMPRESSED_OOP_MASK);
-  }
-  StarTask(oop* p)       {
-    assert(((uintptr_t)p & COMPRESSED_OOP_MASK) == 0, "Information loss!");
-    _holder = (void*)p;
-  }
-  StarTask()             { _holder = NULL; }
-  operator oop*()        { return (oop*)_holder; }
-  operator narrowOop*()  {
-    return (narrowOop*)((uintptr_t)_holder & ~COMPRESSED_OOP_MASK);
-  }
-
-  StarTask& operator=(const StarTask& t) {
-    _holder = t._holder;
-    return *this;
-  }
-  volatile StarTask& operator=(const volatile StarTask& t) volatile {
-    _holder = t._holder;
-    return *this;
-  }
-
-  bool is_narrow() const {
-    return (((uintptr_t)_holder & COMPRESSED_OOP_MASK) != 0);
-  }
-};
-
 class ObjArrayTask
 {
 public:
-  ObjArrayTask(oop o = NULL, int idx = 0): _obj(o), _index(idx) { }
+  ObjArrayTask(oop o = nullptr, int idx = 0): _obj(o), _index(idx) { }
   ObjArrayTask(oop o, size_t idx): _obj(o), _index(int(idx)) {
     assert(idx <= size_t(max_jint), "too big");
   }
-  ObjArrayTask(const ObjArrayTask& t): _obj(t._obj), _index(t._index) { }
-
-  ObjArrayTask& operator =(const ObjArrayTask& t) {
-    _obj = t._obj;
-    _index = t._index;
-    return *this;
-  }
-  volatile ObjArrayTask&
-  operator =(const volatile ObjArrayTask& t) volatile {
-    (void)const_cast<oop&>(_obj = t._obj);
-    _index = t._index;
-    return *this;
-  }
+  // Trivially copyable, for use in GenericTaskQueue.
 
   inline oop obj()   const { return _obj; }
   inline int index() const { return _index; }
@@ -554,14 +573,76 @@ private:
   int _index;
 };
 
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
+class PartialArrayState;
 
-typedef OverflowTaskQueue<StarTask, mtGC>           OopStarTaskQueue;
-typedef GenericTaskQueueSet<OopStarTaskQueue, mtGC> OopStarTaskQueueSet;
+// Discriminated union over oop*, narrowOop*, and PartialArrayState.
+// Uses a low tag in the associated pointer to identify the category.
+// Used as a task queue element type.
+class ScannerTask {
+  void* _p;
 
-typedef OverflowTaskQueue<size_t, mtGC>             RegionTaskQueue;
-typedef GenericTaskQueueSet<RegionTaskQueue, mtGC>  RegionTaskQueueSet;
+  static const uintptr_t OopTag = 0;
+  static const uintptr_t NarrowOopTag = 1;
+  static const uintptr_t PartialArrayTag = 2;
+  static const uintptr_t TagSize = 2;
+  static const uintptr_t TagAlignment = 1 << TagSize;
+  static const uintptr_t TagMask = TagAlignment - 1;
 
-#endif // SHARE_VM_GC_SHARED_TASKQUEUE_HPP
+  static void* encode(void* p, uintptr_t tag) {
+    assert(is_aligned(p, TagAlignment), "misaligned: " PTR_FORMAT, p2i(p));
+    return static_cast<char*>(p) + tag;
+  }
+
+  uintptr_t raw_value() const {
+    return reinterpret_cast<uintptr_t>(_p);
+  }
+
+  bool has_tag(uintptr_t tag) const {
+    return (raw_value() & TagMask) == tag;
+  }
+
+  void* decode(uintptr_t tag) const {
+    assert(has_tag(tag), "precondition");
+    return static_cast<char*>(_p) - tag;
+  }
+
+public:
+  ScannerTask() : _p(nullptr) {}
+
+  explicit ScannerTask(oop* p) : _p(encode(p, OopTag)) {}
+
+  explicit ScannerTask(narrowOop* p) : _p(encode(p, NarrowOopTag)) {}
+
+  explicit ScannerTask(PartialArrayState* state) :
+    _p(encode(state, PartialArrayTag)) {}
+
+  // Trivially copyable.
+
+  // Predicate implementations assume OopTag == 0, others are powers of 2.
+
+  bool is_oop_ptr() const {
+    return (raw_value() & (NarrowOopTag | PartialArrayTag)) == 0;
+  }
+
+  bool is_narrow_oop_ptr() const {
+    return (raw_value() & NarrowOopTag) != 0;
+  }
+
+  bool is_partial_array_state() const {
+    return (raw_value() & PartialArrayTag) != 0;
+  }
+
+  oop* to_oop_ptr() const {
+    return static_cast<oop*>(decode(OopTag));
+  }
+
+  narrowOop* to_narrow_oop_ptr() const {
+    return static_cast<narrowOop*>(decode(NarrowOopTag));
+  }
+
+  PartialArrayState* to_partial_array_state() const {
+    return static_cast<PartialArrayState*>(decode(PartialArrayTag));
+  }
+};
+
+#endif // SHARE_GC_SHARED_TASKQUEUE_HPP

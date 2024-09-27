@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -96,9 +94,9 @@ public class TestSettingsAvailability {
         testSetting(EventNames.ExceptionStatistics, "enabled", "period");
         testSetting(EventNames.SocketRead, "enabled", "threshold", "stackTrace");
         testSetting(EventNames.SocketWrite, "enabled", "threshold", "stackTrace");
-        testSetting(EventNames.ActiveRecording, "enabled", "threshold", "stackTrace");
-        testSetting(EventNames.ActiveSetting, "enabled", "threshold", "stackTrace");
-        testSetting(EventNames.JavaExceptionThrow, "enabled", "threshold", "stackTrace");
+        testSetting(EventNames.ActiveRecording, "enabled");
+        testSetting(EventNames.ActiveSetting, "enabled");
+        testSetting(EventNames.JavaExceptionThrow, "enabled", "stackTrace");
     }
 
     private static void testSetting(String eventName, String... settingNames) throws Exception {

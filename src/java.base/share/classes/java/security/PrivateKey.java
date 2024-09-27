@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,7 +46,7 @@ package java.security;
  *
  * @see Key
  * @see PublicKey
- * @see Certificate
+ * @see java.security.cert.Certificate
  * @see Signature#initVerify
  * @see java.security.interfaces.DSAPrivateKey
  * @see java.security.interfaces.RSAPrivateKey
@@ -57,12 +57,18 @@ package java.security;
  * @since 1.1
  */
 
-public interface PrivateKey extends Key, javax.security.auth.Destroyable {
+public interface PrivateKey extends AsymmetricKey, javax.security.auth.Destroyable {
 
     // Declare serialVersionUID to be compatible with JDK1.1
     /**
      * The class fingerprint that is set to indicate serialization
      * compatibility with a previous version of the class.
+     *
+     * @deprecated A {@code serialVersionUID} field in an interface is
+     * ineffectual. Do not use; no replacement.
      */
-    static final long serialVersionUID = 6034044314589513430L;
+    @Deprecated
+    @SuppressWarnings("serial")
+    @java.io.Serial
+    long serialVersionUID = 6034044314589513430L;
 }

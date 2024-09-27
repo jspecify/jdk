@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,21 +25,25 @@
 
 package com.sun.crypto.provider;
 
-import java.util.Arrays;
-
 import java.nio.ByteBuffer;
-
+import java.security.*;
+import java.security.spec.AlgorithmParameterSpec;
+import java.util.Arrays;
 import javax.crypto.MacSpi;
 import javax.crypto.SecretKey;
-import java.security.*;
-import java.security.spec.*;
 
 /**
  * This class constitutes the core of HMAC-<MD> algorithms, where
- * <MD> can be SHA1 or MD5, etc. See RFC 2104 for spec.
+ * <MD> is the digest algorithm used by HMAC as in RFC 2104
+ * "HMAC: Keyed-Hashing for Message Authentication".
  *
- * It also contains the implementation classes for SHA-224, SHA-256,
- * SHA-384, and SHA-512 HMACs.
+ * It also contains implementation classes for:
+ * - HmacMD5
+ * - HmacSHA1
+ * - HMAC with SHA-2 family of digests, i.e. HmacSHA224, HmacSHA256,
+ *   HmacSHA384, HmacSHA512, HmacSHA512/224, HmacSHA512/256, and
+ * - HMAC with SHA-3 family of digests, i.e. HmacSHA3-224, HmacSHA3-256,
+ *   HmacSHA3-384, HmacSHA3-512
  *
  * @author Jan Luehe
  */
@@ -67,6 +71,7 @@ abstract class HmacCore extends MacSpi implements Cloneable {
             } else {
                 String noCloneProv = md.getProvider().getName();
                 // if no Sun provider, use provider list
+                md = null;
                 Provider[] provs = Security.getProviders();
                 for (Provider p : provs) {
                     try {
@@ -78,9 +83,12 @@ abstract class HmacCore extends MacSpi implements Cloneable {
                                 break;
                             }
                         }
-                    } catch (NoSuchAlgorithmException nsae) {
-                        continue;
+                    } catch (NoSuchAlgorithmException ignored) {
                     }
+                }
+                if (md == null) {
+                    throw new NoSuchAlgorithmException
+                            ("No Cloneable digest found for " + digestAlgo);
                 }
             }
         }
@@ -156,7 +164,7 @@ abstract class HmacCore extends MacSpi implements Cloneable {
      * @param input the input byte to be processed.
      */
     protected void engineUpdate(byte input) {
-        if (first == true) {
+        if (first) {
             // compute digest for 1st pass; start with inner pad
             md.update(k_ipad);
             first = false;
@@ -174,8 +182,8 @@ abstract class HmacCore extends MacSpi implements Cloneable {
      * @param offset the offset in <code>input</code> where the input starts.
      * @param len the number of bytes to process.
      */
-    protected void engineUpdate(byte input[], int offset, int len) {
-        if (first == true) {
+    protected void engineUpdate(byte[] input, int offset, int len) {
+        if (first) {
             // compute digest for 1st pass; start with inner pad
             md.update(k_ipad);
             first = false;
@@ -192,7 +200,7 @@ abstract class HmacCore extends MacSpi implements Cloneable {
      * @param input the input byte buffer.
      */
     protected void engineUpdate(ByteBuffer input) {
-        if (first == true) {
+        if (first) {
             // compute digest for 1st pass; start with inner pad
             md.update(k_ipad);
             first = false;
@@ -208,7 +216,7 @@ abstract class HmacCore extends MacSpi implements Cloneable {
      * @return the HMAC result.
      */
     protected byte[] engineDoFinal() {
-        if (first == true) {
+        if (first) {
             // compute digest for 1st pass; start with inner pad
             md.update(k_ipad);
         } else {
@@ -237,7 +245,7 @@ abstract class HmacCore extends MacSpi implements Cloneable {
      * HMAC was initialized with.
      */
     protected void engineReset() {
-        if (first == false) {
+        if (!first) {
             md.reset();
             first = true;
         }
@@ -281,14 +289,46 @@ abstract class HmacCore extends MacSpi implements Cloneable {
             super("SHA-512", 128);
         }
     }
+
+    // nested static class for the HmacSHA512/224 implementation
     public static final class HmacSHA512_224 extends HmacCore {
         public HmacSHA512_224() throws NoSuchAlgorithmException {
             super("SHA-512/224", 128);
         }
     }
+
+    // nested static class for the HmacSHA512/256 implementation
     public static final class HmacSHA512_256 extends HmacCore {
         public HmacSHA512_256() throws NoSuchAlgorithmException {
             super("SHA-512/256", 128);
+        }
+    }
+
+    // nested static class for the HmacSHA3-224 implementation
+    public static final class HmacSHA3_224 extends HmacCore {
+        public HmacSHA3_224() throws NoSuchAlgorithmException {
+            super("SHA3-224", 144);
+        }
+    }
+
+    // nested static class for the HmacSHA3-256 implementation
+    public static final class HmacSHA3_256 extends HmacCore {
+        public HmacSHA3_256() throws NoSuchAlgorithmException {
+            super("SHA3-256", 136);
+        }
+    }
+
+    // nested static class for the HmacSHA3-384 implementation
+    public static final class HmacSHA3_384 extends HmacCore {
+        public HmacSHA3_384() throws NoSuchAlgorithmException {
+            super("SHA3-384", 104);
+        }
+    }
+
+    // nested static class for the HmacSHA3-512 implementation
+    public static final class HmacSHA3_512 extends HmacCore {
+        public HmacSHA3_512() throws NoSuchAlgorithmException {
+            super("SHA3-512", 72);
         }
     }
 }

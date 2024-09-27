@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_C1_C1_CFGPRINTER_HPP
-#define SHARE_VM_C1_C1_CFGPRINTER_HPP
+#ifndef SHARE_C1_C1_CFGPRINTER_HPP
+#define SHARE_C1_C1_CFGPRINTER_HPP
 
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_Instruction.hpp"
@@ -55,10 +55,10 @@ class CFGPrinterOutput : public CHeapObj<mtCompiler> {
   bool _do_print_LIR;
 
   class PrintBlockClosure: public BlockClosure {
-    void block_do(BlockBegin* block) { if (block != NULL) Compilation::current()->cfg_printer_output()->print_block(block); }
+    void block_do(BlockBegin* block) { if (block != nullptr) Compilation::current()->cfg_printer_output()->print_block(block); }
   };
 
-  outputStream* output() { assert(_output != NULL, ""); return _output; }
+  outputStream* output() { assert(_output != nullptr, ""); return _output; }
 
   void inc_indent();
   void dec_indent();
@@ -88,4 +88,4 @@ class CFGPrinterOutput : public CHeapObj<mtCompiler> {
 
 #endif
 
-#endif // SHARE_VM_C1_C1_CFGPRINTER_HPP
+#endif // SHARE_C1_C1_CFGPRINTER_HPP

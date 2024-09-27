@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,13 +29,13 @@ import java.util.Hashtable;
 
 import javax.naming.Context;
 import javax.naming.Name;
-import javax.naming.Reference;
-import javax.naming.Referenceable;
 import javax.naming.NamingException;
 import javax.naming.CannotProceedException;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.Attributes;
 
+import com.sun.naming.internal.NamingManagerHelper;
+import com.sun.naming.internal.ObjectFactoriesFilter;
 import com.sun.naming.internal.ResourceManager;
 import com.sun.naming.internal.FactoryEnumeration;
 
@@ -80,7 +80,7 @@ public class DirectoryManager extends NamingManager {
       * @param cpe
       *         The non-null exception that triggered this continuation.
       * @return A non-null {@code DirContext} object for continuing the operation.
-      * @exception NamingException If a naming exception occurred.
+      * @throws NamingException If a naming exception occurred.
       *
       * @see NamingManager#getContinuationContext(CannotProceedException)
       */
@@ -136,10 +136,10 @@ public class DirectoryManager extends NamingManager {
       * @return An object created using {@code refInfo} and {@code attrs}; or
       *         {@code refInfo} if an object cannot be created by
       *         a factory.
-      * @exception NamingException If a naming exception was encountered
+      * @throws NamingException If a naming exception was encountered
       *         while attempting to get a URL context, or if one of the
       *         factories accessed throws a NamingException.
-      * @exception Exception If one of the factories accessed throws an
+      * @throws Exception If one of the factories accessed throws an
       *         exception, or if an error was encountered while loading
       *         and instantiating the factory and object classes.
       *         A factory should only throw an exception if it does not want
@@ -154,92 +154,8 @@ public class DirectoryManager extends NamingManager {
         getObjectInstance(Object refInfo, Name name, Context nameCtx,
                           Hashtable<?,?> environment, Attributes attrs)
         throws Exception {
-
-            ObjectFactory factory;
-
-            ObjectFactoryBuilder builder = getObjectFactoryBuilder();
-            if (builder != null) {
-                // builder must return non-null factory
-                factory = builder.createObjectFactory(refInfo, environment);
-                if (factory instanceof DirObjectFactory) {
-                    return ((DirObjectFactory)factory).getObjectInstance(
-                        refInfo, name, nameCtx, environment, attrs);
-                } else {
-                    return factory.getObjectInstance(refInfo, name, nameCtx,
-                        environment);
-                }
-            }
-
-            // use reference if possible
-            Reference ref = null;
-            if (refInfo instanceof Reference) {
-                ref = (Reference) refInfo;
-            } else if (refInfo instanceof Referenceable) {
-                ref = ((Referenceable)(refInfo)).getReference();
-            }
-
-            Object answer;
-
-            if (ref != null) {
-                String f = ref.getFactoryClassName();
-                if (f != null) {
-                    // if reference identifies a factory, use exclusively
-
-                    factory = getObjectFactoryFromReference(ref, f);
-                    if (factory instanceof DirObjectFactory) {
-                        return ((DirObjectFactory)factory).getObjectInstance(
-                            ref, name, nameCtx, environment, attrs);
-                    } else if (factory != null) {
-                        return factory.getObjectInstance(ref, name, nameCtx,
-                                                         environment);
-                    }
-                    // No factory found, so return original refInfo.
-                    // Will reach this point if factory class is not in
-                    // class path and reference does not contain a URL for it
-                    return refInfo;
-
-                } else {
-                    // if reference has no factory, check for addresses
-                    // containing URLs
-                    // ignore name & attrs params; not used in URL factory
-
-                    answer = processURLAddrs(ref, name, nameCtx, environment);
-                    if (answer != null) {
-                        return answer;
-                    }
-                }
-            }
-
-            // try using any specified factories
-            answer = createObjectFromFactories(refInfo, name, nameCtx,
-                                               environment, attrs);
-            return (answer != null) ? answer : refInfo;
-    }
-
-    private static Object createObjectFromFactories(Object obj, Name name,
-            Context nameCtx, Hashtable<?,?> environment, Attributes attrs)
-        throws Exception {
-
-        FactoryEnumeration factories = ResourceManager.getFactories(
-            Context.OBJECT_FACTORIES, environment, nameCtx);
-
-        if (factories == null)
-            return null;
-
-        ObjectFactory factory;
-        Object answer = null;
-        // Try each factory until one succeeds
-        while (answer == null && factories.hasMore()) {
-            factory = (ObjectFactory)factories.next();
-            if (factory instanceof DirObjectFactory) {
-                answer = ((DirObjectFactory)factory).
-                    getObjectInstance(obj, name, nameCtx, environment, attrs);
-            } else {
-                answer =
-                    factory.getObjectInstance(obj, name, nameCtx, environment);
-            }
-        }
-        return answer;
+            return NamingManagerHelper.getDirObjectInstance(refInfo, name, nameCtx,
+                    environment, attrs, ObjectFactoriesFilter::checkGlobalFilter);
     }
 
     /**
@@ -289,7 +205,7 @@ public class DirectoryManager extends NamingManager {
       *  the object and attributes to be bound.
       *  If no state factory returns a non-null answer, the result will contain
       *  the object ({@code obj}) itself with the original attributes.
-      * @exception NamingException If a naming exception was encountered
+      * @throws NamingException If a naming exception was encountered
       *         while using the factories.
       *         A factory should only throw an exception if it does not want
       *         other factories to be used in an attempt to create an object.

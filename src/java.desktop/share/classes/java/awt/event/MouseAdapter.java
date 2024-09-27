@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,6 @@
  */
 
 package java.awt.event;
-
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
  * An abstract adapter class for receiving mouse events.
@@ -66,12 +63,17 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see MouseListener
  * @see MouseMotionListener
  * @see MouseWheelListener
- * @see <a href="http://docs.oracle.com/javase/tutorial/uiswing/events/mouselistener.html">Tutorial: Writing a Mouse Listener</a>
+ * @see <a href="https://docs.oracle.com/javase/tutorial/uiswing/events/mouselistener.html">Tutorial: Writing a Mouse Listener</a>
  *
  * @since 1.1
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class MouseAdapter implements MouseListener, MouseWheelListener, MouseMotionListener {
+public abstract class MouseAdapter implements MouseListener, MouseWheelListener, MouseMotionListener {
+
+    /**
+     * Constructs a {@code MouseAdapter}.
+     */
+    protected MouseAdapter() {}
+
     /**
      * {@inheritDoc}
      */

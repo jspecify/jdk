@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,12 @@
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.Utils;
 
 /**
  * @test
@@ -38,12 +39,12 @@ import jdk.testlibrary.Utils;
  *          TestManager will attempt a connection to the address obtained from
  *          both agent properties and jvmstat buffer.
  *
- * @library /lib/testlibrary
+ * @library /test/lib
  * @modules java.management
  *          jdk.attach
  *          jdk.management.agent/jdk.internal.agent
  *
- * @build jdk.testlibrary.* TestManager TestApplication
+ * @build TestManager TestApplication
  * @run main/othervm/timeout=300 LocalManagementTest
  */
 public class LocalManagementTest {
@@ -98,7 +99,7 @@ public class LocalManagementTest {
     private static boolean doTest(String testId, String arg) throws Exception {
         List<String> args = new ArrayList<>();
         args.add("-XX:+UsePerfData");
-        args.addAll(Utils.getVmOptions());
+        Collections.addAll(args, Utils.getTestJavaOpts());
         args.add("-cp");
         args.add(TEST_CLASSPATH);
 
@@ -106,7 +107,7 @@ public class LocalManagementTest {
             args.add(arg);
         }
         args.add("TestApplication");
-        ProcessBuilder server = ProcessTools.createJavaProcessBuilder(
+        ProcessBuilder server = ProcessTools.createTestJavaProcessBuilder(
             args.toArray(new String[args.size()])
         );
 
@@ -132,7 +133,7 @@ public class LocalManagementTest {
             System.out.println("  PID           : " + serverPrc.pid());
             System.out.println("  shutdown port : " + port.get());
 
-            ProcessBuilder client = ProcessTools.createJavaProcessBuilder(
+            ProcessBuilder client = ProcessTools.createTestJavaProcessBuilder(
                 "-cp",
                 TEST_CLASSPATH,
                 "--add-exports", "jdk.management.agent/jdk.internal.agent=ALL-UNNAMED",

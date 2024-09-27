@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_INTERPRETER_TEMPLATETABLE_HPP
-#define SHARE_VM_INTERPRETER_TEMPLATETABLE_HPP
+#ifndef SHARE_INTERPRETER_TEMPLATETABLE_HPP
+#define SHARE_INTERPRETER_TEMPLATETABLE_HPP
 
 #include "interpreter/bytecodes.hpp"
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 #include "runtime/frame.hpp"
 #include "utilities/macros.hpp"
 
-#ifndef CC_INTERP
+#ifndef ZERO
 // All the necessary definitions used for (bytecode) template generation. Instead of
 // spreading the implementation functionality for each bytecode in the interpreter
 // and the snippet generator, a template is assigned to each bytecode which can be
@@ -64,7 +64,7 @@ class Template {
 
  public:
   Bytecodes::Code bytecode() const;
-  bool      is_valid() const                     { return _gen != NULL; }
+  bool      is_valid() const                     { return _gen != nullptr; }
   bool      uses_bcp() const                     { return (_flags & (1 << uses_bcp_bit     )) != 0; }
   bool      does_dispatch() const                { return (_flags & (1 << does_dispatch_bit)) != 0; }
   bool      calls_vm() const                     { return (_flags & (1 << calls_vm_bit     )) != 0; }
@@ -83,17 +83,15 @@ class TemplateTable: AllStatic {
   enum Operation { add, sub, mul, div, rem, _and, _or, _xor, shl, shr, ushr };
   enum Condition { equal, not_equal, less, less_equal, greater, greater_equal };
   enum CacheByte { f1_byte = 1, f2_byte = 2 };  // byte_no codes
+  enum LdcType   { ldc_normal = 0, ldc_wide = 1 }; // LDC type
   enum RewriteControl { may_rewrite, may_not_rewrite };  // control for fast code under CDS
 
  private:
-  static bool            _is_initialized;        // true if TemplateTable has been initialized
   static Template        _template_table     [Bytecodes::number_of_codes];
   static Template        _template_table_wide[Bytecodes::number_of_codes];
 
   static Template*       _desc;                  // the current template to be generated
   static Bytecodes::Code bytecode()              { return _desc->bytecode(); }
-
-  static BarrierSet*     _bs;                    // Cache the barrier set.
  public:
   //%note templates_1
   static InterpreterMacroAssembler* _masm;       // the assembler used when generating templates
@@ -107,6 +105,11 @@ class TemplateTable: AllStatic {
   static void unimplemented_bc();
   static void patch_bytecode(Bytecodes::Code bc, Register bc_reg,
                              Register temp_reg, bool load_bc_into_bc_reg = true, int byte_no = -1);
+
+  static bool is_ldc_wide(LdcType type) {
+    assert(type == ldc_wide || type == ldc_normal, "sanity");
+    return (type == ldc_wide);
+  }
 
   // C calls
   static void call_VM(Register oop_result, address entry_point);
@@ -131,9 +134,9 @@ class TemplateTable: AllStatic {
 
   static void bipush();
   static void sipush();
-  static void ldc(bool wide);
+  static void ldc(LdcType type);
   static void ldc2_w();
-  static void fast_aldc(bool wide);
+  static void fast_aldc(LdcType type);
 
   static void locals_index(Register reg, int offset = 1);
   static void iload();
@@ -238,7 +241,6 @@ class TemplateTable: AllStatic {
   static void float_cmp (int unordered_result);
   static void double_cmp(int unordered_result);
 
-  static void count_calls(Register method, Register temp);
   static void branch(bool is_jsr, bool is_wide);
   static void if_0cmp   (Condition cc);
   static void if_icmp   (Condition cc);
@@ -260,10 +262,33 @@ class TemplateTable: AllStatic {
 
   static void _return(TosState state);
 
-  static void resolve_cache_and_index(int byte_no,       // one of 1,2,11
-                                      Register cache,    // output for CP cache
-                                      Register index,    // output for CP index
-                                      size_t index_size); // one of 1,2,4
+  static void resolve_cache_and_index_for_field(int byte_no,
+                                                Register cache,
+                                                Register index);
+  static void resolve_cache_and_index_for_method(int byte_no,
+                                                 Register cache,
+                                                 Register index);
+  static void load_invokedynamic_entry(Register method);
+  static void load_resolved_field_entry(Register obj,
+                                        Register cache,
+                                        Register tos_state,
+                                        Register off,
+                                        Register flags,
+                                        bool is_static);
+  static void load_resolved_method_entry_special_or_static(Register cache,
+                                                           Register method,
+                                                           Register flags);
+  static void load_resolved_method_entry_handle(Register cache,
+                                                Register method,
+                                                Register ref_index,
+                                                Register flags);
+  static void load_resolved_method_entry_interface(Register cache,
+                                                   Register klass,
+                                                   Register method_or_table_index,
+                                                   Register flags);
+  static void load_resolved_method_entry_virtual(Register cache,
+                                                 Register method_or_table_index,
+                                                 Register flags);
   static void load_invoke_cp_cache_entry(int byte_no,
                                          Register method,
                                          Register itable_index,
@@ -331,7 +356,7 @@ class TemplateTable: AllStatic {
   // initialization helpers
   static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(            ), char filler );
   static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(int arg     ), int arg     );
- static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(bool arg    ), bool arg    );
+  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(LdcType ldct), LdcType ldct);
   static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(TosState tos), TosState tos);
   static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(Operation op), Operation op);
   static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(Condition cc), Condition cc);
@@ -344,7 +369,6 @@ class TemplateTable: AllStatic {
  public:
   // Initialization
   static void initialize();
-  static void pd_initialize();
 
   // Templates
   static Template* template_for     (Bytecodes::Code code)  { Bytecodes::check     (code); return &_template_table     [code]; }
@@ -354,6 +378,6 @@ class TemplateTable: AllStatic {
 #include CPU_HEADER(templateTable)
 
 };
-#endif /* !CC_INTERP */
+#endif /* !ZERO */
 
-#endif // SHARE_VM_INTERPRETER_TEMPLATETABLE_HPP
+#endif // SHARE_INTERPRETER_TEMPLATETABLE_HPP

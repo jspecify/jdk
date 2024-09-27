@@ -51,6 +51,8 @@ import org.jspecify.annotations.Nullable;
  * <p>The items in the <code>NodeList</code> are accessible via an integral
  * index, starting from 0.
  * <p>See also the <a href='http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407'>Document Object Model (DOM) Level 3 Core Specification</a>.
+ *
+ * @since 1.4, DOM Level 2
  */
 @NullMarked
 public interface NodeList {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,10 +24,9 @@
  */
 package java.security.spec;
 
-import org.jspecify.annotations.Nullable;
-
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * This immutable class defines an elliptic curve (EC)
@@ -41,15 +40,15 @@ import java.util.Arrays;
  */
 public class ECFieldF2m implements ECField {
 
-    private int m;
-    private int[] ks;
+    private final int m;
+    private final int[] ks;
     private BigInteger rp;
 
     /**
      * Creates an elliptic curve characteristic 2 finite
      * field which has 2^{@code m} elements with normal basis.
      * @param m with 2^{@code m} being the number of elements.
-     * @exception IllegalArgumentException if {@code m}
+     * @throws    IllegalArgumentException if {@code m}
      * is not positive.
      */
     public ECFieldF2m(int m) {
@@ -78,8 +77,8 @@ public class ECFieldF2m implements ECField {
      * @param m with 2^{@code m} being the number of elements.
      * @param rp the BigInteger whose i-th bit corresponds to
      * the i-th coefficient of the reduction polynomial.
-     * @exception NullPointerException if {@code rp} is null.
-     * @exception IllegalArgumentException if {@code m}
+     * @throws    NullPointerException if {@code rp} is null.
+     * @throws    IllegalArgumentException if {@code m}
      * is not positive, or {@code rp} does not represent
      * a valid reduction polynomial.
      */
@@ -125,8 +124,8 @@ public class ECFieldF2m implements ECField {
      * @param ks the order of the middle term(s) of the
      * reduction polynomial. Contents of this array are copied
      * to protect against subsequent modification.
-     * @exception NullPointerException if {@code ks} is null.
-     * @exception IllegalArgumentException if{@code m}
+     * @throws    NullPointerException if {@code ks} is null.
+     * @throws    IllegalArgumentException if{@code m}
      * is not positive, or the length of {@code ks}
      * is neither 1 nor 3, or values in {@code ks}
      * are not between {@code m}-1 and 1 (inclusive)
@@ -217,29 +216,24 @@ public class ECFieldF2m implements ECField {
      * of ECFieldF2m and both {@code m} and the reduction
      * polynomial match, false otherwise.
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (this == obj) return true;
-        if (obj instanceof ECFieldF2m) {
+
+        return obj instanceof ECFieldF2m other
             // no need to compare rp here since ks and rp
             // should be equivalent
-            return ((m == ((ECFieldF2m)obj).m) &&
-                    (Arrays.equals(ks, ((ECFieldF2m) obj).ks)));
-        }
-        return false;
+            && (m == other.m)
+            && (Arrays.equals(ks, other.ks));
     }
 
     /**
-     * Returns a hash code value for this characteristic 2
-     * finite field.
-     * @return a hash code value.
+     * {@return the hash code value for this characteristic 2 finite field}
      */
+    @Override
     public int hashCode() {
-        int value = m << 5;
-        value += (rp==null? 0:rp.hashCode());
         // no need to involve ks here since ks and rp
         // should be equivalent.
-        return value;
+        return m << 5 + Objects.hashCode(rp);
     }
 }

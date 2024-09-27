@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,8 @@
 #include    <stdlib.h>
 
 #include    "jni.h"
+
+#include    "jdk_util.h"
 
 #include    "Utilities.h"
 #include    "JPLISAssert.h"
@@ -145,23 +147,23 @@ DEF_Agent_OnLoad(JavaVM *vm, char *tail, void * reserved) {
     JPLISInitializationError initerror  = JPLIS_INIT_ERROR_NONE;
     jint                     result     = JNI_OK;
     JPLISAgent *             agent      = NULL;
+    char *                   jarfile    = NULL;
+    char *                   options    = NULL;
 
-    initerror = createNewJPLISAgent(vm, &agent);
+    /*
+     * Parse <jarfile>[=options] into jarfile and options
+     */
+    if (parseArgumentTail(tail, &jarfile, &options) != 0) {
+        fprintf(stderr, "-javaagent: memory allocation failure.\n");
+        return JNI_ERR;
+    }
+
+    initerror = createNewJPLISAgent(vm, &agent, jarfile, JNI_FALSE);
     if ( initerror == JPLIS_INIT_ERROR_NONE ) {
         int             oldLen, newLen;
-        char *          jarfile;
-        char *          options;
         jarAttribute*   attributes;
         char *          premainClass;
         char *          bootClassPath;
-
-        /*
-         * Parse <jarfile>[=options] into jarfile and options
-         */
-        if (parseArgumentTail(tail, &jarfile, &options) != 0) {
-            fprintf(stderr, "-javaagent: memory allocation failure.\n");
-            return JNI_ERR;
-        }
 
         /*
          * Agent_OnLoad is specified to provide the agent options
@@ -190,9 +192,6 @@ DEF_Agent_OnLoad(JavaVM *vm, char *tail, void * reserved) {
             return JNI_ERR;
         }
 
-        /* Save the jarfile name */
-        agent->mJarfile = jarfile;
-
         /*
          * The value of the Premain-Class attribute becomes the agent
          * class name. The manifest is in UTF8 so need to convert to
@@ -200,6 +199,19 @@ DEF_Agent_OnLoad(JavaVM *vm, char *tail, void * reserved) {
          */
         oldLen = (int)strlen(premainClass);
         newLen = modifiedUtf8LengthOfUtf8(premainClass, oldLen);
+        /*
+         * According to JVMS class name is represented as CONSTANT_Utf8_info,
+         * so its length is u2 (i.e. must be <= 0xFFFF).
+         * Negative oldLen or newLen means we got signed integer overflow
+         * (modifiedUtf8LengthOfUtf8 returns negative value if oldLen is negative).
+         */
+        if (oldLen < 0 || newLen < 0 || newLen > 0xFFFF) {
+            fprintf(stderr, "-javaagent: Premain-Class value is too big\n");
+            free(jarfile);
+            if (options != NULL) free(options);
+            freeAttributes(attributes);
+            return JNI_ERR;
+        }
         if (newLen == oldLen) {
             premainClass = strdup(premainClass);
         } else {
@@ -239,10 +251,14 @@ DEF_Agent_OnLoad(JavaVM *vm, char *tail, void * reserved) {
         /*
          * Clean-up
          */
-        if (options != NULL) free(options);
         freeAttributes(attributes);
         free(premainClass);
     }
+
+    if (initerror != JPLIS_INIT_ERROR_NONE) {
+        free(jarfile);
+    }
+    if (options != NULL) free(options);
 
     switch (initerror) {
     case JPLIS_INIT_ERROR_NONE:
@@ -292,6 +308,8 @@ DEF_Agent_OnAttach(JavaVM* vm, char *args, void * reserved) {
     jint                     result     = JNI_OK;
     JPLISAgent *             agent      = NULL;
     JNIEnv *                 jni_env    = NULL;
+    char *                   jarfile    = NULL;
+    char *                   options    = NULL;
 
     /*
      * Need JNIEnv - guaranteed to be called from thread that is already
@@ -300,22 +318,21 @@ DEF_Agent_OnAttach(JavaVM* vm, char *args, void * reserved) {
     result = (*vm)->GetEnv(vm, (void**)&jni_env, JNI_VERSION_1_2);
     jplis_assert(result==JNI_OK);
 
-    initerror = createNewJPLISAgent(vm, &agent);
+    /*
+     * Parse <jarfile>[=options] into jarfile and options
+     */
+    if (parseArgumentTail(args, &jarfile, &options) != 0) {
+        return JNI_ENOMEM;
+    }
+
+    jboolean print_warning = JVM_PrintWarningAtDynamicAgentLoad();
+    initerror = createNewJPLISAgent(vm, &agent, jarfile, print_warning);
     if ( initerror == JPLIS_INIT_ERROR_NONE ) {
         int             oldLen, newLen;
-        char *          jarfile;
-        char *          options;
         jarAttribute*   attributes;
         char *          agentClass;
         char *          bootClassPath;
         jboolean        success;
-
-        /*
-         * Parse <jarfile>[=options] into jarfile and options
-         */
-        if (parseArgumentTail(args, &jarfile, &options) != 0) {
-            return JNI_ENOMEM;
-        }
 
         /*
          * Open the JAR file and parse the manifest
@@ -358,6 +375,19 @@ DEF_Agent_OnAttach(JavaVM* vm, char *args, void * reserved) {
          */
         oldLen = (int)strlen(agentClass);
         newLen = modifiedUtf8LengthOfUtf8(agentClass, oldLen);
+        /*
+         * According to JVMS class name is represented as CONSTANT_Utf8_info,
+         * so its length is u2 (i.e. must be <= 0xFFFF).
+         * Negative oldLen or newLen means we got signed integer overflow
+         * (modifiedUtf8LengthOfUtf8 returns negative value if oldLen is negative).
+         */
+        if (oldLen < 0 || newLen < 0 || newLen > 0xFFFF) {
+            fprintf(stderr, "Agent-Class value is too big\n");
+            free(jarfile);
+            if (options != NULL) free(options);
+            freeAttributes(attributes);
+            return AGENT_ERROR_BADJAR;
+        }
         if (newLen == oldLen) {
             agentClass = strdup(agentClass);
         } else {
@@ -392,14 +422,14 @@ DEF_Agent_OnAttach(JavaVM* vm, char *args, void * reserved) {
          * Create the java.lang.instrument.Instrumentation instance
          */
         success = createInstrumentationImpl(jni_env, agent);
-        jplis_assert(success);
+        jplis_assert_msg(success, "createInstrumentationImpl failed");
 
         /*
          * Setup ClassFileLoadHook handler.
          */
         if (success) {
             success = setLivePhaseEventHandlers(agent);
-            jplis_assert(success);
+            jplis_assert_msg(success, "setLivePhaseEventHandlers failed");
         }
 
         /*
@@ -411,6 +441,7 @@ DEF_Agent_OnAttach(JavaVM* vm, char *args, void * reserved) {
                                      agentClass,
                                      options,
                                      agent->mAgentmainCaller);
+            jplis_assert_msg(success, "startJavaAgent failed");
         }
 
         if (!success) {
@@ -421,11 +452,14 @@ DEF_Agent_OnAttach(JavaVM* vm, char *args, void * reserved) {
         /*
          * Clean-up
          */
-        free(jarfile);
-        if (options != NULL) free(options);
         free(agentClass);
         freeAttributes(attributes);
     }
+
+    if (initerror != JPLIS_INIT_ERROR_NONE || result != JNI_OK) {
+        free(jarfile);
+    }
+    if (options != NULL) free(options);
 
     return result;
 }
@@ -457,14 +491,15 @@ jint loadAgent(JNIEnv* env, jstring path) {
         return JNI_ERR;
     }
 
-    // create JPLISAgent with JVMTI environment
-    if (createNewJPLISAgent(vm, &agent) != JPLIS_INIT_ERROR_NONE) {
-        return JNI_ERR;
-    }
-
     // get path to JAR file as UTF-8 string
     jarfile = (*env)->GetStringUTFChars(env, path, NULL);
     if (jarfile == NULL) {
+        return JNI_ERR;
+    }
+
+    // create JPLISAgent with JVMTI environment
+    if (createNewJPLISAgent(vm, &agent, jarfile, JNI_FALSE) != JPLIS_INIT_ERROR_NONE) {
+        (*env)->ReleaseStringUTFChars(env, path, jarfile);
         return JNI_ERR;
     }
 
@@ -483,6 +518,15 @@ jint loadAgent(JNIEnv* env, jstring path) {
     // The value of Launcher-Agent-Class is in UTF-8, convert it to modified UTF-8
     oldLen = (int) strlen(agentClass);
     newLen = modifiedUtf8LengthOfUtf8(agentClass, oldLen);
+    /*
+     * According to JVMS class name is represented as CONSTANT_Utf8_info,
+     * so its length is u2 (i.e. must be <= 0xFFFF).
+     * Negative oldLen or newLen means we got signed integer overflow
+     * (modifiedUtf8LengthOfUtf8 returns negative value if oldLen is negative).
+     */
+    if (oldLen < 0 || newLen < 0 || newLen > 0xFFFF) {
+        goto releaseAndReturn;
+    }
     if (newLen == oldLen) {
         agentClass = strdup(agentClass);
     } else {
@@ -525,16 +569,16 @@ jint loadAgent(JNIEnv* env, jstring path) {
     // initialization complete
     result = JNI_OK;
 
-    releaseAndReturn:
-        if (agentClass != NULL) {
-            free(agentClass);
-        }
-        if (attributes != NULL) {
-            freeAttributes(attributes);
-        }
-        if (jarfile != NULL) {
-            (*env)->ReleaseStringUTFChars(env, path, jarfile);
-        }
+releaseAndReturn:
+    if (agentClass != NULL) {
+        free(agentClass);
+    }
+    if (attributes != NULL) {
+        freeAttributes(attributes);
+    }
+    if (result != JNI_OK && jarfile != NULL) {
+        (*env)->ReleaseStringUTFChars(env, path, jarfile);
+    }
 
     return result;
 }
@@ -558,32 +602,30 @@ eventHandlerVMInit( jvmtiEnv *      jvmtienv,
     environment = getJPLISEnvironment(jvmtienv);
 
     /* process the premain calls on the all the JPL agents */
-    if ( environment != NULL ) {
-        jthrowable outstandingException = NULL;
-        /*
-         * Add the jarfile to the system class path
-         */
-        JPLISAgent * agent = environment->mAgent;
-        if (appendClassPath(agent, agent->mJarfile)) {
-            fprintf(stderr, "Unable to add %s to system class path - "
-                    "the system class loader does not define the "
-                    "appendToClassPathForInstrumentation method or the method failed\n",
-                    agent->mJarfile);
-            free((void *)agent->mJarfile);
-            abortJVM(jnienv, JPLIS_ERRORMESSAGE_CANNOTSTART);
-        }
-        free((void *)agent->mJarfile);
-        agent->mJarfile = NULL;
-
-        outstandingException = preserveThrowable(jnienv);
-        success = processJavaStart( environment->mAgent,
-                                    jnienv);
-        restoreThrowable(jnienv, outstandingException);
+    if (environment == NULL) {
+        abortJVM(jnienv, JPLIS_ERRORMESSAGE_CANNOTSTART ", getting JPLIS environment failed");
     }
+    jthrowable outstandingException = NULL;
+    /*
+     * Add the jarfile to the system class path
+     */
+    JPLISAgent * agent = environment->mAgent;
+    if (appendClassPath(agent, agent->mJarfile)) {
+        fprintf(stderr, "Unable to add %s to system class path - "
+                "the system class loader does not define the "
+                "appendToClassPathForInstrumentation method or the method failed\n",
+                agent->mJarfile);
+        free((void *)agent->mJarfile);
+        abortJVM(jnienv, JPLIS_ERRORMESSAGE_CANNOTSTART ", appending to system class path failed");
+    }
+
+    outstandingException = preserveThrowable(jnienv);
+    success = processJavaStart( environment->mAgent, jnienv);
+    restoreThrowable(jnienv, outstandingException);
 
     /* if we fail to start cleanly, bring down the JVM */
     if ( !success ) {
-        abortJVM(jnienv, JPLIS_ERRORMESSAGE_CANNOTSTART);
+        abortJVM(jnienv, JPLIS_ERRORMESSAGE_CANNOTSTART ", processJavaStart failed");
     }
 }
 
@@ -708,6 +750,10 @@ char *decodePath(const char *s, int* decodedLen) {
     }
 
     resultp = result = calloc(n+1, 1);
+    if (result == NULL) {
+        *decodedLen = 0;
+        return NULL;
+    }
     c = s[0];
     for (i = 0; i < n;) {
         if (c != '%') {
@@ -776,14 +822,6 @@ appendClassPath( JPLISAgent* agent,
     jplis_assert((void*)res != (void*)NULL);     \
 }
 
-/**
- * Convert a pathname to canonical form.
- * This method is exported from libjava.
- */
-extern int
-Canonicalize(JNIEnv *unused, char *orig, char *out, int len);
-
-
 /*
  * This function takes the value of the Boot-Class-Path attribute,
  * splits it into the individual path segments, and then combines it
@@ -798,7 +836,7 @@ Canonicalize(JNIEnv *unused, char *orig, char *out, int len);
  * converted it is then normalized (remove duplicate slashes, etc.).
  * If the resulting path is an absolute path (starts with a slash for
  * example) then the path will be added to the bootclasspath. Otherwise
- * if it's not absolute then we get the canoncial path of the agent jar
+ * if it's not absolute then we get the canonical path of the agent jar
  * file and then resolve the path in the context of the base path of
  * the agent jar.
  */
@@ -866,7 +904,7 @@ appendBootClassPath( JPLISAgent* agent,
          */
         {
             char platform[MAXPATHLEN];
-            int new_len = convertUft8ToPlatformString(path, len, platform, MAXPATHLEN);
+            int new_len = convertUtf8ToPlatformString(path, len, platform, MAXPATHLEN);
             free(path);
             if (new_len  < 0) {
                 /* bogus value - exceeds maximum path size or unable to convert */
@@ -886,7 +924,7 @@ appendBootClassPath( JPLISAgent* agent,
          * Normalize the path - no duplicate slashes (except UNCs on Windows), trailing
          * slash removed.
          */
-        TRANSFORM(path, normalize(path));
+        TRANSFORM(path, normalize_path(path));
 
         /*
          * If the path is an absolute path then add to the bootclassloader
@@ -904,8 +942,7 @@ appendBootClassPath( JPLISAgent* agent,
             char* resolved;
 
             if (!haveBasePath) {
-                /* Use NULL as the JNIEnv since we know that Canonicalize does not use it. */
-                if (Canonicalize(NULL, (char*)jarfile, canonicalPath, sizeof(canonicalPath)) != 0) {
+                if (JDK_Canonicalize((char*)jarfile, canonicalPath, sizeof(canonicalPath)) != 0) {
                     fprintf(stderr, "WARNING: unable to canonicalize %s\n", jarfile);
                     free(path);
                     continue;
@@ -917,6 +954,7 @@ appendBootClassPath( JPLISAgent* agent,
 
             resolved = resolve(parent, path);
             jvmtierr = (*jvmtienv)->AddToBootstrapClassLoaderSearch(jvmtienv, resolved);
+            free(resolved);
         }
 
         /* print warning if boot class path not updated */
@@ -942,4 +980,5 @@ appendBootClassPath( JPLISAgent* agent,
     if (haveBasePath && parent != canonicalPath) {
         free(parent);
     }
+    free(paths);
 }

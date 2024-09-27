@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 4625418
+ * @bug 4625418 8239965 8290488
  * @summary Tests XML <a href="http://download.java.net/jdk6/docs/technotes/guides/intl/encoding.doc.html">encoding</a>
  * @author Sergey Malenkov
  * @run main/timeout=360 Test4625418
@@ -107,7 +107,7 @@ public final class Test4625418 implements ExceptionListener {
         "Cp861",
         "Cp862",
         "Cp863",
-        "Cp864",
+        //"Cp864",
         "Cp865",
         "Cp866",
         "Cp868",
@@ -126,7 +126,7 @@ public final class Test4625418 implements ExceptionListener {
         //"Cp939",
         //"Cp942",
         //"Cp942C",
-        "Cp943",
+        //"Cp943",
         //"Cp943C",
         "Cp948",
         "Cp949",
@@ -180,7 +180,7 @@ public final class Test4625418 implements ExceptionListener {
         "IBM861",
         "IBM862",
         "IBM863",
-        "IBM864",
+        //"IBM864",
         "IBM865",
         "IBM866",
         "IBM868",
@@ -307,7 +307,7 @@ public final class Test4625418 implements ExceptionListener {
         //"x-IBM939",
         //"x-IBM942",
         //"x-IBM942C",
-        "x-IBM943",
+        //"x-IBM943",
         //"x-IBM943C",
         "x-IBM948",
         "x-IBM949",

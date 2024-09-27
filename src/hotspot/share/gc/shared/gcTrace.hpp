@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,29 +22,24 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_GCTRACE_HPP
-#define SHARE_VM_GC_SHARED_GCTRACE_HPP
+#ifndef SHARE_GC_SHARED_GCTRACE_HPP
+#define SHARE_GC_SHARED_GCTRACE_HPP
 
 #include "gc/shared/copyFailedInfo.hpp"
 #include "gc/shared/gcCause.hpp"
 #include "gc/shared/gcId.hpp"
 #include "gc/shared/gcName.hpp"
 #include "gc/shared/gcWhen.hpp"
+#include "gc/shared/workerThread.hpp"
 #include "memory/metaspace.hpp"
 #include "memory/referenceType.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ticks.hpp"
-#if INCLUDE_G1GC
-#include "gc/g1/g1YCTypes.hpp"
-#endif
 
-class EvacuationInfo;
 class GCHeapSummary;
 class MetaspaceChunkFreeListSummary;
 class MetaspaceSummary;
 class PSHeapSummary;
-class G1HeapSummary;
-class G1EvacSummary;
 class ReferenceProcessorStats;
 class TimePartitions;
 class BoolObjectClosure;
@@ -90,38 +85,26 @@ class SharedGCInfo {
 class ParallelOldGCInfo {
   void* _dense_prefix;
  public:
-  ParallelOldGCInfo() : _dense_prefix(NULL) {}
+  ParallelOldGCInfo() : _dense_prefix(nullptr) {}
   void report_dense_prefix(void* addr) {
     _dense_prefix = addr;
   }
   void* dense_prefix() const { return _dense_prefix; }
 };
 
-#if INCLUDE_G1GC
-
-class G1YoungGCInfo {
-  G1YCType _type;
- public:
-  G1YoungGCInfo() : _type(G1YCTypeEndSentinel) {}
-  void set_type(G1YCType type) {
-    _type = type;
-  }
-  G1YCType type() const { return _type; }
-};
-
-#endif // INCLUDE_G1GC
-
-class GCTracer : public ResourceObj {
+class GCTracer {
  protected:
   SharedGCInfo _shared_gc_info;
 
  public:
+  bool should_report_cpu_time_event() const;
   void report_gc_start(GCCause::Cause cause, const Ticks& timestamp);
   void report_gc_end(const Ticks& timestamp, TimePartitions* time_partitions);
   void report_gc_heap_summary(GCWhen::Type when, const GCHeapSummary& heap_summary) const;
   void report_metaspace_summary(GCWhen::Type when, const MetaspaceSummary& metaspace_summary) const;
   void report_gc_reference_stats(const ReferenceProcessorStats& rp) const;
-  void report_object_count_after_gc(BoolObjectClosure* object_filter) NOT_SERVICES_RETURN;
+  void report_object_count_after_gc(BoolObjectClosure* object_filter, WorkerThreads* workers) NOT_SERVICES_RETURN;
+  void report_cpu_time_event(double user_time, double system_time, double real_time) const;
 
  protected:
   GCTracer(GCName name) : _shared_gc_info(name) {}
@@ -129,12 +112,14 @@ class GCTracer : public ResourceObj {
   virtual void report_gc_end_impl(const Ticks& timestamp, TimePartitions* time_partitions);
 
  private:
+  bool should_send_cpu_time_event() const;
   void send_garbage_collection_event() const;
   void send_gc_heap_summary_event(GCWhen::Type when, const GCHeapSummary& heap_summary) const;
   void send_meta_space_summary_event(GCWhen::Type when, const MetaspaceSummary& meta_space_summary) const;
   void send_metaspace_chunk_free_list_summary(GCWhen::Type when, Metaspace::MetadataType mdtype, const MetaspaceChunkFreeListSummary& summary) const;
   void send_reference_stats_event(ReferenceType type, size_t count) const;
   void send_phase_events(TimePartitions* time_partitions) const;
+  void send_cpu_time_event(double user_time, double system_time, double real_time) const;
 };
 
 class YoungGCTracer : public GCTracer {
@@ -212,7 +197,7 @@ class ParallelOldTracer : public OldGCTracer {
   void send_parallel_old_event() const;
 };
 
-class SerialOldTracer : public OldGCTracer {
+class SerialOldTracer : public OldGCTracer, public CHeapObj<mtGC> {
  public:
   SerialOldTracer() : OldGCTracer(SerialOld) {}
 };
@@ -222,91 +207,24 @@ class ParallelScavengeTracer : public YoungGCTracer {
   ParallelScavengeTracer() : YoungGCTracer(ParallelScavenge) {}
 };
 
-class DefNewTracer : public YoungGCTracer {
+class DefNewTracer : public YoungGCTracer, public CHeapObj<mtGC> {
  public:
   DefNewTracer() : YoungGCTracer(DefNew) {}
 };
 
-class ParNewTracer : public YoungGCTracer {
- public:
-  ParNewTracer() : YoungGCTracer(ParNew) {}
+class GCLockerTracer : public AllStatic {
+#if INCLUDE_JFR
+private:
+  static Ticks _needs_gc_start_timestamp;
+  static volatile jint _jni_lock_count;
+  static volatile jint _stall_count;
+#endif
+
+  static bool is_started() NOT_JFR_RETURN_(false);
+
+public:
+  static void start_gc_locker(jint jni_lock_count) NOT_JFR_RETURN();
+  static void inc_stall_count() NOT_JFR_RETURN();
+  static void report_gc_locker() NOT_JFR_RETURN();
 };
-
-#if INCLUDE_G1GC
-class G1MMUTracer : public AllStatic {
-  static void send_g1_mmu_event(double time_slice_ms, double gc_time_ms, double max_time_ms);
-
- public:
-  static void report_mmu(double time_slice_sec, double gc_time_sec, double max_time_sec);
-};
-
-class G1NewTracer : public YoungGCTracer {
-  G1YoungGCInfo _g1_young_gc_info;
-
- public:
-  G1NewTracer() : YoungGCTracer(G1New) {}
-
-  void report_yc_type(G1YCType type);
-  void report_gc_end_impl(const Ticks& timestamp, TimePartitions* time_partitions);
-  void report_evacuation_info(EvacuationInfo* info);
-  void report_evacuation_failed(EvacuationFailedInfo& ef_info);
-
-  void report_evacuation_statistics(const G1EvacSummary& young_summary, const G1EvacSummary& old_summary) const;
-
-  void report_basic_ihop_statistics(size_t threshold,
-                                    size_t target_occupancy,
-                                    size_t current_occupancy,
-                                    size_t last_allocation_size,
-                                    double last_allocation_duration,
-                                    double last_marking_length);
-  void report_adaptive_ihop_statistics(size_t threshold,
-                                       size_t internal_target_occupancy,
-                                       size_t current_occupancy,
-                                       size_t additional_buffer_size,
-                                       double predicted_allocation_rate,
-                                       double predicted_marking_length,
-                                       bool prediction_active);
- private:
-  void send_g1_young_gc_event();
-  void send_evacuation_info_event(EvacuationInfo* info);
-  void send_evacuation_failed_event(const EvacuationFailedInfo& ef_info) const;
-
-  void send_young_evacuation_statistics(const G1EvacSummary& summary) const;
-  void send_old_evacuation_statistics(const G1EvacSummary& summary) const;
-
-  void send_basic_ihop_statistics(size_t threshold,
-                                  size_t target_occupancy,
-                                  size_t current_occupancy,
-                                  size_t last_allocation_size,
-                                  double last_allocation_duration,
-                                  double last_marking_length);
-  void send_adaptive_ihop_statistics(size_t threshold,
-                                     size_t internal_target_occupancy,
-                                     size_t current_occupancy,
-                                     size_t additional_buffer_size,
-                                     double predicted_allocation_rate,
-                                     double predicted_marking_length,
-                                     bool prediction_active);
-};
-
-class G1FullGCTracer : public OldGCTracer {
- public:
-  G1FullGCTracer() : OldGCTracer(G1Full) {}
-};
-
-#endif // INCLUDE_G1GC
-
-class CMSTracer : public OldGCTracer {
- public:
-  CMSTracer() : OldGCTracer(ConcurrentMarkSweep) {}
-};
-
-class G1OldTracer : public OldGCTracer {
- protected:
-  void report_gc_start_impl(GCCause::Cause cause, const Ticks& timestamp);
- public:
-  G1OldTracer() : OldGCTracer(G1Old) {}
-  void set_gc_cause(GCCause::Cause cause);
-};
-
-#endif // SHARE_VM_GC_SHARED_GCTRACE_HPP
+#endif // SHARE_GC_SHARED_GCTRACE_HPP

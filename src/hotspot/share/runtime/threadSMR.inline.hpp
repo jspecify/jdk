@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,68 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_THREADSMR_INLINE_HPP
-#define SHARE_VM_RUNTIME_THREADSMR_INLINE_HPP
+#ifndef SHARE_RUNTIME_THREADSMR_INLINE_HPP
+#define SHARE_RUNTIME_THREADSMR_INLINE_HPP
 
-#include "runtime/atomic.hpp"
-#include "runtime/prefetch.inline.hpp"
-#include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
+
+#include "gc/shared/gc_globals.hpp"
+#include "gc/shared/tlab_globals.hpp"
+#include "runtime/atomic.hpp"
+#include "memory/iterator.hpp"
+#include "runtime/javaThread.hpp"
+#include "runtime/prefetch.inline.hpp"
+#include "utilities/debug.hpp"
+#include "utilities/macros.hpp"
+
+ThreadsList::Iterator::Iterator(ThreadsList* list, uint i) :
+  _thread_ptr(list->threads() + check_index(list, i))
+  DEBUG_ONLY(COMMA _list(list))
+{}
+
+bool ThreadsList::Iterator::operator==(Iterator i) const {
+  assert_not_singular();
+  assert_same_list(i);
+  return _thread_ptr == i._thread_ptr;
+}
+
+bool ThreadsList::Iterator::operator!=(Iterator i) const {
+  return !operator==(i);
+}
+
+JavaThread* ThreadsList::Iterator::operator*() const {
+  assert_not_singular();
+  assert_dereferenceable();
+  Prefetch::read(const_cast<JavaThread**>(_thread_ptr), PrefetchScanIntervalInBytes);
+  return *_thread_ptr;
+}
+
+JavaThread* ThreadsList::Iterator::operator->() const {
+  return operator*();
+}
+
+ThreadsList::Iterator& ThreadsList::Iterator::operator++() {
+  assert_not_singular();
+  assert_dereferenceable();
+  ++_thread_ptr;
+  return *this;
+}
+
+ThreadsList::Iterator ThreadsList::Iterator::operator++(int) {
+  assert_not_singular();
+  assert_dereferenceable();
+  Iterator result = *this;
+  ++_thread_ptr;
+  return result;
+}
+
+ThreadsList::Iterator ThreadsList::begin() {
+  return Iterator(this, 0);
+}
+
+ThreadsList::Iterator ThreadsList::end() {
+  return Iterator(this, length());
+}
 
 // Devirtualize known thread closure types.
 template <class T>
@@ -52,11 +107,14 @@ inline void ThreadsList::threads_do(T *cl) const {
   }
 }
 
+ThreadsListHandle::Iterator ThreadsListHandle::begin() { return list()->begin(); }
+ThreadsListHandle::Iterator ThreadsListHandle::end() { return list()->end(); }
+
 // These three inlines are private to ThreadsSMRSupport, but
 // they are called by public inline update_tlh_stats() below:
 
 inline void ThreadsSMRSupport::add_tlh_times(uint add_value) {
-  Atomic::add(add_value, &_tlh_times);
+  Atomic::add(&_tlh_times, add_value);
 }
 
 inline void ThreadsSMRSupport::inc_tlh_cnt() {
@@ -70,7 +128,7 @@ inline void ThreadsSMRSupport::update_tlh_time_max(uint new_value) {
       // No need to update max value so we're done.
       break;
     }
-    if (Atomic::cmpxchg(new_value, &_tlh_time_max, cur_value) == cur_value) {
+    if (Atomic::cmpxchg(&_tlh_time_max, cur_value, new_value) == cur_value) {
       // Updated max value so we're done. Otherwise try it all again.
       break;
     }
@@ -78,11 +136,11 @@ inline void ThreadsSMRSupport::update_tlh_time_max(uint new_value) {
 }
 
 inline ThreadsList* ThreadsSMRSupport::get_java_thread_list() {
-  return (ThreadsList*)OrderAccess::load_acquire(&_java_thread_list);
+  return (ThreadsList*)Atomic::load_acquire(&_java_thread_list);
 }
 
 inline bool ThreadsSMRSupport::is_a_protected_JavaThread_with_lock(JavaThread *thread) {
-  MutexLockerEx ml(Threads_lock->owned_by_self() ? NULL : Threads_lock);
+  ConditionalMutexLocker ml(Threads_lock, !Threads_lock->owned_by_self());
   return is_a_protected_JavaThread(thread);
 }
 
@@ -92,4 +150,4 @@ inline void ThreadsSMRSupport::update_tlh_stats(uint millis) {
   ThreadsSMRSupport::update_tlh_time_max(millis);
 }
 
-#endif // SHARE_VM_RUNTIME_THREADSMR_INLINE_HPP
+#endif // SHARE_RUNTIME_THREADSMR_INLINE_HPP

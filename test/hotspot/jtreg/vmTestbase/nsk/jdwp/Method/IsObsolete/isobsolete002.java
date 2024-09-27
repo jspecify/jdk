@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,13 +70,9 @@ public class isobsolete002 {
     static final int BREAKPOINT_LINE = isobsolete002a.BREAKPOINT_LINE;
 
     // filename for redefined class
-//   4691123 TEST: some jdi tests contain precompiled .klass files undes SCCS
-//   precomiled class was removed
-//    static final String REDEFINED_CLASS_FILE_NAME = "isobsolete002b.klass";
-    static final String REDEFINED_CLASS_FILE_NAME = "newclass"
-                    + File.separator + PACKAGE_NAME.replace('.',File.separatorChar)
+    static final String REDEFINED_CLASS_FILE_NAME = "bin" + File.separator + "newclass"
+                    + File.separator + PACKAGE_NAME.replace('.', File.separatorChar)
                     + File.separator + "isobsolete002b.class";
-//                    + File.separator + "isobsolete002b.klass";
 
     // usual scaffold objects
     ArgumentHandler argumentHandler = null;
@@ -100,7 +96,10 @@ public class isobsolete002 {
      * Start test from command line.
      */
     public static void main (String argv[]) {
-        System.exit(run(argv,System.out) + JCK_STATUS_BASE);
+        int result = run(argv, System.out);
+        if (result != 0) {
+            throw new RuntimeException("Test failed");
+        }
     }
 
     /**

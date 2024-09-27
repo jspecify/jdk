@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@
 
 package sun.security.krb5.internal.ktab;
 
+import sun.security.action.GetPropertyAction;
 import sun.security.krb5.*;
 import sun.security.krb5.internal.*;
 import sun.security.krb5.internal.crypto.*;
@@ -48,6 +49,8 @@ import java.util.StringTokenizer;
 import java.util.Vector;
 import sun.security.jgss.krb5.ServiceCreds;
 
+import static sun.security.krb5.internal.Krb5.DEBUG;
+
 /**
  * This class represents key table. The key table functions deal with storing
  * and retrieving service keys for use in authentication exchanges.
@@ -63,7 +66,6 @@ import sun.security.jgss.krb5.ServiceCreds;
  */
 public class KeyTab implements KeyTabConstants {
 
-    private static final boolean DEBUG = Krb5.DEBUG;
     private static String defaultTabName = null;
 
     // Attention: Currently there is no way to remove a keytab from this map,
@@ -85,7 +87,7 @@ public class KeyTab implements KeyTabConstants {
     /**
      * Constructs a KeyTab object.
      *
-     * If there is any I/O error or format errot during the loading, the
+     * If there is any I/O error or format error during the loading, the
      * isValid flag is set to false, and all half-read entries are dismissed.
      * @param filename path name for the keytab file, must not be null
      */
@@ -100,9 +102,15 @@ public class KeyTab implements KeyTabConstants {
         } catch (FileNotFoundException e) {
             entries.clear();
             isMissing = true;
+            if (DEBUG != null) {
+                DEBUG.println("Cannot load keytab " + tabName + ": " + e);
+            }
         } catch (Exception ioe) {
             entries.clear();
             isValid = false;
+            if (DEBUG != null) {
+                DEBUG.println("Cannot load keytab " + tabName + ": " + ioe);
+            }
         }
     }
 
@@ -116,7 +124,7 @@ public class KeyTab implements KeyTabConstants {
      * @param s file name of keytab, must not be null
      * @return the keytab object, can be invalid, but never null.
      */
-    private synchronized static KeyTab getInstance0(String s) {
+    private static synchronized KeyTab getInstance0(String s) {
         long lm = new File(s).lastModified();
         KeyTab old = map.get(s);
         if (old != null && old.isValid() && old.lastModified == lm) {
@@ -203,14 +211,12 @@ public class KeyTab implements KeyTabConstants {
             }
 
             if (kname == null) {
-                String user_home =
-                        java.security.AccessController.doPrivileged(
-                        new sun.security.action.GetPropertyAction("user.home"));
+                String user_home = GetPropertyAction
+                        .privilegedGetProperty("user.home");
 
                 if (user_home == null) {
-                    user_home =
-                        java.security.AccessController.doPrivileged(
-                        new sun.security.action.GetPropertyAction("user.dir"));
+                    user_home = GetPropertyAction
+                            .privilegedGetProperty("user.dir");
                 }
 
                 kname = user_home + File.separator  + "krb5.keytab";
@@ -258,8 +264,8 @@ public class KeyTab implements KeyTabConstants {
         while (kis.available() > 0) {
             entryLength = kis.readEntryLength();
             entry = kis.readEntry(entryLength, kt_vno);
-            if (DEBUG) {
-                System.out.println(">>> KeyTab: load() entry length: " +
+            if (DEBUG != null) {
+                DEBUG.println(">>> KeyTab: load() entry length: " +
                         entryLength + "; type: " +
                         (entry != null? entry.keyType : 0));
             }
@@ -288,8 +294,8 @@ public class KeyTab implements KeyTabConstants {
         EncryptionKey key;
         int size = entries.size();
         ArrayList<EncryptionKey> keys = new ArrayList<>(size);
-        if (DEBUG) {
-            System.out.println("Looking for keys for: " + service);
+        if (DEBUG != null) {
+            DEBUG.println("Looking for keys for: " + service);
         }
         for (int i = size-1; i >= 0; i--) {
             entry = entries.elementAt(i);
@@ -299,12 +305,12 @@ public class KeyTab implements KeyTabConstants {
                                         entry.keyType,
                                         entry.keyVersion);
                     keys.add(key);
-                    if (DEBUG) {
-                        System.out.println("Added key: " + entry.keyType +
-                            "version: " + entry.keyVersion);
+                    if (DEBUG != null) {
+                        DEBUG.println("Added key: " + entry.keyType +
+                            ", version: " + entry.keyVersion);
                     }
-                } else if (DEBUG) {
-                    System.out.println("Found unsupported keytype (" +
+                } else if (DEBUG != null) {
+                    DEBUG.println("Found unsupported keytype (" +
                         entry.keyType + ") for " + service);
                 }
             }
@@ -342,8 +348,8 @@ public class KeyTab implements KeyTabConstants {
             if (entry.service.match(service)) {
                 if (EType.isSupported(entry.keyType)) {
                     return true;
-                } else if (DEBUG) {
-                    System.out.println("Found unsupported keytype (" +
+                } else if (DEBUG != null) {
+                    DEBUG.println("Found unsupported keytype (" +
                         entry.keyType + ") for " + service);
                 }
             }
@@ -371,12 +377,33 @@ public class KeyTab implements KeyTabConstants {
         addEntry(service, service.getSalt(), psswd, kvno, append);
     }
 
-    // Called by KDC test
+    /**
+     * Adds a new entry in the key table.
+     * @param service the service which will have a new entry in the key table.
+     * @param salt specified non default salt, cannot be null
+     * @param psswd the password which generates the key.
+     * @param kvno the kvno to use, -1 means automatic increasing
+     * @param append false if entries with old kvno would be removed.
+     * Note: if kvno is not -1, entries with the same kvno are always removed
+     */
     public void addEntry(PrincipalName service, String salt, char[] psswd,
             int kvno, boolean append) throws KrbException {
 
         EncryptionKey[] encKeys = EncryptionKey.acquireSecretKeys(
-            psswd, salt);
+                psswd, salt);
+        addEntry(service, encKeys, kvno, append);
+    }
+
+    /**
+     * Adds a new entry in the key table.
+     * @param service the service which will have a new entry in the key table.
+     * @param encKeys the keys to be added
+     * @param kvno the kvno to use, -1 means automatic increasing
+     * @param append false if entries with old kvno would be removed.
+     * Note: if kvno is not -1, entries with the same kvno are always removed
+     */
+    public void addEntry(PrincipalName service, EncryptionKey[] encKeys,
+            int kvno, boolean append) throws KrbException {
 
         // There should be only one maximum KVNO value for all etypes, so that
         // all added keys can have the same KVNO.
@@ -424,7 +451,7 @@ public class KeyTab implements KeyTabConstants {
     /**
      * Creates a new default key table.
      */
-    public synchronized static KeyTab create()
+    public static synchronized KeyTab create()
         throws IOException, RealmException {
         String dname = getDefaultTabName();
         return create(dname);
@@ -433,7 +460,7 @@ public class KeyTab implements KeyTabConstants {
     /**
      * Creates a new default key table.
      */
-    public synchronized static KeyTab create(String name)
+    public static synchronized KeyTab create(String name)
         throws IOException, RealmException {
 
         try (KeyTabOutputStream kos =

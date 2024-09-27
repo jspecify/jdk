@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,12 +33,14 @@ package javax.security.auth.callback;
  */
 public class UnsupportedCallbackException extends Exception {
 
+    @java.io.Serial
     private static final long serialVersionUID = -6873556327655666839L;
 
     /**
      * @serial
      */
-    private Callback callback;
+    @SuppressWarnings("serial") // Not statically typed as Serializable
+    private final Callback callback;
 
     /**
      * Constructs an {@code UnsupportedCallbackException}

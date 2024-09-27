@@ -21,28 +21,28 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
- */
-/*
- * $Id: DOMDigestMethod.java 1788465 2017-03-24 15:10:51Z coheigea $
+ * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
  */
 package org.jcp.xml.dsig.internal.dom;
 
-import org.jspecify.annotations.Nullable;
-
-import javax.xml.crypto.*;
-import javax.xml.crypto.dsig.*;
-import javax.xml.crypto.dsig.spec.DigestMethodParameterSpec;
-
 import java.security.InvalidAlgorithmParameterException;
 import java.security.spec.AlgorithmParameterSpec;
+
+import javax.xml.crypto.MarshalException;
+import javax.xml.crypto.dom.DOMCryptoContext;
+import javax.xml.crypto.dsig.DigestMethod;
+import javax.xml.crypto.dsig.XMLSignature;
+import javax.xml.crypto.dsig.spec.DigestMethodParameterSpec;
+
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 /**
  * DOM-based abstract implementation of DigestMethod.
  *
  */
-public abstract class DOMDigestMethod extends BaseStructure
+public abstract class DOMDigestMethod extends DOMStructure
     implements DigestMethod {
 
     static final String SHA224 =
@@ -177,23 +177,25 @@ public abstract class DOMDigestMethod extends BaseStructure
      * This method invokes the abstract {@link #marshalParams marshalParams}
      * method to marshal any algorithm-specific parameters.
      */
-    public static void marshal(XmlWriter xwriter, DigestMethod digest, String prefix)
+    @Override
+    public void marshal(Node parent, String prefix, DOMCryptoContext context)
         throws MarshalException
     {
-        xwriter.writeStartElement(prefix, "DigestMethod", XMLSignature.XMLNS);
-        xwriter.writeAttribute("", "", "Algorithm", digest.getAlgorithm());
+        Document ownerDoc = DOMUtils.getOwnerDocument(parent);
 
-        // this is totally over-engineered - nothing implements marshalParams.
-        if (digest.getParameterSpec() != null && digest instanceof DOMDigestMethod) {
-            ( (DOMDigestMethod) digest).marshalParams(xwriter, prefix);
+        Element dmElem = DOMUtils.createElement(ownerDoc, "DigestMethod",
+                                                XMLSignature.XMLNS, prefix);
+        DOMUtils.setAttribute(dmElem, "Algorithm", getAlgorithm());
+
+        if (params != null) {
+            marshalParams(dmElem, prefix);
         }
-        xwriter.writeEndElement(); // "DigestMethod"
+
+        parent.appendChild(dmElem);
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object o) {
+    public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
@@ -227,10 +229,10 @@ public abstract class DOMDigestMethod extends BaseStructure
      * parameters. Subclasses should override it if they have parameters.
      *
      * @param parent the parent element to append the parameters to
-     * @param the namespace prefix to use
+     * @param prefix the namespace prefix to use
      * @throws MarshalException if the parameters cannot be marshalled
      */
-    void marshalParams(XmlWriter xwriter, String prefix)
+    void marshalParams(Element parent, String prefix)
         throws MarshalException
     {
         throw new MarshalException("no parameters should " +

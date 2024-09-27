@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,10 @@
 
 package javax.xml.datatype;
 
-import org.jspecify.annotations.Nullable;
-
 import javax.xml.namespace.QName;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.TimeZone;
 import java.util.GregorianCalendar;
 
@@ -689,12 +688,12 @@ public abstract class XMLGregorianCalendar
      * otherwise {@code false}.
      */
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
-
+    public boolean equals(Object obj) {
         if (obj == null || !(obj instanceof XMLGregorianCalendar)) {
             return false;
+        }
+        if (obj == this) {
+            return true;
         }
         return compare((XMLGregorianCalendar) obj) == DatatypeConstants.EQUAL;
     }
@@ -720,12 +719,10 @@ public abstract class XMLGregorianCalendar
         if (timezone != 0) {
             gc = this.normalize();
         }
-        return gc.getYear()
-                + gc.getMonth()
-                + gc.getDay()
-                + gc.getHour()
-                + gc.getMinute()
-                + gc.getSecond();
+
+        int[] elements = {gc.getYear(), gc.getMonth(), gc.getDay(), gc.getHour(),
+                          gc.getMinute(), gc.getSecond(), gc.getMillisecond()};
+        return Arrays.hashCode(elements);
     }
 
     /**

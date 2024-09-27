@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package java.lang;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import jdk.internal.util.OperatingSystem;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -37,7 +38,7 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import sun.security.action.GetPropertyAction;
+import jdk.internal.event.ProcessStartEvent;
 
 /**
  * This class is used to create operating system processes.
@@ -92,7 +93,7 @@ import sun.security.action.GetPropertyAction;
  * <li><a id="redirect-output">a destination for <i>standard output</i>
  * and <i>standard error</i></a>.  By default, the subprocess writes standard
  * output and standard error to pipes.  Java code can access these pipes
- * via the input streams returned by {@link Process#getOutputStream()} and
+ * via the input streams returned by {@link Process#getInputStream()} and
  * {@link Process#getErrorStream()}.  However, standard output and
  * standard error may be redirected to other destinations using
  * {@link #redirectOutput(Redirect) redirectOutput} and
@@ -193,6 +194,9 @@ import sun.security.action.GetPropertyAction;
 @NullMarked
 public final class ProcessBuilder
 {
+    // Lazily and racy initialize when needed, racy is ok, any logger is ok
+    private static System.Logger LOGGER;
+
     private List<String> command;
     private File directory;
     private Map<String,String> environment;
@@ -350,6 +354,7 @@ public final class ProcessBuilder
      * @see    System#getenv()
      */
     public Map<String,String> environment() {
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null)
             security.checkPermission(new RuntimePermission("getenv.*"));
@@ -471,9 +476,8 @@ public final class ProcessBuilder
      * @since 1.7
      */
     public abstract static class Redirect {
-        private static final File NULL_FILE = new File(
-                (GetPropertyAction.privilegedGetProperty("os.name")
-                        .startsWith("Windows") ? "NUL" : "/dev/null")
+        private static final File NULL_FILE =
+                new File((OperatingSystem.isWindows() ? "NUL" : "/dev/null")
         );
 
         /**
@@ -675,9 +679,8 @@ public final class ProcessBuilder
         public boolean equals(Object obj) {
             if (obj == this)
                 return true;
-            if (! (obj instanceof Redirect))
+            if (! (obj instanceof Redirect r))
                 return false;
-            Redirect r = (Redirect) obj;
             if (r.type() != this.type())
                 return false;
             assert this.file() != null;
@@ -1007,6 +1010,8 @@ public final class ProcessBuilder
      * be required to start a process on some operating systems.
      * As a result, the subprocess may inherit additional environment variable
      * settings beyond those in the process builder's {@link #environment()}.
+     * The minimal set of system dependent environment variables
+     * may override the values provided in the environment.
      *
      * <p>If there is a security manager, its
      * {@link SecurityManager#checkExec checkExec}
@@ -1069,6 +1074,19 @@ public final class ProcessBuilder
      *
      * @throws IOException if an I/O error occurs
      *
+     * @implNote
+     * In the reference implementation, logging of the command, arguments, directory,
+     * stack trace, and process id can be enabled.
+     * The logged information may contain sensitive security information and the potential exposure
+     * of the information should be carefully reviewed.
+     * Logging of the information is enabled when the logging level of the
+     * {@linkplain System#getLogger(String) system logger} named {@code java.lang.ProcessBuilder}
+     * is {@link System.Logger.Level#DEBUG Level.DEBUG} or {@link System.Logger.Level#TRACE Level.TRACE}.
+     * When enabled for {@code Level.DEBUG} only the process id, directory, command, and stack trace
+     * are logged.
+     * When enabled for {@code Level.TRACE} the arguments are included with the process id,
+     * directory, command, and stack trace.
+     *
      * @see Runtime#exec(String[], String[], java.io.File)
      */
     public Process start() throws IOException {
@@ -1079,7 +1097,7 @@ public final class ProcessBuilder
      * Start a new Process using an explicit array of redirects.
      * See {@link #start} for details of starting each Process.
      *
-     * @param redirect array of redirects for stdin, stdout, stderr
+     * @param redirects array of redirects for stdin, stdout, stderr
      * @return the new Process
      * @throws IOException if an I/O error occurs
      */
@@ -1095,24 +1113,48 @@ public final class ProcessBuilder
         // Throws IndexOutOfBoundsException if command is empty
         String prog = cmdarray[0];
 
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null)
             security.checkExec(prog);
 
         String dir = directory == null ? null : directory.toString();
 
-        for (int i = 1; i < cmdarray.length; i++) {
-            if (cmdarray[i].indexOf('\u0000') >= 0) {
+        for (String s : cmdarray) {
+            if (s.indexOf('\u0000') >= 0) {
                 throw new IOException("invalid null character in command");
             }
         }
 
         try {
-            return ProcessImpl.start(cmdarray,
+            Process process = ProcessImpl.start(cmdarray,
                                      environment,
                                      dir,
                                      redirects,
                                      redirectErrorStream);
+            ProcessStartEvent event = new ProcessStartEvent();
+            if (event.isEnabled()) {
+                event.directory = dir;
+                event.command = String.join(" ", cmdarray);
+                event.pid = process.pid();
+                event.commit();
+            }
+            // Racy initialization for logging; errors in configuration may throw exceptions
+            System.Logger logger = LOGGER;
+            if (logger == null) {
+                LOGGER = logger = System.getLogger("java.lang.ProcessBuilder");
+            }
+            if (logger.isLoggable(System.Logger.Level.DEBUG)) {
+                boolean detail = logger.isLoggable(System.Logger.Level.TRACE);
+                var level = (detail) ? System.Logger.Level.TRACE : System.Logger.Level.DEBUG;
+                var cmdargs = (detail) ? String.join("\" \"", cmdarray) : cmdarray[0];
+                RuntimeException stackTraceEx = new RuntimeException("ProcessBuilder.start() debug");
+                LOGGER.log(level, "ProcessBuilder.start(): pid: " + process.pid() +
+                        ", dir: " + dir +
+                        ", cmd: \"" + cmdargs + "\"",
+                        stackTraceEx);
+            }
+            return process;
         } catch (IOException | IllegalArgumentException e) {
             String exceptionInfo = ": " + e.getMessage();
             Throwable cause = e;
@@ -1161,12 +1203,12 @@ public final class ProcessBuilder
      * are forcibly destroyed.
      * <p>
      * The {@code startPipeline} method performs the same checks on
-     * each ProcessBuilder as does the {@link #start} method. The new process
-     * will invoke the command and arguments given by {@link #command()},
-     * in a working directory as given by {@link #directory()},
-     * with a process environment as given by {@link #environment()}.
+     * each ProcessBuilder as does the {@link #start} method. Each new process
+     * invokes the command and arguments given by the respective process builder's
+     * {@link #command()}, in a working directory as given by its {@link #directory()},
+     * with a process environment as given by its {@link #environment()}.
      * <p>
-     * This method checks that the command is a valid operating
+     * Each process builder's command is checked to be a valid operating
      * system command.  Which commands are valid is system-dependent,
      * but at the very least the command must be a non-empty list of
      * non-null strings.
@@ -1175,10 +1217,12 @@ public final class ProcessBuilder
      * be required to start a process on some operating systems.
      * As a result, the subprocess may inherit additional environment variable
      * settings beyond those in the process builder's {@link #environment()}.
+     * The minimal set of system dependent environment variables
+     * may override the values provided in the environment.
      * <p>
      * If there is a security manager, its
      * {@link SecurityManager#checkExec checkExec}
-     * method is called with the first component of this object's
+     * method is called with the first component of each process builder's
      * {@code command} array as its argument. This may result in
      * a {@link SecurityException} being thrown.
      * <p>
@@ -1198,8 +1242,8 @@ public final class ProcessBuilder
      * If the operating system does not support the creation of
      * processes, an {@link UnsupportedOperationException} will be thrown.
      * <p>
-     * Subsequent modifications to this process builder will not
-     * affect the returned {@link Process}.
+     * Subsequent modifications to any of the specified builders
+     * will not affect the returned {@link Process}.
      * @apiNote
      * For example to count the unique imports for all the files in a file hierarchy
      * on a Unix compatible platform:
@@ -1207,9 +1251,9 @@ public final class ProcessBuilder
      * String directory = "/home/duke/src";
      * ProcessBuilder[] builders = {
      *              new ProcessBuilder("find", directory, "-type", "f"),
-                    new ProcessBuilder("xargs", "grep", "-h", "^import "),
-                    new ProcessBuilder("awk", "{print $2;}"),
-                    new ProcessBuilder("sort", "-u")};
+     *              new ProcessBuilder("xargs", "grep", "-h", "^import "),
+     *              new ProcessBuilder("awk", "{print $2;}"),
+     *              new ProcessBuilder("sort", "-u")};
      * List<Process> processes = ProcessBuilder.startPipeline(
      *         Arrays.asList(builders));
      * Process last = processes.get(processes.size()-1);
@@ -1254,6 +1298,10 @@ public final class ProcessBuilder
      * @throws  UnsupportedOperationException
      *          If the operating system does not support the creation of processes
      *
+     * @implNote
+     * In the reference implementation, logging of each process created can be enabled,
+     * see {@link ProcessBuilder#start()} for details.
+     *
      * @throws IOException if an I/O error occurs
      * @since 9
      */
@@ -1285,6 +1333,10 @@ public final class ProcessBuilder
                     redirects[1] = new RedirectPipeImpl();  // placeholder for new output
                 }
                 processes.add(builder.start(redirects));
+                if (prevOutput instanceof RedirectPipeImpl redir) {
+                    // Wrap the fd so it can be closed
+                    new Process.PipeInputStream(redir.getFd()).close();
+                }
                 prevOutput = redirects[1];
             }
         } catch (Exception ex) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2010 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_ZERO_VM_DISASSEMBLER_ZERO_HPP
-#define CPU_ZERO_VM_DISASSEMBLER_ZERO_HPP
+#ifndef CPU_ZERO_DISASSEMBLER_ZERO_HPP
+#define CPU_ZERO_DISASSEMBLER_ZERO_HPP
 
   static int pd_instruction_alignment() {
     return 1;
@@ -34,4 +34,16 @@
     return "";
   }
 
-#endif // CPU_ZERO_VM_DISASSEMBLER_ZERO_HPP
+  // special-case instruction decoding.
+  // There may be cases where the binutils disassembler doesn't do
+  // the perfect job. In those cases, decode_instruction0 may kick in
+  // and do it right.
+  // If nothing had to be done, just return "here", otherwise return "here + instr_len(here)"
+  static address decode_instruction0(address here, outputStream* st, address virtual_begin = nullptr) {
+    return here;
+  }
+
+  // platform-specific instruction annotations (like value of loaded constants)
+  static void annotate(address pc, outputStream* st) { };
+
+#endif // CPU_ZERO_DISASSEMBLER_ZERO_HPP

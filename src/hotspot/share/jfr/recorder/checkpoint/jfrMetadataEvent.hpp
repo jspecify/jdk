@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,25 +22,22 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_RECORDER_CHECKPOINT_JFRMETADATAEVENT_HPP
-#define SHARE_VM_JFR_RECORDER_CHECKPOINT_JFRMETADATAEVENT_HPP
+#ifndef SHARE_JFR_RECORDER_CHECKPOINT_JFRMETADATAEVENT_HPP
+#define SHARE_JFR_RECORDER_CHECKPOINT_JFRMETADATAEVENT_HPP
 
 #include "jni.h"
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 
 class JfrChunkWriter;
 
 //
 // Metadata is continuously updated in Java as event classes are loaded / unloaded.
 // Using update(), Java stores a binary representation back to native.
-// This is for easy access on chunk finalization as well as having it readily available in the case of fatal error.
 //
 class JfrMetadataEvent : AllStatic {
  public:
-  static void lock();
-  static void unlock();
-  static size_t write(JfrChunkWriter& writer, jlong metadata_offset);
+  static void write(JfrChunkWriter& writer);
   static void update(jbyteArray metadata);
 };
 
-#endif // SHARE_VM_JFR_RECORDER_CHECKPOINT_JFRMETADATAEVENT_HPP
+#endif // SHARE_JFR_RECORDER_CHECKPOINT_JFRMETADATAEVENT_HPP

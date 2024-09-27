@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,18 +25,13 @@
 
 package java.util.zip;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTEqLengthOf;
-import org.checkerframework.checker.index.qual.Positive;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.SequenceInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.FilterInputStream;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.EOFException;
+import java.util.Objects;
 
 /**
  * This class implements a stream filter for reading compressed data in
@@ -47,9 +42,7 @@ import java.io.EOFException;
  * @since 1.1
  *
  */
-@AnnotatedFor({"index"})
-public
-class GZIPInputStream extends InflaterInputStream {
+public class GZIPInputStream extends InflaterInputStream {
     /**
      * CRC-32 for uncompressed data.
      */
@@ -76,48 +69,81 @@ class GZIPInputStream extends InflaterInputStream {
      * @param in the input stream
      * @param size the input buffer size
      *
-     * @exception ZipException if a GZIP format error has occurred or the
+     * @throws    ZipException if a GZIP format error has occurred or the
      *                         compression method used is unsupported
-     * @exception IOException if an I/O error has occurred
-     * @exception IllegalArgumentException if {@code size <= 0}
+     * @throws    NullPointerException if {@code in} is null
+     * @throws    IOException if an I/O error has occurred
+     * @throws    IllegalArgumentException if {@code size <= 0}
      */
-    public GZIPInputStream(InputStream in, @Positive int size) throws IOException {
-        super(in, new Inflater(true), size);
+    public GZIPInputStream(InputStream in, int size) throws IOException {
+        super(in, createInflater(in, size), size);
         usesDefaultInflater = true;
-        readHeader(in);
+        try {
+            readHeader(in);
+        } catch (IOException ioe) {
+            this.inf.end();
+            throw ioe;
+        }
+    }
+
+    /*
+     * Creates and returns an Inflater only if the input stream is not null and the
+     * buffer size is > 0.
+     * If the input stream is null, then this method throws a
+     * NullPointerException. If the size is <= 0, then this method throws
+     * an IllegalArgumentException
+     */
+    private static Inflater createInflater(InputStream in, int size) {
+        Objects.requireNonNull(in);
+        if (size <= 0) {
+            throw new IllegalArgumentException("buffer size <= 0");
+        }
+        return new Inflater(true);
     }
 
     /**
      * Creates a new input stream with a default buffer size.
      * @param in the input stream
      *
-     * @exception ZipException if a GZIP format error has occurred or the
+     * @throws    ZipException if a GZIP format error has occurred or the
      *                         compression method used is unsupported
-     * @exception IOException if an I/O error has occurred
+     * @throws    NullPointerException if {@code in} is null
+     * @throws    IOException if an I/O error has occurred
      */
     public GZIPInputStream(InputStream in) throws IOException {
         this(in, 512);
     }
 
     /**
-     * Reads uncompressed data into an array of bytes. If <code>len</code> is not
-     * zero, the method will block until some input can be decompressed; otherwise,
-     * no bytes are read and <code>0</code> is returned.
+     * Reads uncompressed data into an array of bytes, returning the number of inflated
+     * bytes. If {@code len} is not zero, the method will block until some input can be
+     * decompressed; otherwise, no bytes are read and {@code 0} is returned.
+     * <p>
+     * If this method returns a nonzero integer <i>n</i> then {@code buf[off]}
+     * through {@code buf[off+}<i>n</i>{@code -1]} contain the uncompressed
+     * data.  The content of elements {@code buf[off+}<i>n</i>{@code ]} through
+     * {@code buf[off+}<i>len</i>{@code -1]} is undefined, contrary to the
+     * specification of the {@link java.io.InputStream InputStream} superclass,
+     * so an implementation is free to modify these elements during the inflate
+     * operation. If this method returns {@code -1} or throws an exception then
+     * the content of {@code buf[off]} through {@code buf[off+}<i>len</i>{@code
+     * -1]} is undefined.
+     *
      * @param buf the buffer into which the data is read
-     * @param off the start offset in the destination array <code>b</code>
+     * @param off the start offset in the destination array {@code buf}
      * @param len the maximum number of bytes read
-     * @return  the actual number of bytes read, or -1 if the end of the
+     * @return  the actual number of bytes inflated, or -1 if the end of the
      *          compressed input stream is reached
      *
-     * @exception  NullPointerException If <code>buf</code> is <code>null</code>.
-     * @exception  IndexOutOfBoundsException If <code>off</code> is negative,
-     * <code>len</code> is negative, or <code>len</code> is greater than
-     * <code>buf.length - off</code>
-     * @exception ZipException if the compressed input data is corrupt.
-     * @exception IOException if an I/O error has occurred.
+     * @throws     NullPointerException If {@code buf} is {@code null}.
+     * @throws     IndexOutOfBoundsException If {@code off} is negative,
+     * {@code len} is negative, or {@code len} is greater than
+     * {@code buf.length - off}
+     * @throws    ZipException if the compressed input data is corrupt.
+     * @throws    IOException if an I/O error has occurred.
      *
      */
-    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(byte[] buf, @IndexOrHigh({"#1"}) int off, @IndexOrHigh({"#1"}) int len) throws IOException {
+    public int read(byte[] buf, int off, int len) throws IOException {
         ensureOpen();
         if (eos) {
             return -1;
@@ -137,7 +163,7 @@ class GZIPInputStream extends InflaterInputStream {
     /**
      * Closes this input stream and releases any system resources associated
      * with the stream.
-     * @exception IOException if an I/O error has occurred
+     * @throws    IOException if an I/O error has occurred
      */
     public void close() throws IOException {
         if (!closed) {
@@ -232,23 +258,17 @@ class GZIPInputStream extends InflaterInputStream {
             (readUInt(in) != (inf.getBytesWritten() & 0xffffffffL)))
             throw new ZipException("Corrupt GZIP trailer");
 
-        // If there are more bytes available in "in" or
-        // the leftover in the "inf" is > 26 bytes:
-        // this.trailer(8) + next.header.min(10) + next.trailer(8)
         // try concatenated case
-        if (this.in.available() > 0 || n > 26) {
-            int m = 8;                  // this.trailer
-            try {
-                m += readHeader(in);    // next.header
-            } catch (IOException ze) {
-                return true;  // ignore any malformed, do nothing
-            }
-            inf.reset();
-            if (n > m)
-                inf.setInput(buf, len - n + m, n - m);
-            return false;
+        int m = 8;                  // this.trailer
+        try {
+            m += readHeader(in);    // next.header
+        } catch (IOException ze) {
+            return true;  // ignore any malformed, do nothing
         }
-        return true;
+        inf.reset();
+        if (n > m)
+            inf.setInput(buf, len - n + m, n - m);
+        return false;
     }
 
     /*

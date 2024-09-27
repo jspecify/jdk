@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,17 +24,21 @@
 /*
  * @test ReservedStackTest
  *
- * @requires vm.opt.DeoptimizeALot == null | vm.opt.DeoptimizeALot == false
+ * @requires vm.opt.DeoptimizeALot != true
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  * @modules java.base/jdk.internal.vm.annotation
  *
- * @run main/othervm -XX:MaxInlineLevel=2 -XX:CompileCommand=exclude,java/util/concurrent/locks/AbstractOwnableSynchronizer.setExclusiveOwnerThread ReservedStackTest
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:CompileCommand=DontInline,java/util/concurrent/locks/ReentrantLock.lock -XX:CompileCommand=exclude,java/util/concurrent/locks/AbstractOwnableSynchronizer.setExclusiveOwnerThread ReservedStackTest
  */
 
 /* The exclusion of java.util.concurrent.locks.AbstractOwnableSynchronizer.setExclusiveOwnerThread()
  * from the compilable methods is required to ensure that the test will be able
  * to trigger a StackOverflowError on the right method.
+ *
+ * The DontInline directive for ReentrantLock.lock() ensures that lockAndcall
+ * is not considered as being annotated by ReservedStackAccess by virtue of
+ * it inlining such a method.
  */
 
 
@@ -233,19 +237,15 @@ public class ReservedStackTest {
     }
 
     private static boolean isAlwaysSupportedPlatform() {
-        // Note: To date Aarch64 is the only platform that we don't statically
-        // know if it supports the reserved stack area. This is because the
-        // open Aarch64 port supports it and the Oracle arm64 port does not.
         return Platform.isAix() ||
             (Platform.isLinux() &&
              (Platform.isPPC() || Platform.isS390x() || Platform.isX64() ||
-              Platform.isX86())) ||
-            Platform.isOSX() ||
-            Platform.isSolaris();
+              Platform.isX86() || Platform.isAArch64() || Platform.isRISCV64())) ||
+            Platform.isOSX();
     }
 
     private static boolean isNeverSupportedPlatform() {
-        return !isAlwaysSupportedPlatform() && !Platform.isAArch64();
+        return !isAlwaysSupportedPlatform();
     }
 
     private static boolean isSupportedPlatform;
@@ -254,7 +254,7 @@ public class ReservedStackTest {
         // In order to dynamicaly determine if the platform supports the reserved
         // stack area, run with -XX:StackReservedPages=1 and see if we get the
         // expected warning message for platforms that don't support it.
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-XX:StackReservedPages=1", "-version");
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder("-XX:StackReservedPages=1", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         System.out.println("StackReservedPages=1 log: [" + output.getOutput() + "]");
         if (output.getExitValue() != 0) {

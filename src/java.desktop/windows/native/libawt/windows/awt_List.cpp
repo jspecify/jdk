@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -170,17 +170,6 @@ void AwtList::ReleaseDragCapture(UINT flags)
 void AwtList::Reshape(int x, int y, int w, int h)
 {
     AwtComponent::Reshape(x, y, w, h);
-
-/*
-    HWND hList = GetListHandle();
-    if (hList != NULL) {
-        long flags = SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOCOPYBITS;
-        /*
-         * Fix for bug 4046446.
-         * /
-        SetWindowPos(hList, 0, 0, 0, w, h, flags);
-    }
-*/
 }
 
 //Netscape : Override the AwtComponent method so we can set the item height
@@ -288,13 +277,16 @@ void AwtList::SetMultiSelect(BOOL ms) {
 
     UnsubclassHWND();
     AwtToolkit::DestroyComponentHWND(m_hwnd);
-    CreateHWnd(env, L"", style, exStyle,
-               rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
+    CreateHWnd(env, L"", style, exStyle, 0, 0, 0, 0,
                parentHWnd,
                NULL,
                ::GetSysColor(COLOR_WINDOWTEXT),
                ::GetSysColor(COLOR_WINDOW),
                peer);
+
+    SetWindowPos(GetHWnd(), 0,
+            rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
+            SWP_NOZORDER | SWP_NOCOPYBITS | SWP_NOACTIVATE);
 
     SendListMessage(WM_SETFONT, (WPARAM)font, (LPARAM)FALSE);
     SendListMessage(LB_SETITEMHEIGHT, 0, MAKELPARAM(itemHeight, 0));
@@ -478,16 +470,22 @@ BOOL AwtList::IsFocusingMouseMessage(MSG *pMsg)
 MsgRouting AwtList::HandleEvent(MSG *msg, BOOL synthetic)
 {
     if (IsFocusingMouseMessage(msg)) {
-        LONG item = static_cast<LONG>(SendListMessage(LB_ITEMFROMPOINT, 0, msg->lParam));
-        if (item != LB_ERR) {
-            if (isMultiSelect) {
-                if (IsItemSelected(item)) {
-                    Deselect(item);
-                } else {
-                    Select(item);
+        LONG count = GetCount();
+        if (count > 0) {
+            LONG item = static_cast<LONG>(SendListMessage(LB_ITEMFROMPOINT, 0, msg->lParam));
+            if (HIWORD(item) == 0) {
+                item = LOWORD(item);
+                if (item >= 0 && item < count) {
+                    if (isMultiSelect) {
+                        if (IsItemSelected(item)) {
+                            Deselect(item);
+                        } else {
+                            Select(item);
+                        }
+                    } else {
+                        Select(item);
+                    }
                 }
-            } else {
-                Select(item);
             }
         }
         delete msg;

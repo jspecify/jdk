@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_CLASSLOADERSTATS_HPP
-#define SHARE_VM_CLASSFILE_CLASSLOADERSTATS_HPP
+#ifndef SHARE_CLASSFILE_CLASSLOADERSTATS_HPP
+#define SHARE_CLASSFILE_CLASSLOADERSTATS_HPP
 
 
 #include "classfile/classLoaderData.hpp"
 #include "oops/klass.hpp"
+#include "oops/oop.hpp"
 #include "oops/oopsHierarchy.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperation.hpp"
 #include "services/diagnosticCommand.hpp"
 #include "utilities/resourceHash.hpp"
 
@@ -60,7 +61,7 @@ public:
 
   static const JavaPermission permission() {
     JavaPermission p = {"java.lang.management.ManagementPermission",
-                        "monitor", NULL};
+                        "monitor", nullptr};
     return p;
   }
 };
@@ -76,37 +77,43 @@ public:
   size_t            _block_sz;
   uintx             _classes_count;
 
-  size_t            _anon_chunk_sz;
-  size_t            _anon_block_sz;
-  uintx             _anon_classes_count;
+  size_t            _hidden_chunk_sz;
+  size_t            _hidden_block_sz;
+  uintx             _hidden_classes_count;
 
   ClassLoaderStats() :
-    _cld(0),
-    _class_loader(0),
-    _parent(0),
+    _cld(nullptr),
+    _class_loader(),
+    _parent(),
     _chunk_sz(0),
     _block_sz(0),
     _classes_count(0),
-    _anon_block_sz(0),
-    _anon_chunk_sz(0),
-    _anon_classes_count(0) {
+    _hidden_chunk_sz(0),
+    _hidden_block_sz(0),
+    _hidden_classes_count(0) {
   }
 };
 
 
 class ClassLoaderStatsClosure : public CLDClosure {
 protected:
-  static bool oop_equals(oop const& s1, oop const& s2) {
-    return s1 == s2;
-  }
-
   static unsigned oop_hash(oop const& s1) {
-    unsigned hash = (unsigned)((uintptr_t)&s1);
-    return hash ^ (hash >> LogMinObjAlignment);
+    // Robert Jenkins 1996 & Thomas Wang 1997
+    // http://web.archive.org/web/20071223173210/http://www.concentric.net/~Ttwang/tech/inthash.htm
+    uintptr_t tmp = cast_from_oop<uintptr_t>(s1);
+    unsigned hash = (unsigned)tmp;
+    hash = ~hash + (hash << 15);
+    hash = hash ^ (hash >> 12);
+    hash = hash + (hash << 2);
+    hash = hash ^ (hash >> 4);
+    hash = hash * 2057;
+    hash = hash ^ (hash >> 16);
+    return hash;
   }
 
-  typedef ResourceHashtable<oop, ClassLoaderStats*,
-      ClassLoaderStatsClosure::oop_hash, ClassLoaderStatsClosure::oop_equals> StatsTable;
+  typedef ResourceHashtable<oop, ClassLoaderStats,
+                            256, AnyObj::C_HEAP, mtStatistics,
+                            ClassLoaderStatsClosure::oop_hash> StatsTable;
 
   outputStream* _out;
   StatsTable* _stats;
@@ -118,15 +125,19 @@ protected:
 public:
   ClassLoaderStatsClosure(outputStream* out) :
     _out(out),
+    _stats(new (mtStatistics)StatsTable()),
     _total_loaders(0),
-    _total_block_sz(0),
-    _total_chunk_sz(0),
     _total_classes(0),
-    _stats(new StatsTable()) {
+    _total_chunk_sz(0),
+    _total_block_sz(0) {
+  }
+
+  ~ClassLoaderStatsClosure() {
+    delete _stats;
   }
 
   virtual void do_cld(ClassLoaderData* cld);
-  virtual bool do_entry(oop const& key, ClassLoaderStats* const& cls);
+  virtual bool do_entry(oop const& key, ClassLoaderStats const& cls);
   void print();
 
 private:
@@ -149,4 +160,4 @@ public:
   void doit();
 };
 
-#endif // SHARE_VM_CLASSFILE_CLASSLOADERSTATS_HPP
+#endif // SHARE_CLASSFILE_CLASSLOADERSTATS_HPP

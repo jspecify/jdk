@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 package com.sun.tools.jdi;
 
-import org.jspecify.annotations.Nullable;
-
 import com.sun.jdi.IntegerValue;
 import com.sun.jdi.InvalidTypeException;
 import com.sun.jdi.Type;
@@ -41,11 +39,9 @@ public class IntegerValueImpl extends PrimitiveValueImpl
         value = aValue;
     }
 
-    
-    
-    public boolean equals(@Nullable Object obj) {
-        if ((obj != null) && (obj instanceof IntegerValue)) {
-            return (value == ((IntegerValue)obj).value()) &&
+    public boolean equals(Object obj) {
+        if (obj instanceof IntegerValue other) {
+            return (value == other.value()) &&
                    super.equals(obj);
         } else {
             return false;

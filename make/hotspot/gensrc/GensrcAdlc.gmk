@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -34,25 +34,23 @@ ifeq ($(call check-jvm-feature, compiler2), true)
 
   # Flags depending on the build platform/tool chain
   # NOTE: No optimization or debug flags set here
-  ifeq ($(OPENJDK_BUILD_OS), linux)
+  ifeq ($(call isBuildOs, linux), true)
     ADLC_CFLAGS := -fno-exceptions -DLINUX
-  else ifeq ($(OPENJDK_BUILD_OS), solaris)
-    ADLC_LDFLAGS := -m64
-    ADLC_CFLAGS := -m64
-    ADLC_CFLAGS_WARNINGS := +w
-  else ifeq ($(OPENJDK_BUILD_OS), aix)
-    ADLC_LDFLAGS := -q64
-    ADLC_CFLAGS := -qnortti -qeh -q64 -DAIX
-  else ifeq ($(OPENJDK_BUILD_OS), windows)
-    ADLC_LDFLAGS := -nologo
+  else ifeq ($(call isBuildOs, aix), true)
+    ifeq ($(TOOLCHAIN_TYPE), clang)
+      ADLC_LDFLAGS += -m64
+      ADLC_CFLAGS := -fno-rtti -fexceptions -ffunction-sections -m64 -DAIX -mcpu=pwr8
+    else
+      ADLC_LDFLAGS += -q64
+      ADLC_CFLAGS := -qnortti -qeh -q64 -DAIX
+    endif
+  else ifeq ($(call isBuildOs, windows), true)
     ADLC_CFLAGS := -nologo -EHsc
-    # NOTE: The old build also have -D_CRT_SECURE_NO_DEPRECATE but it doesn't
-    # seem needed any more.
     ADLC_CFLAGS_WARNINGS := -W3 -D_CRT_SECURE_NO_WARNINGS
   endif
 
-  # Set the C++ standard if supported
-  ADLC_CFLAGS += $(ADLC_CXXFLAG)
+  # Set the C++ standard
+  ADLC_CFLAGS += $(ADLC_LANGSTD_CXXFLAGS)
 
   # NOTE: The old build didn't set -DASSERT for windows but it doesn't seem to
   # hurt.
@@ -62,20 +60,34 @@ ifeq ($(call check-jvm-feature, compiler2), true)
 
   ADLC_CFLAGS += -I$(TOPDIR)/src/hotspot/share
 
-  $(eval $(call SetupNativeCompilation, BUILD_ADLC, \
+  # Add file macro mappings
+  ADLC_CFLAGS += $(FILE_MACRO_CFLAGS) $(REPRODUCIBLE_CFLAGS)
+
+  ifeq ($(UBSAN_ENABLED), true)
+    ADLC_CFLAGS += $(UBSAN_CFLAGS)
+    ADLC_LDFLAGS += $(UBSAN_LDFLAGS)
+  endif
+
+  ##############################################################################
+  ## Build adlc
+  ##############################################################################
+
+  $(eval $(call SetupJdkExecutable, BUILD_ADLC, \
       NAME := adlc, \
-      TYPE := EXECUTABLE, \
-      TOOLCHAIN := TOOLCHAIN_BUILD_LINK_CXX, \
+      TARGET_TYPE := BUILD, \
+      LINK_TYPE := C++, \
       SRC := $(TOPDIR)/src/hotspot/share/adlc, \
       EXTRA_FILES := $(TOPDIR)/src/hotspot/share/opto/opcodes.cpp, \
+      DEFAULT_CFLAGS := false, \
       CFLAGS := $(ADLC_CFLAGS) $(ADLC_CFLAGS_WARNINGS), \
+      DEFAULT_LDFLAGS := false, \
       LDFLAGS := $(ADLC_LDFLAGS), \
       LIBS := $(ADLC_LIBS), \
+      DEFAULT_VERSIONINFO_RESOURCE := false, \
       OBJECT_DIR := $(JVM_VARIANT_OUTPUTDIR)/tools/adlc/objs, \
       OUTPUT_DIR := $(JVM_VARIANT_OUTPUTDIR)/tools/adlc, \
       DEBUG_SYMBOLS := false, \
       DISABLED_WARNINGS_clang := tautological-compare, \
-      DISABLED_WARNINGS_solstudio := notemsource, \
   ))
 
   ADLC_TOOL := $(BUILD_ADLC_TARGET)
@@ -87,17 +99,25 @@ ifeq ($(call check-jvm-feature, compiler2), true)
   ADLCFLAGS += -q -T
 
   # ADLC flags depending on target OS
-  ifeq ($(OPENJDK_TARGET_OS), linux)
+  ifeq ($(call isTargetOs, linux), true)
     ADLCFLAGS += -DLINUX=1 -D_GNU_SOURCE=1
-  else ifeq ($(OPENJDK_TARGET_OS), solaris)
-    ADLCFLAGS += -DSOLARIS=1 -DSPARC_WORKS=1
-  else ifeq ($(OPENJDK_TARGET_OS), aix)
+  else ifeq ($(call isTargetOs, aix), true)
     ADLCFLAGS += -DAIX=1
-  else ifeq ($(OPENJDK_TARGET_OS), macosx)
+  else ifeq ($(call isTargetOs, macosx), true)
     ADLCFLAGS += -D_ALLBSD_SOURCE=1 -D_GNU_SOURCE=1
+    ifeq ($(HOTSPOT_TARGET_CPU_ARCH), aarch64)
+      ADLCFLAGS += -DR18_RESERVED
+    endif
+  else ifeq ($(call isTargetOs, windows), true)
+    ifeq ($(call isTargetCpuBits, 64), true)
+      ADLCFLAGS += -D_WIN64=1
+    endif
+    ifeq ($(HOTSPOT_TARGET_CPU_ARCH), aarch64)
+      ADLCFLAGS += -DR18_RESERVED
+    endif
   endif
 
-  ifneq ($(OPENJDK_TARGET_OS), windows)
+  ifeq ($(call isTargetOs, windows), false)
     # NOTE: Windows adlc flags was different in the old build. Is this really
     # correct?
 
@@ -109,7 +129,7 @@ ifeq ($(call check-jvm-feature, compiler2), true)
 
   # This generates checks in the generated C++ files that _LP64 is correctly
   # (un)defined when compiling them.
-  ifeq ($(OPENJDK_TARGET_CPU_BITS), 64)
+  ifeq ($(call isTargetCpuBits, 64), true)
     ADLCFLAGS += -D_LP64=1
   else
     ADLCFLAGS += -U_LP64
@@ -117,6 +137,21 @@ ifeq ($(call check-jvm-feature, compiler2), true)
 
   ifeq ($(HOTSPOT_TARGET_CPU_ARCH), arm)
     ADLCFLAGS += -DARM=1
+  endif
+
+  # Set ASSERT, NDEBUG and PRODUCT flags just like in JvmFlags.gmk
+  ifeq ($(DEBUG_LEVEL), release)
+    # release builds disable uses of assert macro from <assert.h>.
+    ADLCFLAGS += -DNDEBUG
+    # For hotspot, release builds differ internally between "optimized" and "product"
+    # in that "optimize" does not define PRODUCT.
+    ifneq ($(HOTSPOT_DEBUG_LEVEL), optimized)
+      ADLCFLAGS += -DPRODUCT
+    endif
+  else ifeq ($(DEBUG_LEVEL), fastdebug)
+    ADLCFLAGS += -DASSERT
+  else ifeq ($(DEBUG_LEVEL), slowdebug)
+    ADLCFLAGS += -DASSERT
   endif
 
   ##############################################################################
@@ -136,36 +171,63 @@ ifeq ($(call check-jvm-feature, compiler2), true)
       $d/os_cpu/$(HOTSPOT_TARGET_OS)_$(HOTSPOT_TARGET_CPU_ARCH)/$(HOTSPOT_TARGET_OS)_$(HOTSPOT_TARGET_CPU_ARCH).ad \
     )))
 
+  ifeq ($(HOTSPOT_TARGET_CPU_ARCH), aarch64)
+    AD_SRC_FILES += $(call uniq, $(wildcard $(foreach d, $(AD_SRC_ROOTS), \
+        $d/cpu/$(HOTSPOT_TARGET_CPU_ARCH)/$(HOTSPOT_TARGET_CPU_ARCH)_vector.ad \
+    )))
+  endif
+
+  ifeq ($(HOTSPOT_TARGET_CPU_ARCH), riscv)
+    AD_SRC_FILES += $(call uniq, $(wildcard $(foreach d, $(AD_SRC_ROOTS), \
+        $d/cpu/$(HOTSPOT_TARGET_CPU_ARCH)/$(HOTSPOT_TARGET_CPU_ARCH)_v.ad \
+        $d/cpu/$(HOTSPOT_TARGET_CPU_ARCH)/$(HOTSPOT_TARGET_CPU_ARCH)_b.ad \
+    )))
+  endif
+
+  ifeq ($(call check-jvm-feature, shenandoahgc), true)
+    AD_SRC_FILES += $(call uniq, $(wildcard $(foreach d, $(AD_SRC_ROOTS), \
+        $d/cpu/$(HOTSPOT_TARGET_CPU_ARCH)/gc/shenandoah/shenandoah_$(HOTSPOT_TARGET_CPU).ad \
+        $d/cpu/$(HOTSPOT_TARGET_CPU_ARCH)/gc/shenandoah/shenandoah_$(HOTSPOT_TARGET_CPU_ARCH).ad \
+      )))
+  endif
+
+  ifeq ($(call check-jvm-feature, zgc), true)
+    AD_SRC_FILES += $(call uniq, $(wildcard $(foreach d, $(AD_SRC_ROOTS), \
+        $d/cpu/$(HOTSPOT_TARGET_CPU_ARCH)/gc/x/x_$(HOTSPOT_TARGET_CPU).ad \
+        $d/cpu/$(HOTSPOT_TARGET_CPU_ARCH)/gc/x/x_$(HOTSPOT_TARGET_CPU_ARCH).ad \
+        $d/cpu/$(HOTSPOT_TARGET_CPU_ARCH)/gc/z/z_$(HOTSPOT_TARGET_CPU).ad \
+        $d/cpu/$(HOTSPOT_TARGET_CPU_ARCH)/gc/z/z_$(HOTSPOT_TARGET_CPU_ARCH).ad \
+      )))
+  endif
+
   SINGLE_AD_SRCFILE := $(ADLC_SUPPORT_DIR)/all-ad-src.ad
 
   INSERT_FILENAME_AWK_SCRIPT := \
       '{ \
-         if (CUR_FN != FILENAME) { CUR_FN=FILENAME; NR_BASE=NR-1; need_lineno=1 } \
-         if (need_lineno && $$0 !~ /\/\//) \
-           { print "\n\n\#line " (NR-NR_BASE) " \"" FILENAME "\""; need_lineno=0 }; \
-         print \
-       }'
+        if (CUR_FN != FILENAME) { CUR_FN=FILENAME; NR_BASE=NR-1; need_lineno=1 } \
+        if (need_lineno && $$0 !~ /\/\//) \
+          { print "\n\n\#line " (NR-NR_BASE) " \"" FILENAME "\""; need_lineno=0 }; \
+        print \
+      }'
 
   $(SINGLE_AD_SRCFILE): $(AD_SRC_FILES)
 	$(call LogInfo, Preprocessing adlc files $(^F))
 	$(call MakeDir, $(@D))
-	$(NAWK) $(INSERT_FILENAME_AWK_SCRIPT) $^ > $@
+	$(AWK) $(INSERT_FILENAME_AWK_SCRIPT) $^ > $@
 
   ##############################################################################
   # Run the adlc tool on the single concatenated ad source file, and store the
   # output in support/adlc for further processing.
-  ADLC_RUN_MARKER := $(ADLC_SUPPORT_DIR)/_adlc_run.marker
-
-  $(ADLC_RUN_MARKER): $(BUILD_ADLC) $(SINGLE_AD_SRCFILE)
-	$(call LogInfo, Generating adlc files)
-	$(call MakeDir, $(@D))
-	$(call ExecuteWithLog, $(ADLC_SUPPORT_DIR)/adlc_run, \
-	    $(FIXPATH) $(ADLC_TOOL) $(ADLCFLAGS) $(SINGLE_AD_SRCFILE) \
-	        -c$(ADLC_SUPPORT_DIR)/ad_$(HOTSPOT_TARGET_CPU_ARCH).cpp \
-	        -h$(ADLC_SUPPORT_DIR)/ad_$(HOTSPOT_TARGET_CPU_ARCH).hpp \
-	        -a$(ADLC_SUPPORT_DIR)/dfa_$(HOTSPOT_TARGET_CPU_ARCH).cpp \
-	        -v$(ADLC_SUPPORT_DIR)/adGlobals_$(HOTSPOT_TARGET_CPU_ARCH).hpp)
-	$(TOUCH) $@
+  $(eval $(call SetupExecute, adlc_run, \
+      INFO := Generating adlc files, \
+      DEPS := $(BUILD_ADLC) $(SINGLE_AD_SRCFILE), \
+      OUTPUT_DIR := $(ADLC_SUPPORT_DIR), \
+      COMMAND := $(FIXPATH) $(ADLC_TOOL) $(ADLCFLAGS) $(SINGLE_AD_SRCFILE) \
+          -c$(ADLC_SUPPORT_DIR)/ad_$(HOTSPOT_TARGET_CPU_ARCH).cpp \
+          -h$(ADLC_SUPPORT_DIR)/ad_$(HOTSPOT_TARGET_CPU_ARCH).hpp \
+          -a$(ADLC_SUPPORT_DIR)/dfa_$(HOTSPOT_TARGET_CPU_ARCH).cpp \
+          -v$(ADLC_SUPPORT_DIR)/adGlobals_$(HOTSPOT_TARGET_CPU_ARCH).hpp, \
+  ))
 
   ##############################################################################
   # Finally copy the generated files from support/adlc into gensrc/adfiles,
@@ -185,15 +247,18 @@ ifeq ($(call check-jvm-feature, compiler2), true)
       dfa_$(HOTSPOT_TARGET_CPU_ARCH).cpp \
   )
 
-  $(JVM_VARIANT_OUTPUTDIR)/gensrc/adfiles/%: $(ADLC_RUN_MARKER)
+  $(JVM_VARIANT_OUTPUTDIR)/gensrc/adfiles/%: $(adlc_run_TARGET)
 	$(call LogInfo, Postprocessing adlc file $*)
 	$(call MakeDir, $(@D))
-	$(NAWK) \
+	$(AWK) \
 	    'BEGIN { print "#line 1 \"$*\""; } \
 	     /^#line 999999$$/ {print "#line " (NR+1) " \"$*\""; next} \
+	     $(if $(call equals, $(ALLOW_ABSOLUTE_PATHS_IN_OUTPUT), false), \
+	       /^#line .*$$/ {sub("$(WORKSPACE_ROOT)/","")} \
+	     ) \
 	     {print}' \
 	    < $(ADLC_SUPPORT_DIR)/$* > $@
 
-  TARGETS := $(ADLC_GENERATED_FILES)
+  TARGETS += $(ADLC_GENERATED_FILES)
 
 endif

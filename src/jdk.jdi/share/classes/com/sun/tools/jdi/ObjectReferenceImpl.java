@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,6 @@
  */
 
 package com.sun.tools.jdi;
-
-import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -147,11 +145,8 @@ public class ObjectReferenceImpl extends ValueImpl
         }
     }
 
-    
-    
-    public boolean equals(@Nullable Object obj) {
-        if ((obj != null) && (obj instanceof ObjectReferenceImpl)) {
-            ObjectReferenceImpl other = (ObjectReferenceImpl)obj;
+    public boolean equals(Object obj) {
+        if (obj instanceof ObjectReferenceImpl other) {
             return (ref() == other.ref()) &&
                    super.equals(obj);
         } else {
@@ -159,8 +154,9 @@ public class ObjectReferenceImpl extends ValueImpl
         }
     }
 
+    @Override
     public int hashCode() {
-        return(int)ref();
+        return Long.hashCode(ref());
     }
 
     public Type type() {
@@ -421,7 +417,7 @@ public class ObjectReferenceImpl extends ValueImpl
         }
 
         /*
-         * There is an implict VM-wide suspend at the conclusion
+         * There is an implicit VM-wide suspend at the conclusion
          * of a normal (non-single-threaded) method invoke
          */
         if ((options & INVOKE_SINGLE_THREADED) == 0) {
@@ -588,17 +584,18 @@ public class ObjectReferenceImpl extends ValueImpl
          * type which might cause a confusing ClassNotLoadedException if
          * the destination is primitive or an array.
          */
-        /*
-         * TO DO: Centralize JNI signature knowledge
-         */
-        if (destination.signature().length() == 1) {
+
+        JNITypeParser destSig = new JNITypeParser(destination.signature());
+        if (destSig.isPrimitive()) {
             throw new InvalidTypeException("Can't assign object value to primitive");
         }
-        if ((destination.signature().charAt(0) == '[') &&
-            (type().signature().charAt(0) != '[')) {
-            throw new InvalidTypeException("Can't assign non-array value to an array");
+        if (destSig.isArray()) {
+            JNITypeParser sourceSig = new JNITypeParser(type().signature());
+            if (!sourceSig.isArray()) {
+                throw new InvalidTypeException("Can't assign non-array value to an array");
+            }
         }
-        if ("void".equals(destination.typeName())) {
+        if (destSig.isVoid()) {
             throw new InvalidTypeException("Can't assign object value to a void");
         }
 

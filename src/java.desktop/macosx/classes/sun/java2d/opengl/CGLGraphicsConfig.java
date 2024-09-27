@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,32 +54,29 @@ import sun.java2d.opengl.OGLContext.OGLContextCaps;
 import sun.java2d.pipe.hw.AccelSurface;
 import sun.java2d.pipe.hw.AccelTypedVolatileImage;
 import sun.java2d.pipe.hw.ContextCapabilities;
-import static sun.java2d.opengl.OGLSurfaceData.*;
-import static sun.java2d.opengl.OGLContext.OGLContextCaps.*;
-
 import sun.lwawt.LWComponentPeer;
-import sun.lwawt.macosx.CPlatformView;
+import sun.lwawt.macosx.CFRetainedResource;
+
+import static sun.java2d.opengl.OGLContext.OGLContextCaps.CAPS_DOUBLEBUFFERED;
+import static sun.java2d.opengl.OGLContext.OGLContextCaps.CAPS_EXT_FBOBJECT;
+import static sun.java2d.opengl.OGLSurfaceData.FBOBJECT;
+import static sun.java2d.opengl.OGLSurfaceData.TEXTURE;
 
 public final class CGLGraphicsConfig extends CGraphicsConfig
     implements OGLGraphicsConfig
 {
-    //private static final int kOpenGLSwapInterval =
-    // RuntimeOptions.getCurrentOptions().OpenGLSwapInterval;
-    private static final int kOpenGLSwapInterval = 0; // TODO
     private static boolean cglAvailable;
     private static ImageCapabilities imageCaps = new CGLImageCaps();
 
-    private int pixfmt;
     private BufferCapabilities bufferCaps;
     private long pConfigInfo;
     private ContextCapabilities oglCaps;
-    private OGLContext context;
+    private final OGLContext context;
     private final Object disposerReferent = new Object();
     private final int maxTextureSize;
 
     private static native boolean initCGL();
-    private static native long getCGLConfigInfo(int displayID, int visualnum,
-                                                int swapInterval);
+    private static native long getCGLConfigInfo();
     private static native int getOGLCapabilities(long configInfo);
 
     /**
@@ -94,16 +91,13 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
         cglAvailable = initCGL();
     }
 
-    private CGLGraphicsConfig(CGraphicsDevice device, int pixfmt,
-                              long configInfo, int maxTextureSize,
-                              ContextCapabilities oglCaps) {
+    private CGLGraphicsConfig(CGraphicsDevice device, long configInfo,
+                              int maxTextureSize, ContextCapabilities oglCaps) {
         super(device);
-
-        this.pixfmt = pixfmt;
         this.pConfigInfo = configInfo;
         this.oglCaps = oglCaps;
         this.maxTextureSize = maxTextureSize;
-        context = new OGLContext(OGLRenderQueue.getInstance(), this);
+        context = new OGLContext(OGLRenderQueue.getInstance());
 
         // add a record to the Disposer so that we destroy the native
         // CGLGraphicsConfigInfo data when this object goes away
@@ -124,8 +118,7 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
                                          OGLSurfaceData.TEXTURE);
     }
 
-    public static CGLGraphicsConfig getConfig(CGraphicsDevice device,
-                                              int pixfmt)
+    public static CGLGraphicsConfig getConfig(CGraphicsDevice device)
     {
         if (!cglAvailable) {
             return null;
@@ -133,7 +126,7 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
 
         long cfginfo = 0;
         int textureSize = 0;
-        final String ids[] = new String[1];
+        final String[] ids = new String[1];
         OGLRenderQueue rq = OGLRenderQueue.getInstance();
         rq.lock();
         try {
@@ -141,9 +134,7 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
             // surfaces/contexts, so we should first invalidate the current
             // Java-level context and flush the queue...
             OGLContext.invalidateCurrentContext();
-
-            cfginfo = getCGLConfigInfo(device.getCGDisplayID(), pixfmt,
-                                       kOpenGLSwapInterval);
+            cfginfo = getCGLConfigInfo();
             if (cfginfo != 0L) {
                 textureSize = nativeGetMaxTextureSize();
                 // 7160609: GL still fails to create a square texture of this
@@ -164,7 +155,7 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
 
         int oglCaps = getOGLCapabilities(cfginfo);
         ContextCapabilities caps = new OGLContextCaps(oglCaps, ids[0]);
-        return new CGLGraphicsConfig(device, pixfmt, cfginfo, textureSize, caps);
+        return new CGLGraphicsConfig(device, cfginfo, textureSize, caps);
     }
 
     public static boolean isCGLAvailable() {
@@ -185,11 +176,6 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
         return pConfigInfo;
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * @see sun.java2d.pipe.hw.BufferedContextProvider#getContext
-     */
     @Override
     public OGLContext getContext() {
         return context;
@@ -259,18 +245,12 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
 
     @Override
     public String toString() {
-        int displayID = getDevice().getCGDisplayID();
-        return ("CGLGraphicsConfig[dev="+displayID+",pixfmt="+pixfmt+"]");
+        return ("CGLGraphicsConfig[" + getDevice().getIDstring() + "]");
     }
 
     @Override
-    public SurfaceData createSurfaceData(CPlatformView pView) {
-        return CGLSurfaceData.createData(pView);
-    }
-
-    @Override
-    public SurfaceData createSurfaceData(CGLLayer layer) {
-        return CGLSurfaceData.createData(layer);
+    public SurfaceData createSurfaceData(CFRetainedResource layer) {
+        return CGLSurfaceData.createData((CGLLayer) layer);
     }
 
     @Override
@@ -395,11 +375,6 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
         return vi;
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * @see sun.java2d.pipe.hw.AccelGraphicsConfig#getContextCapabilities
-     */
     @Override
     public ContextCapabilities getContextCapabilities() {
         return oglCaps;

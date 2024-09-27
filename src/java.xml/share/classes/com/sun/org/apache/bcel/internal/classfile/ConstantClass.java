@@ -28,109 +28,98 @@ import java.io.IOException;
 import com.sun.org.apache.bcel.internal.Const;
 
 /**
- * This class is derived from the abstract {@link Constant}
- * and represents a reference to a (external) class.
+ * This class is derived from the abstract {@link Constant} and represents a reference to a (external) class.
  *
- * @version $Id: ConstantClass.java 1749603 2016-06-21 20:50:19Z ggregory $
- * @see     Constant
+ * @see Constant
  */
 public final class ConstantClass extends Constant implements ConstantObject {
 
-    private int name_index; // Identical to ConstantString except for the name
-
+    private int nameIndex; // Identical to ConstantString except for the name
 
     /**
      * Initialize from another object.
+     *
+     * @param c Source to copy.
      */
     public ConstantClass(final ConstantClass c) {
         this(c.getNameIndex());
     }
 
-
     /**
-     * Initialize instance from file data.
+     * Constructs an instance from file data.
      *
-     * @param file Input stream
-     * @throws IOException
+     * @param dataInput Input stream
+     * @throws IOException if an I/O error occurs reading from the given {@code dataInput}.
      */
-    ConstantClass(final DataInput file) throws IOException {
-        this(file.readUnsignedShort());
+    ConstantClass(final DataInput dataInput) throws IOException {
+        this(dataInput.readUnsignedShort());
     }
 
-
     /**
-     * @param name_index Name index in constant pool.  Should refer to a
-     * ConstantUtf8.
+     * @param nameIndex Name index in constant pool. Should refer to a ConstantUtf8.
      */
-    public ConstantClass(final int name_index) {
+    public ConstantClass(final int nameIndex) {
         super(Const.CONSTANT_Class);
-        this.name_index = name_index;
+        this.nameIndex = nameIndex;
     }
 
-
     /**
-     * Called by objects that are traversing the nodes of the tree implicitely
-     * defined by the contents of a Java class. I.e., the hierarchy of methods,
-     * fields, attributes, etc. spawns a tree of objects.
+     * Called by objects that are traversing the nodes of the tree implicitly defined by the contents of a Java class.
+     * I.e., the hierarchy of methods, fields, attributes, etc. spawns a tree of objects.
      *
      * @param v Visitor object
      */
     @Override
-    public void accept( final Visitor v ) {
+    public void accept(final Visitor v) {
         v.visitConstantClass(this);
     }
 
-
     /**
-     * Dump constant class to file stream in binary format.
+     * Dumps constant class to file stream in binary format.
      *
      * @param file Output file stream
-     * @throws IOException
+     * @throws IOException if an I/O error occurs writing to the DataOutputStream.
      */
     @Override
-    public final void dump( final DataOutputStream file ) throws IOException {
+    public void dump(final DataOutputStream file) throws IOException {
         file.writeByte(super.getTag());
-        file.writeShort(name_index);
+        file.writeShort(nameIndex);
     }
 
+    /**
+     * @return dereferenced string
+     */
+    public String getBytes(final ConstantPool cp) {
+        return (String) getConstantValue(cp);
+    }
+
+    /**
+     * @return String object
+     */
+    @Override
+    public Object getConstantValue(final ConstantPool cp) {
+        return cp.getConstantUtf8(nameIndex).getBytes();
+    }
 
     /**
      * @return Name index in constant pool of class name.
      */
-    public final int getNameIndex() {
-        return name_index;
+    public int getNameIndex() {
+        return nameIndex;
     }
-
 
     /**
-     * @param name_index the name index in the constant pool of this Constant Class
+     * @param nameIndex the name index in the constant pool of this Constant Class
      */
-    public final void setNameIndex( final int name_index ) {
-        this.name_index = name_index;
+    public void setNameIndex(final int nameIndex) {
+        this.nameIndex = nameIndex;
     }
-
-
-    /** @return String object
-     */
-    @Override
-    public Object getConstantValue( final ConstantPool cp ) {
-        final Constant c = cp.getConstant(name_index, Const.CONSTANT_Utf8);
-        return ((ConstantUtf8) c).getBytes();
-    }
-
-
-    /** @return dereferenced string
-     */
-    public String getBytes( final ConstantPool cp ) {
-        return (String) getConstantValue(cp);
-    }
-
 
     /**
      * @return String representation.
      */
     @Override
-    public final String toString() {
-        return super.toString() + "(name_index = " + name_index + ")";
+    public String toString() {
+        return super.toString() + "(nameIndex = " + nameIndex + ")";
     }
 }

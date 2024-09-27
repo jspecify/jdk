@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,10 @@
  * @test
  * @bug 8028994
  * @author Staffan Larsen
- * @comment Graal does not support CMS
- * @requires !vm.graal.enabled
- * @library /lib/testlibrary
+ * @requires vm.flagless
+ * @library /test/lib
  * @modules jdk.attach/sun.tools.attach
  *          jdk.management
- * @build jdk.testlibrary.*
  * @run main CheckOrigin
  */
 
@@ -43,8 +41,9 @@ import java.io.FileWriter;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
+import java.nio.file.Path;
 import java.util.Map;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.ProcessTools;
 import sun.tools.attach.HotSpotVirtualMachine;
 
 public class CheckOrigin {
@@ -55,17 +54,17 @@ public class CheckOrigin {
         if (args.length == 0) {
             // start a process that has options set in a number of different ways
 
-            File flagsFile = File.createTempFile("CheckOriginFlags", null);
+            File flagsFile = File.createTempFile("CheckOriginFlags", null, Path.of(".").toFile());
             try (PrintWriter pw =
                    new PrintWriter(new FileWriter(flagsFile))) {
-                pw.println("+PrintSafepointStatistics");
+                pw.println("+PrintCodeCache");
             }
 
             ProcessBuilder pb = ProcessTools.
-                createJavaProcessBuilder(
+                createLimitedTestJavaProcessBuilder(
                     "--add-exports", "jdk.attach/sun.tools.attach=ALL-UNNAMED",
-                    "-XX:+UseConcMarkSweepGC",  // this will cause MaxNewSize to be FLAG_SET_ERGO
-                    "-XX:+UseCodeAging",
+                    "-XX:+UseG1GC",  // this will cause MaxNewSize to be FLAG_SET_ERGO
+                    "-XX:+UseCodeCacheFlushing",
                     "-XX:+UseCerealGC",         // Should be ignored.
                     "-XX:Flags=" + flagsFile.getAbsolutePath(),
                     "-Djdk.attach.allowAttachSelf",
@@ -74,8 +73,7 @@ public class CheckOrigin {
                     "-runtests");
 
             Map<String, String> env = pb.environment();
-            // "UseCMSGC" should be ignored.
-            env.put("_JAVA_OPTIONS", "-XX:+CheckJNICalls -XX:+UseCMSGC");
+            env.put("_JAVA_OPTIONS", "-XX:+CheckJNICalls");
             // "UseGOneGC" should be ignored.
             env.put("JAVA_TOOL_OPTIONS", "-XX:+IgnoreUnrecognizedVMOptions "
                 + "-XX:+PrintVMOptions -XX:+UseGOneGC");
@@ -101,17 +99,17 @@ public class CheckOrigin {
             // Not set, so should be default
             checkOrigin("ManagementServer", Origin.DEFAULT);
             // Set on the command line
-            checkOrigin("UseCodeAging", Origin.VM_CREATION);
+            checkOrigin("UseCodeCacheFlushing", Origin.VM_CREATION);
             // Set in _JAVA_OPTIONS
             checkOrigin("CheckJNICalls", Origin.ENVIRON_VAR);
             // Set in JAVA_TOOL_OPTIONS
             checkOrigin("IgnoreUnrecognizedVMOptions", Origin.ENVIRON_VAR);
             checkOrigin("PrintVMOptions", Origin.ENVIRON_VAR);
             // Set in -XX:Flags file
-            checkOrigin("PrintSafepointStatistics", Origin.CONFIG_FILE);
+            checkOrigin("PrintCodeCache", Origin.CONFIG_FILE);
             // Set through j.l.m
             checkOrigin("HeapDumpOnOutOfMemoryError", Origin.MANAGEMENT);
-            // Should be set by the VM, when we set UseConcMarkSweepGC
+            // Should be set by the VM, when we set UseG1GC
             checkOrigin("MaxNewSize", Origin.ERGONOMIC);
             // Set using attach
             checkOrigin("HeapDumpPath", Origin.ATTACH_ON_DEMAND);

@@ -46,7 +46,7 @@ import static javax.swing.SwingUtilities.invokeAndWait;
  * @bug 6968363
  * @summary Ensures that a custom document may not extend AbstractDocument
  * @author Sergey Malenkov
- * @library ../../../../../lib/testlibrary/
+ * @library /lib/client/
  * @build ExtendedRobot
  * @run main Test6968363
  */
@@ -68,7 +68,7 @@ public class Test6968363 implements Runnable, Thread.UncaughtExceptionHandler {
     @Override
     public void uncaughtException(Thread thread, Throwable throwable) {
         throwable.printStackTrace();
-        System.exit(1);
+        throw new RuntimeException(throwable);
     }
 
     @Override

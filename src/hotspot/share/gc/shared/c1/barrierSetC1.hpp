@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,17 +41,17 @@ class LIRAddressOpr: public StackObj {
   LIRItem* _item;
   LIR_Opr  _opr;
 public:
-  LIRAddressOpr(LIRItem& item) : _item(&item), _opr(NULL) {}
-  LIRAddressOpr(LIR_Opr opr) : _item(NULL), _opr(opr) {}
+  LIRAddressOpr(LIRItem& item) : _item(&item), _opr() {}
+  LIRAddressOpr(LIR_Opr opr) : _item(nullptr), _opr(opr) {}
   LIRAddressOpr(const LIRAddressOpr& other) : _item(other._item), _opr(other._opr) {}
 
   LIRItem& item() const {
-    assert(_item != NULL, "sanity");
+    assert(_item != nullptr, "sanity");
     return *_item;
   }
 
   LIR_Opr opr() const {
-    if (_item == NULL) {
+    if (_item == nullptr) {
       return _opr;
     } else {
       return _item->result();
@@ -74,13 +74,13 @@ class LIRAccess: public StackObj {
 public:
   LIRAccess(LIRGenerator* gen, DecoratorSet decorators,
             LIRAddressOpr base, LIRAddressOpr offset, BasicType type,
-            CodeEmitInfo* patch_emit_info = NULL, CodeEmitInfo* access_emit_info = NULL) :
+            CodeEmitInfo* patch_emit_info = nullptr, CodeEmitInfo* access_emit_info = nullptr) :
     _gen(gen),
-    _decorators(AccessInternal::decorator_fixup(decorators)),
+    _decorators(AccessInternal::decorator_fixup(decorators, type)),
     _base(base),
     _offset(offset),
     _type(type),
-    _resolved_addr(NULL),
+    _resolved_addr(),
     _patch_emit_info(patch_emit_info),
     _access_emit_info(access_emit_info) {}
 
@@ -92,21 +92,22 @@ public:
     load_offset();
   }
 
-  LIRGenerator* gen() const            { return _gen; }
-  CodeEmitInfo*& patch_emit_info()     { return _patch_emit_info; }
-  CodeEmitInfo*& access_emit_info()    { return _access_emit_info; }
-  LIRAddressOpr& base()                { return _base; }
-  LIRAddressOpr& offset()              { return _offset; }
-  BasicType type() const               { return _type; }
-  LIR_Opr resolved_addr() const        { return _resolved_addr; }
-  void set_resolved_addr(LIR_Opr addr) { _resolved_addr = addr; }
-  bool is_oop() const                  { return _type == T_ARRAY || _type == T_OBJECT; }
-  DecoratorSet decorators() const      { return _decorators; }
-  bool is_raw() const                  { return (_decorators & AS_RAW) != 0; }
+  LIRGenerator* gen() const              { return _gen; }
+  CodeEmitInfo*& patch_emit_info()       { return _patch_emit_info; }
+  CodeEmitInfo*& access_emit_info()      { return _access_emit_info; }
+  LIRAddressOpr& base()                  { return _base; }
+  LIRAddressOpr& offset()                { return _offset; }
+  BasicType type() const                 { return _type; }
+  LIR_Opr resolved_addr() const          { return _resolved_addr; }
+  void set_resolved_addr(LIR_Opr addr)   { _resolved_addr = addr; }
+  bool is_oop() const                    { return is_reference_type(_type); }
+  DecoratorSet decorators() const        { return _decorators; }
+  void clear_decorators(DecoratorSet ds) { _decorators &= ~ds; }
+  bool is_raw() const                    { return (_decorators & AS_RAW) != 0; }
 };
 
 // The BarrierSetC1 class is the main entry point for the GC backend of the Access API in C1.
-// It is called by the LIRGenerator::access_* functions, which is the main entry poing for
+// It is called by the LIRGenerator::access_* functions, which is the main entry point for
 // access calls in C1.
 
 class BarrierSetC1: public CHeapObj<mtGC> {
@@ -127,6 +128,7 @@ protected:
 public:
   virtual void store_at(LIRAccess& access, LIR_Opr value);
   virtual void load_at(LIRAccess& access, LIR_Opr result);
+  virtual void load(LIRAccess& access, LIR_Opr result);
 
   virtual LIR_Opr atomic_cmpxchg_at(LIRAccess& access, LIRItem& cmp_value, LIRItem& new_value);
 

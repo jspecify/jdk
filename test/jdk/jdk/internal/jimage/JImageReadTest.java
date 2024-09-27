@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
  * @test
  * @summary Unit test for libjimage JIMAGE_Open/Read/Close
  * @modules java.base/jdk.internal.jimage
+ * @run testng JImageReadTest
  */
 
 import java.io.File;
@@ -256,7 +257,7 @@ public class JImageReadTest {
     /**
      * Return true if the name is one of the meta-data names
      * @param name a name
-     * @return return true if starts with either /packages or /modules
+     * @return true if starts with either /packages or /modules
      */
     static boolean isMetaName(String name) {
         return name.startsWith("/modules")

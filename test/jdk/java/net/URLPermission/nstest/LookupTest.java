@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @summary A simple smoke test of the HttpURLPermission mechanism, which checks
  *          for either IOException (due to unknown host) or SecurityException
  *          due to lack of permission to connect
- * @run main/othervm LookupTest
+ * @run main/othervm -Djava.security.manager=allow -Djdk.net.hosts.file=LookupTestHosts LookupTest
  */
 
 import java.io.BufferedWriter;
@@ -36,6 +36,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.NetPermission;
 import java.net.ProxySelector;
 import java.net.ServerSocket;
@@ -98,18 +100,16 @@ public class LookupTest {
         }
     }
 
-    static final String CWD = System.getProperty("user.dir", ".");
+    static final String HOSTS_FILE_NAME = System.getProperty("jdk.net.hosts.file");
 
     public static void main(String args[]) throws Exception {
-        String hostsFileName = CWD + "/LookupTestHosts";
-        System.setProperty("jdk.net.hosts.file", hostsFileName);
         addMappingToHostsFile("allowedAndFound.com",
-                              "127.0.0.1",
-                              hostsFileName,
+                              InetAddress.getLoopbackAddress().getHostAddress(),
+                              HOSTS_FILE_NAME,
                               false);
         addMappingToHostsFile("notAllowedButFound.com",
                               "99.99.99.99",
-                              hostsFileName,
+                              HOSTS_FILE_NAME,
                               true);
         // name "notAllowedAndNotFound.com" is not in map
         // name "allowedButNotfound.com" is not in map
@@ -131,7 +131,9 @@ public class LookupTest {
         private volatile boolean done;
 
         public Server() throws IOException {
-            serverSocket = new ServerSocket(0);
+            InetAddress loopback = InetAddress.getLoopbackAddress();
+            serverSocket = new ServerSocket();
+            serverSocket.bind(new InetSocketAddress(loopback, 0));
             port = serverSocket.getLocalPort();
         }
 

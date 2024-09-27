@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,43 +22,108 @@
  *
  */
 
-#ifndef SHARE_VM_PRIMS_JVMTIRAWMONITOR_HPP
-#define SHARE_VM_PRIMS_JVMTIRAWMONITOR_HPP
+#ifndef SHARE_PRIMS_JVMTIRAWMONITOR_HPP
+#define SHARE_PRIMS_JVMTIRAWMONITOR_HPP
 
-#include "runtime/objectMonitor.hpp"
+#include "memory/allocation.hpp"
 #include "utilities/growableArray.hpp"
+
+class ParkEvent;
+class Thread;
 
 //
 // class JvmtiRawMonitor
 //
 // Used by JVMTI methods: All RawMonitor methods (CreateRawMonitor, EnterRawMonitor, etc.)
 //
-// Wrapper for ObjectMonitor class that saves the Monitor's name
+// A simplified version of the ObjectMonitor code.
 //
 
-class JvmtiRawMonitor : public ObjectMonitor  {
-private:
-  int           _magic;
-  char *        _name;
-  // JVMTI_RM_MAGIC is set in contructor and unset in destructor.
+// Important note:
+// Raw monitors can be used in callbacks which happen during safepoint by the VM
+// thread (e.g., heapRootCallback). This means we may not transition/safepoint
+// poll in many cases, else the agent JavaThread can deadlock with the VM thread,
+// as this old comment says:
+// "We can't safepoint block in here because we could deadlock the vmthread. Blech."
+// The rules are:
+// - We must never safepoint poll if raw monitor is owned.
+// - We may safepoint poll before it is owned and after it has been released.
+// If this were the only thing we needed to think about we could just stay in
+// native for all operations. However we need to honor a suspend request, not
+// entering a monitor if suspended, and check for interrupts. Honoring a suspend
+// request and reading the interrupt flag must be done from VM state
+// (a safepoint unsafe state).
+
+class JvmtiRawMonitor : public CHeapObj<mtSynchronizer>  {
+
+  // Helper class to allow Threads to be linked into queues.
+  // This is a stripped down version of ObjectWaiter.
+  class QNode : public StackObj {
+    friend class JvmtiRawMonitor;
+    enum TStates { TS_READY, TS_RUN, TS_WAIT, TS_ENTER };
+    QNode* volatile _next;
+    QNode* volatile _prev;
+    ParkEvent* _event;
+    volatile int _notified;
+    volatile TStates _t_state;
+
+    QNode(Thread* thread);
+  };
+
+  Thread* volatile _owner;      // pointer to owning thread
+  volatile int _recursions;     // recursion count, 0 for first entry
+  QNode* volatile _entry_list;  // Threads blocked on entry or reentry.
+                                // The list is actually composed of nodes,
+                                // acting as proxies for Threads.
+  QNode* volatile _wait_set;    // Threads wait()ing on the monitor
+  int _magic;
+  char* _name;
+  // JVMTI_RM_MAGIC is set in constructor and unset in destructor.
   enum { JVMTI_RM_MAGIC = (int)(('T' << 24) | ('I' << 16) | ('R' << 8) | 'M') };
 
-  int       SimpleEnter (Thread * Self) ;
-  int       SimpleExit  (Thread * Self) ;
-  int       SimpleWait  (Thread * Self, jlong millis) ;
-  int       SimpleNotify (Thread * Self, bool All) ;
+  // Helpers for queue management isolation
+  void enqueue_waiter(QNode& node);
+  void dequeue_waiter(QNode& node);
 
-public:
-  JvmtiRawMonitor(const char *name);
+  // Mostly low-level implementation routines
+  void simple_enter(Thread* self);
+  void simple_exit(Thread* self);
+  int simple_wait(Thread* self, jlong millis);
+  void simple_notify(Thread* self, bool all);
+
+  class ExitOnSuspend {
+   protected:
+    JvmtiRawMonitor* _rm;
+    bool _rm_exited;
+   public:
+    ExitOnSuspend(JvmtiRawMonitor* rm) : _rm(rm), _rm_exited(false) {}
+    void operator()(JavaThread* current);
+    bool monitor_exited() { return _rm_exited; }
+  };
+
+ public:
+
+  // return codes
+  enum {
+    M_OK,                    // no error
+    M_ILLEGAL_MONITOR_STATE, // IllegalMonitorStateException
+    M_INTERRUPTED            // Thread.interrupt()
+  };
+
+  JvmtiRawMonitor(const char* name);
   ~JvmtiRawMonitor();
-  int       raw_enter(TRAPS);
-  int       raw_exit(TRAPS);
-  int       raw_wait(jlong millis, bool interruptable, TRAPS);
-  int       raw_notify(TRAPS);
-  int       raw_notifyAll(TRAPS);
-  int            magic()   { return _magic;  }
-  const char *get_name()   { return _name; }
-  bool        is_valid();
+
+  Thread* owner() const { return _owner; }
+  void set_owner(Thread* owner) { _owner = owner; }
+  int recursions() const { return _recursions; }
+  void raw_enter(Thread* self);
+  int raw_exit(Thread* self);
+  int raw_wait(jlong millis, Thread* self);
+  int raw_notify(Thread* self);
+  int raw_notifyAll(Thread* self);
+  int magic() const { return _magic; }
+  const char* get_name() const { return _name; }
+  bool is_valid();
 };
 
 // Onload pending raw monitors
@@ -67,8 +132,8 @@ public:
 // VM is fully initialized.
 class JvmtiPendingMonitors : public AllStatic {
 
-private:
-  static GrowableArray<JvmtiRawMonitor*> *_monitors; // Cache raw monitor enter
+ private:
+  static GrowableArray<JvmtiRawMonitor*>* _monitors; // Cache raw monitor enter
 
   inline static GrowableArray<JvmtiRawMonitor*>* monitors() { return _monitors; }
 
@@ -76,8 +141,8 @@ private:
     delete monitors();
   }
 
-public:
-  static void enter(JvmtiRawMonitor *monitor) {
+ public:
+  static void enter(JvmtiRawMonitor* monitor) {
     monitors()->append(monitor);
   }
 
@@ -85,23 +150,18 @@ public:
     return monitors()->length();
   }
 
-  static void destroy(JvmtiRawMonitor *monitor) {
+  static void destroy(JvmtiRawMonitor* monitor) {
     while (monitors()->contains(monitor)) {
       monitors()->remove(monitor);
     }
   }
 
   // Return false if monitor is not found in the list.
-  static bool exit(JvmtiRawMonitor *monitor) {
-    if (monitors()->contains(monitor)) {
-      monitors()->remove(monitor);
-      return true;
-    } else {
-      return false;
-    }
+  static bool exit(JvmtiRawMonitor* monitor) {
+    return monitors()->remove_if_existing(monitor);
   }
 
   static void transition_raw_monitors();
 };
 
-#endif // SHARE_VM_PRIMS_JVMTIRAWMONITOR_HPP
+#endif // SHARE_PRIMS_JVMTIRAWMONITOR_HPP

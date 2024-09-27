@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,56 +24,66 @@
 #ifndef SHARE_GC_Z_ZOBJECTALLOCATOR_HPP
 #define SHARE_GC_Z_ZOBJECTALLOCATOR_HPP
 
+#include "gc/z/zAddress.hpp"
 #include "gc/z/zAllocationFlags.hpp"
-#include "gc/z/zPage.hpp"
+#include "gc/z/zLock.hpp"
+#include "gc/z/zPageAge.hpp"
+#include "gc/z/zPageType.hpp"
 #include "gc/z/zValue.hpp"
-#include "memory/allocation.hpp"
+
+class ZPage;
+class ZPageTable;
 
 class ZObjectAllocator {
 private:
-  const uint         _nworkers;
+  ZPageAge           _age;
+  const bool         _use_per_cpu_shared_small_pages;
   ZPerCPU<size_t>    _used;
-  ZContended<ZPage*> _shared_medium_page;
+  ZPerCPU<size_t>    _undone;
   ZPerCPU<ZPage*>    _shared_small_page;
-  ZPerWorker<ZPage*> _worker_small_page;
+  ZContended<ZPage*> _shared_medium_page;
+  ZLock              _medium_page_alloc_lock;
 
-  ZPage* alloc_page(uint8_t type, size_t size, ZAllocationFlags flags);
+  ZPage** shared_small_page_addr();
+  ZPage* const* shared_small_page_addr() const;
+
+  ZPage* alloc_page(ZPageType type, size_t size, ZAllocationFlags flags);
+  void undo_alloc_page(ZPage* page);
 
   // Allocate an object in a shared page. Allocate and
   // atomically install a new page if necessary.
-  uintptr_t alloc_object_in_shared_page(ZPage** shared_page,
-                                        uint8_t page_type,
-                                        size_t page_size,
-                                        size_t size,
-                                        ZAllocationFlags flags);
+  zaddress alloc_object_in_shared_page(ZPage** shared_page,
+                                       ZPageType page_type,
+                                       size_t page_size,
+                                       size_t size,
+                                       ZAllocationFlags flags);
 
-  uintptr_t alloc_large_object(size_t size, ZAllocationFlags flags);
-  uintptr_t alloc_medium_object(size_t size, ZAllocationFlags flags);
-  uintptr_t alloc_small_object_from_nonworker(size_t size, ZAllocationFlags flags);
-  uintptr_t alloc_small_object_from_worker(size_t size, ZAllocationFlags flags);
-  uintptr_t alloc_small_object(size_t size, ZAllocationFlags flags);
-  uintptr_t alloc_object(size_t size, ZAllocationFlags flags);
+  zaddress alloc_object_in_medium_page(size_t size,
+                                       ZAllocationFlags flags);
 
-  bool undo_alloc_large_object(ZPage* page);
-  bool undo_alloc_medium_object(ZPage* page, uintptr_t addr, size_t size);
-  bool undo_alloc_small_object_from_nonworker(ZPage* page, uintptr_t addr, size_t size);
-  bool undo_alloc_small_object_from_worker(ZPage* page, uintptr_t addr, size_t size);
-  bool undo_alloc_small_object(ZPage* page, uintptr_t addr, size_t size);
-  bool undo_alloc_object(ZPage* page, uintptr_t addr, size_t size);
+  zaddress alloc_large_object(size_t size, ZAllocationFlags flags);
+  zaddress alloc_medium_object(size_t size, ZAllocationFlags flags);
+  zaddress alloc_small_object(size_t size, ZAllocationFlags flags);
+  zaddress alloc_object(size_t size, ZAllocationFlags flags);
 
 public:
-  ZObjectAllocator(uint nworkers);
+  ZObjectAllocator(ZPageAge age);
 
-  uintptr_t alloc_object(size_t size);
+  // Mutator allocation
+  zaddress alloc_object(size_t size);
 
-  uintptr_t alloc_object_for_relocation(size_t size);
-  void undo_alloc_object_for_relocation(ZPage* page, uintptr_t addr, size_t size);
+  // Relocation
+  zaddress alloc_object_for_relocation(size_t size);
+  void undo_alloc_object_for_relocation(zaddress addr, size_t size);
+
+  ZPage* alloc_page_for_relocation(ZPageType type, size_t size, ZAllocationFlags flags);
+
+  ZPageAge age() const;
 
   size_t used() const;
   size_t remaining() const;
 
-  void retire_tlabs();
-  void remap_tlabs();
+  void retire_pages();
 };
 
 #endif // SHARE_GC_Z_ZOBJECTALLOCATOR_HPP

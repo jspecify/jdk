@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,60 +28,35 @@
  *           Displays unnecessary horizontal scroll bars.
  *           Missing whitespace in DOCTYPE declaration
  *           HTML table tags inserted in wrong place in pakcage use page
- * @author dkramer
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main ValidHtml
  */
+
+import javadoc.tester.JavadocTester;
 
 public class ValidHtml extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        ValidHtml tester = new ValidHtml();
+        var tester = new ValidHtml();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         // Test for all cases except the split index page
         javadoc("-d", "out",
                     "-doctitle", "Document Title",
                     "-windowtitle", "Window Title",
                     "-use",
-                    "--frames",
                     "-overview", testSrc("overview.html"),
                     "-sourcepath", testSrc,
                     "p1", "p2");
         checkExit(Exit.OK);
-        // Test for IFRAME element:
-        checkOutput("index.html", true,
-                "<iframe");
-        // Test the table elements are in the correct order:
-        checkOutput("p1/package-use.html", true,
-                "</td>\n"
-                + "</tr>");
         String HTML5 = "<!DOCTYPE HTML>";
         checkValidHTML(HTML5);
     }
-
-    @Test
-    void test_html4() {
-        // Test for all cases except the split index page
-        javadoc("-d", "out-html4",
-                "-html4",
-                "-doctitle", "Document Title",
-                "-windowtitle", "Window Title",
-                "-use",
-                "--frames",
-                "-overview", testSrc("overview.html"),
-                "-sourcepath", testSrc,
-                "p1", "p2");
-        checkExit(Exit.OK);
-        String HTML4 = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">";
-
-        checkValidHTML(HTML4);
-}
 
     void checkValidHTML(String doctype) {
         // Test the proper DOCTYPE element are present:
@@ -89,8 +64,5 @@ public class ValidHtml extends JavadocTester {
         checkOutput("overview-summary.html", true, doctype);
         checkOutput("p1/package-summary.html", true, doctype);
         checkOutput("p1/C.html", true, doctype);
-        checkOutput("overview-frame.html", true, doctype);
-        checkOutput("allclasses-frame.html", true, doctype);
-        checkOutput("p1/package-frame.html", true, doctype);
     }
 }

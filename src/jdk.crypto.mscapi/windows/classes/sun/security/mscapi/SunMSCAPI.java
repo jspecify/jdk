@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,10 +32,10 @@ import java.security.NoSuchAlgorithmException;
 import java.security.InvalidParameterException;
 import java.security.ProviderException;
 import java.util.HashMap;
-import java.util.Arrays;
-import java.util.Map;
+import java.util.List;
 
 import static sun.security.util.SecurityConstants.PROVIDER_VER;
+import static sun.security.util.SecurityProviderConstants.getAliases;
 
 /**
  * A Cryptographic Service Provider for the Microsoft Crypto API.
@@ -50,23 +50,29 @@ public final class SunMSCAPI extends Provider {
     private static final String INFO = "Sun's Microsoft Crypto API provider";
 
     static {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        @SuppressWarnings({"removal", "restricted"})
+        var dummy = AccessController.doPrivileged(new PrivilegedAction<Void>() {
             public Void run() {
                 System.loadLibrary("sunmscapi");
                 return null;
             }
         });
     }
+    private static class ProviderServiceA extends ProviderService {
+        ProviderServiceA(Provider p, String type, String algo, String cn,
+                HashMap<String, String> attrs) {
+            super(p, type, algo, cn, getAliases(algo), attrs);
+        }
+    }
 
-    private static final class ProviderService extends Provider.Service {
+    private static class ProviderService extends Provider.Service {
         ProviderService(Provider p, String type, String algo, String cn) {
             super(p, type, algo, cn, null, null);
         }
 
         ProviderService(Provider p, String type, String algo, String cn,
-            String[] aliases, HashMap<String, String> attrs) {
-            super(p, type, algo, cn,
-                  (aliases == null? null : Arrays.asList(aliases)), attrs);
+            List<String> aliases, HashMap<String, String> attrs) {
+            super(p, type, algo, cn, aliases, attrs);
         }
 
         @Override
@@ -85,37 +91,51 @@ public final class SunMSCAPI extends Provider {
                         return new PRNG();
                     }
                 } else if (type.equals("KeyStore")) {
-                    if (algo.equals("Windows-MY")) {
-                        return new KeyStore.MY();
-                    } else if (algo.equals("Windows-ROOT")) {
-                        return new KeyStore.ROOT();
+                    if (algo.equals("Windows-MY") || algo.equals("Windows-MY-CURRENTUSER")) {
+                        return new CKeyStore.MY();
+                    } else if (algo.equals("Windows-ROOT") || algo.equals("Windows-ROOT-CURRENTUSER")) {
+                        return new CKeyStore.ROOT();
+                    } else if (algo.equals("Windows-MY-LOCALMACHINE")) {
+                        return new CKeyStore.MYLocalMachine();
+                    } else if (algo.equals("Windows-ROOT-LOCALMACHINE")) {
+                        return new CKeyStore.ROOTLocalMachine();
                     }
                 } else if (type.equals("Signature")) {
                     if (algo.equals("NONEwithRSA")) {
-                        return new RSASignature.Raw();
+                        return new CSignature.NONEwithRSA();
                     } else if (algo.equals("SHA1withRSA")) {
-                        return new RSASignature.SHA1();
+                        return new CSignature.SHA1withRSA();
                     } else if (algo.equals("SHA256withRSA")) {
-                        return new RSASignature.SHA256();
+                        return new CSignature.SHA256withRSA();
                     } else if (algo.equals("SHA384withRSA")) {
-                        return new RSASignature.SHA384();
+                        return new CSignature.SHA384withRSA();
                     } else if (algo.equals("SHA512withRSA")) {
-                        return new RSASignature.SHA512();
+                        return new CSignature.SHA512withRSA();
                     } else if (algo.equals("MD5withRSA")) {
-                        return new RSASignature.MD5();
+                        return new CSignature.MD5withRSA();
                     } else if (algo.equals("MD2withRSA")) {
-                        return new RSASignature.MD2();
+                        return new CSignature.MD2withRSA();
                     } else if (algo.equals("RSASSA-PSS")) {
-                        return new RSASignature.PSS();
+                        return new CSignature.PSS();
+                    } else if (algo.equals("SHA1withECDSA")) {
+                        return new CSignature.SHA1withECDSA();
+                    } else if (algo.equals("SHA224withECDSA")) {
+                        return new CSignature.SHA224withECDSA();
+                    } else if (algo.equals("SHA256withECDSA")) {
+                        return new CSignature.SHA256withECDSA();
+                    } else if (algo.equals("SHA384withECDSA")) {
+                        return new CSignature.SHA384withECDSA();
+                    } else if (algo.equals("SHA512withECDSA")) {
+                        return new CSignature.SHA512withECDSA();
                     }
                 } else if (type.equals("KeyPairGenerator")) {
                     if (algo.equals("RSA")) {
-                        return new RSAKeyPairGenerator();
+                        return new CKeyPairGenerator.RSA();
                     }
                 } else if (type.equals("Cipher")) {
                     if (algo.equals("RSA") ||
                         algo.equals("RSA/ECB/PKCS1Padding")) {
-                        return new RSACipher();
+                        return new CRSACipher();
                     }
                 }
             } catch (Exception ex) {
@@ -128,6 +148,7 @@ public final class SunMSCAPI extends Provider {
         }
     }
 
+    @SuppressWarnings("removal")
     public SunMSCAPI() {
         super("SunMSCAPI", PROVIDER_VER, INFO);
 
@@ -147,56 +168,82 @@ public final class SunMSCAPI extends Provider {
                  * Key store
                  */
                 putService(new ProviderService(p, "KeyStore",
-                           "Windows-MY", "sun.security.mscapi.KeyStore$MY"));
+                           "Windows-MY", "sun.security.mscapi.CKeyStore$MY"));
                 putService(new ProviderService(p, "KeyStore",
-                           "Windows-ROOT", "sun.security.mscapi.KeyStore$ROOT"));
+                            "Windows-MY-CURRENTUSER", "sun.security.mscapi.CKeyStore$MY"));
+                putService(new ProviderService(p, "KeyStore",
+                           "Windows-ROOT", "sun.security.mscapi.CKeyStore$ROOT"));
+                putService(new ProviderService(p, "KeyStore",
+                            "Windows-ROOT-CURRENTUSER", "sun.security.mscapi.CKeyStore$ROOT"));
+                putService(new ProviderService(p, "KeyStore",
+                            "Windows-MY-LOCALMACHINE", "sun.security.mscapi.CKeyStore$MYLocalMachine"));
+                putService(new ProviderService(p, "KeyStore",
+                            "Windows-ROOT-LOCALMACHINE", "sun.security.mscapi.CKeyStore$ROOTLocalMachine"));
 
                 /*
                  * Signature engines
                  */
                 HashMap<String, String> attrs = new HashMap<>(1);
-                attrs.put("SupportedKeyClasses", "sun.security.mscapi.Key");
+                attrs.put("SupportedKeyClasses", "sun.security.mscapi.CKey");
 
                 // NONEwithRSA must be supplied with a pre-computed message digest.
                 // Only the following digest algorithms are supported: MD5, SHA-1,
                 // SHA-256, SHA-384, SHA-512 and a special-purpose digest
                 // algorithm which is a concatenation of SHA-1 and MD5 digests.
                 putService(new ProviderService(p, "Signature",
-                           "NONEwithRSA", "sun.security.mscapi.RSASignature$Raw",
+                           "NONEwithRSA", "sun.security.mscapi.CSignature$NONEwithRSA",
                            null, attrs));
                 putService(new ProviderService(p, "Signature",
-                           "SHA1withRSA", "sun.security.mscapi.RSASignature$SHA1",
+                           "SHA1withRSA", "sun.security.mscapi.CSignature$SHA1withRSA",
                            null, attrs));
-                putService(new ProviderService(p, "Signature",
-                           "SHA256withRSA", "sun.security.mscapi.RSASignature$SHA256",
-                           new String[] { "1.2.840.113549.1.1.11", "OID.1.2.840.113549.1.1.11" },
+                putService(new ProviderServiceA(p, "Signature",
+                           "SHA256withRSA",
+                           "sun.security.mscapi.CSignature$SHA256withRSA",
+                           attrs));
+                putService(new ProviderServiceA(p, "Signature",
+                           "SHA384withRSA",
+                           "sun.security.mscapi.CSignature$SHA384withRSA",
+                           attrs));
+                putService(new ProviderServiceA(p, "Signature",
+                           "SHA512withRSA",
+                           "sun.security.mscapi.CSignature$SHA512withRSA",
+                           attrs));
+                putService(new ProviderServiceA(p, "Signature",
+                           "RSASSA-PSS", "sun.security.mscapi.CSignature$PSS",
                            attrs));
                 putService(new ProviderService(p, "Signature",
-                           "SHA384withRSA", "sun.security.mscapi.RSASignature$SHA384",
-                           new String[] { "1.2.840.113549.1.1.12", "OID.1.2.840.113549.1.1.12" },
-                           attrs));
-                putService(new ProviderService(p, "Signature",
-                           "SHA512withRSA", "sun.security.mscapi.RSASignature$SHA512",
-                           new String[] { "1.2.840.113549.1.1.13", "OID.1.2.840.113549.1.1.13" },
-                           attrs));
-                putService(new ProviderService(p, "Signature",
-                        "RSASSA-PSS", "sun.security.mscapi.RSASignature$PSS",
-                        new String[] { "1.2.840.113549.1.1.10", "OID.1.2.840.113549.1.1.10" },
-                        attrs));
-                putService(new ProviderService(p, "Signature",
-                           "MD5withRSA", "sun.security.mscapi.RSASignature$MD5",
+                           "MD5withRSA", "sun.security.mscapi.CSignature$MD5withRSA",
                            null, attrs));
                 putService(new ProviderService(p, "Signature",
-                           "MD2withRSA", "sun.security.mscapi.RSASignature$MD2",
+                           "MD2withRSA", "sun.security.mscapi.CSignature$MD2withRSA",
                            null, attrs));
-
+                putService(new ProviderServiceA(p, "Signature",
+                           "SHA1withECDSA",
+                           "sun.security.mscapi.CSignature$SHA1withECDSA",
+                           attrs));
+                putService(new ProviderServiceA(p, "Signature",
+                           "SHA224withECDSA",
+                           "sun.security.mscapi.CSignature$SHA224withECDSA",
+                           attrs));
+                putService(new ProviderServiceA(p, "Signature",
+                           "SHA256withECDSA",
+                           "sun.security.mscapi.CSignature$SHA256withECDSA",
+                           attrs));
+                putService(new ProviderServiceA(p, "Signature",
+                           "SHA384withECDSA",
+                           "sun.security.mscapi.CSignature$SHA384withECDSA",
+                           attrs));
+                putService(new ProviderServiceA(p, "Signature",
+                           "SHA512withECDSA",
+                           "sun.security.mscapi.CSignature$SHA512withECDSA",
+                           attrs));
                 /*
                  * Key Pair Generator engines
                  */
                 attrs.clear();
                 attrs.put("KeySize", "16384");
                 putService(new ProviderService(p, "KeyPairGenerator",
-                           "RSA", "sun.security.mscapi.RSAKeyPairGenerator",
+                           "RSA", "sun.security.mscapi.CKeyPairGenerator$RSA",
                            null, attrs));
 
                 /*
@@ -205,12 +252,12 @@ public final class SunMSCAPI extends Provider {
                 attrs.clear();
                 attrs.put("SupportedModes", "ECB");
                 attrs.put("SupportedPaddings", "PKCS1PADDING");
-                attrs.put("SupportedKeyClasses", "sun.security.mscapi.Key");
+                attrs.put("SupportedKeyClasses", "sun.security.mscapi.CKey");
                 putService(new ProviderService(p, "Cipher",
-                           "RSA", "sun.security.mscapi.RSACipher",
+                           "RSA", "sun.security.mscapi.CRSACipher",
                            null, attrs));
                 putService(new ProviderService(p, "Cipher",
-                           "RSA/ECB/PKCS1Padding", "sun.security.mscapi.RSACipher",
+                           "RSA/ECB/PKCS1Padding", "sun.security.mscapi.CRSACipher",
                            null, attrs));
                 return null;
             }

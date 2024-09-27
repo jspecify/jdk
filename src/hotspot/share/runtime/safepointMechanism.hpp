@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,73 +22,76 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_SAFEPOINTMECHANISM_HPP
-#define SHARE_VM_RUNTIME_SAFEPOINTMECHANISM_HPP
+#ifndef SHARE_RUNTIME_SAFEPOINTMECHANISM_HPP
+#define SHARE_RUNTIME_SAFEPOINTMECHANISM_HPP
 
 #include "runtime/globals.hpp"
+#include "runtime/osInfo.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/sizes.hpp"
 
+class JavaThread;
+class Thread;
+
 // This is the abstracted interface for the safepoint implementation
 class SafepointMechanism : public AllStatic {
-  enum PollingType {
-    _global_page_poll,
-    _thread_local_poll
-  };
-  static PollingType _polling_type;
-  static void* _poll_armed_value;
-  static void* _poll_disarmed_value;
-  static void set_uses_thread_local_poll()            { _polling_type     = _thread_local_poll; }
+  friend class StackWatermark;
+  static uintptr_t _poll_page_armed_value;
+  static uintptr_t _poll_page_disarmed_value;
 
-  static void* poll_armed_value()                     { return _poll_armed_value; }
-  static void* poll_disarmed_value()                  { return _poll_disarmed_value; }
+  static uintptr_t _poll_word_armed_value;
+  static uintptr_t _poll_word_disarmed_value;
 
-  static inline bool local_poll_armed(JavaThread* thread);
+  static address _polling_page;
 
-  static inline bool local_poll(Thread* thread);
+  static inline void disarm_local_poll(JavaThread* thread);
+
   static inline bool global_poll();
 
-  static inline void block_if_requested_local_poll(JavaThread *thread);
+  static void process(JavaThread *thread, bool allow_suspend, bool check_async_exception);
 
   static void default_initialize();
-  static void initialize_serialize_page();
 
   static void pd_initialize() NOT_AIX({ default_initialize(); });
 
-  // By adding 8 to the base address of the protected polling page we can differentiate
-  // between the armed and disarmed value by masking out this bit.
-  const static intptr_t _poll_bit = 8;
-public:
+  static uintptr_t compute_poll_word(bool armed, uintptr_t stack_watermark);
+
+  const static intptr_t _poll_bit = 1;
+ public:
+  static inline bool local_poll_armed(JavaThread* thread);
   static intptr_t poll_bit() { return _poll_bit; }
 
-  static bool uses_global_page_poll() { return _polling_type == _global_page_poll; }
-  static bool uses_thread_local_poll() { return _polling_type == _thread_local_poll; }
+  static address get_polling_page()             { return _polling_page; }
+  static bool    is_poll_address(address addr)  { return addr >= _polling_page && addr < (_polling_page + OSInfo::vm_page_size()); }
 
-  static bool supports_thread_local_poll() {
-#ifdef THREAD_LOCAL_POLL
-    return true;
-#else
-    return false;
-#endif
-  }
+  struct ThreadData {
+    volatile uintptr_t _polling_word;
+    volatile uintptr_t _polling_page;
 
-  // Call this method to see if this thread has depending poll and appropriate action should be taken
-  static inline bool poll(Thread* thread);
+    inline void set_polling_word(uintptr_t poll_value);
+    inline uintptr_t get_polling_word();
 
-  // Blocks a thread until safepoint is completed
-  static inline void block_if_requested(JavaThread* thread);
+    inline void set_polling_page(uintptr_t poll_value);
+  };
+
+  // Call this method to see if this thread should block for a safepoint or process handshake.
+  static inline bool should_process(JavaThread* thread, bool allow_suspend = true);
+
+  // Processes a pending requested operation.
+  static inline void process_if_requested(JavaThread* thread, bool allow_suspend, bool check_async_exception);
+  static inline void process_if_requested_with_exit_check(JavaThread* thread, bool check_async_exception);
+  // Compute what the poll values should be and install them.
+  static void update_poll_values(JavaThread* thread);
 
   // Caller is responsible for using a memory barrier if needed.
   static inline void arm_local_poll(JavaThread* thread);
-  static inline void disarm_local_poll(JavaThread* thread);
-
+  // Release semantics
   static inline void arm_local_poll_release(JavaThread* thread);
-  static inline void disarm_local_poll_release(JavaThread* thread);
 
   // Setup the selected safepoint mechanism
   static void initialize();
   static void initialize_header(JavaThread* thread);
 };
 
-#endif // SHARE_VM_RUNTIME_SAFEPOINTMECHANISM_HPP
+#endif // SHARE_RUNTIME_SAFEPOINTMECHANISM_HPP

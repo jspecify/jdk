@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,18 +27,25 @@ package com.sun.jndi.ldap;
 
 import javax.naming.*;
 import javax.naming.directory.*;
-import javax.naming.spi.*;
 import javax.naming.event.*;
 import javax.naming.ldap.*;
 import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Locale;
+import java.util.Set;
 import java.util.Vector;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.StringTokenizer;
 import java.util.Enumeration;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -47,6 +54,8 @@ import com.sun.jndi.toolkit.ctx.*;
 import com.sun.jndi.toolkit.dir.HierMemDirCtx;
 import com.sun.jndi.toolkit.dir.SearchFilter;
 import com.sun.jndi.ldap.ext.StartTlsResponseImpl;
+import com.sun.naming.internal.NamingManagerHelper;
+import com.sun.naming.internal.ObjectFactoriesFilter;
 
 /**
  * The LDAP context implementation.
@@ -89,13 +98,13 @@ import com.sun.jndi.ldap.ext.StartTlsResponseImpl;
  * @author Rosanna Lee
  */
 
-final public class LdapCtx extends ComponentDirContext
+public final class LdapCtx extends ComponentDirContext
     implements EventDirContext, LdapContext {
 
     /*
      * Used to store arguments to the search method.
      */
-    final static class SearchArgs {
+    static final class SearchArgs {
         Name name;
         String filter;
         SearchControls cons;
@@ -200,6 +209,27 @@ final public class LdapCtx extends ComponentDirContext
     private static final String REPLY_QUEUE_SIZE =
         "com.sun.jndi.ldap.search.replyQueueSize";
 
+    // System and environment property name to control allowed list of
+    // authentication mechanisms: "all" or "" or "mech1,mech2,...,mechN"
+    //  "all": allow all mechanisms,
+    //  "": allow none
+    //  or comma separated list of allowed authentication mechanisms
+    // Note: "none" or "anonymous" are always allowed.
+    private static final String ALLOWED_MECHS_SP =
+            "jdk.jndi.ldap.mechsAllowedToSendCredentials";
+
+    // System property value
+    private static final String ALLOWED_MECHS_SP_VALUE =
+            getMechsAllowedToSendCredentials();
+
+    // Set of authentication mechanisms allowed by the system property
+    private static final Set<String> MECHS_ALLOWED_BY_SP =
+            getMechsFromPropertyValue(ALLOWED_MECHS_SP_VALUE);
+
+    // The message to use in NamingException if the transmission of plain credentials are not allowed
+    private static final String UNSECURED_CRED_TRANSMIT_MSG =
+                "Transmission of credentials over unsecured connection is not allowed";
+
     // ----------------- Fields that don't change -----------------------
     private static final NameParser parser = new LdapNameParser();
 
@@ -224,7 +254,6 @@ final public class LdapCtx extends ComponentDirContext
     String hostname = null;             // host name of server (no brackets
                                         //   for IPv6 literals)
     LdapClient clnt = null;             // connection handle
-    private boolean reconnect = false;  // indicates that re-connect requested
     Hashtable<String, java.lang.Object> envprops = null; // environment properties of context
     int handleReferrals = DEFAULT_REFERRAL_MODE; // how referral is handled
     boolean hasLdapsScheme = false;     // true if the context was created
@@ -236,7 +265,8 @@ final public class LdapCtx extends ComponentDirContext
     Name currentParsedDN;               // DN of this context
     Vector<Control> respCtls = null;    // Response controls read
     Control[] reqCtls = null;           // Controls to be sent with each request
-
+    // Used to track if context was seen to be secured with STARTTLS extended operation
+    volatile boolean contextSeenStartTlsEnabled;
 
     // ------------- Private instance variables ------------------------
 
@@ -271,6 +301,7 @@ final public class LdapCtx extends ComponentDirContext
     private EventSupport eventSupport;       // Event support helper for this ctx
     private boolean unsolicited = false;     // if there unsolicited listeners
     private boolean sharable = true;         // can share connection with other ctx
+    private final ReentrantLock lock = new ReentrantLock(); // LdapCtx instance lock
 
     // -------------- Constructors  -----------------------------------
 
@@ -915,7 +946,7 @@ final public class LdapCtx extends ComponentDirContext
         boolean directUpdate) throws NamingException {
 
             // Handle the empty name
-            if (dn.equals("")) {
+            if (dn.isEmpty()) {
                 return attrs;
             }
 
@@ -1083,8 +1114,8 @@ final public class LdapCtx extends ComponentDirContext
         }
 
         try {
-            return DirectoryManager.getObjectInstance(obj, name,
-                this, envprops, attrs);
+            return NamingManagerHelper.getDirObjectInstance(obj, name, this,
+                    envprops, attrs, ObjectFactoriesFilter::checkLdapFilter);
 
         } catch (NamingException e) {
             throw cont.fillInException(e);
@@ -1271,7 +1302,7 @@ final public class LdapCtx extends ComponentDirContext
         int prefixLast = prefix.size() - 1;
 
         if (name.isEmpty() || prefix.isEmpty() ||
-                name.get(0).equals("") || prefix.get(prefixLast).equals("")) {
+                name.get(0).isEmpty() || prefix.get(prefixLast).isEmpty()) {
             return super.composeName(name, prefix);
         }
 
@@ -1300,9 +1331,9 @@ final public class LdapCtx extends ComponentDirContext
 
     // used by LdapSearchEnumeration
     private static String concatNames(String lesser, String greater) {
-        if (lesser == null || lesser.equals("")) {
+        if (lesser == null || lesser.isEmpty()) {
             return greater;
-        } else if (greater == null || greater.equals("")) {
+        } else if (greater == null || greater.isEmpty()) {
             return lesser;
         } else {
             return (lesser + "," + greater);
@@ -2575,7 +2606,6 @@ final public class LdapCtx extends ComponentDirContext
 
         Vector<Vector<String>> referrals = new Vector<>(urlCount);
         int iURL;
-        int i = 0;
 
         separator = refString.indexOf('\n');
         iURL = separator + 1;
@@ -2612,7 +2642,7 @@ final public class LdapCtx extends ComponentDirContext
 
    // ----------------- Connection  ---------------------
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal")
     protected void finalize() {
         try {
             close();
@@ -2621,26 +2651,31 @@ final public class LdapCtx extends ComponentDirContext
         }
     }
 
-    synchronized public void close() throws NamingException {
-        if (debug) {
-            System.err.println("LdapCtx: close() called " + this);
-            (new Throwable()).printStackTrace();
-        }
+    public void close() throws NamingException {
+        lock.lock();
+        try {
+            if (debug) {
+                System.err.println("LdapCtx: close() called " + this);
+                (new Throwable()).printStackTrace();
+            }
 
-        // Event (normal and unsolicited)
-        if (eventSupport != null) {
-            eventSupport.cleanup(); // idempotent
-            removeUnsolicited();
-        }
+            // Event (normal and unsolicited)
+            if (eventSupport != null) {
+                eventSupport.cleanup(); // idempotent
+                removeUnsolicited();
+            }
 
-        // Enumerations that are keeping the connection alive
-        if (enumCount > 0) {
-            if (debug)
-                System.err.println("LdapCtx: close deferred");
-            closeRequested = true;
-            return;
+            // Enumerations that are keeping the connection alive
+            if (enumCount > 0) {
+                if (debug)
+                    System.err.println("LdapCtx: close deferred");
+                closeRequested = true;
+                return;
+            }
+            closeConnection(SOFT_CLOSE);
+        } finally {
+            lock.unlock();
         }
-        closeConnection(SOFT_CLOSE);
 
 // %%%: RL: There is no need to set these to null, as they're just
 // variables whose contents and references will automatically
@@ -2668,8 +2703,75 @@ final public class LdapCtx extends ComponentDirContext
         }
 
         sharable = false;  // can't share with existing contexts
-        reconnect = true;
         ensureOpen();      // open or reauthenticated
+    }
+
+    // Load 'mechsAllowedToSendCredentials' system property value
+    @SuppressWarnings("removal")
+    private static String getMechsAllowedToSendCredentials() {
+        PrivilegedAction<String> pa = () -> System.getProperty(ALLOWED_MECHS_SP);
+        return System.getSecurityManager() == null ? pa.run() : AccessController.doPrivileged(pa);
+    }
+
+    // Get set of allowed authentication mechanism names from the property value
+    private static Set<String> getMechsFromPropertyValue(String propValue) {
+        if (propValue == null || propValue.isBlank()) {
+            return Collections.emptySet();
+        }
+        return Arrays.stream(propValue.split(","))
+                .map(String::trim)
+                .filter(Predicate.not(String::isBlank))
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    // Returns true if TLS connection opened using "ldaps" scheme, or using "ldap" and then upgraded with
+    // startTLS extended operation, and startTLS is still active.
+    private boolean isConnectionEncrypted() {
+        return hasLdapsScheme || clnt.isUpgradedToStartTls();
+    }
+
+    // Ensure connection and context are in a safe state to transmit credentials
+    private void ensureCanTransmitCredentials(String authMechanism) throws NamingException {
+
+        // "none" and "anonumous" authentication mechanisms are allowed unconditionally
+        if ("none".equalsIgnoreCase(authMechanism) || "anonymous".equalsIgnoreCase(authMechanism)) {
+            return;
+        }
+
+        // Check environment first
+        String allowedMechanismsOrTrue = (String) envprops.get(ALLOWED_MECHS_SP);
+        boolean useSpMechsCache = false;
+        boolean anyPropertyIsSet = ALLOWED_MECHS_SP_VALUE != null || allowedMechanismsOrTrue != null;
+
+        // If current connection is not encrypted, and context seen to be secured with STARTTLS
+        // or 'mechsAllowedToSendCredentials' is set to any value via system/context environment properties
+        if (!isConnectionEncrypted() && (contextSeenStartTlsEnabled || anyPropertyIsSet)) {
+            // First, check if security principal is provided in context environment for "simple"
+            // authentication mechanism. There is no check for other SASL mechanisms since the credentials
+            // can be specified via other properties
+            if ("simple".equalsIgnoreCase(authMechanism) && !envprops.containsKey(SECURITY_PRINCIPAL)) {
+                return;
+            }
+
+            // If null - will use mechanism name cached from system property
+            if (allowedMechanismsOrTrue == null) {
+                useSpMechsCache = true;
+                allowedMechanismsOrTrue = ALLOWED_MECHS_SP_VALUE;
+            }
+
+            // If the property value (system or environment) is 'all':
+            // any kind of authentication is allowed unconditionally - no check is needed
+            if ("all".equalsIgnoreCase(allowedMechanismsOrTrue)) {
+                return;
+            }
+
+            // Get the set with allowed authentication mechanisms and check current mechanism
+            Set<String> allowedAuthMechs = useSpMechsCache ?
+                    MECHS_ALLOWED_BY_SP : getMechsFromPropertyValue(allowedMechanismsOrTrue);
+            if (!allowedAuthMechs.contains(authMechanism)) {
+                throw new NamingException(UNSECURED_CRED_TRANSMIT_MSG);
+            }
+        }
     }
 
     private void ensureOpen() throws NamingException {
@@ -2690,12 +2792,17 @@ final public class LdapCtx extends ComponentDirContext
 
             } else if (!sharable || startTLS) {
 
-                synchronized (clnt) {
+                ReentrantLock clientLock = clnt.lock;
+                clientLock.lock();
+                try {
                     if (!clnt.isLdapv3
                         || clnt.referenceCount > 1
-                        || clnt.usingSaslStreams()) {
+                        || clnt.usingSaslStreams()
+                        || !clnt.conn.useable) {
                         closeConnection(SOFT_CLOSE);
                     }
+                } finally {
+                    clientLock.unlock();
                 }
                 // reset the cache before a new connection is established
                 schemaTrees = new Hashtable<>(11, 0.75f);
@@ -2745,7 +2852,7 @@ final public class LdapCtx extends ComponentDirContext
         try {
             boolean initial = (clnt == null);
 
-            if (initial || reconnect) {
+            if (initial) {
                 ldapVersion = (ver != null) ? Integer.parseInt(ver) :
                     DEFAULT_LDAP_VERSION;
 
@@ -2773,7 +2880,9 @@ final public class LdapCtx extends ComponentDirContext
                     // Required for SASL client identity
                     envprops);
 
-                reconnect = false;
+                // Mark current context as secure if the connection is acquired
+                // from the pool and it is secure.
+                contextSeenStartTlsEnabled |= clnt.isUpgradedToStartTls();
 
                 /**
                  * Pooled connections are preauthenticated;
@@ -2792,8 +2901,16 @@ final public class LdapCtx extends ComponentDirContext
                 ldapVersion = LdapClient.LDAP_VERSION3;
             }
 
-            LdapResult answer = clnt.authenticate(initial,
-                user, passwd, ldapVersion, authMechanism, bindCtls, envprops);
+            LdapResult answer;
+            ReentrantLock startTlsLock = clnt.conn.startTlsLock;
+            startTlsLock.lock();
+            try {
+                ensureCanTransmitCredentials(authMechanism);
+                answer = clnt.authenticate(initial, user, passwd, ldapVersion,
+                        authMechanism, bindCtls, envprops);
+            } finally {
+                startTlsLock.unlock();
+            }
 
             respCtls = answer.resControls; // retrieve (bind) response controls
 
@@ -2865,21 +2982,31 @@ final public class LdapCtx extends ComponentDirContext
     private int enumCount = 0;
     private boolean closeRequested = false;
 
-    synchronized void incEnumCount() {
-        ++enumCount;
-        if (debug) System.err.println("LdapCtx: " + this + " enum inc: " + enumCount);
+    void incEnumCount() {
+        lock.lock();
+        try {
+            ++enumCount;
+            if (debug) System.err.println("LdapCtx: " + this + " enum inc: " + enumCount);
+        } finally {
+            lock.unlock();
+        }
     }
 
-    synchronized void decEnumCount() {
-        --enumCount;
-        if (debug) System.err.println("LdapCtx: " + this + " enum dec: " + enumCount);
+    void decEnumCount() {
+        lock.lock();
+        try {
+            --enumCount;
+            if (debug) System.err.println("LdapCtx: " + this + " enum dec: " + enumCount);
 
-        if (enumCount == 0 && closeRequested) {
-            try {
-                close();
-            } catch (NamingException e) {
-                // ignore failures
+            if (enumCount == 0 && closeRequested) {
+                try {
+                    close();
+                } catch (NamingException e) {
+                    // ignore failures
+                }
             }
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -3036,7 +3163,7 @@ final public class LdapCtx extends ComponentDirContext
             }
 
             // extract SLAPD-style referrals from errorMessage
-            if ((res.errorMessage != null) && (!res.errorMessage.equals(""))) {
+            if ((res.errorMessage != null) && (!res.errorMessage.isEmpty())) {
                 res.referrals = extractURLs(res.errorMessage);
             } else {
                 e = new PartialResultException(msg);
@@ -3297,6 +3424,7 @@ final public class LdapCtx extends ComponentDirContext
                 String domainName = (String)
                     (envprops != null ? envprops.get(DOMAIN_NAME) : null);
                 ((StartTlsResponseImpl)er).setConnection(clnt.conn, domainName);
+                contextSeenStartTlsEnabled |= startTLS;
             }
             return er;
 
@@ -3473,17 +3601,20 @@ final public class LdapCtx extends ComponentDirContext
         }
     }
 
-    public void addNamingListener(String nm, String filter, SearchControls ctls,
-        NamingListener l) throws NamingException {
-            if (eventSupport == null)
-                eventSupport = new EventSupport(this);
-            eventSupport.addNamingListener(getTargetName(new CompositeName(nm)),
+    public void addNamingListener(String nm, String filter,
+                                  SearchControls ctls, NamingListener l)
+            throws NamingException {
+
+        if (eventSupport == null)
+            eventSupport = new EventSupport(this);
+
+        eventSupport.addNamingListener(getTargetName(new CompositeName(nm)),
                 filter, cloneSearchControls(ctls), l);
 
-            // If first time asking for unsol
-            if (l instanceof UnsolicitedNotificationListener && !unsolicited) {
-                addUnsolicited();
-            }
+        // If first time asking for unsol
+        if (l instanceof UnsolicitedNotificationListener && !unsolicited) {
+            addUnsolicited();
+        }
     }
 
     public void addNamingListener(Name nm, String filter, SearchControls ctls,
@@ -3550,9 +3681,13 @@ final public class LdapCtx extends ComponentDirContext
 
         // addNamingListener must have created EventSupport already
         ensureOpen();
-        synchronized (eventSupport) {
+        ReentrantLock eventSupportLock = eventSupport.lock;
+        eventSupportLock.lock();
+        try {
             clnt.addUnsolicited(this);
             unsolicited = true;
+        } finally {
+            eventSupportLock.unlock();
         }
     }
 
@@ -3579,11 +3714,15 @@ final public class LdapCtx extends ComponentDirContext
         }
 
         // addNamingListener must have created EventSupport already
-        synchronized(eventSupport) {
+        ReentrantLock eventSupportLock = eventSupport.lock;
+        eventSupportLock.lock();
+        try {
             if (unsolicited && clnt != null) {
                 clnt.removeUnsolicited(this);
             }
             unsolicited = false;
+        } finally {
+            eventSupportLock.unlock();
         }
     }
 
@@ -3596,7 +3735,9 @@ final public class LdapCtx extends ComponentDirContext
             System.out.println("LdapCtx.fireUnsolicited: " + obj);
         }
         // addNamingListener must have created EventSupport already
-        synchronized(eventSupport) {
+        ReentrantLock eventSupportLock = eventSupport.lock;
+        eventSupportLock.lock();
+        try {
             if (unsolicited) {
                 eventSupport.fireUnsolicited(obj);
 
@@ -3607,6 +3748,8 @@ final public class LdapCtx extends ComponentDirContext
                     // unsol listeners and it will handle its own cleanup
                 }
             }
+        } finally {
+            eventSupportLock.unlock();
         }
     }
 }

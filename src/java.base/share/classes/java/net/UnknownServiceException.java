@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,11 +36,11 @@ import java.io.IOException;
  * not make sense, or the application is attempting to write to a
  * read-only URL connection.
  *
- * @author  unascribed
  * @since   1.0
  */
 @NullMarked
 public class UnknownServiceException extends IOException {
+    @java.io.Serial
     private static final long serialVersionUID = -4169033248853639508L;
 
     /**

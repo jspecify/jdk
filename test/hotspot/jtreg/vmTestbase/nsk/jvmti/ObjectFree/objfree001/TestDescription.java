@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,13 +24,14 @@
 
 /*
  * @test
+ * @key randomness
  *
  * @summary converted from VM Testbase nsk/jvmti/ObjectFree/objfree001.
  * VM Testbase keywords: [jpda, jvmti, noras, nonconcurrent]
  * VM Testbase readme:
  * DESCRIPTION
  *     This test exercises the JVMTI event ObjectFree.
- *     It verifies that the the JVMTI raw monitor, memory management,
+ *     It verifies that the JVMTI raw monitor, memory management,
  *     and environment local storage functions can be used during
  *     processing this event.
  *     The test works as follows. The special class 'objfree001u' is
@@ -47,7 +48,6 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @build nsk.jvmti.ObjectFree.objfree001
  *
  * @comment compile loadclassXX to bin/loadclassXX
@@ -60,4 +60,3 @@
  *      nsk.jvmti.ObjectFree.objfree001
  *      ./bin 5 ./bin
  */
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,6 @@ package com.sun.tools.jdeps;
 
 import static com.sun.tools.jdeps.Module.trace;
 import static java.util.stream.Collectors.*;
-
-import com.sun.tools.classfile.Dependency;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -83,42 +81,27 @@ public class JdepsConfiguration implements AutoCloseable {
     private final List<Archive> classpathArchives = new ArrayList<>();
     private final List<Archive> initialArchives = new ArrayList<>();
     private final Set<Module> rootModules = new HashSet<>();
-    private final Configuration configuration;
     private final Runtime.Version version;
 
-    private JdepsConfiguration(SystemModuleFinder systemModulePath,
+    private JdepsConfiguration(Configuration config,
+                               SystemModuleFinder systemModulePath,
                                ModuleFinder finder,
                                Set<String> roots,
                                List<Path> classpaths,
                                List<Archive> initialArchives,
-                               Set<String> tokens,
                                Runtime.Version version)
         throws IOException
     {
         trace("root: %s%n", roots);
-
+        trace("initial archives: %s%n", initialArchives);
+        trace("class path: %s%n", classpaths);
         this.system = systemModulePath;
         this.finder = finder;
         this.version = version;
 
-        // build root set for resolution
-        Set<String> mods = new HashSet<>(roots);
-        if (tokens.contains(ALL_SYSTEM)) {
-            systemModulePath.findAll().stream()
-                .map(mref -> mref.descriptor().name())
-                .forEach(mods::add);
-        }
-
-        if (tokens.contains(ALL_DEFAULT)) {
-            mods.addAll(systemModulePath.defaultSystemRoots());
-        }
-
-        this.configuration = Configuration.empty()
-                .resolve(finder, ModuleFinder.of(), mods);
-
-        this.configuration.modules().stream()
-                .map(ResolvedModule::reference)
-                .forEach(this::addModuleReference);
+        config.modules().stream()
+              .map(ResolvedModule::reference)
+              .forEach(this::addModuleReference);
 
         // packages in unnamed module
         initialArchives.forEach(archive -> {
@@ -141,25 +124,8 @@ public class JdepsConfiguration implements AutoCloseable {
              .map(nameToModule::get)
              .forEach(this.rootModules::add);
 
-        initProfiles();
-
         trace("resolved modules: %s%n", nameToModule.keySet().stream()
                 .sorted().collect(joining("\n", "\n", "")));
-    }
-
-    private void initProfiles() {
-        // other system modules are not observed and not added in nameToModule map
-        Map<String, Module> systemModules =
-            system.moduleNames()
-                .collect(toMap(Function.identity(), (mn) -> {
-                    Module m = nameToModule.get(mn);
-                    if (m == null) {
-                        ModuleReference mref = finder.find(mn).get();
-                        m = toModule(mref);
-                    }
-                    return m;
-                }));
-        Profile.init(systemModules);
     }
 
     private void addModuleReference(ModuleReference mref) {
@@ -412,8 +378,8 @@ public class JdepsConfiguration implements AutoCloseable {
             md.requires().forEach(builder::requires);
             md.exports().forEach(builder::exports);
             md.opens().forEach(builder::opens);
-            md.provides().stream().forEach(builder::provides);
-            md.uses().stream().forEach(builder::uses);
+            md.provides().forEach(builder::provides);
+            md.uses().forEach(builder::uses);
             builder.packages(md.packages());
             return builder.build();
         }
@@ -538,14 +504,6 @@ public class JdepsConfiguration implements AutoCloseable {
                         .forEach(rootModules::add);
             }
 
-            // add all modules to the root set for unnamed module or set explicitly
-            boolean unnamed = !initialArchives.isEmpty() || !classPaths.isEmpty();
-            if ((unnamed || tokens.contains(ALL_MODULE_PATH)) && appModulePath != null) {
-                appModulePath.findAll().stream()
-                    .map(mref -> mref.descriptor().name())
-                    .forEach(rootModules::add);
-            }
-
             // no archive is specified for analysis
             // add all system modules as root if --add-modules ALL-SYSTEM is specified
             if (tokens.contains(ALL_SYSTEM) && rootModules.isEmpty() &&
@@ -556,16 +514,41 @@ public class JdepsConfiguration implements AutoCloseable {
                     .forEach(rootModules::add);
             }
 
-            if (unnamed && !tokens.contains(ALL_DEFAULT)) {
-                tokens.add(ALL_SYSTEM);
+            // add all modules on app module path as roots if ALL-MODULE-PATH is specified
+            if ((tokens.contains(ALL_MODULE_PATH)) && appModulePath != null) {
+                appModulePath.findAll().stream()
+                    .map(mref -> mref.descriptor().name())
+                    .forEach(rootModules::add);
             }
 
-            return new JdepsConfiguration(systemModulePath,
+
+            // build root set for module resolution
+            Set<String> mods = new HashSet<>(rootModules);
+            // if archives are specified for analysis, then consider as unnamed module
+            boolean unnamed = !initialArchives.isEmpty() || !classPaths.isEmpty();
+            if (tokens.contains(ALL_DEFAULT)) {
+                mods.addAll(systemModulePath.defaultSystemRoots());
+            } else if (tokens.contains(ALL_SYSTEM) || unnamed) {
+                // resolve all system modules as unnamed module may reference any class
+                systemModulePath.findAll().stream()
+                    .map(mref -> mref.descriptor().name())
+                    .forEach(mods::add);
+            }
+            if (unnamed && appModulePath != null) {
+                // resolve all modules on module path as unnamed module may reference any class
+                appModulePath.findAll().stream()
+                    .map(mref -> mref.descriptor().name())
+                    .forEach(mods::add);
+            }
+
+            // resolve the module graph
+            Configuration config = Configuration.empty().resolve(finder, ModuleFinder.of(), mods);
+            return new JdepsConfiguration(config,
+                                          systemModulePath,
                                           finder,
                                           rootModules,
                                           classPaths,
                                           initialArchives,
-                                          tokens,
                                           version);
         }
 

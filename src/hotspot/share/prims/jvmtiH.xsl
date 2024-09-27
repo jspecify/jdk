@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
- Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -115,12 +115,14 @@ enum {
     JVMTI_VERSION_1_2 = 0x30010200,
     JVMTI_VERSION_9   = 0x30090000,
     JVMTI_VERSION_11  = 0x300B0000,
+    JVMTI_VERSION_19  = 0x30130000,
+    JVMTI_VERSION_21  = 0x30150000,
 
     JVMTI_VERSION = 0x30000000 + (</xsl:text>
-  <xsl:value-of select="//specification/@majorversion"/>
+  <xsl:value-of select="$majorversion"/>
   <xsl:text> * 0x10000) + (</xsl:text>
-  <xsl:value-of select="//specification/@minorversion"/>
-  <xsl:text> * 0x100)</xsl:text>
+  <!-- Now minorversion is always 0 -->
+  <xsl:text> 0 * 0x100)</xsl:text>
   <xsl:variable name="micro">
     <xsl:call-template name="microversion"/>
   </xsl:variable>
@@ -406,11 +408,11 @@ typedef </xsl:text>
 </xsl:template>
 
 <xsl:template match="typedef" mode="early">
-  <xsl:text>struct _</xsl:text>
+  <xsl:text>struct </xsl:text>
   <xsl:value-of select="@id"/>
   <xsl:text>;
 </xsl:text>
-  <xsl:text>typedef struct _</xsl:text>
+  <xsl:text>typedef struct </xsl:text>
   <xsl:value-of select="@id"/>
   <xsl:text> </xsl:text>
   <xsl:value-of select="@id"/>
@@ -419,7 +421,7 @@ typedef </xsl:text>
 </xsl:template>
 
 <xsl:template match="typedef" mode="body">
-  <xsl:text>struct _</xsl:text>
+  <xsl:text>struct </xsl:text>
   <xsl:value-of select="@id"/>
   <xsl:text> {
 </xsl:text>
@@ -429,11 +431,11 @@ typedef </xsl:text>
 </xsl:template>
 
 <xsl:template match="uniontypedef" mode="early">
-  <xsl:text>union _</xsl:text>
+  <xsl:text>union </xsl:text>
   <xsl:value-of select="@id"/>
   <xsl:text>;
 </xsl:text>
-  <xsl:text>typedef union _</xsl:text>
+  <xsl:text>typedef union </xsl:text>
   <xsl:value-of select="@id"/>
   <xsl:text> </xsl:text>
   <xsl:value-of select="@id"/>
@@ -442,7 +444,7 @@ typedef </xsl:text>
 </xsl:template>
 
 <xsl:template match="uniontypedef" mode="body">
-  <xsl:text>union _</xsl:text>
+  <xsl:text>union </xsl:text>
   <xsl:value-of select="@id"/>
   <xsl:text> {
 </xsl:text>

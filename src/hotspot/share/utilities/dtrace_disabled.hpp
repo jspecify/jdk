@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,12 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_DTRACE_USDT2_DISABLED_HPP
-#define SHARE_VM_UTILITIES_DTRACE_USDT2_DISABLED_HPP
+#ifndef SHARE_UTILITIES_DTRACE_DISABLED_HPP
+#define SHARE_UTILITIES_DTRACE_DISABLED_HPP
 
 /* This file contains dummy provider probes needed when compiling a hotspot
  * that does not support dtrace probes. This could be because we're building
- * on a system that doesn't support dtrace or because we're bulding a variant
+ * on a system that doesn't support dtrace or because we're building a variant
  * of hotspot (like core) where we do not support dtrace
  */
 #if !defined(DTRACE_ENABLED)
@@ -121,14 +121,6 @@
 #define HOTSPOT_VMOPS_END_ENABLED() 0
 
 /* hs_private provider probes */
-#define HS_PRIVATE_CMS_INITMARK_BEGIN()
-#define HS_PRIVATE_CMS_INITMARK_BEGIN_ENABLED() 0
-#define HS_PRIVATE_CMS_INITMARK_END()
-#define HS_PRIVATE_CMS_INITMARK_END_ENABLED() 0
-#define HS_PRIVATE_CMS_REMARK_BEGIN()
-#define HS_PRIVATE_CMS_REMARK_BEGIN_ENABLED() 0
-#define HS_PRIVATE_CMS_REMARK_END()
-#define HS_PRIVATE_CMS_REMARK_END_ENABLED() 0
 #define HS_PRIVATE_HASHTABLE_NEW_ENTRY(arg0, arg1, arg2, arg3)
 #define HS_PRIVATE_HASHTABLE_NEW_ENTRY_ENABLED() 0
 #define HS_PRIVATE_SAFEPOINT_BEGIN()
@@ -791,6 +783,10 @@
 #define HOTSPOT_JNI_GETSTRINGUTFLENGTH_ENTRY_ENABLED()  0
 #define HOTSPOT_JNI_GETSTRINGUTFLENGTH_RETURN(arg0)
 #define HOTSPOT_JNI_GETSTRINGUTFLENGTH_RETURN_ENABLED()  0
+#define HOTSPOT_JNI_GETSTRINGUTFLENGTHASLONG_ENTRY(arg0, arg1)
+#define HOTSPOT_JNI_GETSTRINGUTFLENGTHASLONG_ENTRY_ENABLED()  0
+#define HOTSPOT_JNI_GETSTRINGUTFLENGTHASLONG_RETURN(arg0)
+#define HOTSPOT_JNI_GETSTRINGUTFLENGTHASLONG_RETURN_ENABLED()  0
 #define HOTSPOT_JNI_GETSTRINGUTFREGION_ENTRY(arg0, arg1, arg2, arg3, arg4)
 #define HOTSPOT_JNI_GETSTRINGUTFREGION_ENTRY_ENABLED()  0
 #define HOTSPOT_JNI_GETSTRINGUTFREGION_RETURN()
@@ -1094,4 +1090,4 @@
 #error This file should only be included when dtrace is not enabled
 #endif /* !defined(DTRACE_ENABLED) */
 
-#endif // SHARE_VM_UTILITIES_DTRACE_USDT2_DISABLED_HPP
+#endif // SHARE_UTILITIES_DTRACE_DISABLED_HPP

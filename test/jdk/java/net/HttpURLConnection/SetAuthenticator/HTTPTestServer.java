@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -54,6 +52,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -118,12 +117,22 @@ public class HTTPTestServer extends HTTPTest {
                                         HttpSchemeType schemeType,
                                         HttpHandler delegate)
             throws IOException {
+        return create(protocol, authType, auth, schemeType, null, "MD5");
+    }
+
+    public static HTTPTestServer create(HttpProtocolType protocol,
+                                        HttpAuthType authType,
+                                        HttpTestAuthenticator auth,
+                                        HttpSchemeType schemeType,
+                                        HttpHandler delegate,
+                                        String algorithm)
+            throws IOException {
         Objects.requireNonNull(authType);
         Objects.requireNonNull(auth);
         switch(authType) {
             // A server that performs Server Digest authentication.
             case SERVER: return createServer(protocol, authType, auth,
-                                             schemeType, delegate, "/");
+                                             schemeType, delegate, algorithm, "/");
             // A server that pretends to be a Proxy and performs
             // Proxy Digest authentication. If protocol is HTTPS,
             // then this will create a HttpsProxyTunnel that will
@@ -167,7 +176,7 @@ public class HTTPTestServer extends HTTPTest {
                 for (int i = 1; i <= max; i++) {
                     B bindable = createBindable();
                     SocketAddress address = getAddress(bindable);
-                    String key = address.toString();
+                    String key = toString(address);
                     if (addresses.addIfAbsent(key)) {
                        System.out.println("Socket bound to: " + key
                                           + " after " + i + " attempt(s)");
@@ -190,6 +199,16 @@ public class HTTPTestServer extends HTTPTest {
                                   + "addresses used before: " + addresses);
         }
 
+        private static String toString(SocketAddress address) {
+            // We don't rely on address.toString(): sometimes it can be
+            // "/127.0.0.1:port", sometimes it can be "localhost/127.0.0.1:port"
+            // Instead we compose our own string representation:
+            InetSocketAddress candidate = (InetSocketAddress) address;
+            String hostAddr = candidate.getAddress().getHostAddress();
+            if (hostAddr.contains(":")) hostAddr = "[" + hostAddr + "]";
+            return hostAddr + ":" + candidate.getPort();
+        }
+
         protected abstract B createBindable() throws IOException;
 
         protected abstract SocketAddress getAddress(B bindable);
@@ -210,7 +229,8 @@ public class HTTPTestServer extends HTTPTest {
 
         @Override
         protected ServerSocket createBindable() throws IOException {
-            return new ServerSocket(0, 0, InetAddress.getByName("127.0.0.1"));
+            InetAddress address = InetAddress.getLoopbackAddress();
+            return new ServerSocket(0, 0, address);
         }
 
         @Override
@@ -232,7 +252,8 @@ public class HTTPTestServer extends HTTPTest {
         @Override
         protected S createBindable() throws IOException {
             S server = newHttpServer();
-            server.bind(new InetSocketAddress("127.0.0.1", 0), 0);
+            InetAddress address = InetAddress.getLoopbackAddress();
+            server.bind(new InetSocketAddress(address, 0), 0);
             return server;
         }
 
@@ -316,6 +337,7 @@ public class HTTPTestServer extends HTTPTest {
                                         HttpTestAuthenticator auth,
                                         HttpSchemeType schemeType,
                                         HttpHandler delegate,
+                                        String algorithm,
                                         String path)
             throws IOException {
         Objects.requireNonNull(authType);
@@ -325,7 +347,7 @@ public class HTTPTestServer extends HTTPTest {
         final HTTPTestServer server = new HTTPTestServer(impl, null, delegate);
         final HttpHandler hh = server.createHandler(schemeType, auth, authType);
         HttpContext ctxt = impl.createContext(path, hh);
-        server.configureAuthentication(ctxt, schemeType, auth, authType);
+        server.configureAuthentication(ctxt, schemeType, auth, authType, algorithm);
         impl.start();
         return server;
     }
@@ -346,7 +368,7 @@ public class HTTPTestServer extends HTTPTest {
                 : new HTTPTestServer(impl, null, delegate);
         final HttpHandler hh = server.createHandler(schemeType, auth, authType);
         HttpContext ctxt = impl.createContext(path, hh);
-        server.configureAuthentication(ctxt, schemeType, auth, authType);
+        server.configureAuthentication(ctxt, schemeType, auth, authType, null);
         impl.start();
 
         return server;
@@ -374,7 +396,7 @@ public class HTTPTestServer extends HTTPTest {
                 ? createProxy(protocol, targetAuthType,
                               auth, schemeType, targetDelegate, "/")
                 : createServer(targetProtocol, targetAuthType,
-                               auth, schemeType, targetDelegate, "/");
+                               auth, schemeType, targetDelegate, "MD5", "/");
         HttpServer impl = createHttpServer(protocol);
         final HTTPTestServer redirectingServer =
                  new HTTPTestServer(impl, redirectTarget, null);
@@ -388,6 +410,10 @@ public class HTTPTestServer extends HTTPTest {
     }
 
     public InetSocketAddress getAddress() {
+        return serverImpl.getAddress();
+    }
+
+    public InetSocketAddress getProxyAddress() {
         return serverImpl.getAddress();
     }
 
@@ -416,11 +442,11 @@ public class HTTPTestServer extends HTTPTest {
     private void configureAuthentication(HttpContext ctxt,
                             HttpSchemeType schemeType,
                             HttpTestAuthenticator auth,
-                            HttpAuthType authType) {
+                            HttpAuthType authType, String algorithm) {
         switch(schemeType) {
             case DIGEST:
                 // DIGEST authentication is handled by the handler.
-                ctxt.getFilters().add(new HttpDigestFilter(auth, authType));
+                ctxt.getFilters().add(new HttpDigestFilter(auth, authType, algorithm));
                 break;
             case BASIC:
                 // BASIC authentication is handled by the filter.
@@ -568,11 +594,6 @@ public class HTTPTestServer extends HTTPTest {
 
         // Code stolen from DigestAuthentication:
 
-        private static final char charArray[] = {
-            '0', '1', '2', '3', '4', '5', '6', '7',
-            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
-        };
-
         private static String encode(String src, char[] passwd, MessageDigest md) {
             try {
                 md.update(src.getBytes("ISO-8859-1"));
@@ -587,29 +608,27 @@ public class HTTPTestServer extends HTTPTest {
                 Arrays.fill(passwdBytes, (byte)0x00);
             }
             byte[] digest = md.digest();
-
-            StringBuilder res = new StringBuilder(digest.length * 2);
-            for (int i = 0; i < digest.length; i++) {
-                int hashchar = ((digest[i] >>> 4) & 0xf);
-                res.append(charArray[hashchar]);
-                hashchar = (digest[i] & 0xf);
-                res.append(charArray[hashchar]);
-            }
-            return res.toString();
+            return HexFormat.of().formatHex(digest);
         }
 
         public static String computeDigest(boolean isRequest,
                                             String reqMethod,
                                             char[] password,
+                                            String expectedAlgorithm,
                                             DigestResponse params)
             throws NoSuchAlgorithmException
         {
 
             String A1, HashA1;
             String algorithm = params.getAlgorithm("MD5");
-            boolean md5sess = algorithm.equalsIgnoreCase ("MD5-sess");
+            if (algorithm.endsWith("-sess")) {
+                algorithm = algorithm.substring(0, algorithm.length() - 5);
+            }
+            if (!algorithm.equalsIgnoreCase(expectedAlgorithm)) {
+                throw new IllegalArgumentException("unexpected algorithm");
+            }
 
-            MessageDigest md = MessageDigest.getInstance(md5sess?"MD5":algorithm);
+            MessageDigest md = MessageDigest.getInstance(algorithm);
 
             if (params.username == null) {
                 throw new IllegalArgumentException("missing username");
@@ -774,13 +793,15 @@ public class HTTPTestServer extends HTTPTest {
         private final HttpTestAuthenticator auth;
         private final byte[] nonce;
         private final String ns;
-        public HttpDigestFilter(HttpTestAuthenticator auth, HttpAuthType authType) {
+        private final String algorithm;
+        public HttpDigestFilter(HttpTestAuthenticator auth, HttpAuthType authType, String algorithm) {
             super(authType, authType == HttpAuthType.SERVER
                             ? "Digest Server" : "Digest Proxy");
             this.auth = auth;
             nonce = new byte[16];
             new Random(Instant.now().toEpochMilli()).nextBytes(nonce);
             ns = new BigInteger(1, nonce).toString(16);
+            this.algorithm = (algorithm == null) ? "MD5" : algorithm;
         }
 
         @Override
@@ -788,7 +809,7 @@ public class HTTPTestServer extends HTTPTest {
             throws IOException {
             he.getResponseHeaders().add(getAuthenticate(),
                  "Digest realm=\"" + auth.getRealm() + "\","
-                 + "\r\n    qop=\"auth\","
+                 + "\r\n    qop=\"auth\", " + "algorithm=\"" + algorithm + "\", "
                  + "\r\n    nonce=\"" + ns +"\"");
             System.out.println(type + ": Requesting Digest Authentication "
                  + he.getResponseHeaders().getFirst(getAuthenticate()));
@@ -821,7 +842,7 @@ public class HTTPTestServer extends HTTPTest {
         }
 
         boolean validate(String reqMethod, DigestResponse dg) {
-            if (!"MD5".equalsIgnoreCase(dg.getAlgorithm("MD5"))) {
+            if (!this.algorithm.equalsIgnoreCase(dg.getAlgorithm("MD5"))) {
                 System.out.println(type + ": Unsupported algorithm "
                                    + dg.algorithm);
                 return false;
@@ -852,7 +873,7 @@ public class HTTPTestServer extends HTTPTest {
 
         boolean verify(String reqMethod, DigestResponse dg, char[] pw)
             throws NoSuchAlgorithmException {
-            String response = DigestResponse.computeDigest(true, reqMethod, pw, dg);
+            String response = DigestResponse.computeDigest(true, reqMethod, pw, algorithm, dg);
             if (!dg.response.equals(response)) {
                 System.out.println(type + ": bad response returned by client: "
                                     + dg.response + " expected " + response);
@@ -966,6 +987,8 @@ public class HTTPTestServer extends HTTPTest {
             implements Runnable {
 
         final ServerSocket ss;
+        private volatile boolean stop;
+
         public HttpsProxyTunnel(HttpServer server, HTTPTestServer target,
                                HttpHandler delegate)
                 throws IOException {
@@ -984,9 +1007,10 @@ public class HTTPTestServer extends HTTPTest {
 
         @Override
         public void stop() {
-            super.stop();
-            try {
-                ss.close();
+            try (var toClose = ss) {
+                stop = true;
+                System.out.println("Server " + ss + " stop requested");
+                super.stop();
             } catch (IOException ex) {
                 if (DEBUG) ex.printStackTrace(System.out);
             }
@@ -999,13 +1023,14 @@ public class HTTPTestServer extends HTTPTest {
                 public void run() {
                     try {
                         try {
-                            int c;
-                            while ((c = is.read()) != -1) {
-                                os.write(c);
+                            int len;
+                            byte[] buf = new byte[16 * 1024];
+                            while ((len = is.read(buf)) != -1) {
+                                os.write(buf, 0, len);
                                 os.flush();
                                 // if DEBUG prints a + or a - for each transferred
                                 // character.
-                                if (DEBUG) System.out.print(tag);
+                                if (DEBUG) System.out.print(String.valueOf(tag).repeat(len));
                             }
                             is.close();
                         } finally {
@@ -1019,7 +1044,7 @@ public class HTTPTestServer extends HTTPTest {
         }
 
         @Override
-        public InetSocketAddress getAddress() {
+        public InetSocketAddress getProxyAddress() {
             return new InetSocketAddress(ss.getInetAddress(), ss.getLocalPort());
         }
 
@@ -1036,6 +1061,9 @@ public class HTTPTestServer extends HTTPTest {
                 if (c == '\n') break;
                 b.appendCodePoint(c);
             }
+            if (b.length() == 0) {
+                return "";
+            }
             if (b.codePointAt(b.length() -1) == '\r') {
                 b.delete(b.length() -1, b.length());
             }
@@ -1045,80 +1073,121 @@ public class HTTPTestServer extends HTTPTest {
         @Override
         public void run() {
             Socket clientConnection = null;
-            try {
-                while (true) {
-                    System.out.println("Tunnel: Waiting for client");
-                    Socket previous = clientConnection;
-                    try {
-                        clientConnection = ss.accept();
-                    } catch (IOException io) {
-                        if (DEBUG) io.printStackTrace(System.out);
-                        break;
-                    } finally {
-                        // close the previous connection
-                        if (previous != null) previous.close();
-                    }
-                    System.out.println("Tunnel: Client accepted");
-                    Socket targetConnection = null;
-                    InputStream  ccis = clientConnection.getInputStream();
-                    OutputStream ccos = clientConnection.getOutputStream();
-                    Writer w = new OutputStreamWriter(
-                                   clientConnection.getOutputStream(), "UTF-8");
-                    PrintWriter pw = new PrintWriter(w);
-                    System.out.println("Tunnel: Reading request line");
-                    String requestLine = readLine(ccis);
-                    System.out.println("Tunnel: Request line: " + requestLine);
-                    if (requestLine.startsWith("CONNECT ")) {
-                        // We should probably check that the next word following
-                        // CONNECT is the host:port of our HTTPS serverImpl.
-                        // Some improvement for a followup!
-
-                        // Read all headers until we find the empty line that
-                        // signals the end of all headers.
-                        while(!requestLine.equals("")) {
-                            System.out.println("Tunnel: Reading header: "
-                                               + (requestLine = readLine(ccis)));
-                        }
-
-                        targetConnection = new Socket(
-                                serverImpl.getAddress().getAddress(),
-                                serverImpl.getAddress().getPort());
-
-                        // Then send the 200 OK response to the client
-                        System.out.println("Tunnel: Sending "
-                                           + "HTTP/1.1 200 OK\r\n\r\n");
-                        pw.print("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
-                        pw.flush();
-                    } else {
-                        // This should not happen. If it does let our serverImpl
-                        // deal with it.
-                        throw new IOException("Tunnel: Unexpected status line: "
-                                             + requestLine);
-                    }
-
-                    // Pipe the input stream of the client connection to the
-                    // output stream of the target connection and conversely.
-                    // Now the client and target will just talk to each other.
-                    System.out.println("Tunnel: Starting tunnel pipes");
-                    Thread t1 = pipe(ccis, targetConnection.getOutputStream(), '+');
-                    Thread t2 = pipe(targetConnection.getInputStream(), ccos, '-');
-                    t1.start();
-                    t2.start();
-
-                    // We have only 1 client... wait until it has finished before
-                    // accepting a new connection request.
-                    t1.join();
-                    t2.join();
-                }
-            } catch (Throwable ex) {
+            while (!stop) {
+                System.out.println("Tunnel: Waiting for client at: " + ss);
+                final Socket previous = clientConnection;
                 try {
-                    ss.close();
-                } catch (IOException ex1) {
-                    ex.addSuppressed(ex1);
+                    clientConnection = ss.accept();
+                } catch (IOException io) {
+                    try {
+                        ss.close();
+                    } catch (IOException ex) {
+                        if (DEBUG) {
+                            ex.printStackTrace(System.out);
+                        }
+                    }
+                    // log the reason that caused the server to stop accepting connections
+                    if (!stop) {
+                        System.err.println("Server will stop accepting connections due to an exception:");
+                        io.printStackTrace();
+                    }
+                    break;
+                } finally {
+                    // close the previous connection
+                    if (previous != null) {
+                        try {
+                            previous.close();
+                        } catch (IOException e) {
+                            // ignore
+                            if (DEBUG) {
+                                System.out.println("Ignoring exception that happened while closing " +
+                                        "an older connection:");
+                                e.printStackTrace(System.out);
+                            }
+                        }
+                    }
                 }
-                ex.printStackTrace(System.err);
+                System.out.println("Tunnel: Client accepted");
+                try {
+                    // We have only 1 client... process the current client
+                    // request and wait until it has finished before
+                    // accepting a new connection request.
+                    processRequestAndWaitToComplete(clientConnection);
+                } catch (IOException ioe) {
+                    // close the client connection
+                    try {
+                        clientConnection.close();
+                    } catch (IOException io) {
+                        // ignore
+                        if (DEBUG) {
+                            System.out.println("Ignoring exception that happened during client" +
+                                    " connection close:");
+                            io.printStackTrace(System.out);
+                        }
+                    } finally {
+                        clientConnection = null;
+                    }
+                } catch (Throwable t) {
+                    // don't close the client connection for non-IOExceptions, instead
+                    // just log it and move on to accept next connection
+                    if (!stop) {
+                        t.printStackTrace();
+                    }
+                }
             }
         }
 
+        private void processRequestAndWaitToComplete(final Socket clientConnection)
+                throws IOException, InterruptedException {
+            final Socket targetConnection;
+            InputStream  ccis = clientConnection.getInputStream();
+            OutputStream ccos = clientConnection.getOutputStream();
+            Writer w = new OutputStreamWriter(
+                    clientConnection.getOutputStream(), "UTF-8");
+            PrintWriter pw = new PrintWriter(w);
+            System.out.println("Tunnel: Reading request line");
+            String requestLine = readLine(ccis);
+            System.out.println("Tunnel: Request line: " + requestLine);
+            if (requestLine.startsWith("CONNECT ")) {
+                // We should probably check that the next word following
+                // CONNECT is the host:port of our HTTPS serverImpl.
+                // Some improvement for a followup!
+
+                // Read all headers until we find the empty line that
+                // signals the end of all headers.
+                while(!requestLine.equals("")) {
+                    System.out.println("Tunnel: Reading header: "
+                            + (requestLine = readLine(ccis)));
+                }
+
+                targetConnection = new Socket(
+                        serverImpl.getAddress().getAddress(),
+                        serverImpl.getAddress().getPort());
+
+                // Then send the 200 OK response to the client
+                System.out.println("Tunnel: Sending "
+                        + "HTTP/1.1 200 OK\r\n\r\n");
+                pw.print("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
+                pw.flush();
+            } else {
+                // This should not happen. If it does then consider it a
+                // client error and throw an IOException
+                System.out.println("Tunnel: Throwing an IOException due to unexpected" +
+                        " request line: " + requestLine);
+                throw new IOException("Client request error - Unexpected request line");
+            }
+
+            // Pipe the input stream of the client connection to the
+            // output stream of the target connection and conversely.
+            // Now the client and target will just talk to each other.
+            System.out.println("Tunnel: Starting tunnel pipes");
+            Thread t1 = pipe(ccis, targetConnection.getOutputStream(), '+');
+            Thread t2 = pipe(targetConnection.getInputStream(), ccos, '-');
+            t1.start();
+            t2.start();
+            // wait for the request to complete
+            t1.join();
+            t2.join();
+        }
     }
 }

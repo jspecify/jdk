@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,14 +30,14 @@ import java.net.InetSocketAddress;
 import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Function;
-import java.net.http.HttpHeaders;
+
 import jdk.internal.net.http.common.FlowTube;
 import jdk.internal.net.http.common.MinimalFuture;
 import static java.net.http.HttpResponse.BodyHandlers.discarding;
+import static jdk.internal.net.http.common.Utils.ProxyHeaders;
 
 /**
  * A plain text socket tunnel through a proxy. Uses "CONNECT" but does not
@@ -47,14 +47,14 @@ import static java.net.http.HttpResponse.BodyHandlers.discarding;
 final class PlainTunnelingConnection extends HttpConnection {
 
     final PlainHttpConnection delegate;
-    final HttpHeaders proxyHeaders;
+    final ProxyHeaders proxyHeaders;
     final InetSocketAddress proxyAddr;
     private volatile boolean connected;
 
     protected PlainTunnelingConnection(InetSocketAddress addr,
                                        InetSocketAddress proxy,
                                        HttpClientImpl client,
-                                       HttpHeaders proxyHeaders) {
+                                       ProxyHeaders proxyHeaders) {
         super(addr, client);
         this.proxyAddr = proxy;
         this.proxyHeaders = proxyHeaders;
@@ -152,12 +152,17 @@ final class PlainTunnelingConnection extends HttpConnection {
 
     @Override
     ConnectionPool.CacheKey cacheKey() {
-        return new ConnectionPool.CacheKey(null, proxyAddr);
+        return ConnectionPool.cacheKey(false, null, proxyAddr);
     }
 
     @Override
     public void close() {
-        delegate.close();
+        close(null);
+    }
+
+    @Override
+    void close(Throwable cause) {
+        delegate.close(cause);
         connected = false;
     }
 
@@ -171,4 +176,8 @@ final class PlainTunnelingConnection extends HttpConnection {
         return true;
     }
 
+    @Override
+    InetSocketAddress proxy() {
+        return proxyAddr;
+    }
 }

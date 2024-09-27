@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,21 @@
  * @test
  * @requires vm.jvmci
  * @library ../../../../../
- * @modules java.base/jdk.internal.reflect
+ * @compile ../../../../../../../../../../../jdk/jdk/internal/vm/AnnotationEncodingDecoding/AnnotationTestInput.java
+ *          ../../../../../../../../../../../jdk/jdk/internal/vm/AnnotationEncodingDecoding/MemberDeleted.java
+ *          ../../../../../../../../../../../jdk/jdk/internal/vm/AnnotationEncodingDecoding/MemberTypeChanged.java
+ * @clean jdk.internal.vm.test.AnnotationTestInput$Missing
+ * @compile ../../../../../../../../../../../jdk/jdk/internal/vm/AnnotationEncodingDecoding/alt/MemberDeleted.java
+ *          ../../../../../../../../../../../jdk/jdk/internal/vm/AnnotationEncodingDecoding/alt/MemberTypeChanged.java
+ * @modules java.base/jdk.internal.org.objectweb.asm
+ *          java.base/jdk.internal.reflect
  *          jdk.internal.vm.ci/jdk.vm.ci.meta
  *          jdk.internal.vm.ci/jdk.vm.ci.runtime
  *          jdk.internal.vm.ci/jdk.vm.ci.common
  *          java.base/jdk.internal.misc
- * @run junit/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -Djvmci.Compiler=null jdk.vm.ci.runtime.test.TestResolvedJavaType
+ *          java.base/jdk.internal.vm
+ *          java.base/sun.reflect.annotation
+ * @run junit/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -XX:-UseJVMCICompiler jdk.vm.ci.runtime.test.TestResolvedJavaType
  */
 
 package jdk.vm.ci.runtime.test;
@@ -41,6 +50,8 @@ import static java.lang.reflect.Modifier.isPrivate;
 import static java.lang.reflect.Modifier.isProtected;
 import static java.lang.reflect.Modifier.isPublic;
 import static java.lang.reflect.Modifier.isStatic;
+import static jdk.vm.ci.meta.MetaUtil.internalNameToJava;
+import static jdk.vm.ci.meta.MetaUtil.toInternalName;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -48,39 +59,71 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import jdk.internal.reflect.ConstantPool;
+import jdk.internal.vm.test.AnnotationTestInput;
 import jdk.vm.ci.common.JVMCIError;
+import jdk.vm.ci.meta.Annotated;
+import jdk.vm.ci.meta.AnnotationData;
+import jdk.vm.ci.meta.EnumData;
 import jdk.vm.ci.meta.Assumptions.AssumptionResult;
 import jdk.vm.ci.meta.JavaConstant;
 import jdk.vm.ci.meta.JavaKind;
+import jdk.vm.ci.meta.JavaType;
+import jdk.vm.ci.meta.MetaUtil;
 import jdk.vm.ci.meta.ResolvedJavaField;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaType;
+import jdk.vm.ci.meta.UnresolvedJavaType;
+import sun.reflect.annotation.AnnotationSupport;
 
 /**
  * Tests for {@link ResolvedJavaType}.
  */
-@SuppressWarnings("unchecked")
 public class TestResolvedJavaType extends TypeUniverse {
     private static final Class<? extends Annotation> SIGNATURE_POLYMORPHIC_CLASS = findPolymorphicSignatureClass();
 
     public TestResolvedJavaType() {
     }
 
+    @Test
+    public void equalsTest() {
+        for (ResolvedJavaType t : javaTypes) {
+            for (ResolvedJavaType that : javaTypes) {
+                boolean expect = t == that;
+                boolean actual = t.equals(that);
+                assertEquals(expect, actual);
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
     private static Class<? extends Annotation> findPolymorphicSignatureClass() {
         Class<? extends Annotation> signaturePolyAnnotation = null;
         try {
@@ -154,24 +197,16 @@ public class TestResolvedJavaType extends TypeUniverse {
     }
 
     @Test
-    public void getHostClassTest() {
-        for (Class<?> c : classes) {
-            ResolvedJavaType type = metaAccess.lookupJavaType(c);
-            ResolvedJavaType host = type.getHostClass();
-            assertNull(host);
-        }
-
-        class LocalClass {}
-        Cloneable clone = new Cloneable() {};
-        assertNull(metaAccess.lookupJavaType(LocalClass.class).getHostClass());
-        assertNull(metaAccess.lookupJavaType(clone.getClass()).getHostClass());
-
+    public void lambdaInternalNameTest() {
+        // Verify that the last dot in lambda types is properly handled when transitioning from
+        // internal name to java
+        // name and vice versa.
         Supplier<Runnable> lambda = () -> () -> System.out.println("run");
         ResolvedJavaType lambdaType = metaAccess.lookupJavaType(lambda.getClass());
-        ResolvedJavaType nestedLambdaType = metaAccess.lookupJavaType(lambda.get().getClass());
-        assertNotNull(lambdaType.getHostClass());
-        assertNotNull(nestedLambdaType.getHostClass());
-        assertEquals(lambdaType.getHostClass(), nestedLambdaType.getHostClass());
+        String typeName = lambdaType.getName();
+        String javaName = lambda.getClass().getName();
+        assertEquals(typeName, toInternalName(javaName));
+        assertEquals(javaName, internalNameToJava(typeName, true, true));
     }
 
     @Test
@@ -312,6 +347,111 @@ public class TestResolvedJavaType extends TypeUniverse {
                 }
             }
         }
+    }
+
+    @Test
+    public void linkTest() {
+        for (Class<?> c : classes) {
+            ResolvedJavaType type = metaAccess.lookupJavaType(c);
+            type.link();
+        }
+    }
+
+    private class HidingClassLoader extends ClassLoader {
+        @Override
+        protected Class<?> findClass(final String name) throws ClassNotFoundException {
+            if (name.endsWith("MissingInterface")) {
+                throw new ClassNotFoundException("missing");
+            }
+            byte[] classData = null;
+            try {
+                InputStream is = HidingClassLoader.class.getResourceAsStream("/" + name.replace('.', '/') + ".class");
+                classData = new byte[is.available()];
+                new DataInputStream(is).readFully(classData);
+            } catch (IOException e) {
+                Assert.fail("can't access class: " + name);
+            }
+
+            return defineClass(null, classData, 0, classData.length);
+        }
+
+        ResolvedJavaType lookupJavaType(String name) throws ClassNotFoundException {
+            return metaAccess.lookupJavaType(loadClass(name));
+        }
+
+        HidingClassLoader() {
+            super(null);
+        }
+
+    }
+
+    interface MissingInterface {
+    }
+
+    static class MissingInterfaceImpl implements MissingInterface {
+    }
+
+    interface SomeInterface {
+        default MissingInterface someMethod() {
+            return new MissingInterfaceImpl();
+        }
+    }
+
+    static class Wrapper implements SomeInterface {
+    }
+
+    @Test
+    public void linkExceptionTest() throws ClassNotFoundException {
+        HidingClassLoader cl = new HidingClassLoader();
+        ResolvedJavaType inner = cl.lookupJavaType(Wrapper.class.getName());
+        assertTrue("expected default methods", inner.hasDefaultMethods());
+        try {
+            inner.link();
+            assertFalse("link should throw an exception", true);
+        } catch (NoClassDefFoundError e) {
+        }
+    }
+
+    @Test
+    public void hasDefaultMethodsTest() {
+        for (Class<?> c : classes) {
+            ResolvedJavaType type = metaAccess.lookupJavaType(c);
+            assertEquals(hasDefaultMethods(type), type.hasDefaultMethods());
+        }
+    }
+
+    @Test
+    public void declaresDefaultMethodsTest() {
+        for (Class<?> c : classes) {
+            ResolvedJavaType type = metaAccess.lookupJavaType(c);
+            assertEquals(declaresDefaultMethods(type), type.declaresDefaultMethods());
+        }
+    }
+
+    private static boolean hasDefaultMethods(ResolvedJavaType type) {
+        if (!type.isInterface() && type.getSuperclass() != null && hasDefaultMethods(type.getSuperclass())) {
+            return true;
+        }
+        for (ResolvedJavaType iface : type.getInterfaces()) {
+            if (hasDefaultMethods(iface)) {
+                return true;
+            }
+        }
+        return declaresDefaultMethods(type);
+    }
+
+    static boolean declaresDefaultMethods(ResolvedJavaType type) {
+        if (!type.isInterface()) {
+            /* Only interfaces can declare default methods. */
+            return false;
+        }
+        for (ResolvedJavaMethod method : type.getDeclaredMethods()) {
+            if (method.isDefault()) {
+                assert !Modifier.isStatic(method.getModifiers()) : "Default method that is static?";
+                return true;
+            }
+        }
+        return false;
     }
 
     private static class Base {
@@ -641,16 +781,35 @@ public class TestResolvedJavaType extends TypeUniverse {
                     for (Method decl : decls) {
                         ResolvedJavaMethod m = metaAccess.lookupJavaMethod(decl);
                         if (m.isPublic()) {
-                            ResolvedJavaMethod resolvedmethod = type.resolveMethod(m, context);
+                            ResolvedJavaMethod resolvedMethod = type.resolveMethod(m, context);
                             if (isSignaturePolymorphic(m)) {
                                 // Signature polymorphic methods must not be resolved
-                                assertNull(resolvedmethod);
+                                assertNull(resolvedMethod);
                             } else {
                                 ResolvedJavaMethod i = metaAccess.lookupJavaMethod(impl);
-                                assertEquals(m.toString(), i, resolvedmethod);
+                                assertEquals(m.toString(), i, resolvedMethod);
                             }
                         }
                     }
+                }
+                // For backwards compatibility treat constructors as resolvable even though they
+                // aren't virtually dispatched.
+                ResolvedJavaType declaringClass = metaAccess.lookupJavaType(c);
+                for (Constructor<?> m : c.getDeclaredConstructors()) {
+                    ResolvedJavaMethod decl = metaAccess.lookupJavaMethod(m);
+                    ResolvedJavaMethod impl = type.resolveMethod(decl, declaringClass);
+                    assertEquals(m.toString(), decl, impl);
+                }
+                for (Method m : c.getDeclaredMethods()) {
+                    if (isStatic(m.getModifiers())) {
+                        // resolveMethod really shouldn't be called with static methods and the
+                        // result is is somewhat inconsistent so just ignore them
+                        continue;
+                    }
+                    ResolvedJavaMethod decl = metaAccess.lookupJavaMethod(m);
+                    ResolvedJavaMethod impl = type.resolveMethod(decl, declaringClass);
+                    ResolvedJavaMethod expected = isSignaturePolymorphic(decl) ? null : decl;
+                    assertEquals(m.toString(), expected, impl);
                 }
             }
         }
@@ -759,7 +918,18 @@ public class TestResolvedJavaType extends TypeUniverse {
         if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(ConstantPool.class)) && f.getName().equals("constantPoolOop")) {
             return true;
         }
-        if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(Class.class)) && f.getName().equals("classLoader")) {
+        if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(Class.class))) {
+            return f.getName().equals("classLoader") || f.getName().equals("classData");
+        }
+        if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(Lookup.class))) {
+            return f.getName().equals("allowedModes") || f.getName().equals("lookupClass");
+        }
+        if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(ClassLoader.class)) ||
+                        f.getDeclaringClass().equals(metaAccess.lookupJavaType(AccessibleObject.class)) ||
+                        f.getDeclaringClass().equals(metaAccess.lookupJavaType(Constructor.class)) ||
+                        f.getDeclaringClass().equals(metaAccess.lookupJavaType(Field.class)) ||
+                        f.getDeclaringClass().equals(metaAccess.lookupJavaType(Method.class)) ||
+                        f.getDeclaringClass().equals(metaAccess.lookupJavaType(Module.class))) {
             return true;
         }
         return false;
@@ -846,17 +1016,25 @@ public class TestResolvedJavaType extends TypeUniverse {
 
     }
 
+    private static ResolvedJavaMethod getClassInitializer(Class<?> c) {
+        ResolvedJavaMethod clinit = metaAccess.lookupJavaType(c).getClassInitializer();
+        if (clinit != null) {
+            assertEquals(0, clinit.getAnnotations().length);
+            assertEquals(0, clinit.getDeclaredAnnotations().length);
+        }
+        return clinit;
+    }
+
     @Test
     public void getClassInitializerTest() {
-        assertNotNull(metaAccess.lookupJavaType(A.class).getClassInitializer());
-        assertNotNull(metaAccess.lookupJavaType(D.class).getClassInitializer());
-        assertNull(metaAccess.lookupJavaType(B.class).getClassInitializer());
-        assertNull(metaAccess.lookupJavaType(C.class).getClassInitializer());
-        assertNull(metaAccess.lookupJavaType(int.class).getClassInitializer());
-        assertNull(metaAccess.lookupJavaType(void.class).getClassInitializer());
+        assertNotNull(getClassInitializer(A.class));
+        assertNotNull(getClassInitializer(D.class));
+        assertNull(getClassInitializer(B.class));
+        assertNull(getClassInitializer(C.class));
+        assertNull(getClassInitializer(int.class));
+        assertNull(getClassInitializer(void.class));
         for (Class<?> c : classes) {
-            ResolvedJavaType type = metaAccess.lookupJavaType(c);
-            type.getClassInitializer();
+            getClassInitializer(c);
         }
     }
 
@@ -876,6 +1054,13 @@ public class TestResolvedJavaType extends TypeUniverse {
                 assertEquals(a, type.getAnnotation(a.annotationType()));
             }
         }
+    }
+
+    @Test
+    public void getSourceFileNameTest() {
+        Class<?> c = Object.class;
+        ResolvedJavaType type = metaAccess.lookupJavaType(c);
+        assertEquals(type.getSourceFileName(), "Object.java");
     }
 
     @Test
@@ -968,6 +1153,40 @@ public class TestResolvedJavaType extends TypeUniverse {
         return null;
     }
 
+    @Test
+    public void getAnnotationDataTest() throws Exception {
+        getAnnotationDataTest(AnnotationTestInput.AnnotatedClass.class);
+        getAnnotationDataTest(int.class);
+        getAnnotationDataTest(void.class);
+        for (Class<?> c : classes) {
+            getAnnotationDataTest(c);
+        }
+
+        // Primitive classes have no annotations but we cannot directly
+        // test absence of annotations. Instead, just ensure empty answers
+        // are returned when looking up an arbitrary annotation type.
+        Class<?>[] prims = {void.class, byte.class, int.class, double.class, float.class, short.class, char.class, long.class};
+        ResolvedJavaType overrideType = metaAccess.lookupJavaType(Override.class);
+        for (Class<?> c : prims) {
+            ResolvedJavaType type = metaAccess.lookupJavaType(c);
+            AnnotationData ad = type.getAnnotationData(overrideType);
+            Assert.assertNull(String.valueOf(ad), ad);
+            List<AnnotationData> adArray = type.getAnnotationData(overrideType, overrideType);
+            Assert.assertEquals(0, adArray.size());
+        }
+
+        // Test that inherited annotations are handled properly.
+        ResolvedJavaType namedType = metaAccess.lookupJavaType(AnnotationTestInput.Named.class);
+        AnnotationData ad = metaAccess.lookupJavaType(AnnotationTestInput.OwnName.class).getAnnotationData(namedType);
+        Assert.assertEquals("NonInheritedValue", ad.get("value", String.class));
+        ad = metaAccess.lookupJavaType(AnnotationTestInput.InheritedName1.class).getAnnotationData(namedType);
+        Assert.assertEquals("Super1", ad.get("value", String.class));
+        ad = metaAccess.lookupJavaType(AnnotationTestInput.InheritedName2.class).getAnnotationData(namedType);
+        Assert.assertEquals("Super2", ad.get("value", String.class));
+        ad = metaAccess.lookupJavaType(AnnotationTestInput.InheritedName3.class).getAnnotationData(namedType);
+        Assert.assertEquals("Super1", ad.get("value", String.class));
+    }
+
     // @formatter:off
     private static final String[] untestedApiMethods = {
         "initialize",
@@ -978,9 +1197,9 @@ public class TestResolvedJavaType extends TypeUniverse {
         "isLinked",
         "getJavaClass",
         "getObjectHub",
+        "getHostClass",
         "hasFinalizableSubclass",
         "hasFinalizer",
-        "getSourceFileName",
         "isLocal",
         "isJavaLangObject",
         "isMember",
@@ -1010,5 +1229,130 @@ public class TestResolvedJavaType extends TypeUniverse {
 
     private static boolean isSignaturePolymorphic(ResolvedJavaMethod method) {
         return method.getAnnotation(SIGNATURE_POLYMORPHIC_CLASS) != null;
+    }
+
+    /**
+     * Tests that {@link AnnotationData} obtained from a {@link Class}, {@link Method} or
+     * {@link Field} matches {@link AnnotatedElement#getAnnotations()} for the corresponding JVMCI
+     * object.
+     *
+     * @param annotated a {@link Class}, {@link Method} or {@link Field} object
+     */
+    public static void getAnnotationDataTest(AnnotatedElement annotated) throws Exception {
+        testGetAnnotationData(annotated, List.of(annotated.getAnnotations()));
+    }
+
+    private static void testGetAnnotationData(AnnotatedElement annotated, List<Annotation> annotations) throws AssertionError {
+        for (Annotation a : annotations) {
+            AnnotationData ad = toAnnotated(annotated).getAnnotationData(metaAccess.lookupJavaType(a.annotationType()));
+            assertAnnotationsEquals(a, ad);
+
+            // Check that encoding/decoding produces a stable result
+            AnnotationData ad2 = toAnnotated(annotated).getAnnotationData(metaAccess.lookupJavaType(a.annotationType()));
+            assertEquals(ad, ad2);
+        }
+        if (annotations.size() < 2) {
+            return;
+        }
+        ResolvedJavaType type1 = metaAccess.lookupJavaType(annotations.get(0).annotationType());
+        ResolvedJavaType type2 = metaAccess.lookupJavaType(annotations.get(1).annotationType());
+        for (int i = 2; i < annotations.size(); i++) {
+
+            ResolvedJavaType[] types = annotations.//
+                            subList(2, i + 1).//
+                            stream().map(a -> metaAccess.lookupJavaType(a.annotationType())).//
+                            toArray(ResolvedJavaType[]::new);
+            List<AnnotationData> annotationData = toAnnotated(annotated).getAnnotationData(type1, type2, types);
+            assertEquals(2 + types.length, annotationData.size());
+
+            for (int j = 0; j < annotationData.size(); j++) {
+                Annotation a = annotations.get(j);
+                AnnotationData ad = annotationData.get(j);
+                assertAnnotationsEquals(a, ad);
+            }
+        }
+    }
+
+    private static Annotated toAnnotated(AnnotatedElement element) {
+        if (element instanceof Class<?> t) {
+            return metaAccess.lookupJavaType(t);
+        } else if (element instanceof Method m) {
+            return metaAccess.lookupJavaMethod(m);
+        } else {
+            Field f = (Field) element;
+            return metaAccess.lookupJavaField(f);
+        }
+    }
+
+    private static UnresolvedJavaType asType(Class<?> valueType) {
+        return UnresolvedJavaType.create(MetaUtil.toInternalName(valueType.getName()));
+    }
+
+    private static void assertAnnotationsEquals(Annotation a, AnnotationData ad) {
+        Map<String, Object> values = AnnotationSupport.memberValues(a);
+        for (Map.Entry<String, Object> e : values.entrySet()) {
+            String name = e.getKey();
+            Object aValue = e.getValue();
+            Object adValue;
+            try {
+                adValue = ad.get(name, Object.class);
+            } catch (IllegalArgumentException ex) {
+                assertEquals(aValue.toString(), ex.getMessage());
+                continue;
+            }
+            try {
+                assertAnnotationElementsEqual(aValue, adValue);
+            } catch (ClassCastException ex) {
+                throw new AssertionError(a.getClass().getName() + "." + name + " has wrong type: " + adValue.getClass().getName(), ex);
+            }
+        }
+    }
+
+    private static void assertAnnotationElementsEqual(Object aValue, Object adValue) {
+        Class<?> valueType = aValue.getClass();
+        if (valueType.isEnum()) {
+            assertEnumObjectsEquals(aValue, adValue);
+        } else if (aValue instanceof Class) {
+            assertClassObjectsEquals(aValue, adValue);
+        } else if (aValue instanceof Annotation) {
+            assertAnnotationObjectsEquals(aValue, adValue);
+        } else if (valueType.isArray()) {
+            List<?> adList = (List<?>) adValue;
+            int length = Array.getLength(aValue);
+            assertEquals(length, adList.size());
+            for (int i = 0; i < length; i++) {
+                assertAnnotationElementsEqual(Array.get(aValue, i), adList.get(i));
+            }
+        } else {
+            assertEquals(aValue.getClass(), adValue.getClass());
+            assertEquals(aValue, adValue);
+        }
+    }
+
+    private static void assertClassObjectsEquals(Object aValue, Object adValue) {
+        String aName = ((Class<?>) aValue).getName();
+        String adName = ((JavaType) adValue).toClassName();
+        assertEquals(aName, adName);
+    }
+
+    private static void assertEnumObjectsEquals(Object aValue, Object adValue) {
+        EnumData adEnum = (EnumData) adValue;
+        String adEnumName = adEnum.getName();
+        String aEnumName = ((Enum<?>) aValue).name();
+        assertEquals(adEnumName, aEnumName);
+    }
+
+    private static void assertAnnotationObjectsEquals(Object aValue, Object adValue) {
+        Annotation aAnnotation = (Annotation) aValue;
+        AnnotationData adAnnotation = (AnnotationData) adValue;
+        assertAnnotationsEquals(aAnnotation, adAnnotation);
+    }
+
+    private static void assertArraysEqual(Object aValue, Object adValue, int length, BiConsumer<Object, Object> assertEqualty) {
+        Object[] aArray = (Object[]) aValue;
+        Object[] adArray = (Object[]) adValue;
+        for (int i = 0; i < length; i++) {
+            assertEqualty.accept(aArray[i], adArray[i]);
+        }
     }
 }

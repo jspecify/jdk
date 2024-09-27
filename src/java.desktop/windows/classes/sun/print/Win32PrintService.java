@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -860,6 +860,7 @@ public class Win32PrintService implements PrintService, AttributeUpdater,
     }
 
     public DocPrintJob createPrintJob() {
+      @SuppressWarnings("removal")
       SecurityManager security = System.getSecurityManager();
       if (security != null) {
         security.checkPrintJobAccess();
@@ -1538,7 +1539,7 @@ public class Win32PrintService implements PrintService, AttributeUpdater,
         } else if (category == Destination.class) {
             URI uri = ((Destination)attr).getURI();
             if ("file".equals(uri.getScheme()) &&
-                !(uri.getSchemeSpecificPart().equals(""))) {
+                !uri.getSchemeSpecificPart().isEmpty()) {
                 return true;
             } else {
             return false;

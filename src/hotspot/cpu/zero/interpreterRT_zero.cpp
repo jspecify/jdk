@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2010 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -27,7 +27,6 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "memory/allocation.inline.hpp"
-#include "memory/universe.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -63,7 +62,7 @@ void InterpreterRuntime::SignatureHandlerGeneratorBase::pass_object() {
 }
 
 void InterpreterRuntime::SignatureHandlerGeneratorBase::push(BasicType type) {
-  ffi_type *ftype = NULL;
+  ffi_type *ftype = nullptr;
   switch (type) {
   case T_VOID:
     ftype = &ffi_type_void;
@@ -115,7 +114,7 @@ void InterpreterRuntime::SignatureHandlerGeneratorBase::push(BasicType type) {
 // For fast signature handlers the "signature handler" is generated
 // into a temporary buffer.  It is then copied to its final location,
 // and pd_set_handler is called on it.  We have this two stage thing
-// to accomodate this.
+// to accommodate this.
 
 void InterpreterRuntime::SignatureHandlerGeneratorBase::generate(
   uint64_t fingerprint) {
@@ -130,6 +129,18 @@ void InterpreterRuntime::SignatureHandlerGeneratorBase::generate(
   push(method()->result_type());
 }
 
+InterpreterRuntime::SignatureHandlerGenerator::SignatureHandlerGenerator(const methodHandle& method, CodeBuffer* buffer)
+  : SignatureHandlerGeneratorBase(method, (ffi_cif *) buffer->insts_end()),
+    _cb(buffer) {
+  _cb->set_insts_end((address) (cif() + 1));
+}
+
+void InterpreterRuntime::SignatureHandlerGenerator::push(intptr_t value) {
+  intptr_t *dst = (intptr_t *) _cb->insts_end();
+  _cb->set_insts_end((address) (dst + 1));
+  *dst = value;
+}
+
 void InterpreterRuntime::SignatureHandler::finalize() {
   ffi_status status =
     ffi_prep_cif(cif(),
@@ -141,12 +152,12 @@ void InterpreterRuntime::SignatureHandler::finalize() {
   assert(status == FFI_OK, "should be");
 }
 
-IRT_ENTRY(address,
-          InterpreterRuntime::slow_signature_handler(JavaThread* thread,
+JRT_ENTRY(address,
+          InterpreterRuntime::slow_signature_handler(JavaThread* current,
                                                      Method*     method,
                                                      intptr_t*   unused1,
                                                      intptr_t*   unused2))
-  ZeroStack *stack = thread->zero_stack();
+  ZeroStack *stack = current->zero_stack();
 
   int required_words =
     (align_up(sizeof(ffi_cif), wordSize) >> LogBytesPerWord) +
@@ -155,14 +166,14 @@ IRT_ENTRY(address,
   stack->overflow_check(required_words, CHECK_NULL);
 
   intptr_t *buf = (intptr_t *) stack->alloc(required_words * wordSize);
-  SlowSignatureHandlerGenerator sshg(methodHandle(thread, method), buf);
+  SlowSignatureHandlerGenerator sshg(methodHandle(current, method), buf);
   sshg.generate((uint64_t)CONST64(-1));
 
   SignatureHandler *handler = sshg.handler();
   handler->finalize();
 
   return (address) handler;
-IRT_END
+JRT_END
 
 void SignatureHandlerLibrary::pd_set_handler(address handlerAddr) {
   InterpreterRuntime::SignatureHandler *handler =

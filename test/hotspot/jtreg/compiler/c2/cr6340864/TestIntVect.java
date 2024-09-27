@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,11 @@
  * @bug 6340864
  * @summary Implement vectorization optimizations in hotspot-server
  *
- * @run main/othervm/timeout=400 -Xbatch -Xmx128m compiler.c2.cr6340864.TestIntVect
+ * @run main/othervm -Xbatch -XX:CompileCommand=exclude,*::test() -Xmx128m compiler.c2.cr6340864.TestIntVect
+ * @run main/othervm -Xbatch -XX:CompileCommand=exclude,*::test() -Xmx128m -XX:MaxVectorSize=8 compiler.c2.cr6340864.TestIntVect
+ * @run main/othervm -Xbatch -XX:CompileCommand=exclude,*::test() -Xmx128m -XX:MaxVectorSize=16 compiler.c2.cr6340864.TestIntVect
+ * @run main/othervm -Xbatch -XX:CompileCommand=exclude,*::test() -Xmx128m -XX:MaxVectorSize=32 compiler.c2.cr6340864.TestIntVect
+ * @run main/othervm -Xbatch -XX:CompileCommand=exclude,*::test() -Xmx128m -XX:+IgnoreUnrecognizedVMOptions -XX:UseAVX=3 compiler.c2.cr6340864.TestIntVect
  */
 
 package compiler.c2.cr6340864;
@@ -98,6 +102,10 @@ public class TestIntVect {
       test_xorc(a0, a1);
       test_xorv(a0, a1, (int)BIT_MASK);
       test_xora(a0, a1, a4);
+
+      test_absc(a0, a1);
+      test_negc(a0, a1);
+      test_notc(a0, a1);
 
       test_sllc(a0, a1);
       test_sllv(a0, a1, VALUE);
@@ -273,6 +281,21 @@ public class TestIntVect {
         errn += verify("test_xora: ", i, a0[i], (int)((int)(ADD_INIT+i)^BIT_MASK));
       }
 
+      test_absc(a0, a1);
+      for (int i=0; i<ARRLEN; i++) {
+        errn += verify("test_absc: ", i, a0[i], (int)(Math.abs((int)(ADD_INIT+i))));
+      }
+
+      test_negc(a0, a1);
+      for (int i=0; i<ARRLEN; i++) {
+        errn += verify("test_negc: ", i, a0[i], (int)(-(int)(ADD_INIT+i)));
+      }
+
+      test_notc(a0, a1);
+      for (int i=0; i<ARRLEN; i++) {
+        errn += verify("test_notc: ", i, a0[i], (int)(~(int)(ADD_INIT+i)));
+      }
+
       test_sllc(a0, a1);
       for (int i=0; i<ARRLEN; i++) {
         errn += verify("test_sllc: ", i, a0[i], (int)((int)(ADD_INIT+i)<<VALUE));
@@ -433,6 +456,14 @@ public class TestIntVect {
       test_srav_and(a0, a1, BIT_MASK);
       for (int i=0; i<ARRLEN; i++) {
         errn += verify("test_srav_and: ", i, a0[i], (int)(((int)(ADD_INIT+i) & BIT_MASK)>>VALUE));
+      }
+      test_reverse_bytes(a0, a1);
+      for (int i=0; i<ARRLEN; i++) {
+        errn += verify("test_reverse_bytes: ", i, a0[i], Integer.reverseBytes(a1[i]));
+      }
+      test_reverse(a0, a1);
+      for (int i=0; i<ARRLEN; i++) {
+        errn += verify("test_reverse: ", i, a0[i], Integer.reverse(a1[i]));
       }
 
       test_pack2(p2, a1);
@@ -644,6 +675,27 @@ public class TestIntVect {
     }
     end = System.currentTimeMillis();
     System.out.println("test_xora: " + (end - start));
+
+    start = System.currentTimeMillis();
+    for (int i=0; i<ITERS; i++) {
+      test_absc(a0, a1);
+    }
+    end = System.currentTimeMillis();
+    System.out.println("test_absc: " + (end - start));
+
+    start = System.currentTimeMillis();
+    for (int i=0; i<ITERS; i++) {
+      test_negc(a0, a1);
+    }
+    end = System.currentTimeMillis();
+    System.out.println("test_negc: " + (end - start));
+
+    start = System.currentTimeMillis();
+    for (int i=0; i<ITERS; i++) {
+      test_notc(a0, a1);
+    }
+    end = System.currentTimeMillis();
+    System.out.println("test_notc: " + (end - start));
 
     start = System.currentTimeMillis();
     for (int i=0; i<ITERS; i++) {
@@ -859,6 +911,7 @@ public class TestIntVect {
     }
     end = System.currentTimeMillis();
     System.out.println("test_srlc_and: " + (end - start));
+
     start = System.currentTimeMillis();
     for (int i=0; i<ITERS; i++) {
       test_srlv_and(a0, a1, BIT_MASK);
@@ -877,7 +930,20 @@ public class TestIntVect {
       test_srav_and(a0, a1, BIT_MASK);
     }
     end = System.currentTimeMillis();
-    System.out.println("test_srav_and: " + (end - start));
+
+    start = System.currentTimeMillis();
+    for (int i=0; i<ITERS; i++) {
+      test_reverse_bytes(a0, a1);
+    }
+    end = System.currentTimeMillis();
+    System.out.println("test_reverse_bytes: " + (end - start));
+
+    start = System.currentTimeMillis();
+    for (int i=0; i<ITERS; i++) {
+      test_reverse(a0, a1);
+    }
+    end = System.currentTimeMillis();
+    System.out.println("test_reverse: " + (end - start));
 
     start = System.currentTimeMillis();
     for (int i=0; i<ITERS; i++) {
@@ -1034,6 +1100,24 @@ public class TestIntVect {
   static void test_xora(int[] a0, int[] a1, int[] a2) {
     for (int i = 0; i < a0.length; i+=1) {
       a0[i] = (int)(a1[i]^a2[i]);
+    }
+  }
+
+  static void test_absc(int[] a0, int[] a1) {
+    for (int i = 0; i < a0.length; i+=1) {
+      a0[i] = (int)(Math.abs(a1[i]));
+    }
+  }
+
+  static void test_negc(int[] a0, int[] a1) {
+    for (int i = 0; i < a0.length; i+=1) {
+      a0[i] = (int)(-a1[i]);
+    }
+  }
+
+  static void test_notc(int[] a0, int[] a1) {
+    for (int i = 0; i < a0.length; i+=1) {
+      a0[i] = (int)(~a1[i]);
     }
   }
 
@@ -1205,6 +1289,18 @@ public class TestIntVect {
       long l = p2[i];
       a0[i*2+0] = (int)(l >> 32);
       a0[i*2+1] = (int)(l & 0xFFFFFFFFl);
+    }
+  }
+
+  static void test_reverse_bytes(int [] a0, int [] a1) {
+    for(int i = 0; i < a0.length; i++) {
+      a0[i] = Integer.reverseBytes(a1[i]);
+    }
+  }
+
+  static void test_reverse(int [] a0, int [] a1) {
+    for(int i = 0; i < a0.length; i++) {
+      a0[i] = Integer.reverse(a1[i]);
     }
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,10 +29,7 @@
  *  temporarily workaround combo tests are causing time out in several platforms
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.code
- *          jdk.compiler/com.sun.tools.javac.comp
- *          jdk.compiler/com.sun.tools.javac.main
- *          jdk.compiler/com.sun.tools.javac.tree
+ *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.util
  * @build combo.ComboTestHelper
 
@@ -107,8 +104,8 @@ public class LambdaParserTest extends ComboInstance<LambdaParserTest> {
     }
 
     enum SourceKind {
-        SOURCE_9("9"),
-        SOURCE_10("10");
+        SOURCE_10("10"),
+        SOURCE_11("11");
 
         String sourceNumber;
 
@@ -121,9 +118,9 @@ public class LambdaParserTest extends ComboInstance<LambdaParserTest> {
 
         IMPLICIT_1("", ExplicitKind.IMPLICIT),
         IMPLICIT_2("var", ExplicitKind.IMPLICIT_VAR),
-        EXPLIICT_SIMPLE("A", ExplicitKind.EXPLICIT),
-        EXPLIICT_SIMPLE_ARR1("A[]", ExplicitKind.EXPLICIT),
-        EXPLIICT_SIMPLE_ARR2("A[][]", ExplicitKind.EXPLICIT),
+        EXPLICIT_SIMPLE("A", ExplicitKind.EXPLICIT),
+        EXPLICIT_SIMPLE_ARR1("A[]", ExplicitKind.EXPLICIT),
+        EXPLICIT_SIMPLE_ARR2("A[][]", ExplicitKind.EXPLICIT),
         EXPLICIT_VARARGS("A...", ExplicitKind.EXPLICIT),
         EXPLICIT_GENERIC1("A<X>", ExplicitKind.EXPLICIT),
         EXPLICIT_GENERIC2("A<? extends X, ? super Y>", ExplicitKind.EXPLICIT),
@@ -157,13 +154,7 @@ public class LambdaParserTest extends ComboInstance<LambdaParserTest> {
         }
 
         ExplicitKind explicitKind(SourceKind sk) {
-            switch (explicitKind) {
-                case IMPLICIT_VAR:
-                    return (sk == SourceKind.SOURCE_9) ?
-                            ExplicitKind.EXPLICIT : ExplicitKind.IMPLICIT_VAR;
-                default:
-                    return explicitKind;
-            }
+            return explicitKind;
         }
     }
 
@@ -238,14 +229,13 @@ public class LambdaParserTest extends ComboInstance<LambdaParserTest> {
     public static void main(String... args) throws Exception {
         new ComboTestHelper<LambdaParserTest>()
                 .withFilter(LambdaParserTest::redundantTestFilter)
-                .withFilter(LambdaParserTest::badImplicitFilter)
                 .withDimension("SOURCE", (x, sk) -> x.sk = sk, SourceKind.values())
                 .withDimension("LAMBDA", (x, lk) -> x.lk = lk, LambdaKind.values())
                 .withDimension("NAME", (x, name) -> x.pn = name, LambdaParameterName.values())
                 .withArrayDimension("TYPE", (x, type, idx) -> x.pks[idx] = type, 2, LambdaParameterKind.values())
                 .withArrayDimension("MOD", (x, mod, idx) -> x.mks[idx] = mod, 2, ModifierKind.values())
-                .withDimension("EXPR", ExprKind.values())
-                .withDimension("SUBEXPR", SubExprKind.values())
+                .withDimension("EXPR", (x, exp) -> x.exp = exp, ExprKind.values())
+                .withDimension("SUBEXPR", (x, sub) -> x.sub = sub, SubExprKind.values())
                 .run(LambdaParserTest::new);
     }
 
@@ -254,21 +244,29 @@ public class LambdaParserTest extends ComboInstance<LambdaParserTest> {
     LambdaKind lk;
     LambdaParameterName pn;
     SourceKind sk;
-
-    boolean badImplicitFilter() {
-        return !(mks[0] != ModifierKind.NONE && lk.isShort());
-    }
+    ExprKind exp;
+    SubExprKind sub;
 
     boolean redundantTestFilter() {
-        for (int i = lk.arity(); i < mks.length ; i++) {
-            if (mks[i].ordinal() != 0) {
-                return false;
+        if (sub == SubExprKind.NONE) {
+            switch (exp) {
+                //followings combinations with empty sub-expressions produces the same source
+                case SINGLE_PAREN2, DOUBLE_PAREN2, DOUBLE_PAREN3: return false;
+            }
+        } else {
+            switch (lk) {
+                //any non-empty subexpression does not combine with lambda statements
+                case NILARY_STMT, ONEARY_SHORT_STMT, ONEARY_STMT, TWOARY_STMT: return false;
             }
         }
-        for (int i = lk.arity(); i < pks.length ; i++) {
-            if (pks[i].ordinal() != 0) {
-                return false;
-            }
+        switch (lk) {
+            //parameters not present in the expression are redundant
+            case NILARY_EXPR, NILARY_STMT:
+                if (pn.ordinal() != 0) return false;
+            case ONEARY_SHORT_EXPR, ONEARY_SHORT_STMT:
+                if (pks[0].ordinal() != 0 || mks[0].ordinal() != 0) return false;
+            case ONEARY_EXPR, ONEARY_STMT :
+                if (pks[1].ordinal() != 0 || mks[1].ordinal() != 0) return false;
         }
         return true;
     }
@@ -298,6 +296,15 @@ public class LambdaParserTest extends ComboInstance<LambdaParserTest> {
 
         errorExpected |= pn == LambdaParameterName.UNDERSCORE &&
                 lk.arity() > 0;
+
+        for (int i = 0; i < lk.arity(); i++) {
+            if (!lk.isShort() &&
+                    pks[i].explicitKind(sk) == LambdaParameterKind.ExplicitKind.IMPLICIT_VAR &&
+                    sk == SourceKind.SOURCE_10) {
+                errorExpected = true;
+                break;
+            }
+        }
 
         if (errorExpected != res.hasErrors()) {
             fail("invalid diagnostics for source:\n" +

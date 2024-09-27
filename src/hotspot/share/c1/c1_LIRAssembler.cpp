@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,10 @@
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciInstance.hpp"
-#include "gc/shared/barrierSet.hpp"
+#include "compiler/compilerDefinitions.inline.hpp"
+#include "compiler/oopMap.hpp"
 #include "runtime/os.hpp"
+#include "runtime/vm_version.hpp"
 
 void LIR_Assembler::patching_epilog(PatchingStub* patch, LIR_PatchCode patch_code, Register obj, CodeEmitInfo* info) {
   // We must have enough patching space so that call can be inserted.
@@ -41,6 +43,7 @@ void LIR_Assembler::patching_epilog(PatchingStub* patch, LIR_PatchCode patch_cod
   while ((intx) _masm->pc() - (intx) patch->pc_start() < NativeGeneralJump::instruction_size) {
     _masm->nop();
   }
+  info->set_force_reexecute();
   patch->install(_masm, patch_code, obj, info);
   append_code_stub(patch);
 
@@ -73,6 +76,7 @@ void LIR_Assembler::patching_epilog(PatchingStub* patch, LIR_PatchCode patch_cod
       case Bytecodes::_getstatic:
       case Bytecodes::_ldc:
       case Bytecodes::_ldc_w:
+      case Bytecodes::_ldc2_w:
         break;
       default:
         ShouldNotReachHere();
@@ -99,19 +103,22 @@ PatchingStub::PatchID LIR_Assembler::patching_id(CodeEmitInfo* info) {
 
 
 LIR_Assembler::LIR_Assembler(Compilation* c):
-   _compilation(c)
- , _masm(c->masm())
- , _bs(BarrierSet::barrier_set())
+   _masm(c->masm())
+ , _compilation(c)
  , _frame_map(c->frame_map())
- , _current_block(NULL)
- , _pending_non_safepoint(NULL)
+ , _current_block(nullptr)
+ , _pending_non_safepoint(nullptr)
  , _pending_non_safepoint_offset(0)
+ , _immediate_oops_patched(0)
 {
   _slow_case_stubs = new CodeStubList();
 }
 
 
 LIR_Assembler::~LIR_Assembler() {
+  // The unwind handler label may be unnbound if this destructor is invoked because of a bail-out.
+  // Reset it here to avoid an assertion.
+  _unwind_handler_entry.reset();
 }
 
 
@@ -124,6 +131,7 @@ void LIR_Assembler::check_codespace() {
 
 
 void LIR_Assembler::append_code_stub(CodeStub* stub) {
+  _immediate_oops_patched += stub->nr_immediate_oops_patched();
   _slow_case_stubs->append(stub);
 }
 
@@ -139,7 +147,7 @@ void LIR_Assembler::emit_stubs(CodeStubList* stub_list) {
       stringStream st;
       s->print_name(&st);
       st.print(" slow case");
-      _masm->block_comment(st.as_string());
+      _masm->block_comment(st.freeze());
     }
 #endif
     s->emit_code(this);
@@ -159,6 +167,9 @@ bool LIR_Assembler::needs_icache(ciMethod* method) const {
   return !method->is_static();
 }
 
+bool LIR_Assembler::needs_clinit_barrier_on_entry(ciMethod* method) const {
+  return VM_Version::supports_fast_class_init_checks() && method->needs_clinit_barrier();
+}
 
 int LIR_Assembler::code_offset() const {
   return _masm->offset();
@@ -184,13 +195,13 @@ void LIR_Assembler::emit_exception_entries(ExceptionInfoList* info_list) {
     for (int j = 0; j < handlers->length(); j++) {
       XHandler* handler = handlers->handler_at(j);
       assert(handler->lir_op_id() != -1, "handler not processed by LinearScan");
-      assert(handler->entry_code() == NULL ||
+      assert(handler->entry_code() == nullptr ||
              handler->entry_code()->instructions_list()->last()->code() == lir_branch ||
              handler->entry_code()->instructions_list()->last()->code() == lir_delay_slot, "last operation must be branch");
 
       if (handler->entry_pco() == -1) {
         // entry code not emitted yet
-        if (handler->entry_code() != NULL && handler->entry_code()->instructions_list()->length() > 1) {
+        if (handler->entry_code() != nullptr && handler->entry_code()->instructions_list()->length() > 1) {
           handler->set_entry_pco(code_offset());
           if (CommentedAssembly) {
             _masm->block_comment("Exception adapter block");
@@ -244,14 +255,14 @@ void LIR_Assembler::emit_block(BlockBegin* block) {
   }
 #endif /* PRODUCT */
 
-  assert(block->lir() != NULL, "must have LIR");
+  assert(block->lir() != nullptr, "must have LIR");
   X86_ONLY(assert(_masm->rsp_offset() == 0, "frame size should be fixed"));
 
 #ifndef PRODUCT
   if (CommentedAssembly) {
     stringStream st;
     st.print_cr(" block B%d [%d, %d]", block->block_id(), block->bci(), block->end()->printable_bci());
-    _masm->block_comment(st.as_string());
+    _masm->block_comment(st.freeze());
   }
 #endif
 
@@ -281,7 +292,7 @@ void LIR_Assembler::emit_lir_list(LIR_List* list) {
           (op->code() == lir_leal && op->as_Op1()->patch_code() != lir_patch_none)) {
         stringStream st;
         op->print_on(&st);
-        _masm->block_comment(st.as_string());
+        _masm->block_comment(st.freeze());
       }
     }
     if (PrintLIRWithAssembly) {
@@ -324,7 +335,7 @@ void LIR_Assembler::add_debug_info_for_branch(CodeEmitInfo* info) {
   int pc_offset = code_offset();
   flush_debug_info(pc_offset);
   info->record_debug_info(compilation()->debug_info_recorder(), pc_offset);
-  if (info->exception_handlers() != NULL) {
+  if (info->exception_handlers() != nullptr) {
     compilation()->add_exception_handlers_for_pco(pc_offset, info->exception_handlers());
   }
 }
@@ -333,28 +344,28 @@ void LIR_Assembler::add_debug_info_for_branch(CodeEmitInfo* info) {
 void LIR_Assembler::add_call_info(int pc_offset, CodeEmitInfo* cinfo) {
   flush_debug_info(pc_offset);
   cinfo->record_debug_info(compilation()->debug_info_recorder(), pc_offset);
-  if (cinfo->exception_handlers() != NULL) {
+  if (cinfo->exception_handlers() != nullptr) {
     compilation()->add_exception_handlers_for_pco(pc_offset, cinfo->exception_handlers());
   }
 }
 
 static ValueStack* debug_info(Instruction* ins) {
   StateSplit* ss = ins->as_StateSplit();
-  if (ss != NULL) return ss->state();
+  if (ss != nullptr) return ss->state();
   return ins->state_before();
 }
 
 void LIR_Assembler::process_debug_info(LIR_Op* op) {
   Instruction* src = op->source();
-  if (src == NULL)  return;
+  if (src == nullptr)  return;
   int pc_offset = code_offset();
   if (_pending_non_safepoint == src) {
     _pending_non_safepoint_offset = pc_offset;
     return;
   }
   ValueStack* vstack = debug_info(src);
-  if (vstack == NULL)  return;
-  if (_pending_non_safepoint != NULL) {
+  if (vstack == nullptr)  return;
+  if (_pending_non_safepoint != nullptr) {
     // Got some old debug info.  Get rid of it.
     if (debug_info(_pending_non_safepoint) == vstack) {
       _pending_non_safepoint_offset = pc_offset;
@@ -363,7 +374,7 @@ void LIR_Assembler::process_debug_info(LIR_Op* op) {
     if (_pending_non_safepoint_offset < pc_offset) {
       record_non_safepoint_debug_info();
     }
-    _pending_non_safepoint = NULL;
+    _pending_non_safepoint = nullptr;
   }
   // Remember the debug info.
   if (pc_offset > compilation()->debug_info_recorder()->last_pc_offset()) {
@@ -373,18 +384,18 @@ void LIR_Assembler::process_debug_info(LIR_Op* op) {
 }
 
 // Index caller states in s, where 0 is the oldest, 1 its callee, etc.
-// Return NULL if n is too large.
+// Return null if n is too large.
 // Returns the caller_bci for the next-younger state, also.
 static ValueStack* nth_oldest(ValueStack* s, int n, int& bci_result) {
   ValueStack* t = s;
   for (int i = 0; i < n; i++) {
-    if (t == NULL)  break;
+    if (t == nullptr)  break;
     t = t->caller_state();
   }
-  if (t == NULL)  return NULL;
+  if (t == nullptr)  return nullptr;
   for (;;) {
     ValueStack* tc = t->caller_state();
-    if (tc == NULL)  return s;
+    if (tc == nullptr)  return s;
     t = tc;
     bci_result = tc->bci();
     s = s->caller_state();
@@ -405,7 +416,7 @@ void LIR_Assembler::record_non_safepoint_debug_info() {
   for (int n = 0; ; n++) {
     int s_bci = bci;
     ValueStack* s = nth_oldest(vstack, n, s_bci);
-    if (s == NULL)  break;
+    if (s == nullptr)  break;
     IRScope* scope = s->scope();
     //Always pass false for reexecute since these ScopeDescs are never used for deopt
     methodHandle null_mh;
@@ -439,17 +450,20 @@ void LIR_Assembler::emit_rtcall(LIR_OpRTCall* op) {
   rt_call(op->result_opr(), op->addr(), op->arguments(), op->tmp(), op->info());
 }
 
-
 void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
   verify_oop_map(op->info());
 
-  if (os::is_MP()) {
-    // must align calls sites, otherwise they can't be updated atomically on MP hardware
-    align_call(op->code());
-  }
+  // must align calls sites, otherwise they can't be updated atomically
+  align_call(op->code());
 
-  // emit the static call stub stuff out of line
-  emit_static_call_stub();
+  if (CodeBuffer::supports_shared_stubs() && op->method()->can_be_statically_bound()) {
+    // Calls of the same statically bound method can share
+    // a stub to the interpreter.
+    CodeBuffer::csize_t call_offset = pc() - _masm->code()->insts_begin();
+    _masm->code()->shared_stub_to_interp_for(op->method(), call_offset);
+  } else {
+    emit_static_call_stub();
+  }
   CHECK_BAILOUT();
 
   switch (op->code()) {
@@ -463,9 +477,6 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
   case lir_icvirtual_call:
     ic_call(op);
     break;
-  case lir_virtual_call:
-    vtable_call(op);
-    break;
   default:
     fatal("unexpected op code: %s", op->name());
     break;
@@ -477,9 +488,9 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
     compilation()->set_has_method_handle_invokes(true);
   }
 
-#if defined(X86) && defined(TIERED)
+#if defined(IA32) && defined(COMPILER2)
   // C2 leave fpu stack dirty clean it
-  if (UseSSE < 2) {
+  if (UseSSE < 2 && !CompilerConfig::is_c1_only_no_jvmci()) {
     int i;
     for ( i = 1; i <= 7 ; i++ ) {
       ffree(i);
@@ -488,7 +499,7 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
       ffree(0);
     }
   }
-#endif // X86 && TIERED
+#endif // IA32 && COMPILER2
 }
 
 
@@ -506,7 +517,6 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
       } else {
         move_op(op->in_opr(), op->result_opr(), op->type(),
                 op->patch_code(), op->info(), op->pop_fpu_stack(),
-                op->move_kind() == lir_move_unaligned,
                 op->move_kind() == lir_move_wide);
       }
       break;
@@ -517,9 +527,15 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
       break;
     }
 
-    case lir_return:
-      return_op(op->in_opr());
+    case lir_return: {
+      assert(op->as_OpReturn() != nullptr, "sanity");
+      LIR_OpReturn *ret_op = (LIR_OpReturn*)op;
+      return_op(ret_op->in_opr(), ret_op->stub());
+      if (ret_op->stub() != nullptr) {
+        append_code_stub(ret_op->stub());
+      }
       break;
+    }
 
     case lir_safepoint:
       if (compilation()->debug_info_recorder()->last_pc_offset() == code_offset()) {
@@ -528,6 +544,7 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
       safepoint_poll(op->in_opr(), op->info());
       break;
 
+#ifdef IA32
     case lir_fxch:
       fxch(op->in_opr()->as_jint());
       break;
@@ -535,10 +552,7 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
     case lir_fld:
       fld(op->in_opr()->as_jint());
       break;
-
-    case lir_ffree:
-      ffree(op->in_opr()->as_jint());
-      break;
+#endif // IA32
 
     case lir_branch:
       break;
@@ -549,10 +563,6 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
 
     case lir_pop:
       pop(op->in_opr());
-      break;
-
-    case lir_neg:
-      negate(op->in_opr(), op->result_opr());
       break;
 
     case lir_leal:
@@ -574,16 +584,6 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
       monitor_address(op->in_opr()->as_constant_ptr()->as_jint(), op->result_opr());
       break;
 
-#ifdef SPARC
-    case lir_pack64:
-      pack64(op->in_opr(), op->result_opr());
-      break;
-
-    case lir_unpack64:
-      unpack64(op->in_opr(), op->result_opr());
-      break;
-#endif
-
     case lir_unwind:
       unwind_op(op->in_opr());
       break;
@@ -597,13 +597,8 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
 
 void LIR_Assembler::emit_op0(LIR_Op0* op) {
   switch (op->code()) {
-    case lir_word_align: {
-      _masm->align(BytesPerWord);
-      break;
-    }
-
     case lir_nop:
-      assert(op->info() == NULL, "not supported");
+      assert(op->info() == nullptr, "not supported");
       _masm->nop();
       break;
 
@@ -611,42 +606,37 @@ void LIR_Assembler::emit_op0(LIR_Op0* op) {
       Unimplemented();
       break;
 
-    case lir_build_frame:
-      build_frame();
-      break;
-
-    case lir_std_entry:
+    case lir_std_entry: {
       // init offsets
       offsets()->set_value(CodeOffsets::OSR_Entry, _masm->offset());
-      _masm->align(CodeEntryAlignment);
       if (needs_icache(compilation()->method())) {
-        check_icache();
+        int offset = check_icache();
+        offsets()->set_value(CodeOffsets::Entry, offset);
       }
+      _masm->align(CodeEntryAlignment);
       offsets()->set_value(CodeOffsets::Verified_Entry, _masm->offset());
-      _masm->verified_entry();
+      _masm->verified_entry(compilation()->directive()->BreakAtExecuteOption);
+      if (needs_clinit_barrier_on_entry(compilation()->method())) {
+        clinit_barrier(compilation()->method());
+      }
       build_frame();
       offsets()->set_value(CodeOffsets::Frame_Complete, _masm->offset());
       break;
+    }
 
     case lir_osr_entry:
       offsets()->set_value(CodeOffsets::OSR_Entry, _masm->offset());
       osr_entry();
       break;
 
-    case lir_24bit_FPU:
-      set_24bit_FPU();
+#ifdef IA32
+    case lir_fpop_raw:
+      fpop();
       break;
-
-    case lir_reset_FPU:
-      reset_FPU();
-      break;
+#endif // IA32
 
     case lir_breakpoint:
       breakpoint();
-      break;
-
-    case lir_fpop_raw:
-      fpop();
       break;
 
     case lir_membar:
@@ -695,7 +685,7 @@ void LIR_Assembler::emit_op0(LIR_Op0* op) {
 void LIR_Assembler::emit_op2(LIR_Op2* op) {
   switch (op->code()) {
     case lir_cmp:
-      if (op->info() != NULL) {
+      if (op->info() != nullptr) {
         assert(op->in_opr1()->is_address() || op->in_opr2()->is_address(),
                "shouldn't be codeemitinfo for non-address operands");
         add_debug_info_for_null_check_here(op->info()); // exception possible
@@ -707,10 +697,6 @@ void LIR_Assembler::emit_op2(LIR_Op2* op) {
     case lir_cmp_fd2i:
     case lir_ucmp_fd2i:
       comp_fl2i(op->code(), op->in_opr1(), op->in_opr2(), op->result_opr(), op);
-      break;
-
-    case lir_cmove:
-      cmove(op->condition(), op->in_opr1(), op->in_opr2(), op->result_opr(), op->type());
       break;
 
     case lir_shl:
@@ -726,9 +712,7 @@ void LIR_Assembler::emit_op2(LIR_Op2* op) {
     case lir_add:
     case lir_sub:
     case lir_mul:
-    case lir_mul_strictfp:
     case lir_div:
-    case lir_div_strictfp:
     case lir_rem:
       assert(op->fpu_pop_count() < 2, "");
       arith_op(
@@ -744,7 +728,13 @@ void LIR_Assembler::emit_op2(LIR_Op2* op) {
     case lir_sqrt:
     case lir_tan:
     case lir_log10:
+    case lir_f2hf:
+    case lir_hf2f:
       intrinsic_op(op->code(), op->in_opr1(), op->in_opr2(), op->result_opr(), op);
+      break;
+
+    case lir_neg:
+      negate(op->in_opr1(), op->result_opr(), op->in_opr2());
       break;
 
     case lir_logic_and:
@@ -772,6 +762,17 @@ void LIR_Assembler::emit_op2(LIR_Op2* op) {
   }
 }
 
+void LIR_Assembler::emit_op4(LIR_Op4* op) {
+  switch(op->code()) {
+    case lir_cmove:
+      cmove(op->condition(), op->in_opr1(), op->in_opr2(), op->result_opr(), op->type(), op->in_opr3(), op->in_opr4());
+      break;
+
+    default:
+      Unimplemented();
+      break;
+  }
+}
 
 void LIR_Assembler::build_frame() {
   _masm->build_frame(initial_frame_size_in_bytes(), bang_size_in_bytes());
@@ -779,6 +780,7 @@ void LIR_Assembler::build_frame() {
 
 
 void LIR_Assembler::roundfp_op(LIR_Opr src, LIR_Opr tmp, LIR_Opr dest, bool pop_fpu_stack) {
+  assert(strict_fp_requires_explicit_rounding, "not required");
   assert((src->is_single_fpu() && dest->is_single_stack()) ||
          (src->is_double_fpu() && dest->is_double_stack()),
          "round_fp: rounds register -> stack location");
@@ -787,22 +789,22 @@ void LIR_Assembler::roundfp_op(LIR_Opr src, LIR_Opr tmp, LIR_Opr dest, bool pop_
 }
 
 
-void LIR_Assembler::move_op(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_PatchCode patch_code, CodeEmitInfo* info, bool pop_fpu_stack, bool unaligned, bool wide) {
+void LIR_Assembler::move_op(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_PatchCode patch_code, CodeEmitInfo* info, bool pop_fpu_stack, bool wide) {
   if (src->is_register()) {
     if (dest->is_register()) {
-      assert(patch_code == lir_patch_none && info == NULL, "no patching and info allowed here");
+      assert(patch_code == lir_patch_none && info == nullptr, "no patching and info allowed here");
       reg2reg(src,  dest);
     } else if (dest->is_stack()) {
-      assert(patch_code == lir_patch_none && info == NULL, "no patching and info allowed here");
+      assert(patch_code == lir_patch_none && info == nullptr, "no patching and info allowed here");
       reg2stack(src, dest, type, pop_fpu_stack);
     } else if (dest->is_address()) {
-      reg2mem(src, dest, type, patch_code, info, pop_fpu_stack, wide, unaligned);
+      reg2mem(src, dest, type, patch_code, info, pop_fpu_stack, wide);
     } else {
       ShouldNotReachHere();
     }
 
   } else if (src->is_stack()) {
-    assert(patch_code == lir_patch_none && info == NULL, "no patching and info allowed here");
+    assert(patch_code == lir_patch_none && info == nullptr, "no patching and info allowed here");
     if (dest->is_register()) {
       stack2reg(src, dest, type);
     } else if (dest->is_stack()) {
@@ -815,7 +817,7 @@ void LIR_Assembler::move_op(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     if (dest->is_register()) {
       const2reg(src, dest, patch_code, info); // patching is possible
     } else if (dest->is_stack()) {
-      assert(patch_code == lir_patch_none && info == NULL, "no patching and info allowed here");
+      assert(patch_code == lir_patch_none && info == nullptr, "no patching and info allowed here");
       const2stack(src, dest);
     } else if (dest->is_address()) {
       assert(patch_code == lir_patch_none, "no patching allowed here");
@@ -825,8 +827,7 @@ void LIR_Assembler::move_op(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     }
 
   } else if (src->is_address()) {
-    mem2reg(src, dest, type, patch_code, info, wide, unaligned);
-
+    mem2reg(src, dest, type, patch_code, info, wide);
   } else {
     ShouldNotReachHere();
   }
@@ -842,13 +843,7 @@ void LIR_Assembler::verify_oop_map(CodeEmitInfo* info) {
       if (v.is_oop()) {
         VMReg r = v.reg();
         if (!r->is_stack()) {
-          stringStream st;
-          st.print("bad oop %s at %d", r->as_Register()->name(), _masm->offset());
-#ifdef SPARC
-          _masm->_verify_oop(r->as_Register(), os::strdup(st.as_string(), mtCompiler), __FILE__, __LINE__);
-#else
           _masm->verify_oop(r->as_Register());
-#endif
         } else {
           _masm->verify_stack_oop(r->reg2stack() * VMRegImpl::stack_slot_size);
         }

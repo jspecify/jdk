@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,13 @@
 #include "asm/codeBuffer.hpp"
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
-#include "runtime/atomic.hpp"
+#include "gc/shared/collectedHeap.hpp"
+#include "memory/universe.hpp"
+#include "oops/compressedOops.hpp"
 #include "runtime/icache.hpp"
+#include "runtime/javaThread.hpp"
 #include "runtime/os.hpp"
-#include "runtime/thread.hpp"
-
+#include "utilities/checkedCast.hpp"
 
 // Implementation of AbstractAssembler
 //
@@ -40,10 +42,10 @@
 // The code buffer is updated via set_code_end(...) after emitting a whole instruction.
 
 AbstractAssembler::AbstractAssembler(CodeBuffer* code) {
-  if (code == NULL)  return;
+  if (code == nullptr)  return;
   CodeSection* cs = code->insts();
   cs->clear_mark();   // new assembler kills old mark
-  if (cs->start() == NULL)  {
+  if (cs->start() == nullptr)  {
     vm_exit_out_of_memory(0, OOM_MMAP_ERROR, "CodeCache: no room for %s", code->name());
   }
   _code_section = cs;
@@ -64,15 +66,15 @@ address AbstractAssembler::start_a_stub(int required_space) {
   CodeSection* cs = cb->stubs();
   assert(_code_section == cb->insts(), "not in insts?");
   if (cs->maybe_expand_to_ensure_remaining(required_space)
-      && cb->blob() == NULL) {
-    return NULL;
+      && cb->blob() == nullptr) {
+    return nullptr;
   }
   set_code_section(cs);
   return pc();
 }
 
 // Inform CodeBuffer that incoming code and relocation will be code
-// Should not be called if start_a_stub() returned NULL
+// Should not be called if start_a_stub() returned null
 void AbstractAssembler::end_a_stub() {
   assert(_code_section == code()->stubs(), "not in stubs?");
   set_code_section(code()->insts());
@@ -84,9 +86,9 @@ address AbstractAssembler::start_a_const(int required_space, int required_align)
   CodeSection* cs = cb->consts();
   assert(_code_section == cb->insts() || _code_section == cb->stubs(), "not in insts/stubs?");
   address end = cs->end();
-  int pad = -(intptr_t)end & (required_align-1);
+  int pad = checked_cast<int>(-(intptr_t)end & (required_align-1));
   if (cs->maybe_expand_to_ensure_remaining(pad + required_space)) {
-    if (cb->blob() == NULL)  return NULL;
+    if (cb->blob() == nullptr)  return nullptr;
     end = cs->end();  // refresh pointer
   }
   if (pad > 0) {
@@ -119,46 +121,48 @@ void AbstractAssembler::bind(Label& L) {
 }
 
 void AbstractAssembler::generate_stack_overflow_check(int frame_size_in_bytes) {
-  if (UseStackBanging) {
-    // Each code entry causes one stack bang n pages down the stack where n
-    // is configurable by StackShadowPages.  The setting depends on the maximum
-    // depth of VM call stack or native before going back into java code,
-    // since only java code can raise a stack overflow exception using the
-    // stack banging mechanism.  The VM and native code does not detect stack
-    // overflow.
-    // The code in JavaCalls::call() checks that there is at least n pages
-    // available, so all entry code needs to do is bang once for the end of
-    // this shadow zone.
-    // The entry code may need to bang additional pages if the framesize
-    // is greater than a page.
+  // Each code entry causes one stack bang n pages down the stack where n
+  // is configurable by StackShadowPages.  The setting depends on the maximum
+  // depth of VM call stack or native before going back into java code,
+  // since only java code can raise a stack overflow exception using the
+  // stack banging mechanism.  The VM and native code does not detect stack
+  // overflow.
+  // The code in JavaCalls::call() checks that there is at least n pages
+  // available, so all entry code needs to do is bang once for the end of
+  // this shadow zone.
+  // The entry code may need to bang additional pages if the framesize
+  // is greater than a page.
 
-    const int page_size = os::vm_page_size();
-    int bang_end = (int)JavaThread::stack_shadow_zone_size();
+  const int page_size = (int)os::vm_page_size();
+  int bang_end = (int)StackOverflow::stack_shadow_zone_size();
 
-    // This is how far the previous frame's stack banging extended.
-    const int bang_end_safe = bang_end;
+  // This is how far the previous frame's stack banging extended.
+  const int bang_end_safe = bang_end;
 
-    if (frame_size_in_bytes > page_size) {
-      bang_end += frame_size_in_bytes;
-    }
+  if (frame_size_in_bytes > page_size) {
+    bang_end += frame_size_in_bytes;
+  }
 
-    int bang_offset = bang_end_safe;
-    while (bang_offset <= bang_end) {
-      // Need at least one stack bang at end of shadow zone.
-      bang_stack_with_offset(bang_offset);
-      bang_offset += page_size;
-    }
-  } // end (UseStackBanging)
+  int bang_offset = bang_end_safe;
+  while (bang_offset <= bang_end) {
+    // Need at least one stack bang at end of shadow zone.
+    bang_stack_with_offset(bang_offset);
+    bang_offset += page_size;
+  }
 }
 
-void Label::add_patch_at(CodeBuffer* cb, int branch_loc) {
+void Label::add_patch_at(CodeBuffer* cb, int branch_loc, const char* file, int line) {
   assert(_loc == -1, "Label is unbound");
   // Don't add patch locations during scratch emit.
   if (cb->insts()->scratch_emit()) { return; }
   if (_patch_index < PatchCacheSize) {
     _patches[_patch_index] = branch_loc;
+#ifdef ASSERT
+    _lines[_patch_index] = line;
+    _files[_patch_index] = file;
+#endif
   } else {
-    if (_patch_overflow == NULL) {
+    if (_patch_overflow == nullptr) {
       _patch_overflow = cb->create_patch_overflow();
     }
     _patch_overflow->push(branch_loc);
@@ -174,10 +178,16 @@ void Label::patch_instructions(MacroAssembler* masm) {
   while (_patch_index > 0) {
     --_patch_index;
     int branch_loc;
+    int line = 0;
+    const char* file = nullptr;
     if (_patch_index >= PatchCacheSize) {
       branch_loc = _patch_overflow->pop();
     } else {
       branch_loc = _patches[_patch_index];
+#ifdef ASSERT
+      line = _lines[_patch_index];
+      file = _files[_patch_index];
+#endif
     }
     int branch_sect = CodeBuffer::locator_sect(branch_loc);
     address branch = cb->locator_address(branch_loc);
@@ -187,101 +197,9 @@ void Label::patch_instructions(MacroAssembler* masm) {
       continue;
     }
 
-#ifdef ASSERT
-    // Cross-section branches only work if the
-    // intermediate section boundaries are frozen.
-    if (target_sect != branch_sect) {
-      for (int n = MIN2(target_sect, branch_sect),
-               nlimit = (target_sect + branch_sect) - n;
-           n < nlimit; n++) {
-        CodeSection* cs = cb->code_section(n);
-        assert(cs->is_frozen(), "cross-section branch needs stable offsets");
-      }
-    }
-#endif //ASSERT
-
     // Push the target offset into the branch instruction.
-    masm->pd_patch_instruction(branch, target);
+    masm->pd_patch_instruction(branch, target, file, line);
   }
-}
-
-struct DelayedConstant {
-  typedef void (*value_fn_t)();
-  BasicType type;
-  intptr_t value;
-  value_fn_t value_fn;
-  // This limit of 20 is generous for initial uses.
-  // The limit needs to be large enough to store the field offsets
-  // into classes which do not have statically fixed layouts.
-  // (Initial use is for method handle object offsets.)
-  // Look for uses of "delayed_value" in the source code
-  // and make sure this number is generous enough to handle all of them.
-  enum { DC_LIMIT = 20 };
-  static DelayedConstant delayed_constants[DC_LIMIT];
-  static DelayedConstant* add(BasicType type, value_fn_t value_fn);
-  bool match(BasicType t, value_fn_t cfn) {
-    return type == t && value_fn == cfn;
-  }
-  static void update_all();
-};
-
-DelayedConstant DelayedConstant::delayed_constants[DC_LIMIT];
-// Default C structure initialization rules have the following effect here:
-// = { { (BasicType)0, (intptr_t)NULL }, ... };
-
-DelayedConstant* DelayedConstant::add(BasicType type,
-                                      DelayedConstant::value_fn_t cfn) {
-  for (int i = 0; i < DC_LIMIT; i++) {
-    DelayedConstant* dcon = &delayed_constants[i];
-    if (dcon->match(type, cfn))
-      return dcon;
-    if (dcon->value_fn == NULL) {
-        dcon->value_fn = cfn;
-        dcon->type = type;
-        return dcon;
-    }
-  }
-  // If this assert is hit (in pre-integration testing!) then re-evaluate
-  // the comment on the definition of DC_LIMIT.
-  guarantee(false, "too many delayed constants");
-  return NULL;
-}
-
-void DelayedConstant::update_all() {
-  for (int i = 0; i < DC_LIMIT; i++) {
-    DelayedConstant* dcon = &delayed_constants[i];
-    if (dcon->value_fn != NULL && dcon->value == 0) {
-      typedef int     (*int_fn_t)();
-      typedef address (*address_fn_t)();
-      switch (dcon->type) {
-      case T_INT:     dcon->value = (intptr_t) ((int_fn_t)    dcon->value_fn)(); break;
-      case T_ADDRESS: dcon->value = (intptr_t) ((address_fn_t)dcon->value_fn)(); break;
-      default:        break;
-      }
-    }
-  }
-}
-
-RegisterOrConstant AbstractAssembler::delayed_value(int(*value_fn)(), Register tmp, int offset) {
-  intptr_t val = (intptr_t) (*value_fn)();
-  if (val != 0)  return val + offset;
-  return delayed_value_impl(delayed_value_addr(value_fn), tmp, offset);
-}
-RegisterOrConstant AbstractAssembler::delayed_value(address(*value_fn)(), Register tmp, int offset) {
-  intptr_t val = (intptr_t) (*value_fn)();
-  if (val != 0)  return val + offset;
-  return delayed_value_impl(delayed_value_addr(value_fn), tmp, offset);
-}
-intptr_t* AbstractAssembler::delayed_value_addr(int(*value_fn)()) {
-  DelayedConstant* dcon = DelayedConstant::add(T_INT, (DelayedConstant::value_fn_t) value_fn);
-  return &dcon->value;
-}
-intptr_t* AbstractAssembler::delayed_value_addr(address(*value_fn)()) {
-  DelayedConstant* dcon = DelayedConstant::add(T_ADDRESS, (DelayedConstant::value_fn_t) value_fn);
-  return &dcon->value;
-}
-void AbstractAssembler::update_delayed_values() {
-  DelayedConstant::update_all();
 }
 
 void AbstractAssembler::block_comment(const char* comment) {
@@ -294,24 +212,39 @@ const char* AbstractAssembler::code_string(const char* str) {
   if (sect() == CodeBuffer::SECT_INSTS || sect() == CodeBuffer::SECT_STUBS) {
     return code_section()->outer()->code_string(str);
   }
-  return NULL;
+  return nullptr;
 }
 
-bool MacroAssembler::needs_explicit_null_check(intptr_t offset) {
+bool MacroAssembler::uses_implicit_null_check(void* address) {
   // Exception handler checks the nmethod's implicit null checks table
   // only when this method returns false.
+  uintptr_t addr = reinterpret_cast<uintptr_t>(address);
+  uintptr_t page_size = (uintptr_t)os::vm_page_size();
 #ifdef _LP64
-  if (UseCompressedOops && Universe::narrow_oop_base() != NULL) {
-    assert (Universe::heap() != NULL, "java heap should be initialized");
-    // The first page after heap_base is unmapped and
-    // the 'offset' is equal to [heap_base + offset] for
-    // narrow oop implicit null checks.
-    uintptr_t base = (uintptr_t)Universe::narrow_oop_base();
-    if ((uintptr_t)offset >= base) {
-      // Normalize offset for the next check.
-      offset = (intptr_t)(pointer_delta((void*)offset, (void*)base, 1));
+  if (UseCompressedOops && CompressedOops::base() != nullptr) {
+    // A SEGV can legitimately happen in C2 code at address
+    // (heap_base + offset) if  Matcher::narrow_oop_use_complex_address
+    // is configured to allow narrow oops field loads to be implicitly
+    // null checked
+    uintptr_t start = (uintptr_t)CompressedOops::base();
+    uintptr_t end = start + page_size;
+    if (addr >= start && addr < end) {
+      return true;
     }
   }
 #endif
-  return offset < 0 || os::vm_page_size() <= offset;
+  return addr < page_size;
+}
+
+bool MacroAssembler::needs_explicit_null_check(intptr_t offset) {
+  // The offset -1 is used (hardcoded) in a number of places in C1 and MacroAssembler
+  // to indicate an unknown offset. For example, TemplateTable::pop_and_check_object(Register r)
+  // calls MacroAssembler::null_check(Register reg, int offset = -1) which gets here
+  // with -1. Another example is GraphBuilder::access_field(...) which uses -1 as placeholder
+  // for offsets to be patched in later. The -1 there means the offset is not yet known
+  // and may lie outside of the zero-trapping page, and thus we need to ensure we're forcing
+  // an explicit null check for -1.
+
+  // Check if offset is outside of [0, os::vm_page_size()]
+  return offset < 0 || offset >= static_cast<intptr_t>(os::vm_page_size());
 }

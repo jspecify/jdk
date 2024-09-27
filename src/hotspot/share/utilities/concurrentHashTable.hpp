@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,15 @@
  *
  */
 
-#ifndef SHARE_UTILITIES_CONCURRENT_HASH_TABLE_HPP
-#define SHARE_UTILITIES_CONCURRENT_HASH_TABLE_HPP
+#ifndef SHARE_UTILITIES_CONCURRENTHASHTABLE_HPP
+#define SHARE_UTILITIES_CONCURRENTHASHTABLE_HPP
+
+#include "memory/allocation.hpp"
+#include "runtime/mutex.hpp"
+#include "utilities/globalCounter.hpp"
+#include "utilities/globalDefinitions.hpp"
+#include "utilities/growableArray.hpp"
+#include "utilities/tableStatistics.hpp"
 
 // A mostly concurrent-hash-table where the read-side is wait-free, inserts are
 // CAS and deletes mutual exclude each other on per bucket-basis. VALUE is the
@@ -31,19 +38,38 @@
 // A CALLBACK_FUNC and LOOKUP_FUNC needs to be provided for get and insert.
 
 class Thread;
+class Mutex;
 
-template <typename VALUE, typename CONFIG, MEMFLAGS F>
-class ConcurrentHashTable : public CHeapObj<F> {
+template <typename CONFIG, MemTag MT>
+class ConcurrentHashTable : public CHeapObj<MT> {
+  typedef typename CONFIG::Value VALUE;
  private:
+  // _stats_rate is null if statistics are not enabled.
+  TableRateStatistics* _stats_rate;
+  inline void safe_stats_add() {
+    if (_stats_rate != nullptr) {
+      _stats_rate->add();
+    }
+  }
+  inline void safe_stats_remove() {
+    if (_stats_rate != nullptr) {
+      _stats_rate->remove();
+    }
+  }
+  // Calculate statistics. Item sizes are calculated with VALUE_SIZE_FUNC.
+  template <typename VALUE_SIZE_FUNC>
+  TableStatistics statistics_calculate(Thread* thread, VALUE_SIZE_FUNC& vs_f);
+
   // This is the internal node structure.
-  // Only constructed with placement new from memory allocated with MEMFLAGS of
+  // Only constructed with placement new from memory allocated with MemTag of
   // the InternalTable or user-defined memory.
   class Node {
    private:
+    DEBUG_ONLY(size_t _saved_hash);
     Node * volatile _next;
     VALUE _value;
    public:
-    Node(const VALUE& value, Node* next = NULL)
+    Node(const VALUE& value, Node* next = nullptr)
       : _next(next), _value(value) {
       assert((((uintptr_t)this) & ((uintptr_t)0x3)) == 0,
              "Must 16 bit aligned.");
@@ -52,23 +78,34 @@ class ConcurrentHashTable : public CHeapObj<F> {
     Node* next() const;
     void set_next(Node* node)         { _next = node; }
     Node* const volatile * next_ptr() { return &_next; }
+#ifdef ASSERT
+    size_t saved_hash() const         { return _saved_hash; }
+    void set_saved_hash(size_t hash)  { _saved_hash = hash; }
+#endif
 
     VALUE* value()                    { return &_value; }
 
     // Creates a node.
-    static Node* create_node(const VALUE& value, Node* next = NULL) {
-      return new (CONFIG::allocate_node(sizeof(Node), value)) Node(value, next);
+    static Node* create_node(void* context, const VALUE& value, Node* next = nullptr) {
+      return new (CONFIG::allocate_node(context, sizeof(Node), value)) Node(value, next);
     }
     // Destroys a node.
-    static void destroy_node(Node* node) {
-      CONFIG::free_node((void*)node, node->_value);
+    static void destroy_node(void* context, Node* node) {
+      CONFIG::free_node(context, (void*)node, node->_value);
     }
 
     void print_on(outputStream* st) const {};
     void print_value_on(outputStream* st) const {};
+
+    static bool is_dynamic_sized_value_compatible() {
+      // To support dynamically sized Value types, where part of the payload is
+      // allocated beyond the end of the object, it must be that the _value
+      // field ends where the Node object ends. (No end padding).
+      return offset_of(Node, _value) + sizeof(_value) == sizeof(Node);
+    }
   };
 
-  // Only constructed with placement new[] from an array allocated with MEMFLAGS
+  // Only constructed with placement new from an array allocated with MemTag
   // of InternalTable.
   class Bucket {
    private:
@@ -114,7 +151,7 @@ class ConcurrentHashTable : public CHeapObj<F> {
 
    public:
     // A bucket is only one pointer with the embedded state.
-    Bucket() : _first(NULL) {};
+    Bucket() : _first(nullptr) {};
 
     // Get the first pointer unmasked.
     Node* first() const;
@@ -165,7 +202,7 @@ class ConcurrentHashTable : public CHeapObj<F> {
   // - Re-size can only change the size into half or double
   //   (any pow 2 would also be possible).
   // - Use masking of hash for bucket index.
-  class InternalTable : public CHeapObj<F> {
+  class InternalTable : public CHeapObj<MT> {
    private:
     Bucket* _buckets;        // Bucket array.
    public:
@@ -182,14 +219,11 @@ class ConcurrentHashTable : public CHeapObj<F> {
 
     Bucket* get_buckets() { return _buckets; }
     Bucket* get_bucket(size_t idx) { return &_buckets[idx]; }
-  };
 
-  // Used as default functor when no functor supplied for some methods.
-  struct NoOp {
-    void operator()(VALUE*) {}
-    const VALUE& operator()() {}
-    void operator()(bool, VALUE*) {}
-  } noOp;
+    size_t get_mem_size() {
+      return sizeof(*this) + _size * sizeof(Bucket);
+    }
+  };
 
   // For materializing a supplied value.
   class LazyValueRetrieve {
@@ -200,13 +234,10 @@ class ConcurrentHashTable : public CHeapObj<F> {
     const VALUE& operator()() { return _val; }
   };
 
+  void* _context;
+
   InternalTable* _table;      // Active table.
   InternalTable* _new_table;  // Table we are resizing to.
-
-  // Default sizes
-  static const size_t DEFAULT_MAX_SIZE_LOG2 = 21;
-  static const size_t DEFAULT_START_SIZE_LOG2 = 13;
-  static const size_t DEFAULT_GROW_HINT = 4; // Chain length
 
   const size_t _log2_size_limit;  // The biggest size.
   const size_t _log2_start_size;  // Start size.
@@ -246,15 +277,25 @@ class ConcurrentHashTable : public CHeapObj<F> {
   class ScopedCS: public StackObj {
    protected:
     Thread* _thread;
-    ConcurrentHashTable<VALUE, CONFIG, F>* _cht;
+    ConcurrentHashTable<CONFIG, MT>* _cht;
+    GlobalCounter::CSContext _cs_context;
    public:
-    ScopedCS(Thread* thread, ConcurrentHashTable<VALUE, CONFIG, F>* cht);
+    ScopedCS(Thread* thread, ConcurrentHashTable<CONFIG, MT>* cht);
     ~ScopedCS();
   };
 
 
-  // Max number of deletes in one bucket chain during bulk delete.
-  static const size_t BULK_DELETE_LIMIT = 256;
+  // When doing deletes, we need to store the pointers until the next
+  // visible epoch.  In the normal case (good hash function and
+  // reasonable sizing), we can save these pointers on the stack
+  // (there should not be more than a few entries per bucket). But if
+  // the hash function is bad and/or the sizing of the table is bad,
+  // we can not use a fixed size stack buffer alone. We will use a
+  // heap buffer as fall-back when the stack is not enough, and then
+  // we have to pay for a dynamic allocation.  `StackBufferSize` tells
+  // the size of optimistic stack buffer that will almost always be
+  // used.
+  static const size_t StackBufferSize = 256;
 
   // Simple getters and setters for the internal table.
   InternalTable* get_table() const;
@@ -284,13 +325,14 @@ class ConcurrentHashTable : public CHeapObj<F> {
   // Finds a node.
   template <typename LOOKUP_FUNC>
   Node* get_node(const Bucket* const bucket, LOOKUP_FUNC& lookup_f,
-                 bool* have_dead, size_t* loops = NULL) const;
+                 bool* have_dead, size_t* loops = nullptr) const;
 
   // Method for shrinking.
   bool internal_shrink_prolog(Thread* thread, size_t log2_size);
   void internal_shrink_epilog(Thread* thread);
   void internal_shrink_range(Thread* thread, size_t start, size_t stop);
   bool internal_shrink(Thread* thread, size_t size_limit_log2);
+  void internal_reset(size_t log2_size);
 
   // Methods for growing.
   bool unzip_bucket(Thread* thread, InternalTable* old_table,
@@ -304,12 +346,12 @@ class ConcurrentHashTable : public CHeapObj<F> {
   // Get a value.
   template <typename LOOKUP_FUNC>
   VALUE* internal_get(Thread* thread, LOOKUP_FUNC& lookup_f,
-                      bool* grow_hint = NULL);
+                      bool* grow_hint = nullptr);
 
-  // Insert which handles a number of cases.
-  template <typename LOOKUP_FUNC, typename VALUE_FUNC, typename CALLBACK_FUNC>
-  bool internal_insert(Thread* thread, LOOKUP_FUNC& lookup_f, VALUE_FUNC& value_f,
-                       CALLBACK_FUNC& callback, bool* grow_hint = NULL);
+  // Insert and get current value.
+  template <typename LOOKUP_FUNC, typename FOUND_FUNC>
+  bool internal_insert_get(Thread* thread, LOOKUP_FUNC& lookup_f, const VALUE& value,
+                           FOUND_FUNC& foundf, bool* grow_hint, bool* clean_hint);
 
   // Returns true if an item matching LOOKUP_FUNC is removed.
   // Calls DELETE_FUNC before destroying the node.
@@ -330,7 +372,7 @@ class ConcurrentHashTable : public CHeapObj<F> {
   // Check for dead items in a bucket.
   template <typename EVALUATE_FUNC>
   size_t delete_check_nodes(Bucket* bucket, EVALUATE_FUNC& eval_f,
-                            size_t num_del, Node** ndel);
+                            size_t num_del, Node** ndel, GrowableArrayCHeap<Node*, MT>& ndel_heap);
 
   // Check for dead items in this table. During shrink/grow we cannot guarantee
   // that we only visit nodes once. To keep it simple caller will have locked
@@ -368,77 +410,70 @@ class ConcurrentHashTable : public CHeapObj<F> {
   void delete_in_bucket(Thread* thread, Bucket* bucket, LOOKUP_FUNC& lookup_f);
 
  public:
+  // Default sizes
+  static const size_t DEFAULT_MAX_SIZE_LOG2 = 21;
+  static const size_t DEFAULT_START_SIZE_LOG2 = 13;
+  static const size_t DEFAULT_GROW_HINT = 4; // Chain length
+  static const bool DEFAULT_ENABLE_STATISTICS = false;
   ConcurrentHashTable(size_t log2size = DEFAULT_START_SIZE_LOG2,
                       size_t log2size_limit = DEFAULT_MAX_SIZE_LOG2,
-                      size_t grow_hint = DEFAULT_GROW_HINT);
+                      size_t grow_hint = DEFAULT_GROW_HINT,
+                      bool enable_statistics = DEFAULT_ENABLE_STATISTICS,
+                      Mutex::Rank rank = Mutex::nosafepoint-2,
+                      void* context = nullptr);
+
+  explicit ConcurrentHashTable(Mutex::Rank rank, void* context, size_t log2size = DEFAULT_START_SIZE_LOG2, bool enable_statistics = DEFAULT_ENABLE_STATISTICS) :
+    ConcurrentHashTable(log2size, DEFAULT_MAX_SIZE_LOG2, DEFAULT_GROW_HINT, enable_statistics, rank, context) {}
 
   ~ConcurrentHashTable();
 
+  size_t get_mem_size(Thread* thread);
+
   size_t get_size_log2(Thread* thread);
-  size_t get_node_size() const { return sizeof(Node); }
+  static size_t get_node_size() { return sizeof(Node); }
+  static size_t get_dynamic_node_size(size_t value_size);
   bool is_max_size_reached() { return _size_limit_reached; }
 
   // This means no paused bucket resize operation is going to resume
   // on this table.
-  bool is_safepoint_safe() { return _resize_lock_owner == NULL; }
+  bool is_safepoint_safe() { return _resize_lock_owner == nullptr; }
 
   // Re-size operations.
   bool shrink(Thread* thread, size_t size_limit_log2 = 0);
   bool grow(Thread* thread, size_t size_limit_log2 = 0);
+  // Unsafe reset and resize the table. This method assumes that we
+  // want to clear and maybe resize the internal table without the
+  // overhead of clearing individual items in the table.
+  void unsafe_reset(size_t size_log2 = 0);
 
   // All callbacks for get are under critical sections. Other callbacks may be
   // under critical section or may have locked parts of table. Calling any
   // methods on the table during a callback is not supported.Only MultiGetHandle
   // supports multiple gets.
 
-  // LOOKUP_FUNC is matching methods, VALUE_FUNC creates value to be inserted
-  // and CALLBACK_FUNC is called with new or old value. Returns true if the
-  // value already exists.
-  template <typename LOOKUP_FUNC, typename VALUE_FUNC, typename CALLBACK_FUNC>
-  bool get_insert_lazy(Thread* thread, LOOKUP_FUNC& lookup_f, VALUE_FUNC& val_f,
-                       CALLBACK_FUNC& callback_f, bool* grow_hint = NULL) {
-    return !internal_insert(thread, lookup_f, val_f, callback_f, grow_hint);
-  }
-
-  // Same without CALLBACK_FUNC.
-  template <typename LOOKUP_FUNC, typename VALUE_FUNC>
-  bool get_insert_lazy(Thread* thread, LOOKUP_FUNC& lookup_f, VALUE_FUNC& val_f,
-                       bool* grow_hint = NULL) {
-    return get_insert_lazy(thread, lookup_f, val_f, noOp, grow_hint);
-  }
-
-  // Same without VALUE_FUNC.
-  template <typename LOOKUP_FUNC, typename CALLBACK_FUNC>
-  bool get_insert(Thread* thread, LOOKUP_FUNC& lookup_f, const VALUE& value,
-                  CALLBACK_FUNC& callback_f, bool* grow_hint = NULL) {
-    LazyValueRetrieve vp(value);
-    return get_insert_lazy(thread, lookup_f, vp, callback_f, grow_hint);
-  }
-
-  // Same without CALLBACK_FUNC and VALUE_FUNC.
-  template <typename LOOKUP_FUNC>
-  bool get_insert(Thread* thread, LOOKUP_FUNC& lookup_f, const VALUE& value,
-                  bool* grow_hint = NULL) {
-    return get_insert(thread, lookup_f, value, noOp, grow_hint);
-  }
-
   // Get methods return true on found item with LOOKUP_FUNC and FOUND_FUNC is
   // called.
   template <typename LOOKUP_FUNC, typename FOUND_FUNC>
   bool get(Thread* thread, LOOKUP_FUNC& lookup_f, FOUND_FUNC& foundf,
-           bool* grow_hint = NULL);
-
-  // Return a copy of an item found with LOOKUP_FUNC.
-  template <typename LOOKUP_FUNC>
-  VALUE get_copy(Thread* thread, LOOKUP_FUNC& lookup_f, bool* grow_hint = NULL);
+           bool* grow_hint = nullptr);
 
   // Returns true true if the item was inserted, duplicates are found with
   // LOOKUP_FUNC.
   template <typename LOOKUP_FUNC>
   bool insert(Thread* thread, LOOKUP_FUNC& lookup_f, const VALUE& value,
-              bool* grow_hint = NULL) {
-    LazyValueRetrieve vp(value);
-    return internal_insert(thread, lookup_f, vp, noOp, grow_hint);
+              bool* grow_hint = nullptr, bool* clean_hint = nullptr) {
+    struct NOP {
+        void operator()(...) const {}
+    } nop;
+    return internal_insert_get(thread, lookup_f, value, nop, grow_hint, clean_hint);
+  }
+
+  // Returns true if the item was inserted, duplicates are found with
+  // LOOKUP_FUNC then FOUND_FUNC is called.
+  template <typename LOOKUP_FUNC, typename FOUND_FUNC>
+  bool insert_get(Thread* thread, LOOKUP_FUNC& lookup_f, VALUE& value, FOUND_FUNC& foundf,
+                  bool* grow_hint = nullptr, bool* clean_hint = nullptr) {
+    return internal_insert_get(thread, lookup_f, value, foundf, grow_hint, clean_hint);
   }
 
   // This does a fast unsafe insert and can thus only be used when there is no
@@ -455,7 +490,10 @@ class ConcurrentHashTable : public CHeapObj<F> {
   // Same without DELETE_FUNC.
   template <typename LOOKUP_FUNC>
   bool remove(Thread* thread, LOOKUP_FUNC& lookup_f) {
-    return internal_remove(thread, lookup_f, noOp);
+    struct {
+      void operator()(VALUE*) {}
+    } ignore_del_f;
+    return internal_remove(thread, lookup_f, ignore_del_f);
   }
 
   // Visit all items with SCAN_FUNC if no concurrent resize. Takes the resize
@@ -466,6 +504,16 @@ class ConcurrentHashTable : public CHeapObj<F> {
   // Visit all items with SCAN_FUNC when the resize lock is obtained.
   template <typename SCAN_FUNC>
   void do_scan(Thread* thread, SCAN_FUNC& scan_f);
+
+  // Visits nodes for buckets in range [start_idx, stop_id) with FUNC.
+  template <typename FUNC>
+  static bool do_scan_for_range(FUNC& scan_f, size_t start_idx, size_t stop_idx, InternalTable *table);
+
+  // Visit all items with SCAN_FUNC without any protection.
+  // It will assume there is no other thread accessing this
+  // table during the safepoint. Must be called with VM thread.
+  template <typename SCAN_FUNC>
+  void do_safepoint_scan(SCAN_FUNC& scan_f);
 
   // Destroying items matching EVALUATE_FUNC, before destroying items
   // DELETE_FUNC is called, if resize lock is obtained. Else returns false.
@@ -478,43 +526,31 @@ class ConcurrentHashTable : public CHeapObj<F> {
   template <typename EVALUATE_FUNC, typename DELETE_FUNC>
   void bulk_delete(Thread* thread, EVALUATE_FUNC& eval_f, DELETE_FUNC& del_f);
 
+  // Gets statistics if available, if not return old one. Item sizes are calculated with
+  // VALUE_SIZE_FUNC.
+  template <typename VALUE_SIZE_FUNC>
+  TableStatistics statistics_get(Thread* thread, VALUE_SIZE_FUNC& vs_f, TableStatistics old);
+
   // Writes statistics to the outputStream. Item sizes are calculated with
   // VALUE_SIZE_FUNC.
   template <typename VALUE_SIZE_FUNC>
   void statistics_to(Thread* thread, VALUE_SIZE_FUNC& vs_f, outputStream* st,
                      const char* table_name);
 
-  // Moves all nodes from this table to to_cht
-  bool try_move_nodes_to(Thread* thread, ConcurrentHashTable<VALUE, CONFIG, F>* to_cht);
-
-  // This is a Curiously Recurring Template Pattern (CRPT) interface for the
-  // specialization.
-  struct BaseConfig {
-   public:
-    // Called when the hash table needs the hash for a VALUE.
-    static uintx get_hash(const VALUE& value, bool* dead) {
-      return CONFIG::get_hash(value, dead);
-    }
-    // On get_copy if no value is found then this value is returned.
-    static const VALUE& notfound() {
-      return CONFIG::notfound();
-    }
-    // Default node allocation.
-    static void* allocate_node(size_t size, const VALUE& value);
-    // Default node reclamation.
-    static void free_node(void* memory, const VALUE& value);
-  };
+  // Moves all nodes from this table to to_cht with new hash code.
+  // Must be done at a safepoint.
+  void rehash_nodes_to(Thread* thread, ConcurrentHashTable<CONFIG, MT>* to_cht);
 
   // Scoped multi getter.
   class MultiGetHandle : private ScopedCS {
    public:
-    MultiGetHandle(Thread* thread, ConcurrentHashTable<VALUE, CONFIG, F>* cht)
+    MultiGetHandle(Thread* thread, ConcurrentHashTable<CONFIG, MT>* cht)
       : ScopedCS(thread, cht) {}
     // In the MultiGetHandle scope you can lookup items matching LOOKUP_FUNC.
     // The VALUEs are safe as long as you never save the VALUEs outside the
     // scope, e.g. after ~MultiGetHandle().
     template <typename LOOKUP_FUNC>
-    VALUE* get(LOOKUP_FUNC& lookup_f, bool* grow_hint = NULL);
+    VALUE* get(LOOKUP_FUNC& lookup_f, bool* grow_hint = nullptr);
   };
 
  private:
@@ -523,6 +559,7 @@ class ConcurrentHashTable : public CHeapObj<F> {
  public:
   class BulkDeleteTask;
   class GrowTask;
+  class ScanTask;
 };
 
-#endif // include guard
+#endif // SHARE_UTILITIES_CONCURRENTHASHTABLE_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,6 +61,7 @@ import java.security.GeneralSecurityException;
  */
 public class CertPathValidatorException extends GeneralSecurityException {
 
+    @java.io.Serial
     private static final long serialVersionUID = -3083180014971893139L;
 
     /**
@@ -73,7 +74,7 @@ public class CertPathValidatorException extends GeneralSecurityException {
      * @serial the {@code CertPath} that was being validated when
      * the exception was thrown
      */
-    private CertPath certPath;
+    private final CertPath certPath;
 
     /**
      * @serial the reason the validation failed
@@ -228,6 +229,14 @@ public class CertPathValidatorException extends GeneralSecurityException {
         return this.reason;
     }
 
+    /**
+     * Restores the state of this object from the stream.
+     *
+     * @param  stream the {@code ObjectInputStream} from which data is read
+     * @throws IOException if an I/O error occurs
+     * @throws ClassNotFoundException if a serialized class cannot be loaded
+     */
+    @java.io.Serial
     private void readObject(ObjectInputStream stream)
         throws ClassNotFoundException, IOException {
         stream.defaultReadObject();
@@ -248,7 +257,7 @@ public class CertPathValidatorException extends GeneralSecurityException {
      *
      * @since 1.7
      */
-    public static interface Reason extends java.io.Serializable { }
+    public interface Reason extends java.io.Serializable { }
 
 
     /**
@@ -257,7 +266,7 @@ public class CertPathValidatorException extends GeneralSecurityException {
      *
      * @since 1.7
      */
-    public static enum BasicReason implements Reason {
+    public enum BasicReason implements Reason {
         /**
          * Unspecified reason.
          */

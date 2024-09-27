@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
 #include "memory/memRegion.hpp"
 #include "runtime/globals.hpp"
 
-// A very simple data structure representing a contigous word-aligned
+// A very simple data structure representing a contiguous word-aligned
 // region of address space.
 
 MemRegion MemRegion::intersection(const MemRegion mr2) const {
@@ -102,20 +102,20 @@ MemRegion MemRegion::minus(const MemRegion mr2) const {
   return MemRegion();
 }
 
-void* MemRegion::operator new(size_t size) throw() {
-  return (address)AllocateHeap(size, mtGC, CURRENT_PC,
-    AllocFailStrategy::RETURN_NULL);
+MemRegion* MemRegion::create_array(size_t length, MemTag mem_tag) {
+  MemRegion* result = NEW_C_HEAP_ARRAY(MemRegion, length, mem_tag);
+  for (size_t i = 0; i < length; i++) {
+    ::new (&result[i]) MemRegion();
+  }
+  return result;
 }
 
-void* MemRegion::operator new [](size_t size) throw() {
-  return (address)AllocateHeap(size, mtGC, CURRENT_PC,
-    AllocFailStrategy::RETURN_NULL);
+void MemRegion::destroy_array(MemRegion* array, size_t length) {
+  if (array == nullptr) {
+    return;
+  }
+  for (size_t i = 0; i < length; i++) {
+    array[i].~MemRegion();
+  }
+  FREE_C_HEAP_ARRAY(MemRegion, array);
 }
-void  MemRegion::operator delete(void* p) {
-  FreeHeap(p);
-}
-
-void  MemRegion::operator delete [](void* p) {
-  FreeHeap(p);
-}
-

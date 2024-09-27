@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -134,7 +134,7 @@ Java_com_sun_management_internal_OperatingSystemImpl_getProcessCpuTime0
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_sun_management_internal_OperatingSystemImpl_getFreePhysicalMemorySize0
+Java_com_sun_management_internal_OperatingSystemImpl_getFreeMemorySize0
   (JNIEnv *env, jobject mbean)
 {
     MEMORYSTATUSEX ms;
@@ -144,7 +144,7 @@ Java_com_sun_management_internal_OperatingSystemImpl_getFreePhysicalMemorySize0
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_sun_management_internal_OperatingSystemImpl_getTotalPhysicalMemorySize0
+Java_com_sun_management_internal_OperatingSystemImpl_getTotalMemorySize0
   (JNIEnv *env, jobject mbean)
 {
     MEMORYSTATUSEX ms;
@@ -436,13 +436,13 @@ makeFullCounterPath(const char* const objectName,
             return NULL;
         }
 
-        _snprintf(fullCounterPath,
-                  fullCounterPathLen,
-                  PROCESS_OBJECT_INSTANCE_COUNTER_FMT,
-                  objectName,
-                  imageName,
-                  instance,
-                  counterName);
+        snprintf(fullCounterPath,
+                 fullCounterPathLen,
+                 PROCESS_OBJECT_INSTANCE_COUNTER_FMT,
+                 objectName,
+                 imageName,
+                 instance,
+                 counterName);
     } else {
         if (instance) {
             /*
@@ -472,18 +472,18 @@ makeFullCounterPath(const char* const objectName,
         }
 
         if (instance) {
-            _snprintf(fullCounterPath,
-                      fullCounterPathLen,
-                      OBJECT_WITH_INSTANCES_COUNTER_FMT,
-                      objectName,
-                      instance,
-                      counterName);
+            snprintf(fullCounterPath,
+                     fullCounterPathLen,
+                     OBJECT_WITH_INSTANCES_COUNTER_FMT,
+                     objectName,
+                     instance,
+                     counterName);
         } else {
-            _snprintf(fullCounterPath,
-                      fullCounterPathLen,
-                      OBJECT_COUNTER_FMT,
-                      objectName,
-                      counterName);
+            snprintf(fullCounterPath,
+                     fullCounterPathLen,
+                     OBJECT_COUNTER_FMT,
+                     objectName,
+                     counterName);
         }
     }
 
@@ -698,6 +698,8 @@ getProcessID() {
  * (in order to keep this index valid when the list resets from underneath,
  * ensure to call getCurrentQueryIndexForProcess() before every query involving
  * Process object instance data).
+ *
+ * Returns -1 on failure.
  */
 static int
 currentQueryIndexForProcess(void) {
@@ -717,10 +719,10 @@ currentQueryIndexForProcess(void) {
             PDH_FMT_COUNTERVALUE counterValue;
             PDH_STATUS res;
 
-            _snprintf(fullIDProcessCounterPath,
-                      MAX_PATH,
-                      pdhIDProcessCounterFmt,
-                      index);
+            snprintf(fullIDProcessCounterPath,
+                     MAX_PATH,
+                     pdhIDProcessCounterFmt,
+                     index);
 
             if (addCounter(tmpQuery, fullIDProcessCounterPath, &handleCounter) != 0) {
                 break;
@@ -775,8 +777,7 @@ static int
 getCurrentQueryIndexForProcess() {
     int currentQueryIndex = currentQueryIndexForProcess();
 
-    assert(currentQueryIndex >= 0 &&
-           currentQueryIndex < numberOfJavaProcessesAtInitialization);
+    assert(currentQueryIndex < numberOfJavaProcessesAtInitialization);
 
     return currentQueryIndex;
 }
@@ -824,7 +825,7 @@ getPdhProcessImageName() {
 
 /*
  * Sets up the supplied MultipleCounterQuery to check on the processors via PDH CPU counters.
- * TODO: Refactor and prettify as with the the SingleCounter queries
+ * TODO: Refactor and prettify as with the SingleCounter queries
  * if more MultipleCounterQueries are discovered/needed.
  *
  * @param multiCounterCPULoad  a pointer to a MultipleCounterQueryS, will be filled in with
@@ -959,7 +960,7 @@ bindPdhFunctionPointers(HMODULE h) {
     assert(h);
     assert(GetCurrentThreadId() == initializationLock.owningThread);
 
-    /* The 'A' at the end means the ANSI (not the UNICODE) vesions of the methods */
+    /* The 'A' at the end means the ANSI (not the UNICODE) versions of the methods */
     PdhAddCounter_i         = (PdhAddCounterFunc)GetProcAddress(h, "PdhAddCounterA");
     PdhOpenQuery_i         = (PdhOpenQueryFunc)GetProcAddress(h, "PdhOpenQueryA");
     PdhCloseQuery_i         = (PdhCloseQueryFunc)GetProcAddress(h, "PdhCloseQuery");
@@ -1058,13 +1059,13 @@ allocateAndInitializePdhConstants() {
     }
 
     /* "\Process(java#%d)\ID Process" */
-    _snprintf(pdhIDProcessCounterFmt,
-              pdhIDProcessCounterFmtLen,
-              PROCESS_OBJECT_INSTANCE_COUNTER_FMT,
-              pdhLocalizedProcessObject,
-              pdhProcessImageName,
-              "%d",
-              pdhLocalizedIDProcessCounter);
+    snprintf(pdhIDProcessCounterFmt,
+             pdhIDProcessCounterFmtLen,
+             PROCESS_OBJECT_INSTANCE_COUNTER_FMT,
+             pdhLocalizedProcessObject,
+             pdhProcessImageName,
+             "%d",
+             pdhLocalizedIDProcessCounter);
 
     pdhIDProcessCounterFmt[pdhIDProcessCounterFmtLen] = '\0';
 
@@ -1310,11 +1311,10 @@ perfGetProcessCPULoad() {
     }
 
     currentQueryIndex = getCurrentQueryIndexForProcess();
-
-    if (getPerformanceData(&processTotalCPULoad[currentQueryIndex].query,
-                           processTotalCPULoad[currentQueryIndex].counter,
-                           &cv,
-                           PDH_FMT_DOUBLE | PDH_FMT_NOCAP100) == 0) {
+    if (currentQueryIndex >= 0 && getPerformanceData(&processTotalCPULoad[currentQueryIndex].query,
+                                                     processTotalCPULoad[currentQueryIndex].counter,
+                                                     &cv,
+                                                     PDH_FMT_DOUBLE | PDH_FMT_NOCAP100) == 0) {
         double d = cv.doubleValue / cpuFactor;
         d = min(1, d);
         d = max(0, d);
@@ -1349,7 +1349,7 @@ perfGetCPULoad(int which) {
 }
 
 JNIEXPORT jdouble JNICALL
-Java_com_sun_management_internal_OperatingSystemImpl_getSystemCpuLoad0
+Java_com_sun_management_internal_OperatingSystemImpl_getCpuLoad0
 (JNIEnv *env, jobject dummy)
 {
     return perfGetCPULoad(-1);

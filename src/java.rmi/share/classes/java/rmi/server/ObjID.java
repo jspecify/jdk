@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * equivalent to one returned by invoking the {@link UID#UID(short)}
  * constructor with the value zero.
  *
- * <p>If the system property <code>java.rmi.server.randomIDs</code>
+ * <p>If the system property {@systemProperty java.rmi.server.randomIDs}
  * is defined to equal the string <code>"true"</code> (case insensitive),
  * then the {@link #ObjID()} constructor will use a cryptographically
  * strong random number generator to choose the object number of the
@@ -86,7 +86,7 @@ public final class ObjID implements Serializable {
     /** indicate compatibility with JDK 1.1.x version of class */
     private static final long serialVersionUID = -6386392263968365220L;
 
-    private static final AtomicLong nextObjNum = new AtomicLong(0);
+    private static final AtomicLong nextObjNum = new AtomicLong();
     private static final UID mySpace = new UID();
     private static final SecureRandom secureRandom = new SecureRandom();
 
@@ -201,6 +201,7 @@ public final class ObjID implements Serializable {
      *
      * @return  the hash code value for this object identifier
      */
+    @Override
     public int hashCode() {
         return (int) objNum;
     }
@@ -245,6 +246,7 @@ public final class ObjID implements Serializable {
     }
 
     private static boolean useRandomIDs() {
+        @SuppressWarnings("removal")
         String value = AccessController.doPrivileged(
             (PrivilegedAction<String>) () -> System.getProperty("java.rmi.server.randomIDs"));
         return value == null ? true : Boolean.parseBoolean(value);

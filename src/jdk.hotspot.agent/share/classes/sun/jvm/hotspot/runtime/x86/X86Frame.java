@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,8 @@ import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 /** Specialization of and implementation of abstract methods of the
     Frame class for the x86 family of CPUs. */
@@ -95,6 +97,7 @@ public class X86Frame extends Frame {
   // an additional field beyond sp and pc:
   Address raw_fp; // frame pointer
   private Address raw_unextendedSP;
+  private Address live_bcp;
 
   private X86Frame() {
   }
@@ -117,15 +120,29 @@ public class X86Frame extends Frame {
     }
   }
 
-  public X86Frame(Address raw_sp, Address raw_fp, Address pc) {
+  private void initFrame(Address raw_sp, Address raw_fp, Address pc, Address raw_unextendedSp, Address live_bcp) {
     this.raw_sp = raw_sp;
-    this.raw_unextendedSP = raw_sp;
     this.raw_fp = raw_fp;
-    this.pc = pc;
+    if (raw_unextendedSp == null) {
+        this.raw_unextendedSP = raw_sp;
+    } else {
+        this.raw_unextendedSP = raw_unextendedSp;
+    }
+    if (pc == null) {
+        this.pc = raw_sp.getAddressAt(-1 * VM.getVM().getAddressSize());
+    } else {
+        this.pc = pc;
+    }
+    this.live_bcp = live_bcp;
     adjustUnextendedSP();
 
     // Frame must be fully constructed before this call
     adjustForDeopt();
+}
+
+
+  public X86Frame(Address raw_sp, Address raw_fp, Address pc) {
+    initFrame(raw_sp, raw_fp, pc, null, null);
 
     if (DEBUG) {
       System.out.println("X86Frame(sp, fp, pc): " + this);
@@ -134,14 +151,7 @@ public class X86Frame extends Frame {
   }
 
   public X86Frame(Address raw_sp, Address raw_fp) {
-    this.raw_sp = raw_sp;
-    this.raw_unextendedSP = raw_sp;
-    this.raw_fp = raw_fp;
-    this.pc = raw_sp.getAddressAt(-1 * VM.getVM().getAddressSize());
-    adjustUnextendedSP();
-
-    // Frame must be fully constructed before this call
-    adjustForDeopt();
+    initFrame(raw_sp, raw_fp, null, null, null);
 
     if (DEBUG) {
       System.out.println("X86Frame(sp, fp): " + this);
@@ -150,20 +160,21 @@ public class X86Frame extends Frame {
   }
 
   public X86Frame(Address raw_sp, Address raw_unextendedSp, Address raw_fp, Address pc) {
-    this.raw_sp = raw_sp;
-    this.raw_unextendedSP = raw_unextendedSp;
-    this.raw_fp = raw_fp;
-    this.pc = pc;
-    adjustUnextendedSP();
-
-    // Frame must be fully constructed before this call
-    adjustForDeopt();
+    initFrame(raw_sp, raw_fp, pc, raw_unextendedSp, null);
 
     if (DEBUG) {
       System.out.println("X86Frame(sp, unextendedSP, fp, pc): " + this);
       dumpStack();
     }
+  }
 
+  public X86Frame(Address raw_sp, Address raw_fp, Address pc, Address raw_unextendedSp, Address live_bcp) {
+    initFrame(raw_sp, raw_fp, pc, raw_unextendedSp, live_bcp);
+
+    if (DEBUG) {
+      System.out.println("X86Frame(sp, fp, pc, unextendedSP, live_bcp): " + this);
+      dumpStack();
+    }
   }
 
   public Object clone() {
@@ -173,6 +184,7 @@ public class X86Frame extends Frame {
     frame.raw_fp = raw_fp;
     frame.pc = pc;
     frame.deoptimized = deoptimized;
+    frame.live_bcp = live_bcp;
     return frame;
   }
 
@@ -277,7 +289,7 @@ public class X86Frame extends Frame {
     }
 
     if (cb != null) {
-      return senderForCompiledFrame(map, cb);
+      return cb.isUpcallStub() ? senderForUpcallStub(map, (UpcallStub)cb) : senderForCompiledFrame(map, cb);
     }
 
     // Must be native-compiled frame, i.e. the marshaling code for native
@@ -304,6 +316,34 @@ public class X86Frame extends Frame {
       fr = new X86Frame(jcw.getLastJavaSP(), jcw.getLastJavaFP(), jcw.getLastJavaPC());
     } else {
       fr = new X86Frame(jcw.getLastJavaSP(), jcw.getLastJavaFP());
+    }
+    map.clear();
+    if (Assert.ASSERTS_ENABLED) {
+      Assert.that(map.getIncludeArgumentOops(), "should be set by clear");
+    }
+    return fr;
+  }
+
+  private Frame senderForUpcallStub(X86RegisterMap map, UpcallStub stub) {
+    if (DEBUG) {
+      System.out.println("senderForUpcallStub");
+    }
+    if (Assert.ASSERTS_ENABLED) {
+      Assert.that(map != null, "map must be set");
+    }
+
+    var lastJavaFP = stub.getLastJavaFP(this);
+    var lastJavaSP = stub.getLastJavaSP(this);
+    var lastJavaPC = stub.getLastJavaPC(this);
+
+    if (Assert.ASSERTS_ENABLED) {
+      Assert.that(lastJavaSP.greaterThan(getSP()), "must be above this frame on stack");
+    }
+    X86Frame fr;
+    if (lastJavaPC != null) {
+      fr = new X86Frame(lastJavaSP, lastJavaFP, lastJavaPC);
+    } else {
+      fr = new X86Frame(lastJavaSP, lastJavaFP);
     }
     map.clear();
     if (Assert.ASSERTS_ENABLED) {
@@ -368,7 +408,7 @@ public class X86Frame extends Frame {
 
     // frame owned by optimizing compiler
     if (Assert.ASSERTS_ENABLED) {
-        Assert.that(cb.getFrameSize() >= 0, "must have non-zero frame size");
+        Assert.that(cb.getFrameSize() > 0, "must have non-zero frame size");
     }
     Address senderSP = getUnextendedSP().addOffsetTo(cb.getFrameSize());
 
@@ -421,20 +461,40 @@ public class X86Frame extends Frame {
   public Address getSenderSP()     { return addressOfStackSlot(SENDER_SP_OFFSET); }
 
   public Address addressOfInterpreterFrameLocals() {
-    return addressOfStackSlot(INTERPRETER_FRAME_LOCALS_OFFSET);
+    long n = addressOfStackSlot(INTERPRETER_FRAME_LOCALS_OFFSET).getCIntegerAt(0, VM.getVM().getAddressSize(), false);
+    return getFP().addOffsetTo(n * VM.getVM().getAddressSize());
   }
 
   private Address addressOfInterpreterFrameBCX() {
     return addressOfStackSlot(INTERPRETER_FRAME_BCX_OFFSET);
   }
 
-  public int getInterpreterFrameBCI() {
+  public Address getInterpreterFrameBCP() {
     // FIXME: this is not atomic with respect to GC and is unsuitable
     // for use in a non-debugging, or reflective, system. Need to
     // figure out how to express this.
+
+    Method method = getInterpreterFrameMethod();
     Address bcp = addressOfInterpreterFrameBCX().getAddressAt(0);
-    Address methodHandle = addressOfInterpreterFrameMethod().getAddressAt(0);
-    Method method = (Method)Metadata.instantiateWrapperFor(methodHandle);
+
+    // If we are in the top level frame then the bcp may have been set for us. If so then let it
+    // take priority. If we are in a top level interpreter frame, the bcp is live in R13 (on x86_64)
+    // and not saved in the BCX stack slot.
+    if (live_bcp != null) {
+        // Only use live_bcp if it points within the Method's bytecodes. Sometimes R13 is used
+        // for scratch purposes and is not a valid BCP. If it is not valid, then we stick with
+        // the bcp stored in the frame, which R13 should have been flushed to.
+        if (method.getConstMethod().isAddressInMethod(live_bcp)) {
+            bcp = live_bcp;
+        }
+    }
+
+    return bcp;
+  }
+
+  public int getInterpreterFrameBCI() {
+    Address bcp = getInterpreterFrameBCP();
+    Method method = getInterpreterFrameMethod();
     return bcpToBci(bcp, method);
   }
 
@@ -480,7 +540,8 @@ public class X86Frame extends Frame {
   }
 
   public BasicObjectLock interpreterFrameMonitorEnd() {
-    Address result = addressOfStackSlot(INTERPRETER_FRAME_MONITOR_BLOCK_TOP_OFFSET).getAddressAt(0);
+    long n = addressOfStackSlot(INTERPRETER_FRAME_MONITOR_BLOCK_TOP_OFFSET).getCIntegerAt(0, VM.getVM().getAddressSize(), false);
+    Address result = getFP().addOffsetTo(n * VM.getVM().getAddressSize());
     if (Assert.ASSERTS_ENABLED) {
       // make sure the pointer points inside the frame
       Assert.that(AddressOps.gt(getFP(), result), "result must <  than frame pointer");

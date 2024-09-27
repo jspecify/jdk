@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2021 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,12 @@
 
 #include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "code/compiledIC.hpp"
 #include "code/vtableStubs.hpp"
 #include "interp_masm_ppc.hpp"
 #include "memory/resourceArea.hpp"
-#include "oops/compiledICHolder.hpp"
 #include "oops/instanceKlass.hpp"
+#include "oops/klass.inline.hpp"
 #include "oops/klassVtable.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "vmreg_ppc.inline.hpp"
@@ -39,54 +40,51 @@
 
 #define __ masm->
 
-#ifdef PRODUCT
-#define BLOCK_COMMENT(str) // nothing
-#else
-#define BLOCK_COMMENT(str) __ block_comment(str)
-#endif
-#define BIND(label) bind(label); BLOCK_COMMENT(#label ":")
-
 #ifndef PRODUCT
 extern "C" void bad_compiled_vtable_index(JavaThread* thread, oopDesc* receiver, int index);
 #endif
 
-// Used by compiler only; may use only caller saved, non-argument
-// registers.
+// Used by compiler only; may use only caller saved, non-argument registers.
 VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
-  // PPC port: use fixed size.
-  const int code_length = VtableStub::pd_code_size_limit(true);
-  VtableStub* s = new (code_length) VtableStub(true, vtable_index);
-
-  // Can be NULL if there is no free space in the code cache.
-  if (s == NULL) {
-    return NULL;
+  // Read "A word on VtableStub sizing" in share/code/vtableStubs.hpp for details on stub sizing.
+  const int stub_code_length = code_size_limit(true);
+  VtableStub* s = new(stub_code_length) VtableStub(true, vtable_index);
+  // Can be null if there is no free space in the code cache.
+  if (s == nullptr) {
+    return nullptr;
   }
 
-  ResourceMark rm;
-  CodeBuffer cb(s->entry_point(), code_length);
+  // Count unused bytes in instruction sequences of variable size.
+  // We add them to the computed buffer size in order to avoid
+  // overflow in subsequently generated stubs.
+  address   start_pc;
+  int       slop_bytes = 8; // just a two-instruction safety net
+  int       slop_delta = 0;
+
+  ResourceMark    rm;
+  CodeBuffer      cb(s->entry_point(), stub_code_length);
   MacroAssembler* masm = new MacroAssembler(&cb);
 
-#ifndef PRODUCT
+#if (!defined(PRODUCT) && defined(COMPILER2))
   if (CountCompiledCalls) {
+    start_pc = __ pc();
+    int load_const_maxLen = 5*BytesPerInstWord;  // load_const generates 5 instructions. Assume that as max size for laod_const_optimized
     int offs = __ load_const_optimized(R11_scratch1, SharedRuntime::nof_megamorphic_calls_addr(), R12_scratch2, true);
-    __ lwz(R12_scratch2, offs, R11_scratch1);
+    slop_delta  = load_const_maxLen - (__ pc() - start_pc);
+    slop_bytes += slop_delta;
+    assert(slop_delta >= 0, "negative slop(%d) encountered, adjust code size estimate!", slop_delta);
+    __ ld(R12_scratch2, offs, R11_scratch1);
     __ addi(R12_scratch2, R12_scratch2, 1);
-    __ stw(R12_scratch2, offs, R11_scratch1);
+    __ std(R12_scratch2, offs, R11_scratch1);
   }
 #endif
 
   assert(VtableStub::receiver_location() == R3_ARG1->as_VMReg(), "receiver expected in R3_ARG1");
 
-  // Get receiver klass.
   const Register rcvr_klass = R11_scratch1;
-
-  // We might implicit NULL fault here.
   address npe_addr = __ pc(); // npe = null pointer exception
-  __ null_check(R3, oopDesc::klass_offset_in_bytes(), /*implicit only*/NULL);
-  __ load_klass(rcvr_klass, R3);
-
- // Set method (in case of interpreted method), and destination address.
-  int entry_offset = in_bytes(Klass::vtable_start_offset()) + vtable_index*vtableEntry::size_in_bytes();
+  // Get receiver klass.
+  __ load_klass_check_null(rcvr_klass, R3);
 
 #ifndef PRODUCT
   if (DebugVtables) {
@@ -102,7 +100,9 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
   }
 #endif
 
-  int v_off = entry_offset + vtableEntry::method_offset_in_bytes();
+  int entry_offset = in_bytes(Klass::vtable_start_offset()) +
+                     vtable_index*vtableEntry::size_in_bytes();
+  int v_off        = entry_offset + in_bytes(vtableEntry::method_offset());
 
   __ ld(R19_method, (RegisterOrConstant)v_off, rcvr_klass);
 
@@ -111,48 +111,57 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
     Label L;
     __ cmpdi(CCR0, R19_method, 0);
     __ bne(CCR0, L);
-    __ stop("Vtable entry is ZERO", 102);
+    __ stop("Vtable entry is ZERO");
     __ bind(L);
   }
 #endif
 
-  // If the vtable entry is null, the method is abstract.
   address ame_addr = __ pc(); // ame = abstract method error
-  __ null_check(R19_method, in_bytes(Method::from_compiled_offset()), /*implicit only*/NULL);
+                              // if the vtable entry is null, the method is abstract
+                              // NOTE: for vtable dispatches, the vtable entry will never be null.
+
+  __ null_check(R19_method, in_bytes(Method::from_compiled_offset()), /*implicit only*/nullptr);
   __ ld(R12_scratch2, in_bytes(Method::from_compiled_offset()), R19_method);
   __ mtctr(R12_scratch2);
   __ bctr();
 
   masm->flush();
-
-  guarantee(__ pc() <= s->code_end(), "overflowed buffer");
-
-  s->set_exception_points(npe_addr, ame_addr);
+  bookkeeping(masm, tty, s, npe_addr, ame_addr, true, vtable_index, slop_bytes, 0);
 
   return s;
 }
 
 VtableStub* VtableStubs::create_itable_stub(int itable_index) {
-  // PPC port: use fixed size.
-  const int code_length = VtableStub::pd_code_size_limit(false);
-  VtableStub* s = new (code_length) VtableStub(false, itable_index);
-
-  // Can be NULL if there is no free space in the code cache.
-  if (s == NULL) {
-    return NULL;
+  // Read "A word on VtableStub sizing" in share/code/vtableStubs.hpp for details on stub sizing.
+  const int stub_code_length = code_size_limit(false);
+  VtableStub* s = new(stub_code_length) VtableStub(false, itable_index);
+  // Can be null if there is no free space in the code cache.
+  if (s == nullptr) {
+    return nullptr;
   }
 
-  ResourceMark rm;
-  CodeBuffer cb(s->entry_point(), code_length);
-  MacroAssembler* masm = new MacroAssembler(&cb);
-  address start_pc;
+  // Count unused bytes in instruction sequences of variable size.
+  // We add them to the computed buffer size in order to avoid
+  // overflow in subsequently generated stubs.
+  address   start_pc;
+  int       slop_bytes = 8; // just a two-instruction safety net
+  int       slop_delta = 0;
 
-#ifndef PRODUCT
+  ResourceMark    rm;
+  CodeBuffer      cb(s->entry_point(), stub_code_length);
+  MacroAssembler* masm = new MacroAssembler(&cb);
+  int             load_const_maxLen = 5*BytesPerInstWord;  // load_const generates 5 instructions. Assume that as max size for laod_const_optimized
+
+#if (!defined(PRODUCT) && defined(COMPILER2))
   if (CountCompiledCalls) {
+    start_pc = __ pc();
     int offs = __ load_const_optimized(R11_scratch1, SharedRuntime::nof_megamorphic_calls_addr(), R12_scratch2, true);
-    __ lwz(R12_scratch2, offs, R11_scratch1);
+    slop_delta  = load_const_maxLen - (__ pc() - start_pc);
+    slop_bytes += slop_delta;
+    assert(slop_delta >= 0, "negative slop(%d) encountered, adjust code size estimate!", slop_delta);
+    __ ld(R12_scratch2, offs, R11_scratch1);
     __ addi(R12_scratch2, R12_scratch2, 1);
-    __ stw(R12_scratch2, offs, R11_scratch1);
+    __ std(R12_scratch2, offs, R11_scratch1);
   }
 #endif
 
@@ -169,17 +178,16 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
                  tmp2       = R22_tmp2;
 
   address npe_addr = __ pc(); // npe = null pointer exception
-  __ null_check(R3_ARG1, oopDesc::klass_offset_in_bytes(), /*implicit only*/NULL);
-  __ load_klass(rcvr_klass, R3_ARG1);
+  __ load_klass_check_null(rcvr_klass, R3_ARG1);
 
   // Receiver subtype check against REFC.
-  __ ld(interface, CompiledICHolder::holder_klass_offset(), R19_method);
+  __ ld(interface, CompiledICData::itable_refc_klass_offset(), R19_method);
   __ lookup_interface_method(rcvr_klass, interface, noreg,
                              R0, tmp1, tmp2,
                              L_no_such_interface, /*return_method=*/ false);
 
   // Get Method* and entrypoint for compiler
-  __ ld(interface, CompiledICHolder::holder_metadata_offset(), R19_method);
+  __ ld(interface, CompiledICData::itable_defc_klass_offset(), R19_method);
   __ lookup_interface_method(rcvr_klass, interface, itable_index,
                              R19_method, tmp1, tmp2,
                              L_no_such_interface, /*return_method=*/ true);
@@ -187,9 +195,9 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
 #ifndef PRODUCT
   if (DebugVtables) {
     Label ok;
-    __ cmpd(CCR0, R19_method, 0);
+    __ cmpdi(CCR0, R19_method, 0);
     __ bne(CCR0, ok);
-    __ stop("method is null", 103);
+    __ stop("method is null");
     __ bind(ok);
   }
 #endif
@@ -209,33 +217,22 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
   // wrong method" stub, and so let the interpreter runtime do all the
   // dirty work.
   __ bind(L_no_such_interface);
+  start_pc = __ pc();
   __ load_const_optimized(R11_scratch1, SharedRuntime::get_handle_wrong_method_stub(), R12_scratch2);
+  slop_delta  = load_const_maxLen - (__ pc() - start_pc);
+  slop_bytes += slop_delta;
+  assert(slop_delta >= 0, "negative slop(%d) encountered, adjust code size estimate!", slop_delta);
   __ mtctr(R11_scratch1);
   __ bctr();
 
   masm->flush();
+  bookkeeping(masm, tty, s, npe_addr, ame_addr, false, itable_index, slop_bytes, 0);
 
-  guarantee(__ pc() <= s->code_end(), "overflowed buffer");
-
-  s->set_exception_points(npe_addr, ame_addr);
   return s;
 }
 
-int VtableStub::pd_code_size_limit(bool is_vtable_stub) {
-  if (DebugVtables || CountCompiledCalls || VerifyOops) {
-    return 1000;
-  }
-  int size = is_vtable_stub ? 20 + 8 : 164 + 20; // Plain + safety
-  if (UseCompressedClassPointers) {
-    size += MacroAssembler::instr_size_for_decode_klass_not_null();
-  }
-  if (!ImplicitNullChecks || !os::zero_page_read_protected()) {
-    size += is_vtable_stub ? 8 : 12;
-  }
-  return size;
-}
-
 int VtableStub::pd_code_alignment() {
+  // Power cache line size is 128 bytes, but we want to limit alignment loss.
   const unsigned int icache_line_size = 32;
   return icache_line_size;
 }

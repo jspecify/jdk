@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,6 @@
 
 package java.util.zip;
 
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.index.qual.Positive;
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.FilterOutputStream;
 import java.io.OutputStream;
 import java.io.InputStream;
@@ -40,14 +34,15 @@ import java.io.IOException;
  * This class implements an output stream filter for compressing data in
  * the "deflate" compression format. It is also used as the basis for other
  * types of compression filters, such as GZIPOutputStream.
+ * <p> Unless otherwise noted, passing a {@code null} argument to a constructor
+ * or method in this class will cause a {@link NullPointerException} to be
+ * thrown.
  *
  * @see         Deflater
  * @author      David Connelly
  * @since 1.1
  */
-@AnnotatedFor({"index", "signedness"})
-public
-class DeflaterOutputStream extends FilterOutputStream {
+public class DeflaterOutputStream extends FilterOutputStream {
     /**
      * Compressor for this stream.
      */
@@ -84,7 +79,7 @@ class DeflaterOutputStream extends FilterOutputStream {
      */
     public DeflaterOutputStream(OutputStream out,
                                 Deflater def,
-                                @Positive int size,
+                                int size,
                                 boolean syncFlush) {
         super(out);
         if (out == null || def == null) {
@@ -108,9 +103,9 @@ class DeflaterOutputStream extends FilterOutputStream {
      * @param out the output stream
      * @param def the compressor ("deflater")
      * @param size the output buffer size
-     * @exception IllegalArgumentException if {@code size <= 0}
+     * @throws    IllegalArgumentException if {@code size <= 0}
      */
-    public DeflaterOutputStream(OutputStream out, Deflater def, @Positive int size) {
+    public DeflaterOutputStream(OutputStream out, Deflater def, int size) {
         this(out, def, size, false);
     }
 
@@ -166,7 +161,7 @@ class DeflaterOutputStream extends FilterOutputStream {
      * @since 1.7
      */
     public DeflaterOutputStream(OutputStream out, boolean syncFlush) {
-        this(out, new Deflater(), 512, syncFlush);
+        this(out, out != null ? new Deflater() : null, 512, syncFlush);
         usesDefaultDeflater = true;
     }
 
@@ -187,9 +182,9 @@ class DeflaterOutputStream extends FilterOutputStream {
      * Writes a byte to the compressed output stream. This method will
      * block until the byte can be written.
      * @param b the byte to be written
-     * @exception IOException if an I/O error has occurred
+     * @throws    IOException if an I/O error has occurred
      */
-    public void write(@NonNegative int b) throws IOException {
+    public void write(int b) throws IOException {
         byte[] buf = new byte[1];
         buf[0] = (byte)(b & 0xff);
         write(buf, 0, 1);
@@ -201,9 +196,9 @@ class DeflaterOutputStream extends FilterOutputStream {
      * @param b the data to be written
      * @param off the start offset of the data
      * @param len the length of the data
-     * @exception IOException if an I/O error has occurred
+     * @throws    IOException if an I/O error has occurred
      */
-    public void write(@PolySigned byte[] b, @IndexOrHigh({"#1"}) int off, @IndexOrHigh({"#1"}) int len) throws IOException {
+    public void write(byte[] b, int off, int len) throws IOException {
         if (def.finished()) {
             throw new IOException("write beyond end of stream");
         }
@@ -224,13 +219,19 @@ class DeflaterOutputStream extends FilterOutputStream {
      * Finishes writing compressed data to the output stream without closing
      * the underlying stream. Use this method when applying multiple filters
      * in succession to the same output stream.
-     * @exception IOException if an I/O error has occurred
+     * @throws    IOException if an I/O error has occurred
      */
     public void finish() throws IOException {
         if (!def.finished()) {
-            def.finish();
-            while (!def.finished()) {
-                deflate();
+            try{
+                def.finish();
+                while (!def.finished()) {
+                    deflate();
+                }
+            } catch(IOException e) {
+                if (usesDefaultDeflater)
+                    def.end();
+                throw e;
             }
         }
     }
@@ -238,15 +239,34 @@ class DeflaterOutputStream extends FilterOutputStream {
     /**
      * Writes remaining compressed data to the output stream and closes the
      * underlying stream.
-     * @exception IOException if an I/O error has occurred
+     * @throws    IOException if an I/O error has occurred
      */
     public void close() throws IOException {
         if (!closed) {
-            finish();
-            if (usesDefaultDeflater)
-                def.end();
-            out.close();
             closed = true;
+            IOException finishException = null;
+            try {
+                finish();
+            } catch (IOException ioe){
+                finishException = ioe;
+                throw ioe;
+            } finally {
+                if (usesDefaultDeflater) {
+                    def.end();
+                }
+                if (finishException == null) {
+                    out.close();
+                } else {
+                    try {
+                        out.close();
+                    } catch (IOException ioe) {
+                        if (finishException != ioe) {
+                            ioe.addSuppressed(finishException);
+                        }
+                        throw ioe;
+                    }
+                }
+            }
         }
     }
 

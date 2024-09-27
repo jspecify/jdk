@@ -90,13 +90,14 @@ public class DSAKeyValue extends SignatureElementProxy implements KeyValueConten
             this.addBigIntegerElement(params.getG(), Constants._TAG_G);
             this.addBigIntegerElement(((DSAPublicKey) key).getY(), Constants._TAG_Y);
         } else {
-            Object exArgs[] = { Constants._TAG_DSAKEYVALUE, key.getClass().getName() };
+            Object[] exArgs = { Constants._TAG_DSAKEYVALUE, key.getClass().getName() };
 
             throw new IllegalArgumentException(I18n.translate("KeyValue.IllegalArgument", exArgs));
         }
     }
 
     /** {@inheritDoc} */
+    @Override
     public PublicKey getPublicKey() throws XMLSecurityException {
         try {
             DSAPublicKeySpec pkspec =
@@ -115,17 +116,15 @@ public class DSAKeyValue extends SignatureElementProxy implements KeyValueConten
                     )
                 );
             KeyFactory dsaFactory = KeyFactory.getInstance("DSA");
-            PublicKey pk = dsaFactory.generatePublic(pkspec);
 
-            return pk;
-        } catch (NoSuchAlgorithmException ex) {
-            throw new XMLSecurityException(ex);
-        } catch (InvalidKeySpecException ex) {
+            return dsaFactory.generatePublic(pkspec);
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException ex) {
             throw new XMLSecurityException(ex);
         }
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getBaseLocalName() {
         return Constants._TAG_DSAKEYVALUE;
     }

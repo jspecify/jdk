@@ -56,6 +56,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package jdk.internal.org.objectweb.asm.tree;
 
 import jdk.internal.org.objectweb.asm.ModuleVisitor;
@@ -66,51 +67,39 @@ import jdk.internal.org.objectweb.asm.ModuleVisitor;
  * @author Remi Forax
  */
 public class ModuleRequireNode {
-    /**
-     * The name of the required module.
-     */
+
+    /** The fully qualified name (using dots) of the dependence. */
     public String module;
 
     /**
-     * The access flags (see {@link jdk.internal.org.objectweb.asm.Opcodes}).
-     * Valid values are <tt>ACC_TRANSITIVE</tt>, <tt>ACC_STATIC_PHASE</tt>,
-     *        <tt>ACC_SYNTHETIC</tt> and <tt>ACC_MANDATED</tt>.
-     */
+      * The access flag of the dependence among {@code ACC_TRANSITIVE}, {@code ACC_STATIC_PHASE},
+      * {@code ACC_SYNTHETIC} and {@code ACC_MANDATED}.
+      */
     public int access;
 
-    /**
-     * Version at compile time of the required module or null.
-     */
+    /** The module version at compile time, or {@literal null}. */
     public String version;
 
     /**
-     * Constructs a new {@link ModuleRequireNode}.
-     *
-     * @param module
-     *            the name of the required module.
-     * @param access
-     *            The access flags. Valid values are
-     *            <tt>ACC_TRANSITIVE</tt>, <tt>ACC_STATIC_PHASE</tt>,
-     *            <tt>ACC_SYNTHETIC</tt> and <tt>ACC_MANDATED</tt>
-     *            (see {@link jdk.internal.org.objectweb.asm.Opcodes}).
-     * @param version
-     *            Version of the required module at compile time,
-     *            null if not defined.
-     */
-    public ModuleRequireNode(final String module, final int access,
-            final String version) {
+      * Constructs a new {@link ModuleRequireNode}.
+      *
+      * @param module the fully qualified name (using dots) of the dependence.
+      * @param access the access flag of the dependence among {@code ACC_TRANSITIVE}, {@code
+      *     ACC_STATIC_PHASE}, {@code ACC_SYNTHETIC} and {@code ACC_MANDATED}.
+      * @param version the module version at compile time, or {@literal null}.
+      */
+    public ModuleRequireNode(final String module, final int access, final String version) {
         this.module = module;
         this.access = access;
         this.version = version;
     }
 
     /**
-     * Makes the given module visitor visit this require directive.
-     *
-     * @param mv
-     *            a module visitor.
-     */
-    public void accept(final ModuleVisitor mv) {
-        mv.visitRequire(module, access, version);
+      * Makes the given module visitor visit this require directive.
+      *
+      * @param moduleVisitor a module visitor.
+      */
+    public void accept(final ModuleVisitor moduleVisitor) {
+        moduleVisitor.visitRequire(module, access, version);
     }
 }

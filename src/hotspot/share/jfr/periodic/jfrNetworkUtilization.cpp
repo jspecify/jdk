@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,30 +39,30 @@ struct InterfaceEntry {
   traceid id;
   uint64_t bytes_in;
   uint64_t bytes_out;
-  bool in_use;
+  mutable bool written;
 };
 
-static GrowableArray<InterfaceEntry>* _interfaces = NULL;
+static GrowableArray<InterfaceEntry>* _interfaces = nullptr;
 
 void JfrNetworkUtilization::destroy() {
-  if (_interfaces != NULL) {
+  if (_interfaces != nullptr) {
     for (int i = 0; i < _interfaces->length(); ++i) {
       FREE_C_HEAP_ARRAY(char, _interfaces->at(i).name);
     }
     delete _interfaces;
-    _interfaces = NULL;
+    _interfaces = nullptr;
   }
 }
 
 static InterfaceEntry& new_entry(const NetworkInterface* iface, GrowableArray<InterfaceEntry>* interfaces) {
-  assert(iface != NULL, "invariant");
-  assert(interfaces != NULL, "invariant");
+  assert(iface != nullptr, "invariant");
+  assert(interfaces != nullptr, "invariant");
 
   // single threaded premise
   static traceid interface_id = 0;
 
   const char* name = iface->get_name();
-  assert(name != NULL, "invariant");
+  assert(name != nullptr, "invariant");
 
   InterfaceEntry entry;
   const size_t length = strlen(name);
@@ -71,13 +71,13 @@ static InterfaceEntry& new_entry(const NetworkInterface* iface, GrowableArray<In
   entry.id = ++interface_id;
   entry.bytes_in = iface->get_bytes_in();
   entry.bytes_out = iface->get_bytes_out();
-  entry.in_use = false;
+  entry.written = false;
   return _interfaces->at(_interfaces->append(entry));
 }
 
 static GrowableArray<InterfaceEntry>* get_interfaces() {
-  if (_interfaces == NULL) {
-    _interfaces = new(ResourceObj::C_HEAP, mtTracing) GrowableArray<InterfaceEntry>(10, true, mtTracing);
+  if (_interfaces == nullptr) {
+    _interfaces = new (mtTracing) GrowableArray<InterfaceEntry>(10, mtTracing);
   }
   return _interfaces;
 }
@@ -88,7 +88,7 @@ static InterfaceEntry& get_entry(const NetworkInterface* iface) {
   static int saved_index = -1;
 
   GrowableArray<InterfaceEntry>* interfaces = get_interfaces();
-  assert(interfaces != NULL, "invariant");
+  assert(interfaces != nullptr, "invariant");
   for (int i = 0; i < _interfaces->length(); ++i) {
     saved_index = (saved_index + 1) % _interfaces->length();
     if (strcmp(_interfaces->at(saved_index).name, iface->get_name()) == 0) {
@@ -108,6 +108,39 @@ static uint64_t rate_per_second(uint64_t current, uint64_t old, const JfrTickspa
   return ((current - old) * NANOSECS_PER_SEC) / interval.nanoseconds();
 }
 
+class JfrNetworkInterfaceName : public JfrSerializer {
+ public:
+   void serialize(JfrCheckpointWriter& writer) {} // we write each constant lazily
+
+   void on_rotation() {
+     for (int i = 0; i < _interfaces->length(); ++i) {
+       const InterfaceEntry& entry = _interfaces->at(i);
+       if (entry.written) {
+         entry.written = false;
+       }
+     }
+   }
+};
+
+static bool register_network_interface_name_serializer() {
+  assert(_interfaces != nullptr, "invariant");
+  return JfrSerializer::register_serializer(TYPE_NETWORKINTERFACENAME,
+    false, // disallow caching; we want a callback every rotation
+    new JfrNetworkInterfaceName());
+}
+
+static void write_interface_constant(const InterfaceEntry& entry) {
+  if (entry.written) {
+    return;
+  }
+  JfrCheckpointWriter writer;
+  writer.write_type(TYPE_NETWORKINTERFACENAME);
+  writer.write_count(1);
+  writer.write_key(entry.id);
+  writer.write(entry.name);
+  entry.written = true;
+}
+
 static bool get_interfaces(NetworkInterface** network_interfaces) {
   const int ret_val = JfrOSInterface::network_utilization(network_interfaces);
   if (ret_val == OS_ERR) {
@@ -117,65 +150,30 @@ static bool get_interfaces(NetworkInterface** network_interfaces) {
   return ret_val != FUNCTIONALITY_NOT_IMPLEMENTED;
 }
 
-class JfrNetworkInterfaceName : public JfrSerializer {
- public:
-  void serialize(JfrCheckpointWriter& writer) {
-    assert(_interfaces != NULL, "invariant");
-    const JfrCheckpointContext ctx = writer.context();
-    const intptr_t count_offset = writer.reserve(sizeof(u4)); // Don't know how many yet
-    int active_interfaces = 0;
-    for (int i = 0; i < _interfaces->length(); ++i) {
-      InterfaceEntry& entry = _interfaces->at(i);
-      if (entry.in_use) {
-        entry.in_use = false;
-        writer.write_key(entry.id);
-        writer.write(entry.name);
-        ++active_interfaces;
-      }
-    }
-    if (active_interfaces == 0) {
-      // nothing to write, restore context
-      writer.set_context(ctx);
-      return;
-    }
-    writer.write_count(active_interfaces, count_offset);
-  }
-};
-
-static bool register_network_interface_name_serializer() {
-  assert(_interfaces != NULL, "invariant");
-  return JfrSerializer::register_serializer(TYPE_NETWORKINTERFACENAME,
-                                            false, // require safepoint
-                                            false, // disallow caching; we want a callback every rotation
-                                            new JfrNetworkInterfaceName());
-}
-
 void JfrNetworkUtilization::send_events() {
   ResourceMark rm;
   NetworkInterface* network_interfaces;
   if (!get_interfaces(&network_interfaces)) {
     return;
   }
-  log_trace(jfr, event)("Reporting network utilization");
   static JfrTicks last_sample_instant;
   const JfrTicks cur_time = JfrTicks::now();
-  const JfrTickspan interval = last_sample_instant == 0 ? cur_time - cur_time : cur_time - last_sample_instant;
-  last_sample_instant = cur_time;
-  for (NetworkInterface *cur = network_interfaces; cur != NULL; cur = cur->next()) {
-    InterfaceEntry& entry = get_entry(cur);
-    if (interval.value() > 0) {
+  if (cur_time > last_sample_instant) {
+    const JfrTickspan interval = cur_time - last_sample_instant;
+    for (NetworkInterface *cur = network_interfaces; cur != nullptr; cur = cur->next()) {
+      InterfaceEntry& entry = get_entry(cur);
       const uint64_t current_bytes_in = cur->get_bytes_in();
       const uint64_t current_bytes_out = cur->get_bytes_out();
       const uint64_t read_rate = rate_per_second(current_bytes_in, entry.bytes_in, interval);
       const uint64_t write_rate = rate_per_second(current_bytes_out, entry.bytes_out, interval);
       if (read_rate > 0 || write_rate > 0) {
-        entry.in_use = true;
+        write_interface_constant(entry);
         EventNetworkUtilization event(UNTIMED);
         event.set_starttime(cur_time);
         event.set_endtime(cur_time);
         event.set_networkInterface(entry.id);
-        event.set_readRate(read_rate);
-        event.set_writeRate(write_rate);
+        event.set_readRate(8 * read_rate);
+        event.set_writeRate(8 * write_rate);
         event.commit();
       }
       // update existing entry with new values
@@ -183,6 +181,7 @@ void JfrNetworkUtilization::send_events() {
       entry.bytes_out = current_bytes_out;
     }
   }
+  last_sample_instant = cur_time;
 
   static bool is_serializer_registered = false;
   if (!is_serializer_registered) {

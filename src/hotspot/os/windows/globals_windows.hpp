@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,31 +22,34 @@
  *
  */
 
-#ifndef OS_WINDOWS_VM_GLOBALS_WINDOWS_HPP
-#define OS_WINDOWS_VM_GLOBALS_WINDOWS_HPP
+#ifndef OS_WINDOWS_GLOBALS_WINDOWS_HPP
+#define OS_WINDOWS_GLOBALS_WINDOWS_HPP
 
 //
-// Defines Windows specific flags. They are not available on other platforms.
+// Declare Windows specific flags. They are not available on other platforms.
 //
-#define RUNTIME_OS_FLAGS(develop, \
-                         develop_pd, \
-                         product, \
-                         product_pd, \
-                         diagnostic, \
-                         diagnostic_pd, \
-                         notproduct, \
-                         range, \
-                         constraint, \
-                         writeable)
+#define RUNTIME_OS_FLAGS(develop,                                         \
+                         develop_pd,                                      \
+                         product,                                         \
+                         product_pd,                                      \
+                         range,                                           \
+                         constraint)                                      \
+                                                                          \
+product(bool, UseAllWindowsProcessorGroups, false,                        \
+        "Use all processor groups on supported Windows versions")         \
+                                                                          \
+product(bool, UseOSErrorReporting, false,                                 \
+        "Let VM fatal error propagate to the OS (ie. WER on Windows)")
 
+// end of RUNTIME_OS_FLAGS
 
 //
 // Defines Windows-specific default values. The flags are available on all
 // platforms, but they may have different default values on other platforms.
 //
+define_pd_global(size_t, PreTouchParallelChunkSize, 1 * G);
 define_pd_global(bool, UseLargePages, false);
 define_pd_global(bool, UseLargePagesIndividualAllocation, true);
-define_pd_global(bool, UseOSErrorReporting, false);  // for now.
 define_pd_global(bool, UseThreadPriorities, true) ;
 
-#endif // OS_WINDOWS_VM_GLOBALS_WINDOWS_HPP
+#endif // OS_WINDOWS_GLOBALS_WINDOWS_HPP

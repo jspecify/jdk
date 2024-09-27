@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,7 +57,6 @@ import java.util.stream.StreamSupport;
  *
  * @author Mike McCloskey
  * @since 1.4
- * @spec JSR-51
  */
 
 @NullMarked
@@ -80,8 +79,8 @@ public interface CharSequence {
      * indexing.
      *
      * <p>If the {@code char} value specified by the index is a
-     * <a href="{@docRoot}/java.base/java/lang/Character.html#unicode">surrogate</a>, the surrogate
-     * value is returned.
+     * {@linkplain Character##unicode surrogate}, the surrogate value
+     * is returned.
      *
      * @param   index   the index of the {@code char} value to be returned
      *
@@ -92,6 +91,21 @@ public interface CharSequence {
      *          {@code length()}
      */
     char charAt( int index);
+
+    /**
+     * Returns {@code true} if this character sequence is empty.
+     *
+     * @implSpec
+     * The default implementation returns the result of calling {@code length() == 0}.
+     *
+     * @return {@code true} if {@link #length()} is {@code 0}, otherwise
+     * {@code false}
+     *
+     * @since 15
+     */
+    default boolean isEmpty() {
+        return this.length() == 0;
+    }
 
     /**
      * Returns a {@code CharSequence} that is a subsequence of this sequence.
@@ -125,9 +139,9 @@ public interface CharSequence {
 
     /**
      * Returns a stream of {@code int} zero-extending the {@code char} values
-     * from this sequence.  Any char which maps to a <a
-     * href="{@docRoot}/java.base/java/lang/Character.html#unicode">surrogate code
-     * point</a> is passed through uninterpreted.
+     * from this sequence.  Any char which maps to a
+     * {@linkplain Character##unicode surrogate code point} is passed
+     * through uninterpreted.
      *
      * <p>The stream binds to this sequence when the terminal stream operation
      * commences (specifically, for mutable sequences the spliterator for the

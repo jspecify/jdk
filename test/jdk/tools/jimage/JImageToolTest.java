@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  */
 /*
  * @test
- * @library /lib/testlibrary
- * @build jdk.testlibrary.ProcessTools
+ * @library /test/lib
+ * @build jdk.test.lib.process.ProcessTools
  * @summary Test to check if jimage tool exists and is working
  * @run main/timeout=360 JImageToolTest
  */
@@ -34,7 +34,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.ProcessTools;
 
 /**
  * Basic test for jimage tool.
@@ -42,11 +42,11 @@ import jdk.testlibrary.ProcessTools;
 public class JImageToolTest {
     private static void jimage(String... jimageArgs) throws Exception {
         ArrayList<String> args = new ArrayList<>();
-        args.add("-ms64m");
+        args.add("-Xms64m");
         args.add("jdk.tools.jimage.Main");
         args.addAll(Arrays.asList(jimageArgs));
 
-        ProcessBuilder builder = ProcessTools.createJavaProcessBuilder(args.toArray(new String[args.size()]));
+        ProcessBuilder builder = ProcessTools.createLimitedTestJavaProcessBuilder(args.toArray(new String[args.size()]));
         int res = builder.inheritIO().start().waitFor();
 
         if (res != 0) {

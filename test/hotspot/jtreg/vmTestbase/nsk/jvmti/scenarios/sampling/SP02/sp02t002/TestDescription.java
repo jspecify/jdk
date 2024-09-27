@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,10 +32,10 @@
  *     This JVMTI test is for SP02 scenario of "time sampling profiling" area.
  *     This test checks that JVMTI methods GetStackTrace() returns expected list
  *     of stack frames including frame for tested method.
- *     Threads are supended/resumed individually by SuspendThread() and ResumeThread().
+ *     Threads are suspended/resumed individually by SuspendThread() and ResumeThread().
  *     Checked statements:
- *         - number of stack frames returned by GetFramesCount() should be equal or
- *           less than number returned by successive call to GetStackTrace()
+ *         - for suspended threads number of stack frames returned by GetFrameCount()
+  *          should be equal to frames number returned by successive call to GetStackTrace()
  *         - list of stack frames returned by GetStackTrace() should include
  *           frame for tested method
  *     Tested threads:
@@ -58,7 +58,6 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm/native
  *      -agentlib:sp02t002=-waittime=5
  *      nsk.jvmti.scenarios.sampling.SP02.sp02t002

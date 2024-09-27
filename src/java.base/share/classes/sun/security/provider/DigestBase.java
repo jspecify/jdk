@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,11 @@ package sun.security.provider;
 import java.security.MessageDigestSpi;
 import java.security.DigestException;
 import java.security.ProviderException;
+import java.util.Arrays;
 import java.util.Objects;
 
-import jdk.internal.HotSpotIntrinsicCandidate;
+import jdk.internal.util.Preconditions;
+import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
  * Common base message digest implementation for the Sun provider.
@@ -59,7 +61,7 @@ abstract class DigestBase extends MessageDigestSpi implements Cloneable {
     private final int digestLength;
 
     // size of the input to the compression function in bytes
-    private final int blockSize;
+    protected final int blockSize;
     // buffer to store partial blocks, blockSize bytes large
     // Subclasses should not access this array directly except possibly in their
     // implDigest() method. See MD5.java as an example.
@@ -104,9 +106,7 @@ abstract class DigestBase extends MessageDigestSpi implements Cloneable {
         if (len == 0) {
             return;
         }
-        if ((ofs < 0) || (len < 0) || (ofs > b.length - len)) {
-            throw new ArrayIndexOutOfBoundsException();
-        }
+        Preconditions.checkFromIndexSize(ofs, len, b.length, Preconditions.AIOOBE_FORMATTER);
         if (bytesProcessed < 0) {
             engineReset();
         }
@@ -143,7 +143,7 @@ abstract class DigestBase extends MessageDigestSpi implements Cloneable {
         return implCompressMultiBlock0(b, ofs, limit);
     }
 
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     private int implCompressMultiBlock0(byte[] b, int ofs, int limit) {
         for (; ofs <= limit; ofs += blockSize) {
             implCompress(b, ofs);
@@ -158,10 +158,7 @@ abstract class DigestBase extends MessageDigestSpi implements Cloneable {
         }
 
         Objects.requireNonNull(b);
-
-        if (ofs < 0 || ofs >= b.length) {
-            throw new ArrayIndexOutOfBoundsException(ofs);
-        }
+        Preconditions.checkIndex(ofs, b.length, Preconditions.AIOOBE_FORMATTER);
 
         int endIndex = (limit / blockSize) * blockSize  + blockSize - 1;
         if (endIndex >= b.length) {
@@ -178,6 +175,7 @@ abstract class DigestBase extends MessageDigestSpi implements Cloneable {
         implReset();
         bufOfs = 0;
         bytesProcessed = 0;
+        Arrays.fill(buffer, (byte) 0x00);
     }
 
     // return the digest. See JCA doc.
@@ -186,8 +184,7 @@ abstract class DigestBase extends MessageDigestSpi implements Cloneable {
         try {
             engineDigest(b, 0, b.length);
         } catch (DigestException e) {
-            throw (ProviderException)
-                new ProviderException("Internal error").initCause(e);
+            throw new ProviderException("Internal error", e);
         }
         return b;
     }
@@ -231,6 +228,7 @@ abstract class DigestBase extends MessageDigestSpi implements Cloneable {
     public Object clone() throws CloneNotSupportedException {
         DigestBase copy = (DigestBase) super.clone();
         copy.buffer = copy.buffer.clone();
+        copy.oneByte = null;
         return copy;
     }
 

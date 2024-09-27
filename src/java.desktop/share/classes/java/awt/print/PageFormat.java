@@ -290,7 +290,7 @@ public @UsesObjectEquals class PageFormat implements Cloneable
      * {@code PageFormat}.
      * @param paper the {@code Paper} object to which to set
      * the {@code Paper} object for this {@code PageFormat}.
-     * @exception NullPointerException
+     * @throws NullPointerException
      *              a null paper instance was passed as a parameter.
      * @see #getPaper
      */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.io.UncheckedIOException;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.Authenticator;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
@@ -36,6 +38,7 @@ import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.net.http.HttpResponse.BodySubscriber;
 import java.net.http.HttpResponse.BodySubscribers;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -44,6 +47,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Flow;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -115,6 +119,18 @@ public class JavadocExamples {
                 .uri(URI.create("https://foo.com/"))
                 .POST(BodyPublishers.ofByteArray(new byte[] { /*...*/ }))
                 .build();
+
+        // HttpRequest.Builder
+        // API note - newBuilder(HttpRequest, BiPredicate<String, String>)
+        // Retain all headers:
+        HttpRequest.newBuilder(request, (n, v) -> true);
+
+        //Remove all headers:
+        HttpRequest.newBuilder(request, (n, v) -> false);
+
+        // Remove a particular header (e.g. Foo-Bar):
+        HttpRequest.newBuilder(request, (name, value) ->
+                !name.equalsIgnoreCase("Foo-Bar"));
     }
 
     void fromHttpResponse() throws Exception {
@@ -161,8 +177,8 @@ public class JavadocExamples {
 
         // HttpResponse.BodySubscribers class-level description
         // Streams the response body to a File
-        HttpResponse<byte[]> response5 = client
-                .send(request, responseInfo -> BodySubscribers.ofByteArray());
+        HttpResponse<Path> response5 = client
+                .send(request, responseInfo -> BodySubscribers.ofFile(Paths.get("example.html")));
 
         // Accumulates the response body and returns it as a byte[]
         HttpResponse<byte[]> response6 = client
@@ -176,6 +192,11 @@ public class JavadocExamples {
         HttpResponse<byte[]> response8 = client
                 .send(request, responseInfo ->
                         BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), String::getBytes));
+
+        // Maps an InputStream to a Foo object.
+        HttpResponse<Supplier<Foo>> response9 = client.send(request,
+                (resp) -> FromMappingSubscriber.asJSON(Foo.class));
+        String resp = response9.body().get().asString();
 
     }
 
@@ -288,6 +309,53 @@ public class JavadocExamples {
         public List<String> getMatchingLines() {
             return Collections.unmodifiableList(matches);
         }
+    }
+
+    public static class Foo {
+        byte[] bytes;
+        public Foo(byte[] bytes) {
+            this.bytes = bytes;
+        }
+        public String asString() {
+            return new String(bytes, UTF_8);
+        }
+    }
+
+    static class ObjectMapper {
+        <W> W readValue(InputStream is, Class<W> targetType)
+            throws IOException
+        {
+                byte[] bytes = is.readAllBytes();
+                return map(bytes, targetType);
+        }
+
+        static <W> W map(byte[] bytes, Class<W> targetType) {
+            try {
+                return targetType.getConstructor(byte[].class).newInstance(bytes);
+            } catch (RuntimeException | Error x) {
+                throw x;
+            } catch (Exception x) {
+                throw new UndeclaredThrowableException(x);
+            }
+        }
+    }
+
+    static class FromMappingSubscriber {
+        public static <W> BodySubscriber<Supplier<W>> asJSON(Class<W> targetType) {
+            BodySubscriber<InputStream> upstream = BodySubscribers.ofInputStream();
+
+            BodySubscriber<Supplier<W>> downstream = BodySubscribers.mapping(
+                    upstream, (InputStream is) -> () -> {
+                        try (InputStream stream = is) {
+                            ObjectMapper objectMapper = new ObjectMapper();
+                            return objectMapper.readValue(stream, targetType);
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    });
+            return downstream;
+        }
+
     }
 
 }

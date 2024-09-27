@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,18 +44,21 @@ import java.util.concurrent.Callable;
  * A user supplied path must never be used in an unsafe context, such as a
  * shutdown hook or any other thread created by JFR.
  * <p>
- * All operation using this path must happen in {@link #doPriviligedIO(Callable)}
+ * All operation using this path must happen in {@link #doPrivilegedIO(Callable)}
  */
 public final class WriteableUserPath {
+    @SuppressWarnings("removal")
     private final AccessControlContext controlContext;
     private final Path original;
     private final Path real;
-    private final String text;
+    private final String realPathText;
+    private final String originalText;
 
     // Not to ensure security, but to help
     // against programming errors
     private volatile boolean inPrivileged;
 
+    @SuppressWarnings("removal")
     public WriteableUserPath(Path path) throws IOException {
         controlContext = AccessController.getContext();
         // verify that the path is writeable
@@ -68,8 +71,9 @@ public final class WriteableUserPath {
         BufferedWriter fw = Files.newBufferedWriter(path);
         fw.close();
         this.original = path;
+        this.originalText = path.toString();
         this.real = path.toRealPath();
-        this.text = real.toString();
+        this.realPathText = real.toString();
     }
 
     /**
@@ -85,13 +89,23 @@ public final class WriteableUserPath {
     }
 
     /**
-     * Returns a string representation of the path.
+     * Returns a string representation of the real path.
      *
      * @return path as text
      */
-    public String getText() {
-        return text;
+    public String getRealPathText() {
+        return realPathText;
     }
+
+    /**
+     * Returns a string representation of the original path.
+     *
+     * @return path as text
+     */
+    public String getOriginalText() {
+        return originalText;
+    }
+
 
     /**
      * Returns a potentially malicious path where the user may have implemented
@@ -108,7 +122,8 @@ public final class WriteableUserPath {
         return real;
     }
 
-    public void doPriviligedIO(Callable<?> function) throws IOException {
+    @SuppressWarnings("removal")
+    public void doPrivilegedIO(Callable<?> function) throws IOException {
         try {
             inPrivileged = true;
             AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
@@ -121,7 +136,11 @@ public final class WriteableUserPath {
         } catch (Throwable t) {
             // prevent malicious user to propagate exception callback
             // in the wrong context
-            throw new IOException("Unexpected error during I/O operation");
+            Throwable cause = null;
+            if (System.getSecurityManager() == null) {
+                cause = t;
+            }
+            throw new IOException("Unexpected error during I/O operation", cause);
         } finally {
             inPrivileged = false;
         }

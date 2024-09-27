@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,12 @@
 #include "ci/ciMethod.hpp"
 #include "ci/ciMethodBlocks.hpp"
 #include "ci/ciStreams.hpp"
+#include "classfile/vmIntrinsics.hpp"
 #include "compiler/methodLiveness.hpp"
 #include "interpreter/bytecode.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
-#include "runtime/timerTrace.hpp"
 #include "utilities/bitMap.inline.hpp"
 
 // The MethodLiveness class performs a simple liveness analysis on a method
@@ -71,64 +71,6 @@
 //    a single set (_exception_exit), losing some information but simplifying the
 //    analysis.
 
-
-//--------------------------------------------------------------------------
-// The BitCounter class is used for counting the number of bits set in
-// some BitMap.  It is only used when collecting liveness statistics.
-
-#ifndef PRODUCT
-
-class BitCounter: public BitMapClosure {
- private:
-  int _count;
- public:
-  BitCounter() : _count(0) {}
-
-  // Callback when bit in map is set
-  virtual bool do_bit(size_t offset) {
-    _count++;
-    return true;
-  }
-
-  int count() {
-    return _count;
-  }
-};
-
-
-//--------------------------------------------------------------------------
-
-
-// Counts
-long MethodLiveness::_total_bytes = 0;
-int  MethodLiveness::_total_methods = 0;
-
-long MethodLiveness::_total_blocks = 0;
-int  MethodLiveness::_max_method_blocks = 0;
-
-long MethodLiveness::_total_edges = 0;
-int  MethodLiveness::_max_block_edges = 0;
-
-long MethodLiveness::_total_exc_edges = 0;
-int  MethodLiveness::_max_block_exc_edges = 0;
-
-long MethodLiveness::_total_method_locals = 0;
-int  MethodLiveness::_max_method_locals = 0;
-
-long MethodLiveness::_total_locals_queried = 0;
-long MethodLiveness::_total_live_locals_queried = 0;
-
-long MethodLiveness::_total_visits = 0;
-
-#endif
-
-// Timers
-elapsedTimer MethodLiveness::_time_build_graph;
-elapsedTimer MethodLiveness::_time_gen_kill;
-elapsedTimer MethodLiveness::_time_flow;
-elapsedTimer MethodLiveness::_time_query;
-elapsedTimer MethodLiveness::_time_total;
-
 MethodLiveness::MethodLiveness(Arena* arena, ciMethod* method)
 #ifdef COMPILER1
   : _bci_block_start(arena, method->code_size())
@@ -146,63 +88,20 @@ void MethodLiveness::compute_liveness() {
     tty->print("# Computing liveness information for ");
     method()->print_short_name();
   }
-
-  if (TimeLivenessAnalysis) _time_total.start();
 #endif
 
-  {
-    TraceTime buildGraph(NULL, &_time_build_graph, TimeLivenessAnalysis);
-    init_basic_blocks();
-  }
-  {
-    TraceTime genKill(NULL, &_time_gen_kill, TimeLivenessAnalysis);
-    init_gen_kill();
-  }
-  {
-    TraceTime flow(NULL, &_time_flow, TimeLivenessAnalysis);
-    propagate_liveness();
-  }
-
-#ifndef PRODUCT
-  if (TimeLivenessAnalysis) _time_total.stop();
-
-  if (TimeLivenessAnalysis) {
-    // Collect statistics
-    _total_bytes += method()->code_size();
-    _total_methods++;
-
-    int num_blocks = _block_count;
-    _total_blocks += num_blocks;
-    _max_method_blocks = MAX2(num_blocks,_max_method_blocks);
-
-    for (int i=0; i<num_blocks; i++) {
-      BasicBlock *block = _block_list[i];
-
-      int numEdges = block->_normal_predecessors->length();
-      int numExcEdges = block->_exception_predecessors->length();
-
-      _total_edges += numEdges;
-      _total_exc_edges += numExcEdges;
-      _max_block_edges = MAX2(numEdges,_max_block_edges);
-      _max_block_exc_edges = MAX2(numExcEdges,_max_block_exc_edges);
-    }
-
-    int numLocals = _bit_map_size_bits;
-    _total_method_locals += numLocals;
-    _max_method_locals = MAX2(numLocals,_max_method_locals);
-  }
-#endif
+  init_basic_blocks();
+  init_gen_kill();
+  propagate_liveness();
 }
 
 
 void MethodLiveness::init_basic_blocks() {
-  bool bailout = false;
-
   int method_len = method()->code_size();
   ciMethodBlocks *mblocks = method()->get_method_blocks();
 
   // Create an array to store the bci->BasicBlock mapping.
-  _block_map = new (arena()) GrowableArray<BasicBlock*>(arena(), method_len, method_len, NULL);
+  _block_map = new (arena()) GrowableArray<BasicBlock*>(arena(), method_len, method_len, nullptr);
 
   _block_count = mblocks->num_blocks();
   _block_list = (BasicBlock **) arena()->Amalloc(sizeof(BasicBlock *) * _block_count);
@@ -233,7 +132,7 @@ void MethodLiveness::init_basic_blocks() {
       int limit = current_block->limit_bci();
       if (limit < method_len) {
         BasicBlock *next = _block_map->at(limit);
-        assert( next != NULL, "must be a block immediately following this one.");
+        assert( next != nullptr, "must be a block immediately following this one.");
         next->add_normal_predecessor(current_block);
       }
       continue;
@@ -244,7 +143,7 @@ void MethodLiveness::init_basic_blocks() {
 
     // Now we need to interpret the instruction's effect
     // on control flow.
-    assert (current_block != NULL, "we must have a current block");
+    assert (current_block != nullptr, "we must have a current block");
     switch (code) {
       case Bytecodes::_ifeq:
       case Bytecodes::_ifne:
@@ -263,22 +162,23 @@ void MethodLiveness::init_basic_blocks() {
       case Bytecodes::_ifnull:
       case Bytecodes::_ifnonnull:
         // Two way branch.  Set predecessors at each destination.
-        dest = _block_map->at(bytes.next_bci());
-        assert(dest != NULL, "must be a block immediately following this one.");
-        dest->add_normal_predecessor(current_block);
-
+        if (bytes.next_bci() < method_len) {
+          dest = _block_map->at(bytes.next_bci());
+          assert(dest != nullptr, "must be a block immediately following this one.");
+          dest->add_normal_predecessor(current_block);
+        }
         dest = _block_map->at(bytes.get_dest());
-        assert(dest != NULL, "branch desination must start a block.");
+        assert(dest != nullptr, "branch destination must start a block.");
         dest->add_normal_predecessor(current_block);
         break;
       case Bytecodes::_goto:
         dest = _block_map->at(bytes.get_dest());
-        assert(dest != NULL, "branch desination must start a block.");
+        assert(dest != nullptr, "branch destination must start a block.");
         dest->add_normal_predecessor(current_block);
         break;
       case Bytecodes::_goto_w:
         dest = _block_map->at(bytes.get_far_dest());
-        assert(dest != NULL, "branch desination must start a block.");
+        assert(dest != nullptr, "branch destination must start a block.");
         dest->add_normal_predecessor(current_block);
         break;
       case Bytecodes::_tableswitch:
@@ -288,11 +188,11 @@ void MethodLiveness::init_basic_blocks() {
           int len = tableswitch.length();
 
           dest = _block_map->at(bci + tableswitch.default_offset());
-          assert(dest != NULL, "branch desination must start a block.");
+          assert(dest != nullptr, "branch destination must start a block.");
           dest->add_normal_predecessor(current_block);
           while (--len >= 0) {
             dest = _block_map->at(bci + tableswitch.dest_offset_at(len));
-            assert(dest != NULL, "branch desination must start a block.");
+            assert(dest != nullptr, "branch destination must start a block.");
             dest->add_normal_predecessor(current_block);
           }
           break;
@@ -305,12 +205,12 @@ void MethodLiveness::init_basic_blocks() {
           int npairs = lookupswitch.number_of_pairs();
 
           dest = _block_map->at(bci + lookupswitch.default_offset());
-          assert(dest != NULL, "branch desination must start a block.");
+          assert(dest != nullptr, "branch destination must start a block.");
           dest->add_normal_predecessor(current_block);
           while(--npairs >= 0) {
             LookupswitchPair pair = lookupswitch.pair_at(npairs);
             dest = _block_map->at( bci + pair.offset());
-            assert(dest != NULL, "branch desination must start a block.");
+            assert(dest != nullptr, "branch destination must start a block.");
             dest->add_normal_predecessor(current_block);
           }
           break;
@@ -320,20 +220,26 @@ void MethodLiveness::init_basic_blocks() {
         {
           assert(bytes.is_wide()==false, "sanity check");
           dest = _block_map->at(bytes.get_dest());
-          assert(dest != NULL, "branch desination must start a block.");
+          assert(dest != nullptr, "branch destination must start a block.");
           dest->add_normal_predecessor(current_block);
+          if (bci + Bytecodes::length_for(code) >= method_len) {
+            break;
+          }
           BasicBlock *jsrExit = _block_map->at(current_block->limit_bci());
-          assert(jsrExit != NULL, "jsr return bci must start a block.");
+          assert(jsrExit != nullptr, "jsr return bci must start a block.");
           jsr_exit_list->append(jsrExit);
           break;
         }
       case Bytecodes::_jsr_w:
         {
           dest = _block_map->at(bytes.get_far_dest());
-          assert(dest != NULL, "branch desination must start a block.");
+          assert(dest != nullptr, "branch destination must start a block.");
           dest->add_normal_predecessor(current_block);
+          if (bci + Bytecodes::length_for(code) >= method_len) {
+            break;
+          }
           BasicBlock *jsrExit = _block_map->at(current_block->limit_bci());
-          assert(jsrExit != NULL, "jsr return bci must start a block.");
+          assert(jsrExit != nullptr, "jsr return bci must start a block.");
           jsr_exit_list->append(jsrExit);
           break;
         }
@@ -353,10 +259,6 @@ void MethodLiveness::init_basic_blocks() {
       case Bytecodes::_ret:
         // We will patch up jsr/rets in a subsequent pass.
         ret_list->append(current_block);
-        break;
-      case Bytecodes::_breakpoint:
-        // Bail out of there are breakpoints in here.
-        bailout = true;
         break;
       default:
         // Do nothing.
@@ -429,7 +331,7 @@ void MethodLiveness::propagate_liveness() {
   // blocks, which should be decent for quick convergence (with the
   // possible exception of exception handlers, which are all created
   // early).
-  _work_list = NULL;
+  _work_list = nullptr;
   for (int i = 0; i < num_blocks; i++) {
     block = _block_list[i];
     block->set_next(_work_list);
@@ -438,9 +340,8 @@ void MethodLiveness::propagate_liveness() {
   }
 
 
-  while ((block = work_list_get()) != NULL) {
+  while ((block = work_list_get()) != nullptr) {
     block->propagate(this);
-    NOT_PRODUCT(_total_visits++;)
   }
 }
 
@@ -454,7 +355,7 @@ void MethodLiveness::work_list_add(BasicBlock *block) {
 
 MethodLiveness::BasicBlock *MethodLiveness::work_list_get() {
   BasicBlock *block = _work_list;
-  if (block != NULL) {
+  if (block != nullptr) {
     block->set_on_work_list(false);
     _work_list = block->next();
   }
@@ -473,18 +374,16 @@ MethodLivenessResult MethodLiveness::get_liveness_at(int entry_bci) {
   MethodLivenessResult answer;
 
   if (_block_count > 0) {
-    if (TimeLivenessAnalysis) _time_total.start();
-    if (TimeLivenessAnalysis) _time_query.start();
 
     assert( 0 <= bci && bci < method()->code_size(), "bci out of range" );
     BasicBlock *block = _block_map->at(bci);
     // We may not be at the block start, so search backwards to find the block
     // containing bci.
     int t = bci;
-    while (block == NULL && t > 0) {
+    while (block == nullptr && t > 0) {
      block = _block_map->at(--t);
     }
-    guarantee(block != NULL, "invalid bytecode index; must be instruction index");
+    guarantee(block != nullptr, "invalid bytecode index; must be instruction index");
     assert(bci >= block->start_bci() && bci < block->limit_bci(), "block must contain bci.");
 
     answer = block->get_liveness_at(method(), bci);
@@ -501,87 +400,26 @@ MethodLivenessResult MethodLiveness::get_liveness_at(int entry_bci) {
       tty->print(" @ %d : result is ", bci);
       answer.print_on(tty);
     }
-
-    if (TimeLivenessAnalysis) _time_query.stop();
-    if (TimeLivenessAnalysis) _time_total.stop();
 #endif
   }
-
-#ifndef PRODUCT
-  if (TimeLivenessAnalysis) {
-    // Collect statistics.
-    _total_locals_queried += _bit_map_size_bits;
-    BitCounter counter;
-    answer.iterate(&counter);
-    _total_live_locals_queried += counter.count();
-  }
-#endif
 
   return answer;
 }
 
-
-#ifndef PRODUCT
-
-void MethodLiveness::print_times() {
-  tty->print_cr ("Accumulated liveness analysis times/statistics:");
-  tty->print_cr ("-----------------------------------------------");
-  tty->print_cr ("  Total         : %3.3f sec.", _time_total.seconds());
-  tty->print_cr ("    Build graph : %3.3f sec. (%2.2f%%)", _time_build_graph.seconds(),
-                 _time_build_graph.seconds() * 100 / _time_total.seconds());
-  tty->print_cr ("    Gen / Kill  : %3.3f sec. (%2.2f%%)", _time_gen_kill.seconds(),
-                 _time_gen_kill.seconds() * 100 / _time_total.seconds());
-  tty->print_cr ("    Dataflow    : %3.3f sec. (%2.2f%%)", _time_flow.seconds(),
-                 _time_flow.seconds() * 100 / _time_total.seconds());
-  tty->print_cr ("    Query       : %3.3f sec. (%2.2f%%)", _time_query.seconds(),
-                 _time_query.seconds() * 100 / _time_total.seconds());
-  tty->print_cr ("  #bytes   : %8ld (%3.0f bytes per sec)",
-                 _total_bytes,
-                 _total_bytes / _time_total.seconds());
-  tty->print_cr ("  #methods : %8d (%3.0f methods per sec)",
-                 _total_methods,
-                 _total_methods / _time_total.seconds());
-  tty->print_cr ("    avg locals : %3.3f    max locals : %3d",
-                 (float)_total_method_locals / _total_methods,
-                 _max_method_locals);
-  tty->print_cr ("    avg blocks : %3.3f    max blocks : %3d",
-                 (float)_total_blocks / _total_methods,
-                 _max_method_blocks);
-  tty->print_cr ("    avg bytes  : %3.3f",
-                 (float)_total_bytes / _total_methods);
-  tty->print_cr ("  #blocks  : %8ld",
-                 _total_blocks);
-  tty->print_cr ("    avg normal predecessors    : %3.3f  max normal predecessors    : %3d",
-                 (float)_total_edges / _total_blocks,
-                 _max_block_edges);
-  tty->print_cr ("    avg exception predecessors : %3.3f  max exception predecessors : %3d",
-                 (float)_total_exc_edges / _total_blocks,
-                 _max_block_exc_edges);
-  tty->print_cr ("    avg visits                 : %3.3f",
-                 (float)_total_visits / _total_blocks);
-  tty->print_cr ("  #locals queried : %8ld    #live : %8ld   %%live : %2.2f%%",
-                 _total_locals_queried,
-                 _total_live_locals_queried,
-                 100.0 * _total_live_locals_queried / _total_locals_queried);
-}
-
-#endif
-
-
 MethodLiveness::BasicBlock::BasicBlock(MethodLiveness *analyzer, int start, int limit) :
-         _gen(analyzer->arena(),            analyzer->bit_map_size_bits()),
-         _kill(analyzer->arena(),           analyzer->bit_map_size_bits()),
          _entry(analyzer->arena(),          analyzer->bit_map_size_bits()),
          _normal_exit(analyzer->arena(),    analyzer->bit_map_size_bits()),
          _exception_exit(analyzer->arena(), analyzer->bit_map_size_bits()),
+         _gen(analyzer->arena(),            analyzer->bit_map_size_bits()),
+         _kill(analyzer->arena(),           analyzer->bit_map_size_bits()),
          _last_bci(-1) {
   _analyzer = analyzer;
   _start_bci = start;
   _limit_bci = limit;
   _normal_predecessors =
-    new (analyzer->arena()) GrowableArray<MethodLiveness::BasicBlock*>(analyzer->arena(), 5, 0, NULL);
+    new (analyzer->arena()) GrowableArray<MethodLiveness::BasicBlock*>(analyzer->arena(), 5, 0, nullptr);
   _exception_predecessors =
-    new (analyzer->arena()) GrowableArray<MethodLiveness::BasicBlock*>(analyzer->arena(), 5, 0, NULL);
+    new (analyzer->arena()) GrowableArray<MethodLiveness::BasicBlock*>(analyzer->arena(), 5, 0, nullptr);
 }
 
 
@@ -630,8 +468,6 @@ void MethodLiveness::BasicBlock::compute_gen_kill_range(ciBytecodeStream *bytes)
 }
 
 void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instruction) {
-  int localNum;
-
   // We prohibit _gen and _kill from having locals in common.  If we
   // know that one is definitely going to be applied before the other,
   // we could save some computation time by relaxing this prohibition.
@@ -856,7 +692,7 @@ void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instr
 
     case Bytecodes::_lstore:
     case Bytecodes::_dstore:
-      store_two(localNum = instruction->get_index());
+      store_two(instruction->get_index());
       break;
 
     case Bytecodes::_lstore_0:
@@ -994,8 +830,8 @@ MethodLivenessResult MethodLiveness::BasicBlock::get_liveness_at(ciMethod* metho
 
 #ifdef ASSERT
   ResourceMark rm;
-  ResourceBitMap g(_gen.size()); g.set_from(_gen);
-  ResourceBitMap k(_kill.size()); k.set_from(_kill);
+  ResourceBitMap g(_gen.size(), false); g.set_from(_gen);
+  ResourceBitMap k(_kill.size(), false); k.set_from(_kill);
 #endif
   if (_last_bci != bci || trueInDebug) {
     ciBytecodeStream bytes(method);

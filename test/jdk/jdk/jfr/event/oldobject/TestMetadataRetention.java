@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -45,7 +43,6 @@ import jdk.test.lib.jfr.TestClassLoader;
  * @test
  * @summary The test verifies that an old object sample maintains references to "stale" metadata
  * @requires vm.hasJFR
- * @requires vm.gc == "null"
  * @key jfr
  * @modules jdk.jfr/jdk.jfr.internal.test
  * @library /test/lib /test/jdk
@@ -88,9 +85,8 @@ public final class TestMetadataRetention {
                 allocatorThread = null;
 
                 // System.gc() will trigger class unloading if -XX:+ExplicitGCInvokesConcurrent
-                // is NOT set. If this flag is set G1 will never unload classes on System.gc()
-                // and CMS will not guarantee that all semantically dead classes will be
-                // unloaded. As far as the "jfr" key guarantees no VM flags are set from the
+                // is NOT set. If this flag is set G1 will never unload classes on System.gc().
+                // As far as the "jfr" key guarantees no VM flags are set from the
                 // outside it should be enough with System.gc().
                 System.gc();
 
@@ -104,10 +100,10 @@ public final class TestMetadataRetention {
                 RecordedEvent chunkRotation = findChunkRotationEvent(events);
                 try {
                     // Sanity check that class was unloaded
-                    Events.hasEvent(recording, EventNames.ClassUnload);
+                    Events.hasEvent(events, EventNames.ClassUnload);
                     validateClassUnloadEvent(events);
                     // Validate that metadata for old object event has survived chunk rotation
-                    Events.hasEvent(recording, EventNames.OldObjectSample);
+                    Events.hasEvent(events, EventNames.OldObjectSample);
                     validateOldObjectEvent(events, chunkRotation.getStartTime());
                 } catch (Throwable t) {
                     t.printStackTrace();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,28 +26,25 @@
 
 package java.security;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * A parameter that contains a URI pointing to data intended for a
  * PolicySpi or ConfigurationSpi implementation.
  *
  * @since 1.6
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class URIParameter implements
+@SuppressWarnings("removal")
+public class URIParameter implements
         Policy.Parameters, javax.security.auth.login.Configuration.Parameters {
 
-    private java.net.URI uri;
+    private final java.net.URI uri;
 
     /**
-     * Constructs a URIParameter with the URI pointing to
+     * Constructs a {@code URIParameter} with the URI pointing to
      * data intended for an SPI implementation.
      *
      * @param uri the URI pointing to the data.
      *
-     * @exception NullPointerException if the specified URI is null.
+     * @throws    NullPointerException if the specified URI is {@code null}.
      */
     public URIParameter(java.net.URI uri) {
         if (uri == null) {

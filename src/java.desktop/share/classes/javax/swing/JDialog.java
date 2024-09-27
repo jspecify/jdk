@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,7 @@ import javax.accessibility.*;
  * For information about creating dialogs, see
  * <em>The Java Tutorial</em> section
  * <a
- href="http://docs.oracle.com/javase/tutorial/uiswing/components/dialog.html">How
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/dialog.html">How
  * to Make Dialogs</a>.
  *
  * <p>
@@ -83,7 +83,7 @@ import javax.accessibility.*;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the {@code java.beans} package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -99,7 +99,7 @@ import javax.accessibility.*;
 @NullMarked
 @JavaBean(defaultProperty = "JMenuBar", description = "A toplevel window for creating dialog boxes.")
 @SwingContainer(delegate = "getContentPane")
-@SuppressWarnings("serial") // Same-version serialization only
+@SuppressWarnings({"serial"}) // Same-version serialization only
 public class JDialog extends Dialog implements WindowConstants,
                                                Accessible,
                                                RootPaneContainer,
@@ -115,6 +115,9 @@ public class JDialog extends Dialog implements WindowConstants,
     private int defaultCloseOperation = HIDE_ON_CLOSE;
 
     /**
+     * The <code>JRootPane</code> instance that manages the
+     * <code>contentPane</code>.
+     *
      * @see #getRootPane
      * @see #setRootPane
      */
@@ -674,7 +677,7 @@ public class JDialog extends Dialog implements WindowConstants,
         JRootPane rp = new JRootPane();
         // NOTE: this uses setOpaque vs LookAndFeel.installProperty as there
         // is NO reason for the RootPane not to be opaque. For painting to
-        // work the contentPane must be opaque, therefor the RootPane can
+        // work the contentPane must be opaque, therefore the RootPane can
         // also be opaque.
         rp.setOpaque(true);
         return rp;
@@ -792,7 +795,7 @@ public class JDialog extends Dialog implements WindowConstants,
      * are currently typed to {@code JComponent}.
      * <p>
      * Please see
-     * <a href="http://docs.oracle.com/javase/tutorial/uiswing/dnd/index.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/dnd/index.html">
      * How to Use Drag and Drop and Data Transfer</a>, a section in
      * <em>The Java Tutorial</em>, for more information.
      *
@@ -1241,6 +1244,11 @@ public class JDialog extends Dialog implements WindowConstants,
      * elements.
      */
     protected class AccessibleJDialog extends AccessibleAWTDialog {
+
+        /**
+         * Constructs an {@code AccessibleJDialog}.
+         */
+        protected AccessibleJDialog() {}
 
         // AccessibleContext methods
         //

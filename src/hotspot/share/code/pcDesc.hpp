@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,14 @@
  *
  */
 
-#ifndef SHARE_VM_CODE_PCDESC_HPP
-#define SHARE_VM_CODE_PCDESC_HPP
+#ifndef SHARE_CODE_PCDESC_HPP
+#define SHARE_CODE_PCDESC_HPP
 
 
 // PcDescs map a physical PC (given as offset from start of nmethod) to
 // the corresponding source scope and byte code index.
 
-class CompiledMethod;
+class nmethod;
 
 class PcDesc {
   friend class VMStructs;
@@ -39,10 +39,12 @@ class PcDesc {
   int _obj_decode_offset;
 
   enum {
-    PCDESC_reexecute               = 1 << 0,
-    PCDESC_is_method_handle_invoke = 1 << 1,
-    PCDESC_return_oop              = 1 << 2,
-    PCDESC_rethrow_exception       = 1 << 3
+    PCDESC_reexecute                 = 1 << 0,
+    PCDESC_is_method_handle_invoke   = 1 << 1,
+    PCDESC_return_oop                = 1 << 2,
+    PCDESC_rethrow_exception         = 1 << 3,
+    PCDESC_has_ea_local_in_scope     = 1 << 4,
+    PCDESC_arg_escape                = 1 << 5
   };
 
   int _flags;
@@ -89,11 +91,22 @@ class PcDesc {
   bool     return_oop()                    const { return (_flags & PCDESC_return_oop) != 0;     }
   void set_return_oop(bool z)                    { set_flag(PCDESC_return_oop, z); }
 
-  // Returns the real pc
-  address real_pc(const CompiledMethod* code) const;
+  // Indicates if there are objects in scope that, based on escape analysis, are local to the
+  // compiled method or local to the current thread, i.e. NoEscape or ArgEscape
+  bool     has_ea_local_in_scope()         const { return (_flags & PCDESC_has_ea_local_in_scope) != 0; }
+  void set_has_ea_local_in_scope(bool z)         { set_flag(PCDESC_has_ea_local_in_scope, z); }
 
-  void print(CompiledMethod* code);
-  bool verify(CompiledMethod* code);
+  // Indicates if this pc descriptor is at a call site where objects that do not escape the
+  // current thread are passed as arguments.
+  bool     arg_escape()                    const { return (_flags & PCDESC_arg_escape) != 0; }
+  void set_arg_escape(bool z)                    { set_flag(PCDESC_arg_escape, z); }
+
+  // Returns the real pc
+  address real_pc(const nmethod* code) const;
+
+  void print(nmethod* code) { print_on(tty, code); }
+  void print_on(outputStream* st, nmethod* code);
+  bool verify(nmethod* code);
 };
 
-#endif // SHARE_VM_CODE_PCDESC_HPP
+#endif // SHARE_CODE_PCDESC_HPP

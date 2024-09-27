@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,11 +21,12 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_LOGGING_LOGOUTPUTLIST_HPP
-#define SHARE_VM_LOGGING_LOGOUTPUTLIST_HPP
+#ifndef SHARE_LOGGING_LOGOUTPUTLIST_HPP
+#define SHARE_LOGGING_LOGOUTPUTLIST_HPP
 
 #include "logging/logLevel.hpp"
 #include "memory/allocation.hpp"
+#include "runtime/atomic.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 class LogOutput;
@@ -48,11 +49,11 @@ class LogOutputList {
  private:
   struct LogOutputNode : public CHeapObj<mtLogging> {
     LogOutput*      _value;
-    LogOutputNode*  _next;
+    LogOutputNode* volatile _next;
     LogLevelType    _level;
   };
 
-  LogOutputNode*  _level_start[LogLevel::Count];
+  LogOutputNode* volatile _level_start[LogLevel::Count];
   volatile jint   _active_readers;
 
   LogOutputNode* find(const LogOutput* output) const;
@@ -63,23 +64,22 @@ class LogOutputList {
   // Bookkeeping functions to keep track of number of active readers/iterators for the list.
   jint increase_readers();
   jint decrease_readers();
-  void wait_until_no_readers() const;
 
  public:
   LogOutputList() : _active_readers(0) {
     for (size_t i = 0; i < LogLevel::Count; i++) {
-      _level_start[i] = NULL;
+      _level_start[i] = nullptr;
     }
   }
 
   // Test if the outputlist has an output for the given level.
   bool is_level(LogLevelType level) const {
-    return _level_start[level] != NULL;
+    return _level_start[level] != nullptr;
   }
 
   LogLevelType level_for(const LogOutput* output) const {
     LogOutputNode* node = this->find(output);
-    if (node == NULL) {
+    if (node == nullptr) {
       return LogLevel::Off;
     }
     return node->_level;
@@ -87,6 +87,11 @@ class LogOutputList {
 
   // Set (add/update/remove) the output to the specified level.
   void set_output_level(LogOutput* output, LogLevelType level);
+
+  // Removes all outputs. Equivalent of set_output_level(out, Off)
+  // for all outputs.
+  void clear();
+  void wait_until_no_readers() const;
 
   class Iterator {
     friend class LogOutputList;
@@ -97,6 +102,20 @@ class LogOutputList {
     }
 
    public:
+    Iterator(const Iterator &itr) : _current(itr._current), _list(itr._list){
+      itr._list->increase_readers();
+    }
+
+    Iterator& operator=(const Iterator& rhs) {
+      _current = rhs._current;
+      if (_list != rhs._list) {
+        rhs._list->increase_readers();
+        _list->decrease_readers();
+        _list = rhs._list;
+      }
+      return *this;
+    }
+
     ~Iterator() {
       _list->decrease_readers();
     }
@@ -106,7 +125,9 @@ class LogOutputList {
     }
 
     void operator++(int) {
-      _current = _current->_next;
+      // FIXME: memory_order_consume could be used here.
+      // Atomic access on the reading side for LogOutputList.
+      _current = Atomic::load_acquire(&_current->_next);
     }
 
     bool operator!=(const LogOutputNode *ref) const {
@@ -120,12 +141,14 @@ class LogOutputList {
 
   Iterator iterator(LogLevelType level = LogLevel::Last) {
     increase_readers();
-    return Iterator(this, _level_start[level]);
+    // FIXME: memory_order_consume could be used here.
+    // Atomic access on the reading side for LogOutputList.
+    return Iterator(this, Atomic::load_acquire(&_level_start[level]));
   }
 
   LogOutputNode* end() const {
-    return NULL;
+    return nullptr;
   }
 };
 
-#endif // SHARE_VM_LOGGING_LOGOUTPUTLIST_HPP
+#endif // SHARE_LOGGING_LOGOUTPUTLIST_HPP

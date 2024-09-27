@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package jdk.internal.editor.external;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -40,6 +39,9 @@ import java.util.Arrays;
 import java.util.Scanner;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
@@ -119,7 +121,7 @@ public class ExternalEditor {
         this.watcher = FileSystems.getDefault().newWatchService();
         this.dir = Files.createTempDirectory("extedit");
         this.tmpfile = Files.createTempFile(dir, null, ".java");
-        Files.write(tmpfile, initialText.getBytes(Charset.forName("UTF-8")));
+        Files.write(tmpfile, initialText.getBytes(UTF_8));
         dir.register(watcher,
                 ENTRY_CREATE,
                 ENTRY_DELETE,
@@ -188,8 +190,8 @@ public class ExternalEditor {
     }
 
     private void saveFile() {
-        try {
-            saveHandler.accept(Files.lines(tmpfile).collect(Collectors.joining("\n", "", "\n")));
+        try (Stream<String> lines = Files.lines(tmpfile)) {
+            saveHandler.accept(lines.collect(Collectors.joining("\n", "", "\n")));
         } catch (IOException ex) {
             errorHandler.accept("Failure in read edit file: " + ex.getMessage());
         }

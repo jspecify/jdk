@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -543,12 +543,12 @@ D3DContext::ConfigureContext(D3DPRESENT_PARAMETERS *pNewParams)
 
                 if (FAILED(res)) {
                     DebugPrintD3DError(res, "D3DContext::ConfigureContext: "\
-                                       "cound not reset the device");
+                                       "could not reset the device");
                 }
             }
 
             // note that here we should release all device resources, not only
-            // thos in the default pool since the device is released
+            // those in the default pool since the device is released
             ReleaseContextResources();
             SAFE_RELEASE(pd3dDevice);
         }
@@ -568,7 +568,7 @@ D3DContext::ConfigureContext(D3DPRESENT_PARAMETERS *pNewParams)
         res = pd3dDevice->Reset(pNewParams);
         if (FAILED(res)) {
             DebugPrintD3DError(res,
-                "D3DContext::ConfigureContext: cound not reset the device");
+                "D3DContext::ConfigureContext: could not reset the device");
             return res;
         }
         J2dRlsTraceLn1(J2D_TRACE_INFO,
@@ -682,64 +682,6 @@ D3DContext::Sync()
             pSurface->UnlockRect();
         }
     }
-    return res;
-}
-
-HRESULT
-D3DContext::SaveState()
-{
-    HRESULT res;
-
-    RETURN_STATUS_IF_NULL(pd3dDevice, S_OK);
-
-    J2dTraceLn(J2D_TRACE_INFO, "D3DContext::SaveState");
-
-    FlushVertexQueue();
-    UpdateState(STATE_CHANGE);
-
-    if (pStateBlock != NULL) {
-        J2dTraceLn(J2D_TRACE_WARNING,
-                   "D3DContext::SaveState: existing state block!");
-        SAFE_RELEASE(pStateBlock);
-    }
-
-    if (SUCCEEDED(res =
-            pd3dDevice->CreateStateBlock(D3DSBT_ALL, &pStateBlock)))
-    {
-        J2dTraceLn(J2D_TRACE_VERBOSE, "  created state block");
-    } else {
-        J2dTraceLn(J2D_TRACE_WARNING,
-                   "D3DContext::SaveState: failed to create state block");
-    }
-    ZeroMemory(lastTexture, sizeof(lastTexture));
-
-    return res;
-}
-
-HRESULT
-D3DContext::RestoreState()
-{
-    HRESULT res = S_OK;
-
-    J2dTraceLn(J2D_TRACE_INFO, "D3DContext::RestoreState");
-
-    FlushVertexQueue();
-    UpdateState(STATE_CHANGE);
-
-    if (pStateBlock != NULL) {
-        if (SUCCEEDED(res = pStateBlock->Apply())) {
-            J2dTraceLn(J2D_TRACE_VERBOSE, "  restored device state");
-        } else {
-            J2dTraceLn(J2D_TRACE_WARNING,
-                       "D3DContext::RestoreState: failed to restore state");
-        }
-        SAFE_RELEASE(pStateBlock);
-    } else {
-        J2dTraceLn(J2D_TRACE_WARNING,
-                   "D3DContext::RestoreState: empty state block!");
-    }
-    ZeroMemory(lastTexture, sizeof(lastTexture));
-
     return res;
 }
 
@@ -1126,7 +1068,7 @@ D3DContext::EndShapeClip()
     pd3dDevice->SetRenderState(D3DRS_SRCBLEND, dwSrcBlendSt);
     pd3dDevice->SetRenderState(D3DRS_DESTBLEND, dwDestBlendSt);
 
-    // resore the transform
+    // restore the transform
     pd3dDevice->SetTransform(D3DTS_WORLD, &tx);
 
     // Enable the depth buffer.
@@ -1150,7 +1092,9 @@ D3DContext::UploadTileToTexture(D3DResource *pTextureRes, void *pixels,
 {
 #ifndef PtrAddBytes
 #define PtrAddBytes(p, b)               ((void *) (((intptr_t) (p)) + (b)))
-#define PtrCoord(p, x, xinc, y, yinc)   PtrAddBytes(p, (y)*(yinc) + (x)*(xinc))
+#define PtrCoord(p, x, xinc, y, yinc)   PtrAddBytes(p, \
+                                                    ((ptrdiff_t)(y))*(yinc) + \
+                                                    ((ptrdiff_t)(x))*(xinc))
 #endif // PtrAddBytes
 
     HRESULT res = S_OK;

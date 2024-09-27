@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@ import java.awt.image.BufferedImage;
  * @author Dmitriy Ermashov (dmitriy.ermashov@oracle.com)
  * @modules java.desktop/java.awt:open
  * @library /java/awt/patchlib
- * @library ../../../../lib/testlibrary ../
+ * @library /lib/client ../
  * @build java.desktop/java.awt.Helper
  * @build ExtendedRobot SystemTrayIconHelper
  * @run main ActionEventMask
@@ -70,7 +70,7 @@ public class ActionEventMask {
         } else {
             if (System.getProperty("os.name").toLowerCase().startsWith("mac")) {
                 isMacOS = true;
-            } else if (SystemTrayIconHelper.isOel7()) {
+            } else if (SystemTrayIconHelper.isOel7orLater()) {
                 System.out.println("OEL 7 doesn't support double click in " +
                         "systray. Skipped");
                 return;

@@ -109,7 +109,7 @@ import java.awt.Component;
  * If you are implementing a <code>SpringLayout</code> you
  * can find further information and examples in
  * <a
- href="http://docs.oracle.com/javase/tutorial/uiswing/layout/spring.html">How to Use SpringLayout</a>,
+ href="https://docs.oracle.com/javase/tutorial/uiswing/layout/spring.html">How to Use SpringLayout</a>,
  * a section in <em>The Java Tutorial.</em>
  * <p>
  * <strong>Warning:</strong>
@@ -117,7 +117,7 @@ import java.awt.Component;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -477,7 +477,7 @@ public abstract class Spring {
         /*pp*/ boolean isCyclic(SpringLayout l) {
             return l.isCyclic(s1) || l.isCyclic(s2);
         }
-    };
+    }
 
      private static class SumSpring extends CompoundSpring {
          public SumSpring(Spring s1, Spring s2) {

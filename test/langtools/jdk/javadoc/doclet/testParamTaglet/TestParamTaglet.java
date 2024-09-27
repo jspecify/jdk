@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,44 +23,76 @@
 
 /*
  * @test
- * @bug      4802275 4967243 8026567
+ * @bug      4802275 4967243 8026567 8239804 8234682
  * @summary  Make sure param tags are still printed even though they do not
  *           match up with a real parameters.
  *           Make sure inheritDoc cannot be used in an invalid param tag.
- * @author   jamieh
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestParamTaglet
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestParamTaglet extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestParamTaglet tester = new TestParamTaglet();
+        var tester = new TestParamTaglet();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.ERROR);
-
+        checkOutput(Output.OUT, true,
+                "warning: no @param for param1",
+                "error: @param name not found",
+                "warning: @param \"b\" has already been specified");
         checkOutput("pkg/C.html", true,
-                //Regular param tags.
-                "<span class=\"paramLabel\">Parameters:</span></dt>\n"
-                + "<dd><code>param1</code> - testing 1 2 3.</dd>\n"
-                + "<dd><code>param2</code> - testing 1 2 3.",
-                //Param tags that don't match with any real parameters.
-                "<span class=\"paramLabel\">Parameters:</span></dt>\n"
-                + "<dd><code>p1</code> - testing 1 2 3.</dd>\n"
-                + "<dd><code>p2</code> - testing 1 2 3.",
-                //{@inherit} doc misuse does not cause doclet to throw exception.
+                // Regular param tags.
+                """
+                    <dt>Parameters:</dt>
+                    <dd><code>param1</code> - testing 1 2 3.</dd>
+                    <dd><code>param2</code> - testing 1 2 3.</dd>
+                    </dl>""",
+                // Param tags that don't match with any real parameters.
+                // {@inheritDoc} misuse does not cause doclet to throw exception.
                 // Param is printed with nothing inherited.
-                //XXX: in the future when Configuration is available during doc inheritence,
-                //print a warning for this mistake.
-                "<code>inheritBug</code> -");
+                """
+                    <dt>Parameters:</dt>
+                    <dd><code>p1</code> - testing 1 2 3.</dd>
+                    <dd><code>p2</code> - testing 1 2 3.</dd>
+                    <dd><code>inheritBug</code> - </dd>
+                    </dl>""",
+                """
+                    <dt>Parameters:</dt>
+                    <dd><code>i</code> - an int</dd>
+                    <dd><code>d</code> - a double</dd>
+                    <dd><code>b</code> - a boolean</dd>
+                    <dd><code>x</code> - does not exist</dd>
+                    <dd><code>x</code> - duplicate</dd>
+                    <dd><code>b</code> - another duplicate</dd>
+                    </dl>""",
+                """
+                    <dt>Type Parameters:</dt>
+                    <dd><span id="genericMethod(T1,T2,T3)-type-param-T2"><code>T2</code> - type 2</span></dd>
+                    <dt>Parameters:</dt>
+                    <dd><code>t1</code> - param 1</dd>
+                    <dd><code>t3</code> - param 3</dd>
+                    </dl>""");
+        checkOutput("pkg/C.Point.html", true,
+                """
+                    <dt>Record Components:</dt>
+                    <dd><code><span id="param-y">y</span></code> - the y coordinate</dd>
+                    </dl>""");
+        checkOutput("pkg/C.Nested.html", true,
+                """
+                    <dt>Type Parameters:</dt>
+                    <dd><span id="type-param-T1"><code>T1</code> - type 1</span></dd>
+                    </dl>""");
     }
 }

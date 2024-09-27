@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,12 +68,10 @@ final @UsesObjectEquals class MergeCollation {
 
     /**
      * Creates from a pattern
-     * @exception ParseException If the input pattern is incorrect.
+     * @throws    ParseException If the input pattern is incorrect.
      */
     public MergeCollation(String pattern) throws ParseException
     {
-        for (int i = 0; i < statusArray.length; i++)
-            statusArray[i] = 0;
         setPattern(pattern);
     }
 
@@ -90,13 +88,13 @@ final @UsesObjectEquals class MergeCollation {
      * before & and <
      */
     public String getPattern(boolean withWhiteSpace) {
-        StringBuffer result = new StringBuffer();
+        StringBuilder result = new StringBuilder();
         PatternEntry tmp = null;
         ArrayList<PatternEntry> extList = null;
         int i;
         for (i = 0; i < patterns.size(); ++i) {
             PatternEntry entry = patterns.get(i);
-            if (entry.extension.length() != 0) {
+            if (!entry.extension.isEmpty()) {
                 if (extList == null)
                     extList = new ArrayList<>();
                 extList.add(entry);
@@ -105,18 +103,18 @@ final @UsesObjectEquals class MergeCollation {
                     PatternEntry last = findLastWithNoExtension(i-1);
                     for (int j = extList.size() - 1; j >= 0 ; j--) {
                         tmp = extList.get(j);
-                        tmp.addToBuffer(result, false, withWhiteSpace, last);
+                        tmp.addToBuilder(result, false, withWhiteSpace, last);
                     }
                     extList = null;
                 }
-                entry.addToBuffer(result, false, withWhiteSpace, null);
+                entry.addToBuilder(result, false, withWhiteSpace, null);
             }
         }
         if (extList != null) {
             PatternEntry last = findLastWithNoExtension(i-1);
             for (int j = extList.size() - 1; j >= 0 ; j--) {
                 tmp = extList.get(j);
-                tmp.addToBuffer(result, false, withWhiteSpace, last);
+                tmp.addToBuilder(result, false, withWhiteSpace, last);
             }
             extList = null;
         }
@@ -126,7 +124,7 @@ final @UsesObjectEquals class MergeCollation {
     private final PatternEntry findLastWithNoExtension(int i) {
         for (--i;i >= 0; --i) {
             PatternEntry entry = patterns.get(i);
-            if (entry.extension.length() == 0) {
+            if (entry.extension.isEmpty()) {
                 return entry;
             }
         }
@@ -150,12 +148,12 @@ final @UsesObjectEquals class MergeCollation {
      * builder.
      */
     public String emitPattern(boolean withWhiteSpace) {
-        StringBuffer result = new StringBuffer();
+        StringBuilder result = new StringBuilder();
         for (int i = 0; i < patterns.size(); ++i)
         {
             PatternEntry entry = patterns.get(i);
             if (entry != null) {
-                entry.addToBuffer(result, true, withWhiteSpace, null);
+                entry.addToBuilder(result, true, withWhiteSpace, null);
             }
         }
         return result.toString();
@@ -215,7 +213,7 @@ final @UsesObjectEquals class MergeCollation {
 
     // This is really used as a local variable inside fixEntry, but we cache
     // it here to avoid newing it up every time the method is called.
-    private transient StringBuffer excess = new StringBuffer();
+    private transient StringBuilder excess = new StringBuilder();
 
     //
     // When building a MergeCollation, we need to do lots of searches to see
@@ -226,9 +224,9 @@ final @UsesObjectEquals class MergeCollation {
     // Using BitSet would make this easier, but it's significantly slower.
     //
     private transient byte[] statusArray = new byte[8192];
-    private final byte BITARRAYMASK = (byte)0x1;
-    private final int  BYTEPOWER = 3;
-    private final int  BYTEMASK = (1 << BYTEPOWER) - 1;
+    private static final byte BITARRAYMASK = (byte)0x1;
+    private static final int BYTEPOWER = 3;
+    private static final int BYTEMASK = (1 << BYTEPOWER) - 1;
 
     /*
       If the strength is RESET, then just change the lastEntry to
@@ -304,7 +302,7 @@ final @UsesObjectEquals class MergeCollation {
     }
 
     private final int findLastEntry(PatternEntry entry,
-                              StringBuffer excessChars) throws ParseException
+                              StringBuilder excessChars) throws ParseException
     {
         if (entry == null)
             return 0;

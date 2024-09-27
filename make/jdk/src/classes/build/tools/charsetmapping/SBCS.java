@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,9 +43,10 @@ public class SBCS {
     {
         String clzName = cs.clzName;
         String csName  = cs.csName;
-        String hisName = cs.hisName;
+        String histName = cs.histName;
         String pkgName = cs.pkgName;
         boolean isASCII = cs.isASCII;
+        boolean isLatin1Decodable = true;
 
         StringBuilder b2cSB = new StringBuilder();
         StringBuilder b2cNRSB = new StringBuilder();
@@ -68,6 +69,9 @@ public class SBCS {
             if (c2bIndex[e.cp>>8] == UNMAPPABLE_DECODING) {
                 c2bOff += 0x100;
                 c2bIndex[e.cp>>8] = 1;
+            }
+            if (e.cp > 0xFF) {
+                isLatin1Decodable = false;
             }
         }
 
@@ -166,8 +170,8 @@ public class SBCS {
                     line = line.replace("$NAME_ALIASES$",
                                         "ExtendedCharsets.aliasesFor(\"" + csName + "\")");
             }
-            if (line.indexOf("$NAME_HIS$", i) != -1) {
-                line = line.replace("$NAME_HIS$", hisName);
+            if (line.indexOf("$NAME_HIST$", i) != -1) {
+                line = line.replace("$NAME_HIST$", histName);
             }
             if (line.indexOf("$CONTAINS$", i) != -1) {
                 if (isASCII)
@@ -177,6 +181,9 @@ public class SBCS {
             }
             if (line.indexOf("$ASCIICOMPATIBLE$") != -1) {
                 line = line.replace("$ASCIICOMPATIBLE$", isASCII ? "true" : "false");
+            }
+            if (line.indexOf("$LATIN1DECODABLE$") != -1) {
+                line = line.replace("$LATIN1DECODABLE$", isLatin1Decodable ? "true" : "false");
             }
             if (line.indexOf("$B2CTABLE$") != -1) {
                 line = line.replace("$B2CTABLE$", b2c);

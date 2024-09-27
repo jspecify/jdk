@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,8 @@ import sun.jvm.hotspot.classfile.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class ClassLoaderDataGraph {
   static {
@@ -55,10 +57,8 @@ public class ClassLoaderDataGraph {
 
   /** Lookup an already loaded class in any class loader. */
   public Klass find(String className) {
-    Symbol sym = VM.getVM().getSymbolTable().probe(className);
-    if (sym == null) return null;
     for (ClassLoaderData cld = getClassLoaderGraphHead(); cld != null; cld = cld.next()) {
-        Klass k = cld.find(sym);
+        Klass k = cld.find(className);
         if (k != null) {
             return k;
         }
@@ -82,14 +82,6 @@ public class ClassLoaderDataGraph {
   public void classesDo(ClassVisitor v) {
     for (ClassLoaderData cld = getClassLoaderGraphHead(); cld != null; cld = cld.next()) {
         cld.classesDo(v);
-    }
-  }
-
-  /** Iterate over all klasses - including object, primitive
-      array klasses, pass initiating loader. */
-  public void allEntriesDo(ClassAndLoaderVisitor v) {
-    for (ClassLoaderData cld = getClassLoaderGraphHead(); cld != null; cld = cld.next()) {
-        cld.allEntriesDo(v);
     }
   }
 }

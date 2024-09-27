@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
 * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 *
 * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,30 @@
 *
 */
 
-#ifndef SHARE_VM_JFR_RECORDER_CHECKPOINT_TYPES_JFRTHREADSTATE_HPP
-#define SHARE_VM_JFR_RECORDER_CHECKPOINT_TYPES_JFRTHREADSTATE_HPP
+#ifndef SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTHREADSTATE_HPP
+#define SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTHREADSTATE_HPP
 
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 
 class JfrCheckpointWriter;
+class Thread;
 
 class JfrThreadState : public AllStatic {
  public:
   static void serialize(JfrCheckpointWriter& writer);
 };
 
-#endif // SHARE_VM_JFR_RECORDER_CHECKPOINT_TYPES_JFRTHREADSTATE_HPP
+class JfrThreadId : public AllStatic {
+public:
+  static traceid id(const Thread* t, oop vthread = nullptr);
+  static traceid os_id(const Thread* t);
+  static traceid jfr_id(const Thread* t, traceid tid = 0);
+};
+
+class JfrThreadName : public AllStatic {
+ public:
+  // Requires a ResourceMark for get_thread_name/as_utf8
+  static const char* name(const Thread* t, int& length, oop vthread = nullptr);
+};
+
+#endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTHREADSTATE_HPP

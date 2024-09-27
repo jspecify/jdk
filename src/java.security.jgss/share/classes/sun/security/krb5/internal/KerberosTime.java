@@ -45,6 +45,8 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
 
+import static sun.security.krb5.internal.Krb5.DEBUG;
+
 /**
  * Implements the ASN.1 KerberosTime type. This is an immutable class.
  *
@@ -74,8 +76,6 @@ public class KerberosTime {
     private static long initMilli = System.currentTimeMillis();
     private static long initMicro = System.nanoTime() / 1000;
 
-    private static boolean DEBUG = Krb5.DEBUG;
-
     // Do not make this public. It's a little confusing that micro
     // is only the last 3 digits of microsecond.
     private KerberosTime(long time, int micro) {
@@ -90,8 +90,7 @@ public class KerberosTime {
         this(time, 0);
     }
 
-    // This constructor is used in the native code
-    // src/windows/native/sun/security/krb5/NativeCreds.c
+    // Warning: called by NativeCreds.c and nativeccache.c
     public KerberosTime(String time) throws Asn1Exception {
         this(toKerberosTime(time), 0);
     }
@@ -147,8 +146,8 @@ public class KerberosTime {
         long microElapsed = newMicro - initMicro;
         long calcMilli = initMilli + microElapsed/1000;
         if (calcMilli - newMilli > 100 || newMilli - calcMilli > 100) {
-            if (DEBUG) {
-                System.out.println("System time adjusted");
+            if (DEBUG != null) {
+                DEBUG.println("System time adjusted");
             }
             initMilli = newMilli;
             initMicro = newMicro;
@@ -302,10 +301,10 @@ public class KerberosTime {
                 tdiff = Krb5.DEFAULT_ALLOWABLE_CLOCKSKEW;
             }
         } catch (KrbException e) {
-            if (DEBUG) {
-                System.out.println("Exception in getting clockskew from " +
+            if (DEBUG != null) {
+                DEBUG.println("Exception in getting clockskew from " +
                                    "Configuration " +
-                                   "using default value " +
+                                   "using default value: " +
                                    e.getMessage());
             }
         }

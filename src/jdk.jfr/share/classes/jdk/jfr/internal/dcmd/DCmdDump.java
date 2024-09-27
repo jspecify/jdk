@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,14 +37,11 @@ import java.time.format.DateTimeParseException;
 
 import jdk.jfr.FlightRecorder;
 import jdk.jfr.Recording;
-import jdk.jfr.internal.LogLevel;
-import jdk.jfr.internal.LogTag;
-import jdk.jfr.internal.Logger;
 import jdk.jfr.internal.PlatformRecorder;
 import jdk.jfr.internal.PlatformRecording;
 import jdk.jfr.internal.PrivateAccess;
 import jdk.jfr.internal.SecuritySupport.SafePath;
-import jdk.jfr.internal.Utils;
+import jdk.jfr.internal.util.ValueParser;
 import jdk.jfr.internal.WriteableUserPath;
 
 /**
@@ -53,33 +50,17 @@ import jdk.jfr.internal.WriteableUserPath;
  */
 // Instantiated by native
 final class DCmdDump extends AbstractDCmd {
-    /**
-     * Execute JFR.dump.
-     *
-     * @param name name or id of the recording to dump, or <code>null</code> to dump everything
-     *
-     * @param filename file path where recording should be written, not null
-     * @param maxAge how far back in time to dump, may be null
-     * @param maxSize how far back in size to dump data from, may be null
-     * @param begin point in time to dump data from, may be null
-     * @param end point in time to dump data to, may be null
-     * @param pathToGcRoots if Java heap should be swept for reference chains
-     *
-     * @return result output
-     *
-     * @throws DCmdException if the dump could not be completed
-     */
-    public String execute(String name, String filename, Long maxAge, Long maxSize, String begin, String end, Boolean pathToGcRoots) throws DCmdException {
-        if (LogTag.JFR_DCMD.shouldLog(LogLevel.DEBUG)) {
-            Logger.log(LogTag.JFR_DCMD, LogLevel.DEBUG,
-                    "Executing DCmdDump: name=" + name +
-                    ", filename=" + filename +
-                    ", maxage=" + maxAge +
-                    ", maxsize=" + maxSize +
-                    ", begin=" + begin +
-                    ", end" + end +
-                    ", path-to-gc-roots=" + pathToGcRoots);
-        }
+
+    @Override
+    public void execute(ArgumentParser parser) throws DCmdException {
+        parser.checkUnknownArguments();
+        String name = parser.getOption("name");
+        String filename = parser.getOption("filename");
+        Long maxAge = parser.getOption("maxage");
+        Long maxSize = parser.getOption("maxsize");
+        String begin = parser.getOption("begin");
+        String end = parser.getOption("end");
+        Boolean pathToGcRoots = parser.getOption("path-to-gc-roots");
 
         if (FlightRecorder.getFlightRecorder().getRecordings().isEmpty()) {
             throw new DCmdException("No recordings to dump from. Use JFR.start to start a recording.");
@@ -112,7 +93,7 @@ final class DCmdDump extends AbstractDCmd {
 
         if (beginTime != null && endTime != null) {
             if (endTime.isBefore(beginTime)) {
-                throw new DCmdException("Dump failed, begin must preceed end.");
+                throw new DCmdException("Dump failed, begin must precede end.");
             }
         }
 
@@ -126,26 +107,36 @@ final class DCmdDump extends AbstractDCmd {
             recording = findRecording(name);
         }
         PlatformRecorder recorder = PrivateAccess.getInstance().getPlatformRecorder();
-        synchronized (recorder) {
-            dump(recorder, recording, name, filename, maxSize, pathToGcRoots, beginTime, endTime);
+
+        try {
+            synchronized (recorder) {
+                dump(recorder, recording, name, filename, maxSize, pathToGcRoots, beginTime, endTime);
+            }
+        } catch (IOException | InvalidPathException e) {
+            throw new DCmdException("Dump failed. Could not copy recording data. %s", e.getMessage());
         }
-        return getResult();
     }
 
-    public void dump(PlatformRecorder recorder, Recording recording, String name, String filename, Long maxSize, Boolean pathToGcRoots, Instant beginTime, Instant endTime) throws DCmdException {
+    public void dump(PlatformRecorder recorder, Recording recording, String name, String filename, Long maxSize, Boolean pathToGcRoots, Instant beginTime, Instant endTime) throws DCmdException, IOException {
         try (PlatformRecording r = newSnapShot(recorder, recording, pathToGcRoots)) {
             r.filter(beginTime, endTime, maxSize);
             if (r.getChunks().isEmpty()) {
                 throw new DCmdException("Dump failed. No data found in the specified interval.");
             }
-            SafePath dumpFile = resolvePath(recording, filename);
-
-            // Needed for JVM
-            Utils.touch(dumpFile.toPath());
-            r.dumpStopped(new WriteableUserPath(dumpFile.toPath()));
-            reportOperationComplete("Dumped", name, dumpFile);
-        } catch (IOException | InvalidPathException e) {
-            throw new DCmdException("Dump failed. Could not copy recording data. %s", e.getMessage());
+            // If a filename exist, use it
+            // if a filename doesn't exist, use destination set earlier
+            // if destination doesn't exist, generate a filename
+            WriteableUserPath wup = null;
+            if (recording != null) {
+                PlatformRecording pRecording = PrivateAccess.getInstance().getPlatformRecording(recording);
+                wup = pRecording.getDestination();
+            }
+            if (filename != null || (filename == null && wup == null) ) {
+                SafePath safe = resolvePath(recording, filename);
+                wup = new WriteableUserPath(safe.toPath());
+            }
+            r.dumpStopped(wup);
+            reportOperationComplete("Dumped", name, new SafePath(wup.getRealPathText()));
         }
     }
 
@@ -180,7 +171,7 @@ final class DCmdDump extends AbstractDCmd {
 
         if (time.startsWith("-")) {
             try {
-                long durationNanos = Utils.parseTimespan(time.substring(1));
+                long durationNanos = ValueParser.parseTimespan(time.substring(1));
                 Duration duration = Duration.ofNanos(durationNanos);
                 return Instant.now().minus(duration);
             } catch (NumberFormatException nfe) {
@@ -202,4 +193,113 @@ final class DCmdDump extends AbstractDCmd {
         return pr.newSnapshotClone("Dumped by user", pathToGcRoots);
     }
 
+    @Override
+    public String[] getHelp() {
+            // 0123456789001234567890012345678900123456789001234567890012345678900123456789001234567890
+        return """
+               Syntax : JFR.dump [options]
+
+               Options:
+
+                 begin            (Optional) Specify the time from which recording data will be
+                                  included in the dump file. The format is specified as local time.
+                                  (STRING, no default value)
+
+                 end              (Optional) Specify the time to which recording data will be included
+                                  in the dump file. The format is specified as local time.
+                                  (STRING, no default value)
+
+                                  Note: For both begin and end, the time must be in a format that can
+                                  be read by any of these methods:
+
+                                   java.time.LocalTime::parse(String),
+                                   java.time.LocalDateTime::parse(String)
+                                   java.time.Instant::parse(String)
+
+                                  For example, "13:20:15", "2020-03-17T09:00:00" or
+                                  "2020-03-17T09:00:00Z".
+
+                                  Note: begin and end times correspond to the timestamps found within
+                                  the recorded information in the flight recording data.
+
+                                  Another option is to use a time relative to the current time that is
+                                  specified by a negative integer followed by "s", "m" or "h".
+                                  For example, "-12h", "-15m" or "-30s"
+
+                 filename         (Optional) Name of the file to which the flight recording data is
+                                  dumped. If no filename is given, a filename is generated from the PID
+                                  and the current date. The filename may also be a directory in which
+                                  case, the filename is generated from the PID and the current date in
+                                  the specified directory. (FILE, no default value)
+
+                                  Note: If a filename is given, '%%p' in the filename will be
+                                  replaced by the PID, and '%%t' will be replaced by the time in
+                                  'yyyy_MM_dd_HH_mm_ss' format.
+
+                 maxage           (Optional) Length of time for dumping the flight recording data to a
+                                  file. (INT followed by 's' for seconds 'm' for minutes or 'h' for
+                                  hours, no default value)
+
+                 maxsize          (Optional) Maximum size for the amount of data to dump from a flight
+                                  recording in bytes if one of the following suffixes is not used:
+                                  'm' or 'M' for megabytes OR 'g' or 'G' for gigabytes.
+                                  (STRING, no default value)
+
+                 name             (Optional) Name of the recording. If no name is given, data from all
+                                  recordings is dumped. (STRING, no default value)
+
+                 path-to-gc-roots (Optional) Flag for saving the path to garbage collection (GC) roots
+                                  at the time the recording data is dumped. The path information is
+                                  useful for finding memory leaks but collecting it can cause the
+                                  application to pause for a short period of time. Turn on this flag
+                                  only when you have an application that you suspect has a memory
+                                  leak. (BOOLEAN, false)
+
+               Options must be specified using the <key> or <key>=<value> syntax.
+
+               Example usage:
+
+                $ jcmd <pid> JFR.dump
+                $ jcmd <pid> JFR.dump filename=recording.jfr
+                $ jcmd <pid> JFR.dump filename=%s
+                $ jcmd <pid> JFR.dump name=1 filename=%s
+                $ jcmd <pid> JFR.dump maxage=1h
+                $ jcmd <pid> JFR.dump maxage=1h maxsize=50M
+                $ jcmd <pid> JFR.dump filename=leaks.jfr path-to-gc-roots=true
+                $ jcmd <pid> JFR.dump begin=13:15
+                $ jcmd <pid> JFR.dump begin=13:15 end=21:30:00
+                $ jcmd <pid> JFR.dump end=18:00 maxage=10m
+                $ jcmd <pid> JFR.dump begin=2021-09-15T09:00:00 end=2021-09-15T10:00:00
+                $ jcmd <pid> JFR.dump begin=-1h
+                $ jcmd <pid> JFR.dump begin=-15m end=-5m
+
+               """.formatted(exampleDirectory(), exampleFilename()).lines().toArray(String[]::new);
+    }
+
+    @Override
+    public Argument[] getArgumentInfos() {
+        return new Argument[] {
+           new Argument("name",
+               "Recording name, e.g. \\\"My Recording\\\"",
+               "STRING", false, true, null, false),
+           new Argument("filename",
+               "Copy recording data to file, e.g. \\\"" + exampleFilename() + "\\\"",
+               "FILE", false, true, null, false),
+           new Argument("maxage",
+               "Maximum duration to dump, in (s)econds, (m)inutes, (h)ours, or (d)ays, e.g. 60m, or 0 for no limit",
+               "NANOTIME", false, true, null, false),
+           new Argument("maxsize", "Maximum amount of bytes to dump, in (M)B or (G)B, e.g. 500M, or 0 for no limit",
+               "MEMORY SIZE", false, true, "hotspot-pid-xxxxx-id-y-YYYY_MM_dd_HH_mm_ss.jfr", false),
+           new Argument("begin",
+               "Point in time to dump data from, e.g. 09:00, 21:35:00, 2018-06-03T18:12:56.827Z, 2018-06-03T20:13:46.832, -10m, -3h, or -1d",
+               "STRING", false, true, null, false),
+           new Argument("end",
+               "Point in time to dump data to, e.g. 09:00, 21:35:00, 2018-06-03T18:12:56.827Z, 2018-06-03T20:13:46.832, -10m, -3h, or -1d",
+               "STRING", false, true, null, false),
+           new Argument("path-to-gc-roots",
+               "Collect path to GC roots",
+               "BOOLEAN", false, true, "false", false)
+        };
+    }
 }
+

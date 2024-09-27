@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,17 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_PRIMS_JVMTITRACE_HPP
-#define SHARE_VM_PRIMS_JVMTITRACE_HPP
+#ifndef SHARE_PRIMS_JVMTITRACE_HPP
+#define SHARE_PRIMS_JVMTITRACE_HPP
 
-#include "classfile/systemDictionary.hpp"
 #include "jvmtifiles/jvmti.h"
 #include "oops/objArrayOop.hpp"
 #include "prims/jvmtiEnvThreadState.hpp"
 #include "prims/jvmtiEventController.hpp"
 #include "prims/jvmtiUtil.hpp"
 #include "runtime/stackValueCollection.hpp"
-#include "runtime/vm_operations.hpp"
 
 ///////////////////////////////////////////////////////////////
 //
@@ -109,4 +107,4 @@ public:
 
 #endif /*JVMTI_TRACE */
 
-#endif // SHARE_VM_PRIMS_JVMTITRACE_HPP
+#endif // SHARE_PRIMS_JVMTITRACE_HPP

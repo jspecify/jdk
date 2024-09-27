@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,9 @@ import javax.management.openmbean.OpenType;
  * construction of a CompositeData use in the local case.
  */
 public class ThreadInfoCompositeData extends LazyCompositeData {
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private final ThreadInfo threadInfo;
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private final CompositeData cdata;
 
     private ThreadInfoCompositeData(ThreadInfo ti) {
@@ -75,8 +77,7 @@ public class ThreadInfoCompositeData extends LazyCompositeData {
     protected CompositeData getCompositeData() {
         // Convert StackTraceElement[] to CompositeData[]
         StackTraceElement[] stackTrace = threadInfo.getStackTrace();
-        CompositeData[] stackTraceData =
-            new CompositeData[stackTrace.length];
+        CompositeData[] stackTraceData = new CompositeData[stackTrace.length];
         for (int i = 0; i < stackTrace.length; i++) {
             StackTraceElement ste = stackTrace[i];
             stackTraceData[i] = StackTraceElementCompositeData.toCompositeData(ste);
@@ -88,48 +89,42 @@ public class ThreadInfoCompositeData extends LazyCompositeData {
 
         // Convert LockInfo[] and MonitorInfo[] to CompositeData[]
         LockInfo[] lockedSyncs = threadInfo.getLockedSynchronizers();
-        CompositeData[] lockedSyncsData =
-            new CompositeData[lockedSyncs.length];
+        CompositeData[] lockedSyncsData = new CompositeData[lockedSyncs.length];
         for (int i = 0; i < lockedSyncs.length; i++) {
             LockInfo li = lockedSyncs[i];
             lockedSyncsData[i] = LockInfoCompositeData.toCompositeData(li);
         }
 
         MonitorInfo[] lockedMonitors = threadInfo.getLockedMonitors();
-        CompositeData[] lockedMonitorsData =
-            new CompositeData[lockedMonitors.length];
+        CompositeData[] lockedMonitorsData = new CompositeData[lockedMonitors.length];
         for (int i = 0; i < lockedMonitors.length; i++) {
             MonitorInfo mi = lockedMonitors[i];
             lockedMonitorsData[i] = MonitorInfoCompositeData.toCompositeData(mi);
         }
 
-        // CONTENTS OF THIS ARRAY MUST BE SYNCHRONIZED WITH
-        // THREAD_INFO_ATTRIBUTES!
-        final Object[] threadInfoItemValues = {
-            threadInfo.getThreadId(),
-            threadInfo.getThreadName(),
-            threadInfo.getThreadState().name(),
-            threadInfo.getBlockedTime(),
-            threadInfo.getBlockedCount(),
-            threadInfo.getWaitedTime(),
-            threadInfo.getWaitedCount(),
-            lockInfoData,
-            threadInfo.getLockName(),
-            threadInfo.getLockOwnerId(),
-            threadInfo.getLockOwnerName(),
-            stackTraceData,
-            threadInfo.isSuspended(),
-            threadInfo.isInNative(),
-            lockedMonitorsData,
-            lockedSyncsData,
-            threadInfo.isDaemon(),
-            threadInfo.getPriority(),
-        };
+        // values may be null; can't use Map.of
+        Map<String,Object> items = new HashMap<>();
+        items.put(THREAD_ID,        threadInfo.getThreadId());
+        items.put(THREAD_NAME,      threadInfo.getThreadName());
+        items.put(THREAD_STATE,     threadInfo.getThreadState().name());
+        items.put(BLOCKED_TIME,     threadInfo.getBlockedTime());
+        items.put(BLOCKED_COUNT,    threadInfo.getBlockedCount());
+        items.put(WAITED_TIME,      threadInfo.getWaitedTime());
+        items.put(WAITED_COUNT,     threadInfo.getWaitedCount());
+        items.put(LOCK_INFO,        lockInfoData);
+        items.put(LOCK_NAME,        threadInfo.getLockName());
+        items.put(LOCK_OWNER_ID,    threadInfo.getLockOwnerId());
+        items.put(LOCK_OWNER_NAME,  threadInfo.getLockOwnerName());
+        items.put(STACK_TRACE,      stackTraceData);
+        items.put(SUSPENDED,        threadInfo.isSuspended());
+        items.put(IN_NATIVE,        threadInfo.isInNative());
+        items.put(LOCKED_MONITORS,  lockedMonitorsData);
+        items.put(LOCKED_SYNCS,     lockedSyncsData);
+        items.put(DAEMON,           threadInfo.isDaemon());
+        items.put(PRIORITY,         threadInfo.getPriority());
 
         try {
-            return new CompositeDataSupport(compositeType(),
-                                            THREAD_INFO_ATTRIBTUES,
-                                            threadInfoItemValues);
+            return new CompositeDataSupport(ThreadInfoCompositeTypes.ofVersion(RUNTIME_VERSION), items);
         } catch (OpenDataException e) {
             // Should never reach here
             throw new AssertionError(e);
@@ -182,10 +177,6 @@ public class ThreadInfoCompositeData extends LazyCompositeData {
         DAEMON,
         PRIORITY,
     };
-
-    private static final String[] THREAD_INFO_ATTRIBTUES =
-        Stream.of(V5_ATTRIBUTES, V6_ATTRIBUTES, V9_ATTRIBUTES)
-              .flatMap(Arrays::stream).toArray(String[]::new);
 
     public long threadId() {
         return getLong(cdata, THREAD_ID);
@@ -365,12 +356,8 @@ public class ThreadInfoCompositeData extends LazyCompositeData {
         }
     }
 
-    public static CompositeType compositeType() {
-        return ThreadInfoCompositeTypes.compositeTypes.get(0);
-    }
-
+    static final int RUNTIME_VERSION =  Runtime.version().feature();
     static class ThreadInfoCompositeTypes {
-        static final int CURRENT =  Runtime.version().feature();
         static final Map<Integer, CompositeType> compositeTypes = initCompositeTypes();
         /*
          * Returns CompositeType of the given runtime version
@@ -382,7 +369,7 @@ public class ThreadInfoCompositeData extends LazyCompositeData {
         static Map<Integer, CompositeType> initCompositeTypes() {
             Map<Integer, CompositeType> types = new HashMap<>();
             CompositeType ctype = initCompositeType();
-            types.put(CURRENT, ctype);
+            types.put(RUNTIME_VERSION, ctype);
             types.put(5, initV5CompositeType(ctype));
             types.put(6, initV6CompositeType(ctype));
             return types;

@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -28,6 +26,7 @@ package jdk.jfr.event.runtime;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.List;
@@ -39,11 +38,16 @@ import jdk.test.lib.Asserts;
 import jdk.test.lib.jfr.EventNames;
 import jdk.test.lib.jfr.Events;
 
+import jdk.test.lib.compiler.InMemoryJavaCompiler;
+
 /**
  * @test
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib /test/jdk
+ * @modules java.base/jdk.internal.misc
+ *          jdk.compiler
+ *          jdk.jfr
  * @build jdk.jfr.event.runtime.TestClasses
  * @run main/othervm jdk.jfr.event.runtime.TestClassLoaderStatsEvent
  */
@@ -52,9 +56,11 @@ public class TestClassLoaderStatsEvent {
     private final static String CLASS_LOADER_NAME = "MyDummyClassLoader";
     private final static String CLASSLOADER_TYPE_NAME = "jdk.jfr.event.runtime.TestClassLoaderStatsEvent$DummyClassLoader";
     public static DummyClassLoader dummyloader;
+    public static Class<?>[] classes;
 
     public static void main(String[] args) throws Throwable {
         createDummyClassLoader(CLASS_LOADER_NAME);
+        System.gc();
 
         Recording recording = new Recording();
         recording.enable(EVENT_NAME);
@@ -73,12 +79,12 @@ public class TestClassLoaderStatsEvent {
             if (CLASSLOADER_TYPE_NAME.equals(recordedClassLoader.getType().getName())) {
                 Asserts.assertEquals(CLASS_LOADER_NAME, recordedClassLoader.getName(),
                     "Expected class loader name " + CLASS_LOADER_NAME + ", got name " + recordedClassLoader.getName());
-                Events.assertField(event, "classCount").equal(1L);
+                Events.assertField(event, "classCount").equal(2L);
                 Events.assertField(event, "chunkSize").above(1L);
                 Events.assertField(event, "blockSize").above(1L);
-                Events.assertField(event, "anonymousClassCount").equal(1L);
-                Events.assertField(event, "anonymousChunkSize").above(1L);
-                Events.assertField(event, "anonymousBlockSize").above(1L);
+                Events.assertField(event, "hiddenClassCount").equal(2L);
+                Events.assertField(event, "hiddenChunkSize").above(0L);
+                Events.assertField(event, "hiddenBlockSize").above(0L);
                 isAnyFound = true;
             }
         }
@@ -91,6 +97,18 @@ public class TestClassLoaderStatsEvent {
         if (c.getClassLoader() != dummyloader) {
             throw new RuntimeException("TestClass defined by wrong classloader: " + c.getClassLoader());
         }
+
+        // Compile a class for method createNonFindableClasses() to use to create a
+        // non-strong hidden class.
+        byte klassbuf[] = InMemoryJavaCompiler.compile("jdk.jfr.event.runtime.TestClass",
+            "package jdk.jfr.event.runtime; " +
+            "public class TestClass { " +
+            "    public static void concat(String one, String two) throws Throwable { " +
+            " } } ");
+
+        Method m = c.getDeclaredMethod("createNonFindableClasses", byte[].class);
+        m.setAccessible(true);
+        classes = (Class[]) m.invoke(null, klassbuf);
     }
 
     public static class DummyClassLoader extends ClassLoader {

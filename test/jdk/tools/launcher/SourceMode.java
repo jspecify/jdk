@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8192920 8204588
+ * @bug 8192920 8204588 8210275 8286571
  * @summary Test source mode
  * @modules jdk.compiler jdk.jlink
  * @run main SourceMode
@@ -32,6 +32,7 @@
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -102,6 +103,33 @@ public class SourceMode extends TestHelper {
         if (!tr.isOK())
             error(tr, "Bad exit code: " + tr.exitValue);
         if (!tr.contains("[1, 2, 3]"))
+            error(tr, "Expected output not found");
+        show(tr);
+    }
+
+    // java --source N --enable-preview Simple.java hello
+    // on minimal jdk image containing jdk.compiler
+    @Test
+    void test8286571() throws IOException {
+        starting("test8286571");
+        var pw = new PrintWriter(System.out);
+        int rc = ToolProvider.findFirst("jlink").orElseThrow().run(
+                pw, pw,
+                "--add-modules",
+                "jdk.compiler",
+                "--output",
+                "comp_only");
+        if (rc != 0)
+            throw new AssertionError("Jlink failed: rc = " + rc);
+        Path file = getSimpleFile("Simple.java", false);
+        TestResult tr = doExec(
+                Path.of("comp_only", "bin", isWindows ? "java.exe" : "java").toString(),
+                "--source", thisVersion,
+                "--enable-preview",
+                file.toString(), "hello");
+        if (!tr.isOK())
+            error(tr, "Bad exit code: " + tr.exitValue);
+        if (!tr.contains("[hello]"))
             error(tr, "Expected output not found");
         show(tr);
     }
@@ -200,6 +228,10 @@ public class SourceMode extends TestHelper {
     // java --add-exports=... Export.java --help
     @Test
     void testAddExports() throws IOException {
+        if (!isEnglishLocale()) {
+            return;
+        }
+
         starting("testAddExports");
         Path exportJava = Paths.get("Export.java");
         createFile(exportJava, List.of(
@@ -251,6 +283,35 @@ public class SourceMode extends TestHelper {
         show(tr);
     }
 
+    // java --source N -cp ... HelloWorld
+    @Test
+    void testSourceClasspath() throws IOException {
+        if (!isEnglishLocale()) {
+            return;
+        }
+
+        starting("testSourceClasspath");
+        Path base = Files.createDirectories(Paths.get("testSourceClasspath"));
+        Path src = Files.createDirectories(base.resolve("src"));
+        Path srcfile = src.resolve("java.java");
+        createFile(srcfile, List.of(
+                "class HelloWorld {",
+                "    public static void main(String... args) {",
+                "        System.out.println(\"Hello World\");",
+                "    }",
+                "}"
+        ));
+        Path classes = base.resolve("classes");
+        compile("-d", classes.toString(), srcfile.toString());
+        TestResult tr =
+            doExec(javaCmd, "--source", thisVersion, "-cp", classes.toString(), "HelloWorld");
+        if (tr.isOK())
+            error(tr, "Command succeeded unexpectedly");
+        if (!tr.contains("file not found: HelloWorld"))
+            error(tr, "Expected output not found");
+        show(tr);
+    }
+
     // java --source
     @Test
     void testSourceNoArg() throws IOException {
@@ -298,7 +359,7 @@ public class SourceMode extends TestHelper {
     @Test
     void testTerminalOptionInShebang() throws IOException {
         starting("testTerminalOptionInShebang");
-        if (skipShebangTest || isAIX || isMacOSX || isSolaris) {
+        if (skipShebangTest || isAIX || isMacOSX) {
             // On MacOSX, we cannot distinguish between terminal options on the
             // shebang line and those on the command line.
             // On Solaris, all options after the first on the shebang line are
@@ -322,7 +383,7 @@ public class SourceMode extends TestHelper {
     @Test
     void testTerminalOptionInShebangAtFile() throws IOException {
         starting("testTerminalOptionInShebangAtFile");
-        if (skipShebangTest || isAIX || isMacOSX || isSolaris) {
+        if (skipShebangTest || isAIX || isMacOSX) {
             // On MacOSX, we cannot distinguish between terminal options in a
             // shebang @-file and those on the command line.
             // On Solaris, all options after the first on the shebang line are
@@ -349,7 +410,7 @@ public class SourceMode extends TestHelper {
     @Test
     void testMainClassInShebang() throws IOException {
         starting("testMainClassInShebang");
-        if (skipShebangTest || isAIX || isMacOSX || isSolaris) {
+        if (skipShebangTest || isAIX || isMacOSX) {
             // On MacOSX, we cannot distinguish between a main class on the
             // shebang line and one on the command line.
             // On Solaris, all options after the first on the shebang line are

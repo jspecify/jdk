@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,31 +22,17 @@
  *
  */
 
-#ifndef OS_WINDOWS_VM_OS_WINDOWS_INLINE_HPP
-#define OS_WINDOWS_VM_OS_WINDOWS_INLINE_HPP
+#ifndef OS_WINDOWS_OS_WINDOWS_INLINE_HPP
+#define OS_WINDOWS_OS_WINDOWS_INLINE_HPP
 
+#include "os_windows.hpp"
+
+#include "runtime/javaThread.hpp"
+#include "runtime/mutex.hpp"
 #include "runtime/os.hpp"
-#include "runtime/thread.hpp"
 
-inline const char* os::dll_file_extension()            { return ".dll"; }
-
-inline const int os::default_file_open_flags() { return O_BINARY | O_NOINHERIT;}
-
-// File names are case-insensitive on windows only
-inline int os::file_name_strncmp(const char* s, const char* t, size_t num) {
-  return _strnicmp(s, t, num);
-}
-
-inline void  os::dll_unload(void *lib) {
-  ::FreeLibrary((HMODULE)lib);
-}
-
-inline void* os::dll_lookup(void *lib, const char *name) {
-  return (void*)::GetProcAddress((HMODULE)lib, name);
-}
-
-inline bool os::obsolete_option(const JavaVMOption *option) {
-  return false;
+inline bool os::zero_page_read_protected() {
+  return true;
 }
 
 inline bool os::uses_stack_guard_pages() {
@@ -57,53 +43,51 @@ inline bool os::must_commit_stack_guard_pages() {
   return true;
 }
 
-inline int os::readdir_buf_size(const char *path)
-{
-  /* As Windows doesn't use the directory entry buffer passed to
-     os::readdir() this can be as short as possible */
-
-  return 1;
-}
-
 // Bang the shadow pages if they need to be touched to be mapped.
 inline void os::map_stack_shadow_pages(address sp) {
   // Write to each page of our new frame to force OS mapping.
   // If we decrement stack pointer more than one page
   // the OS may not map an intervening page into our space
   // and may fault on a memory access to interior of our frame.
-  const int page_size = os::win32::vm_page_size();
-  const size_t n_pages = JavaThread::stack_shadow_zone_size() / page_size;
+  address original_sp = sp;
+  const size_t page_size = os::vm_page_size();
+  const size_t n_pages = StackOverflow::stack_shadow_zone_size() / page_size;
   for (size_t pages = 1; pages <= n_pages; pages++) {
     sp -= page_size;
     *sp = 0;
   }
+  StackOverflow* state = JavaThread::current()->stack_overflow_state();
+  assert(original_sp > state->shadow_zone_safe_limit(), "original_sp=" INTPTR_FORMAT ", "
+         "shadow_zone_safe_limit=" INTPTR_FORMAT, p2i(original_sp), p2i(state->shadow_zone_safe_limit()));
+  state->set_shadow_zone_growth_watermark(original_sp);
 }
 
-inline bool os::numa_has_static_binding()   { return true;   }
 inline bool os::numa_has_group_homing()     { return false;  }
 
-inline size_t os::read(int fd, void *buf, unsigned int nBytes) {
-  return ::read(fd, buf, nBytes);
+// Platform Mutex/Monitor implementation
+
+inline void PlatformMutex::lock() {
+  EnterCriticalSection(&_mutex);
 }
 
-inline size_t os::restartable_read(int fd, void *buf, unsigned int nBytes) {
-  return ::read(fd, buf, nBytes);
+inline void PlatformMutex::unlock() {
+  LeaveCriticalSection(&_mutex);
 }
 
-inline size_t os::write(int fd, const void *buf, unsigned int nBytes) {
-  return ::write(fd, buf, nBytes);
+inline bool PlatformMutex::try_lock() {
+  return TryEnterCriticalSection(&_mutex);
 }
 
-inline int os::close(int fd) {
-  return ::close(fd);
+inline void PlatformMonitor::notify() {
+  WakeConditionVariable(&_cond);
 }
 
-inline bool os::supports_monotonic_clock() {
-  return true;
+inline void PlatformMonitor::notify_all() {
+  WakeAllConditionVariable(&_cond);
 }
 
-inline void os::exit(int num) {
-  win32::exit_process_or_thread(win32::EPT_PROCESS, num);
-}
+// Trim-native support, stubbed out for now, may be enabled later
+inline bool os::can_trim_native_heap() { return false; }
+inline bool os::trim_native_heap(os::size_change_t* rss_change) { return false; }
 
-#endif // OS_WINDOWS_VM_OS_WINDOWS_INLINE_HPP
+#endif // OS_WINDOWS_OS_WINDOWS_INLINE_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,8 +59,8 @@ import sun.util.logging.internal.LoggingProviderImpl;
  *          java.base/jdk.internal.logger
  *          java.logging/sun.util.logging.internal
  * @run  main/othervm DefaultLoggerBridgeTest NOSECURITY
- * @run  main/othervm DefaultLoggerBridgeTest NOPERMISSIONS
- * @run  main/othervm DefaultLoggerBridgeTest WITHPERMISSIONS
+ * @run  main/othervm -Djava.security.manager=allow DefaultLoggerBridgeTest NOPERMISSIONS
+ * @run  main/othervm -Djava.security.manager=allow DefaultLoggerBridgeTest WITHPERMISSIONS
  * @author danielfuchs
  */
 public class DefaultLoggerBridgeTest {
@@ -801,6 +801,8 @@ public class DefaultLoggerBridgeTest {
         final static RuntimePermission ACCESS_LOGGER = new RuntimePermission("accessClassInPackage.jdk.internal.logger");
         final static RuntimePermission ACCESS_LOGGING = new RuntimePermission("accessClassInPackage.sun.util.logging");
 
+        static final Policy DEFAULT_POLICY = Policy.getPolicy();
+
         final Permissions permissions;
         final Permissions allPermissions;
         final ThreadLocal<AtomicBoolean> allowControl;
@@ -839,7 +841,7 @@ public class DefaultLoggerBridgeTest {
 
         @Override
         public boolean implies(ProtectionDomain domain, Permission permission) {
-            return getPermissions().implies(permission);
+            return getPermissions().implies(permission) || DEFAULT_POLICY.implies(domain, permission);
         }
 
         @Override

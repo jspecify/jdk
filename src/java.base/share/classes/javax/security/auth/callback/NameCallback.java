@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,18 +35,19 @@ package javax.security.auth.callback;
  */
 public class NameCallback implements Callback, java.io.Serializable {
 
+    @java.io.Serial
     private static final long serialVersionUID = 3770938795909392253L;
 
     /**
      * @serial
      * @since 1.4
      */
-    private String prompt;
+    private final String prompt;
     /**
      * @serial
      * @since 1.4
      */
-    private String defaultName;
+    private final String defaultName;
     /**
      * @serial
      * @since 1.4
@@ -62,9 +63,10 @@ public class NameCallback implements Callback, java.io.Serializable {
      *                  or if {@code prompt} has a length of 0.
      */
     public NameCallback(String prompt) {
-        if (prompt == null || prompt.length() == 0)
+        if (prompt == null || prompt.isEmpty())
             throw new IllegalArgumentException();
         this.prompt = prompt;
+        this.defaultName = null;
     }
 
     /**
@@ -82,8 +84,8 @@ public class NameCallback implements Callback, java.io.Serializable {
      *                  or if {@code defaultName} has a length of 0.
      */
     public NameCallback(String prompt, String defaultName) {
-        if (prompt == null || prompt.length() == 0 ||
-            defaultName == null || defaultName.length() == 0)
+        if (prompt == null || prompt.isEmpty() ||
+            defaultName == null || defaultName.isEmpty())
             throw new IllegalArgumentException();
 
         this.prompt = prompt;

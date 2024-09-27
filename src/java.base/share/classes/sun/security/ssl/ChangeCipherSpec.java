@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,10 +65,9 @@ final class ChangeCipherSpec {
             HandshakeContext hc = (HandshakeContext)context;
             SSLKeyDerivation kd = hc.handshakeKeyDerivation;
 
-            if (!(kd instanceof LegacyTrafficKeyDerivation)) {
+            if (!(kd instanceof LegacyTrafficKeyDerivation tkd)) {
                 throw new UnsupportedOperationException("Not supported.");
             }
-            LegacyTrafficKeyDerivation tkd = (LegacyTrafficKeyDerivation)kd;
             CipherSuite ncs = hc.negotiatedCipherSuite;
             Authenticator writeAuthenticator;
             if (ncs.bulkCipher.cipherType == CipherType.AEAD_CIPHER) {
@@ -105,6 +104,12 @@ final class ChangeCipherSpec {
                 throw new SSLException("Algorithm missing:  ", gse);
             }
 
+            if (writeCipher == null) {
+                throw hc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                    "Illegal cipher suite (" + ncs +
+                    ") and protocol version (" + hc.negotiatedProtocol + ")");
+            }
+
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine("Produced ChangeCipherSpec message");
             }
@@ -136,7 +141,7 @@ final class ChangeCipherSpec {
 
             // parse
             if (message.remaining() != 1 || message.get() != 1) {
-                tc.fatal(Alert.UNEXPECTED_MESSAGE,
+                throw tc.fatal(Alert.UNEXPECTED_MESSAGE,
                         "Malformed or unexpected ChangeCipherSpec message");
             }
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
@@ -145,7 +150,7 @@ final class ChangeCipherSpec {
 
             // validate
             if (tc.handshakeContext == null) {
-                tc.fatal(Alert.HANDSHAKE_FAILURE,
+                throw tc.fatal(Alert.HANDSHAKE_FAILURE,
                         "Unexpected ChangeCipherSpec message");
             }
 
@@ -153,13 +158,12 @@ final class ChangeCipherSpec {
             HandshakeContext hc = tc.handshakeContext;
 
             if (hc.handshakeKeyDerivation == null) {
-                tc.fatal(Alert.UNEXPECTED_MESSAGE,
+                throw tc.fatal(Alert.UNEXPECTED_MESSAGE,
                         "Unexpected ChangeCipherSpec message");
             }
 
             SSLKeyDerivation kd = hc.handshakeKeyDerivation;
-            if (kd instanceof LegacyTrafficKeyDerivation) {
-                LegacyTrafficKeyDerivation tkd = (LegacyTrafficKeyDerivation)kd;
+            if (kd instanceof LegacyTrafficKeyDerivation tkd) {
                 CipherSuite ncs = hc.negotiatedCipherSuite;
                 Authenticator readAuthenticator;
                 if (ncs.bulkCipher.cipherType == CipherType.AEAD_CIPHER) {
@@ -195,6 +199,14 @@ final class ChangeCipherSpec {
                     // unlikely
                     throw new SSLException("Algorithm missing:  ", gse);
                 }
+
+                if (readCipher == null) {
+                    throw hc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                        "Illegal cipher suite (" + hc.negotiatedCipherSuite +
+                        ") and protocol version (" + hc.negotiatedProtocol +
+                        ")");
+                }
+
                 tc.inputRecord.changeReadCiphers(readCipher);
             } else {
                 throw new UnsupportedOperationException("Not supported.");
@@ -225,7 +237,7 @@ final class ChangeCipherSpec {
 
             // parse
             if (message.remaining() != 1 || message.get() != 1) {
-                tc.fatal(Alert.UNEXPECTED_MESSAGE,
+                throw tc.fatal(Alert.UNEXPECTED_MESSAGE,
                         "Malformed or unexpected ChangeCipherSpec message");
             }
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {

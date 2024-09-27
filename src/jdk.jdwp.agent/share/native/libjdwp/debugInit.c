@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,6 @@
 #include "sys.h"
 
 /* How the options get to OnLoad: */
-#define XDEBUG "-Xdebug"
 #define XRUN "-Xrunjdwp"
 #define AGENTLIB "-agentlib:jdwp"
 
@@ -82,6 +81,9 @@ static unsigned logflags = 0;               /* Log flags */
 
 static char *names;                         /* strings derived from OnLoad options */
 
+static jboolean allowStartViaJcmd = JNI_FALSE;  /* if true we allow the debugging to be started via a jcmd */
+static jboolean startedViaJcmd = JNI_FALSE;     /* if false, we have not yet started debugging via a jcmd */
+
 /*
  * Elements of the transports bag
  */
@@ -100,7 +102,7 @@ static void JNICALL cbEarlyVMDeath(jvmtiEnv*, JNIEnv *);
 static void JNICALL cbEarlyException(jvmtiEnv*, JNIEnv *,
             jthread, jmethodID, jlocation, jobject, jmethodID, jlocation);
 
-static void initialize(JNIEnv *env, jthread thread, EventIndex triggering_ei);
+static void initialize(JNIEnv *env, jthread thread, EventIndex triggering_ei, EventInfo *opt_info);
 static jboolean parseOptions(char *str);
 
 /*
@@ -135,58 +137,11 @@ set_event_notification(jvmtiEventMode mode, EventIndex ei)
     return error;
 }
 
-typedef struct {
-    int major;
-    int minor;
-} version_type;
-
-typedef struct {
-    version_type runtime;
-    version_type compiletime;
-} compatible_versions_type;
-
-/*
- * List of explicitly compatible JVMTI versions, specified as
- * { runtime version, compile-time version } pairs. -1 is a wildcard.
- */
-static int nof_compatible_versions = 3;
-static compatible_versions_type compatible_versions_list[] = {
-    /*
-     * FIXUP: Allow version 0 to be compatible with anything
-     * Special check for FCS of 1.0.
-     */
-    { {  0, -1 }, { -1, -1 } },
-    { { -1, -1 }, {  0, -1 } },
-    /*
-     * 1.2 is runtime compatible with 1.1 -- just make sure to check the
-     * version before using any new 1.2 features
-     */
-    { {  1,  1 }, {  1,  2 } }
-};
-
-
 /* Logic to determine JVMTI version compatibility */
 static jboolean
 compatible_versions(jint major_runtime,     jint minor_runtime,
                     jint major_compiletime, jint minor_compiletime)
 {
-    /*
-     * First check to see if versions are explicitly compatible via the
-     * list specified above.
-     */
-    int i;
-    for (i = 0; i < nof_compatible_versions; ++i) {
-        version_type runtime = compatible_versions_list[i].runtime;
-        version_type comptime = compatible_versions_list[i].compiletime;
-
-        if ((major_runtime     == runtime.major  || runtime.major  == -1) &&
-            (minor_runtime     == runtime.minor  || runtime.minor  == -1) &&
-            (major_compiletime == comptime.major || comptime.major == -1) &&
-            (minor_compiletime == comptime.minor || comptime.minor == -1)) {
-            return JNI_TRUE;
-        }
-    }
-
     return major_runtime == major_compiletime &&
            minor_runtime >= minor_compiletime;
 }
@@ -229,20 +184,6 @@ DEF_Agent_OnLoad(JavaVM *vm, char *options, void *reserved)
     vmInitialized = JNI_FALSE;
     gdata->vmDead = JNI_FALSE;
 
-    /* Get the JVMTI Env, IMPORTANT: Do this first! For jvmtiAllocate(). */
-    error = JVM_FUNC_PTR(vm,GetEnv)
-                (vm, (void **)&(gdata->jvmti), JVMTI_VERSION_1);
-    if (error != JNI_OK) {
-        ERROR_MESSAGE(("JDWP unable to access JVMTI Version 1 (0x%x),"
-                         " is your J2SE a 1.5 or newer version?"
-                         " JNIEnv's GetEnv() returned %d",
-                         JVMTI_VERSION_1, error));
-        forceExit(1); /* Kill entire process, no core dump */
-    }
-
-    /* Check to make sure the version of jvmti.h we compiled with
-     *      matches the runtime version we are using.
-     */
     jvmtiCompileTimeMajorVersion  = ( JVMTI_VERSION & JVMTI_VERSION_MASK_MAJOR )
                                         >> JVMTI_VERSION_SHIFT_MAJOR;
     jvmtiCompileTimeMinorVersion  = ( JVMTI_VERSION & JVMTI_VERSION_MASK_MINOR )
@@ -250,12 +191,23 @@ DEF_Agent_OnLoad(JavaVM *vm, char *options, void *reserved)
     jvmtiCompileTimeMicroVersion  = ( JVMTI_VERSION & JVMTI_VERSION_MASK_MICRO )
                                         >> JVMTI_VERSION_SHIFT_MICRO;
 
-    /* Check for compatibility */
-    if ( !compatible_versions(jvmtiMajorVersion(), jvmtiMinorVersion(),
-                jvmtiCompileTimeMajorVersion, jvmtiCompileTimeMinorVersion) ) {
+    /* Get the JVMTI Env, IMPORTANT: Do this first! For jvmtiAllocate(). */
+    error = JVM_FUNC_PTR(vm,GetEnv)
+                (vm, (void **)&(gdata->jvmti), JVMTI_VERSION);
+    if (error != JNI_OK) {
+        ERROR_MESSAGE(("JDWP unable to access JVMTI Version %d.%d.%d (0x%x)."
+                       " JNIEnv's GetEnv() returned %d.",
+                       jvmtiCompileTimeMajorVersion, jvmtiCompileTimeMinorVersion,
+                       jvmtiCompileTimeMicroVersion, JVMTI_VERSION, error));
+        forceExit(1); /* Kill entire process, no core dump */
+    }
+
+    /* Check that the JVMTI compile and runtime versions are compatibile. */
+    if (!compatible_versions(jvmtiMajorVersion(), jvmtiMinorVersion(),
+                              jvmtiCompileTimeMajorVersion, jvmtiCompileTimeMinorVersion)) {
 
         ERROR_MESSAGE(("This jdwp native library will not work with this VM's "
-                       "version of JVMTI (%d.%d.%d), it needs JVMTI %d.%d[.%d].",
+                       "version of JVMTI (%d.%d.%d). It needs JVMTI %d.%d[.%d].",
                        jvmtiMajorVersion(),
                        jvmtiMinorVersion(),
                        jvmtiMicroVersion(),
@@ -300,6 +252,9 @@ DEF_Agent_OnLoad(JavaVM *vm, char *options, void *reserved)
     needed_capabilities.can_maintain_original_method_order      = 1;
     needed_capabilities.can_generate_monitor_events             = 1;
     needed_capabilities.can_tag_objects                         = 1;
+    if (gdata->vthreadsSupported) {
+        needed_capabilities.can_support_virtual_threads         = 1;
+    }
 
     /* And what potential ones that would be nice to have */
     needed_capabilities.can_force_early_return
@@ -436,7 +391,7 @@ cbEarlyVMInit(jvmtiEnv *jvmti_env, JNIEnv *env, jthread thread)
         EXIT_ERROR(AGENT_ERROR_INTERNAL,"VM dead at VM_INIT time");
     }
     if (initOnStartup)
-        initialize(env, thread, EI_VM_INIT);
+        initialize(env, thread, EI_VM_INIT, NULL);
     vmInitialized = JNI_TRUE;
     LOG_MISC(("END cbEarlyVMInit"));
 }
@@ -489,6 +444,19 @@ cbEarlyException(jvmtiEnv *jvmti_env, JNIEnv *env,
         LOG_MISC(("VM is not initialized yet"));
         return;
     }
+    EventInfo info;
+    info.ei = EI_EXCEPTION;
+    info.thread = thread;
+    info.clazz = getMethodClass(jvmti_env, method);
+    info.method = method;
+    info.location = location;
+    info.object = exception;
+    if (gdata->vthreadsSupported) {
+        info.is_vthread = isVThread(thread);
+    }
+    info.u.exception.catch_clazz = getMethodClass(jvmti_env, catch_method);
+    info.u.exception.catch_method = catch_method;
+    info.u.exception.catch_location = catch_location;
 
     /*
      * We want to preserve any current exception that might get wiped
@@ -503,24 +471,22 @@ cbEarlyException(jvmtiEnv *jvmti_env, JNIEnv *env,
     if (initOnUncaught && catch_method == NULL) {
 
         LOG_MISC(("Initializing on uncaught exception"));
-        initialize(env, thread, EI_EXCEPTION);
+        initialize(env, thread, EI_EXCEPTION, &info);
 
     } else if (initOnException != NULL) {
 
-        jclass clazz;
-
-        /* Get class of exception thrown */
-        clazz = JNI_FUNC_PTR(env,GetObjectClass)(env, exception);
-        if ( clazz != NULL ) {
+        jclass exception_clazz = JNI_FUNC_PTR(env, GetObjectClass)(env, exception);
+        /* check class of exception thrown */
+        if ( exception_clazz != NULL ) {
             char *signature = NULL;
             /* initing on throw, check */
-            error = classSignature(clazz, &signature, NULL);
+            error = classSignature(exception_clazz, &signature, NULL);
             LOG_MISC(("Checking specific exception: looking for %s, got %s",
                         initOnException, signature));
             if ( (error==JVMTI_ERROR_NONE) &&
                 (strcmp(signature, initOnException) == 0)) {
                 LOG_MISC(("Initializing on specific exception"));
-                initialize(env, thread, EI_EXCEPTION);
+                initialize(env, thread, EI_EXCEPTION, &info);
             } else {
                 error = AGENT_ERROR_INTERNAL; /* Just to cause restore */
             }
@@ -647,7 +613,7 @@ jniFatalError(JNIEnv *env, const char *msg, jvmtiError error, int exit_code)
         (void)snprintf(buf, sizeof(buf), "JDWP %s, jvmtiError=%s(%d)",
                     msg, jvmtiErrorText(error), error);
     } else {
-        (void)snprintf(buf, sizeof(buf), "JDWP %s", buf);
+        (void)snprintf(buf, sizeof(buf), "JDWP %s", msg);
     }
     if (env != NULL) {
         (*((*env)->FatalError))(env, buf);
@@ -661,9 +627,11 @@ jniFatalError(JNIEnv *env, const char *msg, jvmtiError error, int exit_code)
 
 /*
  * Initialize debugger back end modules
+ *
+ * @param opt_info optional event info to use, might be null
  */
 static void
-initialize(JNIEnv *env, jthread thread, EventIndex triggering_ei)
+initialize(JNIEnv *env, jthread thread, EventIndex triggering_ei, EventInfo *opt_info)
 {
     jvmtiError error;
     EnumerateArg arg;
@@ -751,13 +719,13 @@ initialize(JNIEnv *env, jthread thread, EventIndex triggering_ei)
          * can get in the queue (from other not-yet-suspended threads)
          * before this one does. (Also need to handle allocation error below?)
          */
-        EventInfo info;
         struct bag *initEventBag;
-        LOG_MISC(("triggering_ei != EI_VM_INIT"));
+        LOG_MISC(("triggering_ei == EI_EXCEPTION"));
+        JDI_ASSERT(triggering_ei == EI_EXCEPTION);
+        JDI_ASSERT(opt_info != NULL);
         initEventBag = eventHelper_createEventBag();
-        (void)memset(&info,0,sizeof(info));
-        info.ei = triggering_ei;
-        eventHelper_recordEvent(&info, 0, suspendPolicy, initEventBag);
+        threadControl_onEventHandlerEntry(currentSessionID, opt_info, NULL);
+        eventHelper_recordEvent(opt_info, 0, suspendPolicy, initEventBag);
         (void)eventHelper_reportEvents(currentSessionID, initEventBag);
         bagDestroyBag(initEventBag);
     }
@@ -790,7 +758,6 @@ debugInit_reset(JNIEnv *env)
     threadControl_reset();
     util_reset();
     commonRef_reset(env);
-    classTrack_reset();
 
     /*
      * If this is a server, we are now ready to accept another connection.
@@ -857,7 +824,8 @@ printUsage(void)
  "               Java Debugger JDWP Agent Library\n"
  "               --------------------------------\n"
  "\n"
- "  (see http://java.sun.com/products/jpda for more information)\n"
+ "  (See the \"VM Invocation Options\" section of the JPDA\n"
+ "   \"Connection and Invocation Details\" document for more information.)\n"
  "\n"
  "jdwp usage: java " AGENTLIB "=[help]|[<option>=<value>, ...]\n"
  "\n"
@@ -867,10 +835,15 @@ printUsage(void)
  "transport=<name>                 transport spec                    none\n"
  "address=<listen/attach address>  transport spec                    \"\"\n"
  "server=y|n                       listen for debugger?              n\n"
+ "allow=<IP|IP-list>               If server=y, allows connections only from the IP addresses/subnets specified.\n"
+ "                                 A list of multiple IP address/subnet entries must be separated by \'+\'.\n"
+ "                                                                   * (allows connection from any address)\n"
  "launch=<command line>            run debugger on event             none\n"
  "onthrow=<exception name>         debug on throw                    none\n"
  "onuncaught=y|n                   debug on any uncaught?            n\n"
  "timeout=<timeout value>          for listen/attach in milliseconds n\n"
+ "includevirtualthreads=y|n        List of all threads includes virtual threads as well as platform threads.\n"
+ "                                                                   n\n"
  "mutf8=y|n                        output modified utf-8             n\n"
  "quiet=y|n                        control over terminal messages    n\n"));
 
@@ -895,7 +868,7 @@ printUsage(void)
  "--------\n"
  "  - The older " XRUN " interface can still be used, but will be removed in\n"
  "    a future release, for example:\n"
- "        java " XDEBUG " " XRUN ":[help]|[<option>=<value>, ...]\n"
+ "        java " XRUN ":[help]|[<option>=<value>, ...]\n"
     ));
 
 #ifdef DEBUG
@@ -1010,11 +983,19 @@ parseOptions(char *options)
     int length;
     char *str;
     char *errmsg;
+    jboolean onJcmd = JNI_FALSE;
 
     /* Set defaults */
     gdata->assertOn     = DEFAULT_ASSERT_ON;
     gdata->assertFatal  = DEFAULT_ASSERT_FATAL;
     logfile             = DEFAULT_LOGFILE;
+
+    /* Set vthread debugging level. */
+    gdata->vthreadsSupported = JNI_TRUE;
+    gdata->includeVThreads = JNI_FALSE;
+    gdata->rememberVThreadsWhenDisconnected = JNI_FALSE;
+
+    gdata->jvmti_data_dump = JNI_FALSE;
 
     /* Options being NULL will end up being an error. */
     if (options == NULL) {
@@ -1118,6 +1099,20 @@ parseOptions(char *options)
             }
             currentTransport->timeout = atol(current);
             current += strlen(current) + 1;
+        } else if (strcmp(buf, "includevirtualthreads") == 0) {
+            if (!get_tok(&str, current, (int)(end - current), ',')) {
+                goto syntax_error;
+            }
+            if (strcmp(current, "y") == 0) {
+                gdata->includeVThreads = JNI_TRUE;
+            } else if (strcmp(current, "n") == 0) {
+                gdata->includeVThreads = JNI_FALSE;
+            } else {
+                goto syntax_error;
+            }
+            // These two flags always set the same for now.
+            gdata->rememberVThreadsWhenDisconnected = gdata->includeVThreads;
+            current += strlen(current) + 1;
         } else if (strcmp(buf, "launch") == 0) {
             /*LINTED*/
             if (!get_tok(&str, current, (int)(end - current), ',')) {
@@ -1165,6 +1160,13 @@ parseOptions(char *options)
             }
             if ( dopause ) {
                 do_pause();
+            }
+        } else if (strcmp(buf, "datadump") == 0) {
+          // Enable JVMTI DATA_DUMP_REQUEST support.
+          // This is not a documented flag. This feature is experimental and is only intended
+          // to be used by debug agent developers. See comment for cbDataDump() for more details.
+          if ( !get_boolean(&str, &(gdata->jvmti_data_dump)) ) {
+                goto syntax_error;
             }
         } else if (strcmp(buf, "coredump") == 0) {
             if ( !get_boolean(&str, &docoredump) ) {
@@ -1229,6 +1231,10 @@ parseOptions(char *options)
             if ( !get_boolean(&str, &useStandardAlloc) ) {
                 goto syntax_error;
             }
+        } else if (strcmp(buf, "onjcmd") == 0) {
+            if (!get_boolean(&str, &onJcmd)) {
+                goto syntax_error;
+            }
         } else {
             goto syntax_error;
         }
@@ -1254,7 +1260,6 @@ parseOptions(char *options)
         goto bad_option_with_errmsg;
     }
 
-
     if (!isServer) {
         jboolean specified = bagEnumerateOver(transports, checkAddress, NULL);
         if (!specified) {
@@ -1278,6 +1283,20 @@ parseOptions(char *options)
             errmsg = "Specify launch=<command line> when using onthrow or onuncaught suboption";
             goto bad_option_with_errmsg;
         }
+    }
+
+    if (onJcmd) {
+        if (launchOnInit != NULL) {
+            errmsg = "Cannot combine onjcmd and launch suboptions";
+            goto bad_option_with_errmsg;
+        }
+        if (!isServer) {
+            errmsg = "Can only use onjcmd with server=y";
+            goto bad_option_with_errmsg;
+        }
+        suspendOnInit = JNI_FALSE;
+        initOnStartup = JNI_FALSE;
+        allowStartViaJcmd = JNI_TRUE;
     }
 
     return JNI_TRUE;
@@ -1332,7 +1351,7 @@ debugInit_exit(jvmtiError error, const char *msg)
         return;
     }
 
-    // No transport initilized.
+    // No transport initialized.
     // As we don't have any details here exiting with separate exit code
     if (error == AGENT_ERROR_TRANSPORT_INIT) {
         forceExit(EXIT_TRANSPORT_ERROR);
@@ -1347,4 +1366,46 @@ debugInit_exit(jvmtiError error, const char *msg)
 
     // Last chance to die, this kills the entire process.
     forceExit(EXIT_JVMTI_ERROR);
+}
+
+static jboolean getFirstTransport(void *item, void *arg)
+{
+    TransportSpec** store = arg;
+    *store = item;
+
+    return JNI_FALSE; /* Want the first */
+}
+
+/* Call to start up debugging. */
+JNIEXPORT char const* JNICALL debugInit_startDebuggingViaCommand(JNIEnv* env, jthread thread, char const** transport_name,
+                                                                char const** address, jboolean* first_start) {
+    jboolean is_first_start = JNI_FALSE;
+    TransportSpec* spec = NULL;
+
+    if (!vmInitialized) {
+        return "Not yet initialized. Try again later.";
+    }
+
+    if (!allowStartViaJcmd) {
+        return "Starting debugging via jcmd was not enabled via the onjcmd option of the jdwp agent.";
+    }
+
+    if (!startedViaJcmd) {
+        startedViaJcmd = JNI_TRUE;
+        is_first_start = JNI_TRUE;
+        initialize(env, thread, EI_VM_INIT, NULL);
+    }
+
+    bagEnumerateOver(transports, getFirstTransport, &spec);
+
+    if ((spec != NULL) && (transport_name != NULL) && (address != NULL)) {
+        *transport_name = spec->name;
+        *address = spec->address;
+    }
+
+    if (first_start != NULL) {
+        *first_start = is_first_start;
+    }
+
+    return NULL;
 }

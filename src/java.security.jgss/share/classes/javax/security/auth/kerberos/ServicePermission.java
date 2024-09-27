@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,7 @@
 
 package javax.security.auth.kerberos;
 
-import org.jspecify.annotations.Nullable;
-
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamField;
+import java.io.*;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.util.*;
@@ -40,7 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * This class is used to protect Kerberos services and the
  * credentials necessary to access those services. There is a one to
  * one mapping of a service principal and the credentials necessary
- * to access the service. Therefore granting access to a service
+ * to access the service. Therefore, granting access to a service
  * principal implicitly grants access to the credential necessary to
  * establish a security context with the service principal. This
  * applies regardless of whether the credentials are in a cache
@@ -107,27 +102,28 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class ServicePermission extends Permission
     implements java.io.Serializable {
 
+    @Serial
     private static final long serialVersionUID = -1227585031618624935L;
 
     /**
      * Initiate a security context to the specified service
      */
-    private final static int INITIATE   = 0x1;
+    private static final int INITIATE   = 0x1;
 
     /**
      * Accept a security context
      */
-    private final static int ACCEPT     = 0x2;
+    private static final int ACCEPT     = 0x2;
 
     /**
      * All actions
      */
-    private final static int ALL        = INITIATE|ACCEPT;
+    private static final int ALL        = INITIATE|ACCEPT;
 
     /**
      * No actions.
      */
-    private final static int NONE    = 0x0;
+    private static final int NONE    = 0x0;
 
     // the actions mask
     private transient int mask;
@@ -188,7 +184,7 @@ public final class ServicePermission extends Permission
      * Checks if this Kerberos service permission object "implies" the
      * specified permission.
      * <P>
-     * More specifically, this method returns true if all of the following
+     * More specifically, this method returns true if all the following
      * are true (and returns false if any of them are not):
      * <ul>
      * <li> <i>p</i> is an instanceof {@code ServicePermission},
@@ -205,10 +201,8 @@ public final class ServicePermission extends Permission
      */
     @Override
     public boolean implies(Permission p) {
-        if (!(p instanceof ServicePermission))
+        if (!(p instanceof ServicePermission that))
             return false;
-
-        ServicePermission that = (ServicePermission) p;
 
         return ((this.mask & that.mask) == that.mask) &&
             impliesIgnoreMask(that);
@@ -232,26 +226,21 @@ public final class ServicePermission extends Permission
      * ServicePermission object.
      */
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (obj == this)
             return true;
 
-        if (! (obj instanceof ServicePermission))
+        if (! (obj instanceof ServicePermission that))
             return false;
 
-        ServicePermission that = (ServicePermission) obj;
-        return ((this.mask & that.mask) == that.mask) &&
+        return (this.mask == that.mask) &&
             this.getName().equals(that.getName());
 
 
     }
 
     /**
-     * Returns the hash code value for this object.
-     *
-     * @return a hash code value for this object.
+     * {@return the hash code value for this object}
      */
     @Override
     public int hashCode() {
@@ -274,14 +263,12 @@ public final class ServicePermission extends Permission
         boolean comma = false;
 
         if ((mask & INITIATE) == INITIATE) {
-            if (comma) sb.append(',');
-            else comma = true;
+            comma = true;
             sb.append("initiate");
         }
 
         if ((mask & ACCEPT) == ACCEPT) {
             if (comma) sb.append(',');
-            else comma = true;
             sb.append("accept");
         }
 
@@ -429,7 +416,11 @@ public final class ServicePermission extends Permission
      * WriteObject is called to save the state of the ServicePermission
      * to a stream. The actions are serialized, and the superclass
      * takes care of the name.
+     *
+     * @param  s the {@code ObjectOutputStream} to which data is written
+     * @throws IOException if an I/O error occurs
      */
+    @Serial
     private void writeObject(java.io.ObjectOutputStream s)
         throws IOException
     {
@@ -443,7 +434,12 @@ public final class ServicePermission extends Permission
     /**
      * readObject is called to restore the state of the
      * ServicePermission from a stream.
+     *
+     * @param  s the {@code ObjectInputStream} from which data is read
+     * @throws IOException if an I/O error occurs
+     * @throws ClassNotFoundException if a serialized class cannot be loaded
      */
+    @Serial
     private void readObject(java.io.ObjectInputStream s)
          throws IOException, ClassNotFoundException
     {
@@ -451,43 +447,6 @@ public final class ServicePermission extends Permission
         s.defaultReadObject();
         init(getName(),getMask(actions));
     }
-
-
-    /*
-      public static void main(String[] args) throws Exception {
-      ServicePermission this_ =
-      new ServicePermission(args[0], "accept");
-      ServicePermission that_ =
-      new ServicePermission(args[1], "accept,initiate");
-      System.out.println("-----\n");
-      System.out.println("this.implies(that) = " + this_.implies(that_));
-      System.out.println("-----\n");
-      System.out.println("this = "+this_);
-      System.out.println("-----\n");
-      System.out.println("that = "+that_);
-      System.out.println("-----\n");
-
-      KrbServicePermissionCollection nps =
-      new KrbServicePermissionCollection();
-      nps.add(this_);
-      nps.add(new ServicePermission("nfs/example.com@EXAMPLE.COM",
-      "accept"));
-      nps.add(new ServicePermission("host/example.com@EXAMPLE.COM",
-      "initiate"));
-      System.out.println("nps.implies(that) = " + nps.implies(that_));
-      System.out.println("-----\n");
-
-      Enumeration e = nps.elements();
-
-      while (e.hasMoreElements()) {
-      ServicePermission x =
-      (ServicePermission) e.nextElement();
-      System.out.println("nps.e = " + x);
-      }
-
-      }
-    */
-
 }
 
 
@@ -513,10 +472,9 @@ final class KrbServicePermissionCollection extends PermissionCollection
      */
     @Override
     public boolean implies(Permission permission) {
-        if (! (permission instanceof ServicePermission))
+        if (! (permission instanceof ServicePermission np))
             return false;
 
-        ServicePermission np = (ServicePermission) permission;
         int desired = np.getMask();
 
         if (desired == 0) {
@@ -542,9 +500,7 @@ final class KrbServicePermissionCollection extends PermissionCollection
         x = (ServicePermission)perms.get(np.getName());
         if (x != null) {
             //System.out.println("  trying "+x);
-            if ((x.getMask() & desired) == desired) {
-                return true;
-            }
+            return (x.getMask() & desired) == desired;
         }
         return false;
     }
@@ -563,36 +519,29 @@ final class KrbServicePermissionCollection extends PermissionCollection
      */
     @Override
     public void add(Permission permission) {
-        if (! (permission instanceof ServicePermission))
+        if (! (permission instanceof ServicePermission sp))
             throw new IllegalArgumentException("invalid permission: "+
                                                permission);
         if (isReadOnly())
             throw new SecurityException("attempt to add a Permission to a readonly PermissionCollection");
 
-        ServicePermission sp = (ServicePermission)permission;
         String princName = sp.getName();
 
         // Add permission to map if it is absent, or replace with new
-        // permission if applicable. NOTE: cannot use lambda for
-        // remappingFunction parameter until JDK-8076596 is fixed.
-        perms.merge(princName, sp,
-            new java.util.function.BiFunction<>() {
-                @Override
-                public Permission apply(Permission existingVal,
-                                        Permission newVal) {
-                    int oldMask = ((ServicePermission)existingVal).getMask();
-                    int newMask = ((ServicePermission)newVal).getMask();
-                    if (oldMask != newMask) {
-                        int effective = oldMask | newMask;
-                        if (effective == newMask) {
-                            return newVal;
-                        }
-                        if (effective != oldMask) {
-                            return new ServicePermission(princName, effective);
-                        }
+        // permission if applicable.
+        perms.merge(princName, sp, (existingVal, newVal) -> {
+                int oldMask = ((ServicePermission) existingVal).getMask();
+                int newMask = ((ServicePermission) newVal).getMask();
+                if (oldMask != newMask) {
+                    int effective = oldMask | newMask;
+                    if (effective == newMask) {
+                        return newVal;
                     }
-                    return existingVal;
+                    if (effective != oldMask) {
+                        return new ServicePermission(princName, effective);
+                    }
                 }
+                return existingVal;
             }
         );
     }
@@ -608,6 +557,7 @@ final class KrbServicePermissionCollection extends PermissionCollection
         return perms.elements();
     }
 
+    @Serial
     private static final long serialVersionUID = -4118834211490102011L;
 
     // Need to maintain serialization interoperability with earlier releases,
@@ -618,6 +568,7 @@ final class KrbServicePermissionCollection extends PermissionCollection
      * @serialField permissions java.util.Vector
      *     A list of ServicePermission objects.
      */
+    @Serial
     private static final ObjectStreamField[] serialPersistentFields = {
         new ObjectStreamField("permissions", Vector.class),
     };
@@ -629,6 +580,7 @@ final class KrbServicePermissionCollection extends PermissionCollection
      * Writes the contents of the perms field out as a Vector for
      * serialization compatibility with earlier releases.
      */
+    @Serial
     private void writeObject(ObjectOutputStream out) throws IOException {
         // Don't call out.defaultWriteObject()
 
@@ -643,6 +595,7 @@ final class KrbServicePermissionCollection extends PermissionCollection
     /*
      * Reads in a Vector of ServicePermissions and saves them in the perms field.
      */
+    @Serial
     @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream in)
         throws IOException, ClassNotFoundException

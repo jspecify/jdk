@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Google and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -27,9 +28,9 @@ package MyPackage;
  * @test
  * @build Frame HeapMonitor ThreadInformation
  * @summary Verifies the JVMTI Heap Monitor Thread information sanity.
+ * @requires vm.jvmti
  * @compile HeapMonitorThreadTest.java
  * @run main/othervm/native -Xmx512m -agentlib:HeapMonitorTest MyPackage.HeapMonitorThreadTest
- * @requires !vm.gc.Z
  */
 
 import java.util.List;

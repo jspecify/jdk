@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,10 +46,9 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
- * @build nsk.jdb.interrupt.interrupt001.interrupt001
- *        nsk.jdb.interrupt.interrupt001.interrupt001a
- * @run main/othervm PropertyResolvingWrapper nsk.jdb.interrupt.interrupt001.interrupt001
+ * @build nsk.jdb.interrupt.interrupt001.interrupt001a
+ * @run driver
+ *      nsk.jdb.interrupt.interrupt001.interrupt001
  *      -arch=${os.family}-${os.simpleArch}
  *      -waittime=5
  *      -debugee.vmkind=java
@@ -74,13 +73,9 @@ import java.util.stream.Collectors;
 public class interrupt001 extends JdbTest {
 
     public static void main (String argv[]) {
-        System.exit(run(argv, System.out) + JCK_STATUS_BASE);
-    }
-
-    public static int run(String argv[], PrintStream out) {
         debuggeeClass =  DEBUGGEE_CLASS;
         firstBreak = FIRST_BREAK;
-        return new interrupt001().runTest(argv, out);
+        new interrupt001().runTest(argv);
     }
 
     static final String PACKAGE_NAME    = "nsk.jdb.interrupt.interrupt001";
@@ -90,11 +85,17 @@ public class interrupt001 extends JdbTest {
     static final String LAST_BREAK      = DEBUGGEE_CLASS + ".breakHere";
     static final String MYTHREAD        = "MyThread";
     static final String DEBUGGEE_THREAD = DEBUGGEE_CLASS + "$" + MYTHREAD;
-    static final String DEBUGGEE_RESULT = DEBUGGEE_CLASS + ".notInterrupted.get()";
+    static final String DEBUGGEE_RESULT = DEBUGGEE_CLASS + ".notInterrupted";
 
     static int numThreads = nsk.jdb.interrupt.interrupt001.interrupt001a.numThreads;
 
-    private static Pattern tidPattern = Pattern.compile("(0x[0-9a-f]+)");
+    /*
+     * Pattern for finding the thread ID in a line like the following:
+     *   (nsk.jdb.interrupt.interrupt001.interrupt001a$MyThread)651 Thread-0          cond. waiting
+     * Note we can't match on DEBUGGEE_THREAD because it includes a $, which Pattern
+     * uses to match the end of a line.
+     */
+    private static Pattern tidPattern = Pattern.compile("\\(.+" + MYTHREAD + "\\)(\\S+)");
 
     protected void runCases() {
         String[] reply;

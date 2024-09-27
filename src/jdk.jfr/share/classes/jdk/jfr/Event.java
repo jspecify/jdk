@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,32 +31,10 @@ package jdk.jfr;
  * <p>
  * The following example shows how to implement an {@code Event} class.
  *
- * <pre>
- * <code>
- * import jdk.jfr.Event;
- * import jdk.jfr.Description;
- * import jdk.jfr.Label;
- *
- * public class Example {
- *
- *   &#064;Label("Hello World")
- *   &#064;Description("Helps programmer getting started")
- *   static class HelloWorld extends Event {
- *       &#064;Label("Message")
- *       String message;
- *   }
- *
- *   public static void main(String... args) {
- *       HelloWorld event = new HelloWorld();
- *       event.message = "hello, world!";
- *       event.commit();
- *   }
- * }
- * </code>
- * </pre>
+ * {@snippet class="Snippets" region="EventOverview"}
  * <p>
  * After an event is allocated and its field members are populated, it can be
- * written to the Flight Recorder system by using the {@code #commit()} method.
+ * written to the Flight Recorder system by using the {@link #commit()} method.
  * <p>
  * By default, an event is enabled. To disable an event annotate the
  * {@link Event} class with {@code @Enabled(false)}.
@@ -79,8 +57,8 @@ package jdk.jfr;
  * Gathering data to store in an event can be expensive. The
  * {@link Event#shouldCommit()} method can be used to verify whether an event
  * instance would actually be written to the system when the
- * {@code Event#commit()commit} method is invoked. If
- * {@link Event#shouldCommit()} returns false, then those operations can be
+ * {@code commit()} method is invoked. If
+ * {@code shouldCommit()} returns false, then those operations can be
  * avoided.
  *
  * @since 9
@@ -88,7 +66,7 @@ package jdk.jfr;
 @Enabled(true)
 @StackTrace(true)
 @Registered(true)
-abstract public class Event {
+public abstract class Event extends jdk.internal.event.Event {
     /**
      * Sole constructor, for invocation by subclass constructors, typically
      * implicit.
@@ -99,7 +77,8 @@ abstract public class Event {
     /**
      * Starts the timing of this event.
      */
-    final public void begin() {
+    @Override
+    public final void begin() {
     }
 
     /**
@@ -107,7 +86,8 @@ abstract public class Event {
      *
      * The {@code end} method must be invoked after the {@code begin} method.
      */
-    final public void end() {
+    @Override
+    public final void end() {
     }
 
     /**
@@ -118,7 +98,8 @@ abstract public class Event {
      * not end with an explicit invocation of the {@code end} method, then the event
      * ends when the {@code commit} method is invoked.
      */
-    final public void commit() {
+    @Override
+    public final void commit() {
     }
 
     /**
@@ -128,7 +109,8 @@ abstract public class Event {
      *
      * @return {@code true} if event is enabled, {@code false} otherwise
      */
-    final public boolean isEnabled() {
+    @Override
+    public final boolean isEnabled() {
         return false;
     }
 
@@ -141,7 +123,8 @@ abstract public class Event {
      * @return {@code true} if the event can be written to the Flight Recorder
      *         system, {@code false} otherwise
      */
-    final public boolean shouldCommit() {
+    @Override
+    public final boolean shouldCommit() {
         return false;
     }
 
@@ -156,7 +139,7 @@ abstract public class Event {
      * {@code EventFactory} class.
      *
      * @param index the index of the field that is passed to
-     *        {@code EventFactory#create(String, java.util.List, java.util.List)}
+     *        {@link EventFactory#create(java.util.List, java.util.List)}
      * @param value value to set, can be {@code null}
      * @throws UnsupportedOperationException if it's not a dynamically generated
      *         event
@@ -166,6 +149,7 @@ abstract public class Event {
      * @see EventType#getFields()
      * @see EventFactory
      */
-    final public void set(int index, Object value) {
+    @Override
+    public final void set(int index, Object value) {
     }
 }

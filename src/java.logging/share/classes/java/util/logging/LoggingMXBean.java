@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,25 +25,22 @@
 
 package java.util.logging;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 
 /**
  * The management interface for the logging facility.
  *
- * {@link java.lang.management.PlatformLoggingMXBean
+ * {@link java.management/java.lang.management.PlatformLoggingMXBean
  * java.lang.management.PlatformLoggingMXBean} is the management interface
  * for logging facility registered in the {@link
- * java.lang.management.ManagementFactory#getPlatformMBeanServer()
+ * java.management/java.lang.management.ManagementFactory#getPlatformMBeanServer()
  * platform MBeanServer}.
  * It is recommended to use the {@code PlatformLoggingMXBean} obtained via
- * the {@link java.lang.management.ManagementFactory#getPlatformMXBean(Class)
+ * the {@link java.management/java.lang.management.ManagementFactory#getPlatformMXBean(Class)
  * ManagementFactory.getPlatformMXBean(PlatformLoggingMXBean.class)} method.
  *
  * @deprecated {@code LoggingMXBean} is no longer a {@link
- * java.lang.management.PlatformManagedObject platform MXBean} and is replaced
- * with {@link java.lang.management.PlatformLoggingMXBean}.
+ * java.management/java.lang.management.PlatformManagedObject platform MXBean} and is replaced
+ * with {@link java.management/java.lang.management.PlatformLoggingMXBean}.
  * It will not register in the platform {@code MBeanServer}.
  * Use {@code ManagementFactory.getPlatformMXBean(PlatformLoggingMXBean.class)}
  * instead.
@@ -52,11 +49,11 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  Mandy Chung
  * @since   1.5
  *
- * @see java.lang.management.PlatformLoggingMXBean
+ * @see java.management/java.lang.management.PlatformLoggingMXBean
  */
-@AnnotatedFor({"interning"})
 @Deprecated(since="9")
-public @UsesObjectEquals interface LoggingMXBean {
+@SuppressWarnings("doclint:reference")
+public interface LoggingMXBean {
 
     /**
      * Returns the list of currently registered logger names. This method

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,15 +47,20 @@
 import java.io.*;
 import java.lang.reflect.*;
 import java.util.*;
+
 import javax.tools.*;
 
+import com.sun.source.tree.CaseTree.CaseKind;
 import com.sun.source.tree.Tree;
+import com.sun.source.util.JavacTask;
 import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCCase;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
 import com.sun.tools.javac.tree.JCTree.TypeBoundKind;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.Pair;
 
 public class SourceTreeScannerTest extends AbstractTreeScannerTest {
     /**
@@ -78,8 +83,8 @@ public class SourceTreeScannerTest extends AbstractTreeScannerTest {
         }
     }
 
-    int test(JCCompilationUnit tree) {
-        return new ScanTester().test(tree);
+    int test(Pair<JavacTask, JCCompilationUnit> taskAndTree) {
+        return new ScanTester().test(taskAndTree.snd);
     }
 
     /**
@@ -150,6 +155,11 @@ public class SourceTreeScannerTest extends AbstractTreeScannerTest {
                             // The modifiers will not found by TreeScanner,
                             // but the embedded annotations will be.
                             reflectiveScan(((JCModuleDecl) tree).mods.annotations);
+                        } else if (tree instanceof JCCase &&
+                                   ((JCCase) tree).getCaseKind() == CaseKind.RULE &&
+                                   f.getName().equals("stats")) {
+                            //value case, visit value:
+                            reflectiveScan(((JCCase) tree).getBody());
                         } else {
                             reflectiveScan(f.get(tree));
                         }
@@ -161,6 +171,8 @@ public class SourceTreeScannerTest extends AbstractTreeScannerTest {
                 List<?> list = (List<?>) o;
                 for (Object item: list)
                     reflectiveScan(item);
+            } else if (o instanceof Pair) {
+                return;
             } else
                 error("unexpected item: " + o);
         }

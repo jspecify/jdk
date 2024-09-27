@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2015, Red Hat Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -33,13 +33,13 @@ import sun.jvm.hotspot.debugger.cdbg.*;
 import sun.jvm.hotspot.debugger.x86.*;
 import sun.jvm.hotspot.debugger.amd64.*;
 import sun.jvm.hotspot.debugger.aarch64.*;
-import sun.jvm.hotspot.debugger.sparc.*;
+import sun.jvm.hotspot.debugger.riscv64.*;
 import sun.jvm.hotspot.debugger.ppc64.*;
 import sun.jvm.hotspot.debugger.linux.x86.*;
 import sun.jvm.hotspot.debugger.linux.amd64.*;
-import sun.jvm.hotspot.debugger.linux.sparc.*;
 import sun.jvm.hotspot.debugger.linux.ppc64.*;
 import sun.jvm.hotspot.debugger.linux.aarch64.*;
+import sun.jvm.hotspot.debugger.linux.riscv64.*;
 import sun.jvm.hotspot.utilities.*;
 
 class LinuxCDebugger implements CDebugger {
@@ -49,11 +49,11 @@ class LinuxCDebugger implements CDebugger {
     this.dbg = dbg;
   }
 
-  public List getThreadList() throws DebuggerException {
+  public List<ThreadProxy> getThreadList() throws DebuggerException {
     return dbg.getThreadList();
   }
 
-  public List/*<LoadObject>*/ getLoadObjectList() throws DebuggerException {
+  public List<LoadObject> getLoadObjectList() throws DebuggerException {
     return dbg.getLoadObjectList();
   }
 
@@ -65,13 +65,13 @@ class LinuxCDebugger implements CDebugger {
     /* Typically we have about ten loaded objects here. So no reason to do
       sort/binary search here. Linear search gives us acceptable performance.*/
 
-    List objs = getLoadObjectList();
+    List<LoadObject> objs = getLoadObjectList();
 
     for (int i = 0; i < objs.size(); i++) {
-      LoadObject ob = (LoadObject) objs.get(i);
+      LoadObject ob = objs.get(i);
       Address base = ob.getBase();
       long size = ob.getSize();
-      if ( pc.greaterThanOrEqual(base) && pc.lessThan(base.addOffsetTo(size))) {
+      if (pc.greaterThanOrEqual(base) && pc.lessThan(base.addOffsetTo(size))) {
         return ob;
       }
     }
@@ -90,18 +90,9 @@ class LinuxCDebugger implements CDebugger {
        return new LinuxX86CFrame(dbg, ebp, pc);
     } else if (cpu.equals("amd64")) {
        AMD64ThreadContext context = (AMD64ThreadContext) thread.getContext();
-       Address rbp = context.getRegisterAsAddress(AMD64ThreadContext.RBP);
-       if (rbp == null) return null;
        Address pc  = context.getRegisterAsAddress(AMD64ThreadContext.RIP);
        if (pc == null) return null;
-       return new LinuxAMD64CFrame(dbg, rbp, pc);
-    } else if (cpu.equals("sparc")) {
-       SPARCThreadContext context = (SPARCThreadContext) thread.getContext();
-       Address sp = context.getRegisterAsAddress(SPARCThreadContext.R_SP);
-       if (sp == null) return null;
-       Address pc  = context.getRegisterAsAddress(SPARCThreadContext.R_O7);
-       if (pc == null) return null;
-       return new LinuxSPARCCFrame(dbg, sp, pc, LinuxDebuggerLocal.getAddressSize());
+       return LinuxAMD64CFrame.getTopFrame(dbg, pc, context);
     }  else if (cpu.equals("ppc64")) {
         PPC64ThreadContext context = (PPC64ThreadContext) thread.getContext();
         Address sp = context.getRegisterAsAddress(PPC64ThreadContext.SP);
@@ -116,9 +107,16 @@ class LinuxCDebugger implements CDebugger {
        Address pc  = context.getRegisterAsAddress(AARCH64ThreadContext.PC);
        if (pc == null) return null;
        return new LinuxAARCH64CFrame(dbg, fp, pc);
-     } else {
+    } else if (cpu.equals("riscv64")) {
+       RISCV64ThreadContext context = (RISCV64ThreadContext) thread.getContext();
+       Address fp = context.getRegisterAsAddress(RISCV64ThreadContext.FP);
+       if (fp == null) return null;
+       Address pc  = context.getRegisterAsAddress(RISCV64ThreadContext.PC);
+       if (pc == null) return null;
+       return new LinuxRISCV64CFrame(dbg, fp, pc);
+    } else {
        // Runtime exception thrown by LinuxThreadContextFactory if unknown cpu
-       ThreadContext context = (ThreadContext) thread.getContext();
+       ThreadContext context = thread.getContext();
        return context.getTopFrame(dbg);
     }
   }
@@ -133,10 +131,10 @@ class LinuxCDebugger implements CDebugger {
   }
 
   public boolean canDemangle() {
-    return false;
+    return true;
   }
 
   public String demangle(String sym) {
-    throw new UnsupportedOperationException();
+    return dbg.demangle(sym);
   }
 }

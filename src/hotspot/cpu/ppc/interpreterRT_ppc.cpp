@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2013 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -29,7 +29,6 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "memory/allocation.inline.hpp"
-#include "memory/universe.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -43,7 +42,7 @@
 // The first Java argument is at index -1.
 #define locals_j_arg_at(index)    (Interpreter::local_offset_in_bytes(index)), R18_locals
 // The first C argument is at index 0.
-#define sp_c_arg_at(index)        ((index)*wordSize + _abi(carg_1)), R1_SP
+#define sp_c_arg_at(index)        ((index)*wordSize + _abi0(carg_1)), R1_SP
 
 // Implementation of SignatureHandlerGenerator
 
@@ -100,10 +99,10 @@ void InterpreterRuntime::SignatureHandlerGenerator::pass_object() {
   Register r = jni_arg.is_register() ? jni_arg.as_register() : R11_scratch1;
 
   // The handle for a receiver will never be null.
-  bool do_NULL_check = offset() != 0 || is_static();
+  bool do_null_check = offset() != 0 || is_static();
 
   Label do_null;
-  if (do_NULL_check) {
+  if (do_null_check) {
     __ ld(R0, locals_j_arg_at(offset()));
     __ cmpdi(CCR0, R0, 0);
     __ li(r, 0);
@@ -148,15 +147,15 @@ void SignatureHandlerLibrary::pd_set_handler(address handler) {
 
 
 // Access function to get the signature.
-IRT_ENTRY(address, InterpreterRuntime::get_signature(JavaThread* thread, Method* method))
-  methodHandle m(thread, method);
+JRT_ENTRY(address, InterpreterRuntime::get_signature(JavaThread* current, Method* method))
+  methodHandle m(current, method);
   assert(m->is_native(), "sanity check");
   Symbol *s = m->signature();
   return (address) s->base();
-IRT_END
+JRT_END
 
-IRT_ENTRY(address, InterpreterRuntime::get_result_handler(JavaThread* thread, Method* method))
-  methodHandle m(thread, method);
+JRT_ENTRY(address, InterpreterRuntime::get_result_handler(JavaThread* current, Method* method))
+  methodHandle m(current, method);
   assert(m->is_native(), "sanity check");
   return AbstractInterpreter::result_handler(m->result_type());
-IRT_END
+JRT_END

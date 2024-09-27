@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 package gc.g1.humongousObjects.objectGraphTest;
 
 import jdk.test.lib.process.OutputAnalyzer;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,34 +51,33 @@ import java.util.stream.Collectors;
  * @requires vm.opt.ExplicitGCInvokesConcurrent != true
  * @library /test/lib /
  * @modules java.management java.base/jdk.internal.misc
- * @build sun.hotspot.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox
  *
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *
- * @run main/othervm -Xms200M -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
+ * @run main/othervm -Xms200M -Xmx200M -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
  * -XX:+UnlockExperimentalVMOptions -XX:MaxGCPauseMillis=30000 -XX:G1MixedGCLiveThresholdPercent=100 -XX:G1HeapWastePercent=0
  * -XX:G1HeapRegionSize=1M -Xlog:gc=info:file=TestObjectGraphAfterGC_MIXED_GC.gc.log -XX:MaxTenuringThreshold=1
  * -XX:G1MixedGCCountTarget=1  -XX:G1OldCSetRegionThresholdPercent=100 -XX:SurvivorRatio=1 -XX:InitiatingHeapOccupancyPercent=0
  * gc.g1.humongousObjects.objectGraphTest.TestObjectGraphAfterGC MIXED_GC
  *
- * @run main/othervm -Xms200M -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
+ * @run main/othervm -Xms200M -Xmx200M -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
  * -XX:G1HeapRegionSize=1M -Xlog:gc*=debug:file=TestObjectGraphAfterGC_YOUNG_GC.gc.log
  * gc.g1.humongousObjects.objectGraphTest.TestObjectGraphAfterGC YOUNG_GC
  *
- * @run main/othervm -Xms200M -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
+ * @run main/othervm -Xms200M -Xmx200M -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
  * -XX:G1HeapRegionSize=1M -Xlog:gc=info:file=TestObjectGraphAfterGC_FULL_GC.gc.log
  * gc.g1.humongousObjects.objectGraphTest.TestObjectGraphAfterGC FULL_GC
  *
- * @run main/othervm -Xms200M -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
+ * @run main/othervm -Xms200M -Xmx200M -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
  * -XX:G1HeapRegionSize=1M -Xlog:gc=info:file=TestObjectGraphAfterGC_FULL_GC_MEMORY_PRESSURE.gc.log
  * gc.g1.humongousObjects.objectGraphTest.TestObjectGraphAfterGC FULL_GC_MEMORY_PRESSURE
  *
- * @run main/othervm -Xms200M -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
+ * @run main/othervm -Xms200M -Xmx200M -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
  * -XX:G1HeapRegionSize=1M -Xlog:gc=info:file=TestObjectGraphAfterGC_CMC.gc.log -XX:MaxTenuringThreshold=16
  * gc.g1.humongousObjects.objectGraphTest.TestObjectGraphAfterGC CMC
  *
- * @run main/othervm -Xms200M -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
+ * @run main/othervm -Xms200M -Xmx200M -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
  * -XX:G1HeapRegionSize=1M -Xlog:gc=info:file=TestObjectGraphAfterGC_CMC_NO_SURV_ROOTS.gc.log -XX:MaxTenuringThreshold=1
  * gc.g1.humongousObjects.objectGraphTest.TestObjectGraphAfterGC CMC_NO_SURV_ROOTS
  *

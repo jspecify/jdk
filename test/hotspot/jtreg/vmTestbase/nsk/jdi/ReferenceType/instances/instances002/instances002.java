@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,19 +37,18 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @build nsk.jdi.ReferenceType.instances.instances002.instances002
  *        nsk.jdi.ReferenceType.instances.instances002.instances002a
  *        nsk.share.jdi.TestClass1
  *        nsk.share.jdi.TestInterfaceImplementer1
- * @run main/othervm/native PropertyResolvingWrapper
+ * @run main/othervm/native
  *      nsk.jdi.ReferenceType.instances.instances002.instances002
  *      -verbose
  *      -arch=${os.family}-${os.simpleArch}
  *      -waittime=5
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
- *      "-debugee.vmkeys=${test.vm.opts} ${test.java.opts}"
+ *      -debugee.vmkeys="${test.vm.opts} ${test.java.opts}"
  */
 
 package nsk.jdi.ReferenceType.instances.instances002;
@@ -67,7 +66,10 @@ import nsk.share.jpda.AbstractDebuggeeTest;
 public class instances002 extends HeapwalkingDebugger {
 
     public static void main(String argv[]) {
-        System.exit(run(argv, System.out) + Consts.JCK_STATUS_BASE);
+        int result = run(argv,System.out);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run(String argv[], PrintStream out) {
@@ -109,8 +111,22 @@ public class instances002 extends HeapwalkingDebugger {
             log.complain("Unexpected reference type: " + referenceType.getClass().getName() + ", expected is ArrayType");
             return;
         }
+        // There are potentially other non-test Java threads allocating objects and triggering GC's.
+        debuggee.suspend();
 
-        baseInstances = referenceType.instances(0).size();
+        List<ObjectReference> baseReferences = new LinkedList<>();
+        // We need to call disableCollection() on each object returned by referenceType.instances()
+        // to deal with the case when GC was triggered before the suspend. Otherwise, these objects can
+        // be potentially collected.
+        for (ObjectReference objRef : referenceType.instances(0)) {
+            try {
+                objRef.disableCollection();
+                baseReferences.add(objRef);
+            } catch (ObjectCollectedException e) {
+                // skip this reference
+            }
+        }
+        baseInstances = baseReferences.size();
 
         int createInstanceCount = 100;
         int arraySize = 1;
@@ -129,8 +145,15 @@ public class instances002 extends HeapwalkingDebugger {
 
         checkDebugeeAnswer_instances(className, createInstanceCount + baseInstances);
 
-        for (ArrayReference arrayReference : objectReferences)
+        for (ArrayReference arrayReference : objectReferences) {
             arrayReference.enableCollection();
+        }
+
+        for (ObjectReference baseRef : baseReferences) {
+            baseRef.enableCollection();
+        }
+
+        debuggee.resume();
     }
 
     // test method ClassType.newInstance
@@ -169,7 +192,9 @@ public class instances002 extends HeapwalkingDebugger {
                         objectReferences.add(classType.newInstance(breakpointEvent.thread(), method, new ArrayList<Value>(), 0));
                     }
 
+                    debuggee.resume();
                     checkDebugeeAnswer_instances(className, baseInstances);
+                    debuggee.suspend();
 
                     break;
                 }

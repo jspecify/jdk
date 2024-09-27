@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,9 @@ import sun.awt.SunToolkit;
 import sun.awt.image.SunWritableRaster;
 import sun.java2d.SunGraphicsEnvironment;
 
+import static sun.java2d.SunGraphicsEnvironment.toDeviceSpace;
+import static sun.java2d.SunGraphicsEnvironment.toDeviceSpaceAbs;
+
 /**
  * This class is used to generate native system input events
  * for the purposes of test automation, self-running demos, and
@@ -68,6 +71,43 @@ import sun.java2d.SunGraphicsEnvironment;
  * <p>
  * Applications that use Robot for purposes other than self-testing should
  * handle these error conditions gracefully.
+ * <p>
+ * Platforms and desktop environments may impose restrictions or limitations
+ * on the access required to implement all functionality in the Robot class.
+ * For example:
+ * <ul>
+ * <li> preventing access to the contents of any part of a desktop
+ * or Window on the desktop that is not owned by the running application.</li>
+ * <li> treating window decorations as non-owned content.</li>
+ * <li> ignoring or limiting specific requests to manipulate windows.</li>
+ * <li> ignoring or limiting specific requests for Robot generated (synthesized)
+ * events related to keyboard and mouse etc.</li>
+ * <li> requiring specific or global permissions to any access to window
+ * contents, even application owned content,or to perform even limited
+ * synthesizing of events.</li>
+ * </ul>
+ *
+ * The Robot API specification requires that approvals for these be granted
+ * for full operation.
+ * If they are not granted, the API will be degraded as discussed here.
+ * Relevant specific API methods may document more specific limitations
+ * and requirements.
+ * Depending on the policies of the desktop environment,
+ * the approvals mentioned above may:
+ * <ul>
+ * <li>be required every time</li>
+ * <li>or persistent for the lifetime of an application,</li>
+ * <li>or persistent across multiple user desktop sessions</li>
+ * <li>be fine-grained permissions</li>
+ * <li>be associated with a specific binary application,
+ * or a class of binary applications.</li>
+ * </ul>
+ *
+ * When such approvals need to given interactively, it may impede the normal
+ * operation of the application until approved, and if approval is denied
+ * or not possible, or cannot be made persistent then it will degrade
+ * the functionality of this class and in turn any part of the operation
+ * of the application which is dependent on it.
  *
  * @author      Robi Khan
  * @since       1.3
@@ -94,9 +134,7 @@ public @UsesObjectEquals class Robot {
      * @see     AWTPermission
      */
     public Robot() throws AWTException {
-        if (GraphicsEnvironment.isHeadless()) {
-            throw new AWTException("headless environment");
-        }
+        checkHeadless();
         init(GraphicsEnvironment.getLocalGraphicsEnvironment()
             .getDefaultScreenDevice());
     }
@@ -129,6 +167,7 @@ public @UsesObjectEquals class Robot {
      * @see     AWTPermission
      */
     public Robot(GraphicsDevice screen) throws AWTException {
+        checkHeadless();
         checkIsScreenDevice(screen);
         init(screen);
     }
@@ -137,9 +176,7 @@ public @UsesObjectEquals class Robot {
         checkRobotAllowed();
         Toolkit toolkit = Toolkit.getDefaultToolkit();
         if (toolkit instanceof ComponentFactory) {
-            peer = ((ComponentFactory)toolkit).createRobot(this, screen);
-            disposer = new RobotDisposer(peer);
-            sun.java2d.Disposer.addRecord(anchor, disposer);
+            peer = ((ComponentFactory)toolkit).createRobot(screen);
         }
         initLegalButtonMask();
     }
@@ -167,38 +204,37 @@ public @UsesObjectEquals class Robot {
     }
 
     /* determine if the security policy allows Robot's to be created */
-    private void checkRobotAllowed() {
+    private static void checkRobotAllowed() {
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkPermission(AWTPermissions.CREATE_ROBOT_PERMISSION);
         }
     }
 
+    /**
+     * Check for headless state and throw {@code AWTException} if headless.
+     */
+    private static void checkHeadless() throws AWTException {
+        if (GraphicsEnvironment.isHeadless()) {
+            throw new AWTException("headless environment");
+        }
+    }
+
     /* check if the given device is a screen device */
-    private void checkIsScreenDevice(GraphicsDevice device) {
+    private static void checkIsScreenDevice(GraphicsDevice device) {
         if (device == null || device.getType() != GraphicsDevice.TYPE_RASTER_SCREEN) {
             throw new IllegalArgumentException("not a valid screen device");
         }
     }
 
-    private transient Object anchor = new Object();
-
-    static class RobotDisposer implements sun.java2d.DisposerRecord {
-        private final RobotPeer peer;
-        public RobotDisposer(RobotPeer peer) {
-            this.peer = peer;
-        }
-        public void dispose() {
-            if (peer != null) {
-                peer.dispose();
-            }
-        }
-    }
-
-    private transient RobotDisposer disposer;
-
     /**
      * Moves mouse pointer to given screen coordinates.
+     * <p>
+     * The mouse pointer may not visually move on some platforms,
+     * while the subsequent mousePress and mouseRelease can be
+     * delivered to the correct location
+     *
      * @param x         X position
      * @param y         Y position
      */
@@ -322,7 +358,7 @@ public @UsesObjectEquals class Robot {
         afterEvent();
     }
 
-    private void checkButtonsArgument(int buttons) {
+    private static void checkButtonsArgument(int buttons) {
         if ( (buttons|LEGAL_BUTTON_MASK) != LEGAL_BUTTON_MASK ) {
             throw new IllegalArgumentException("Invalid combination of button flags");
         }
@@ -381,7 +417,7 @@ public @UsesObjectEquals class Robot {
         afterEvent();
     }
 
-    private void checkKeycodeArgument(int keycode) {
+    private static void checkKeycodeArgument(int keycode) {
         // rather than build a big table or switch statement here, we'll
         // just check that the key isn't VK_UNDEFINED and assume that the
         // peer implementations will throw an exception for other bogus
@@ -393,27 +429,51 @@ public @UsesObjectEquals class Robot {
 
     /**
      * Returns the color of a pixel at the given screen coordinates.
+     * <p>
+     * If the desktop environment requires that permissions be granted
+     * to capture screen content, and the required permissions are not granted,
+     * then a {@code SecurityException} may be thrown,
+     * or the content of the returned {@code Color} is undefined.
+     * </p>
+     * @apiNote It is recommended to avoid calling this method on
+     * the AWT Event Dispatch Thread since screen capture may be a lengthy
+     * operation, particularly if acquiring permissions is needed and involves
+     * user interaction.
+     *
      * @param   x       X position of pixel
      * @param   y       Y position of pixel
+     * @throws  SecurityException if {@code readDisplayPixels} permission
+     *          is not granted, or access to the screen is denied
+     *          by the desktop environment
      * @return  Color of the pixel
      */
     public synchronized Color getPixelColor(int x, int y) {
-        AffineTransform tx = GraphicsEnvironment.
-                getLocalGraphicsEnvironment().getDefaultScreenDevice().
-                getDefaultConfiguration().getDefaultTransform();
-        x = (int) (x * tx.getScaleX());
-        y = (int) (y * tx.getScaleY());
-        Color color = new Color(peer.getRGBPixel(x, y));
-        return color;
+        checkScreenCaptureAllowed();
+        Point point = peer.useAbsoluteCoordinates() ? toDeviceSpaceAbs(x, y)
+                                                    : toDeviceSpace(x, y);
+        return new Color(peer.getRGBPixel(point.x, point.y));
     }
 
     /**
-     * Creates an image containing pixels read from the screen.  This image does
-     * not include the mouse cursor.
+     * Creates an image containing pixels read from the screen.
+     * <p>
+     * If the desktop environment requires that permissions be granted
+     * to capture screen content, and the required permissions are not granted,
+     * then a {@code SecurityException} may be thrown,
+     * or the contents of the returned {@code BufferedImage} are undefined.
+     * </p>
+     * @apiNote It is recommended to avoid calling this method on
+     * the AWT Event Dispatch Thread since screen capture may be a lengthy
+     * operation, particularly if acquiring permissions is needed and involves
+     * user interaction.
+     *
      * @param   screenRect      Rect to capture in screen coordinates
      * @return  The captured image
-     * @throws  IllegalArgumentException if {@code screenRect} width and height are not greater than zero
-     * @throws  SecurityException if {@code readDisplayPixels} permission is not granted
+     * @throws  IllegalArgumentException if {@code screenRect} width and height
+     *          are not greater than zero
+     * @throws  SecurityException if {@code readDisplayPixels} permission
+     *          is not granted, or access to the screen is denied
+     *          by the desktop environment
      * @see     SecurityManager#checkPermission
      * @see     AWTPermission
      */
@@ -423,7 +483,6 @@ public @UsesObjectEquals class Robot {
 
     /**
      * Creates an image containing pixels read from the screen.
-     * This image does not include the mouse cursor.
      * This method can be used in case there is a scaling transform
      * from user space to screen (device) space.
      * Typically this means that the display is a high resolution screen,
@@ -456,8 +515,11 @@ public @UsesObjectEquals class Robot {
      * }</pre>
      * @param   screenRect     Rect to capture in screen coordinates
      * @return  The captured image
-     * @throws  IllegalArgumentException if {@code screenRect} width and height are not greater than zero
-     * @throws  SecurityException if {@code readDisplayPixels} permission is not granted
+     * @throws  IllegalArgumentException if {@code screenRect} width and height
+     *          are not greater than zero
+     * @throws  SecurityException if {@code readDisplayPixels} permission
+     *          is not granted, or access to the screen is denied
+     *          by the desktop environment
      * @see     SecurityManager#checkPermission
      * @see     AWTPermission
      *
@@ -515,7 +577,7 @@ public @UsesObjectEquals class Robot {
         AffineTransform tx = gc.getDefaultTransform();
         double uiScaleX = tx.getScaleX();
         double uiScaleY = tx.getScaleY();
-        int pixels[];
+        int[] pixels;
 
         if (uiScaleX == 1 && uiScaleY == 1) {
 
@@ -536,17 +598,16 @@ public @UsesObjectEquals class Robot {
             imageArray[0] = highResolutionImage;
 
         } else {
-
-            int sX = (int) Math.floor(screenRect.x * uiScaleX);
-            int sY = (int) Math.floor(screenRect.y * uiScaleY);
-            int sWidth = (int) Math.ceil(screenRect.width * uiScaleX);
-            int sHeight = (int) Math.ceil(screenRect.height * uiScaleY);
-            int temppixels[];
-            Rectangle scaledRect = new Rectangle(sX, sY, sWidth, sHeight);
-            temppixels = peer.getRGBPixels(scaledRect);
-
+            Rectangle scaledRect;
+            if (peer.useAbsoluteCoordinates()) {
+                scaledRect = toDeviceSpaceAbs(gc, screenRect.x,
+                        screenRect.y, screenRect.width, screenRect.height);
+            } else {
+                scaledRect = toDeviceSpace(gc, screenRect.x,
+                        screenRect.y, screenRect.width, screenRect.height);
+            }
             // HighResolutionImage
-            pixels = temppixels;
+            pixels = peer.getRGBPixels(scaledRect);
             buffer = new DataBufferInt(pixels, pixels.length);
             raster = Raster.createPackedRaster(buffer, scaledRect.width,
                     scaledRect.height, scaledRect.width, bandmasks, null);
@@ -592,6 +653,7 @@ public @UsesObjectEquals class Robot {
     }
 
     private static void checkScreenCaptureAllowed() {
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkPermission(AWTPermissions.READ_DISPLAY_PIXELS_PERMISSION);
@@ -663,24 +725,29 @@ public @UsesObjectEquals class Robot {
 
     /**
      * Sleeps for the specified time.
-     * To catch any {@code InterruptedException}s that occur,
-     * {@code Thread.sleep()} may be used instead.
+     * <p>
+     * If the invoking thread is interrupted while waiting, then it will return
+     * immediately with the interrupt status set. If the interrupted status is
+     * already set, this method returns immediately with the interrupt status
+     * set.
      *
      * @param  ms time to sleep in milliseconds
-     * @throws IllegalArgumentException if {@code ms}
-     *         is not between 0 and 60,000 milliseconds inclusive
-     * @see java.lang.Thread#sleep
+     * @throws IllegalArgumentException if {@code ms} is not between {@code 0}
+     *         and {@code 60,000} milliseconds inclusive
      */
-    public synchronized void delay(int ms) {
+    public void delay(int ms) {
         checkDelayArgument(ms);
-        try {
-            Thread.sleep(ms);
-        } catch(InterruptedException ite) {
-            ite.printStackTrace();
+        Thread thread = Thread.currentThread();
+        if (!thread.isInterrupted()) {
+            try {
+                Thread.sleep(ms);
+            } catch (final InterruptedException ignored) {
+                thread.interrupt(); // Preserve interrupt status
+            }
         }
     }
 
-    private void checkDelayArgument(int ms) {
+    private static void checkDelayArgument(int ms) {
         if (ms < 0 || ms > MAX_DELAY) {
             throw new IllegalArgumentException("Delay must be to 0 to 60,000ms");
         }
@@ -696,7 +763,7 @@ public @UsesObjectEquals class Robot {
         ((SunToolkit) Toolkit.getDefaultToolkit()).realSync();
     }
 
-    private void checkNotDispatchThread() {
+    private static void checkNotDispatchThread() {
         if (EventQueue.isDispatchThread()) {
             throw new IllegalThreadStateException("Cannot call method from the event dispatcher thread");
         }

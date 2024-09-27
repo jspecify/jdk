@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,92 +22,215 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_OBJECTMONITOR_INLINE_HPP
-#define SHARE_VM_RUNTIME_OBJECTMONITOR_INLINE_HPP
+#ifndef SHARE_RUNTIME_OBJECTMONITOR_INLINE_HPP
+#define SHARE_RUNTIME_OBJECTMONITOR_INLINE_HPP
 
-inline intptr_t ObjectMonitor::is_entered(TRAPS) const {
-  if (THREAD == _owner || THREAD->is_lock_owned((address) _owner)) {
-    return 1;
+#include "runtime/objectMonitor.hpp"
+
+#include "logging/log.hpp"
+#include "oops/access.inline.hpp"
+#include "oops/markWord.hpp"
+#include "runtime/atomic.hpp"
+#include "runtime/globals.hpp"
+#include "runtime/lockStack.inline.hpp"
+#include "runtime/synchronizer.hpp"
+#include "utilities/checkedCast.hpp"
+#include "utilities/globalDefinitions.hpp"
+
+inline bool ObjectMonitor::is_entered(JavaThread* current) const {
+  if (LockingMode == LM_LIGHTWEIGHT) {
+    if (is_owner_anonymous()) {
+      return current->lock_stack().contains(object());
+    } else {
+      return current == owner_raw();
+    }
+  } else {
+    void* owner = owner_raw();
+    if (current == owner || current->is_lock_owned((address)owner)) {
+      return true;
+    }
   }
-  return 0;
+  return false;
 }
 
-inline markOop ObjectMonitor::header() const {
-  return _header;
+inline uintptr_t ObjectMonitor::metadata() const {
+  return Atomic::load(&_metadata);
 }
 
-inline volatile markOop* ObjectMonitor::header_addr() {
-  assert((intptr_t)this == (intptr_t)&_header, "sync code expects this");
-  return &_header;
+inline void ObjectMonitor::set_metadata(uintptr_t value) {
+  Atomic::store(&_metadata, value);
 }
 
-inline void ObjectMonitor::set_header(markOop hdr) {
-  _header = hdr;
+inline volatile uintptr_t* ObjectMonitor::metadata_addr() {
+  STATIC_ASSERT(std::is_standard_layout<ObjectMonitor>::value);
+  STATIC_ASSERT(offsetof(ObjectMonitor, _metadata) == 0);
+  return &_metadata;
 }
 
-inline jint ObjectMonitor::count() const {
-  return _count;
+inline markWord ObjectMonitor::header() const {
+  assert(!UseObjectMonitorTable, "Lightweight locking with OM table does not use header");
+  return markWord(metadata());
 }
 
-inline jint ObjectMonitor::waiters() const {
+inline void ObjectMonitor::set_header(markWord hdr) {
+  assert(!UseObjectMonitorTable, "Lightweight locking with OM table does not use header");
+  set_metadata(hdr.value());
+}
+
+inline intptr_t ObjectMonitor::hash() const {
+  assert(UseObjectMonitorTable, "Only used by lightweight locking with OM table");
+  return metadata();
+}
+
+inline void ObjectMonitor::set_hash(intptr_t hash) {
+  assert(UseObjectMonitorTable, "Only used by lightweight locking with OM table");
+  set_metadata(hash);
+}
+
+inline int ObjectMonitor::waiters() const {
   return _waiters;
 }
 
+inline bool ObjectMonitor::has_owner() const {
+  void* owner = owner_raw();
+  return owner != nullptr && owner != DEFLATER_MARKER;
+}
+
+// Returns null if DEFLATER_MARKER is observed.
 inline void* ObjectMonitor::owner() const {
-  return _owner;
+  void* owner = owner_raw();
+  return owner != DEFLATER_MARKER ? owner : nullptr;
 }
 
-inline void ObjectMonitor::clear() {
-  assert(_header, "Fatal logic error in ObjectMonitor header!");
-  assert(_count == 0, "Fatal logic error in ObjectMonitor count!");
-  assert(_waiters == 0, "Fatal logic error in ObjectMonitor waiters!");
-  assert(_recursions == 0, "Fatal logic error in ObjectMonitor recursions!");
-  assert(_object != NULL, "Fatal logic error in ObjectMonitor object!");
-  assert(_owner == 0, "Fatal logic error in ObjectMonitor owner!");
-
-  _header = NULL;
-  _object = NULL;
+inline void* ObjectMonitor::owner_raw() const {
+  return Atomic::load(&_owner);
 }
 
-
-inline void* ObjectMonitor::object() const {
-  return _object;
+// Returns true if owner field == DEFLATER_MARKER and false otherwise.
+// This accessor is called when we really need to know if the owner
+// field == DEFLATER_MARKER and any non-null value won't do the trick.
+inline bool ObjectMonitor::owner_is_DEFLATER_MARKER() const {
+  return owner_raw() == DEFLATER_MARKER;
 }
 
-inline void* ObjectMonitor::object_addr() {
-  return (void *)(&_object);
+// Returns true if 'this' is being async deflated and false otherwise.
+inline bool ObjectMonitor::is_being_async_deflated() {
+  return contentions() < 0;
 }
 
-inline void ObjectMonitor::set_object(void* obj) {
-  _object = obj;
+// Return number of threads contending for this monitor.
+inline int ObjectMonitor::contentions() const {
+  return Atomic::load(&_contentions);
 }
 
-inline bool ObjectMonitor::check(TRAPS) {
-  if (THREAD != _owner) {
-    if (THREAD->is_lock_owned((address) _owner)) {
-      _owner = THREAD;  // regain ownership of inflated monitor
-      assert (_recursions == 0, "invariant") ;
-    } else {
-      check_slow(THREAD);
-      return false;
-    }
+// Add value to the contentions field.
+inline void ObjectMonitor::add_to_contentions(int value) {
+  Atomic::add(&_contentions, value);
+}
+
+inline void ObjectMonitor::set_recursions(size_t recursions) {
+  assert(_recursions == 0, "must be");
+  assert(has_owner(), "must be owned");
+  _recursions = checked_cast<intx>(recursions);
+}
+
+// Clear _owner field; current value must match old_value.
+inline void ObjectMonitor::release_clear_owner(void* old_value) {
+#ifdef ASSERT
+  void* prev = Atomic::load(&_owner);
+  assert(prev == old_value, "unexpected prev owner=" INTPTR_FORMAT
+         ", expected=" INTPTR_FORMAT, p2i(prev), p2i(old_value));
+#endif
+  Atomic::release_store(&_owner, (void*)nullptr);
+  log_trace(monitorinflation, owner)("release_clear_owner(): mid="
+                                     INTPTR_FORMAT ", old_value=" INTPTR_FORMAT,
+                                     p2i(this), p2i(old_value));
+}
+
+// Simply set _owner field to new_value; current value must match old_value.
+// (Simple means no memory sync needed.)
+inline void ObjectMonitor::set_owner_from(void* old_value, void* new_value) {
+#ifdef ASSERT
+  void* prev = Atomic::load(&_owner);
+  assert(prev == old_value, "unexpected prev owner=" INTPTR_FORMAT
+         ", expected=" INTPTR_FORMAT, p2i(prev), p2i(old_value));
+#endif
+  Atomic::store(&_owner, new_value);
+  log_trace(monitorinflation, owner)("set_owner_from(): mid="
+                                     INTPTR_FORMAT ", old_value=" INTPTR_FORMAT
+                                     ", new_value=" INTPTR_FORMAT, p2i(this),
+                                     p2i(old_value), p2i(new_value));
+}
+
+// Simply set _owner field to self; current value must match basic_lock_p.
+inline void ObjectMonitor::set_owner_from_BasicLock(void* basic_lock_p, JavaThread* current) {
+#ifdef ASSERT
+  void* prev = Atomic::load(&_owner);
+  assert(prev == basic_lock_p, "unexpected prev owner=" INTPTR_FORMAT
+         ", expected=" INTPTR_FORMAT, p2i(prev), p2i(basic_lock_p));
+#endif
+  // Non-null owner field to non-null owner field is safe without
+  // cmpxchg() as long as all readers can tolerate either flavor.
+  Atomic::store(&_owner, current);
+  log_trace(monitorinflation, owner)("set_owner_from_BasicLock(): mid="
+                                     INTPTR_FORMAT ", basic_lock_p="
+                                     INTPTR_FORMAT ", new_value=" INTPTR_FORMAT,
+                                     p2i(this), p2i(basic_lock_p), p2i(current));
+}
+
+// Try to set _owner field to new_value if the current value matches
+// old_value. Otherwise, does not change the _owner field. Returns
+// the prior value of the _owner field.
+inline void* ObjectMonitor::try_set_owner_from(void* old_value, void* new_value) {
+  void* prev = Atomic::cmpxchg(&_owner, old_value, new_value);
+  if (prev == old_value) {
+    log_trace(monitorinflation, owner)("try_set_owner_from(): mid="
+                                       INTPTR_FORMAT ", prev=" INTPTR_FORMAT
+                                       ", new=" INTPTR_FORMAT, p2i(this),
+                                       p2i(prev), p2i(new_value));
   }
-  return true;
+  return prev;
 }
 
+// The _next_om field can be concurrently read and modified so we
+// use Atomic operations to disable compiler optimizations that
+// might try to elide loading and/or storing this field.
 
-// return number of threads contending for this monitor
-inline jint ObjectMonitor::contentions() const {
-  return _count;
+// Simply get _next_om field.
+inline ObjectMonitor* ObjectMonitor::next_om() const {
+  return Atomic::load(&_next_om);
 }
 
-// Do NOT set _count = 0. There is a race such that _count could
-// be set while inflating prior to setting _owner
-// Just use Atomic::inc/dec and assert 0 when monitor put on free list
-inline void ObjectMonitor::set_owner(void* owner) {
-  _owner = owner;
-  _recursions = 0;
+// Simply set _next_om field to new_value.
+inline void ObjectMonitor::set_next_om(ObjectMonitor* new_value) {
+  Atomic::store(&_next_om, new_value);
 }
 
+inline ObjectMonitorContentionMark::ObjectMonitorContentionMark(ObjectMonitor* monitor)
+  : _monitor(monitor) {
+  _monitor->add_to_contentions(1);
+}
 
-#endif // SHARE_VM_RUNTIME_OBJECTMONITOR_INLINE_HPP
+inline ObjectMonitorContentionMark::~ObjectMonitorContentionMark() {
+  _monitor->add_to_contentions(-1);
+}
+
+inline oop ObjectMonitor::object_peek() const {
+  if (_object.is_null()) {
+    return nullptr;
+  }
+  return _object.peek();
+}
+
+inline bool ObjectMonitor::object_is_dead() const {
+  return object_peek() == nullptr;
+}
+
+inline bool ObjectMonitor::object_refers_to(oop obj) const {
+  if (_object.is_null()) {
+    return false;
+  }
+  return _object.peek() == obj;
+}
+
+#endif // SHARE_RUNTIME_OBJECTMONITOR_INLINE_HPP

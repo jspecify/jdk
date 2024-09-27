@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,9 +68,8 @@ final class ServerKeyExchange {
             }
 
             // not producer defined.
-            shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+            throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No ServerKeyExchange handshake message can be produced.");
-            return null;    // make the compiler happe
         }
     }
 
@@ -93,6 +92,26 @@ final class ServerKeyExchange {
             // clean up this consumer
             chc.handshakeConsumers.remove(SSLHandshake.SERVER_KEY_EXCHANGE.id);
 
+            // Any receipt/consumption of the CertificateRequest before
+            // ServerKeyExchange is a state machine violation.  We may not
+            // know for sure if an early CR message is a violation though until
+            // we have reached this point, due to other TLS features and
+            // optional messages.
+            if (chc.receivedCertReq) {
+                chc.receivedCertReq = false;    // Reset flag
+                throw chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                        "Unexpected ServerKeyExchange handshake message");
+            }
+
+            SSLConsumer certStatCons = chc.handshakeConsumers.remove(
+                    SSLHandshake.CERTIFICATE_STATUS.id);
+            if (certStatCons != null) {
+                // Stapling was active but no certificate status message
+                // was sent.  We need to run the absence handler which will
+                // check the certificate chain.
+                CertificateStatus.handshakeAbsence.absent(context, null);
+            }
+
             SSLKeyExchange ke = SSLKeyExchange.valueOf(
                     chc.negotiatedCipherSuite.keyExchange,
                     chc.negotiatedProtocol);
@@ -107,7 +126,7 @@ final class ServerKeyExchange {
             }
 
             // no consumer defined.
-            chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+            throw chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                         "Unexpected ServerKeyExchange handshake message.");
         }
     }

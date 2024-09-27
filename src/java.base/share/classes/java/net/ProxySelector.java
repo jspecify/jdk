@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.io.IOException;
 import java.util.List;
+
 import sun.security.util.SecurityConstants;
 
 /**
@@ -69,7 +70,7 @@ public abstract @UsesObjectEquals class ProxySelector {
      *
      * @see #setDefault(ProxySelector)
      */
-    private static ProxySelector theProxySelector;
+    private static volatile ProxySelector theProxySelector;
 
     static {
         try {
@@ -85,16 +86,22 @@ public abstract @UsesObjectEquals class ProxySelector {
     }
 
     /**
+     * Constructor for subclasses to call.
+     */
+    public ProxySelector() {}
+
+    /**
      * Gets the system-wide proxy selector.
      *
      * @throws  SecurityException
      *          If a security manager has been installed and it denies
-     * {@link NetPermission}{@code ("getProxySelector")}
-     * @see #setDefault(ProxySelector)
-     * @return the system-wide {@code ProxySelector}
-     * @since 1.5
+     *          {@link NetPermission}{@code ("getProxySelector")}
+     * @see     #setDefault(ProxySelector)
+     * @return  the system-wide {@code ProxySelector}
+     * @since   1.5
      */
     public static ProxySelector getDefault() {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(SecurityConstants.GET_PROXYSELECTOR_PERMISSION);
@@ -112,12 +119,13 @@ public abstract @UsesObjectEquals class ProxySelector {
      *
      * @throws  SecurityException
      *          If a security manager has been installed and it denies
-     * {@link NetPermission}{@code ("setProxySelector")}
+     *          {@link NetPermission}{@code ("setProxySelector")}
      *
      * @see #getDefault()
      * @since 1.5
      */
     public static void setDefault(ProxySelector ps) {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(SecurityConstants.SET_PROXYSELECTOR_PERMISSION);
@@ -129,7 +137,7 @@ public abstract @UsesObjectEquals class ProxySelector {
      * Selects all the applicable proxies based on the protocol to
      * access the resource with and a destination address to access
      * the resource at.
-     * The format of the URI is defined as follow:
+     * The format of the URI is defined as follows:
      * <UL>
      * <LI>http URI for http connections</LI>
      * <LI>https URI for https connections
@@ -140,14 +148,16 @@ public abstract @UsesObjectEquals class ProxySelector {
      * @param   uri
      *          The URI that a connection is required to
      *
-     * @return  a List of Proxies. Each element in the
+     * @return  a List of Proxies. Each element in
      *          the List is of type
      *          {@link java.net.Proxy Proxy};
      *          when no proxy is available, the list will
      *          contain one element of type
      *          {@link java.net.Proxy Proxy}
      *          that represents a direct connection.
-     * @throws IllegalArgumentException if the argument is null
+     * @throws IllegalArgumentException if the argument is null or if
+     *         the protocol or host cannot be determined from the provided
+     *         {@code uri}
      */
     public abstract List<Proxy> select(URI uri);
 
@@ -165,13 +175,14 @@ public abstract @UsesObjectEquals class ProxySelector {
      *
      * @param   ioe
      *          The I/O exception thrown when the connect failed.
-     * @throws IllegalArgumentException if either argument is null
+     * @throws  IllegalArgumentException if either argument is null
      */
     public abstract void connectFailed(URI uri, SocketAddress sa, IOException ioe);
 
     /**
      * Returns a ProxySelector which uses the given proxy address for all HTTP
-     * and HTTPS requests. If proxy is {@code null} then proxying is disabled.
+     * and HTTPS requests. If {@code proxyAddress} is {@code null}
+     * then proxying is disabled.
      *
      * @param proxyAddress
      *        The address of the proxy
@@ -200,13 +211,22 @@ public abstract @UsesObjectEquals class ProxySelector {
 
         @Override
         public void connectFailed(URI uri, SocketAddress sa, IOException e) {
+            if (uri == null || sa == null || e == null) {
+                throw new IllegalArgumentException("Arguments can't be null.");
+            }
             /* ignore */
         }
 
         @Override
-        public synchronized List<Proxy> select(URI uri) {
-            String scheme = uri.getScheme().toLowerCase();
-            if (scheme.equals("http") || scheme.equals("https")) {
+        public List<Proxy> select(URI uri) {
+            if (uri == null) {
+                throw new IllegalArgumentException("URI can't be null");
+            }
+            String scheme = uri.getScheme();
+            if (scheme == null) {
+                throw new IllegalArgumentException("protocol can't be null");
+            }
+            if (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https")) {
                 return list;
             } else {
                 return NO_PROXY_LIST;

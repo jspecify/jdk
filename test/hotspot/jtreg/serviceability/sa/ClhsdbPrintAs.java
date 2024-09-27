@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,12 +21,6 @@
  * questions.
  */
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.ArrayList;
-import jdk.test.lib.apps.LingeredApp;
-
 /**
  * @test
  * @bug 8192985
@@ -35,6 +29,13 @@ import jdk.test.lib.apps.LingeredApp;
  * @library /test/lib
  * @run main/othervm ClhsdbPrintAs
  */
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
+import jdk.test.lib.apps.LingeredApp;
+import jtreg.SkippedException;
 
 public class ClhsdbPrintAs {
 
@@ -47,21 +48,14 @@ public class ClhsdbPrintAs {
             theApp = LingeredApp.startApp();
             System.out.println("Started LingeredApp with pid " + theApp.getPid());
 
-            // Run the 'jstack -v' command to get the address of a the Method*
-            // representing LingeredApp.main
+            // Run the 'jstack -v' command to get the address of the Method*
+            // representing LingeredApp.steadyState
             List<String> cmds = List.of("jstack -v");
             Map<String, List<String>> expStrMap;
 
             String jstackOutput = test.run(theApp.getPid(), cmds, null, null);
 
-            if (jstackOutput == null) {
-                // Output could be null due to attach permission issues
-                // and if we are skipping this.
-                LingeredApp.stopApp(theApp);
-                return;
-            }
-
-            String[] snippets = jstackOutput.split("LingeredApp.main");
+            String[] snippets = jstackOutput.split("LingeredApp.steadyState");
             String addressString = null;
 
             String[] tokens = snippets[1].split("Method\\*=");
@@ -118,6 +112,8 @@ public class ClhsdbPrintAs {
             expStrMap.put(cmd, List.of
                 ("ConstantPoolCache", "_pool_holder", "InstanceKlass*"));
             test.run(theApp.getPid(), cmds, expStrMap, null);
+        } catch (SkippedException e) {
+            throw e;
         } catch (Exception ex) {
             throw new RuntimeException("Test ERROR " + ex, ex);
         } finally {

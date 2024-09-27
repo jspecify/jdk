@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1PREDICTIONS_HPP
-#define SHARE_VM_GC_G1_G1PREDICTIONS_HPP
+#ifndef SHARE_GC_G1_G1PREDICTIONS_HPP
+#define SHARE_GC_G1_G1PREDICTIONS_HPP
 
 #include "utilities/numberSeq.hpp"
 
@@ -54,9 +54,17 @@ class G1Predictions {
   // Confidence factor.
   double sigma() const { return _sigma; }
 
-  double get_new_prediction(TruncatedSeq const* seq) const {
+  double predict(TruncatedSeq const* seq) const {
     return seq->davg() + _sigma * stddev_estimate(seq);
+  }
+
+  double predict_in_unit_interval(TruncatedSeq const* seq) const {
+    return clamp(predict(seq), 0.0, 1.0);
+  }
+
+  double predict_zero_bounded(TruncatedSeq const* seq) const {
+    return MAX2(predict(seq), 0.0);
   }
 };
 
-#endif // SHARE_VM_GC_G1_G1PREDICTIONS_HPP
+#endif // SHARE_GC_G1_G1PREDICTIONS_HPP

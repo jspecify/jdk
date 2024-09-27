@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,11 @@
 
 package sun.java2d.loops;
 
-import sun.java2d.loops.GraphicsPrimitive;
-import sun.java2d.pipe.Region;
+import sun.font.GlyphList;
 import sun.java2d.SunGraphics2D;
 import sun.java2d.SurfaceData;
-import sun.font.GlyphList;
+import sun.java2d.pipe.Region;
+import sun.java2d.loops.GraphicsPrimitiveMgr.GeneralPrimitives;
 
 /**
  *   DrawGlyphList - loops for SolidTextRenderer pipe.
@@ -69,17 +69,18 @@ public class DrawGlyphList extends GraphicsPrimitive {
 
 
     public native void DrawGlyphList(SunGraphics2D sg2d, SurfaceData dest,
-                                     GlyphList srcData);
+                                     GlyphList srcData,
+                                     int fromGlyph, int toGlyph);
 
     // This instance is used only for lookup.
     static {
-        GraphicsPrimitiveMgr.registerGeneral(
+        GeneralPrimitives.register(
                                 new DrawGlyphList(null, null, null));
     }
 
-    public GraphicsPrimitive makePrimitive(SurfaceType srctype,
-                                           CompositeType comptype,
-                                           SurfaceType dsttype) {
+    protected GraphicsPrimitive makePrimitive(SurfaceType srctype,
+                                              CompositeType comptype,
+                                              SurfaceType dsttype) {
         return new General(srctype, comptype, dsttype);
     }
 
@@ -95,18 +96,16 @@ public class DrawGlyphList extends GraphicsPrimitive {
         }
 
         public void DrawGlyphList(SunGraphics2D sg2d, SurfaceData dest,
-                                  GlyphList gl) {
+                                  GlyphList gl, int fromGlyph, int toGlyph) {
 
-            int strbounds[] = gl.getBounds(); // Don't delete, bug 4895493
-            int num = gl.getNumGlyphs();
             Region clip = sg2d.getCompClip();
             int cx1 = clip.getLoX();
             int cy1 = clip.getLoY();
             int cx2 = clip.getHiX();
             int cy2 = clip.getHiY();
-            for (int i = 0; i < num; i++) {
+            for (int i = fromGlyph; i < toGlyph; i++) {
                 gl.setGlyphIndex(i);
-                int metrics[] = gl.getMetrics();
+                int[] metrics = gl.getMetrics();
                 int gx1 = metrics[0];
                 int gy1 = metrics[1];
                 int w = metrics[2];
@@ -124,7 +123,7 @@ public class DrawGlyphList extends GraphicsPrimitive {
                 if (gx2 > cx2) gx2 = cx2;
                 if (gy2 > cy2) gy2 = cy2;
                 if (gx2 > gx1 && gy2 > gy1) {
-                    byte alpha[] = gl.getGrayBits();
+                    byte[] alpha = gl.getGrayBits();
                     maskop.MaskFill(sg2d, dest, sg2d.composite,
                                     gx1, gy1, gx2 - gx1, gy2 - gy1,
                                     alpha, off, w);
@@ -152,10 +151,10 @@ public class DrawGlyphList extends GraphicsPrimitive {
         }
 
         public void DrawGlyphList(SunGraphics2D sg2d, SurfaceData dest,
-                                  GlyphList glyphs)
+                                  GlyphList glyphs, int fromGlyph, int toGlyph)
         {
             tracePrimitive(target);
-            target.DrawGlyphList(sg2d, dest, glyphs);
+            target.DrawGlyphList(sg2d, dest, glyphs, fromGlyph, toGlyph);
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "ba" + "bak"  // Bashkir
         + "be" + "bel"  // Belarusian
         + "bg" + "bul"  // Bulgarian
-        + "bh" + "bih"  // Bihari
+        + "bh" + "bih"  // Bihari languages
         + "bi" + "bis"  // Bislama
         + "bm" + "bam"  // Bambara
         + "bn" + "ben"  // Bengali
@@ -82,10 +82,10 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "fj" + "fij"  // Fijian
         + "fo" + "fao"  // Faroese
         + "fr" + "fra"  // French
-        + "fy" + "fry"  // Frisian
+        + "fy" + "fry"  // Western Frisian
         + "ga" + "gle"  // Irish
         + "gd" + "gla"  // Scottish Gaelic
-        + "gl" + "glg"  // Gallegan
+        + "gl" + "glg"  // Galician
         + "gn" + "grn"  // Guarani
         + "gu" + "guj"  // Gujarati
         + "gv" + "glv"  // Manx
@@ -119,7 +119,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "kj" + "kua"  // Kwanyama
         + "kk" + "kaz"  // Kazakh
         + "kl" + "kal"  // Greenlandic
-        + "km" + "khm"  // Khmer
+        + "km" + "khm"  // Central Khmer
         + "kn" + "kan"  // Kannada
         + "ko" + "kor"  // Korean
         + "kr" + "kau"  // Kanuri
@@ -149,7 +149,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "mt" + "mlt"  // Maltese
         + "my" + "mya"  // Burmese
         + "na" + "nau"  // Nauru
-        + "nb" + "nob"  // Norwegian Bokm?l
+        + "nb" + "nob"  // Norwegian Bokm\u00e5l
         + "nd" + "nde"  // North Ndebele
         + "ne" + "nep"  // Nepali
         + "ng" + "ndo"  // Ndonga
@@ -159,7 +159,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "nr" + "nbl"  // South Ndebele
         + "nv" + "nav"  // Navajo
         + "ny" + "nya"  // Nyanja
-        + "oc" + "oci"  // Occitan
+        + "oc" + "oci"  // Occitan (post 1500)
         + "oj" + "oji"  // Ojibwa
         + "om" + "orm"  // Oromo
         + "or" + "ori"  // Oriya
@@ -170,7 +170,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "ps" + "pus"  // Pushto
         + "pt" + "por"  // Portuguese
         + "qu" + "que"  // Quechua
-        + "rm" + "roh"  // Raeto-Romance
+        + "rm" + "roh"  // Romansh
         + "rn" + "run"  // Rundi
         + "ro" + "ron"  // Romanian
         + "ru" + "rus"  // Russian
@@ -180,7 +180,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "sd" + "snd"  // Sindhi
         + "se" + "sme"  // Northern Sami
         + "sg" + "sag"  // Sango
-        + "si" + "sin"  // Sinhalese
+        + "si" + "sin"  // Sinhala
         + "sk" + "slk"  // Slovak
         + "sl" + "slv"  // Slovenian
         + "sm" + "smo"  // Samoan
@@ -213,7 +213,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "uz" + "uzb"  // Uzbek
         + "ve" + "ven"  // Venda
         + "vi" + "vie"  // Vietnamese
-        + "vo" + "vol"  // Volap?k
+        + "vo" + "vol"  // Volap\u00fck
         + "wa" + "wln"  // Walloon
         + "wo" + "wol"  // Wolof
         + "xh" + "xho"  // Xhosa
@@ -257,7 +257,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "BL" + "BLM"  // Saint Barth\u00e9lemy
         + "BM" + "BMU"  // Bermuda
         + "BN" + "BRN"  // Brunei Darussalam
-        + "BO" + "BOL"  // Bolivia, Republic of
+        + "BO" + "BOL"  // Bolivia, Plurinational State of
         + "BQ" + "BES"  // Bonaire, Sint Eustatius and Saba
         + "BR" + "BRA"  // Brazil, Federative Republic of
         + "BS" + "BHS"  // Bahamas, Commonwealth of the
@@ -296,11 +296,11 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "EE" + "EST"  // Estonia
         + "EG" + "EGY"  // Egypt, Arab Republic of
         + "EH" + "ESH"  // Western Sahara
-        + "ER" + "ERI"  // Eritrea
+        + "ER" + "ERI"  // Eritrea, State of
         + "ES" + "ESP"  // Spain, Spanish State
         + "ET" + "ETH"  // Ethiopia
         + "FI" + "FIN"  // Finland, Republic of
-        + "FJ" + "FJI"  // Fiji, Republic of the Fiji Islands
+        + "FJ" + "FJI"  // Fiji, Republic of
         + "FK" + "FLK"  // Falkland Islands (Malvinas)
         + "FM" + "FSM"  // Micronesia, Federated States of
         + "FO" + "FRO"  // Faeroe Islands
@@ -310,7 +310,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "GD" + "GRD"  // Grenada
         + "GE" + "GEO"  // Georgia
         + "GF" + "GUF"  // French Guiana
-        + "GG" + "GGY"  // Guernsey
+        + "GG" + "GGY"  // Guernsey, Bailiwick of
         + "GH" + "GHA"  // Ghana, Republic of
         + "GI" + "GIB"  // Gibraltar
         + "GL" + "GRL"  // Greenland
@@ -329,7 +329,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "HN" + "HND"  // Honduras, Republic of
         + "HR" + "HRV"  // Hrvatska (Croatia)
         + "HT" + "HTI"  // Haiti, Republic of
-        + "HU" + "HUN"  // Hungary, Hungarian People's Republic
+        + "HU" + "HUN"  // Hungary
         + "ID" + "IDN"  // Indonesia, Republic of
         + "IE" + "IRL"  // Ireland
         + "IL" + "ISR"  // Israel, State of
@@ -340,7 +340,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "IR" + "IRN"  // Iran, Islamic Republic of
         + "IS" + "ISL"  // Iceland, Republic of
         + "IT" + "ITA"  // Italy, Italian Republic
-        + "JE" + "JEY"  // Jersey
+        + "JE" + "JEY"  // Jersey, Bailiwick of
         + "JM" + "JAM"  // Jamaica
         + "JO" + "JOR"  // Jordan, Hashemite Kingdom of
         + "JP" + "JPN"  // Japan
@@ -365,17 +365,17 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "LT" + "LTU"  // Lithuania
         + "LU" + "LUX"  // Luxembourg, Grand Duchy of
         + "LV" + "LVA"  // Latvia
-        + "LY" + "LBY"  // Libyan Arab Jamahiriya
+        + "LY" + "LBY"  // Libya
         + "MA" + "MAR"  // Morocco, Kingdom of
         + "MC" + "MCO"  // Monaco, Principality of
         + "MD" + "MDA"  // Moldova, Republic of
-        + "ME" + "MNE"  // Montenegro, Republic of
-        + "MF" + "MAF"  // Saint Martin
+        + "ME" + "MNE"  // Montenegro
+        + "MF" + "MAF"  // Saint Martin (French part)
         + "MG" + "MDG"  // Madagascar, Republic of
         + "MH" + "MHL"  // Marshall Islands
         + "MK" + "MKD"  // Macedonia, the former Yugoslav Republic of
         + "ML" + "MLI"  // Mali, Republic of
-        + "MM" + "MMR"  // Myanmar
+        + "MM" + "MMR"  // Myanmar, Republic of the Union of
         + "MN" + "MNG"  // Mongolia, Mongolian People's Republic
         + "MO" + "MAC"  // Macao, Special Administrative Region of China
         + "MP" + "MNP"  // Northern Mariana Islands
@@ -397,9 +397,9 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "NI" + "NIC"  // Nicaragua, Republic of
         + "NL" + "NLD"  // Netherlands, Kingdom of the
         + "NO" + "NOR"  // Norway, Kingdom of
-        + "NP" + "NPL"  // Nepal, Kingdom of
+        + "NP" + "NPL"  // Nepal, Federal Democratic Republic of
         + "NR" + "NRU"  // Nauru, Republic of
-        + "NU" + "NIU"  // Niue, Republic of
+        + "NU" + "NIU"  // Niue
         + "NZ" + "NZL"  // New Zealand
         + "OM" + "OMN"  // Oman, Sultanate of
         + "PA" + "PAN"  // Panama, Republic of
@@ -412,7 +412,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "PM" + "SPM"  // St. Pierre and Miquelon
         + "PN" + "PCN"  // Pitcairn Island
         + "PR" + "PRI"  // Puerto Rico
-        + "PS" + "PSE"  // Palestinian Territory, Occupied
+        + "PS" + "PSE"  // Palestine, State of
         + "PT" + "PRT"  // Portugal, Portuguese Republic
         + "PW" + "PLW"  // Palau
         + "PY" + "PRY"  // Paraguay, Republic of
@@ -425,10 +425,10 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "SA" + "SAU"  // Saudi Arabia, Kingdom of
         + "SB" + "SLB"  // Solomon Islands
         + "SC" + "SYC"  // Seychelles, Republic of
-        + "SD" + "SDN"  // Sudan, Democratic Republic of the
+        + "SD" + "SDN"  // Sudan, Republic of the
         + "SE" + "SWE"  // Sweden, Kingdom of
         + "SG" + "SGP"  // Singapore, Republic of
-        + "SH" + "SHN"  // St. Helena
+        + "SH" + "SHN"  // Saint Helena, Ascension and Tristan da Cunha
         + "SI" + "SVN"  // Slovenia
         + "SJ" + "SJM"  // Svalbard & Jan Mayen Islands
         + "SK" + "SVK"  // Slovakia (Slovak Republic)
@@ -437,7 +437,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
         + "SN" + "SEN"  // Senegal, Republic of
         + "SO" + "SOM"  // Somalia, Somali Republic
         + "SR" + "SUR"  // Suriname, Republic of
-        + "SS" + "SSD"  // South Sudan
+        + "SS" + "SSD"  // South Sudan, Republic of
         + "ST" + "STP"  // Sao Tome and Principe, Democratic Republic of
         + "SV" + "SLV"  // El Salvador, Republic of
         + "SX" + "SXM"  // Sint Maarten (Dutch part)

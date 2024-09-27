@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 package sun.security.x509;
 
-import org.jspecify.annotations.Nullable;
-
 import java.io.IOException;
 
 import sun.security.util.*;
@@ -42,7 +40,7 @@ import sun.security.util.*;
  * @see GeneralNameInterface
  */
 public class OIDName implements GeneralNameInterface {
-     private ObjectIdentifier oid;
+     private final ObjectIdentifier oid;
 
     /**
      * Create the OIDName object from the passed encoded Der value.
@@ -71,7 +69,7 @@ public class OIDName implements GeneralNameInterface {
      */
     public OIDName(String name) throws IOException {
         try {
-            oid = new ObjectIdentifier(name);
+            oid = ObjectIdentifier.of(name);
         } catch (Exception e) {
             throw new IOException("Unable to create OIDName: " + e);
         }
@@ -88,9 +86,9 @@ public class OIDName implements GeneralNameInterface {
      * Encode the OID name into the DerOutputStream.
      *
      * @param out the DER stream to encode the OIDName to.
-     * @exception IOException on encoding errors.
      */
-    public void encode(DerOutputStream out) throws IOException {
+    @Override
+    public void encode(DerOutputStream out) {
         out.putOID(oid);
     }
 
@@ -113,25 +111,19 @@ public class OIDName implements GeneralNameInterface {
      *
      * @return true iff the names are identical
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (this == obj)
             return true;
 
-        if (!(obj instanceof OIDName))
-            return false;
-
-        OIDName other = (OIDName)obj;
-
-        return oid.equals(other.oid);
+        return obj instanceof OIDName other
+                && oid.equals(other.oid);
     }
 
     /**
-     * Returns the hash code value for this object.
-     *
-     * @return a hash code value for this object.
+     * {@return the hash code value for this object}
      */
+    @Override
     public int hashCode() {
         return oid.hashCode();
     }
@@ -157,10 +149,10 @@ public class OIDName implements GeneralNameInterface {
             constraintType = NAME_DIFF_TYPE;
         else if (inputName.getType() != NAME_OID)
             constraintType = NAME_DIFF_TYPE;
-        else if (this.equals((OIDName)inputName))
+        else if (this.equals(inputName))
             constraintType = NAME_MATCH;
         else
-            //widens and narrows not defined in RFC2459 for OIDName (aka registeredID)
+            //widens and narrows not defined in RFC 5280 for OIDName (aka registeredID)
             throw new UnsupportedOperationException("Narrowing and widening are not supported for OIDNames");
         return constraintType;
     }

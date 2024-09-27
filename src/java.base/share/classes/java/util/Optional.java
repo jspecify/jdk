@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,10 +45,11 @@ import java.util.stream.Stream;
  * {@link #ifPresent(Consumer) ifPresent()} (performs an
  * action if a value is present).
  *
- * <p>This is a <a href="../lang/doc-files/ValueBased.html">value-based</a>
- * class; use of identity-sensitive operations (including reference equality
- * ({@code ==}), identity hash code, or synchronization) on instances of
- * {@code Optional} may have unpredictable results and should be avoided.
+ * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
+ * class; programmers should treat instances that are
+ * {@linkplain #equals(Object) equal} as interchangeable and should not
+ * use instances for synchronization, or unpredictable behavior may
+ * occur. For example, in a future release, synchronization may fail.
  *
  * @apiNote
  * {@code Optional} is primarily intended for use as a method return type where
@@ -60,14 +61,13 @@ import java.util.stream.Stream;
  * @param <T> the type of value
  * @since 1.8
  */
-
 @NullMarked
-
-public final  class Optional<T> {
+@jdk.internal.ValueBased
+public final class Optional<T> {
     /**
      * Common instance for {@code empty()}.
      */
-    private static final Optional<?> EMPTY = new Optional<>();
+    private static final Optional<?> EMPTY = new Optional<>(null);
 
     /**
      * If non-null, the value; if null, indicates no value is present
@@ -75,24 +75,14 @@ public final  class Optional<T> {
     private final @Nullable T value;
 
     /**
-     * Constructs an empty instance.
-     *
-     * @implNote Generally only one empty instance, {@link Optional#EMPTY},
-     * should exist per VM.
-     */
-    private Optional() {
-        this.value = null;
-    }
-
-    /**
      * Returns an empty {@code Optional} instance.  No value is present for this
      * {@code Optional}.
      *
      * @apiNote
      * Though it may be tempting to do so, avoid testing if an object is empty
-     * by comparing with {@code ==} against instances returned by
+     * by comparing with {@code ==} or {@code !=} against instances returned by
      * {@code Optional.empty()}.  There is no guarantee that it is a singleton.
-     * Instead, use {@link #isPresent()}.
+     * Instead, use {@link #isEmpty()} or {@link #isPresent()}.
      *
      * @param <T> The type of the non-existent value
      * @return an empty {@code Optional}
@@ -106,11 +96,12 @@ public final  class Optional<T> {
     /**
      * Constructs an instance with the described value.
      *
-     * @param value the non-{@code null} value to describe
-     * @throws NullPointerException if value is {@code null}
+     * @param value the value to describe; it's the caller's responsibility to
+     *        ensure the value is non-{@code null} unless creating the singleton
+     *        instance returned by {@code empty()}.
      */
-    private Optional( T value) {
-        this.value = Objects.requireNonNull(value);
+    private Optional(T value) {
+        this.value = value;
     }
 
     /**
@@ -122,8 +113,8 @@ public final  class Optional<T> {
      * @return an {@code Optional} with the value present
      * @throws NullPointerException if value is {@code null}
      */
-    public static <T>  Optional<T> of( T value) {
-        return new Optional<>(value);
+    public static <T> Optional<T> of(T value) {
+        return new Optional<>(Objects.requireNonNull(value));
     }
 
     /**
@@ -135,8 +126,10 @@ public final  class Optional<T> {
      * @return an {@code Optional} with a present value if the specified value
      *         is non-{@code null}, otherwise an empty {@code Optional}
      */
+    @SuppressWarnings("unchecked")
     public static <T> Optional<T> ofNullable(@Nullable T value) {
-        return value == null ? empty() : of(value);
+        return value == null ? (Optional<T>) EMPTY
+                             : new Optional<>(value);
     }
 
     /**
@@ -225,7 +218,7 @@ public final  class Optional<T> {
      */
     public Optional<T> filter(Predicate<? super T> predicate) {
         Objects.requireNonNull(predicate);
-        if (!isPresent()) {
+        if (isEmpty()) {
             return this;
         } else {
             return predicate.test(value) ? this : empty();
@@ -267,7 +260,7 @@ public final  class Optional<T> {
      */
     public <U> Optional<U> map(Function<? super T, ? extends @Nullable U> mapper) {
         Objects.requireNonNull(mapper);
-        if (!isPresent()) {
+        if (isEmpty()) {
             return empty();
         } else {
             return Optional.ofNullable(mapper.apply(value));
@@ -295,7 +288,7 @@ public final  class Optional<T> {
      */
     public <U> Optional<U> flatMap(Function<? super T, ? extends Optional<? extends U>> mapper) {
         Objects.requireNonNull(mapper);
-        if (!isPresent()) {
+        if (isEmpty()) {
             return empty();
         } else {
             @SuppressWarnings("unchecked")
@@ -344,7 +337,7 @@ public final  class Optional<T> {
      * @since 9
      */
     public Stream<T> stream() {
-        if (!isPresent()) {
+        if (isEmpty()) {
             return Stream.empty();
         } else {
             return Stream.of(value);
@@ -440,12 +433,8 @@ public final  class Optional<T> {
             return true;
         }
 
-        if (!(obj instanceof Optional)) {
-            return false;
-        }
-
-        Optional<?> other = (Optional<?>) obj;
-        return Objects.equals(value, other.value);
+        return obj instanceof Optional<?> other
+                && Objects.equals(value, other.value);
     }
 
     /**
@@ -475,7 +464,7 @@ public final  class Optional<T> {
     @Override
     public String toString() {
         return value != null
-            ? String.format("Optional[%s]", value)
+            ? ("Optional[" + value + "]")
             : "Optional.empty";
     }
 }

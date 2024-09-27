@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,8 @@ import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class VMRegImpl {
 
@@ -51,7 +53,7 @@ public class VMRegImpl {
     Type type = db.lookupType("VMRegImpl");
     AddressField stack0Field = type.getAddressField("stack0");
     stack0Addr = stack0Field.getValue();
-    stack0Val = (int) stack0Addr.hashCode();
+    stack0Val = stack0Addr.hashCode();
     stack0 = new VMReg(stack0Val);
     regNameField = type.getAddressField("regName[0]");
     stackSlotSize = db.lookupIntConstant("VMRegImpl::stack_slot_size");

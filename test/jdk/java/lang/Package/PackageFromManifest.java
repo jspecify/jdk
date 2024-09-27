@@ -27,8 +27,8 @@
  * @summary The test will create JAR file(s) with the manifest file
  *          that customized package versioning information (different info for
  *          same package if multiple jars). Then verify package versioning info
- * @library /lib/testlibrary
  * @library /test/lib
+ * @modules jdk.compiler
  * @run main PackageFromManifest setup test
  * @run main PackageFromManifest runJar test1.jar
  * @run main PackageFromManifest runJar test1.jar test2.jar foo.Foo1
@@ -41,6 +41,7 @@
 import jdk.test.lib.compiler.CompilerUtils;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.util.FileUtils;
+import jdk.test.lib.util.JarUtils;
 
 import java.io.File;
 import java.io.IOException;

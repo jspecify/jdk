@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_XMLSTREAM_HPP
-#define SHARE_VM_UTILITIES_XMLSTREAM_HPP
+#ifndef SHARE_UTILITIES_XMLSTREAM_HPP
+#define SHARE_UTILITIES_XMLSTREAM_HPP
 
 #include "runtime/handles.hpp"
 #include "utilities/ostream.hpp"
@@ -41,7 +41,7 @@ class xmlTextStream : public outputStream {
 
   xmlStream* _outer_xmlStream;
 
-  xmlTextStream() { _outer_xmlStream = NULL; }
+  xmlTextStream() { _outer_xmlStream = nullptr; }
 
  public:
    virtual void flush(); // _outer.flush();
@@ -97,7 +97,7 @@ class xmlStream : public outputStream {
   xmlStream(outputStream* out) { initialize(out); }
   DEBUG_ONLY(virtual ~xmlStream();)
 
-  bool is_open() { return _out != NULL; }
+  bool is_open() { return _out != nullptr; }
 
   // text output
   bool inside_attrs() { return _markup_state != BODY; }
@@ -137,14 +137,14 @@ class xmlStream : public outputStream {
 
   // commonly used XML attributes
   void          stamp();                 // stamp='1.234'
-  void          method(const methodHandle& m);  // method='k n s' ...
+  void          method(Method* m);       // method='k n s' ...
   void          klass(Klass* k);         // klass='name'
   void          name(const Symbol* s);   // name='name'
   void          object(const char* attr, Metadata* val);
   void          object(const char* attr, Handle val);
 
   // print the text alone (sans ''):
-  void          method_text(const methodHandle& m);
+  void          method_text(Method* m);
   void          klass_text(Klass* k);         // klass='name'
   void          name_text(const Symbol* s);   // name='name'
   void          object_text(Metadata* x);
@@ -182,6 +182,6 @@ class xmlStream : public outputStream {
 // Standard log file, null if no logging is happening.
 extern xmlStream* xtty;
 
-// Note:  If ::xtty != NULL, ::tty == ::xtty->text().
+// Note:  If ::xtty != nullptr, ::tty == ::xtty->text().
 
-#endif // SHARE_VM_UTILITIES_XMLSTREAM_HPP
+#endif // SHARE_UTILITIES_XMLSTREAM_HPP

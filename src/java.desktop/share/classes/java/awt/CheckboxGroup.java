@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,10 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import java.io.Serial;
 
 /**
  * The {@code CheckboxGroup} class is used to group together
@@ -49,16 +49,15 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * <p>
  * This image depicts the check box group created by this example:
  * <p>
- * <img src="doc-files/CheckboxGroup-1.gif"
- * alt="Shows three checkboxes, arranged vertically, labeled one, two, and three. Checkbox one is in the on state."
- * style="float:center; margin: 7px 10px;">
+ * <img src="doc-files/CheckboxGroup-1.gif" alt="Shows three checkboxes,
+ * arranged vertically, labeled one, two, and three. Checkbox one is in the on
+ * state." style="margin: 7px 10px;">
  *
  * @author      Sami Shaio
  * @see         java.awt.Checkbox
  * @since       1.0
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class CheckboxGroup implements java.io.Serializable {
+public class CheckboxGroup implements java.io.Serializable {
     /**
      * The current choice.
      * @serial
@@ -67,9 +66,10 @@ public @UsesObjectEquals class CheckboxGroup implements java.io.Serializable {
      */
     Checkbox selectedCheckbox = null;
 
-    /*
-     * JDK 1.1 serialVersionUID
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = 3729780091441768983L;
 
     /**

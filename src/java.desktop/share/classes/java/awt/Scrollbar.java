@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,24 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package java.awt;
 
+import java.awt.event.AdjustmentEvent;
+import java.awt.event.AdjustmentListener;
 import java.awt.peer.ScrollbarPeer;
-import java.awt.event.*;
-import java.util.EventListener;
-import java.io.ObjectOutputStream;
-import java.io.ObjectInputStream;
 import java.io.IOException;
-import javax.accessibility.*;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.util.EventListener;
 
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleRole;
+import javax.accessibility.AccessibleState;
+import javax.accessibility.AccessibleStateSet;
+import javax.accessibility.AccessibleValue;
 
 /**
  * The {@code Scrollbar} class embodies a scroll bar, a
@@ -41,8 +49,8 @@ import javax.accessibility.*;
  * scroll bars could be used as slider controls to pick
  * the red, green, and blue components of a color:
  * <p>
- * <img src="doc-files/Scrollbar-1.gif" alt="Image shows 3 vertical sliders, side-by-side."
- * style="float:center; margin: 7px 10px;">
+ * <img src="doc-files/Scrollbar-1.gif" alt="Image shows 3 vertical sliders,
+ * side-by-side." style="margin: 7px 10px;">
  * <p>
  * Each scroll bar in this example could be created with
  * code similar to the following:
@@ -59,8 +67,8 @@ import javax.accessibility.*;
  * Here is an example of a scroll bar that represents a range:
  * <p>
  * <img src="doc-files/Scrollbar-2.gif"
- * alt="Image shows horizontal slider with starting range of 0 and ending range of 300. The slider thumb is labeled 60."
- * style="float:center; margin: 7px 10px;">
+ * alt="Image shows horizontal slider with starting range of 0 and ending range
+ * of 300. The slider thumb is labeled 60." style="margin: 7px 10px;">
  * <p>
  * The value range represented by the bubble in this example
  * is the <em>visible amount</em>. The horizontal scroll bar
@@ -273,9 +281,10 @@ public class Scrollbar extends Component implements Adjustable, Accessible {
     private static final String base = "scrollbar";
     private static int nameCounter = 0;
 
-    /*
-     * JDK 1.1 serialVersionUID
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = 8451667562882310543L;
 
     /**
@@ -340,7 +349,7 @@ public class Scrollbar extends Component implements Adjustable, Accessible {
      * </tbody>
      * </table>
      *
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true.
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -357,9 +366,9 @@ public class Scrollbar extends Component implements Adjustable, Accessible {
      * indicating a horizontal or vertical scroll bar, respectively.
      *
      * @param       orientation   indicates the orientation of the scroll bar
-     * @exception   IllegalArgumentException    when an illegal value for
+     * @throws   IllegalArgumentException    when an illegal value for
      *                    the {@code orientation} argument is supplied
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true.
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -385,9 +394,9 @@ public class Scrollbar extends Component implements Adjustable, Accessible {
      *                      represented by the size of the bubble
      * @param     minimum   the minimum value of the scroll bar
      * @param     maximum   the maximum value of the scroll bar
-     * @exception IllegalArgumentException    when an illegal value for
+     * @throws IllegalArgumentException    when an illegal value for
      *                    the {@code orientation} argument is supplied
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true.
      * @see #setValues
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -448,7 +457,7 @@ public class Scrollbar extends Component implements Adjustable, Accessible {
      *               {@code Scrollbar.HORIZONTAL} or
      *               {@code Scrollbar.VERTICAL}
      * @see       java.awt.Scrollbar#getOrientation
-     * @exception   IllegalArgumentException  if the value supplied
+     * @throws   IllegalArgumentException  if the value supplied
      *                   for {@code orientation} is not a
      *                   legal value
      * @since     1.1
@@ -1053,7 +1062,7 @@ public class Scrollbar extends Component implements Adjustable, Accessible {
      * @return an array of all objects registered as
      *          <code><em>Foo</em>Listener</code>s on this component,
      *          or an empty array if no such listeners have been added
-     * @exception ClassCastException if {@code listenerType}
+     * @throws ClassCastException if {@code listenerType}
      *          doesn't specify a class or interface that implements
      *          {@code java.util.EventListener}
      *
@@ -1171,7 +1180,8 @@ public class Scrollbar extends Component implements Adjustable, Accessible {
      * as optional data. The non-serializable listeners are
      * detected and no attempt is made to serialize them.
      *
-     * @param s the {@code ObjectOutputStream} to write
+     * @param  s the {@code ObjectOutputStream} to write
+     * @throws IOException if an I/O error occurs
      * @serialData {@code null} terminated sequence of 0
      *   or more pairs; the pair consists of a {@code String}
      *   and an {@code Object}; the {@code String} indicates
@@ -1183,6 +1193,7 @@ public class Scrollbar extends Component implements Adjustable, Accessible {
      * @see java.awt.Component#adjustmentListenerK
      * @see #readObject(ObjectInputStream)
      */
+    @Serial
     private void writeObject(ObjectOutputStream s)
       throws IOException
     {
@@ -1199,13 +1210,16 @@ public class Scrollbar extends Component implements Adjustable, Accessible {
      * {@code Scrollbar}.
      * Unrecognized keys or values will be ignored.
      *
-     * @param s the {@code ObjectInputStream} to read
-     * @exception HeadlessException if
-     *   {@code GraphicsEnvironment.isHeadless} returns
-     *   {@code true}
+     * @param  s the {@code ObjectInputStream} to read
+     * @throws ClassNotFoundException if the class of a serialized object could
+     *         not be found
+     * @throws IOException if an I/O error occurs
+     * @throws HeadlessException if {@code GraphicsEnvironment.isHeadless()}
+     *         returns {@code true}
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @see #writeObject(ObjectOutputStream)
      */
+    @Serial
     private void readObject(ObjectInputStream s)
       throws ClassNotFoundException, IOException, HeadlessException
     {
@@ -1257,10 +1271,16 @@ public class Scrollbar extends Component implements Adjustable, Accessible {
     protected class AccessibleAWTScrollBar extends AccessibleAWTComponent
         implements AccessibleValue
     {
-        /*
-         * JDK 1.3 serialVersionUID
+        /**
+         * Use serialVersionUID from JDK 1.3 for interoperability.
          */
+        @Serial
         private static final long serialVersionUID = -344337268523697807L;
+
+        /**
+         * Constructs an {@code AccessibleAWTScrollBar}.
+         */
+        protected AccessibleAWTScrollBar() {}
 
         /**
          * Get the state set of this object.

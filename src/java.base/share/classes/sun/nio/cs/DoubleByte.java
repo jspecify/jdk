@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,9 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
 import java.util.Arrays;
+
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
 import sun.nio.cs.Surrogate;
 import sun.nio.cs.ArrayDecoder;
 import sun.nio.cs.ArrayEncoder;
@@ -108,6 +111,8 @@ public class DoubleByte {
         Arrays.fill(B2C_UNMAPPABLE, UNMAPPABLE_DECODING);
     }
 
+    private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
+
     public static class Decoder extends CharsetDecoder
                                 implements DelegatableDecoder, ArrayDecoder
     {
@@ -154,14 +159,21 @@ public class DoubleByte {
 
         protected CoderResult decodeArrayLoop(ByteBuffer src, CharBuffer dst) {
             byte[] sa = src.array();
-            int sp = src.arrayOffset() + src.position();
-            int sl = src.arrayOffset() + src.limit();
+            int soff = src.arrayOffset();
+            int sp = soff + src.position();
+            int sl = soff + src.limit();
 
             char[] da = dst.array();
-            int dp = dst.arrayOffset() + dst.position();
-            int dl = dst.arrayOffset() + dst.limit();
+            int doff = dst.arrayOffset();
+            int dp = doff + dst.position();
+            int dl = doff + dst.limit();
 
             try {
+                if (isASCIICompatible) {
+                    int n = JLA.decodeASCII(sa, sp, da, dp, Math.min(dl - dp, sl - sp));
+                    dp += n;
+                    sp += n;
+                }
                 while (sp < sl && dp < dl) {
                     // inline the decodeSingle/Double() for better performance
                     int inSize = 1;
@@ -183,8 +195,8 @@ public class DoubleByte {
                 return (sp >= sl) ? CoderResult.UNDERFLOW
                                   : CoderResult.OVERFLOW;
             } finally {
-                src.position(sp - src.arrayOffset());
-                dst.position(dp - dst.arrayOffset());
+                src.position(sp - soff);
+                dst.position(dp - doff);
             }
         }
 
@@ -342,7 +354,7 @@ public class DoubleByte {
                         else
                             currentState = SBCS;
                     } else {
-                        char c =  UNMAPPABLE_DECODING;
+                        char c;
                         if (currentState == SBCS) {
                             c = b2cSB[b1];
                             if (c == UNMAPPABLE_DECODING)
@@ -390,7 +402,7 @@ public class DoubleByte {
                         else
                             currentState = SBCS;
                     } else {
-                        char c = UNMAPPABLE_DECODING;
+                        char c;
                         if (currentState == SBCS) {
                             c = b2cSB[b1];
                             if (c == UNMAPPABLE_DECODING)
@@ -440,7 +452,7 @@ public class DoubleByte {
                     else
                         currentState = SBCS;
                 } else {
-                    char c =  UNMAPPABLE_DECODING;
+                    char c;
                     if (currentState == SBCS) {
                         c = b2cSB[b1];
                         if (c == UNMAPPABLE_DECODING)
@@ -491,8 +503,8 @@ public class DoubleByte {
     // The only thing we need to "override" is to check SS2/SS3 and
     // return "malformed" if found
     public static class Decoder_EUC_SIM extends Decoder {
-        private final int SS2 =  0x8E;
-        private final int SS3 =  0x8F;
+        private static final int SS2 = 0x8E;
+        private static final int SS3 = 0x8F;
 
         public Decoder_EUC_SIM(Charset cs,
                                char[][] b2c, char[] b2cSB, int b2Min, int b2Max,
@@ -544,7 +556,7 @@ public class DoubleByte {
     public static class Encoder extends CharsetEncoder
                                 implements ArrayEncoder
     {
-        protected final int MAX_SINGLEBYTE = 0xff;
+        protected static final int MAX_SINGLEBYTE = 0xff;
         private final char[] c2b;
         private final char[] c2bIndex;
         protected Surrogate.Parser sgp;
@@ -589,6 +601,11 @@ public class DoubleByte {
             int dl = dst.arrayOffset() + dst.limit();
 
             try {
+                if (isASCIICompatible) {
+                    int n = JLA.encodeASCII(sa, sp, da, dp, Math.min(dl - dp, sl - sp));
+                    sp += n;
+                    dp += n;
+                }
                 while (sp < sl) {
                     char c = sa[sp];
                     int bb = encodeChar(c);
@@ -642,7 +659,7 @@ public class DoubleByte {
                         dst.put((byte)(bb));
                     } else {
                         if (dst.remaining() < 1)
-                        return CoderResult.OVERFLOW;
+                            return CoderResult.OVERFLOW;
                         dst.put((byte)bb);
                     }
                     mark++;
@@ -660,6 +677,7 @@ public class DoubleByte {
                 return encodeBufferLoop(src, dst);
         }
 
+        @SuppressWarnings("this-escape")
         protected byte[] repl = replacement();
         protected void implReplaceWith(byte[] newReplacement) {
             repl = newReplacement;
@@ -669,7 +687,11 @@ public class DoubleByte {
         public int encode(char[] src, int sp, int len, byte[] dst) {
             int dp = 0;
             int sl = sp + len;
-            int dl = dst.length;
+            if (isASCIICompatible) {
+                int n = JLA.encodeASCII(src, sp, dst, dp, len);
+                sp += n;
+                dp += n;
+            }
             while (sp < sl) {
                 char c = src[sp++];
                 int bb = encodeChar(c);

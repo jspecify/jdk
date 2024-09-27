@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,33 +25,21 @@
 
 package sun.net.www.protocol.http;
 
-import java.io.Serializable;
 import java.net.PasswordAuthentication;
 
 /**
  * AuthCacheValue: interface to minimize exposure to authentication cache
- * for external users (ie. plugin)
+ * for external users (i.e. plugin)
  *
  * @author Michael McMahon
  */
 
-public abstract class AuthCacheValue implements Serializable {
-
-    static final long serialVersionUID = 735249334068211611L;
+public abstract class AuthCacheValue {
 
     public enum Type {
         Proxy,
         Server
     };
-
-    /**
-     * Caches authentication info entered by user.  See cacheKey()
-     */
-    protected static AuthCache cache = new AuthCacheImpl();
-
-    public static void setAuthCache (AuthCache map) {
-        cache = map;
-    }
 
     /* Package private ctor to prevent extension outside package */
 

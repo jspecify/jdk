@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,17 @@
  *
  */
 
-#ifndef SHARE_VM_PRIMS_FORTE_HPP
-#define SHARE_VM_PRIMS_FORTE_HPP
+#ifndef SHARE_PRIMS_FORTE_HPP
+#define SHARE_PRIMS_FORTE_HPP
 
 // Interface to Forte support.
 
 class Forte : AllStatic {
  public:
+   static bool is_enabled() NOT_JVMTI_RETURN_(false);
    static void register_stub(const char* name, address start, address end)
                                                  NOT_JVMTI_RETURN;
                                                  // register internal VM stub
 };
 
-#endif // SHARE_VM_PRIMS_FORTE_HPP
+#endif // SHARE_PRIMS_FORTE_HPP

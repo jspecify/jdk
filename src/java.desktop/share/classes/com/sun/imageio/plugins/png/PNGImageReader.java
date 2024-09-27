@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,29 +36,35 @@ import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.EOFException;
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.SequenceInputStream;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
+
 import javax.imageio.IIOException;
-import javax.imageio.ImageReader;
 import javax.imageio.ImageReadParam;
+import javax.imageio.ImageReader;
 import javax.imageio.ImageTypeSpecifier;
 import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.spi.ImageReaderSpi;
 import javax.imageio.stream.ImageInputStream;
+
 import com.sun.imageio.plugins.common.InputStreamAdapter;
 import com.sun.imageio.plugins.common.ReaderUtil;
 import com.sun.imageio.plugins.common.SubImageInputStream;
-import java.io.ByteArrayOutputStream;
 import sun.awt.image.ByteInterleavedRaster;
+
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 class PNGImageDataEnumeration implements Enumeration<InputStream> {
 
@@ -73,6 +79,7 @@ class PNGImageDataEnumeration implements Enumeration<InputStream> {
         int type = stream.readInt(); // skip chunk type
     }
 
+    @Override
     public InputStream nextElement() {
         try {
             firstTime = false;
@@ -83,6 +90,7 @@ class PNGImageDataEnumeration implements Enumeration<InputStream> {
         }
     }
 
+    @Override
     public boolean hasMoreElements() {
         if (firstTime) {
             return true;
@@ -198,6 +206,7 @@ public class PNGImageReader extends ImageReader {
         super(originatingProvider);
     }
 
+    @Override
     public void setInput(Object input,
                          boolean seekForwardOnly,
                          boolean ignoreMetadata) {
@@ -208,15 +217,18 @@ public class PNGImageReader extends ImageReader {
         resetStreamSettings();
     }
 
-    private String readNullTerminatedString(String charset, int maxLen) throws IOException {
+    private String readNullTerminatedString(Charset charset, int maxLen) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        int b;
+        int b = 0;
         int count = 0;
         while ((maxLen > count++) && ((b = stream.read()) != 0)) {
             if (b == -1) throw new EOFException();
             baos.write(b);
         }
-        return new String(baos.toByteArray(), charset);
+        if (b != 0) {
+            throw new IIOException("Found non null terminated string");
+        }
+        return baos.toString(charset);
     }
 
     private void readHeader() throws IIOException {
@@ -320,13 +332,13 @@ public class PNGImageReader extends ImageReader {
         if (metadata.PLTE_present) {
             processWarningOccurred(
 "A PNG image may not contain more than one PLTE chunk.\n" +
-"The chunk wil be ignored.");
+"The chunk will be ignored.");
             return;
         } else if (metadata.IHDR_colorType == PNG_COLOR_GRAY ||
                    metadata.IHDR_colorType == PNG_COLOR_GRAY_ALPHA) {
             processWarningOccurred(
 "A PNG gray or gray alpha image cannot have a PLTE chunk.\n" +
-"The chunk wil be ignored.");
+"The chunk will be ignored.");
             return;
         }
 
@@ -427,7 +439,7 @@ public class PNGImageReader extends ImageReader {
     }
 
     private void parse_iCCP_chunk(int chunkLength) throws IOException {
-        String keyword = readNullTerminatedString("ISO-8859-1", 80);
+        String keyword = readNullTerminatedString(ISO_8859_1, 80);
         int compressedProfileLength = chunkLength - keyword.length() - 2;
         if (compressedProfileLength <= 0) {
             throw new IIOException("iCCP chunk length is not proper");
@@ -447,7 +459,7 @@ public class PNGImageReader extends ImageReader {
     private void parse_iTXt_chunk(int chunkLength) throws IOException {
         long chunkStart = stream.getStreamPosition();
 
-        String keyword = readNullTerminatedString("ISO-8859-1", 80);
+        String keyword = readNullTerminatedString(ISO_8859_1, 80);
         metadata.iTXt_keyword.add(keyword);
 
         int compressionFlag = stream.readUnsignedByte();
@@ -456,28 +468,33 @@ public class PNGImageReader extends ImageReader {
         int compressionMethod = stream.readUnsignedByte();
         metadata.iTXt_compressionMethod.add(Integer.valueOf(compressionMethod));
 
-        String languageTag = readNullTerminatedString("UTF8", 80);
+        long pos = stream.getStreamPosition();
+        int remainingLen = (int)(chunkStart + chunkLength - pos);
+        String languageTag = readNullTerminatedString(UTF_8, remainingLen);
         metadata.iTXt_languageTag.add(languageTag);
 
-        long pos = stream.getStreamPosition();
-        int maxLen = (int)(chunkStart + chunkLength - pos);
+        pos = stream.getStreamPosition();
+        remainingLen = (int)(chunkStart + chunkLength - pos);
+        if (remainingLen < 0) {
+            throw new IIOException("iTXt chunk length is not proper");
+        }
         String translatedKeyword =
-            readNullTerminatedString("UTF8", maxLen);
+            readNullTerminatedString(UTF_8, remainingLen);
         metadata.iTXt_translatedKeyword.add(translatedKeyword);
 
         String text;
         pos = stream.getStreamPosition();
         int textLength = (int)(chunkStart + chunkLength - pos);
-        if (textLength <= 0) {
+        if (textLength < 0) {
             throw new IIOException("iTXt chunk length is not proper");
         }
         byte[] b = new byte[textLength];
         stream.readFully(b);
 
         if (compressionFlag == 1) { // Decompress the text
-            text = new String(inflate(b), "UTF8");
+            text = new String(inflate(b), UTF_8);
         } else {
-            text = new String(b, "UTF8");
+            text = new String(b, UTF_8);
         }
         metadata.iTXt_text.add(text);
 
@@ -522,7 +539,7 @@ public class PNGImageReader extends ImageReader {
 
     private void parse_sPLT_chunk(int chunkLength)
         throws IOException, IIOException {
-        metadata.sPLT_paletteName = readNullTerminatedString("ISO-8859-1", 80);
+        metadata.sPLT_paletteName = readNullTerminatedString(ISO_8859_1, 80);
         int remainingChunkLength = chunkLength -
                 (metadata.sPLT_paletteName.length() + 1);
         if (remainingChunkLength <= 0) {
@@ -569,16 +586,16 @@ public class PNGImageReader extends ImageReader {
     }
 
     private void parse_tEXt_chunk(int chunkLength) throws IOException {
-        String keyword = readNullTerminatedString("ISO-8859-1", 80);
+        String keyword = readNullTerminatedString(ISO_8859_1, 80);
         int textLength = chunkLength - keyword.length() - 1;
-        if (textLength <= 0) {
+        if (textLength < 0) {
             throw new IIOException("tEXt chunk length is not proper");
         }
         metadata.tEXt_keyword.add(keyword);
 
         byte[] b = new byte[textLength];
         stream.readFully(b);
-        metadata.tEXt_text.add(new String(b, "ISO-8859-1"));
+        metadata.tEXt_text.add(new String(b, ISO_8859_1));
 
         // Check if the text chunk contains image creation time
         if (keyword.equals(PNGMetadata.tEXt_creationTimeKey)) {
@@ -652,24 +669,15 @@ public class PNGImageReader extends ImageReader {
 
     private static byte[] inflate(byte[] b) throws IOException {
         InputStream bais = new ByteArrayInputStream(b);
-        InputStream iis = new InflaterInputStream(bais);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-        int c;
-        try {
-            while ((c = iis.read()) != -1) {
-                baos.write(c);
-            }
-        } finally {
-            iis.close();
+        try (InputStream iis = new InflaterInputStream(bais)) {
+            return iis.readAllBytes();
         }
-        return baos.toByteArray();
     }
 
     private void parse_zTXt_chunk(int chunkLength) throws IOException {
-        String keyword = readNullTerminatedString("ISO-8859-1", 80);
+        String keyword = readNullTerminatedString(ISO_8859_1, 80);
         int textLength = chunkLength - keyword.length() - 2;
-        if (textLength <= 0) {
+        if (textLength < 0) {
             throw new IIOException("zTXt chunk length is not proper");
         }
         metadata.zTXt_keyword.add(keyword);
@@ -679,7 +687,7 @@ public class PNGImageReader extends ImageReader {
 
         byte[] b = new byte[textLength];
         stream.readFully(b);
-        metadata.zTXt_text.add(new String(inflate(b), "ISO-8859-1"));
+        metadata.zTXt_text.add(new String(inflate(b), ISO_8859_1));
 
         // Check if the text chunk contains image creation time
         if (keyword.equals(PNGMetadata.tEXt_creationTimeKey)) {
@@ -749,18 +757,29 @@ public class PNGImageReader extends ImageReader {
             loop: while (true) {
                 int chunkLength = stream.readInt();
                 int chunkType = stream.readInt();
-                int chunkCRC;
+                // Initialize chunkCRC, value assigned has no significance
+                int chunkCRC = -1;
 
                 // verify the chunk length
                 if (chunkLength < 0) {
                     throw new IIOException("Invalid chunk length " + chunkLength);
-                };
+                }
 
                 try {
-                    stream.mark();
-                    stream.seek(stream.getStreamPosition() + chunkLength);
-                    chunkCRC = stream.readInt();
-                    stream.reset();
+                    /*
+                     * As per PNG specification all chunks should have
+                     * 4 byte CRC. But there are some images where
+                     * CRC is not present/corrupt for IEND chunk.
+                     * And these type of images are supported by other
+                     * decoders. So as soon as we hit chunk type
+                     * for IEND chunk stop reading metadata.
+                     */
+                    if (chunkType != IEND_TYPE) {
+                        stream.mark();
+                        stream.seek(stream.getStreamPosition() + chunkLength);
+                        chunkCRC = stream.readInt();
+                        stream.reset();
+                    }
                 } catch (IOException e) {
                     throw new IIOException("Invalid chunk length " + chunkLength);
                 }
@@ -1163,8 +1182,7 @@ public class PNGImageReader extends ImageReader {
         // same bit depth as the source data
         boolean adjustBitDepths = false;
         int[] outputSampleSize = imRas.getSampleModel().getSampleSize();
-        int numBands = outputSampleSize.length;
-        for (int b = 0; b < numBands; b++) {
+        for (int b = 0; b < inputBands; b++) {
             if (outputSampleSize[b] != bitDepth) {
                 adjustBitDepths = true;
                 break;
@@ -1177,8 +1195,8 @@ public class PNGImageReader extends ImageReader {
         if (adjustBitDepths) {
             int maxInSample = (1 << bitDepth) - 1;
             int halfMaxInSample = maxInSample/2;
-            scale = new int[numBands][];
-            for (int b = 0; b < numBands; b++) {
+            scale = new int[inputBands][];
+            for (int b = 0; b < inputBands; b++) {
                 int maxOutSample = (1 << outputSampleSize[b]) - 1;
                 scale[b] = new int[maxInSample + 1];
                 for (int s = 0; s <= maxInSample; s++) {
@@ -1304,7 +1322,7 @@ public class PNGImageReader extends ImageReader {
 
                         passRow.getPixel(newSrcX, 0, ps);
                         if (adjustBitDepths) {
-                            for (int b = 0; b < numBands; b++) {
+                            for (int b = 0; b < inputBands; b++) {
                                 ps[b] = scale[b][ps[b]];
                             }
                         }
@@ -1396,6 +1414,13 @@ public class PNGImageReader extends ImageReader {
 
         int width = metadata.IHDR_width;
         int height = metadata.IHDR_height;
+
+        if ((long)width * height > Integer.MAX_VALUE - 2) {
+            // We are not able to properly decode image that has number
+            // of pixels greater than Integer.MAX_VALUE - 2
+            throw new IIOException("Can not read image of the size "
+                    + width + " by " + height);
+        }
 
         // Init default values
         sourceXSubsampling = 1;
@@ -1507,6 +1532,7 @@ public class PNGImageReader extends ImageReader {
         }
     }
 
+    @Override
     public int getNumImages(boolean allowSearch) throws IIOException {
         if (stream == null) {
             throw new IllegalStateException("No input source set!");
@@ -1518,6 +1544,7 @@ public class PNGImageReader extends ImageReader {
         return 1;
     }
 
+    @Override
     public int getWidth(int imageIndex) throws IIOException {
         if (imageIndex != 0) {
             throw new IndexOutOfBoundsException("imageIndex != 0!");
@@ -1528,6 +1555,7 @@ public class PNGImageReader extends ImageReader {
         return metadata.IHDR_width;
     }
 
+    @Override
     public int getHeight(int imageIndex) throws IIOException {
         if (imageIndex != 0) {
             throw new IndexOutOfBoundsException("imageIndex != 0!");
@@ -1538,6 +1566,7 @@ public class PNGImageReader extends ImageReader {
         return metadata.IHDR_height;
     }
 
+    @Override
     public Iterator<ImageTypeSpecifier> getImageTypes(int imageIndex)
       throws IIOException
     {
@@ -1655,7 +1684,7 @@ public class PNGImageReader extends ImageReader {
              * 2^bitDepth is legal in the view of PNG spec.
              *
              * However the spec of createIndexed() method demands the exact
-             * equality of the palette lengh and number of possible palette
+             * equality of the palette length and number of possible palette
              * entries (2^bitDepth).
              *
              * {@link javax.imageio.ImageTypeSpecifier.html#createIndexed}
@@ -1722,7 +1751,7 @@ public class PNGImageReader extends ImageReader {
         case PNG_COLOR_RGB_ALPHA:
             if (bitDepth == 8) {
                 // some standard types of buffered images
-                // wich can be used as destination
+                // which can be used as destination
                 l.add(ImageTypeSpecifier.createFromBufferedImageType(
                           BufferedImage.TYPE_4BYTE_ABGR));
 
@@ -1772,6 +1801,7 @@ public class PNGImageReader extends ImageReader {
      * After this changes we should override getRawImageType()
      * to return last element of image types list.
      */
+    @Override
     public ImageTypeSpecifier getRawImageType(int imageIndex)
       throws IOException {
 
@@ -1783,15 +1813,18 @@ public class PNGImageReader extends ImageReader {
         return raw;
     }
 
+    @Override
     public ImageReadParam getDefaultReadParam() {
         return new ImageReadParam();
     }
 
+    @Override
     public IIOMetadata getStreamMetadata()
         throws IIOException {
         return null;
     }
 
+    @Override
     public IIOMetadata getImageMetadata(int imageIndex) throws IIOException {
         if (imageIndex != 0) {
             throw new IndexOutOfBoundsException("imageIndex != 0!");
@@ -1800,6 +1833,7 @@ public class PNGImageReader extends ImageReader {
         return metadata;
     }
 
+    @Override
     public BufferedImage read(int imageIndex, ImageReadParam param)
         throws IIOException {
         if (imageIndex != 0) {
@@ -1819,6 +1853,7 @@ public class PNGImageReader extends ImageReader {
         return theImage;
     }
 
+    @Override
     public void reset() {
         super.reset();
         resetStreamSettings();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -108,16 +108,16 @@ class WindowsFileAttributes
     private static final short OFFSETOF_FIND_DATA_SIZELOW = 32;
     private static final short OFFSETOF_FIND_DATA_RESERVED0 = 36;
 
-    // used to adjust values between Windows and java epoch
-    private static final long WINDOWS_EPOCH_IN_MICROSECONDS = -11644473600000000L;
+    // used to adjust values between Windows and java epochs
+    private static final long WINDOWS_EPOCH_IN_MICROS = -11644473600000000L;
+    private static final long WINDOWS_EPOCH_IN_100NS  = -116444736000000000L;
 
     // indicates if accurate metadata is required (interesting on NTFS only)
     private static final boolean ensureAccurateMetadata;
     static {
         String propValue = GetPropertyAction.privilegedGetProperty(
             "sun.nio.fs.ensureAccurateMetadata", "false");
-        ensureAccurateMetadata = (propValue.length() == 0) ?
-            true : Boolean.valueOf(propValue);
+        ensureAccurateMetadata = propValue.isEmpty() ? true : Boolean.parseBoolean(propValue);
     }
 
     // attributes
@@ -138,24 +138,23 @@ class WindowsFileAttributes
      * since January 1, 1601 to a FileTime.
      */
     static FileTime toFileTime(long time) {
-        // 100ns -> us
-        time /= 10L;
-        // adjust to java epoch
-        time += WINDOWS_EPOCH_IN_MICROSECONDS;
-        return FileTime.from(time, TimeUnit.MICROSECONDS);
+        try {
+            long adjusted = Math.addExact(time, WINDOWS_EPOCH_IN_100NS);
+            long nanos = Math.multiplyExact(adjusted, 100L);
+            return FileTime.from(nanos, TimeUnit.NANOSECONDS);
+        } catch (ArithmeticException e) {
+            long micros = Math.addExact(time/10L, WINDOWS_EPOCH_IN_MICROS);
+            return FileTime.from(micros, TimeUnit.MICROSECONDS);
+        }
     }
 
     /**
-     * Convert FileTime to 64-bit value representing the number of 100-nanosecond
-     * intervals since January 1, 1601.
+     * Convert FileTime to 64-bit value representing the number of
+     * 100-nanosecond intervals since January 1, 1601.
      */
     static long toWindowsTime(FileTime time) {
-        long value = time.to(TimeUnit.MICROSECONDS);
-        // adjust to Windows epoch+= 11644473600000000L;
-        value -= WINDOWS_EPOCH_IN_MICROSECONDS;
-        // us -> 100ns
-        value *= 10L;
-        return value;
+        long adjusted = time.to(TimeUnit.NANOSECONDS)/100L;
+        return adjusted - WINDOWS_EPOCH_IN_100NS;
     }
 
     /**
@@ -264,9 +263,7 @@ class WindowsFileAttributes
     static WindowsFileAttributes readAttributes(long handle)
         throws WindowsException
     {
-        NativeBuffer buffer = NativeBuffers
-            .getNativeBuffer(SIZEOF_FILE_INFORMATION);
-        try {
+        try (NativeBuffer buffer = NativeBuffers.getNativeBuffer(SIZEOF_FILE_INFORMATION)) {
             long address = buffer.address();
             GetFileInformationByHandle(handle, address);
 
@@ -276,18 +273,13 @@ class WindowsFileAttributes
                 .getInt(address + OFFSETOF_FILE_INFORMATION_ATTRIBUTES);
             if (isReparsePoint(fileAttrs)) {
                 int size = MAXIMUM_REPARSE_DATA_BUFFER_SIZE;
-                NativeBuffer reparseBuffer = NativeBuffers.getNativeBuffer(size);
-                try {
+                try (NativeBuffer reparseBuffer = NativeBuffers.getNativeBuffer(size)) {
                     DeviceIoControlGetReparsePoint(handle, reparseBuffer.address(), size);
                     reparseTag = (int)unsafe.getLong(reparseBuffer.address());
-                } finally {
-                    reparseBuffer.release();
                 }
             }
 
             return fromFileInformation(address, reparseTag);
-        } finally {
-            buffer.release();
         }
     }
 
@@ -301,9 +293,8 @@ class WindowsFileAttributes
             WindowsException firstException = null;
 
             // GetFileAttributesEx is the fastest way to read the attributes
-            NativeBuffer buffer =
-                NativeBuffers.getNativeBuffer(SIZEOF_FILE_ATTRIBUTE_DATA);
-            try {
+            try (NativeBuffer buffer =
+                NativeBuffers.getNativeBuffer(SIZEOF_FILE_ATTRIBUTE_DATA)) {
                 long address = buffer.address();
                 GetFileAttributesEx(path.getPathForWin32Calls(), address);
                 // if reparse point then file may be a sym link; otherwise
@@ -316,8 +307,6 @@ class WindowsFileAttributes
                 if (x.lastError() != ERROR_SHARING_VIOLATION)
                     throw x;
                 firstException = x;
-            } finally {
-                buffer.release();
             }
 
             // For sharing violations, fallback to FindFirstFile if the file
@@ -327,8 +316,7 @@ class WindowsFileAttributes
                 char last = search.charAt(search.length() -1);
                 if (last == ':' || last == '\\')
                     throw firstException;
-                buffer = getBufferForFindData();
-                try {
+                try (NativeBuffer buffer = getBufferForFindData()) {
                     long handle = FindFirstFile(search, buffer.address());
                     FindClose(handle);
                     WindowsFileAttributes attrs = fromFindData(buffer.address());
@@ -341,8 +329,6 @@ class WindowsFileAttributes
                     return attrs;
                 } catch (WindowsException ignore) {
                     throw firstException;
-                } finally {
-                    buffer.release();
                 }
             }
         }
@@ -430,6 +416,10 @@ class WindowsFileAttributes
     @Override
     public boolean isSymbolicLink() {
         return reparseTag == IO_REPARSE_TAG_SYMLINK;
+    }
+
+    boolean isUnixDomainSocket() {
+        return reparseTag == IO_REPARSE_TAG_AF_UNIX;
     }
 
     @Override

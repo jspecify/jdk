@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,7 +52,8 @@ class VMConnection {
 
     private final Connector connector;
     private final Map<String, com.sun.jdi.connect.Connector.Argument> connectorArgs;
-    private final int traceFlags;
+    private int traceFlags;
+    private final boolean trackVthreads;
 
     synchronized void notifyOutputComplete() {
         outputCompleteCount++;
@@ -78,7 +79,8 @@ class VMConnection {
         return null;
     }
 
-    private Map <String, com.sun.jdi.connect.Connector.Argument> parseConnectorArgs(Connector connector, String argString) {
+    private Map <String, com.sun.jdi.connect.Connector.Argument>
+            parseConnectorArgs(Connector connector, String argString, String extraOptions) {
         Map<String, com.sun.jdi.connect.Connector.Argument> arguments = connector.defaultArguments();
 
         /*
@@ -121,9 +123,19 @@ class VMConnection {
              */
             if (name.equals("options")) {
                 StringBuilder sb = new StringBuilder();
+                if (extraOptions != null) {
+                    sb.append(extraOptions).append(" ");
+                    // set extraOptions to null to avoid appending it again
+                    extraOptions = null;
+                }
                 for (String s : splitStringAtNonEnclosedWhiteSpace(value)) {
+                    boolean wasEnclosed = false;
                     while (isEnclosed(s, "\"") || isEnclosed(s, "'")) {
+                        wasEnclosed = true;
                         s = s.substring(1, s.length() - 1);
+                    }
+                    if (wasEnclosed && hasWhitespace(s)) {
+                        s = "\"" + s + "\"";
                     }
                     sb.append(s);
                     sb.append(" ");
@@ -150,7 +162,24 @@ class VMConnection {
             throw new IllegalArgumentException
                 (MessageOutput.format("Illegal connector argument", argString));
         }
+        if (extraOptions != null) {
+            // there was no "options" specified in argString
+            Connector.Argument argument = arguments.get("options");
+            if (argument != null) {
+                argument.setValue(extraOptions);
+            }
+        }
         return arguments;
+    }
+
+    private static boolean hasWhitespace(String string) {
+        int length = string.length();
+        for (int i = 0; i < length; i++) {
+            if (Character.isWhitespace(string.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isEnclosed(String value, String enclosingChar) {
@@ -276,15 +305,15 @@ class VMConnection {
         return al;
     }
 
-    static private boolean isPreviousCharWhitespace(char[] arr, int curr_pos) {
+    private static boolean isPreviousCharWhitespace(char[] arr, int curr_pos) {
         return isCharWhitespace(arr, curr_pos - 1);
     }
 
-    static private boolean isNextCharWhitespace(char[] arr, int curr_pos) {
+    private static boolean isNextCharWhitespace(char[] arr, int curr_pos) {
         return isCharWhitespace(arr, curr_pos + 1);
     }
 
-    static private boolean isCharWhitespace(char[] arr, int pos) {
+    private static boolean isCharWhitespace(char[] arr, int pos) {
         if (pos < 0 || pos >= arr.length) {
             // outside arraybounds is considered an implicit space
             return true;
@@ -295,11 +324,11 @@ class VMConnection {
         return false;
     }
 
-    static private boolean isLastChar(char[] arr, int pos) {
+    private static boolean isLastChar(char[] arr, int pos) {
         return (pos + 1 == arr.length);
     }
 
-    VMConnection(String connectSpec, int traceFlags) {
+    VMConnection(String connectSpec, int traceFlags, boolean trackVthreads, String extraOptions) {
         String nameString;
         String argString;
         int index = connectSpec.indexOf(':');
@@ -317,8 +346,20 @@ class VMConnection {
                 (MessageOutput.format("No connector named:", nameString));
         }
 
-        connectorArgs = parseConnectorArgs(connector, argString);
+        connectorArgs = parseConnectorArgs(connector, argString, extraOptions);
         this.traceFlags = traceFlags;
+        this.trackVthreads = trackVthreads;
+    }
+
+    public void setTraceFlags(int flags) {
+        this.traceFlags = flags;
+        /*
+         * If vm is not connected now, then vm.setDebugTraceMode() will
+         * be called when it is connected.
+         */
+        if (vm != null) {
+            vm.setDebugTraceMode(flags);
+        }
     }
 
     synchronized VirtualMachine open() {
@@ -338,7 +379,7 @@ class VMConnection {
             resolveEventRequests();
         }
         /*
-         * Now that the vm connection is open, fetch the debugee
+         * Now that the vm connection is open, fetch the debuggee
          * classpath and set up a default sourcepath.
          * (Unless user supplied a sourcepath on the command line)
          * (Bug ID 4186582)
@@ -427,8 +468,12 @@ class VMConnection {
             (new StringTokenizer("uncaught java.lang.Throwable"));
 
         ThreadStartRequest tsr = erm.createThreadStartRequest();
-        tsr.enable();
         ThreadDeathRequest tdr = erm.createThreadDeathRequest();
+        if (!trackVthreads) {
+            tsr.addPlatformThreadsOnlyFilter();
+            tdr.addPlatformThreadsOnlyFilter();
+        }
+        tsr.enable();
         tdr.enable();
     }
 
@@ -446,11 +491,10 @@ class VMConnection {
                                                       //   printDirect()
             }
         } catch (IOException ex) {
-            String s = ex.getMessage();
-            if (!s.startsWith("Bad file number")) {
+            if (!ex.getMessage().equalsIgnoreCase("stream closed")) {
                   throw ex;
             }
-            // else we got a Bad file number IOException which just means
+            // else we got a "Stream closed" IOException which just means
             // that the debuggee has gone away.  We'll just treat it the
             // same as if we got an EOF.
         }
@@ -500,16 +544,18 @@ class VMConnection {
         } catch (IOException ioe) {
             ioe.printStackTrace();
             MessageOutput.fatalError("Unable to launch target VM.");
+            throw new RuntimeException(ioe);
         } catch (IllegalConnectorArgumentsException icae) {
             icae.printStackTrace();
             MessageOutput.fatalError("Internal debugger error.");
+            throw new RuntimeException(icae);
         } catch (VMStartException vmse) {
             MessageOutput.println("vmstartexception", vmse.getMessage());
             MessageOutput.println();
             dumpFailedLaunchInfo(vmse.process());
             MessageOutput.fatalError("Target VM failed to initialize.");
+            throw new RuntimeException(vmse);
         }
-        return null; // Shuts up the compiler
     }
 
     /* attach to running target vm */
@@ -520,11 +566,12 @@ class VMConnection {
         } catch (IOException ioe) {
             ioe.printStackTrace();
             MessageOutput.fatalError("Unable to attach to target VM.");
+            throw new RuntimeException(ioe);
         } catch (IllegalConnectorArgumentsException icae) {
             icae.printStackTrace();
             MessageOutput.fatalError("Internal debugger error.");
+            throw new RuntimeException(icae);
         }
-        return null; // Shuts up the compiler
     }
 
     /* listen for connection from target vm */
@@ -539,10 +586,11 @@ class VMConnection {
         } catch (IOException ioe) {
             ioe.printStackTrace();
             MessageOutput.fatalError("Unable to attach to target VM.");
+            throw new RuntimeException(ioe);
         } catch (IllegalConnectorArgumentsException icae) {
             icae.printStackTrace();
             MessageOutput.fatalError("Internal debugger error.");
+            throw new RuntimeException(icae);
         }
-        return null; // Shuts up the compiler
     }
 }

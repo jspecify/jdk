@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -27,8 +27,8 @@
  * @bug 8026049 8151163
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:-UseUnalignedAccesses -Djdk.test.lib.random.seed=0 DirectByteBufferTest
- * @run main/othervm -Djdk.test.lib.random.seed=0 DirectByteBufferTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:-UseUnalignedAccesses -Djdk.test.lib.random.seed=42 DirectByteBufferTest
+ * @run main/othervm -Djdk.test.lib.random.seed=42 DirectByteBufferTest
  * @summary Verify that direct byte buffers are correctly accessed.
  */
 
@@ -41,7 +41,7 @@ public class DirectByteBufferTest extends ByteBufferTest {
     public static void main(String[] args) {
         // The number of iterations is high to ensure that tiered
         // compilation kicks in all the way up to C2.
-        long iterations = 100000;
+        long iterations = 5000;
         if (args.length > 0)
             iterations = Long.parseLong(args[0]);
 

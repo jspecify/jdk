@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,7 @@ import sun.reflect.misc.ReflectUtil;
  * <code>RowSet</code> implementation can obtain its <code>SyncProvider</code>
  * implementation.
  *
- * <h3>1.0 Overview</h3>
+ * <h2>1.0 Overview</h2>
  * The <code>SyncFactory</code> class provides an internal registry of available
  * synchronization provider implementations (<code>SyncProvider</code> objects).
  * This registry may be queried to determine which
@@ -108,7 +108,7 @@ import sun.reflect.misc.ReflectUtil;
  * <code>SyncProvider</code> implementations are available, the reference
  * implementation providers are supplied.
  * </ol>
- * <h3>2.0 Registering <code>SyncProvider</code> Implementations</h3>
+ * <h2>2.0 Registering <code>SyncProvider</code> Implementations</h2>
  * <p>
  * Both vendors and developers can register <code>SyncProvider</code>
  * implementations using one of the following mechanisms.
@@ -328,6 +328,7 @@ public class SyncFactory {
     private static String colon = ":";
     private static String strFileSep = "/";
 
+    @SuppressWarnings("removal")
     private static synchronized void initMapIfNecessary() throws SyncFactoryException {
 
         // Local implementation class names and keys from Properties
@@ -564,7 +565,7 @@ public class SyncFactory {
 
         try {
             ReflectUtil.checkPackageAccess(providerID);
-        } catch (java.security.AccessControlException e) {
+        } catch (@SuppressWarnings("removal") java.security.AccessControlException e) {
             SyncFactoryException sfe = new SyncFactoryException();
             sfe.initCause(e);
             throw sfe;
@@ -636,6 +637,7 @@ public class SyncFactory {
      */
     public static void setLogger(Logger logger) {
 
+        @SuppressWarnings("removal")
         SecurityManager sec = System.getSecurityManager();
         if (sec != null) {
             sec.checkPermission(SET_SYNCFACTORY_PERMISSION);
@@ -673,6 +675,7 @@ public class SyncFactory {
      */
     public static void setLogger(Logger logger, Level level) {
         // singleton
+        @SuppressWarnings("removal")
         SecurityManager sec = System.getSecurityManager();
         if (sec != null) {
             sec.checkPermission(SET_SYNCFACTORY_PERMISSION);
@@ -723,6 +726,7 @@ public class SyncFactory {
      */
     public static synchronized void setJNDIContext(javax.naming.Context ctx)
             throws SyncFactoryException {
+        @SuppressWarnings("removal")
         SecurityManager sec = System.getSecurityManager();
         if (sec != null) {
             sec.checkPermission(SET_SYNCFACTORY_PERMISSION);

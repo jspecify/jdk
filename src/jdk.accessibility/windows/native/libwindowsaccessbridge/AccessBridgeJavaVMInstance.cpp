@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +47,7 @@ extern bool isVMInstanceChainInUse;
 
 DEBUG_CODE(extern HWND theDialogWindow);
 extern "C" {
-    DEBUG_CODE(void AppendToCallInfo(char *s));
+    DEBUG_CODE(void AppendToCallInfo(const char *s));
 }
 
 
@@ -68,7 +68,7 @@ AccessBridgeJavaVMInstance::AccessBridgeJavaVMInstance(HWND ourABWindow,
     nextJVMInstance = next;
     memoryMappedFileMapHandle = (HANDLE) 0;
     memoryMappedView = (char *) 0;
-    sprintf(memoryMappedFileName, "AccessBridge-%p-%p.mmf",
+    snprintf(memoryMappedFileName, sizeof(memoryMappedFileName), "AccessBridge-%p-%p.mmf",
             ourAccessBridgeWindow, javaAccessBridgeWindow);
 }
 
@@ -85,14 +85,14 @@ AccessBridgeJavaVMInstance::~AccessBridgeJavaVMInstance() {
     // if IPC memory mapped file view is valid, unmap it
     goingAway = TRUE;
     if (memoryMappedView != (char *) 0) {
-        DEBUG_CODE(sprintf(buffer, "  unmapping memoryMappedView; view = %p\r\n", memoryMappedView));
+        DEBUG_CODE(snprintf(buffer, sizeof(buffer), "  unmapping memoryMappedView; view = %p\r\n", memoryMappedView));
         DEBUG_CODE(AppendToCallInfo(buffer));
         UnmapViewOfFile(memoryMappedView);
         memoryMappedView = (char *) 0;
     }
     // if IPC memory mapped file handle map is open, close it
     if (memoryMappedFileMapHandle != (HANDLE) 0) {
-        DEBUG_CODE(sprintf(buffer, "  closing memoryMappedFileMapHandle; handle = %p\r\n", memoryMappedFileMapHandle));
+        DEBUG_CODE(snprintf(buffer, sizeof(buffer), "  closing memoryMappedFileMapHandle; handle = %p\r\n", memoryMappedFileMapHandle));
         DEBUG_CODE(AppendToCallInfo(buffer));
         CloseHandle(memoryMappedFileMapHandle);
         memoryMappedFileMapHandle = (HANDLE) 0;
@@ -131,11 +131,11 @@ AccessBridgeJavaVMInstance::initiateIPC() {
                                                   memoryMappedFileName);
     if (memoryMappedFileMapHandle == NULL) {
         errorCode = GetLastError();
-        DEBUG_CODE(sprintf(debugBuf, "  Failed to CreateFileMapping for %s, error: %X", memoryMappedFileName, errorCode));
+        DEBUG_CODE(snprintf(debugBuf, sizeof(debugBuf), "  Failed to CreateFileMapping for %s, error: %X", memoryMappedFileName, errorCode));
         DEBUG_CODE(AppendToCallInfo(debugBuf));
         return errorCode;
     } else {
-        DEBUG_CODE(sprintf(debugBuf, "  CreateFileMapping worked - filename: %s\r\n", memoryMappedFileName));
+        DEBUG_CODE(snprintf(debugBuf, sizeof(debugBuf), "  CreateFileMapping worked - filename: %s\r\n", memoryMappedFileName));
         DEBUG_CODE(AppendToCallInfo(debugBuf));
     }
 
@@ -144,11 +144,11 @@ AccessBridgeJavaVMInstance::initiateIPC() {
                                               0, 0, 0);
     if (memoryMappedView == NULL) {
         errorCode = GetLastError();
-        DEBUG_CODE(sprintf(debugBuf, "  Failed to MapViewOfFile for %s, error: %X", memoryMappedFileName, errorCode));
+        DEBUG_CODE(snprintf(debugBuf, sizeof(debugBuf), "  Failed to MapViewOfFile for %s, error: %X", memoryMappedFileName, errorCode));
         DEBUG_CODE(AppendToCallInfo(debugBuf));
         return errorCode;
     } else {
-        DEBUG_CODE(sprintf(debugBuf, "  MapViewOfFile worked - view: %p\r\n", memoryMappedView));
+        DEBUG_CODE(snprintf(debugBuf, sizeof(debugBuf), "  MapViewOfFile worked - view: %p\r\n", memoryMappedView));
         DEBUG_CODE(AppendToCallInfo(debugBuf));
     }
 
@@ -169,12 +169,12 @@ AccessBridgeJavaVMInstance::initiateIPC() {
 
     // look for the JavaDLL's answer to see if it could read the file
     if (strcmp(memoryMappedView, AB_MEMORY_MAPPED_FILE_OK_ANSWER) != 0) {
-        DEBUG_CODE(sprintf(debugBuf, "  JavaVM failed to deal with memory mapped file %s\r\n",
+        DEBUG_CODE(snprintf(debugBuf, sizeof(debugBuf), "  JavaVM failed to deal with memory mapped file %s\r\n",
                       memoryMappedFileName));
         DEBUG_CODE(AppendToCallInfo(debugBuf));
         return -1;
     } else {
-        DEBUG_CODE(sprintf(debugBuf, "  Success!  JavaVM accpeted our file\r\n"));
+        DEBUG_CODE(snprintf(debugBuf, sizeof(debugBuf), "  Success!  JavaVM accpeted our file\r\n"));
         DEBUG_CODE(AppendToCallInfo(debugBuf));
     }
 
@@ -198,8 +198,8 @@ AccessBridgeJavaVMInstance::sendPackage(char *buffer, long bufsize) {
     toCopy.cbData = bufsize;
     toCopy.lpData = buffer;
 
-    PrintDebugString("In AccessBridgeVMInstance::sendPackage");
-    PrintDebugString("    javaAccessBridgeWindow: %p", javaAccessBridgeWindow);
+    PrintDebugString("[INFO]: In AccessBridgeVMInstance::sendPackage");
+    PrintDebugString("[INFO]:     javaAccessBridgeWindow: %p", javaAccessBridgeWindow);
     /* This was SendMessage.  Normally that is a blocking call.  However, if
      * SendMessage is sent to another process, e.g. another JVM and an incoming
      * SendMessage is pending, control will be passed to the DialogProc to handle
@@ -245,16 +245,16 @@ AccessBridgeJavaVMInstance::sendMemoryPackage(char *buffer, long bufsize) {
     BOOL retval = FALSE;
 
     DEBUG_CODE(char outputBuf[256]);
-    DEBUG_CODE(sprintf(outputBuf, "AccessBridgeJavaVMInstance::sendMemoryPackage(, %d)", bufsize));
+    DEBUG_CODE(snprintf(outputBuf, sizeof(outputBuf), "AccessBridgeJavaVMInstance::sendMemoryPackage(, %d)", bufsize));
     DEBUG_CODE(AppendToCallInfo(outputBuf));
 
     DEBUG_CODE(PackageType *type = (PackageType *) buffer);
     DEBUG_CODE(if (*type == cGetAccessibleTextRangePackage) {)
         DEBUG_CODE(AppendToCallInfo("  'buffer' contains:"));
         DEBUG_CODE(GetAccessibleTextRangePackage *pkg = (GetAccessibleTextRangePackage *) (buffer + sizeof(PackageType)));
-        DEBUG_CODE(sprintf(outputBuf, "    PackageType = %X", *type));
+        DEBUG_CODE(snprintf(outputBuf, sizeof(outputBuf), "    PackageType = %X", *type));
         DEBUG_CODE(AppendToCallInfo(outputBuf));
-        DEBUG_CODE(sprintf(outputBuf, "    GetAccessibleTextRange: start = %d, end = %d, rText = %ls",
+        DEBUG_CODE(snprintf(outputBuf, sizeof(outputBuf), "    GetAccessibleTextRange: start = %d, end = %d, rText = %ls",
             pkg->start, pkg->end, pkg->rText));
         DEBUG_CODE(AppendToCallInfo(outputBuf));
     DEBUG_CODE(})
@@ -269,7 +269,7 @@ AccessBridgeJavaVMInstance::sendMemoryPackage(char *buffer, long bufsize) {
             DEBUG_CODE(if (*type == cGetAccessibleTextItemsPackage) {)
                 DEBUG_CODE(AppendToCallInfo("  'memoryMappedView' now contains:"));
                 DEBUG_CODE(GetAccessibleTextItemsPackage *pkg = (GetAccessibleTextItemsPackage *) (buffer + sizeof(PackageType)));
-                DEBUG_CODE(sprintf(outputBuf, "    PackageType = %X", *type));
+                DEBUG_CODE(snprintf(outputBuf, sizeof(outputBuf), "    PackageType = %X", *type));
                 DEBUG_CODE(AppendToCallInfo(outputBuf));
             DEBUG_CODE(})
         }
@@ -280,7 +280,7 @@ AccessBridgeJavaVMInstance::sendMemoryPackage(char *buffer, long bufsize) {
             char *done = &memoryMappedView[bufsize];
             *done = 0;
 
-            PrintDebugString("    javaAccessBridgeWindow: %p", javaAccessBridgeWindow);
+            PrintDebugString("[INFO]:     javaAccessBridgeWindow: %p", javaAccessBridgeWindow);
             // See the comment above the call to SendMessageTimeout in SendPackage method above.
             UINT flags = SMTO_BLOCK | SMTO_NOTIMEOUTIFNOTHUNG;
             DWORD_PTR out; // not used
@@ -309,7 +309,7 @@ AccessBridgeJavaVMInstance::sendMemoryPackage(char *buffer, long bufsize) {
  */
 HWND
 AccessBridgeJavaVMInstance::findAccessBridgeWindow(long javaVMID) {
-    PrintDebugString("In findAccessBridgeWindow");
+    PrintDebugString("[INFO]: In findAccessBridgeWindow");
     // no need to recurse really
     if (vmID == javaVMID) {
         return javaAccessBridgeWindow;
@@ -338,7 +338,7 @@ AccessBridgeJavaVMInstance::findAccessBridgeWindow(long javaVMID) {
  */
 AccessBridgeJavaVMInstance *
 AccessBridgeJavaVMInstance::findABJavaVMInstanceFromJavaHWND(HWND window) {
-    PrintDebugString("In findABJavaInstanceFromJavaHWND");
+    PrintDebugString("[INFO]: In findABJavaInstanceFromJavaHWND");
     // no need to recurse really
     if (javaAccessBridgeWindow == window) {
         return this;

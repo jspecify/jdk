@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,8 @@ import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 /** Specialization of and implementation of abstract methods of the
     Frame class for the ppc64 family of CPUs. */
@@ -51,14 +53,12 @@ public class PPC64Frame extends Frame {
   private static final int INTERPRETER_FRAME_MDX_OFFSET = INTERPRETER_FRAME_LAST_SP_OFFSET -1;
   private static final int INTERPRETER_FRAME_ESP_OFFSET = INTERPRETER_FRAME_MDX_OFFSET - 1;
   private static final int INTERPRETER_FRAME_BCX_OFFSET = INTERPRETER_FRAME_ESP_OFFSET - 1;
-  private static final int INTERPRETER_FRAME_CACHE_OFFSET =INTERPRETER_FRAME_BCX_OFFSET - 1;
+  private static final int INTERPRETER_FRAME_CACHE_OFFSET = INTERPRETER_FRAME_BCX_OFFSET - 1;
   private static final int INTERPRETER_FRAME_MONITORS_OFFSET = INTERPRETER_FRAME_CACHE_OFFSET - 1;
   private static final int INTERPRETER_FRAME_LOCALS_OFFSET = INTERPRETER_FRAME_MONITORS_OFFSET - 1;
   private static final int INTERPRETER_FRAME_MIRROR_OFFSET = INTERPRETER_FRAME_LOCALS_OFFSET - 1;
   private static final int INTERPRETER_FRAME_METHOD_OFFSET = INTERPRETER_FRAME_MIRROR_OFFSET - 1;
-  private static final int INTERPRETER_FRAME_INITIAL_SP_OFFSET = INTERPRETER_FRAME_BCX_OFFSET - 1; // FIXME: probably wrong, but unused anyway
-  private static final int INTERPRETER_FRAME_MONITOR_BLOCK_TOP_OFFSET = INTERPRETER_FRAME_INITIAL_SP_OFFSET;
-  private static final int INTERPRETER_FRAME_MONITOR_BLOCK_BOTTOM_OFFSET = INTERPRETER_FRAME_INITIAL_SP_OFFSET;
+  private static final int INTERPRETER_FRAME_MONITOR_BLOCK_BOTTOM_OFFSET = INTERPRETER_FRAME_METHOD_OFFSET - 1;
 
   // Entry frames
   private static int ENTRY_FRAME_CALL_WRAPPER_OFFSET;
@@ -279,7 +279,7 @@ public class PPC64Frame extends Frame {
     }
 
     if (cb != null) {
-      return senderForCompiledFrame(map, cb);
+      return cb.isUpcallStub() ? senderForUpcallStub(map, (UpcallStub)cb) : senderForCompiledFrame(map, cb);
     }
 
     // Must be native-compiled frame, i.e. the marshaling code for native
@@ -314,11 +314,40 @@ public class PPC64Frame extends Frame {
     return fr;
   }
 
+  private Frame senderForUpcallStub(PPC64RegisterMap map, UpcallStub stub) {
+    if (DEBUG) {
+      System.out.println("senderForUpcallStub");
+    }
+    if (Assert.ASSERTS_ENABLED) {
+      Assert.that(map != null, "map must be set");
+    }
+
+    var lastJavaFP = stub.getLastJavaFP(this); // This will be null
+    var lastJavaSP = stub.getLastJavaSP(this);
+    var lastJavaPC = stub.getLastJavaPC(this);
+
+    if (Assert.ASSERTS_ENABLED) {
+      Assert.that(lastJavaSP.greaterThan(getSP()), "must be above this frame on stack");
+    }
+    PPC64Frame fr;
+    if (lastJavaPC != null) {
+      fr = new PPC64Frame(lastJavaSP, lastJavaFP, lastJavaPC);
+    } else {
+      fr = new PPC64Frame(lastJavaSP, lastJavaFP);
+    }
+    map.clear();
+    if (Assert.ASSERTS_ENABLED) {
+      Assert.that(map.getIncludeArgumentOops(), "should be set by clear");
+    }
+    return fr;
+  }
+
   //------------------------------------------------------------------------------
   // frame::adjust_unextended_sp
   private void adjustUnextendedSP() {
-    raw_unextendedSP = getFP();
+    // Nothing to do. senderForInterpreterFrame finds the correct unextendedSP.
   }
+
   private Frame senderForInterpreterFrame(PPC64RegisterMap map) {
     if (DEBUG) {
       System.out.println("senderForInterpreterFrame");
@@ -345,7 +374,7 @@ public class PPC64Frame extends Frame {
 
     // frame owned by optimizing compiler
     if (Assert.ASSERTS_ENABLED) {
-      Assert.that(cb.getFrameSize() >= 0, "must have non-zero frame size");
+      Assert.that(cb.getFrameSize() > 0, "must have non-zero frame size");
     }
     Address senderSP = getSenderSP();
 
@@ -385,7 +414,8 @@ public class PPC64Frame extends Frame {
 
   public Address getSenderSP()     { return getFP(); }
   public Address addressOfInterpreterFrameLocals() {
-    return addressOfStackSlot(INTERPRETER_FRAME_LOCALS_OFFSET);
+    long n = addressOfStackSlot(INTERPRETER_FRAME_LOCALS_OFFSET).getCIntegerAt(0, VM.getVM().getAddressSize(), false);
+    return getFP().addOffsetTo(n * VM.getVM().getAddressSize());
   }
 
   private Address addressOfInterpreterFrameBCX() {
@@ -444,7 +474,8 @@ public class PPC64Frame extends Frame {
   }
 
   public BasicObjectLock interpreterFrameMonitorEnd() {
-    Address result = addressOfStackSlot(INTERPRETER_FRAME_MONITOR_BLOCK_TOP_OFFSET).getAddressAt(0);
+    long n = addressOfStackSlot(INTERPRETER_FRAME_MONITORS_OFFSET).getCIntegerAt(0, VM.getVM().getAddressSize(), false);
+    Address result = getFP().addOffsetTo(n * VM.getVM().getAddressSize());
     if (Assert.ASSERTS_ENABLED) {
       // make sure the pointer points inside the frame
       Assert.that(AddressOps.gt(getFP(), result), "result must <  than frame pointer");

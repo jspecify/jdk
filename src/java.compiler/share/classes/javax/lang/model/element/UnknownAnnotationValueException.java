@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,9 +35,6 @@ import javax.lang.model.UnknownEntityException;
  * indicate that the visitor was created for a prior version of the
  * language.
  *
- * @author Joseph D. Darcy
- * @author Scott Seligman
- * @author Peter von der Ah&eacute;
  * @see AnnotationValueVisitor#visitUnknown
  * @since 1.6
  */
@@ -60,7 +57,7 @@ public class UnknownAnnotationValueException extends UnknownEntityException {
      * @param p an additional parameter, may be {@code null}
      */
     public UnknownAnnotationValueException(AnnotationValue av, Object p) {
-        super("Unknown annotation value: " + av);
+        super("Unknown annotation value: \"" + av + "\"");
         this.av = av;
         this.parameter = p;
     }

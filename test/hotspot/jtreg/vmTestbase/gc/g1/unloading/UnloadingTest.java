@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package gc.g1.unloading;
 
 import java.lang.Thread.UncaughtExceptionHandler;
@@ -33,12 +34,13 @@ import gc.g1.unloading.check.Assertion;
 import gc.g1.unloading.check.AssertionContainer;
 import gc.g1.unloading.check.ClassAssertion;
 import gc.g1.unloading.configuration.*;
+import gc.g1.unloading.loading.*;
 import nsk.share.gc.GCTestBase;
 import nsk.share.test.ExecutionController;
 import nsk.share.test.Stresser;
 import nsk.share.test.Tests;
 
-import gc.g1.unloading.loading.*;
+import jtreg.SkippedException;
 
 /**
  * This class contains main method. It's entry point for all configurations.
@@ -127,6 +129,7 @@ public class UnloadingTest extends GCTestBase {
 
         System.out.println("ClassAssertion.getCounterOfCheckedAlive() = " + ClassAssertion.getCounterOfCheckedAlive());
         System.out.println("ClassAssertion.getCounterOfCheckedUnloaded() = " + ClassAssertion.getCounterOfCheckedUnloaded());
+        // Passing -XX:-MethodFlushing prevents Full GCs in Loom that subvert the tests.
         checkGCCounters();
         if (System.getProperty("FailTestIfNothingChecked") != null) {
             if (ClassAssertion.getCounterOfCheckedAlive() == 0 || ClassAssertion.getCounterOfCheckedUnloaded() == 0) {
@@ -147,8 +150,6 @@ public class UnloadingTest extends GCTestBase {
     }
 
     private static void checkGCCounters() {
-//        System.out.println("WhiteBox.getWhiteBox().g1GetTotalCollections() = \t" + WhiteBox.getWhiteBox().g1GetTotalCollections());
-//        System.out.println("WhiteBox.getWhiteBox().g1GetTotalFullCollections() = \t" + WhiteBox.getWhiteBox().g1GetTotalFullCollections());
         GarbageCollectorMXBean oldGenBean = null;
         for (GarbageCollectorMXBean bean : ManagementFactory.getGarbageCollectorMXBeans()) {
             System.out.println("bean.getName() = \t\"" + bean.getName() + "\", bean.getCollectionCount() = \t" + bean.getCollectionCount());
@@ -156,17 +157,16 @@ public class UnloadingTest extends GCTestBase {
                 oldGenBean = bean;
             }
         }
-//        if (WhiteBox.getWhiteBox().g1GetTotalFullCollections() != 0 || (oldGenBean != null && oldGenBean.getCollectionCount() != 0)) {
+
         if (oldGenBean != null && oldGenBean.getCollectionCount() != 0) {
-            throw new RuntimeException("Full gc happened. Test was useless.");
+            throw new SkippedException("Full gc happened, skip the test.");
         }
     }
 
     private void checkIfG1Used() {
         for (GarbageCollectorMXBean bean : ManagementFactory.getGarbageCollectorMXBeans()) {
             if (!bean.getName().contains("G1")) {
-                System.err.println("This test was created to cover G1 class unloading feature. It should be ran with -XX:+UseG1GC. Skipping silently.");
-                System.exit(0);
+                throw new SkippedException("This test was created to cover G1 class unloading feature. It should be ran with -XX:+UseG1GC");
             }
         }
     }

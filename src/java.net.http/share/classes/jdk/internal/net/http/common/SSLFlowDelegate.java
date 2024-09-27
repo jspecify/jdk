@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@ import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLEngineResult.Status;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
 import java.io.IOException;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
@@ -48,21 +49,32 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.IntBinaryOperator;
 
 /**
- * Implements SSL using two SubscriberWrappers.
+ * Implements SSL using two {@link SubscriberWrapper}s.
  *
- * <p> Constructor takes two Flow.Subscribers: one that receives the network
- * data (after it has been encrypted by SSLFlowDelegate) data, and one that
- * receives the application data (before it has been encrypted by SSLFlowDelegate).
+ * <p> Constructor takes two {@linkplain Flow.Subscriber subscribers} - {@code downReader}
+ * and {@code downWriter}. {@code downReader} receives the application data (after it has
+ * been decrypted by SSLFlowDelegate). {@code downWriter} receives the network data (after it has
+ * been encrypted by SSLFlowDelegate).
  *
- * <p> Methods upstreamReader() and upstreamWriter() return the corresponding
- * Flow.Subscribers containing Flows for the encrypted/decrypted upstream data.
- * See diagram below.
+ * <p> Method {@link #upstreamWriter()} returns a {@linkplain Subscriber subscriber} which should
+ * be subscribed with a {@linkplain Flow.Publisher publisher} which publishes application data
+ * that can then be encrypted into network data by this SSLFlowDelegate and handed off to the
+ * {@code downWriter}.
  *
- * <p> How Flow.Subscribers are used in this class, and where they come from:
+ * <p> Method {@link #upstreamReader()} returns a {@link Subscriber subscriber} which should be
+ * subscribed with a {@linkplain Flow.Publisher publisher} which publishes encrypted network data
+ * that can then be decrypted into application data by this SSLFlowDelegate and handed off to the
+ * {@code downReader}.
+ *
+ * <p> Errors are reported to the {@code downReader} subscriber.
+ *
+ * <p> The diagram below illustrates how the Flow.Subscribers are used in this class, and where
+ * they come from:
  * <pre>
  * {@code
  *
@@ -71,17 +83,21 @@ import java.util.function.IntBinaryOperator;
  * --------->  data flow direction
  *
  *
- *                         +------------------+
- *        upstreamWriter   |                  | downWriter
- *        ---------------> |                  | ------------>
- *  obtained from this     |                  | supplied to constructor
- *                         | SSLFlowDelegate  |
- *        downReader       |                  | upstreamReader
- *        <--------------- |                  | <--------------
- * supplied to constructor |                  | obtained from this
- *                         +------------------+
- *
- * Errors are reported to the downReader Flow.Subscriber
+ *                  |                                   ^
+ *  upstreamWriter  |                                   | downReader
+ *  obtained from   |                                   | supplied to
+ * upstreamWriter() |                                   | constructor
+ *                  v                                   |
+ *      +-----------------------------------------------------------+
+ *      *                                            decrypts       *
+ *      *                       SSLFlowDelegate                     *
+ *      *        encrypts                                           *
+ *      +-----------------------------------------------------------+
+ *                  |                                   ^
+ *    downWriter    |                                   | upstreamReader
+ *    supplied to   |                                   | obtained from
+ *    constructor   |                                   | upstreamReader()
+ *                  v                                   |
  *
  * }
  * </pre>
@@ -97,7 +113,7 @@ public class SSLFlowDelegate {
     private static final ByteBuffer NOTHING = ByteBuffer.allocate(0);
     private static final String monProp = Utils.getProperty("jdk.internal.httpclient.monitorFlowDelegate");
     private static final boolean isMonitored =
-            monProp != null && (monProp.equals("") || monProp.equalsIgnoreCase("true"));
+            monProp != null && (monProp.isEmpty() || monProp.equalsIgnoreCase("true"));
 
     final Executor exec;
     final Reader reader;
@@ -109,6 +125,7 @@ public class SSLFlowDelegate {
     volatile boolean close_notify_received;
     final CompletableFuture<Void> readerCF;
     final CompletableFuture<Void> writerCF;
+    final CompletableFuture<Void> stopCF;
     final Consumer<ByteBuffer> recycler;
     static AtomicInteger scount = new AtomicInteger(1);
     final int id;
@@ -149,8 +166,7 @@ public class SSLFlowDelegate {
         this.writerCF = reader.completion();
         readerCF.exceptionally(this::stopOnError);
         writerCF.exceptionally(this::stopOnError);
-
-        CompletableFuture.allOf(reader.completion(), writer.completion())
+        this.stopCF = CompletableFuture.allOf(reader.completion(), writer.completion())
             .thenRun(this::normalStop);
         this.alpnCF = new MinimalFuture<>();
 
@@ -228,6 +244,10 @@ public class SSLFlowDelegate {
         return SchedulingAction.CONTINUE;
     }
 
+    protected Throwable checkForHandshake(Throwable t) {
+        return t;
+    }
+
 
     /**
      * Processing function for incoming data. Pass it thru SSLEngine.unwrap().
@@ -254,7 +274,7 @@ public class SSLFlowDelegate {
         final SequentialScheduler scheduler;
         volatile ByteBuffer readBuf;
         volatile boolean completing;
-        final Object readBufferLock = new Object();
+        final ReentrantLock readBufferLock = new ReentrantLock();
         final Logger debugr = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
 
         private final class ReaderDownstreamPusher implements Runnable {
@@ -266,7 +286,7 @@ public class SSLFlowDelegate {
 
         Reader() {
             super();
-            scheduler = SequentialScheduler.synchronizedScheduler(
+            scheduler = SequentialScheduler.lockingScheduler(
                     new ReaderDownstreamPusher());
             this.readBuf = ByteBuffer.allocate(1024);
             readBuf.limit(0); // keep in read mode
@@ -302,7 +322,9 @@ public class SSLFlowDelegate {
             return "READER: " + super.toString() + ", readBuf: " + readBuf.toString()
                     + ", count: " + count.toString() + ", scheduler: "
                     + (scheduler.isStopped() ? "stopped" : "running")
-                    + ", status: " + lastUnwrapStatus;
+                    + ", status: " + lastUnwrapStatus
+                    + ", handshakeState: " + handshakeState.get()
+                    + ", engine: " + engine.getHandshakeStatus();
         }
 
         private void reallocReadBuf() {
@@ -315,20 +337,26 @@ public class SSLFlowDelegate {
 
         @Override
         protected long upstreamWindowUpdate(long currentWindow, long downstreamQsize) {
-            if (readBuf.remaining() > TARGET_BUFSIZE) {
-                if (debugr.on())
-                    debugr.log("readBuf has more than TARGET_BUFSIZE: %d",
-                            readBuf.remaining());
-                return 0;
-            } else {
-                return super.upstreamWindowUpdate(currentWindow, downstreamQsize);
+            if (needsMoreData()) {
+                // run the scheduler to see if more data should be requested
+                if (debugr.on()) {
+                    int remaining = readBuf.remaining();
+                    if (remaining > TARGET_BUFSIZE) {
+                        // just some logging to check how much we have in the read buffer
+                        debugr.log("readBuf has more than TARGET_BUFSIZE: %d",
+                                remaining);
+                    }
+                }
+                scheduler.runOrSchedule();
             }
+            return 0; // we will request more from the scheduler loop (processData).
         }
 
         // readBuf is kept ready for reading outside of this method
         private void addToReadBuf(List<ByteBuffer> buffers, boolean complete) {
             assert Utils.remaining(buffers) > 0 || buffers.isEmpty();
-            synchronized (readBufferLock) {
+            readBufferLock.lock();
+            try {
                 for (ByteBuffer buf : buffers) {
                     readBuf.compact();
                     while (readBuf.remaining() < buf.remaining())
@@ -345,7 +373,15 @@ public class SSLFlowDelegate {
                     this.completing = complete;
                     minBytesRequired = 0;
                 }
+            } finally {
+                readBufferLock.unlock();
             }
+        }
+
+        @Override
+        protected boolean errorCommon(Throwable throwable) {
+            throwable = SSLFlowDelegate.this.checkForHandshake(throwable);
+            return super.errorCommon(throwable);
         }
 
         void schedule() {
@@ -357,13 +393,39 @@ public class SSLFlowDelegate {
             scheduler.stop();
         }
 
-        AtomicInteger count = new AtomicInteger(0);
+        AtomicInteger count = new AtomicInteger();
 
         // minimum number of bytes required to call unwrap.
         // Usually this is 0, unless there was a buffer underflow.
         // In this case we need to wait for more bytes than what
         // we had before calling unwrap() again.
         volatile int minBytesRequired;
+
+        // We might need to request more data if:
+        //  - we have a subscription from upstream
+        //  - and we don't have enough data to decrypt in the read buffer
+        //  - *and* - either we're handshaking, and more data is required (NEED_UNWRAP),
+        //          - or we have demand from downstream, but we have nothing decrypted
+        //            to forward downstream.
+        boolean needsMoreData() {
+            if (upstreamSubscription != null && readBuf.remaining() <= minBytesRequired &&
+                    (engine.getHandshakeStatus() == HandshakeStatus.NEED_UNWRAP
+                            || !downstreamSubscription.demand.isFulfilled() && hasNoOutputData())) {
+                return true;
+            }
+            return false;
+        }
+
+        // If the readBuf has not enough data, and we either need to
+        // unwrap (handshaking) or we have demand from downstream,
+        // then request more data
+        void requestMoreDataIfNeeded() {
+            if (needsMoreData()) {
+                // request more will only request more if our
+                // demand from upstream is fulfilled
+                requestMore();
+            }
+        }
 
         // work function where it all happens
         final void processData() {
@@ -379,7 +441,8 @@ public class SSLFlowDelegate {
                     boolean handshaking = false;
                     try {
                         EngineResult result;
-                        synchronized (readBufferLock) {
+                        readBufferLock.lock();
+                        try {
                             complete = this.completing;
                             if (debugr.on()) debugr.log("Unwrapping: %s", readBuf.remaining());
                             // Unless there is a BUFFER_UNDERFLOW, we should try to
@@ -392,6 +455,8 @@ public class SSLFlowDelegate {
                                 debugr.log("Unwrapped: result: %s", result.result);
                                 debugr.log("Unwrapped: consumed: %s", result.bytesConsumed());
                             }
+                        } finally {
+                            readBufferLock.unlock();
                         }
                         if (result.bytesProduced() > 0) {
                             if (debugr.on())
@@ -404,7 +469,8 @@ public class SSLFlowDelegate {
                             // not enough data in the read buffer...
                             // no need to try to unwrap again unless we get more bytes
                             // than minBytesRequired = len in the read buffer.
-                            synchronized (readBufferLock) {
+                            readBufferLock.lock();
+                            try {
                                 minBytesRequired = len;
                                 // more bytes could already have been added...
                                 assert readBuf.remaining() >= len;
@@ -421,14 +487,19 @@ public class SSLFlowDelegate {
                                     throw new IOException("BUFFER_UNDERFLOW with EOF, "
                                             + len + " bytes non decrypted.");
                                 }
+                            } finally {
+                                readBufferLock.unlock();
                             }
                             // request more data and return.
-                            requestMore();
+                            requestMoreDataIfNeeded();
                             return;
                         }
                         if (complete && result.status() == Status.CLOSED) {
                             if (debugr.on()) debugr.log("Closed: completing");
                             outgoing(Utils.EMPTY_BB_LIST, true);
+                            // complete ALPN if not yet completed
+                            setALPN();
+                            requestMoreDataIfNeeded();
                             return;
                         }
                         if (result.handshaking()) {
@@ -437,25 +508,27 @@ public class SSLFlowDelegate {
                             if (doHandshake(result, READER)) continue; // need unwrap
                             else break; // doHandshake will have triggered the write scheduler if necessary
                         } else {
-                            if ((handshakeState.getAndSet(NOT_HANDSHAKING) & ~DOING_TASKS) == HANDSHAKING) {
-                                handshaking = false;
-                                applicationBufferSize = engine.getSession().getApplicationBufferSize();
-                                packetBufferSize = engine.getSession().getPacketBufferSize();
-                                setALPN();
+                            if (trySetALPN()) {
                                 resumeActivity();
                             }
                         }
                     } catch (IOException ex) {
-                        errorCommon(ex);
-                        handleError(ex);
+                        Throwable cause = checkForHandshake(ex);
+                        errorCommon(cause);
+                        handleError(cause);
                         return;
                     }
-                    if (handshaking && !complete)
+                    if (handshaking && !complete) {
+                        requestMoreDataIfNeeded();
                         return;
+                    }
                 }
                 if (!complete) {
-                    synchronized (readBufferLock) {
+                    readBufferLock.lock();
+                    try {
                         complete = this.completing && !readBuf.hasRemaining();
+                    } finally {
+                        readBufferLock.unlock();
                     }
                 }
                 if (complete) {
@@ -465,8 +538,11 @@ public class SSLFlowDelegate {
                     // activity.
                     setALPN();
                     outgoing(Utils.EMPTY_BB_LIST, true);
+                } else {
+                    requestMoreDataIfNeeded();
                 }
             } catch (Throwable ex) {
+                ex = checkForHandshake(ex);
                 errorCommon(ex);
                 handleError(ex);
             }
@@ -705,7 +781,7 @@ public class SSLFlowDelegate {
         }
 
         private boolean hsTriggered() {
-            synchronized(writeList) {
+            synchronized (writeList) {
                 for (ByteBuffer b : writeList)
                     if (b == HS_TRIGGER)
                         return true;
@@ -728,10 +804,11 @@ public class SSLFlowDelegate {
             try {
                 if (debugw.on())
                     debugw.log("processData, writeList remaining:"
-                                + Utils.remaining(writeList) + ", hsTriggered:"
+                                + Utils.synchronizedRemaining(writeList) + ", hsTriggered:"
                                 + hsTriggered() + ", needWrap:" + needWrap());
 
-                while (Utils.remaining(writeList) > 0 || hsTriggered() || needWrap()) {
+                while (Utils.synchronizedRemaining(writeList) > 0 || hsTriggered() || needWrap()) {
+                    if (scheduler.isStopped()) return;
                     ByteBuffer[] outbufs = writeList.toArray(Utils.EMPTY_BB_ARRAY);
                     EngineResult result = wrapBuffers(outbufs);
                     if (debugw.on())
@@ -741,6 +818,8 @@ public class SSLFlowDelegate {
                         if (!upstreamCompleted) {
                             upstreamCompleted = true;
                             upstreamSubscription.cancel();
+                            // complete ALPN if not yet completed
+                            setALPN();
                         }
                         if (result.bytesProduced() <= 0)
                             return;
@@ -758,10 +837,7 @@ public class SSLFlowDelegate {
                         doHandshake(result, WRITER);  // ok to ignore return
                         handshaking = true;
                     } else {
-                        if ((handshakeState.getAndSet(NOT_HANDSHAKING) & ~DOING_TASKS) == HANDSHAKING) {
-                            applicationBufferSize = engine.getSession().getApplicationBufferSize();
-                            packetBufferSize = engine.getSession().getPacketBufferSize();
-                            setALPN();
+                        if (trySetALPN()) {
                             resumeActivity();
                         }
                     }
@@ -775,7 +851,7 @@ public class SSLFlowDelegate {
                         }
                     }
                 }
-                if (completing && Utils.remaining(writeList) == 0) {
+                if (completing && Utils.synchronizedRemaining(writeList) == 0) {
                     if (!completed) {
                         completed = true;
                         writeList.clear();
@@ -787,6 +863,7 @@ public class SSLFlowDelegate {
                     writer.addData(HS_TRIGGER);
                 }
             } catch (Throwable ex) {
+                ex = checkForHandshake(ex);
                 errorCommon(ex);
                 handleError(ex);
             }
@@ -889,7 +966,7 @@ public class SSLFlowDelegate {
         @Override
         public String toString() {
             return "WRITER: " + super.toString()
-                    + ", writeList size: " + Integer.toString(writeList.size())
+                    + ", writeList size: " + writeList.size()
                     + ", scheduler: " + (scheduler.isStopped() ? "stopped" : "running")
                     + ", status: " + lastWrappedStatus;
                     //" writeList: " + writeList.toString();
@@ -908,17 +985,33 @@ public class SSLFlowDelegate {
 
     boolean stopped;
 
-    private synchronized void normalStop() {
-        if (stopped)
-            return;
-        stopped = true;
+    private void normalStop() {
+        synchronized (this) {
+            if (stopped)
+                return;
+            stopped = true;
+        }
         reader.stop();
         writer.stop();
+        // make sure the alpnCF is completed.
+        if (!alpnCF.isDone()) {
+            Throwable alpn = new SSLHandshakeException(
+                    "Connection closed before successful ALPN negotiation");
+            alpnCF.completeExceptionally(alpn);
+        }
         if (isMonitored) Monitor.remove(monitor);
     }
 
-    private Void stopOnError(Throwable currentlyUnused) {
+    private Void stopOnError(Throwable error) {
         // maybe log, etc
+        // ensure the ALPN is completed
+        // We could also do this in SSLTube.SSLSubscriberWrapper
+        // onError/onComplete - with the caveat that the ALP CF
+        // would get completed externally. Doing it here keeps
+        // it all inside SSLFlowDelegate.
+        if (!alpnCF.isDone()) {
+            alpnCF.completeExceptionally(error);
+        }
         normalStop();
         return null;
     }
@@ -958,14 +1051,10 @@ public class SSLFlowDelegate {
         StringBuilder sb = new StringBuilder();
         int x = s & ~TASK_BITS;
         switch (x) {
-            case NOT_HANDSHAKING:
-                sb.append(" NOT_HANDSHAKING ");
-                break;
-            case HANDSHAKING:
-                sb.append(" HANDSHAKING ");
-                break;
-            default:
-                throw new InternalError();
+            case NOT_HANDSHAKING    -> sb.append(" NOT_HANDSHAKING ");
+            case HANDSHAKING        -> sb.append(" HANDSHAKING ");
+
+            default -> throw new InternalError();
         }
         if ((s & DOING_TASKS) > 0)
             sb.append("|DOING_TASKS");
@@ -1054,7 +1143,7 @@ public class SSLFlowDelegate {
         exec.execute(() -> {
             try {
                 List<Runnable> nextTasks = tasks;
-                if (debug.on()) debug.log("#tasks to execute: " + Integer.toString(nextTasks.size()));
+                if (debug.on()) debug.log("#tasks to execute: " + nextTasks.size());
                 do {
                     nextTasks.forEach(Runnable::run);
                     if (engine.getHandshakeStatus() == HandshakeStatus.NEED_TASK) {
@@ -1070,11 +1159,27 @@ public class SSLFlowDelegate {
                     }
                 } while (true);
                 if (debug.on()) debug.log("finished task execution");
+                HandshakeStatus hs = engine.getHandshakeStatus();
+                if (hs == HandshakeStatus.FINISHED || hs == HandshakeStatus.NOT_HANDSHAKING) {
+                    // We're no longer handshaking, try setting ALPN
+                    trySetALPN();
+                }
                 resumeActivity();
             } catch (Throwable t) {
-                handleError(t);
+                handleError(checkForHandshake(t));
             }
         });
+    }
+
+    boolean trySetALPN() {
+        // complete ALPN CF if needed.
+        if ((handshakeState.getAndSet(NOT_HANDSHAKING) & ~DOING_TASKS) == HANDSHAKING) {
+            applicationBufferSize = engine.getSession().getApplicationBufferSize();
+            packetBufferSize = engine.getSession().getPacketBufferSize();
+            setALPN();
+            return true;
+        }
+        return false;
     }
 
     // FIXME: acknowledge a received CLOSE request from peer
@@ -1097,8 +1202,12 @@ public class SSLFlowDelegate {
                     // won't be able to send the acknowledgement.
                     // Nothing more will come from the socket either,
                     // so mark the reader as completed.
-                    synchronized (reader.readBufferLock) {
+                    var readerLock = reader.readBufferLock;
+                    readerLock.lock();
+                    try {
                         reader.completing = true;
+                    } finally {
+                        readerLock.unlock();
                     }
                 }
             }

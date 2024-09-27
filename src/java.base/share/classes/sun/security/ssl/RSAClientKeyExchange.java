@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,7 +75,7 @@ final class RSAClientKeyExchange {
             super(context);
 
             if (m.remaining() < 2) {
-                context.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                throw context.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "Invalid RSA ClientKeyExchange message: insufficient data");
             }
 
@@ -116,12 +116,13 @@ final class RSAClientKeyExchange {
         @Override
         public String toString() {
             MessageFormat messageFormat = new MessageFormat(
-                "\"RSA ClientKeyExchange\": '{'\n" +
-                "  \"client_version\":  {0}\n" +
-                "  \"encncrypted\": '{'\n" +
-                "{1}\n" +
-                "  '}'\n" +
-                "'}'",
+                    """
+                            "RSA ClientKeyExchange": '{'
+                              "client_version":  {0}
+                              "encrypted": '{'
+                            {1}
+                              '}'
+                            '}'""",
                 Locale.ENGLISH);
 
             HexDumpEncoder hexEncoder = new HexDumpEncoder();
@@ -167,14 +168,14 @@ final class RSAClientKeyExchange {
             }
 
             if (rsaCredentials == null && x509Credentials == null) {
-                chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "No RSA credentials negotiated for client key exchange");
             }
 
             PublicKey publicKey = (rsaCredentials != null) ?
                     rsaCredentials.popPublicKey : x509Credentials.popPublicKey;
             if (!publicKey.getAlgorithm().equals("RSA")) {      // unlikely
-                chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "Not RSA public key for client key exchange");
             }
 
@@ -186,10 +187,8 @@ final class RSAClientKeyExchange {
                 ckem = new RSAClientKeyExchangeMessage(
                         chc, premaster, publicKey);
             } catch (GeneralSecurityException gse) {
-                chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                         "Cannot generate RSA premaster secret", gse);
-
-                return null;    // make the compiler happy
             }
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine(
@@ -205,7 +204,7 @@ final class RSAClientKeyExchange {
                     chc.negotiatedCipherSuite.keyExchange,
                     chc.negotiatedProtocol);
             if (ke == null) {   // unlikely
-                chc.conContext.fatal(Alert.INTERNAL_ERROR,
+                throw chc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Not supported key exchange type");
             } else {
                 SSLKeyDerivation masterKD = ke.createKeyDerivation(chc);
@@ -217,7 +216,7 @@ final class RSAClientKeyExchange {
                 SSLTrafficKeyDerivation kd =
                         SSLTrafficKeyDerivation.valueOf(chc.negotiatedProtocol);
                 if (kd == null) {   // unlikely
-                    chc.conContext.fatal(Alert.INTERNAL_ERROR,
+                    throw chc.conContext.fatal(Alert.INTERNAL_ERROR,
                             "Not supported key derivation: " +
                             chc.negotiatedProtocol);
                 } else {
@@ -255,21 +254,18 @@ final class RSAClientKeyExchange {
                     break;
                 } else if (possession instanceof X509Possession) {
                     x509Possession = (X509Possession)possession;
-                    if (rsaPossession != null) {
-                        break;
-                    }
                 }
             }
 
             if (rsaPossession == null && x509Possession == null) {  // unlikely
-                shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "No RSA possessions negotiated for client key exchange");
             }
 
             PrivateKey privateKey = (rsaPossession != null) ?
                     rsaPossession.popPrivateKey : x509Possession.popPrivateKey;
             if (!privateKey.getAlgorithm().equals("RSA")) {     // unlikely
-                shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "Not RSA private key for client key exchange");
             }
 
@@ -287,7 +283,7 @@ final class RSAClientKeyExchange {
                     RSAPremasterSecret.decode(shc, privateKey, ckem.encrypted);
                 shc.handshakeCredentials.add(premaster);
             } catch (GeneralSecurityException gse) {
-                shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "Cannot decode RSA premaster secret", gse);
             }
 
@@ -296,7 +292,7 @@ final class RSAClientKeyExchange {
                     shc.negotiatedCipherSuite.keyExchange,
                     shc.negotiatedProtocol);
             if (ke == null) {   // unlikely
-                shc.conContext.fatal(Alert.INTERNAL_ERROR,
+                throw shc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Not supported key exchange type");
             } else {
                 SSLKeyDerivation masterKD = ke.createKeyDerivation(shc);
@@ -308,7 +304,7 @@ final class RSAClientKeyExchange {
                 SSLTrafficKeyDerivation kd =
                         SSLTrafficKeyDerivation.valueOf(shc.negotiatedProtocol);
                 if (kd == null) {       // unlikely
-                    shc.conContext.fatal(Alert.INTERNAL_ERROR,
+                    throw shc.conContext.fatal(Alert.INTERNAL_ERROR,
                             "Not supported key derivation: " +
                             shc.negotiatedProtocol);
                 } else {

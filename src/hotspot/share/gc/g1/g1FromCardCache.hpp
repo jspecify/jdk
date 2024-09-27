@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1FROMCARDCACHE_HPP
-#define SHARE_VM_GC_G1_G1FROMCARDCACHE_HPP
+#ifndef SHARE_GC_G1_G1FROMCARDCACHE_HPP
+#define SHARE_GC_G1_G1FROMCARDCACHE_HPP
 
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 #include "utilities/ostream.hpp"
 
 // G1FromCardCache remembers the most recently processed card on the heap on
@@ -38,14 +38,14 @@ private:
   // freeing. I.e. a single clear of a single memory area instead of multiple separate
   // accesses with a large stride per region.
   static uintptr_t** _cache;
-  static uint _max_regions;
+  static uint _max_reserved_regions;
   static size_t _static_mem_size;
 #ifdef ASSERT
   static uint _max_workers;
 
   static void check_bounds(uint worker_id, uint region_idx) {
     assert(worker_id < _max_workers, "Worker_id %u is larger than maximum %u", worker_id, _max_workers);
-    assert(region_idx < _max_regions, "Region_idx %u is larger than maximum %u", region_idx, _max_regions);
+    assert(region_idx < _max_reserved_regions, "Region_idx %u is larger than maximum %u", region_idx, _max_reserved_regions);
   }
 #endif
 
@@ -53,6 +53,13 @@ private:
   // lazy backing of memory with zero-filled pages to avoid initial actual memory use.
   // This means that the heap must not contain card zero.
   static const uintptr_t InvalidCard = 0;
+
+  // Gives an approximation on how many threads can be expected to add records to
+  // a remembered set in parallel. This is used for sizing the G1FromCardCache to
+  // decrease performance losses due to data structure sharing.
+  // Examples for quantities that influence this value are the maximum number of
+  // mutator threads, maximum number of concurrent refinement or GC threads.
+  static uint num_par_rem_sets();
 
 public:
   static void clear(uint region_idx);
@@ -79,7 +86,7 @@ public:
     _cache[region_idx][worker_id] = val;
   }
 
-  static void initialize(uint num_par_rem_sets, uint max_num_regions);
+  static void initialize(uint max_reserved_regions);
 
   static void invalidate(uint start_idx, size_t num_regions);
 
@@ -90,4 +97,4 @@ public:
   }
 };
 
-#endif // SHARE_VM_GC_G1_G1FROMCARDCACHE_HPP
+#endif // SHARE_GC_G1_G1FROMCARDCACHE_HPP

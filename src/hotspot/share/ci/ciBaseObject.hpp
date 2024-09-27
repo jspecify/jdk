@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CIBASEOBJECT_HPP
-#define SHARE_VM_CI_CIBASEOBJECT_HPP
+#ifndef SHARE_CI_CIBASEOBJECT_HPP
+#define SHARE_CI_CIBASEOBJECT_HPP
 
 #include "ci/ciClassList.hpp"
 #include "memory/allocation.hpp"
-#include "runtime/jniHandles.hpp"
 
 // ciBaseObject
 //
@@ -47,17 +46,13 @@
 // the distinction between `Klass*' and `Klass' are not
 // reflected in the interface and instead the Klass hierarchy
 // is directly modeled as the subclasses of ciKlass.
-class ciBaseObject : public ResourceObj {
+class ciBaseObject : public ArenaObj {
   CI_PACKAGE_ACCESS
   friend class ciEnv;
 
 protected:
   uint     _ident;
 
-  enum { FLAG_BITS   = 1 };
-  enum {
-         SCAVENGABLE_FLAG = 1
-       };
 protected:
   ciBaseObject(): _ident(0) {}
 
@@ -87,4 +82,4 @@ public:
     return (ciMetadata*)this;
   }
 };
-#endif // SHARE_VM_CI_CIBASEOBJECT_HPP
+#endif // SHARE_CI_CIBASEOBJECT_HPP

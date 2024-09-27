@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,26 @@
  *
  */
 
+package gc.stress.gcold;
+
 /*
- * @test TestGCOldWithZ
- * @key gc
- * @requires vm.gc.Z & !vm.graal.enabled
+ * @test TestGCOldWithZGenerational
+ * @key randomness
+ * @library / /test/lib
+ * @requires vm.gc.ZGenerational
  * @summary Stress the Z
- * @run main/othervm -Xmx384M -XX:+UnlockExperimentalVMOptions -XX:+UseZGC TestGCOldWithZ 50 1 20 10 10000
- * @run main/othervm -Xmx256m -XX:+UnlockExperimentalVMOptions -XX:+UseZGC TestGCOldWithZ 50 5 20 1 5000
+ * @run main/othervm -Xmx384M -XX:+UseZGC -XX:+ZGenerational gc.stress.gcold.TestGCOldWithZ 50 1 20 10 10000
+ * @run main/othervm -Xmx256m -XX:+UseZGC -XX:+ZGenerational gc.stress.gcold.TestGCOldWithZ 50 5 20 1 5000
+ */
+
+/*
+ * @test TestGCOldWithZSinglegen
+ * @key randomness
+ * @library / /test/lib
+ * @requires vm.gc.ZSinglegen
+ * @summary Stress the Z
+ * @run main/othervm -Xmx384M -XX:+UseZGC -XX:-ZGenerational gc.stress.gcold.TestGCOldWithZ 50 1 20 10 10000
+ * @run main/othervm -Xmx256m -XX:+UseZGC -XX:-ZGenerational gc.stress.gcold.TestGCOldWithZ 50 5 20 1 5000
  */
 public class TestGCOldWithZ {
     public static void main(String[] args) {

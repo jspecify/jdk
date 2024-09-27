@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -40,6 +40,7 @@ import org.xml.sax.SAXException;
  * be viewed as internal or package private, this is not an API.
  *
  * @xsl.usage internal
+ * @LastModified: Feb 2021
  */
 public final class ToXMLStream extends ToStream
 {
@@ -63,12 +64,20 @@ public final class ToXMLStream extends ToStream
      */
     public ToXMLStream()
     {
+        this(null);
+    }
+
+    /**
+     * Default constructor.
+     */
+    public ToXMLStream(ErrorListener l)
+    {
+        super(l);
         m_charInfo = m_xmlcharInfo;
 
         initCDATA();
         // initialize namespaces
         m_prefixMap = new NamespaceMappings();
-
     }
 
     /**
@@ -162,7 +171,7 @@ public final class ToXMLStream extends ToStream
                     writer.write('\"');
                     writer.write(standalone);
                     writer.write("?>");
-                    if (m_doIndent) {
+                    if (m_doIndent || m_isStandalone) {
                         if (m_standaloneWasSpecified
                                 || getDoctypePublic() != null
                                 || getDoctypeSystem() != null
@@ -200,7 +209,7 @@ public final class ToXMLStream extends ToStream
     public void endDocument() throws org.xml.sax.SAXException
     {
         if (m_doIndent) {
-            flushCharactersBuffer();
+            flushCharactersBuffer(false);
         }
         flushPending();
         if (m_doIndent && !m_isprevtext)
@@ -267,7 +276,7 @@ public final class ToXMLStream extends ToStream
 
         if (m_doIndent) {
             m_childNodeNum++;
-            flushCharactersBuffer();
+            flushCharactersBuffer(false);
         }
         flushPending();
 

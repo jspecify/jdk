@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,31 +31,21 @@ import jdk.jfr.Label;
 import jdk.jfr.DataAmount;
 import jdk.jfr.Name;
 import jdk.jfr.internal.Type;
+import jdk.jfr.internal.MirrorEvent;
 
 @Name(Type.EVENT_NAME_PREFIX + "FileWrite")
 @Label("File Write")
 @Category("Java Application")
 @Description("Writing data to a file")
-public final class FileWriteEvent extends AbstractJDKEvent {
-
-    public static final ThreadLocal<FileWriteEvent> EVENT =
-        new ThreadLocal<>() {
-            @Override protected FileWriteEvent initialValue() {
-                return new FileWriteEvent();
-            }
-        };
+@StackFilter({"java.io.FileOutputStream", "java.io.RandomAccessFile", "sun.nio.ch.FileChannelImpl"})
+public final class FileWriteEvent extends MirrorEvent {
 
     @Label("Path")
-    @Description("Full path of the file")
+    @Description("Full path of the file, or N/A if a file descriptor was used to create the stream, for example System.out and System.err")
     public String path;
 
     @Label("Bytes Written")
     @Description("Number of bytes written to the file")
     @DataAmount
     public long bytesWritten;
-
-    public void reset() {
-        path = null;
-        bytesWritten = 0;
-    }
 }

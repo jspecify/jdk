@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@ import java.io.UncheckedIOException;
 import java.lang.module.ModuleDescriptor.Requires;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -39,20 +40,18 @@ import java.util.Map;
 
 public abstract class JdepsWriter {
     public static JdepsWriter newDotWriter(Path outputdir, Analyzer.Type type) {
-        return new DotFileWriter(outputdir, type, false, true, false);
+        return new DotFileWriter(outputdir, type, true, false);
     }
 
     public static JdepsWriter newSimpleWriter(PrintWriter writer,  Analyzer.Type type) {
-        return new SimpleWriter(writer, type, false, true);
+        return new SimpleWriter(writer, type, true);
     }
 
     final Analyzer.Type type;
-    final boolean showProfile;
     final boolean showModule;
 
-    JdepsWriter(Analyzer.Type type, boolean showProfile, boolean showModule) {
+    JdepsWriter(Analyzer.Type type, boolean showModule) {
         this.type = type;
-        this.showProfile = showProfile;
         this.showModule = showModule;
     }
 
@@ -62,8 +61,8 @@ public abstract class JdepsWriter {
         final boolean showLabel;
         final Path outputDir;
         DotFileWriter(Path dir, Analyzer.Type type,
-                      boolean showProfile, boolean showModule, boolean showLabel) {
-            super(type, showProfile, showModule);
+                      boolean showModule, boolean showLabel) {
+            super(type, showModule);
             this.showLabel = showLabel;
             this.outputDir = dir;
         }
@@ -79,7 +78,10 @@ public abstract class JdepsWriter {
                 archives.stream()
                         .filter(analyzer::hasDependences)
                         .forEach(archive -> {
-                            Path dotfile = outputDir.resolve(archive.getName() + ".dot");
+                            // use the filename if path is present; otherwise
+                            // use the module name e.g. from jrt file system
+                            Path path = archive.path().orElse(Paths.get(archive.getName()));
+                            Path dotfile = outputDir.resolve(path.getFileName().toString() + ".dot");
                             try (PrintWriter pw = new PrintWriter(Files.newOutputStream(dotfile));
                                  DotFileFormatter formatter = new DotFileFormatter(pw, archive)) {
                                 analyzer.visitDependences(archive, formatter);
@@ -91,6 +93,7 @@ public abstract class JdepsWriter {
             // generate summary dot file
             generateSummaryDotFile(archives, analyzer);
         }
+
 
         private void generateSummaryDotFile(Collection<Archive> archives, Analyzer analyzer)
                 throws IOException
@@ -162,7 +165,7 @@ public abstract class JdepsWriter {
                 String targetName = type == PACKAGE ? target : targetArchive.getName();
                 if (targetArchive.getModule().isJDK()) {
                     Module m = (Module)targetArchive;
-                    String n = showProfileOrModule(m);
+                    String n = showModule(m);
                     if (!n.isEmpty()) {
                         targetName += " (" + n + ")";
                     }
@@ -211,8 +214,8 @@ public abstract class JdepsWriter {
     static class SimpleWriter extends JdepsWriter {
         final PrintWriter writer;
         SimpleWriter(PrintWriter writer, Analyzer.Type type,
-                     boolean showProfile, boolean showModule) {
-            super(type, showProfile, showModule);
+                     boolean showModule) {
+            super(type, showModule);
             this.writer = writer;
         }
 
@@ -278,9 +281,6 @@ public abstract class JdepsWriter {
                     targetName = targetArchive.getModule().name();
                 }
                 writer.format("%s -> %s", originArchive.getName(), targetName);
-                if (showProfile && targetArchive.getModule().isJDK()) {
-                    writer.format(" (%s)", target);
-                }
                 writer.format("%n");
             }
 
@@ -299,14 +299,13 @@ public abstract class JdepsWriter {
     }
 
     /**
-     * If the given archive is JDK archive, this method returns the profile name
-     * only if -profile option is specified; it accesses a private JDK API and
+     * If the given target is JDK module and the source accesses a private JDK API,
      * the returned value will have "JDK internal API" prefix
      *
      * For non-JDK archives, this method returns the file name of the archive.
      */
     String toTag(Archive source, String name, Archive target) {
-        if (source == target || !target.getModule().isNamed()) {
+        if (source == target || !target.getModule().isNamed() || Analyzer.notFound(target)) {
             return target.getName();
         }
 
@@ -319,7 +318,7 @@ public abstract class JdepsWriter {
 
         // exported API
         if (module.isExported(pn) && !module.isJDKUnsupported()) {
-            return showProfileOrModule(module);
+            return showModule(module);
         }
 
         // JDK internal API
@@ -332,26 +331,11 @@ public abstract class JdepsWriter {
         return module.name() + (isExported ?  " (qualified)" : " (internal)");
     }
 
-    String showProfileOrModule(Module m) {
+    String showModule(Module m) {
         String tag = "";
-        if (showProfile) {
-            Profile p = Profile.getProfile(m);
-            if (p != null) {
-                tag = p.profileName();
-            }
-        } else if (showModule) {
+        if (showModule) {
             tag = m.name();
         }
         return tag;
     }
-
-    Profile getProfile(String name) {
-        String pn = name;
-        if (type == CLASS || type == VERBOSE) {
-            int i = name.lastIndexOf('.');
-            pn = i > 0 ? name.substring(0, i) : "";
-        }
-        return Profile.getProfile(pn);
-    }
-
 }

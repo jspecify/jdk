@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,159 +29,190 @@
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/debug.hpp"
+#include "utilities/population_count.hpp"
 
-STATIC_ASSERT(sizeof(BitMap::bm_word_t) == BytesPerWord); // "Implementation assumption."
+using bm_word_t = BitMap::bm_word_t;
+using idx_t = BitMap::idx_t;
 
-typedef BitMap::bm_word_t bm_word_t;
-typedef BitMap::idx_t     idx_t;
+STATIC_ASSERT(sizeof(bm_word_t) == BytesPerWord); // "Implementation assumption."
 
-class ResourceBitMapAllocator : StackObj {
- public:
-  bm_word_t* allocate(idx_t size_in_words) const {
-    return NEW_RESOURCE_ARRAY(bm_word_t, size_in_words);
-  }
-  void free(bm_word_t* map, idx_t size_in_words) const {
-    // Don't free resource allocated arrays.
-  }
-};
+// For the BitMaps with allocators that don't support reallocate
+template <class BitMapWithAllocator>
+static bm_word_t* pseudo_reallocate(const BitMapWithAllocator& derived, bm_word_t* old_map, size_t old_size_in_words, size_t new_size_in_words) {
+  assert(new_size_in_words > 0, "precondition");
 
-class CHeapBitMapAllocator : StackObj {
-  MEMFLAGS _flags;
-
- public:
-  CHeapBitMapAllocator(MEMFLAGS flags) : _flags(flags) {}
-  bm_word_t* allocate(size_t size_in_words) const {
-    return ArrayAllocator<bm_word_t>::allocate(size_in_words, _flags);
-  }
-  void free(bm_word_t* map, idx_t size_in_words) const {
-    ArrayAllocator<bm_word_t>::free(map, size_in_words);
-  }
-};
-
-class ArenaBitMapAllocator : StackObj {
-  Arena* _arena;
-
- public:
-  ArenaBitMapAllocator(Arena* arena) : _arena(arena) {}
-  bm_word_t* allocate(idx_t size_in_words) const {
-    return (bm_word_t*)_arena->Amalloc(size_in_words * BytesPerWord);
-  }
-  void free(bm_word_t* map, idx_t size_in_words) const {
-    // ArenaBitMaps currently don't free memory.
-  }
-};
-
-template <class Allocator>
-BitMap::bm_word_t* BitMap::reallocate(const Allocator& allocator, bm_word_t* old_map, idx_t old_size_in_bits, idx_t new_size_in_bits, bool clear) {
-  size_t old_size_in_words = calc_size_in_words(old_size_in_bits);
-  size_t new_size_in_words = calc_size_in_words(new_size_in_bits);
-
-  bm_word_t* map = NULL;
-
-  if (new_size_in_words > 0) {
-    map = allocator.allocate(new_size_in_words);
-
-    if (old_map != NULL) {
-      Copy::disjoint_words((HeapWord*)old_map, (HeapWord*) map,
-                           MIN2(old_size_in_words, new_size_in_words));
-    }
-
-    if (clear && new_size_in_words > old_size_in_words) {
-      clear_range_of_words(map, old_size_in_words, new_size_in_words);
-    }
+  bm_word_t* map = derived.allocate(new_size_in_words);
+  if (old_map != nullptr) {
+    Copy::disjoint_words((HeapWord*)old_map, (HeapWord*) map,
+        MIN2(old_size_in_words, new_size_in_words));
   }
 
-  if (old_map != NULL) {
-    allocator.free(old_map, old_size_in_words);
-  }
+  derived.free(old_map, old_size_in_words);
 
   return map;
 }
 
-template <class Allocator>
-bm_word_t* BitMap::allocate(const Allocator& allocator, idx_t size_in_bits, bool clear) {
-  // Reuse reallocate to ensure that the new memory is cleared.
-  return reallocate(allocator, NULL, 0, size_in_bits, clear);
+template <class BitMapWithAllocator>
+void GrowableBitMap<BitMapWithAllocator>::initialize(idx_t size_in_bits, bool clear) {
+  assert(map() == nullptr, "precondition");
+  assert(size() == 0,   "precondition");
+
+  resize(size_in_bits, clear);
 }
 
-template <class Allocator>
-void BitMap::free(const Allocator& allocator, bm_word_t* map, idx_t  size_in_bits) {
-  bm_word_t* ret = reallocate(allocator, map, size_in_bits, 0);
-  assert(ret == NULL, "Reallocate shouldn't have allocated");
+template <class BitMapWithAllocator>
+void GrowableBitMap<BitMapWithAllocator>::reinitialize(idx_t new_size_in_bits, bool clear) {
+  // Remove previous bits - no need to clear
+  resize(0, false /* clear */);
+
+  initialize(new_size_in_bits, clear);
 }
 
-template <class Allocator>
-void BitMap::resize(const Allocator& allocator, idx_t new_size_in_bits) {
-  bm_word_t* new_map = reallocate(allocator, map(), size(), new_size_in_bits);
+template <class BitMapWithAllocator>
+void GrowableBitMap<BitMapWithAllocator>::resize(idx_t new_size_in_bits, bool clear) {
+  const size_t old_size_in_bits = size();
+  bm_word_t* const old_map = map();
 
+  const size_t old_size_in_words = calc_size_in_words(size());
+  const size_t new_size_in_words = calc_size_in_words(new_size_in_bits);
+
+  BitMapWithAllocator* derived = static_cast<BitMapWithAllocator*>(this);
+
+  if (new_size_in_words == 0) {
+    derived->free(old_map, old_size_in_words);
+    update(nullptr, 0);
+    return;
+  }
+
+
+  bm_word_t* map = derived->reallocate(old_map, old_size_in_words, new_size_in_words);
+  if (clear && (new_size_in_bits > old_size_in_bits)) {
+    // If old_size_in_bits is not word-aligned, then the preceding
+    // copy can include some trailing bits in the final copied word
+    // that also need to be cleared.  See clear_range_within_word.
+    bm_word_t mask = bit_mask(old_size_in_bits) - 1;
+    map[raw_to_words_align_down(old_size_in_bits)] &= mask;
+    // Clear the remaining full words.
+    clear_range_of_words(map, old_size_in_words, new_size_in_words);
+  }
+
+  update(map, new_size_in_bits);
+}
+
+template <class BitMapWithAllocator>
+bm_word_t* GrowableBitMap<BitMapWithAllocator>::copy_of_range(idx_t start_bit, idx_t end_bit) {
+  assert(start_bit < end_bit, "End bit must come after start bit");
+  assert(end_bit <= size(), "End bit not in bitmap");
+
+  // We might have extra bits at the end that we don't want to lose
+  const idx_t cutoff = bit_in_word(end_bit);
+  const idx_t start_word = to_words_align_down(start_bit);
+  const idx_t end_word = to_words_align_up(end_bit);
+  const bm_word_t* const old_map = map();
+
+  const BitMapWithAllocator* const derived = static_cast<BitMapWithAllocator*>(this);
+
+  bm_word_t* const new_map = derived->allocate(end_word - start_word);
+
+  // All words need to be shifted by this amount
+  const idx_t shift = bit_in_word(start_bit);
+  // Bits shifted out by a word need to be passed into the next
+  bm_word_t carry = 0;
+
+  // Iterate the map backwards as the shift will result in carry-out bits
+  for (idx_t i = end_word; i-- > start_word;) {
+    new_map[i-start_word] = old_map[i] >> shift;
+
+    if (shift != 0) {
+      new_map[i-start_word] |= carry;
+      carry = old_map[i] << (BitsPerWord - shift);
+    }
+  }
+
+  return new_map;
+}
+
+template <class BitMapWithAllocator>
+void GrowableBitMap<BitMapWithAllocator>::truncate(idx_t start_bit, idx_t end_bit) {
+  const size_t old_size_in_words = calc_size_in_words(size());
+  const idx_t new_size_in_bits = end_bit - start_bit;
+  bm_word_t* const old_map = map();
+
+  bm_word_t* const new_map = copy_of_range(start_bit, end_bit);
+
+  const BitMapWithAllocator* const derived = static_cast<BitMapWithAllocator*>(this);
+  // Free and clear old map to avoid left over bits
+  derived->free(old_map, old_size_in_words);
+  update(nullptr, 0);
   update(new_map, new_size_in_bits);
 }
 
-template <class Allocator>
-void BitMap::initialize(const Allocator& allocator, idx_t size_in_bits) {
-  assert(map() == NULL, "precondition");
-  assert(size() == 0,   "precondition");
-
-  resize(allocator, size_in_bits);
+ArenaBitMap::ArenaBitMap(Arena* arena, idx_t size_in_bits, bool clear)
+  : GrowableBitMap<ArenaBitMap>(), _arena(arena) {
+  initialize(size_in_bits, clear);
 }
 
-template <class Allocator>
-void BitMap::reinitialize(const Allocator& allocator, idx_t new_size_in_bits) {
-  // Remove previous bits.
-  resize(allocator, 0);
-
-  initialize(allocator, new_size_in_bits);
+bm_word_t* ArenaBitMap::allocate(idx_t size_in_words) const {
+  return (bm_word_t*)_arena->Amalloc(size_in_words * BytesPerWord);
 }
 
-ResourceBitMap::ResourceBitMap(idx_t size_in_bits)
-    : BitMap(allocate(ResourceBitMapAllocator(), size_in_bits), size_in_bits) {
+bm_word_t* ArenaBitMap::reallocate(bm_word_t* old_map, size_t old_size_in_words, size_t new_size_in_words) const {
+  return pseudo_reallocate(*this, old_map, old_size_in_words, new_size_in_words);
 }
 
-void ResourceBitMap::resize(idx_t new_size_in_bits) {
-  BitMap::resize(ResourceBitMapAllocator(), new_size_in_bits);
+ResourceBitMap::ResourceBitMap(idx_t size_in_bits, bool clear)
+  : GrowableBitMap<ResourceBitMap>() {
+  initialize(size_in_bits, clear);
 }
 
-void ResourceBitMap::initialize(idx_t size_in_bits) {
-  BitMap::initialize(ResourceBitMapAllocator(), size_in_bits);
+bm_word_t* ResourceBitMap::allocate(idx_t size_in_words) const {
+  return (bm_word_t*)NEW_RESOURCE_ARRAY(bm_word_t, size_in_words);
 }
 
-void ResourceBitMap::reinitialize(idx_t size_in_bits) {
-  BitMap::reinitialize(ResourceBitMapAllocator(), size_in_bits);
+bm_word_t* ResourceBitMap::reallocate(bm_word_t* old_map, size_t old_size_in_words, size_t new_size_in_words) const {
+  return pseudo_reallocate(*this, old_map, old_size_in_words, new_size_in_words);
 }
 
-ArenaBitMap::ArenaBitMap(Arena* arena, idx_t size_in_bits)
-    : BitMap(allocate(ArenaBitMapAllocator(arena), size_in_bits), size_in_bits) {
-}
-
-CHeapBitMap::CHeapBitMap(idx_t size_in_bits, MEMFLAGS flags, bool clear)
-    : BitMap(allocate(CHeapBitMapAllocator(flags), size_in_bits, clear), size_in_bits), _flags(flags) {
+CHeapBitMap::CHeapBitMap(idx_t size_in_bits, MemTag mem_tag, bool clear)
+  : GrowableBitMap<CHeapBitMap>(), _mem_tag(mem_tag) {
+  initialize(size_in_bits, clear);
 }
 
 CHeapBitMap::~CHeapBitMap() {
-  free(CHeapBitMapAllocator(_flags), map(), size());
+  free(map(), size_in_words());
 }
 
-void CHeapBitMap::resize(idx_t new_size_in_bits) {
-  BitMap::resize(CHeapBitMapAllocator(_flags), new_size_in_bits);
+bm_word_t* CHeapBitMap::allocate(idx_t size_in_words) const {
+  return MallocArrayAllocator<bm_word_t>::allocate(size_in_words, _mem_tag);
 }
 
-void CHeapBitMap::initialize(idx_t size_in_bits) {
-  BitMap::initialize(CHeapBitMapAllocator(_flags), size_in_bits);
+// GrowableBitMap<T>::resize uses free(ptr, size) for T as CHeapBitMap, ArenaBitMap and ResourceBitMap allocators.
+// The free(ptr, size) signature is kept but the size parameter is ignored.
+void CHeapBitMap::free(bm_word_t* map, idx_t size_in_words) const {
+  MallocArrayAllocator<bm_word_t>::free(map);
 }
 
-void CHeapBitMap::reinitialize(idx_t size_in_bits) {
-  BitMap::reinitialize(CHeapBitMapAllocator(_flags), size_in_bits);
+bm_word_t* CHeapBitMap::reallocate(bm_word_t* map, size_t old_size_in_words, size_t new_size_in_words) const {
+  return MallocArrayAllocator<bm_word_t>::reallocate(map, new_size_in_words, _mem_tag);
 }
 
 #ifdef ASSERT
-void BitMap::verify_index(idx_t index) const {
-  assert(index < _size, "BitMap index out of bounds");
+void BitMap::verify_index(idx_t bit) const {
+  assert(bit < _size,
+         "BitMap index out of bounds: " SIZE_FORMAT " >= " SIZE_FORMAT,
+         bit, _size);
 }
 
-void BitMap::verify_range(idx_t beg_index, idx_t end_index) const {
-  assert(beg_index <= end_index, "BitMap range error");
-  // Note that [0,0) and [size,size) are both valid ranges.
-  if (end_index != _size) verify_index(end_index);
+void BitMap::verify_limit(idx_t bit) const {
+  assert(bit <= _size,
+         "BitMap limit out of bounds: " SIZE_FORMAT " > " SIZE_FORMAT,
+         bit, _size);
+}
+
+void BitMap::verify_range(idx_t beg, idx_t end) const {
+  assert(beg <= end,
+         "BitMap range error: " SIZE_FORMAT " > " SIZE_FORMAT, beg, end);
+  verify_limit(end);
 }
 #endif // #ifdef ASSERT
 
@@ -212,12 +243,12 @@ void BitMap::par_put_range_within_word(idx_t beg, idx_t end, bool value) {
   // With a valid range (beg <= end), this test ensures that end != 0, as
   // required by inverted_bit_mask_for_range.  Also avoids an unnecessary write.
   if (beg != end) {
-    bm_word_t* pw = word_addr(beg);
-    bm_word_t  w  = *pw;
-    bm_word_t  mr = inverted_bit_mask_for_range(beg, end);
-    bm_word_t  nw = value ? (w | ~mr) : (w & mr);
+    volatile bm_word_t* pw = word_addr(beg);
+    bm_word_t w = Atomic::load(pw);
+    bm_word_t mr = inverted_bit_mask_for_range(beg, end);
+    bm_word_t nw = value ? (w | ~mr) : (w & mr);
     while (true) {
-      bm_word_t res = Atomic::cmpxchg(nw, pw, w);
+      bm_word_t res = Atomic::cmpxchg(pw, w, nw);
       if (res == w) break;
       w  = res;
       nw = value ? (w | ~mr) : (w & mr);
@@ -228,8 +259,8 @@ void BitMap::par_put_range_within_word(idx_t beg, idx_t end, bool value) {
 void BitMap::set_range(idx_t beg, idx_t end) {
   verify_range(beg, end);
 
-  idx_t beg_full_word = word_index_round_up(beg);
-  idx_t end_full_word = word_index(end);
+  idx_t beg_full_word = to_words_align_up(beg);
+  idx_t end_full_word = to_words_align_down(end);
 
   if (beg_full_word < end_full_word) {
     // The range includes at least one full word.
@@ -247,8 +278,8 @@ void BitMap::set_range(idx_t beg, idx_t end) {
 void BitMap::clear_range(idx_t beg, idx_t end) {
   verify_range(beg, end);
 
-  idx_t beg_full_word = word_index_round_up(beg);
-  idx_t end_full_word = word_index(end);
+  idx_t beg_full_word = to_words_align_up(beg);
+  idx_t end_full_word = to_words_align_down(end);
 
   if (beg_full_word < end_full_word) {
     // The range includes at least one full word.
@@ -263,14 +294,26 @@ void BitMap::clear_range(idx_t beg, idx_t end) {
   }
 }
 
+bool BitMap::is_small_range_of_words(idx_t beg_full_word, idx_t end_full_word) {
+  // There is little point to call large version on small ranges.
+  // Need to check carefully, keeping potential idx_t over/underflow in mind,
+  // because beg_full_word > end_full_word can occur when beg and end are in
+  // the same word.
+  // The threshold should be at least one word.
+  STATIC_ASSERT(small_range_words >= 1);
+  return beg_full_word + small_range_words >= end_full_word;
+}
+
 void BitMap::set_large_range(idx_t beg, idx_t end) {
   verify_range(beg, end);
 
-  idx_t beg_full_word = word_index_round_up(beg);
-  idx_t end_full_word = word_index(end);
+  idx_t beg_full_word = to_words_align_up(beg);
+  idx_t end_full_word = to_words_align_down(end);
 
-  assert(end_full_word - beg_full_word >= 32,
-         "the range must include at least 32 bytes");
+  if (is_small_range_of_words(beg_full_word, end_full_word)) {
+    set_range(beg, end);
+    return;
+  }
 
   // The range includes at least one full word.
   set_range_within_word(beg, bit_index(beg_full_word));
@@ -281,10 +324,10 @@ void BitMap::set_large_range(idx_t beg, idx_t end) {
 void BitMap::clear_large_range(idx_t beg, idx_t end) {
   verify_range(beg, end);
 
-  idx_t beg_full_word = word_index_round_up(beg);
-  idx_t end_full_word = word_index(end);
+  idx_t beg_full_word = to_words_align_up(beg);
+  idx_t end_full_word = to_words_align_down(end);
 
-  if (end_full_word - beg_full_word < 32) {
+  if (is_small_range_of_words(beg_full_word, end_full_word)) {
     clear_range(beg, end);
     return;
   }
@@ -295,11 +338,11 @@ void BitMap::clear_large_range(idx_t beg, idx_t end) {
   clear_range_within_word(bit_index(end_full_word), end);
 }
 
-void BitMap::at_put(idx_t offset, bool value) {
+void BitMap::at_put(idx_t bit, bool value) {
   if (value) {
-    set_bit(offset);
+    set_bit(bit);
   } else {
-    clear_bit(offset);
+    clear_bit(bit);
   }
 }
 
@@ -311,7 +354,7 @@ void BitMap::at_put(idx_t offset, bool value) {
 // if no other thread is executing an action to
 // change the requested bit to a state other than
 // the one that this thread is trying to set it to,
-// then the the bit is in the expected state
+// then the bit is in the expected state
 // at exit from this method. However, rather than
 // make such a strong assertion here, based on
 // assuming such constrained use (which though true
@@ -322,19 +365,19 @@ bool BitMap::par_at_put(idx_t bit, bool value) {
   return value ? par_set_bit(bit) : par_clear_bit(bit);
 }
 
-void BitMap::at_put_range(idx_t start_offset, idx_t end_offset, bool value) {
+void BitMap::at_put_range(idx_t beg, idx_t end, bool value) {
   if (value) {
-    set_range(start_offset, end_offset);
+    set_range(beg, end);
   } else {
-    clear_range(start_offset, end_offset);
+    clear_range(beg, end);
   }
 }
 
 void BitMap::par_at_put_range(idx_t beg, idx_t end, bool value) {
   verify_range(beg, end);
 
-  idx_t beg_full_word = word_index_round_up(beg);
-  idx_t end_full_word = word_index(end);
+  idx_t beg_full_word = to_words_align_up(beg);
+  idx_t end_full_word = to_words_align_down(end);
 
   if (beg_full_word < end_full_word) {
     // The range includes at least one full word.
@@ -365,11 +408,13 @@ void BitMap::at_put_large_range(idx_t beg, idx_t end, bool value) {
 void BitMap::par_at_put_large_range(idx_t beg, idx_t end, bool value) {
   verify_range(beg, end);
 
-  idx_t beg_full_word = word_index_round_up(beg);
-  idx_t end_full_word = word_index(end);
+  idx_t beg_full_word = to_words_align_up(beg);
+  idx_t end_full_word = to_words_align_down(end);
 
-  assert(end_full_word - beg_full_word >= 32,
-         "the range must include at least 32 bytes");
+  if (is_small_range_of_words(beg_full_word, end_full_word)) {
+    par_at_put_range(beg, end, value);
+    return;
+  }
 
   // The range includes at least one full word.
   par_put_range_within_word(beg, bit_index(beg_full_word), value);
@@ -408,7 +453,7 @@ bool BitMap::contains(const BitMap& other) const {
   assert(size() == other.size(), "must have same size");
   const bm_word_t* dest_map = map();
   const bm_word_t* other_map = other.map();
-  idx_t limit = word_index(size());
+  idx_t limit = to_words_align_down(size());
   for (idx_t index = 0; index < limit; ++index) {
     // false if other bitmap has bits set which are clear in this bitmap.
     if ((~dest_map[index] & other_map[index]) != 0) return false;
@@ -423,7 +468,7 @@ bool BitMap::intersects(const BitMap& other) const {
   assert(size() == other.size(), "must have same size");
   const bm_word_t* dest_map = map();
   const bm_word_t* other_map = other.map();
-  idx_t limit = word_index(size());
+  idx_t limit = to_words_align_down(size());
   for (idx_t index = 0; index < limit; ++index) {
     if ((dest_map[index] & other_map[index]) != 0) return true;
   }
@@ -436,7 +481,7 @@ void BitMap::set_union(const BitMap& other) {
   assert(size() == other.size(), "must have same size");
   bm_word_t* dest_map = map();
   const bm_word_t* other_map = other.map();
-  idx_t limit = word_index(size());
+  idx_t limit = to_words_align_down(size());
   for (idx_t index = 0; index < limit; ++index) {
     dest_map[index] |= other_map[index];
   }
@@ -451,7 +496,7 @@ void BitMap::set_difference(const BitMap& other) {
   assert(size() == other.size(), "must have same size");
   bm_word_t* dest_map = map();
   const bm_word_t* other_map = other.map();
-  idx_t limit = word_index(size());
+  idx_t limit = to_words_align_down(size());
   for (idx_t index = 0; index < limit; ++index) {
     dest_map[index] &= ~other_map[index];
   }
@@ -466,7 +511,7 @@ void BitMap::set_intersection(const BitMap& other) {
   assert(size() == other.size(), "must have same size");
   bm_word_t* dest_map = map();
   const bm_word_t* other_map = other.map();
-  idx_t limit = word_index(size());
+  idx_t limit = to_words_align_down(size());
   for (idx_t index = 0; index < limit; ++index) {
     dest_map[index] &= other_map[index];
   }
@@ -482,7 +527,7 @@ bool BitMap::set_union_with_result(const BitMap& other) {
   bool changed = false;
   bm_word_t* dest_map = map();
   const bm_word_t* other_map = other.map();
-  idx_t limit = word_index(size());
+  idx_t limit = to_words_align_down(size());
   for (idx_t index = 0; index < limit; ++index) {
     bm_word_t orig = dest_map[index];
     bm_word_t temp = orig | other_map[index];
@@ -504,7 +549,7 @@ bool BitMap::set_difference_with_result(const BitMap& other) {
   bool changed = false;
   bm_word_t* dest_map = map();
   const bm_word_t* other_map = other.map();
-  idx_t limit = word_index(size());
+  idx_t limit = to_words_align_down(size());
   for (idx_t index = 0; index < limit; ++index) {
     bm_word_t orig = dest_map[index];
     bm_word_t temp = orig & ~other_map[index];
@@ -526,7 +571,7 @@ bool BitMap::set_intersection_with_result(const BitMap& other) {
   bool changed = false;
   bm_word_t* dest_map = map();
   const bm_word_t* other_map = other.map();
-  idx_t limit = word_index(size());
+  idx_t limit = to_words_align_down(size());
   for (idx_t index = 0; index < limit; ++index) {
     bm_word_t orig = dest_map[index];
     bm_word_t temp = orig & other_map[index];
@@ -547,7 +592,7 @@ void BitMap::set_from(const BitMap& other) {
   assert(size() == other.size(), "must have same size");
   bm_word_t* dest_map = map();
   const bm_word_t* other_map = other.map();
-  idx_t copy_words = word_index(size());
+  idx_t copy_words = to_words_align_down(size());
   Copy::disjoint_words((HeapWord*)other_map, (HeapWord*)dest_map, copy_words);
   idx_t rest = bit_in_word(size());
   if (rest > 0) {
@@ -561,7 +606,7 @@ bool BitMap::is_same(const BitMap& other) const {
   assert(size() == other.size(), "must have same size");
   const bm_word_t* dest_map = map();
   const bm_word_t* other_map = other.map();
-  idx_t limit = word_index(size());
+  idx_t limit = to_words_align_down(size());
   for (idx_t index = 0; index < limit; ++index) {
     if (dest_map[index] != other_map[index]) return false;
   }
@@ -571,7 +616,7 @@ bool BitMap::is_same(const BitMap& other) const {
 
 bool BitMap::is_full() const {
   const bm_word_t* words = map();
-  idx_t limit = word_index(size());
+  idx_t limit = to_words_align_down(size());
   for (idx_t index = 0; index < limit; ++index) {
     if (~words[index] != 0) return false;
   }
@@ -581,7 +626,7 @@ bool BitMap::is_full() const {
 
 bool BitMap::is_empty() const {
   const bm_word_t* words = map();
-  idx_t limit = word_index(size());
+  idx_t limit = to_words_align_down(size());
   for (idx_t index = 0; index < limit; ++index) {
     if (words[index] != 0) return false;
   }
@@ -593,78 +638,55 @@ void BitMap::clear_large() {
   clear_large_range_of_words(0, size_in_words());
 }
 
-// Note that if the closure itself modifies the bitmap
-// then modifications in and to the left of the _bit_ being
-// currently sampled will not be seen. Note also that the
-// interval [leftOffset, rightOffset) is right open.
-bool BitMap::iterate(BitMapClosure* blk, idx_t leftOffset, idx_t rightOffset) {
-  verify_range(leftOffset, rightOffset);
-
-  idx_t startIndex = word_index(leftOffset);
-  idx_t endIndex   = MIN2(word_index(rightOffset) + 1, size_in_words());
-  for (idx_t index = startIndex, offset = leftOffset;
-       offset < rightOffset && index < endIndex;
-       offset = (++index) << LogBitsPerWord) {
-    idx_t rest = map(index) >> (offset & (BitsPerWord - 1));
-    for (; offset < rightOffset && rest != 0; offset++) {
-      if (rest & 1) {
-        if (!blk->do_bit(offset)) return false;
-        //  resample at each closure application
-        // (see, for instance, CMS bug 4525989)
-        rest = map(index) >> (offset & (BitsPerWord -1));
-      }
-      rest = rest >> 1;
-    }
+BitMap::idx_t BitMap::count_one_bits_in_range_of_words(idx_t beg_full_word, idx_t end_full_word) const {
+  idx_t sum = 0;
+  for (idx_t i = beg_full_word; i < end_full_word; i++) {
+    bm_word_t w = map()[i];
+    sum += population_count(w);
   }
-  return true;
+  return sum;
 }
 
-const BitMap::idx_t* BitMap::_pop_count_table = NULL;
-
-void BitMap::init_pop_count_table() {
-  if (_pop_count_table == NULL) {
-    BitMap::idx_t *table = NEW_C_HEAP_ARRAY(idx_t, 256, mtInternal);
-    for (uint i = 0; i < 256; i++) {
-      table[i] = num_set_bits(i);
-    }
-
-    if (!Atomic::replace_if_null(table, &_pop_count_table)) {
-      guarantee(_pop_count_table != NULL, "invariant");
-      FREE_C_HEAP_ARRAY(idx_t, table);
-    }
+BitMap::idx_t BitMap::count_one_bits_within_word(idx_t beg, idx_t end) const {
+  if (beg != end) {
+    assert(end > beg, "must be");
+    bm_word_t mask = ~inverted_bit_mask_for_range(beg, end);
+    bm_word_t w = *word_addr(beg);
+    w &= mask;
+    return population_count(w);
   }
-}
-
-BitMap::idx_t BitMap::num_set_bits(bm_word_t w) {
-  idx_t bits = 0;
-
-  while (w != 0) {
-    while ((w & 1) == 0) {
-      w >>= 1;
-    }
-    bits++;
-    w >>= 1;
-  }
-  return bits;
-}
-
-BitMap::idx_t BitMap::num_set_bits_from_table(unsigned char c) {
-  assert(_pop_count_table != NULL, "precondition");
-  return _pop_count_table[c];
+  return 0;
 }
 
 BitMap::idx_t BitMap::count_one_bits() const {
-  init_pop_count_table(); // If necessary.
+  return count_one_bits(0, size());
+}
+
+// Returns the number of bits set within  [beg, end).
+BitMap::idx_t BitMap::count_one_bits(idx_t beg, idx_t end) const {
+  verify_range(beg, end);
+
+  idx_t beg_full_word = to_words_align_up(beg);
+  idx_t end_full_word = to_words_align_down(end);
+
   idx_t sum = 0;
-  typedef unsigned char uchar;
-  for (idx_t i = 0; i < size_in_words(); i++) {
-    bm_word_t w = map()[i];
-    for (size_t j = 0; j < sizeof(bm_word_t); j++) {
-      sum += num_set_bits_from_table(uchar(w & 255));
-      w >>= 8;
-    }
+
+  if (beg_full_word < end_full_word) {
+    // The range includes at least one full word.
+    sum += count_one_bits_within_word(beg, bit_index(beg_full_word));
+    sum += count_one_bits_in_range_of_words(beg_full_word, end_full_word);
+    sum += count_one_bits_within_word(bit_index(end_full_word), end);
+  } else {
+    // The range spans at most 2 partial words.
+    idx_t boundary = MIN2(bit_index(beg_full_word), end);
+    sum += count_one_bits_within_word(beg, boundary);
+    sum += count_one_bits_within_word(boundary, end);
   }
+
+  assert(sum <= (end - beg), "must be");
+
   return sum;
+
 }
 
 void BitMap::print_on_error(outputStream* st, const char* prefix) const {
@@ -672,14 +694,32 @@ void BitMap::print_on_error(outputStream* st, const char* prefix) const {
       prefix, p2i(map()), p2i((char*)map() + (size() >> LogBitsPerByte)));
 }
 
-#ifndef PRODUCT
-
-void BitMap::print_on(outputStream* st) const {
-  tty->print("Bitmap(" SIZE_FORMAT "):", size());
-  for (idx_t index = 0; index < size(); index++) {
-    tty->print("%c", at(index) ? '1' : '0');
-  }
-  tty->cr();
+void BitMap::write_to(bm_word_t* buffer, size_t buffer_size_in_bytes) const {
+  assert(buffer_size_in_bytes == size_in_bytes(), "must be");
+  memcpy(buffer, _map, size_in_bytes());
 }
 
+#ifdef ASSERT
+void BitMap::IteratorImpl::assert_not_empty() const {
+  assert(!is_empty(), "empty iterator");
+}
 #endif
+
+void BitMap::print_on(outputStream* st) const {
+  st->print("Bitmap (" SIZE_FORMAT " bits):", size());
+  for (idx_t index = 0; index < size(); index++) {
+    if ((index % 64) == 0) {
+      st->cr();
+      st->print(SIZE_FORMAT_W(5) ":", index);
+    }
+    if ((index % 8) == 0) {
+      st->print(" ");
+    }
+    st->print("%c", at(index) ? 'S' : '.');
+  }
+  st->cr();
+}
+
+template class GrowableBitMap<ArenaBitMap>;
+template class GrowableBitMap<ResourceBitMap>;
+template class GrowableBitMap<CHeapBitMap>;

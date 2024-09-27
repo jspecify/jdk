@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,89 +22,173 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDBITS_INLINE_HPP
-#define SHARE_VM_JFR_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDBITS_INLINE_HPP
+#ifndef SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDBITS_INLINE_HPP
+#define SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDBITS_INLINE_HPP
 
-#include "jfr/utilities/jfrTypes.hpp"
+#include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdBits.hpp"
+
+#include "oops/method.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/orderAccess.hpp"
 #include "utilities/macros.hpp"
 
 #ifdef VM_LITTLE_ENDIAN
-static const int low_offset = 0;
-static const int leakp_offset = low_offset + 1;
+const int low_offset = 0;
+const int meta_offset = low_offset + 1;
 #else
-static const int low_offset = 7;
-static const int leakp_offset = low_offset - 1;
+const int low_offset = 7;
+const int meta_offset = low_offset - 1;
 #endif
 
-inline void set_bits(jbyte bits, jbyte* const dest) {
-  assert(dest != NULL, "invariant");
-  const jbyte current = OrderAccess::load_acquire(dest);
-  if (bits != (current & bits)) {
-    *dest |= bits;
-  }
+inline uint8_t* low_addr(uint8_t* addr) {
+  assert(addr != nullptr, "invariant");
+  return addr + low_offset;
 }
 
-inline void set_mask(jbyte mask, jbyte* const dest) {
-  assert(dest != NULL, "invariant");
-  const jbyte current = OrderAccess::load_acquire(dest);
-  if (mask != (current & mask)) {
-    *dest &= mask;
-  }
+inline uint8_t* low_addr(traceid* addr) {
+  return low_addr(reinterpret_cast<uint8_t*>(addr));
 }
 
-inline void set_bits_cas(jbyte bits, jbyte* const dest) {
-  assert(dest != NULL, "invariant");
+inline uint8_t* meta_addr(uint8_t* addr) {
+  assert(addr != nullptr, "invariant");
+  return addr + meta_offset;
+}
+
+inline uint8_t* meta_addr(traceid* addr) {
+  return meta_addr(reinterpret_cast<uint8_t*>(addr));
+}
+
+template <typename T>
+inline uint8_t* traceid_tag_byte(const T* ptr) {
+  assert(ptr != nullptr, "invariant");
+  return low_addr(ptr->trace_id_addr());
+}
+
+template <>
+inline uint8_t* traceid_tag_byte<Method>(const Method* ptr) {
+  assert(ptr != nullptr, "invariant");
+  return ptr->trace_flags_addr();
+}
+
+template <typename T>
+inline uint8_t* traceid_meta_byte(const T* ptr) {
+  assert(ptr != nullptr, "invariant");
+  return meta_addr(ptr->trace_id_addr());
+}
+
+template <>
+inline uint8_t* traceid_meta_byte<Method>(const Method* ptr) {
+  assert(ptr != nullptr, "invariant");
+  return ptr->trace_meta_addr();
+}
+
+inline uint8_t traceid_and(uint8_t bits, uint8_t current) {
+  return bits & current;
+}
+
+inline uint8_t traceid_or(uint8_t bits, uint8_t current) {
+  return bits | current;
+}
+
+inline uint8_t traceid_xor(uint8_t bits, uint8_t current) {
+  return bits ^ current;
+}
+
+template <uint8_t op(uint8_t, uint8_t)>
+inline void set_form(uint8_t bits, uint8_t* dest) {
+  assert(dest != nullptr, "invariant");
+  *dest = op(bits, *dest);
+  OrderAccess::storestore();
+}
+
+template <uint8_t op(uint8_t, uint8_t)>
+inline void set_cas_form(uint8_t bits, uint8_t volatile* dest) {
+  assert(dest != nullptr, "invariant");
   do {
-    const jbyte current = OrderAccess::load_acquire(dest);
-    if (bits == (current & bits)) {
-      return;
-    }
-    const jbyte new_value = current | bits;
-    if (Atomic::cmpxchg(new_value, dest, current) == current) {
+    const uint8_t current = *dest;
+    const uint8_t new_value = op(bits, current);
+    if (current == new_value || Atomic::cmpxchg(dest, current, new_value) == current) {
       return;
     }
   } while (true);
 }
 
-inline void clear_bits_cas(jbyte bits, jbyte* const dest) {
-  assert(dest != NULL, "invariant");
-  do {
-    const jbyte current = OrderAccess::load_acquire(dest);
-    if (bits != (current & bits)) {
-      return;
-    }
-    const jbyte new_value = current ^ bits;
-    if (Atomic::cmpxchg(new_value, dest, current) == current) {
-      return;
-    }
-  } while (true);
+template <typename T>
+inline void JfrTraceIdBits::cas(uint8_t bits, const T* ptr) {
+  assert(ptr != nullptr, "invariant");
+  set_cas_form<traceid_or>(bits, traceid_tag_byte(ptr));
 }
 
-inline void set_traceid_bits(jbyte bits, traceid* dest) {
-  set_bits(bits, ((jbyte*)dest) + low_offset);
+template <typename T>
+inline traceid JfrTraceIdBits::load(const T* ptr) {
+  assert(ptr != nullptr, "invariant");
+  return ptr->trace_id();
 }
 
-inline void set_traceid_bits_cas(jbyte bits, traceid* dest) {
-  set_bits_cas(bits, ((jbyte*)dest) + low_offset);
+inline void set(uint8_t bits, uint8_t* dest) {
+  assert(dest != nullptr, "invariant");
+  set_form<traceid_or>(bits, dest);
 }
 
-inline void set_traceid_mask(jbyte mask, traceid* dest) {
-  set_mask(mask, ((jbyte*)dest) + low_offset);
+template <typename T>
+inline void JfrTraceIdBits::store(uint8_t bits, const T* ptr) {
+  assert(ptr != nullptr, "invariant");
+  // gcc12 warns "writing 1 byte into a region of size 0" when T == Klass.
+  // The warning seems to be a false positive.  And there is no warning for
+  // other types that use the same mechanisms.  The warning also sometimes
+  // goes away with minor code perturbations, such as replacing function calls
+  // with equivalent code directly inlined.
+  PRAGMA_DIAG_PUSH
+  PRAGMA_STRINGOP_OVERFLOW_IGNORED
+  set(bits, traceid_tag_byte(ptr));
+  PRAGMA_DIAG_POP
 }
 
-inline void set_leakp_traceid_bits(jbyte bits, traceid* dest) {
-  set_bits(bits, ((jbyte*)dest) + leakp_offset);
+template <typename T>
+inline void JfrTraceIdBits::meta_store(uint8_t bits, const T* ptr) {
+  assert(ptr != nullptr, "invariant");
+  set(bits, traceid_meta_byte(ptr));
 }
 
-inline void set_leakp_traceid_bits_cas(jbyte bits, traceid* dest) {
-  set_bits_cas(bits, ((jbyte*)dest) + leakp_offset);
+inline void set_mask(uint8_t mask, uint8_t* dest) {
+  set_cas_form<traceid_and>(mask, dest);
 }
 
-inline void set_leakp_traceid_mask(jbyte mask, traceid* dest) {
-  set_mask(mask, ((jbyte*)dest) + leakp_offset);
+template <typename T>
+inline void JfrTraceIdBits::mask_store(uint8_t mask, const T* ptr) {
+  assert(ptr != nullptr, "invariant");
+  set_mask(mask, traceid_tag_byte(ptr));
 }
 
-#endif // SHARE_VM_JFR_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDBITS_INLINE_HPP
+template <typename T>
+inline void JfrTraceIdBits::meta_mask_store(uint8_t mask, const T* ptr) {
+  assert(ptr != nullptr, "invariant");
+  set_mask(mask, traceid_meta_byte(ptr));
+}
 
+inline void clear_bits(uint8_t bits, uint8_t* dest) {
+  set_form<traceid_xor>(bits, dest);
+}
+
+template <typename T>
+inline void JfrTraceIdBits::clear(uint8_t bits, const T* ptr) {
+  assert(ptr != nullptr, "invariant");
+  clear_bits(bits, traceid_tag_byte(ptr));
+}
+
+inline void clear_bits_cas(uint8_t bits, uint8_t* dest) {
+  set_cas_form<traceid_xor>(bits, dest);
+}
+
+template <typename T>
+inline void JfrTraceIdBits::clear_cas(uint8_t bits, const T* ptr) {
+  assert(ptr != nullptr, "invariant");
+  clear_bits_cas(bits, traceid_tag_byte(ptr));
+}
+
+template <typename T>
+inline void JfrTraceIdBits::meta_clear(uint8_t bits, const T* ptr) {
+  assert(ptr != nullptr, "invariant");
+  clear_bits(bits, traceid_meta_byte(ptr));
+}
+
+#endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDBITS_INLINE_HPP

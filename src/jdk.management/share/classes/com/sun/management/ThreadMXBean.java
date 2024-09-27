@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,15 +53,14 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
      * @param ids an array of thread IDs.
      * @return an array of long values, each of which is the amount of CPU
      * time the thread whose ID is in the corresponding element of the input
-     * array of IDs has used,
-     * if the thread of a specified ID exists, the thread is alive,
-     * and CPU time measurement is enabled;
+     * array of IDs has used, if the thread of a specified ID is a platform
+     * thread, the thread is alive, and CPU time measurement is enabled;
      * {@code -1} otherwise.
      *
      * @throws NullPointerException if {@code ids} is {@code null}
      * @throws IllegalArgumentException if any element in the input array
      *         {@code ids} is {@code <=} {@code 0}.
-     * @throws java.lang.UnsupportedOperationException if the Java
+     * @throws UnsupportedOperationException if the Java
      *         virtual machine implementation does not support CPU time
      *         measurement.
      *
@@ -87,15 +86,14 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
      * @param ids an array of thread IDs.
      * @return an array of long values, each of which is the amount of user
      * mode CPU time the thread whose ID is in the corresponding element of
-     * the input array of IDs has used,
-     * if the thread of a specified ID exists, the thread is alive,
-     * and CPU time measurement is enabled;
+     * the input array of IDs has used, if the thread of a specified ID is a
+     * platform thread, the thread is alive, and CPU time measurement is enabled;
      * {@code -1} otherwise.
      *
      * @throws NullPointerException if {@code ids} is {@code null}
      * @throws IllegalArgumentException if any element in the input array
      *         {@code ids} is {@code <=} {@code 0}.
-     * @throws java.lang.UnsupportedOperationException if the Java
+     * @throws UnsupportedOperationException if the Java
      *         virtual machine implementation does not support CPU time
      *         measurement.
      *
@@ -108,17 +106,87 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
     public long[] getThreadUserTime(long[] ids);
 
     /**
+     * Returns an approximation of the total amount of memory, in bytes, allocated
+     * in heap memory by all threads since the Java virtual machine started.
+     * The returned value is an approximation because some Java virtual machine
+     * implementations may use object allocation mechanisms that result in a
+     * delay between the time an object is allocated and the time its size is
+     * recorded.
+     *
+     * @implSpec The default implementation throws {@code UnsupportedOperationException}
+     * if the Java virtual machine implementation does not support thread
+     * memory allocation measurement, and otherwise acts as though thread
+     * memory allocation measurement is disabled.
+     *
+     * @return an approximation of the total memory allocated, in bytes, in
+     * heap memory since the Java virtual machine was started,
+     * if thread memory allocation measurement is enabled;
+     * {@code -1} otherwise.
+     *
+     * @throws UnsupportedOperationException if the Java virtual
+     *         machine implementation does not support thread memory allocation
+     *         measurement.
+     *
+     * @see #isThreadAllocatedMemorySupported
+     * @see #isThreadAllocatedMemoryEnabled
+     * @see #setThreadAllocatedMemoryEnabled
+     *
+     * @since 21
+     */
+    public default long getTotalThreadAllocatedBytes() {
+        if (!isThreadAllocatedMemorySupported()) {
+            throw new UnsupportedOperationException(
+                "Thread allocated memory measurement is not supported.");
+        }
+        return -1;
+    }
+
+    /**
      * Returns an approximation of the total amount of memory, in bytes,
-     * allocated in heap memory for the thread of the specified ID.
+     * allocated in heap memory for the current thread.
+     * The returned value is an approximation because some Java virtual machine
+     * implementations may use object allocation mechanisms that result in a
+     * delay between the time an object is allocated and the time its size is
+     * recorded.
+     *
+     * <p>
+     * This is a convenience method for local management use and is
+     * equivalent to calling:
+     * <blockquote><pre>
+     *   {@link #getThreadAllocatedBytes getThreadAllocatedBytes}(Thread.currentThread().threadId());
+     * </pre></blockquote>
+     *
+     * @return an approximation of the total memory allocated, in bytes, in
+     * heap memory for the current thread
+     * if thread memory allocation measurement is enabled;
+     * {@code -1} otherwise.
+     *
+     * @throws UnsupportedOperationException if the Java virtual
+     *         machine implementation does not support thread memory allocation
+     *         measurement.
+     *
+     * @see #isThreadAllocatedMemorySupported
+     * @see #isThreadAllocatedMemoryEnabled
+     * @see #setThreadAllocatedMemoryEnabled
+     *
+     * @since 14
+     */
+    public default long getCurrentThreadAllocatedBytes() {
+        return getThreadAllocatedBytes(Thread.currentThread().threadId());
+    }
+
+    /**
+     * Returns an approximation of the total amount of memory, in bytes,
+     * allocated in heap memory for the thread with the specified ID.
      * The returned value is an approximation because some Java virtual machine
      * implementations may use object allocation mechanisms that result in a
      * delay between the time an object is allocated and the time its size is
      * recorded.
      * <p>
-     * If the thread of the specified ID is not alive or does not exist,
-     * this method returns {@code -1}. If thread memory allocation measurement
-     * is disabled, this method returns {@code -1}.
-     * A thread is alive if it has been started and has not yet died.
+     * If the thread with the specified ID is a virtual thread, is not alive,
+     * or does not exist, this method returns {@code -1}. If thread memory
+     * allocation measurement is disabled, this method returns {@code -1}.
+     * A thread is alive if it has been started and has not yet terminated.
      * <p>
      * If thread memory allocation measurement is enabled after the thread has
      * started, the Java virtual machine implementation may choose any time up
@@ -127,13 +195,12 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
      *
      * @param id the thread ID of a thread
      * @return an approximation of the total memory allocated, in bytes, in
-     * heap memory for a thread of the specified ID
-     * if the thread of the specified ID exists, the thread is alive,
-     * and thread memory allocation measurement is enabled;
-     * {@code -1} otherwise.
+     * heap memory for the thread with the specified ID if the thread with the
+     * specified ID is a platform thread, the thread is alive, and thread memory
+     * allocation measurement is enabled; {@code -1} otherwise.
      *
      * @throws IllegalArgumentException if {@code id} {@code <=} {@code 0}.
-     * @throws java.lang.UnsupportedOperationException if the Java virtual
+     * @throws UnsupportedOperationException if the Java virtual
      *         machine implementation does not support thread memory allocation
      *         measurement.
      *
@@ -165,7 +232,7 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
      * @throws NullPointerException if {@code ids} is {@code null}
      * @throws IllegalArgumentException if any element in the input array
      *         {@code ids} is {@code <=} {@code 0}.
-     * @throws java.lang.UnsupportedOperationException if the Java virtual
+     * @throws UnsupportedOperationException if the Java virtual
      *         machine implementation does not support thread memory allocation
      *         measurement.
      *
@@ -194,7 +261,7 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
      * @return {@code true} if thread memory allocation measurement is enabled;
      *         {@code false} otherwise.
      *
-     * @throws java.lang.UnsupportedOperationException if the Java virtual
+     * @throws UnsupportedOperationException if the Java virtual
      *         machine does not support thread memory allocation measurement.
      *
      * @see #isThreadAllocatedMemorySupported
@@ -208,10 +275,10 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
      * @param enable {@code true} to enable;
      *               {@code false} to disable.
      *
-     * @throws java.lang.UnsupportedOperationException if the Java virtual
+     * @throws UnsupportedOperationException if the Java virtual
      *         machine does not support thread memory allocation measurement.
      *
-     * @throws java.lang.SecurityException if a security manager
+     * @throws SecurityException if a security manager
      *         exists and the caller does not have
      *         ManagementPermission("control").
      *

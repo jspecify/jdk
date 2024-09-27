@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_CPU_BSD_X86_VM_ORDERACCESS_BSD_X86_HPP
-#define OS_CPU_BSD_X86_VM_ORDERACCESS_BSD_X86_HPP
+#ifndef OS_CPU_BSD_X86_ORDERACCESS_BSD_X86_HPP
+#define OS_CPU_BSD_X86_ORDERACCESS_BSD_X86_HPP
 
 // Included in orderAccess.hpp header file.
 
@@ -59,54 +59,13 @@ inline void OrderAccess::fence() {
   compiler_barrier();
 }
 
-template<>
-struct OrderAccess::PlatformOrderedStore<1, RELEASE_X_FENCE>
-{
-  template <typename T>
-  void operator()(T v, volatile T* p) const {
-    __asm__ volatile (  "xchgb (%2),%0"
-                      : "=q" (v)
-                      : "0" (v), "r" (p)
-                      : "memory");
+inline void OrderAccess::cross_modify_fence_impl() {
+  if (VM_Version::supports_serialize()) {
+    __asm__ volatile (".byte 0x0f, 0x01, 0xe8\n\t" : : :); //serialize
+  } else {
+    int idx = 0;
+    __asm__ volatile ("cpuid " : "+a" (idx) : : "ebx", "ecx", "edx", "memory");
   }
-};
+}
 
-template<>
-struct OrderAccess::PlatformOrderedStore<2, RELEASE_X_FENCE>
-{
-  template <typename T>
-  void operator()(T v, volatile T* p) const {
-    __asm__ volatile (  "xchgw (%2),%0"
-                      : "=r" (v)
-                      : "0" (v), "r" (p)
-                      : "memory");
-  }
-};
-
-template<>
-struct OrderAccess::PlatformOrderedStore<4, RELEASE_X_FENCE>
-{
-  template <typename T>
-  void operator()(T v, volatile T* p) const {
-    __asm__ volatile (  "xchgl (%2),%0"
-                      : "=r" (v)
-                      : "0" (v), "r" (p)
-                      : "memory");
-  }
-};
-
-#ifdef AMD64
-template<>
-struct OrderAccess::PlatformOrderedStore<8, RELEASE_X_FENCE>
-{
-  template <typename T>
-  void operator()(T v, volatile T* p) const {
-    __asm__ volatile (  "xchgq (%2), %0"
-                      : "=r" (v)
-                      : "0" (v), "r" (p)
-                      : "memory");
-  }
-};
-#endif // AMD64
-
-#endif // OS_CPU_BSD_X86_VM_ORDERACCESS_BSD_X86_HPP
+#endif // OS_CPU_BSD_X86_ORDERACCESS_BSD_X86_HPP

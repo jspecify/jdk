@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,22 +30,29 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import javax.swing.AbstractAction;
+import javax.swing.AbstractListModel;
+import javax.swing.Action;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.ImageIcon;
+import javax.swing.JCheckBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 
-import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.text.*;
-import javax.swing.border.*;
-import javax.swing.colorchooser.*;
-import javax.swing.filechooser.*;
-import javax.accessibility.*;
-
-import java.awt.*;
-import java.awt.event.*;
-import java.beans.*;
-import java.util.*;
-import java.io.*;
-import java.applet.*;
-import java.net.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Insets;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
+import java.util.Vector;
 
 /**
  * List Demo. This demo shows that it is not
@@ -59,7 +66,7 @@ import java.net.*;
  * @author Jeff Dinkins
  */
 public class ListDemo extends DemoModule {
-    JList list;
+    JList<String> list;
 
     JPanel prefixList;
     JPanel suffixList;
@@ -69,7 +76,7 @@ public class ListDemo extends DemoModule {
 
     GeneratedListModel listModel;
 
-    Vector checkboxes = new Vector();
+    Vector<JCheckBox> checkboxes = new Vector<>();
 
     /**
      * main method allows us to run as a standalone demo.
@@ -103,7 +110,7 @@ public class ListDemo extends DemoModule {
         centerPanel.add(Box.createRigidArea(HGAP30));
 
         // Create the list
-        list = new JList();
+        list = new JList<>();
         list.setCellRenderer(new CompanyLogoListCellRenderer());
         listModel = new GeneratedListModel(this);
         list.setModel(listModel);
@@ -293,12 +300,12 @@ public class ListDemo extends DemoModule {
     }
 
 
-    class GeneratedListModel extends AbstractListModel {
+    class GeneratedListModel extends AbstractListModel<String> {
         ListDemo demo;
         Permuter permuter;
 
-        public Vector prefix = new Vector();
-        public Vector suffix = new Vector();
+        public Vector<String> prefix = new Vector<>();
+        public Vector<String> suffix = new Vector<>();
 
         public GeneratedListModel (ListDemo demo) {
             this.demo = demo;
@@ -337,7 +344,7 @@ public class ListDemo extends DemoModule {
             return prefix.size() * suffix.size();
         }
 
-        public Object getElementAt(int index) {
+        public String getElementAt(int index) {
             if(permuter == null) {
                 update();
             }
@@ -350,7 +357,7 @@ public class ListDemo extends DemoModule {
         }
     }
 
-    ImageIcon images[] = new ImageIcon[7];
+    ImageIcon[] images = new ImageIcon[7];
     void loadImages() {
             images[0] = createImageIcon("list/red.gif",  getString("ListDemo.red"));
             images[1] = createImageIcon("list/blue.gif",  getString("ListDemo.blue"));
@@ -363,7 +370,7 @@ public class ListDemo extends DemoModule {
 
     class CompanyLogoListCellRenderer extends DefaultListCellRenderer {
        public Component getListCellRendererComponent(
-            JList list,
+            JList<?> list,
             Object value,
             int index,
             boolean isSelected,

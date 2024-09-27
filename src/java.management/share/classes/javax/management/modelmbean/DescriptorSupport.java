@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -81,64 +81,18 @@ import sun.reflect.misc.ReflectUtil;
  *
  * @since 1.5
  */
-@SuppressWarnings("serial")  // serialVersionUID not constant
 public class DescriptorSupport
          implements javax.management.Descriptor
 {
 
-    // Serialization compatibility stuff:
-    // Two serial forms are supported in this class. The selected form depends
-    // on system property "jmx.serial.form":
-    //  - "1.0" for JMX 1.0
-    //  - any other value for JMX 1.1 and higher
-    //
-    // Serial version for old serial form
-    private static final long oldSerialVersionUID = 8071560848919417985L;
-    //
-    // Serial version for new serial form
-    private static final long newSerialVersionUID = -6292969195866300415L;
-    //
-    // Serializable fields in old serial form
-    private static final ObjectStreamField[] oldSerialPersistentFields =
-    {
-      new ObjectStreamField("descriptor", HashMap.class),
-      new ObjectStreamField("currClass", String.class)
-    };
-    //
-    // Serializable fields in new serial form
-    private static final ObjectStreamField[] newSerialPersistentFields =
-    {
-      new ObjectStreamField("descriptor", HashMap.class)
-    };
-    //
-    // Actual serial version and serial form
-    private static final long serialVersionUID;
+    private static final long serialVersionUID = -6292969195866300415L;
     /**
      * @serialField descriptor HashMap The collection of fields representing this descriptor
      */
-    private static final ObjectStreamField[] serialPersistentFields;
-    private static final String serialForm;
-    static {
-        String form = null;
-        boolean compat = false;
-        try {
-            GetPropertyAction act = new GetPropertyAction("jmx.serial.form");
-            form = AccessController.doPrivileged(act);
-            compat = "1.0".equals(form);  // form may be null
-        } catch (Exception e) {
-            // OK: No compat with 1.0
-        }
-        serialForm = form;
-        if (compat) {
-            serialPersistentFields = oldSerialPersistentFields;
-            serialVersionUID = oldSerialVersionUID;
-        } else {
-            serialPersistentFields = newSerialPersistentFields;
-            serialVersionUID = newSerialVersionUID;
-        }
-    }
-    //
-    // END Serialization compatibility stuff
+    private static final ObjectStreamField[] serialPersistentFields =
+    {
+      new ObjectStreamField("descriptor", HashMap.class)
+    };
 
     /* Spec says that field names are case-insensitive, but that case
        is preserved.  This means that we need to be able to map from a
@@ -443,7 +397,7 @@ public class DescriptorSupport
         init(null);
 
         for (int i=0; i < fields.length; i++) {
-            if ((fields[i] == null) || (fields[i].equals(""))) {
+            if ((fields[i] == null) || (fields[i].isEmpty())) {
                 continue;
             }
             int eq_separator = fields[i].indexOf('=');
@@ -467,7 +421,7 @@ public class DescriptorSupport
                 fieldValue = fields[i].substring(eq_separator+1);
             }
 
-            if (fieldName.equals("")) {
+            if (fieldName.isEmpty()) {
                 if (MODELMBEAN_LOGGER.isLoggable(Level.TRACE)) {
                     MODELMBEAN_LOGGER.log(Level.TRACE,
                             "Descriptor(String... fields) " +
@@ -488,8 +442,7 @@ public class DescriptorSupport
     }
 
     private void init(Map<String, ?> initMap) {
-        descriptorMap =
-                new TreeMap<String, Object>(String.CASE_INSENSITIVE_ORDER);
+        descriptorMap = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         if (initMap != null)
             descriptorMap.putAll(initMap);
     }
@@ -500,7 +453,7 @@ public class DescriptorSupport
     public synchronized Object getFieldValue(String fieldName)
             throws RuntimeOperationsException {
 
-        if ((fieldName == null) || (fieldName.equals(""))) {
+        if ((fieldName == null) || (fieldName.isEmpty())) {
             if (MODELMBEAN_LOGGER.isLoggable(Level.TRACE)) {
                 MODELMBEAN_LOGGER.log(Level.TRACE,
                         "Illegal arguments: null field name");
@@ -522,7 +475,7 @@ public class DescriptorSupport
             throws RuntimeOperationsException {
 
         // field name cannot be null or empty
-        if ((fieldName == null) || (fieldName.equals(""))) {
+        if ((fieldName == null) || (fieldName.isEmpty())) {
             if (MODELMBEAN_LOGGER.isLoggable(Level.TRACE)) {
                 MODELMBEAN_LOGGER.log(Level.TRACE,
                         "Illegal arguments: null or empty field name");
@@ -664,7 +617,7 @@ public class DescriptorSupport
                 responseFields[i++] = value;
         } else {
             for (i=0; i < fieldNames.length; i++) {
-                if ((fieldNames[i] == null) || (fieldNames[i].equals(""))) {
+                if ((fieldNames[i] == null) || (fieldNames[i].isEmpty())) {
                     responseFields[i] = null;
                 } else {
                     responseFields[i] = getFieldValue(fieldNames[i]);
@@ -700,7 +653,7 @@ public class DescriptorSupport
         }
 
         for (int i=0; i < fieldNames.length; i++) {
-            if (( fieldNames[i] == null) || (fieldNames[i].equals(""))) {
+            if (( fieldNames[i] == null) || (fieldNames[i].isEmpty())) {
                 if (MODELMBEAN_LOGGER.isLoggable(Level.TRACE)) {
                     MODELMBEAN_LOGGER.log(Level.TRACE,
                             "Null field name encountered at element " + i);
@@ -733,7 +686,7 @@ public class DescriptorSupport
     }
 
     public synchronized void removeField(String fieldName) {
-        if ((fieldName == null) || (fieldName.equals(""))) {
+        if ((fieldName == null) || (fieldName.isEmpty())) {
             return;
         }
 
@@ -862,7 +815,7 @@ public class DescriptorSupport
         String thisDescType = (String)(getFieldValue("descriptorType"));
 
         if ((thisName == null) || (thisDescType == null) ||
-            (thisName.equals("")) || (thisDescType.equals(""))) {
+            (thisName.isEmpty()) || (thisDescType.isEmpty())) {
             return false;
         }
 
@@ -912,7 +865,7 @@ public class DescriptorSupport
 
 
     private boolean validateField(String fldName, Object fldValue) {
-        if ((fldName == null) || (fldName.equals("")))
+        if ((fldName == null) || (fldName.isEmpty()))
             return false;
         String SfldValue = "";
         boolean isAString = false;
@@ -931,7 +884,7 @@ public class DescriptorSupport
             fldName.equalsIgnoreCase("Class")) {
             if (fldValue == null || !isAString)
                 return false;
-            if (nameOrDescriptorType && SfldValue.equals(""))
+            if (nameOrDescriptorType && SfldValue.isEmpty())
                 return false;
             return true;
         } else if (fldName.equalsIgnoreCase("visibility")) {
@@ -1057,7 +1010,7 @@ public class DescriptorSupport
         "\f&#12;",
     };
     private static final Map<String,Character> entityToCharMap =
-        new HashMap<String,Character>();
+        new HashMap<>();
     private static final String[] charToEntityMap;
 
     static {
@@ -1230,14 +1183,13 @@ public class DescriptorSupport
             MODELMBEAN_LOGGER.log(Level.TRACE, "Entry");
         }
 
-        String respStr = "";
         String[] fields = getFields();
 
         if ((fields == null) || (fields.length == 0)) {
             if (MODELMBEAN_LOGGER.isLoggable(Level.TRACE)) {
                 MODELMBEAN_LOGGER.log(Level.TRACE, "Empty Descriptor");
             }
-            return respStr;
+            return "";
         }
 
         if (MODELMBEAN_LOGGER.isLoggable(Level.TRACE)) {
@@ -1245,13 +1197,7 @@ public class DescriptorSupport
                     "Printing " + fields.length + " fields");
         }
 
-        for (int i=0; i < fields.length; i++) {
-            if (i == (fields.length - 1)) {
-                respStr = respStr.concat(fields[i]);
-            } else {
-                respStr = respStr.concat(fields[i] + ", ");
-            }
-        }
+        String respStr = String.join(", ", fields);
 
         if (MODELMBEAN_LOGGER.isLoggable(Level.TRACE)) {
             MODELMBEAN_LOGGER.log(Level.TRACE, "Exit returning " + respStr);
@@ -1289,22 +1235,8 @@ public class DescriptorSupport
     /**
      * Serializes a {@link DescriptorSupport} to an {@link ObjectOutputStream}.
      */
-    /* If you set jmx.serial.form to "1.2.0" or "1.2.1", then we are
-       bug-compatible with those versions.  Specifically, field names
-       are forced to lower-case before being written.  This
-       contradicts the spec, which, though it does not mention
-       serialization explicitly, does say that the case of field names
-       is preserved.  But in 1.2.0 and 1.2.1, this requirement was not
-       met.  Instead, field names in the descriptor map were forced to
-       lower case.  Those versions expect this to have happened to a
-       descriptor they deserialize and e.g. getFieldValue will not
-       find a field whose name is spelt with a different case.
-    */
     private void writeObject(ObjectOutputStream out) throws IOException {
         ObjectOutputStream.PutField fields = out.putFields();
-        boolean compat = "1.0".equals(serialForm);
-        if (compat)
-            fields.put("currClass", currClass);
 
         /* Purge the field "targetObject" from the DescriptorSupport before
          * serializing since the referenced object is typically not
@@ -1314,19 +1246,11 @@ public class DescriptorSupport
          */
         SortedMap<String, Object> startMap = descriptorMap;
         if (startMap.containsKey("targetObject")) {
-            startMap = new TreeMap<String, Object>(descriptorMap);
+            startMap = new TreeMap<>(descriptorMap);
             startMap.remove("targetObject");
         }
 
-        final HashMap<String, Object> descriptor;
-        if (compat || "1.2.0".equals(serialForm) ||
-                "1.2.1".equals(serialForm)) {
-            descriptor = new HashMap<String, Object>();
-            for (Map.Entry<String, Object> entry : startMap.entrySet())
-                descriptor.put(entry.getKey().toLowerCase(), entry.getValue());
-        } else
-            descriptor = new HashMap<String, Object>(startMap);
-
+        final HashMap<String, Object> descriptor = new HashMap<>(startMap);
         fields.put("descriptor", descriptor);
         out.writeFields();
     }

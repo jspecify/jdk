@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,14 @@
 
 package java.awt;
 
+import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.peer.CheckboxMenuItemPeer;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serial;
 import java.util.EventListener;
 
 import javax.accessibility.Accessible;
@@ -52,7 +54,7 @@ import sun.awt.AWTAccessor;
  * <img src="doc-files/MenuBar-1.gif"
  * alt="Menu labeled Examples, containing items Basic, Simple, Check, and More
  * Examples. The Check item is a CheckBoxMenuItem instance, in the off state."
- * style="float:center; margin: 7px 10px;">
+ * style="margin: 7px 10px;">
  * <p>
  * The item labeled {@code Check} shows a check box menu item
  * in its "off" state.
@@ -99,15 +101,16 @@ public class CheckboxMenuItem extends MenuItem implements ItemSelectable, Access
     private static final String base = "chkmenuitem";
     private static int nameCounter = 0;
 
-    /*
-     * JDK 1.1 serialVersionUID
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
+     @Serial
      private static final long serialVersionUID = 6190621106981774043L;
 
     /**
      * Create a check box menu item with an empty label.
      * The item's state is initially set to "off."
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @since   1.1
@@ -122,7 +125,7 @@ public class CheckboxMenuItem extends MenuItem implements ItemSelectable, Access
 
      * @param     label   a string label for the check box menu item,
      *                or {@code null} for an unlabeled menu item.
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -137,7 +140,7 @@ public class CheckboxMenuItem extends MenuItem implements ItemSelectable, Access
      * @param      state   the initial state of the menu item, where
      *                     {@code true} indicates "on" and
      *                     {@code false} indicates "off."
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @since      1.1
@@ -211,7 +214,7 @@ public class CheckboxMenuItem extends MenuItem implements ItemSelectable, Access
     }
 
     /**
-     * Returns the an array (length 1) containing the checkbox menu item
+     * Returns the array (length 1) containing the checkbox menu item
      * label or null if the checkbox is not selected.
      * @see ItemSelectable
      */
@@ -313,7 +316,7 @@ public class CheckboxMenuItem extends MenuItem implements ItemSelectable, Access
      *          <code><em>Foo</em>Listener</code>s on this checkbox menuitem,
      *          or an empty array if no such
      *          listeners have been added
-     * @exception ClassCastException if {@code listenerType}
+     * @throws ClassCastException if {@code listenerType}
      *          doesn't specify a class or interface that implements
      *          {@code java.util.EventListener}
      *
@@ -426,8 +429,8 @@ public class CheckboxMenuItem extends MenuItem implements ItemSelectable, Access
     /* Serialization support.
      */
 
-    /*
-     * Serial Data Version
+    /**
+     * Serialized data version.
      * @serial
      */
     private int checkboxMenuItemSerializedDataVersion = 1;
@@ -439,7 +442,8 @@ public class CheckboxMenuItem extends MenuItem implements ItemSelectable, Access
      * {@code ItemListeners} are detected and
      * no attempt is made to serialize them.
      *
-     * @param s the {@code ObjectOutputStream} to write
+     * @param  s the {@code ObjectOutputStream} to write
+     * @throws IOException if an I/O error occurs
      * @serialData {@code null} terminated sequence of
      *  0 or more pairs; the pair consists of a {@code String}
      *  and an {@code Object}; the {@code String} indicates
@@ -451,6 +455,7 @@ public class CheckboxMenuItem extends MenuItem implements ItemSelectable, Access
      * @see java.awt.Component#itemListenerK
      * @see #readObject(ObjectInputStream)
      */
+    @Serial
     private void writeObject(ObjectOutputStream s)
       throws java.io.IOException
     {
@@ -460,18 +465,22 @@ public class CheckboxMenuItem extends MenuItem implements ItemSelectable, Access
       s.writeObject(null);
     }
 
-    /*
+    /**
      * Reads the {@code ObjectInputStream} and if it
      * isn't {@code null} adds a listener to receive
      * item events fired by the {@code Checkbox} menu item.
      * Unrecognized keys or values will be ignored.
      *
-     * @param s the {@code ObjectInputStream} to read
-     * @serial
-     * @see removeActionListener()
-     * @see addActionListener()
-     * @see #writeObject
+     * @param  s the {@code ObjectInputStream} to read
+     * @throws ClassNotFoundException if the class of a serialized object could
+     *         not be found
+     * @throws IOException if an I/O error occurs
+     *
+     * @see #removeActionListener(ActionListener)
+     * @see #addActionListener(ActionListener)
+     * @see #writeObject(ObjectOutputStream)
      */
+    @Serial
     private void readObject(ObjectInputStream s)
       throws ClassNotFoundException, IOException
     {
@@ -531,10 +540,16 @@ public class CheckboxMenuItem extends MenuItem implements ItemSelectable, Access
     protected class AccessibleAWTCheckboxMenuItem extends AccessibleAWTMenuItem
         implements AccessibleAction, AccessibleValue
     {
-        /*
-         * JDK 1.3 serialVersionUID
+        /**
+         * Use serialVersionUID from JDK 1.3 for interoperability.
          */
+        @Serial
         private static final long serialVersionUID = -1122642964303476L;
+
+        /**
+         * Constructs an {@code AccessibleAWTCheckboxMenuItem}.
+         */
+        protected AccessibleAWTCheckboxMenuItem() {}
 
         /**
          * Get the AccessibleAction associated with this object.  In the

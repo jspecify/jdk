@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -145,7 +145,7 @@ class MemoryCache {
      * not dispose of any blocks containing bytes written.  To dispose
      * blocks, use {@link #disposeBefore disposeBefore()}.
      *
-     * @exception IndexOutOfBoundsException if any portion of
+     * @throws IndexOutOfBoundsException if any portion of
      * the requested data is not in the cache (including if {@code pos}
      * is in a block already disposed), or if either {@code pos} or
      * {@code len} is < 0.
@@ -211,8 +211,8 @@ class MemoryCache {
      * @param len the number of bytes to be written.
      * @param pos the cache position at which to begin writing.
      *
-     * @exception NullPointerException if {@code b} is {@code null}.
-     * @exception IndexOutOfBoundsException if {@code off},
+     * @throws NullPointerException if {@code b} is {@code null}.
+     * @throws IndexOutOfBoundsException if {@code off},
      * {@code len}, or {@code pos} are negative,
      * or if {@code off+len > b.length}.
      * @throws IOException if there is an I/O error while writing to the cache
@@ -258,7 +258,7 @@ class MemoryCache {
      * will be written.
      * @param pos the cache position at which to begin writing.
      *
-     * @exception IndexOutOfBoundsException if {@code pos} is negative.
+     * @throws IndexOutOfBoundsException if {@code pos} is negative.
      * @throws IOException if there is an I/O error while writing to the cache
      */
     public void write(int b, long pos) throws IOException {
@@ -313,8 +313,8 @@ class MemoryCache {
      * at cache position {@code pos}, into the array
      * {@code b} at offset {@code off}.
      *
-     * @exception NullPointerException if b is {@code null}
-     * @exception IndexOutOfBoundsException if {@code off},
+     * @throws NullPointerException if b is {@code null}
+     * @throws IndexOutOfBoundsException if {@code off},
      * {@code len} or {@code pos} are negative or if
      * {@code off + len > b.length} or if any portion of the
      * requested data is not in the cache (including if
@@ -337,7 +337,7 @@ class MemoryCache {
         }
 
         long index = pos/BUFFER_LENGTH;
-        int offset = (int)pos % BUFFER_LENGTH;
+        int offset = (int)(pos % BUFFER_LENGTH);
         while (len > 0) {
             int nbytes = Math.min(len, BUFFER_LENGTH - offset);
             byte[] buf = getCacheBlock(index++);
@@ -353,7 +353,7 @@ class MemoryCache {
      * Free the blocks up to the position {@code pos}.
      * The byte at {@code pos} remains available.
      *
-     * @exception IndexOutOfBoundsException if {@code pos}
+     * @throws IndexOutOfBoundsException if {@code pos}
      * is in a block that has already been disposed.
      */
     public void disposeBefore(long pos) {

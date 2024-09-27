@@ -5,7 +5,7 @@
   <title>GIF Metadata Format Specification</title>
 </head>
 <!--
-Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
 This code is free software; you can redistribute it and/or modify it
@@ -79,7 +79,7 @@ images that do not have their own local color table.
         &lt;!-- Max value: 65535 (inclusive) --&gt;
       &lt;!ATTLIST "LogicalScreenDescriptor" "colorResolution" #CDATA
          #REQUIRED&gt;
-        &lt;!-- The number of bits of color resolution, beteen 1 and 8 --&gt;
+        &lt;!-- The number of bits of color resolution, between 1 and 8 --&gt;
         &lt;!-- Data type: Integer --&gt;
         &lt;!-- Min value: 1 (inclusive) --&gt;
         &lt;!-- Max value: 8 (inclusive) --&gt;
@@ -136,7 +136,7 @@ images that do not have their own local color table.
 <p>
 
 The GIF image metadata format encodes the image descriptor, local
-color table, and extension information assciated with a single image
+color table, and extension information associated with a single image
 within a GIF file, typically a frame of an animation.
 
 <p>
@@ -155,7 +155,7 @@ for the frame at hand.
 The graphic control extension contains information on how the frame is
 to be incorporated into the animation.  The disposal method indicates
 whether the current frame should remain in place
-(<code>doNotDispose</code>), be restored to the backgound color as
+(<code>doNotDispose</code>), be restored to the background color as
 specified in the stream metadata
 (<code>restoreToBackgroundColor</code>), or be restored to the
 previous frame contents (<code>restoreToPrevious</code>) prior to
@@ -345,94 +345,122 @@ advanced only on user input.
 
 <p>
 <a id="mapping"></a>
-<table border=1>
+<table class="striped">
 <caption><b>Mapping of Standard to GIF Native Stream Metadata</b></caption>
+<thead>
 <tr>
-<th>Standard Metadata Component</th>
-<th>GIF Native Stream Metadata Component</th>
+<th scope="col">Index</th>
+<th scope="col">Standard Metadata Component</th>
+<th scope="col">GIF Native Stream Metadata Component</th>
 </tr>
+</thead>
+<tbody>
 <tr>
+<th scope="row">1</th>
 <td>/Chroma/Palette/PaletteEntry@index</td>
 <td>/GlobalColorTable/ColorTableEntry@index</td>
 </tr>
 <tr>
+<th scope="row">2</th>
 <td>/Chroma/Palette/PaletteEntry@red</td>
 <td>/GlobalColorTable/ColorTableEntry@red</td>
 </tr>
 <tr>
+<th scope="row">3</th>
 <td>/Chroma/Palette/PaletteEntry@green</td>
 <td>/GlobalColorTable/ColorTableEntry@green</td>
 </tr>
 <tr>
+<th scope="row">4</th>
 <td>/Chroma/Palette/PaletteEntry@blue</td>
 <td>/GlobalColorTable/ColorTableEntry@blue</td>
 </tr>
 <tr>
+<th scope="row">5</th>
 <td>/Chroma/BackgroundIndex@value</td>
 <td>/GlobalColorTable@backgroundColorIndex</td>
 </tr>
 <tr>
+<th scope="row">6</th>
 <td>/Data/BitsPerSample@value</td>
 <td>/LogicalScreenDescriptor@colorResolution</td>
 </tr>
 <tr>
+<th scope="row">7</th>
 <td>/Dimension/PixelAspectRatio@value</td>
 <td>/LogicalScreenDescriptor@pixelAspectRatio</td>
 </tr>
 <tr>
+<th scope="row">8</th>
 <td>/Dimension/HorizontalScreenSize@value</td>
 <td>/LogicalScreenDescriptor@logicalScreenWidth</td>
 </tr>
 <tr>
+<th scope="row">9</th>
 <td>/Dimension/VerticalScreenSize@value</td>
 <td>/LogicalScreenDescriptor@logicalScreenHeight</td>
 </tr>
 <tr>
+<th scope="row">10</th>
 <td>/Document/FormatVersion@value</td>
 <td>/Version@value</td>
 </tr>
+</tbody>
 </table>
 
-<table border=1>
+<table class="striped">
 <caption><b>Mapping of Standard to GIF Native Image Metadata</b></caption>
+<thead>
 <tr>
-<th>Standard Metadata Component</th>
-<th>GIF Native Image Metadata Component</th>
+<th scope="col">Index</th>
+<th scope="col">Standard Metadata Component</th>
+<th scope="col">GIF Native Image Metadata Component</th>
 </tr>
+</thead>
+<tbody>
 <tr>
+<th scope="row">1</th>
 <td>/Chroma/Palette/PaletteEntry@index</td>
 <td>/LocalColorTable/ColorTableEntry@index</td>
 </tr>
 <tr>
+<th scope="row">2</th>
 <td>/Chroma/Palette/PaletteEntry@red</td>
 <td>/LocalColorTable/ColorTableEntry@red</td>
 </tr>
 <tr>
+<th scope="row">3</th>
 <td>/Chroma/Palette/PaletteEntry@green</td>
 <td>/LocalColorTable/ColorTableEntry@green</td>
 </tr>
 <tr>
+<th scope="row">4</th>
 <td>/Chroma/Palette/PaletteEntry@blue</td>
 <td>/LocalColorTable/ColorTableEntry@blue</td>
 </tr>
 <tr>
+<th scope="row">5</th>
 <td>/Dimension/HorizontalPixelOffset@value</td>
 <td>/ImageDescriptor@imageLeftPosition</td>
 </tr>
 <tr>
+<th scope="row">6</th>
 <td>/Dimension/VerticalPixelOffset@value</td>
 <td>/ImageDescriptor@imageTopPosition</td>
 </tr>
 <tr>
+<th scope="row">7</th>
 <td>/Text/TextEntry@value</td>
 <td>/CommentExtensions/CommentExtension@value</td>
 </tr>
 <tr>
+<th scope="row">8</th>
 <td>/Transparency/TransparentIndex@value</td>
 <td>/GraphicControlExtension@transparentColorIndex
 (/GraphicControlExtension@transparentColorFlag is also set to
 "TRUE")</td>
 </tr>
+</tbody>
 </table>
 </main>
 </body>

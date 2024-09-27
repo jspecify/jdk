@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
  * @test
  * @bug 4361044 4388202 4418643 4523159 4730642
  * @library /test/lib
- *          /lib/testlibrary
  * @modules jdk.compiler
  * @build jdk.test.lib.compiler.CompilerUtils
  *        jdk.test.lib.Utils
@@ -34,20 +33,23 @@
  *        jdk.test.lib.JDKToolLauncher
  *        jdk.test.lib.Platform
  *        jdk.test.lib.process.*
- *        src.test.src.TestDriver JarUtils
+ *        jdk.test.lib.util.JarUtils
+ *        src.test.src.TestDriver
  * @summary various resource and classloading bugs related to jar files
  * @run main/othervm TestDriver
  */
-
-import jdk.test.lib.JDKToolFinder;
-import jdk.test.lib.compiler.CompilerUtils;
-import jdk.test.lib.process.ProcessTools;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import jdk.test.lib.JDKToolFinder;
+import jdk.test.lib.compiler.CompilerUtils;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.util.JarUtils;
 
 public class TestDriver {
     public static void main(String[] args) throws Throwable {
@@ -80,14 +82,14 @@ public class TestDriver {
         CompilerUtils.compile(srcDir.resolve("src").resolve("test"), targetDir);
 
         // Run tests
-        String java = JDKToolFinder.getTestJDKTool("java");
         String cp = targetDir.toString() + File.pathSeparator + jarFile;
         String[] tests = new String[]{"TestBug4361044", "TestBug4523159"};
         for (String test : tests) {
-            ProcessTools.executeCommand(java, "-cp", cp, test)
-                        .outputTo(System.out)
-                        .errorTo(System.out)
-                        .shouldHaveExitValue(0);
+            ProcessBuilder pb = ProcessTools.createTestJavaProcessBuilder("-cp", cp, test);
+            new OutputAnalyzer(pb.start())
+                    .outputTo(System.out)
+                    .errorTo(System.out)
+                    .shouldHaveExitValue(0);
         }
     }
 }

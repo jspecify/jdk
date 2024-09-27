@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,12 +30,18 @@ import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.WritableRaster;
+import java.awt.image.ColorModel;
+import java.awt.image.IndexColorModel;
+import java.awt.image.MultiPixelPackedSampleModel;
+import java.awt.image.PixelInterleavedSampleModel;
+import java.awt.image.SampleModel;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
 import javax.imageio.IIOException;
 import javax.imageio.ImageReader;
 import javax.imageio.ImageReadParam;
@@ -43,12 +49,8 @@ import javax.imageio.ImageTypeSpecifier;
 import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.spi.ImageReaderSpi;
 import javax.imageio.stream.ImageInputStream;
+
 import com.sun.imageio.plugins.common.ReaderUtil;
-import java.awt.image.ColorModel;
-import java.awt.image.IndexColorModel;
-import java.awt.image.MultiPixelPackedSampleModel;
-import java.awt.image.PixelInterleavedSampleModel;
-import java.awt.image.SampleModel;
 
 public class GIFImageReader extends ImageReader {
 
@@ -128,6 +130,7 @@ public class GIFImageReader extends ImageReader {
     }
 
     // Take input from an ImageInputStream
+    @Override
     public void setInput(Object input,
                          boolean seekForwardOnly,
                          boolean ignoreMetadata) {
@@ -146,6 +149,7 @@ public class GIFImageReader extends ImageReader {
         resetStreamSettings();
     }
 
+    @Override
     public int getNumImages(boolean allowSearch) throws IIOException {
         if (stream == null) {
             throw new IllegalStateException("Input not set!");
@@ -175,6 +179,7 @@ public class GIFImageReader extends ImageReader {
         }
     }
 
+    @Override
     public int getWidth(int imageIndex) throws IIOException {
         checkIndex(imageIndex);
 
@@ -186,6 +191,7 @@ public class GIFImageReader extends ImageReader {
         return imageMetadata.imageWidth;
     }
 
+    @Override
     public int getHeight(int imageIndex) throws IIOException {
         checkIndex(imageIndex);
 
@@ -227,6 +233,7 @@ public class GIFImageReader extends ImageReader {
         return new ImageTypeSpecifier(colorModel, sampleModel);
     }
 
+    @Override
     public Iterator<ImageTypeSpecifier> getImageTypes(int imageIndex)
             throws IIOException {
         checkIndex(imageIndex);
@@ -289,15 +296,18 @@ public class GIFImageReader extends ImageReader {
         return l.iterator();
     }
 
+    @Override
     public ImageReadParam getDefaultReadParam() {
         return new ImageReadParam();
     }
 
+    @Override
     public IIOMetadata getStreamMetadata() throws IIOException {
         readHeader();
         return streamMetadata;
     }
 
+    @Override
     public IIOMetadata getImageMetadata(int imageIndex) throws IIOException {
         checkIndex(imageIndex);
 
@@ -350,6 +360,10 @@ public class GIFImageReader extends ImageReader {
                     int off = 0;
                     while (left > 0) {
                         int nbytes = stream.read(block, off, left);
+                        if (nbytes == -1) {
+                            throw new IIOException("Invalid block length for " +
+                                    "LZW encoded image data");
+                        }
                         off += nbytes;
                         left -= nbytes;
                     }
@@ -642,12 +656,18 @@ public class GIFImageReader extends ImageReader {
             if (length == 0) {
                 break;
             }
+            if (ignoreMetadata) {
+                stream.skipBytes(length);
+                continue;
+            }
+            byte[] subBlockData =
+                ReaderUtil.staggeredReadByteStream(stream, length);
             byte[] newData = new byte[data.length + length];
             System.arraycopy(data, 0, newData, 0, data.length);
-            stream.readFully(newData, data.length, length);
+            System.arraycopy(subBlockData, 0, newData,
+                             data.length, length);
             data = newData;
         }
-
         return data;
     }
 
@@ -682,8 +702,9 @@ public class GIFImageReader extends ImageReader {
                     if (localColorTableFlag) {
                         // Read color table if any
                         imageMetadata.localColorTable =
-                            new byte[3*numLCTEntries];
-                        stream.readFully(imageMetadata.localColorTable);
+                            ReaderUtil.
+                                staggeredReadByteStream(stream,
+                                                       (3 * numLCTEntries));
                     } else {
                         imageMetadata.localColorTable = null;
                     }
@@ -714,66 +735,86 @@ public class GIFImageReader extends ImageReader {
                         int terminator = stream.readUnsignedByte();
                     } else if (label == 0x1) { // Plain text extension
                         int length = stream.readUnsignedByte();
-                        imageMetadata.hasPlainTextExtension = true;
-                        imageMetadata.textGridLeft =
-                            stream.readUnsignedShort();
-                        imageMetadata.textGridTop =
-                            stream.readUnsignedShort();
-                        imageMetadata.textGridWidth =
-                            stream.readUnsignedShort();
-                        imageMetadata.textGridHeight =
-                            stream.readUnsignedShort();
-                        imageMetadata.characterCellWidth =
-                            stream.readUnsignedByte();
-                        imageMetadata.characterCellHeight =
-                            stream.readUnsignedByte();
-                        imageMetadata.textForegroundColor =
-                            stream.readUnsignedByte();
-                        imageMetadata.textBackgroundColor =
-                            stream.readUnsignedByte();
+                        if (!ignoreMetadata) {
+                            imageMetadata.hasPlainTextExtension = true;
+                            imageMetadata.textGridLeft =
+                                    stream.readUnsignedShort();
+                            imageMetadata.textGridTop =
+                                    stream.readUnsignedShort();
+                            imageMetadata.textGridWidth =
+                                    stream.readUnsignedShort();
+                            imageMetadata.textGridHeight =
+                                    stream.readUnsignedShort();
+                            imageMetadata.characterCellWidth =
+                                    stream.readUnsignedByte();
+                            imageMetadata.characterCellHeight =
+                                    stream.readUnsignedByte();
+                            imageMetadata.textForegroundColor =
+                                    stream.readUnsignedByte();
+                            imageMetadata.textBackgroundColor =
+                                    stream.readUnsignedByte();
+                        } else {
+                            stream.skipBytes(length);
+                        }
                         imageMetadata.text = concatenateBlocks();
                     } else if (label == 0xfe) { // Comment extension
                         byte[] comment = concatenateBlocks();
-                        if (imageMetadata.comments == null) {
-                            imageMetadata.comments = new ArrayList<>();
+                        if (!ignoreMetadata) {
+                            if (imageMetadata.comments == null) {
+                                imageMetadata.comments = new ArrayList<>();
+                            }
+                            imageMetadata.comments.add(comment);
                         }
-                        imageMetadata.comments.add(comment);
                     } else if (label == 0xff) { // Application extension
                         int blockSize = stream.readUnsignedByte();
+                        int offset = 0;
+                        byte[] blockData = new byte[0];
                         byte[] applicationID = new byte[8];
                         byte[] authCode = new byte[3];
+                        if (!ignoreMetadata) {
+                            // read available data
+                            blockData =
+                                ReaderUtil.staggeredReadByteStream(stream,
+                                                                   blockSize);
 
-                        // read available data
-                        byte[] blockData = new byte[blockSize];
-                        stream.readFully(blockData);
-
-                        int offset = copyData(blockData, 0, applicationID);
-                        offset = copyData(blockData, offset, authCode);
+                            offset =
+                                copyData(blockData, 0, applicationID);
+                            offset = copyData(blockData, offset, authCode);
+                        } else {
+                            stream.skipBytes(blockSize);
+                        }
 
                         byte[] applicationData = concatenateBlocks();
 
-                        if (offset < blockSize) {
+                        if (!ignoreMetadata &&
+                            offset < blockSize) {
                             int len = blockSize - offset;
                             byte[] data =
                                 new byte[len + applicationData.length];
 
-                            System.arraycopy(blockData, offset, data, 0, len);
-                            System.arraycopy(applicationData, 0, data, len,
+                            System.arraycopy(blockData, offset,
+                                             data, 0, len);
+                            System.arraycopy(applicationData, 0,
+                                             data, len,
                                              applicationData.length);
 
                             applicationData = data;
                         }
 
-                        // Init lists if necessary
-                        if (imageMetadata.applicationIDs == null) {
-                            imageMetadata.applicationIDs = new ArrayList<>();
-                            imageMetadata.authenticationCodes =
-                                new ArrayList<>();
-                            imageMetadata.applicationData = new ArrayList<>();
+                        if (!ignoreMetadata) {
+                            // Init lists if necessary
+                            if (imageMetadata.applicationIDs == null) {
+                                imageMetadata.applicationIDs =
+                                    new ArrayList<>();
+                                imageMetadata.authenticationCodes =
+                                    new ArrayList<>();
+                                imageMetadata.applicationData =
+                                    new ArrayList<>();
+                            }
+                            imageMetadata.applicationIDs.add(applicationID);
+                            imageMetadata.authenticationCodes.add(authCode);
+                            imageMetadata.applicationData.add(applicationData);
                         }
-                        imageMetadata.applicationIDs.add(applicationID);
-                        imageMetadata.authenticationCodes.add(authCode);
-                        imageMetadata.applicationData.add(applicationData);
                     } else {
                         // Skip over unknown extension blocks
                         int length = 0;
@@ -851,6 +892,7 @@ public class GIFImageReader extends ImageReader {
                            bands);
     }
 
+    @Override
     public BufferedImage read(int imageIndex, ImageReadParam param)
         throws IIOException {
         if (stream == null) {
@@ -919,6 +961,10 @@ public class GIFImageReader extends ImageReader {
         try {
             // Read and decode the image data, fill in theImage
             this.initCodeSize = stream.readUnsignedByte();
+            // GIF allows max 8 bpp, so anything larger is bogus for the roots.
+            if (this.initCodeSize < 1 || this.initCodeSize > 8) {
+                throw new IIOException("Bad code size:" + this.initCodeSize);
+            }
 
             // Read first data block
             this.blockLength = stream.readUnsignedByte();
@@ -926,6 +972,10 @@ public class GIFImageReader extends ImageReader {
             int off = 0;
             while (left > 0) {
                 int nbytes = stream.read(block, off, left);
+                if (nbytes == -1) {
+                    throw new IIOException("Invalid block length for " +
+                            "LZW encoded image data");
+                }
                 left -= nbytes;
                 off += nbytes;
             }
@@ -941,7 +991,8 @@ public class GIFImageReader extends ImageReader {
             this.clearCode = 1 << initCodeSize;
             this.eofCode = clearCode + 1;
 
-            int code, oldCode = 0;
+            final int NULL_CODE = -1;
+            int code, oldCode = NULL_CODE;
 
             int[] prefix = new int[4096];
             byte[] suffix = new byte[4096];
@@ -964,6 +1015,7 @@ public class GIFImageReader extends ImageReader {
                     codeMask = (1 << codeSize) - 1;
 
                     code = getCode(codeSize, codeMask);
+                    oldCode = NULL_CODE;
                     if (code == eofCode) {
                         // Inform IIOReadProgressListeners of end of image
                         processImageComplete();
@@ -986,19 +1038,21 @@ public class GIFImageReader extends ImageReader {
                         }
                     }
 
-                    int ti = tableIndex;
-                    int oc = oldCode;
+                    if (NULL_CODE != oldCode && tableIndex < 4096) {
+                        int ti = tableIndex;
+                        int oc = oldCode;
 
-                    prefix[ti] = oc;
-                    suffix[ti] = initial[newSuffixIndex];
-                    initial[ti] = initial[oc];
-                    length[ti] = length[oc] + 1;
+                        prefix[ti] = oc;
+                        suffix[ti] = initial[newSuffixIndex];
+                        initial[ti] = initial[oc];
+                        length[ti] = length[oc] + 1;
 
-                    ++tableIndex;
-                    if ((tableIndex == (1 << codeSize)) &&
-                        (tableIndex < 4096)) {
-                        ++codeSize;
-                        codeMask = (1 << codeSize) - 1;
+                        ++tableIndex;
+                        if ((tableIndex == (1 << codeSize)) &&
+                            (tableIndex < 4096)) {
+                            ++codeSize;
+                            codeMask = (1 << codeSize) - 1;
+                        }
                     }
                 }
 
@@ -1017,7 +1071,6 @@ public class GIFImageReader extends ImageReader {
             processReadAborted();
             return theImage;
         } catch (IOException e) {
-            e.printStackTrace();
             throw new IIOException("I/O error reading image!", e);
         }
     }
@@ -1026,6 +1079,7 @@ public class GIFImageReader extends ImageReader {
      * Remove all settings including global settings such as
      * {@code Locale}s and listeners, as well as stream settings.
      */
+    @Override
     public void reset() {
         super.reset();
         resetStreamSettings();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -109,7 +109,7 @@ final class RSAKeyExchange {
 
         byte[] getEncoded(PublicKey publicKey,
                 SecureRandom secureRandom) throws GeneralSecurityException {
-            Cipher cipher = JsseJce.getCipher(JsseJce.CIPHER_RSA_PKCS1);
+            Cipher cipher = Cipher.getInstance(JsseJce.CIPHER_RSA_PKCS1);
             cipher.init(Cipher.WRAP_MODE, publicKey, secureRandom);
             return cipher.wrap(premasterSecret);
         }
@@ -119,7 +119,7 @@ final class RSAKeyExchange {
                 ClientHandshakeContext chc) throws GeneralSecurityException {
             String algorithm = chc.negotiatedProtocol.useTLS12PlusSpec() ?
                     "SunTls12RsaPremasterSecret" : "SunTlsRsaPremasterSecret";
-            KeyGenerator kg = JsseJce.getKeyGenerator(algorithm);
+            KeyGenerator kg = KeyGenerator.getInstance(algorithm);
             TlsRsaPremasterSecretParameterSpec spec =
                     new TlsRsaPremasterSecretParameterSpec(
                             chc.clientHelloVersion,
@@ -135,8 +135,8 @@ final class RSAKeyExchange {
                 byte[] encrypted) throws GeneralSecurityException {
 
             byte[] encoded = null;
-            boolean needFailover = false;
-            Cipher cipher = JsseJce.getCipher(JsseJce.CIPHER_RSA_PKCS1);
+            boolean needFailover;
+            Cipher cipher = Cipher.getInstance(JsseJce.CIPHER_RSA_PKCS1);
             try {
                 // Try UNWRAP_MODE mode firstly.
                 cipher.init(Cipher.UNWRAP_MODE, privateKey,
@@ -163,7 +163,7 @@ final class RSAKeyExchange {
             if (needFailover) {
                 // The cipher might be spoiled by unsuccessful call to init(),
                 // so request a fresh instance
-                cipher = JsseJce.getCipher(JsseJce.CIPHER_RSA_PKCS1);
+                cipher = Cipher.getInstance(JsseJce.CIPHER_RSA_PKCS1);
 
                 // Use DECRYPT_MODE and dispose the previous initialization.
                 cipher.init(Cipher.DECRYPT_MODE, privateKey);
@@ -227,7 +227,7 @@ final class RSAKeyExchange {
             try {
                 String s = ((clientVersion >= ProtocolVersion.TLS12.id) ?
                     "SunTls12RsaPremasterSecret" : "SunTlsRsaPremasterSecret");
-                KeyGenerator kg = JsseJce.getKeyGenerator(s);
+                KeyGenerator kg = KeyGenerator.getInstance(s);
                 kg.init(new TlsRsaPremasterSecretParameterSpec(
                         clientVersion, serverVersion, encodedSecret),
                         generator);
@@ -236,8 +236,7 @@ final class RSAKeyExchange {
                     NoSuchAlgorithmException iae) {
                 // unlikely to happen, otherwise, must be a provider exception
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
-                    SSLLogger.fine("RSA premaster secret generation error:");
-                    iae.printStackTrace(System.out);
+                    SSLLogger.fine("RSA premaster secret generation error", iae);
                 }
 
                 throw new GeneralSecurityException(
@@ -274,7 +273,7 @@ final class RSAKeyExchange {
             }
 
             if (premaster == null) {
-                context.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                throw context.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No sufficient RSA key agreement parameters negotiated");
             }
 

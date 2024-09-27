@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,6 @@
  */
 
 package java.nio.file.attribute;
-
-import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -230,6 +228,7 @@ public final class FileTime
      * @since 1.8
      */
     public Instant toInstant() {
+        Instant instant = this.instant;
         if (instant == null) {
             long secs = 0L;
             int nanos = 0;
@@ -271,6 +270,8 @@ public final class FileTime
                 instant = Instant.MAX;
             else
                 instant = Instant.ofEpochSecond(secs, nanos);
+
+            this.instant = instant;
         }
         return instant;
     }
@@ -289,10 +290,8 @@ public final class FileTime
      *          FileTime} that represents the same time
      */
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
-        return (obj instanceof FileTime) ? compareTo((FileTime)obj) == 0 : false;
+    public boolean equals(Object obj) {
+        return obj instanceof FileTime other && compareTo(other) == 0;
     }
 
     /**
@@ -410,9 +409,13 @@ public final class FileTime
      * are not present. The year before "{@code 0001}" is "{@code -0001}".
      *
      * @return  the string representation of this file time
+     *
+     * @spec https://www.w3.org/TR/NOTE-datetime Date and Time Formats
+     * @spec https://www.w3.org/TR/xmlschema-2 XML Schema Part 2: Datatypes Second Edition
      */
     @Override
     public String toString() {
+        String valueAsString = this.valueAsString;
         if (valueAsString == null) {
             long secs = 0L;
             int  nanos = 0;
@@ -473,6 +476,7 @@ public final class FileTime
             }
             sb.append('Z');
             valueAsString = sb.toString();
+            this.valueAsString = valueAsString;
         }
         return valueAsString;
     }

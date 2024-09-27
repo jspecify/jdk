@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,6 @@
  */
 
 package javax.naming.ldap;
-
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.io.IOException;
 import com.sun.jndi.ldap.Ber;
@@ -113,14 +110,13 @@ import com.sun.jndi.ldap.BerEncoder;
  * @see PagedResultsResponseControl
  * @author Vincent Ryan
  */
-@AnnotatedFor({"interning"})
-final public class PagedResultsControl extends BasicControl {
+public final class PagedResultsControl extends BasicControl {
 
     /**
      * The paged-results control's assigned object identifier
      * is 1.2.840.113556.1.4.319.
      */
-    public static final @Interned String OID = "1.2.840.113556.1.4.319";
+    public static final String OID = "1.2.840.113556.1.4.319";
 
     private static final byte[] EMPTY_COOKIE = new byte[0];
 
@@ -136,7 +132,7 @@ final public class PagedResultsControl extends BasicControl {
      *                          pageSize or refuse to perform the search.
      *                          If false, then the server need not honor the
      *                          control.
-     * @exception IOException   If an error was encountered while encoding the
+     * @throws IOException      If an error was encountered while encoding the
      *                          supplied arguments into a control.
      */
     public PagedResultsControl(int pageSize, boolean criticality)
@@ -162,7 +158,7 @@ final public class PagedResultsControl extends BasicControl {
      *                          pageSize or refuse to perform the search.
      *                          If false, then the server need not honor the
      *                          control.
-     * @exception IOException   If an error was encountered while encoding the
+     * @throws IOException      If an error was encountered while encoding the
      *                          supplied arguments into a control.
      */
     public PagedResultsControl(int pageSize, byte[] cookie,
@@ -175,7 +171,7 @@ final public class PagedResultsControl extends BasicControl {
         value = setEncodedValue(pageSize, cookie);
     }
 
-    /*
+    /**
      * Encodes the paged-results control's value using ASN.1 BER.
      * The result includes the BER tag and length for the control's value but
      * does not include the control's object identifier and criticality setting.
@@ -184,7 +180,7 @@ final public class PagedResultsControl extends BasicControl {
      * @param   cookie          A non-null server-generated cookie.
      * @return A possibly null byte array representing the ASN.1 BER encoded
      *         value of the LDAP paged-results control.
-     * @exception IOException If a BER encoding error occurs.
+     * @throws IOException If a BER encoding error occurs.
      */
     private byte[] setEncodedValue(int pageSize, byte[] cookie)
         throws IOException {

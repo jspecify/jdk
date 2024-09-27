@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 
 package sun.nio.fs;
 
-import org.jspecify.annotations.Nullable;
+import sun.nio.cs.UTF_8;
 
 import jdk.internal.util.StaticProperty;
 
@@ -120,25 +120,37 @@ abstract class UnixFileStore
     @Override
     public long getTotalSpace() throws IOException {
         UnixFileStoreAttributes attrs = readAttributes();
-        return attrs.blockSize() * attrs.totalBlocks();
+        try {
+            return Math.multiplyExact(attrs.blockSize(), attrs.totalBlocks());
+        } catch (ArithmeticException ignore) {
+            return Long.MAX_VALUE;
+        }
     }
 
     @Override
     public long getUsableSpace() throws IOException {
-       UnixFileStoreAttributes attrs = readAttributes();
-       return attrs.blockSize() * attrs.availableBlocks();
+        UnixFileStoreAttributes attrs = readAttributes();
+        try {
+            return Math.multiplyExact(attrs.blockSize(), attrs.availableBlocks());
+        } catch (ArithmeticException ignore) {
+            return Long.MAX_VALUE;
+        }
+    }
+
+    @Override
+    public long getUnallocatedSpace() throws IOException {
+        UnixFileStoreAttributes attrs = readAttributes();
+        try {
+            return Math.multiplyExact(attrs.blockSize(), attrs.freeBlocks());
+        } catch (ArithmeticException ignore) {
+            return Long.MAX_VALUE;
+        }
     }
 
     @Override
     public long getBlockSize() throws IOException {
        UnixFileStoreAttributes attrs = readAttributes();
        return attrs.blockSize();
-    }
-
-    @Override
-    public long getUnallocatedSpace() throws IOException {
-        UnixFileStoreAttributes attrs = readAttributes();
-        return attrs.blockSize() * attrs.freeBlocks();
     }
 
     @Override
@@ -158,6 +170,36 @@ abstract class UnixFileStore
         if (attribute.equals("unallocatedSpace"))
             return getUnallocatedSpace();
         throw new UnsupportedOperationException("'" + attribute + "' not recognized");
+    }
+
+    /**
+     * Checks whether extended attributes are enabled on the file system where the given file resides.
+     *
+     * @param path A path pointing to an existing node, such as the file system's root
+     * @return <code>true</code> if enabled, <code>false</code> if disabled or unable to determine
+     */
+    protected boolean isExtendedAttributesEnabled(UnixPath path) {
+        if (!UnixNativeDispatcher.xattrSupported()) {
+            // avoid I/O if native code doesn't support xattr
+            return false;
+        }
+
+        int fd = -1;
+        try {
+            fd = path.openForAttributeAccess(false);
+
+            // fgetxattr returns size if called with size==0
+            byte[] name = Util.toBytes("user.java");
+            UnixNativeDispatcher.fgetxattr(fd, name, 0L, 0);
+            return true;
+        } catch (UnixException e) {
+            // attribute does not exist
+            if (e.errno() == UnixConstants.XATTR_NOT_FOUND)
+                return true;
+        } finally {
+            UnixNativeDispatcher.close(fd, e -> null);
+        }
+        return false;
     }
 
     @Override
@@ -189,14 +231,11 @@ abstract class UnixFileStore
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object ob) {
+    public boolean equals(Object ob) {
         if (ob == this)
             return true;
-        if (!(ob instanceof UnixFileStore))
+        if (!(ob instanceof UnixFileStore other))
             return false;
-        UnixFileStore other = (UnixFileStore)ob;
         return (this.dev == other.dev) &&
                Arrays.equals(this.entry.dir(), other.entry.dir()) &&
                this.entry.name().equals(other.entry.name());
@@ -230,6 +269,7 @@ abstract class UnixFileStore
     /**
      * Returns status to indicate if file system supports a given feature
      */
+    @SuppressWarnings("removal")
     FeatureStatus checkIfFeaturePresent(String feature) {
         if (props == null) {
             synchronized (loadLock) {
@@ -248,7 +288,7 @@ abstract class UnixFileStore
         if (value != null) {
             String[] values = value.split("\\s");
             for (String s: values) {
-                s = s.trim().toLowerCase();
+                s = s.trim().toLowerCase(Locale.ROOT);
                 if (s.equals(feature)) {
                     return FeatureStatus.PRESENT;
                 }
@@ -269,7 +309,7 @@ abstract class UnixFileStore
         Path file = Path.of(fstypes);
         try {
             try (ReadableByteChannel rbc = Files.newByteChannel(file)) {
-                result.load(Channels.newReader(rbc, "UTF-8"));
+                result.load(Channels.newReader(rbc, UTF_8.INSTANCE));
             }
         } catch (IOException x) {
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
  * @test
  * @bug 8153629
  * @summary Need to cover JVMTI's GetOwnedMonitorStackDepthInfo function
+ * @requires vm.jvmti
  * @compile GetOwnedMonitorStackDepthInfoTest.java
  * @run main/othervm/native -agentlib:GetOwnedMonitorStackDepthInfoTest GetOwnedMonitorStackDepthInfoTest
  */
@@ -50,14 +51,14 @@ public class GetOwnedMonitorStackDepthInfoTest {
 
 
     public static void main(String[] args) throws Exception {
-
-        new GetOwnedMonitorStackDepthInfoTest().runTest();
-
+        new GetOwnedMonitorStackDepthInfoTest().runTest(true);
+        new GetOwnedMonitorStackDepthInfoTest().runTest(false);
     }
 
-    public void runTest() throws Exception {
+    public void runTest(boolean isVirtual) throws Exception {
+        var threadFactory = isVirtual ? Thread.ofVirtual().factory() : Thread.ofPlatform().factory();
         final Object lock1 = new Lock1();
-        Thread t1 = new Thread(() -> {
+        Thread t1 = threadFactory.newThread(() -> {
             synchronized (lock1) {
                 System.out.println("Thread in sync section 1: "
                         + Thread.currentThread().getName());
@@ -96,4 +97,3 @@ public class GetOwnedMonitorStackDepthInfoTest {
 
     }
 }
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,20 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_RECORDER_STRINGPOOL_JFRSTRINGPOOL_HPP
-#define SHARE_VM_JFR_RECORDER_STRINGPOOL_JFRSTRINGPOOL_HPP
+#ifndef SHARE_JFR_RECORDER_STRINGPOOL_JFRSTRINGPOOL_HPP
+#define SHARE_JFR_RECORDER_STRINGPOOL_JFRSTRINGPOOL_HPP
 
-#include "jni.h"
 #include "jfr/recorder/storage/jfrMemorySpace.hpp"
 #include "jfr/recorder/storage/jfrMemorySpaceRetrieval.hpp"
 #include "jfr/recorder/stringpool/jfrStringPoolBuffer.hpp"
+#include "jfr/utilities/jfrLinkedList.hpp"
+#include "jni.h"
 
+class JavaThread;
 class JfrChunkWriter;
 class JfrStringPool;
-class Mutex;
 
-typedef JfrMemorySpace<JfrStringPoolBuffer, JfrMspaceSequentialRetrieval, JfrStringPool> JfrStringPoolMspace;
+typedef JfrMemorySpace<JfrStringPool, JfrMspaceRetrieval, JfrLinkedList<JfrStringPoolBuffer>, JfrLinkedList<JfrStringPoolBuffer>, true > JfrStringPoolMspace;
 
 //
 // Although called JfrStringPool, a more succinct description would be
@@ -44,25 +45,21 @@ typedef JfrMemorySpace<JfrStringPoolBuffer, JfrMspaceSequentialRetrieval, JfrStr
 //
 class JfrStringPool : public JfrCHeapObj {
  public:
-  static bool add(bool epoch, jlong id, jstring string, JavaThread* jt);
-  size_t write();
-  size_t write_at_safepoint();
   size_t clear();
+  size_t flush();
+  size_t write();
 
-  typedef JfrStringPoolMspace::Type Buffer;
+  static jboolean add(jlong id, jstring string, JavaThread* jt);
+
+  typedef JfrStringPoolMspace::Node    Buffer;
+  typedef JfrStringPoolMspace::NodePtr BufferPtr;
+
  private:
-  JfrStringPoolMspace* _free_list_mspace;
-  Mutex* _lock;
+  JfrStringPoolMspace* _mspace;
   JfrChunkWriter& _chunkwriter;
 
-  // mspace callback
-  void register_full(Buffer* t, Thread* thread);
-  void lock();
-  void unlock();
-  DEBUG_ONLY(bool is_locked() const;)
-
-  static Buffer* lease_buffer(Thread* thread, size_t size = 0);
-  static Buffer* flush(Buffer* old, size_t used, size_t requested, Thread* t);
+  static BufferPtr lease(Thread* thread, size_t size = 0);
+  static BufferPtr flush(BufferPtr old, size_t used, size_t requested, Thread* thread);
 
   JfrStringPool(JfrChunkWriter& cw);
   ~JfrStringPool();
@@ -71,13 +68,19 @@ class JfrStringPool : public JfrCHeapObj {
   static JfrStringPool* create(JfrChunkWriter& cw);
   bool initialize();
   static void destroy();
+  static bool is_modified();
+  static void on_epoch_shift();
 
+  // mspace callback
+  void register_full(BufferPtr buffer, Thread* thread);
+
+  friend class JfrCheckpointManager;
   friend class JfrRecorder;
   friend class JfrRecorderService;
   friend class JfrStringPoolFlush;
   friend class JfrStringPoolWriter;
-  template <typename, template <typename> class, typename>
+  template <typename, template <typename> class, typename, typename, bool>
   friend class JfrMemorySpace;
 };
 
-#endif // SHARE_VM_JFR_RECORDER_STRINGPOOL_JFRSTRINGPOOL_HPP
+#endif // SHARE_JFR_RECORDER_STRINGPOOL_JFRSTRINGPOOL_HPP

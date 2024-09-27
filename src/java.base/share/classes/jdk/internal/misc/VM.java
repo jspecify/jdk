@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,17 @@
 package jdk.internal.misc;
 
 import static java.lang.Thread.State.*;
+
+import java.io.PrintStream;
+import java.lang.classfile.ClassFile;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
-import java.util.Properties;
+
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.vm.annotation.Stable;
+import sun.nio.ch.FileChannelImpl;
 
 public class VM {
 
@@ -37,7 +46,6 @@ public class VM {
     private static final int SYSTEM_LOADER_INITIALIZING  = 3;
     private static final int SYSTEM_BOOTED               = 4;
     private static final int SYSTEM_SHUTDOWN             = 5;
-
 
     // 0, 1, 2, ...
     private static volatile int initLevel;
@@ -68,8 +76,6 @@ public class VM {
 
     /**
      * Waits for the init level to get the given value.
-     *
-     * @see java.lang.ref.Finalizer
      */
     public static void awaitInitLevel(int value) throws InterruptedException {
         synchronized (lock) {
@@ -84,7 +90,19 @@ public class VM {
      * @see java.lang.System#initPhase2
      */
     public static boolean isModuleSystemInited() {
-        return VM.initLevel() >= MODULE_SYSTEM_INITED;
+        return initLevel >= MODULE_SYSTEM_INITED;
+    }
+
+    private static @Stable boolean javaLangInvokeInited;
+    public static void setJavaLangInvokeInited() {
+        if (javaLangInvokeInited) {
+            throw new InternalError("java.lang.invoke already inited");
+        }
+        javaLangInvokeInited = true;
+    }
+
+    public static boolean isJavaLangInvokeInited() {
+        return javaLangInvokeInited;
     }
 
     /**
@@ -132,12 +150,44 @@ public class VM {
     // User-controllable flag that determines if direct buffers should be page
     // aligned. The "-XX:+PageAlignDirectMemory" option can be used to force
     // buffers, allocated by ByteBuffer.allocateDirect, to be page aligned.
+    @Stable
     private static boolean pageAlignDirectMemory;
 
     // Returns {@code true} if the direct buffers should be page aligned. This
     // variable is initialized by saveAndRemoveProperties.
     public static boolean isDirectMemoryPageAligned() {
         return pageAlignDirectMemory;
+    }
+
+    /**
+     * Tests if the given version is a supported {@code class}
+     * file version.
+     *
+     * A {@code class} file depends on the preview features of Java SE {@code N}
+     * if the major version is {@code N} and the minor version is 65535.
+     * This method returns {@code true} if the given version is a supported
+     * {@code class} file version regardless of whether the preview features
+     * are enabled or not.
+     *
+     * @jvms 4.1 Table 4.1-A. class file format major versions
+     */
+    public static boolean isSupportedClassFileVersion(int major, int minor) {
+        if (major < ClassFile.JAVA_1_VERSION || major > ClassFile.latestMajorVersion()) return false;
+        // for major version is between 45 and 55 inclusive, the minor version may be any value
+        if (major < ClassFile.JAVA_12_VERSION) return true;
+        // otherwise, the minor version must be 0 or 65535
+        return minor == 0 || (minor == ClassFile.PREVIEW_MINOR_VERSION && major == ClassFile.latestMajorVersion());
+    }
+
+    /**
+     * Tests if the given version is a supported {@code class}
+     * file version for module descriptor.
+     *
+     * major.minor version >= 53.0
+     */
+    public static boolean isSupportedModuleDescriptorVersion(int major, int minor) {
+        if (major < ClassFile.JAVA_9_VERSION) return false;
+        return isSupportedClassFileVersion(major, minor);
     }
 
     /**
@@ -175,7 +225,7 @@ public class VM {
         if (savedProps == null)
             throw new IllegalStateException("Not yet initialized");
 
-        return savedProps;
+        return Collections.unmodifiableMap(savedProps);
     }
 
     private static Map<String, String> savedProps;
@@ -184,48 +234,36 @@ public class VM {
     // the system properties that are not intended for public access.
     //
     // This method can only be invoked during system initialization.
-    public static void saveAndRemoveProperties(Properties props) {
+    public static void saveProperties(Map<String, String> props) {
         if (initLevel() != 0)
             throw new IllegalStateException("Wrong init level");
 
-        @SuppressWarnings({"rawtypes", "unchecked"})
-        Map<String, String> sp =
-            Map.ofEntries(props.entrySet().toArray(new Map.Entry[0]));
         // only main thread is running at this time, so savedProps and
         // its content will be correctly published to threads started later
-        savedProps = sp;
+        if (savedProps == null) {
+            savedProps = props;
+        }
 
         // Set the maximum amount of direct memory.  This value is controlled
         // by the vm option -XX:MaxDirectMemorySize=<size>.
         // The maximum amount of allocatable direct buffer memory (in bytes)
         // from the system property sun.nio.MaxDirectMemorySize set by the VM.
+        // If not set or set to -1, the max memory will be used
         // The system property will be removed.
-        String s = (String)props.remove("sun.nio.MaxDirectMemorySize");
-        if (s != null) {
-            if (s.equals("-1")) {
-                // -XX:MaxDirectMemorySize not given, take default
-                directMemory = Runtime.getRuntime().maxMemory();
-            } else {
-                long l = Long.parseLong(s);
-                if (l > -1)
-                    directMemory = l;
-            }
+        String s = props.get("sun.nio.MaxDirectMemorySize");
+        if (s == null || s.isEmpty() || s.equals("-1")) {
+            // -XX:MaxDirectMemorySize not given, take default
+            directMemory = Runtime.getRuntime().maxMemory();
+        } else {
+            long l = Long.parseLong(s);
+            if (l > -1)
+                directMemory = l;
         }
 
         // Check if direct buffers should be page aligned
-        s = (String)props.remove("sun.nio.PageAlignDirectMemory");
+        s = props.get("sun.nio.PageAlignDirectMemory");
         if ("true".equals(s))
             pageAlignDirectMemory = true;
-
-        // Remove other private system properties
-        // used by java.lang.Integer.IntegerCache
-        props.remove("java.lang.Integer.IntegerCache.high");
-
-        // used by sun.launcher.LauncherHelper
-        props.remove("sun.java.launcher.diag");
-
-        // used by jdk.internal.loader.ClassLoaders
-        props.remove("jdk.boot.class.path.append");
     }
 
     // Initialize any miscellaneous operating system settings that need to be
@@ -413,4 +451,41 @@ public class VM {
         initialize();
     }
     private static native void initialize();
+
+    /**
+     * Provides access to information on buffer usage.
+     */
+    public interface BufferPool {
+        String getName();
+        long getCount();
+        long getTotalCapacity();
+        long getMemoryUsed();
+    }
+
+    private static class BufferPoolsHolder {
+        static final List<BufferPool> BUFFER_POOLS;
+
+        static {
+            ArrayList<BufferPool> bufferPools = new ArrayList<>(3);
+            bufferPools.add(SharedSecrets.getJavaNioAccess().getDirectBufferPool());
+            bufferPools.add(FileChannelImpl.getMappedBufferPool());
+            bufferPools.add(FileChannelImpl.getSyncMappedBufferPool());
+
+            BUFFER_POOLS = Collections.unmodifiableList(bufferPools);
+        }
+    }
+
+    /**
+     * @return the list of buffer pools.
+     */
+    public static List<BufferPool> getBufferPools() {
+        return BufferPoolsHolder.BUFFER_POOLS;
+    }
+
+    /**
+     * Return the initial value of System.err that was set during VM initialization.
+     */
+    public static PrintStream initialErr() {
+        return SharedSecrets.getJavaLangAccess().initialSystemErr();
+    }
 }

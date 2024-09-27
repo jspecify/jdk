@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,15 +25,17 @@
  * @test
  * @bug 8130399
  * @summary Make sure --patch-module works for java.base.
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
  * @compile PatchModuleMain.java
- * @run main PatchModuleJavaBase
+ * @run driver PatchModuleJavaBase
  */
 
 import jdk.test.lib.compiler.InMemoryJavaCompiler;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.helpers.ClassFileInstaller;
 
 public class PatchModuleJavaBase {
 
@@ -49,7 +51,7 @@ public class PatchModuleJavaBase {
              InMemoryJavaCompiler.compile("java.lang.NewClass", source, "--patch-module=java.base"),
              "mods/java.base");
 
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("--patch-module=java.base=mods/java.base",
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder("--patch-module=java.base=mods/java.base",
              "PatchModuleMain", "java.lang.NewClass");
 
         new OutputAnalyzer(pb.start())

@@ -134,7 +134,7 @@ import jdk.internal.vm.annotation.ReservedStackAccess;
  * locks: a deserialized lock is in the unlocked state, regardless of
  * its state when serialized.
  *
- * <p><b>Sample usages</b>. Here is a code sketch showing how to perform
+ * <p><b>Sample usages.</b> Here is a code sketch showing how to perform
  * lock downgrading after updating a cache (exception handling is
  * particularly tricky when handling multiple locks in a non-nested
  * fashion):
@@ -147,6 +147,7 @@ import jdk.internal.vm.annotation.ReservedStackAccess;
  *
  *   void processCachedData() {
  *     rwl.readLock().lock();
+ *     // Code between the lock() above, and the unlock() below must not throw
  *     if (!cacheValid) {
  *       // Must release read lock before acquiring write lock
  *       rwl.readLock().unlock();
@@ -155,7 +156,7 @@ import jdk.internal.vm.annotation.ReservedStackAccess;
  *         // Recheck state because another thread might have
  *         // acquired write lock and changed state before we did.
  *         if (!cacheValid) {
- *           data = ...
+ *           data = ...;
  *           cacheValid = true;
  *         }
  *         // Downgrade by acquiring read lock before releasing write lock
@@ -164,7 +165,7 @@ import jdk.internal.vm.annotation.ReservedStackAccess;
  *         rwl.writeLock().unlock(); // Unlock write, still hold read
  *       }
  *     }
- *
+ *     // Make sure that code that could throw is executed inside the try block
  *     try {
  *       use(data);
  *     } finally {
@@ -210,7 +211,7 @@ import jdk.internal.vm.annotation.ReservedStackAccess;
  *   }
  * }}</pre>
  *
- * <h3>Implementation Notes</h3>
+ * <h2>Implementation Notes</h2>
  *
  * <p>This lock supports a maximum of 65535 recursive write locks
  * and 65535 read locks. Attempts to exceed these limits result in

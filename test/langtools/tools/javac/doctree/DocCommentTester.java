@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,12 +21,12 @@
  * questions.
  */
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.BreakIterator;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,10 +37,52 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.lang.model.element.Name;
+import javax.lang.model.util.Elements;
+import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 
-import com.sun.source.doctree.*;
+import com.sun.source.doctree.AttributeTree;
+import com.sun.source.doctree.AuthorTree;
+import com.sun.source.doctree.CommentTree;
+import com.sun.source.doctree.DeprecatedTree;
+import com.sun.source.doctree.DocCommentTree;
+import com.sun.source.doctree.DocRootTree;
+import com.sun.source.doctree.DocTree;
+import com.sun.source.doctree.DocTreeVisitor;
+import com.sun.source.doctree.DocTypeTree;
+import com.sun.source.doctree.EndElementTree;
+import com.sun.source.doctree.EntityTree;
+import com.sun.source.doctree.ErroneousTree;
+import com.sun.source.doctree.EscapeTree;
+import com.sun.source.doctree.HiddenTree;
+import com.sun.source.doctree.IdentifierTree;
+import com.sun.source.doctree.IndexTree;
+import com.sun.source.doctree.InheritDocTree;
+import com.sun.source.doctree.LinkTree;
+import com.sun.source.doctree.LiteralTree;
+import com.sun.source.doctree.ParamTree;
+import com.sun.source.doctree.ProvidesTree;
+import com.sun.source.doctree.RawTextTree;
+import com.sun.source.doctree.ReferenceTree;
+import com.sun.source.doctree.ReturnTree;
+import com.sun.source.doctree.SeeTree;
+import com.sun.source.doctree.SerialDataTree;
+import com.sun.source.doctree.SerialFieldTree;
+import com.sun.source.doctree.SerialTree;
+import com.sun.source.doctree.SinceTree;
+import com.sun.source.doctree.SnippetTree;
+import com.sun.source.doctree.SpecTree;
+import com.sun.source.doctree.StartElementTree;
+import com.sun.source.doctree.SummaryTree;
+import com.sun.source.doctree.SystemPropertyTree;
+import com.sun.source.doctree.TextTree;
+import com.sun.source.doctree.ThrowsTree;
+import com.sun.source.doctree.UnknownBlockTagTree;
+import com.sun.source.doctree.UnknownInlineTagTree;
+import com.sun.source.doctree.UsesTree;
+import com.sun.source.doctree.ValueTree;
+import com.sun.source.doctree.VersionTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.MethodTree;
@@ -52,43 +94,65 @@ import com.sun.source.util.JavacTask;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.tools.javac.api.JavacTool;
+import com.sun.tools.javac.api.JavacTrees;
 import com.sun.tools.javac.tree.DCTree;
 import com.sun.tools.javac.tree.DCTree.DCDocComment;
 import com.sun.tools.javac.tree.DCTree.DCErroneous;
 import com.sun.tools.javac.tree.DocPretty;
 
+/**
+ * A class to test doc comment trees.
+ * It is normally executed by calling {@code main}, providing a source file to be analyzed.
+ * The file is scanned for top-level declarations, and the comment for any such declarations
+ * is analyzed with a series of "checkers".
+ *
+ * @see DocCommentTester.ASTChecker#main(String... args)
+ */
 public class DocCommentTester {
+
+    public static void main(String... args) throws Exception {
+        ArrayList<String> list = new ArrayList<>(Arrays.asList(args));
+        if (!list.isEmpty() && "-useBreakIterator".equals(list.get(0))) {
+            list.remove(0);
+            new DocCommentTester(true, true).run(list);
+        } else if (!list.isEmpty() && "-useStandardTransformer".equals(list.get(0))) {
+            list.remove(0);
+            new DocCommentTester(false, false).run(list);
+        } else {
+            new DocCommentTester(false, true).run(list);
+        }
+    }
 
     public static final String BI_MARKER = "BREAK_ITERATOR";
     public final boolean useBreakIterator;
 
-    public DocCommentTester(boolean useBreakIterator) {
+    public final boolean useIdentityTransformer;
+
+    public DocCommentTester(boolean useBreakIterator, boolean useIdentityTtransformer) {
         this.useBreakIterator = useBreakIterator;
-    }
-    public static void main(String... args) throws Exception {
-        ArrayList<String> list = new ArrayList(Arrays.asList(args));
-        if (!list.isEmpty() && "-useBreakIterator".equals(list.get(0))) {
-            list.remove(0);
-            new DocCommentTester(true).run(list);
-        } else {
-            new DocCommentTester(false).run(list);
-        }
+        this.useIdentityTransformer = useIdentityTtransformer;
     }
 
     public void run(List<String> args) throws Exception {
         String testSrc = System.getProperty("test.src");
 
-        List<File> files = args.stream()
-                .map(arg -> new File(testSrc, arg))
+        List<Path> files = args.stream()
+                .map(arg -> Path.of(testSrc, arg))
                 .collect(Collectors.toList());
 
         JavacTool javac = JavacTool.create();
         StandardJavaFileManager fm = javac.getStandardFileManager(null, null, null);
 
-        Iterable<? extends JavaFileObject> fos = fm.getJavaFileObjectsFromFiles(files);
+        Iterable<? extends JavaFileObject> fos = fm.getJavaFileObjectsFromPaths(files);
 
         JavacTask t = javac.getTask(null, fm, null, null, null, fos);
-        final DocTrees trees = DocTrees.instance(t);
+        final JavacTrees trees = (JavacTrees) DocTrees.instance(t);
+
+        if (useIdentityTransformer) {
+            // disable default use of the "standard" transformer, so that we can examine
+            // the trees as created by DocCommentParser.
+            trees.setDocCommentTreeTransformer(new JavacTrees.IdentityTransformer());
+        }
 
         if (useBreakIterator) {
             // BreakIterators are locale dependent wrt. behavior
@@ -98,7 +162,9 @@ public class DocCommentTester {
         final Checker[] checkers = {
             new ASTChecker(this, trees),
             new PosChecker(this, trees),
-            new PrettyChecker(this, trees)
+            new PrettyChecker(this, trees),
+            new RangeChecker(this, trees),
+            new StartEndPosChecker(this, trees)
         };
 
         DeclScanner d = new DeclScanner() {
@@ -194,7 +260,7 @@ public class DocCommentTester {
     int errors;
 
     /**
-     * Verify the structure of the DocTree AST by comparing it against golden text.
+     * Verifies the structure of the DocTree AST by comparing it against golden text.
      */
     static class ASTChecker extends Checker {
         static final String NEWLINE = System.getProperty("line.separator");
@@ -231,7 +297,9 @@ public class DocCommentTester {
             int start = test.useBreakIterator
                     ? source.indexOf("\n/*\n" + BI_MARKER + "\n", findName(source, name))
                     : source.indexOf("\n/*\n", findName(source, name));
+            assert start >= 0 : "start of AST comment not found";
             int end = source.indexOf("\n*/\n", start);
+            assert end >= 0 : "end of AST comment not found";
             int startlen = start + (test.useBreakIterator ? BI_MARKER.length() + 1 : 0) + 4;
             String expect = source.substring(startlen, end + 1);
             if (!found.equals(expect)) {
@@ -255,32 +323,32 @@ public class DocCommentTester {
          * changes are approved, the new files can be used to replace the old.
          */
         public static void main(String... args) throws Exception {
-            List<File> files = new ArrayList<File>();
-            File o = null;
+            List<Path> files = new ArrayList<>();
+            Path o = null;
             for (int i = 0; i < args.length; i++) {
                 String arg = args[i];
                 if (arg.equals("-o"))
-                    o = new File(args[++i]);
+                    o = Path.of(args[++i]);
                 else if (arg.startsWith("-"))
                     throw new IllegalArgumentException(arg);
                 else {
-                    files.add(new File(arg));
+                    files.add(Path.of(arg));
                 }
             }
 
             if (o == null)
                 throw new IllegalArgumentException("no output dir specified");
-            final File outDir = o;
+            final Path outDir = o;
 
             JavacTool javac = JavacTool.create();
             StandardJavaFileManager fm = javac.getStandardFileManager(null, null, null);
-            Iterable<? extends JavaFileObject> fos = fm.getJavaFileObjectsFromFiles(files);
+            Iterable<? extends JavaFileObject> fos = fm.getJavaFileObjectsFromPaths(files);
 
             JavacTask t = javac.getTask(null, fm, null, null, null, fos);
             final DocTrees trees = DocTrees.instance(t);
 
             DeclScanner d = new DeclScanner() {
-                Printer p = new Printer();
+                final Printer p = new Printer();
                 String source;
 
                 @Override
@@ -293,8 +361,10 @@ public class DocCommentTester {
                     }
                     // remove existing gold by removing all block comments after the first '{'.
                     int start = source.indexOf("{");
+                    assert start >= 0 : "cannot find initial '{'";
                     while ((start = source.indexOf("\n/*\n", start)) != -1) {
                         int end = source.indexOf("\n*/\n");
+                        assert end >= 0 : "cannot find end of comment";
                         source = source.substring(0, start + 1) + source.substring(end + 4);
                     }
 
@@ -302,17 +372,12 @@ public class DocCommentTester {
                     super.visitCompilationUnit(tree, ignore);
 
                     // write the modified source
-                    File f = new File(tree.getSourceFile().getName());
-                    File outFile = new File(outDir, f.getName());
+                    var treeSourceFileName = tree.getSourceFile().getName();
+                    var outFile = outDir.resolve(treeSourceFileName);
                     try {
-                        FileWriter out = new FileWriter(outFile);
-                        try {
-                            out.write(source);
-                        } finally {
-                            out.close();
-                        }
+                        Files.writeString(outFile, source);
                     } catch (IOException e) {
-                        System.err.println("Can't write " + tree.getSourceFile().getName()
+                        System.err.println("Can't write " + treeSourceFileName
                                 + " to " + outFile + ": " + e);
                     }
                     return null;
@@ -453,6 +518,11 @@ public class DocCommentTester {
                 return null;
             }
 
+            public Void visitEscape(EscapeTree node, Void p) {
+                header(node, node.getBody());
+                return null;
+            }
+
             public Void visitHidden(HiddenTree node, Void p) {
                 header(node);
                 indent(+1);
@@ -481,7 +551,12 @@ public class DocCommentTester {
             }
 
             public Void visitInheritDoc(InheritDocTree node, Void p) {
-                header(node, "");
+                header(node);
+                indent(+1);
+                print("supertype", node.getSupertype());
+                indent(-1);
+                indent();
+                out.println("]");
                 return null;
             }
 
@@ -520,6 +595,11 @@ public class DocCommentTester {
                 indent(-1);
                 indent();
                 out.println("]");
+                return null;
+            }
+
+            public Void visitRawText(RawTextTree node, Void p) {
+                header(node, compress(node.getContent()));
                 return null;
             }
 
@@ -590,6 +670,30 @@ public class DocCommentTester {
                 return null;
             }
 
+            @Override
+            public Void visitSpec(SpecTree node, Void p) {
+                header(node);
+                indent(+1);
+                print("url", node.getURL());
+                print("title", node.getTitle());
+                indent(-1);
+                indent();
+                out.println("]");
+                return null;
+            }
+
+            @Override
+            public Void visitSnippet(SnippetTree node, Void p) {
+                header(node);
+                indent(+1);
+                print("attributes", node.getAttributes());
+                print("body", node.getBody());
+                indent(-1);
+                indent();
+                out.println("]");
+                return null;
+            }
+
             public Void visitStartElement(StartElementTree node, Void p) {
                 header(node);
                 indent(+1);
@@ -607,6 +711,17 @@ public class DocCommentTester {
                 header(node);
                 indent(+1);
                 print("summary", node.getSummary());
+                indent(-1);
+                indent();
+                out.println("]");
+                return null;
+            }
+
+            @Override
+            public Void visitSystemProperty(SystemPropertyTree node, Void p) {
+                header(node);
+                indent(+1);
+                print("property name", node.getPropertyName().toString());
                 indent(-1);
                 indent();
                 out.println("]");
@@ -667,6 +782,7 @@ public class DocCommentTester {
             public Void visitValue(ValueTree node, Void p) {
                 header(node);
                 indent(+1);
+                print("format", node.getFormat());
                 print("reference", node.getReference());
                 indent(-1);
                 indent();
@@ -690,12 +806,14 @@ public class DocCommentTester {
 
             /*
              * Use this method to start printing a multi-line representation of a
-             * DocTree node. The representation should be termintated by calling
+             * DocTree node. The representation should be terminated by calling
              * out.println("]").
              */
             void header(DocTree node) {
                 indent();
-                out.println(simpleClassName(node) + "[" + node.getKind() + ", pos:" + ((DCTree) node).pos);
+                var n = (DCTree) node;
+                out.println(simpleClassName(node) + "[" + node.getKind() + ", pos:" + n.pos +
+                        (n.getPreferredPosition() != n.pos ? ", prefPos:" + n.getPreferredPosition() : ""));
             }
 
             /*
@@ -757,11 +875,15 @@ public class DocCommentTester {
                 indent += n;
             }
 
+            private static final int BEGIN = 32;
+            private static final String ELLIPSIS = "...";
+            private static final int END = 32;
+
             String compress(String s) {
                 s = s.replace("\n", "|").replace(" ", "_");
-                return (s.length() < 32)
+                return (s.length() < BEGIN + ELLIPSIS.length() + END)
                         ? s
-                        : s.substring(0, 16) + "..." + s.substring(16);
+                        : s.substring(0, BEGIN) + ELLIPSIS + s.substring(s.length() - END);
             }
 
             String quote(String s) {
@@ -776,7 +898,7 @@ public class DocCommentTester {
     }
 
     /**
-     * Verify the reported tree positions by comparing the characters found
+     * Verifies the reported tree positions by comparing the characters found
      * at and after the reported position with the beginning of the pretty-
      * printed text.
      */
@@ -791,24 +913,26 @@ public class DocCommentTester {
             final CharSequence cs = fo.getCharContent(true);
 
             final DCDocComment dc = (DCDocComment) trees.getDocCommentTree(path);
-            DCTree t = (DCTree) trees.getDocCommentTree(path);
 
-            DocTreeScanner scanner = new DocTreeScanner<Void,Void>() {
+            DocTreeScanner<Void, Void> scanner = new DocTreeScanner<>() {
                 @Override
                 public Void scan(DocTree node, Void ignore) {
                     if (node != null) {
                         try {
+                            DCTree dcTree = (DCTree) node;
                             String expect = getExpectText(node);
-                            long pos = ((DCTree) node).getSourcePosition(dc);
-                            String found = getFoundText(cs, (int) pos, expect.length());
+                            long startPos = dc.getSourcePosition(dcTree.getStartPosition());
+                            String found = getFoundText(cs, (int) startPos, expect.length());
                             if (!found.equals(expect)) {
+                                System.err.println("node: " + node.getKind());
+                                System.err.println("startPos: " + startPos + " " + showPos(cs, (int) startPos));
                                 System.err.println("expect: " + expect);
                                 System.err.println("found:  " + found);
                                 error("mismatch");
                             }
 
                         } catch (StringIndexOutOfBoundsException e) {
-                            error(node.getClass() + ": " + e.toString());
+                            error(node.getClass() + ": " + e);
                                 e.printStackTrace();
                         }
                     }
@@ -816,7 +940,7 @@ public class DocCommentTester {
                 }
             };
 
-            scanner.scan(t, null);
+            scanner.scan(dc, null);
         }
 
         String getExpectText(DocTree t) {
@@ -834,10 +958,21 @@ public class DocCommentTester {
         String getFoundText(CharSequence cs, int pos, int len) {
             return (pos == -1) ? "" : cs.subSequence(pos, Math.min(pos + len, cs.length())).toString();
         }
+
+        String showPos(CharSequence cs, int pos) {
+            String s = cs.toString();
+            return (s.substring(Math.max(0, pos - 10), pos)
+                    + "["
+                    + s.charAt(pos)
+                    + "]"
+                    + s.substring(pos + 1, Math.min(s.length(), pos + 10)))
+                    .replace('\n', '|')
+                    .replace(' ', '_');
+        }
     }
 
     /**
-     * Verify the pretty printed text against a normalized form of the
+     * Verifies the pretty printed text against a normalized form of the
      * original doc comment.
      */
     static class PrettyChecker extends Checker {
@@ -848,8 +983,18 @@ public class DocCommentTester {
 
         @Override
         void check(TreePath path, Name name) throws Exception {
-            String raw = trees.getDocComment(path);
-            String normRaw = normalize(raw);
+            var annos = (path.getLeaf() instanceof MethodTree m)
+                    ? m.getModifiers().getAnnotations().toString()
+                    : "";
+            if (annos.contains("@PrettyCheck(false)")) {
+                return;
+            }
+            boolean normalizeTags = !annos.contains("@NormalizeTags(false)");
+
+            Elements.DocCommentKind ck = trees.getDocCommentKind(path);
+            boolean isLineComment = ck == Elements.DocCommentKind.END_OF_LINE;
+            String raw = trees.getDocComment(path).stripTrailing();
+            String normRaw = normalize(raw, isLineComment, normalizeTags);
 
             StringWriter out = new StringWriter();
             DocPretty dp = new DocPretty(out);
@@ -858,27 +1003,219 @@ public class DocCommentTester {
 
             if (!pretty.equals(normRaw)) {
                 error("mismatch");
-                System.err.println("*** expected:");
+                System.err.println("*** raw: (" + raw.length() + ")");
+                System.err.println(raw.replace(" ", "_"));
+                System.err.println("*** expected: (" + normRaw.length() + ")");
                 System.err.println(normRaw.replace(" ", "_"));
-                System.err.println("*** found:");
+                System.err.println("*** found: (" + pretty.length() + ")");
                 System.err.println(pretty.replace(" ", "_"));
-    //            throw new Error();
             }
         }
 
         /**
-         * Normalize white space in places where the tree does not preserve it.
+         * Normalize whitespace in places where the tree does not preserve it.
+         * Maintain contents of inline tags unless {@code normalizeTags} is
+         * {@code false}. This should normally be {@code true}, but should be
+         * set to {@code false} when there is syntactically invalid content
+         * that might resemble an inline tag, but which is not so.
+         *
+         * @param s the comment text to be normalized
+         * @param normalizeTags whether to normalize inline tags
+         * @return the normalized content
          */
-        String normalize(String s) {
-            s = s.trim()
-                    .replaceFirst("\\.\\s*\\n *@", ".\n@")
-                    .replaceAll("\\{@docRoot\\s+\\}", "{@docRoot}")
-                    .replaceAll("\\{@inheritDoc\\s+\\}", "{@inheritDoc}")
-                    .replaceAll("(\\{@value\\s+[^}]+)\\s+(\\})", "$1$2")
-                    .replaceAll("\n[ \t]+@", "\n@")
-                    .replaceAll("(\\{@code)(\\x20)(\\s+.*)", "$1$3");
+        String normalize(String s, boolean isLineComment, boolean normalizeTags) {
+            String s2 = (isLineComment ? s : s.trim())
+                    .replaceFirst("\\.\\s*\\n *@(?![@*])", ".\n@"); // Between block tags
+            StringBuilder sb = new StringBuilder();
+            Pattern p = Pattern.compile("(?i)\\{@([a-z][a-z0-9.:-]*)( )?");
+            Matcher m = p.matcher(s2);
+            int start = 0;
+            if (normalizeTags) {
+                while (m.find(start)) {
+                    sb.append(normalizeFragment(s2.substring(start, m.start())));
+                    sb.append(m.group().trim());
+                    start = copyLiteral(s2, m.end(), sb);
+                }
+            }
+            sb.append(normalizeFragment(s2.substring(start)));
+            return sb.toString()
+                    .replaceAll("(?i)\\{@([a-z][a-z0-9.:-]*)\\s+}", "{@$1}")
+                    .replaceAll("(\\{@value\\s+[^}]+)\\s+(})", "$1$2");
+        }
+
+        // See comment in MarkdownTest for explanation of dummy and Override
+        String normalizeFragment(String s) {
+            return s.replaceAll("\n[ \t]+@(?!([@*]|(dummy|Override)))", "\n@");
+        }
+
+        int copyLiteral(String s, int start, StringBuilder sb) {
+            int depth = 0;
+            for (int i = start; i < s.length(); i++) {
+                char ch = s.charAt(i);
+                if (i == start && !Character.isWhitespace(ch) && ch != '}') {
+                    sb.append(' ');
+                }
+                switch (ch) {
+                    case '{' ->
+                        depth++;
+
+                    case '}' -> {
+                        depth--;
+                        if (depth < 0) {
+                            sb.append(ch);
+                            return i + 1;
+                        }
+                    }
+                }
+                sb.append(ch);
+            }
+            return s.length();
+        }
+    }
+
+
+    /**
+     * Verifies the general "left to right" constraints for the positions of
+     * nodes in the DocTree AST.
+     */
+    static class RangeChecker extends Checker {
+        int cursor = 0;
+
+        RangeChecker(DocCommentTester test, DocTrees docTrees) {
+            test.super(docTrees);
+        }
+
+        @Override
+        void check(TreePath path, Name name) throws Exception {
+            final DCDocComment dc = (DCDocComment) trees.getDocCommentTree(path);
+
+            DocTreeScanner<Void, Void> scanner = new DocTreeScanner<>() {
+                @Override
+                public Void scan(DocTree node, Void ignore) {
+                    if (node instanceof DCTree dcTree) {
+                        int start = dcTree.getStartPosition();
+                        int pref = dcTree.getPreferredPosition();
+                        int end = dcTree.getEndPosition();
+
+                        // check within the node, start <= pref <= end
+                        check("start:pref", dcTree, start, pref);
+                        check("pref:end", dcTree, pref, end);
+
+                        // check cursor <= start
+                        check("cursor:start", dcTree, cursor, start);
+                        cursor = start;
+
+                        // recursively scan any children, updating the cursor
+                        super.scan(node, ignore);
+
+                        // check cursor <= end
+                        check("cursor:end", dcTree, cursor, end);
+                        cursor = end;
+                    }
+                    return null;
+                }
+            };
+
+            cursor = 0;
+            scanner.scan(dc, null);
+
+        }
+
+        void check(String name, DCTree tree, int first, int second) {
+            if (!(first <= second)) {
+                error(name, tree, first, second);
+            }
+        }
+
+        private void error(String name, DCTree tree, int first, int second) {
+            String t = tree.toString().replaceAll("\\s+", " ");
+            if (t.length() > 32) {
+                t = t.substring(0, 15) + "..." + t.substring(t.length() - 15);
+            }
+            error("Checking " + name + " for " + tree.getKind() + " `" + t + "`;  first:" + first + ", second:" + second);
+
+        }
+    }
+
+    /**
+     * Verifies that the start and end positions of all nodes in a DocCommentTree point to the
+     * expected characters in the source code.
+     *
+     * The expected characters are derived from the beginning and end of the DocPretty output
+     * for each node. Note that while the whitespace within the DocPretty output may not exactly
+     * match the original source code, the first and last characters should match.
+     */
+    static class StartEndPosChecker extends Checker {
+
+        StartEndPosChecker(DocCommentTester test, DocTrees docTrees) {
+            test.super(docTrees);
+        }
+
+        @Override
+        void check(TreePath path, Name name) throws Exception {
+            final DCDocComment dc = (DCDocComment) trees.getDocCommentTree(path);
+            JavaFileObject jfo = path.getCompilationUnit().getSourceFile();
+            CharSequence content = jfo.getCharContent(true);
+
+            DocTreeScanner<Void, Void> scanner = new DocTreeScanner<>() {
+                @Override
+                public Void scan(DocTree node, Void ignore) {
+                    if (node instanceof DCTree dcTree) {
+                        int start = dc.getSourcePosition(dc.getStartPosition());
+                        int end = dc.getSourcePosition(dcTree.getEndPosition());
+
+                        try {
+                            StringWriter out = new StringWriter();
+                            DocPretty dp = new DocPretty(out);
+                            dp.print(trees.getDocCommentTree(path));
+                            String pretty = out.toString();
+
+                            if (pretty.isEmpty()) {
+                                if (start != end) {
+                                    error("Error: expected content is empty, but actual content is not: "
+                                            + dcTree.getKind() + " [" + start + "," + end + ")"
+                                            + ": \"" + content.subSequence(start, end) + "\"" );
+                                }
+                            } else {
+                                check(dcTree, "start", content, start, pretty, 0);
+                                check(dcTree, "end", content, end - 1, pretty, pretty.length() - 1);
+                            }
+
+                        } catch (IOException e) {
+                            error("Error generating DocPretty for tree at position " + start + "; " + e);
+                        }
+                    }
+                    return null;
+                }
+            };
+
+            scanner.scan(dc, null);
+        }
+
+        void check(DCTree tree, String label, CharSequence content, int contentIndex, String pretty, int prettyIndex) {
+            if (contentIndex == Diagnostic.NOPOS) {
+                error("NOPOS for content " + label + ": " + tree.getKind() + " >>" + abbrev(pretty, MAX) + "<<");
+            }
+
+            char contentChar = content.charAt(contentIndex);
+            char prettyChar = pretty.charAt(prettyIndex);
+            if (contentChar != prettyChar) {
+                error ("Mismatch for content " + label + ": "
+                        + "expect: '" + prettyChar + "', found: '" + contentChar + "' at position " + contentIndex + ": "
+                        + tree.getKind() + " >>" + abbrev(pretty, MAX) + "<<");
+            }
+        }
+
+        static final int MAX = 64;
+
+        static String abbrev(String s, int max) {
+            s = s.replaceAll("\\s+", " ");
+            if (s.length() > max) {
+                s = s.substring(0, max / 2 - 2) + " ... " + s.substring(max / 2 + 2);
+            }
             return s;
         }
+
     }
 }
 

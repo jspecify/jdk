@@ -30,7 +30,7 @@ import org.jspecify.annotations.Nullable;
 import java.awt.Font;
 import java.awt.font.FontRenderContext;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;;
+import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
@@ -80,16 +80,9 @@ public final class CFont extends PhysicalFont implements FontSubstitution {
     }
 
     @Override
-    protected long getLayoutTableCache() {
-        return getLayoutTableCacheNative(getNativeFontPtr());
-    }
-
-    @Override
     protected byte[] getTableBytes(int tag) {
         return getTableBytesNative(getNativeFontPtr(), tag);
     }
-
-    private native synchronized long getLayoutTableCacheNative(long nativeFontPtr);
 
     private native byte[] getTableBytesNative(long nativeFontPtr, int tag);
 
@@ -215,17 +208,23 @@ public final class CFont extends PhysicalFont implements FontSubstitution {
 
         // In some italic cases the standard Mac cascade list is missing Arabic.
         listOfString.add("GeezaPro");
-        FontManager fm = FontManagerFactory.getInstance();
+        CFontManager fm = (CFontManager) FontManagerFactory.getInstance();
         int numFonts = 1 + listOfString.size();
         PhysicalFont[] fonts = new PhysicalFont[numFonts];
         fonts[0] = this;
         int idx = 1;
+        if (FontUtilities.isLogging()) {
+            FontUtilities.logInfo("Cascading list for " + this + " :");
+        }
         for (String s : listOfString) {
+            if (FontUtilities.isLogging()) {
+                FontUtilities.logInfo("Fallback:" + s);
+            }
             if (s.equals(".AppleSymbolsFB"))  {
                 // Don't know why we get the weird name above .. replace.
                 s = "AppleSymbols";
             }
-            Font2D f2d = fm.findFont2D(s, Font.PLAIN, FontManager.NO_FALLBACK);
+            Font2D f2d = fm.getOrCreateFallbackFont(s);
             if (f2d == null || f2d == this) {
                 continue;
             }
@@ -250,7 +249,7 @@ public final class CFont extends PhysicalFont implements FontSubstitution {
         return compFont;
     }
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal")
     protected synchronized void finalize() {
         if (nativeFontPtr != 0) {
             disposeNativeFont(nativeFontPtr);

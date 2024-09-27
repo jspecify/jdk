@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1CARDTABLE_HPP
-#define SHARE_VM_GC_G1_G1CARDTABLE_HPP
+#ifndef SHARE_GC_G1_G1CARDTABLE_HPP
+#define SHARE_GC_G1_G1CARDTABLE_HPP
 
 #include "gc/g1/g1RegionToSpaceMapper.hpp"
 #include "gc/shared/cardTable.hpp"
@@ -37,77 +37,87 @@ class G1CardTableChangedListener : public G1MappingChangedListener {
  private:
   G1CardTable* _card_table;
  public:
-  G1CardTableChangedListener() : _card_table(NULL) { }
+  G1CardTableChangedListener() : _card_table(nullptr) { }
 
   void set_card_table(G1CardTable* card_table) { _card_table = card_table; }
 
-  virtual void on_commit(uint start_idx, size_t num_regions, bool zero_filled);
+  void on_commit(uint start_idx, size_t num_regions, bool zero_filled) override;
 };
 
-class G1CardTable: public CardTable {
+class G1CardTable : public CardTable {
   friend class VMStructs;
   friend class G1CardTableChangedListener;
 
   G1CardTableChangedListener _listener;
 
+public:
   enum G1CardValues {
-    g1_young_gen = CT_MR_BS_last_reserved << 1
+    g1_young_gen = CT_MR_BS_last_reserved << 1,
+
+    // During evacuation we use the card table to consolidate the cards we need to
+    // scan for roots onto the card table from the various sources. Further it is
+    // used to record already completely scanned cards to avoid re-scanning them
+    // when incrementally evacuating the old gen regions of a collection set.
+    // This means that already scanned cards should be preserved.
+    //
+    // The merge at the start of each evacuation round simply sets cards to dirty
+    // that are clean; scanned cards are set to 0x1.
+    //
+    // This means that the LSB determines what to do with the card during evacuation
+    // given the following possible values:
+    //
+    // 11111111 - clean, do not scan
+    // 00000001 - already scanned, do not scan
+    // 00000000 - dirty, needs to be scanned.
+    //
+    g1_card_already_scanned = 0x1
   };
 
-public:
-  G1CardTable(MemRegion whole_heap): CardTable(whole_heap, /* scanned concurrently */ true), _listener() {
+  static const size_t WordAllClean = SIZE_MAX;
+  static const size_t WordAllDirty = 0;
+
+  STATIC_ASSERT(BitsPerByte == 8);
+  static const size_t WordAlreadyScanned = (SIZE_MAX / 255) * g1_card_already_scanned;
+
+  G1CardTable(MemRegion whole_heap): CardTable(whole_heap), _listener() {
     _listener.set_card_table(this);
   }
-  bool is_card_dirty(size_t card_index) {
-    return _byte_map[card_index] == dirty_card_val();
-  }
 
-  static jbyte g1_young_card_val() { return g1_young_gen; }
-
-/*
-   Claimed and deferred bits are used together in G1 during the evacuation
-   pause. These bits can have the following state transitions:
-   1. The claimed bit can be put over any other card state. Except that
-      the "dirty -> dirty and claimed" transition is checked for in
-      G1 code and is not used.
-   2. Deferred bit can be set only if the previous state of the card
-      was either clean or claimed. mark_card_deferred() is wait-free.
-      We do not care if the operation is be successful because if
-      it does not it will only result in duplicate entry in the update
-      buffer because of the "cache-miss". So it's not worth spinning.
- */
-
-  bool is_card_claimed(size_t card_index) {
-    jbyte val = _byte_map[card_index];
-    return (val & (clean_card_mask_val() | claimed_card_val())) == claimed_card_val();
-  }
-
-  inline void set_card_claimed(size_t card_index);
+  static CardValue g1_young_card_val() { return g1_young_gen; }
+  static CardValue g1_scanned_card_val() { return g1_card_already_scanned; }
 
   void verify_g1_young_region(MemRegion mr) PRODUCT_RETURN;
   void g1_mark_as_young(const MemRegion& mr);
 
-  bool mark_card_deferred(size_t card_index);
-
-  bool is_card_deferred(size_t card_index) {
-    jbyte val = _byte_map[card_index];
-    return (val & (clean_card_mask_val() | deferred_card_val())) == deferred_card_val();
+  size_t index_for_cardvalue(CardValue const* p) const {
+    return pointer_delta(p, _byte_map, sizeof(CardValue));
   }
 
+  // Mark the given card as Dirty if it is Clean. Returns whether the card was
+  // Clean before this operation. This result may be inaccurate as it does not
+  // perform the dirtying atomically.
+  inline bool mark_clean_as_dirty(CardValue* card);
+
+  // Change Clean cards in a (large) area on the card table as Dirty, preserving
+  // already scanned cards. Assumes that most cards in that area are Clean.
+  inline void mark_range_dirty(size_t start_card_index, size_t num_cards);
+
+  // Change the given range of dirty cards to "which". All of these cards must be Dirty.
+  inline void change_dirty_cards_to(CardValue* start_card, CardValue* end_card, CardValue which);
+
+  inline uint region_idx_for(CardValue* p);
+
   static size_t compute_size(size_t mem_region_size_in_words) {
-    size_t number_of_slots = (mem_region_size_in_words / card_size_in_words);
+    size_t number_of_slots = (mem_region_size_in_words / _card_size_in_words);
     return ReservedSpace::allocation_align_size_up(number_of_slots);
   }
 
   // Returns how many bytes of the heap a single byte of the Card Table corresponds to.
-  static size_t heap_map_factor() { return card_size; }
+  static size_t heap_map_factor() { return _card_size; }
 
-  void initialize() {}
   void initialize(G1RegionToSpaceMapper* mapper);
 
-  virtual void resize_covered_region(MemRegion new_region) { ShouldNotReachHere(); }
-
-  virtual bool is_in_young(oop obj) const;
+  bool is_in_young(const void* p) const override;
 };
 
-#endif // SHARE_VM_GC_G1_G1CARDTABLE_HPP
+#endif // SHARE_GC_G1_G1CARDTABLE_HPP

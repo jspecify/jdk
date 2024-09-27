@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,10 +42,14 @@ import java.util.List;
  * jcstress tests wrapper
  */
 @Artifact(organization = "org.openjdk.jcstress", name = "jcstress-tests-all",
-        revision = "0.3", extension = "jar", unpack = false)
+        revision = JcstressRunner.VERSION, extension = "jar", unpack = false)
 public class JcstressRunner {
 
+    public static final String VERSION = "0.17-SNAPSHOT-20240328";
     public static final String MAIN_CLASS = "org.openjdk.jcstress.Main";
+
+    public static final String TIME_BUDGET_PROPERTY = "jcstress.time_budget";
+    public static String timeBudget = "6m";
 
     public static Path pathToArtifact() {
         Map<String, Path> artifacts;
@@ -55,7 +59,7 @@ public class JcstressRunner {
             throw new Error("TESTBUG: Can not resolve artifacts for "
                             + JcstressRunner.class.getName(), e);
         }
-        return artifacts.get("org.openjdk.jcstress.jcstress-tests-all-0.3")
+        return artifacts.get("org.openjdk.jcstress.jcstress-tests-all-" + VERSION)
                         .toAbsolutePath();
     }
 
@@ -65,7 +69,7 @@ public class JcstressRunner {
         }
         Path out = Paths.get("jcstress.out").toAbsolutePath();
 
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(getCmd(args))
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(getCmd(args))
                                         .redirectErrorStream(true)
                                         .redirectOutput(out.toFile());
         OutputAnalyzer oa = ProcessTools.executeProcess(pb);
@@ -89,6 +93,11 @@ public class JcstressRunner {
     private static String[] getCmd(String[] args) {
         List<String> extraFlags = new ArrayList<>();
 
+        // java.io.tmpdir is set for both harness and forked VM so temporary files
+        // created like this File.createTempFile("jcstress", "stdout");
+        // don't pollute temporary directories
+        extraFlags.add("-Djava.io.tmpdir=" + System.getProperty("user.dir"));
+
         // add jar with jcstress tests and harness to CP
         extraFlags.add("-cp");
         extraFlags.add(System.getProperty("java.class.path")
@@ -97,17 +106,26 @@ public class JcstressRunner {
 
         extraFlags.add(MAIN_CLASS);
 
-        String[] javaOpts = Utils.getTestJavaOpts();
-        // disable flags auto-detection
-        if (0 == javaOpts.length) {
-            extraFlags.add("--jvmArgs");
-            extraFlags.add("");
-        } else {
-            for (String jvmArg : Utils.getTestJavaOpts()) {
+        extraFlags.add("--jvmArgs");
+        extraFlags.add("-Djava.io.tmpdir=" + System.getProperty("user.dir"));
+
+        for (String jvmArg : Utils.getTestJavaOpts()) {
+            if (jvmArg.startsWith("-D" + TIME_BUDGET_PROPERTY)) {
+                timeBudget = jvmArg.split("=", 2)[1];
+            } else {
                 extraFlags.add("--jvmArgs");
                 extraFlags.add(jvmArg);
             }
         }
+
+        extraFlags.add("-tb");
+        extraFlags.add(timeBudget);
+
+        extraFlags.add("-sc");
+        extraFlags.add("false");
+
+        extraFlags.add("-af");
+        extraFlags.add("GLOBAL");
 
         String[] result = new String[extraFlags.size() + args.length];
         extraFlags.toArray(result);
@@ -115,4 +133,3 @@ public class JcstressRunner {
         return result;
     }
 }
-

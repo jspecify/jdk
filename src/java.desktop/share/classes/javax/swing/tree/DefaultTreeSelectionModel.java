@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,12 @@ import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.beans.PropertyChangeListener;
-import java.io.*;
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Enumeration;
@@ -37,8 +42,12 @@ import java.util.EventListener;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Vector;
-import javax.swing.event.*;
+
 import javax.swing.DefaultListSelectionModel;
+import javax.swing.event.EventListenerList;
+import javax.swing.event.SwingPropertyChangeSupport;
+import javax.swing.event.TreeSelectionEvent;
+import javax.swing.event.TreeSelectionListener;
 
 /**
  * Default implementation of TreeSelectionModel.  Listeners are notified
@@ -56,7 +65,7 @@ import javax.swing.DefaultListSelectionModel;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -386,7 +395,7 @@ public class DefaultTreeSelectionModel implements Cloneable, Serializable, TreeS
                 }
 
                 if(validCount > 0) {
-                    TreePath         newSelection[] = new TreePath[oldCount +
+                    TreePath[]         newSelection = new TreePath[oldCount +
                                                                   validCount];
 
                     /* And build the new selection. */
@@ -674,7 +683,7 @@ public class DefaultTreeSelectionModel implements Cloneable, Serializable, TreeS
      *          <code><em>Foo</em>Listener</code>s on this component,
      *          or an empty array if no such
      *          listeners have been added
-     * @exception ClassCastException if <code>listenerType</code>
+     * @throws ClassCastException if <code>listenerType</code>
      *          doesn't specify a class or interface that implements
      *          <code>java.util.EventListener</code>
      *
@@ -905,8 +914,8 @@ public class DefaultTreeSelectionModel implements Cloneable, Serializable, TreeS
                         }
                         else {
                             TreePath[] newSel = new TreePath[counter - min];
-                            int selectionIndex[] = rowMapper.getRowsForPaths(selection);
-                            // find the actual selection pathes corresponded to the
+                            int[] selectionIndex = rowMapper.getRowsForPaths(selection);
+                            // find the actual selection paths corresponded to the
                             // rows of the new selection
                             for (int i = 0; i < selectionIndex.length; i++) {
                                 if (selectionIndex[i]<counter) {
@@ -1169,10 +1178,9 @@ public class DefaultTreeSelectionModel implements Cloneable, Serializable, TreeS
         sb.append(getClass().getName() + " " + hashCode() + " [ ");
         for(int counter = 0; counter < selCount; counter++) {
             if(rows != null)
-                sb.append(selection[counter].toString() + "@" +
-                          Integer.toString(rows[counter])+ " ");
+                sb.append(selection[counter] + "@" + rows[counter] + " ");
             else
-                sb.append(selection[counter].toString() + " ");
+                sb.append(selection[counter] + " ");
         }
         sb.append("]");
         return sb.toString();
@@ -1183,7 +1191,7 @@ public class DefaultTreeSelectionModel implements Cloneable, Serializable, TreeS
      * This method does not duplicate
      * selection listeners and property listeners.
      *
-     * @exception CloneNotSupportedException never thrown by instances of
+     * @throws CloneNotSupportedException never thrown by instances of
      *                                       this class
      */
     public Object clone() throws CloneNotSupportedException {
@@ -1207,12 +1215,13 @@ public class DefaultTreeSelectionModel implements Cloneable, Serializable, TreeS
     }
 
     // Serialization support.
+    @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         Object[]             tValues;
 
         s.defaultWriteObject();
         // Save the rowMapper, if it implements Serializable
-        if(rowMapper != null && rowMapper instanceof Serializable) {
+        if (rowMapper instanceof Serializable) {
             tValues = new Object[2];
             tValues[0] = "rowMapper";
             tValues[1] = rowMapper;
@@ -1223,6 +1232,7 @@ public class DefaultTreeSelectionModel implements Cloneable, Serializable, TreeS
     }
 
 
+    @Serial
     private void readObject(ObjectInputStream s)
         throws IOException, ClassNotFoundException {
         ObjectInputStream.GetField f = s.readFields();

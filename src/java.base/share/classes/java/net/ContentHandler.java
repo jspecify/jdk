@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ import java.io.IOException;
  * The application's content handler factory (an instance of a class that
  * implements the interface {@code ContentHandlerFactory} set up by a call to
  * {@link URLConnection#setContentHandlerFactory(ContentHandlerFactory)
- * setContentHandlerFactory} is called with a {@code String} giving the
+ * setContentHandlerFactory}) is called with a {@code String} giving the
  * MIME type of the object being received on the socket. The factory returns an
  * instance of a subclass of {@code ContentHandler}, and its
  * {@code getContent} method is called to create the object.
@@ -50,7 +50,7 @@ import java.io.IOException;
  * If no content handler could be {@linkplain URLConnection#getContent() found},
  * URLConnection will look for a content handler in a user-definable set of places.
  * Users can define a vertical-bar delimited set of class prefixes
- * to search through by defining the <i>{@link java.net.URLConnection#contentPathProp}</i>
+ * to search through by defining the {@systemProperty java.content.handler.pkgs} system
  * property. The class name must be of the form:
  * <blockquote>
  *     <i>{package-prefix}.{major}.{minor}</i>
@@ -88,13 +88,18 @@ import java.io.IOException;
 public abstract @UsesObjectEquals class ContentHandler {
 
     /**
+     * Constructor for subclasses to call.
+     */
+    public ContentHandler() {}
+
+    /**
      * Given a URL connect stream positioned at the beginning of the
      * representation of an object, this method reads that stream and
      * creates an object from it.
      *
      * @param      urlc   a URL connection.
      * @return     the object read by the {@code ContentHandler}.
-     * @exception  IOException  if an I/O error occurs while reading the object.
+     * @throws     IOException  if an I/O error occurs while reading the object.
      */
     public abstract Object getContent(URLConnection urlc) throws IOException;
 
@@ -112,7 +117,7 @@ public abstract @UsesObjectEquals class ContentHandler {
      * @return     the object read by the {@code ContentHandler} that is
      *                 the first match of the suggested types or
      *                 {@code null} if none of the requested  are supported.
-     * @exception  IOException  if an I/O error occurs while reading the object.
+     * @throws     IOException  if an I/O error occurs while reading the object.
      * @since 1.3
      */
     @SuppressWarnings("rawtypes")

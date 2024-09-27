@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,15 @@
 #include <ctype.h>
 
 #include "util.h"
+#include "utf_util.h"
 #include "transport.h"
 #include "eventHandler.h"
 #include "threadControl.h"
 #include "outStream.h"
 #include "inStream.h"
 #include "invoker.h"
+#include "signature.h"
+
 
 /* Global data area */
 BackendGlobalData *gdata = NULL;
@@ -171,6 +174,8 @@ getStaticMethod(JNIEnv *env, jclass clazz, const char * name, const char *signat
     return method;
 }
 
+
+
 void
 util_initialize(JNIEnv *env)
 {
@@ -217,8 +222,6 @@ util_initialize(JNIEnv *env)
                     "<init>", "(Ljava/lang/ThreadGroup;Ljava/lang/String;)V");
         gdata->threadSetDaemon =
                 getMethod(env, gdata->threadClass, "setDaemon", "(Z)V");
-        gdata->threadResume =
-                getMethod(env, gdata->threadClass, "resume", "()V");
         gdata->systemGetProperty =
                 getStaticMethod(env, gdata->systemClass,
                     "getProperty", "(Ljava/lang/String;)Ljava/lang/String;");
@@ -240,6 +243,7 @@ util_initialize(JNIEnv *env)
         }
         localSystemThreadGroup = groups[0];
         saveGlobalRef(env, localSystemThreadGroup, &(gdata->systemThreadGroup));
+        jvmtiDeallocate(groups);
 
         /* Get some basic Java property values we will need at some point */
         gdata->property_java_version
@@ -272,12 +276,12 @@ util_initialize(JNIEnv *env)
             localAgentProperties =
                 JNI_FUNC_PTR(env,CallStaticObjectMethod)
                             (env, localVMSupportClass, getAgentProperties);
-            saveGlobalRef(env, localAgentProperties, &(gdata->agent_properties));
             if (JNI_FUNC_PTR(env,ExceptionOccurred)(env)) {
                 JNI_FUNC_PTR(env,ExceptionClear)(env);
                 EXIT_ERROR(AGENT_ERROR_INTERNAL,
                     "Exception occurred calling VMSupport.getAgentProperties");
             }
+            saveGlobalRef(env, localAgentProperties, &(gdata->agent_properties));
         }
 
     } END_WITH_LOCAL_REFS(env);
@@ -343,26 +347,25 @@ writeFieldValue(JNIEnv *env, PacketOutputStream *out, jobject object,
         outStream_setError(out, map2jdwpError(error));
         return;
     }
-    typeKey = signature[0];
+    typeKey = jdwpTag(signature);
     jvmtiDeallocate(signature);
 
-    /*
-     * For primitive types, the type key is bounced back as is. Objects
-     * are handled in the switch statement below.
-     */
-    if ((typeKey != JDWP_TAG(OBJECT)) && (typeKey != JDWP_TAG(ARRAY))) {
-        (void)outStream_writeByte(out, typeKey);
+    if (isReferenceTag(typeKey)) {
+
+        jobject value = JNI_FUNC_PTR(env,GetObjectField)(env, object, field);
+        (void)outStream_writeByte(out, specificTypeKey(env, value));
+        (void)outStream_writeObjectRef(env, out, value);
+        return;
+
     }
 
-    switch (typeKey) {
-        case JDWP_TAG(OBJECT):
-        case JDWP_TAG(ARRAY):   {
-            jobject value = JNI_FUNC_PTR(env,GetObjectField)(env, object, field);
-            (void)outStream_writeByte(out, specificTypeKey(env, value));
-            (void)outStream_writeObjectRef(env, out, value);
-            break;
-        }
+    /*
+     * For primitive types, the type key is bounced back as is.
+     */
 
+    (void)outStream_writeByte(out, typeKey);
+
+    switch (typeKey) {
         case JDWP_TAG(BYTE):
             (void)outStream_writeByte(out,
                       JNI_FUNC_PTR(env,GetByteField)(env, object, field));
@@ -418,26 +421,24 @@ writeStaticFieldValue(JNIEnv *env, PacketOutputStream *out, jclass clazz,
         outStream_setError(out, map2jdwpError(error));
         return;
     }
-    typeKey = signature[0];
+    typeKey = jdwpTag(signature);
     jvmtiDeallocate(signature);
 
-    /*
-     * For primitive types, the type key is bounced back as is. Objects
-     * are handled in the switch statement below.
-     */
-    if ((typeKey != JDWP_TAG(OBJECT)) && (typeKey != JDWP_TAG(ARRAY))) {
-        (void)outStream_writeByte(out, typeKey);
+
+    if (isReferenceTag(typeKey)) {
+
+        jobject value = JNI_FUNC_PTR(env,GetStaticObjectField)(env, clazz, field);
+        (void)outStream_writeByte(out, specificTypeKey(env, value));
+        (void)outStream_writeObjectRef(env, out, value);
+
+        return;
     }
 
+    /*
+     * For primitive types, the type key is bounced back as is.
+     */
+    (void)outStream_writeByte(out, typeKey);
     switch (typeKey) {
-        case JDWP_TAG(OBJECT):
-        case JDWP_TAG(ARRAY):   {
-            jobject value = JNI_FUNC_PTR(env,GetStaticObjectField)(env, clazz, field);
-            (void)outStream_writeByte(out, specificTypeKey(env, value));
-            (void)outStream_writeObjectRef(env, out, value);
-            break;
-        }
-
         case JDWP_TAG(BYTE):
             (void)outStream_writeByte(out,
                       JNI_FUNC_PTR(env,GetStaticByteField)(env, clazz, field));
@@ -570,7 +571,7 @@ sharedInvoke(PacketInputStream *in, PacketOutputStream *out)
             return JNI_TRUE;
         }
         for (i = 0; (i < argumentCount) && !inStream_error(in); i++) {
-            arguments[i] = inStream_readValue(in, NULL);
+            arguments[i] = inStream_readValue(in);
         }
         if (inStream_error(in)) {
             return JNI_TRUE;
@@ -697,12 +698,12 @@ methodClass(jmethodID method, jclass *pclazz)
     jvmtiError error;
 
     *pclazz = NULL;
-    error = FUNC_PTR(gdata->jvmti,GetMethodDeclaringClass)
+    error = JVMTI_FUNC_PTR(gdata->jvmti,GetMethodDeclaringClass)
                                 (gdata->jvmti, method, pclazz);
     return error;
 }
 
-/* Returns a local ref to the declaring class for a method, or NULL. */
+/* Returns the start and end locations of the specified method. */
 jvmtiError
 methodLocation(jmethodID method, jlocation *ploc1, jlocation *ploc2)
 {
@@ -725,7 +726,7 @@ methodSignature(jmethodID method,
     char *signature = NULL;
     char *generic_signature = NULL;
 
-    error = FUNC_PTR(gdata->jvmti,GetMethodName)
+    error = JVMTI_FUNC_PTR(gdata->jvmti,GetMethodName)
             (gdata->jvmti, method, &name, &signature, &generic_signature);
 
     if ( pname != NULL ) {
@@ -960,16 +961,6 @@ jvmtiMicroVersion(void)
                     >> JVMTI_VERSION_SHIFT_MICRO;
 }
 
-jboolean
-canSuspendResumeThreadLists(void)
-{
-    jvmtiError error;
-    jvmtiCapabilities cap;
-
-    error = jvmtiGetCapabilities(&cap);
-    return (error == JVMTI_ERROR_NONE && cap.can_suspend);
-}
-
 jvmtiError
 getSourceDebugExtension(jclass clazz, char **extensionPtr)
 {
@@ -977,28 +968,6 @@ getSourceDebugExtension(jclass clazz, char **extensionPtr)
                 (gdata->jvmti, clazz, extensionPtr);
 }
 
-/*
- * Convert the signature "Ljava/lang/Foo;" to a
- * classname "java.lang.Foo" compatible with the pattern.
- * Signature is overwritten in-place.
- */
-void
-convertSignatureToClassname(char *convert)
-{
-    char *p;
-
-    p = convert + 1;
-    while ((*p != ';') && (*p != '\0')) {
-        char c = *p;
-        if (c == '/') {
-            *(p-1) = '.';
-        } else {
-            *(p-1) = c;
-        }
-        p++;
-    }
-    *(p-1) = '\0';
-}
 
 static void
 handleInterrupt(void)
@@ -1038,16 +1007,9 @@ void
 debugMonitorEnter(jrawMonitorID monitor)
 {
     jvmtiError error;
-    while (JNI_TRUE) {
-        error = FUNC_PTR(gdata->jvmti,RawMonitorEnter)
-                        (gdata->jvmti, monitor);
-        error = ignore_vm_death(error);
-        if (error == JVMTI_ERROR_INTERRUPT) {
-            handleInterrupt();
-        } else {
-            break;
-        }
-    }
+    error = JVMTI_FUNC_PTR(gdata->jvmti,RawMonitorEnter)
+            (gdata->jvmti, monitor);
+    error = ignore_vm_death(error);
     if (error != JVMTI_ERROR_NONE) {
         EXIT_ERROR(error, "on raw monitor enter");
     }
@@ -1058,7 +1020,7 @@ debugMonitorExit(jrawMonitorID monitor)
 {
     jvmtiError error;
 
-    error = FUNC_PTR(gdata->jvmti,RawMonitorExit)
+    error = JVMTI_FUNC_PTR(gdata->jvmti,RawMonitorExit)
                 (gdata->jvmti, monitor);
     error = ignore_vm_death(error);
     if (error != JVMTI_ERROR_NONE) {
@@ -1070,14 +1032,14 @@ void
 debugMonitorWait(jrawMonitorID monitor)
 {
     jvmtiError error;
-    error = FUNC_PTR(gdata->jvmti,RawMonitorWait)
+    error = JVMTI_FUNC_PTR(gdata->jvmti,RawMonitorWait)
         (gdata->jvmti, monitor, ((jlong)(-1)));
 
     /*
      * According to the JLS (17.8), here we have
      * either :
      * a- been notified
-     * b- gotten a suprious wakeup
+     * b- gotten a spurious wakeup
      * c- been interrupted
      * If both a and c have happened, the VM must choose
      * which way to return - a or c.  If it chooses c
@@ -1112,28 +1074,11 @@ debugMonitorWait(jrawMonitorID monitor)
 }
 
 void
-debugMonitorTimedWait(jrawMonitorID monitor, jlong millis)
-{
-    jvmtiError error;
-    error = FUNC_PTR(gdata->jvmti,RawMonitorWait)
-        (gdata->jvmti, monitor, millis);
-    if (error == JVMTI_ERROR_INTERRUPT) {
-        /* See comment above */
-        handleInterrupt();
-        error = JVMTI_ERROR_NONE;
-    }
-    error = ignore_vm_death(error);
-    if (error != JVMTI_ERROR_NONE) {
-        EXIT_ERROR(error, "on raw monitor timed wait");
-    }
-}
-
-void
 debugMonitorNotify(jrawMonitorID monitor)
 {
     jvmtiError error;
 
-    error = FUNC_PTR(gdata->jvmti,RawMonitorNotify)
+    error = JVMTI_FUNC_PTR(gdata->jvmti,RawMonitorNotify)
                 (gdata->jvmti, monitor);
     error = ignore_vm_death(error);
     if (error != JVMTI_ERROR_NONE) {
@@ -1146,7 +1091,7 @@ debugMonitorNotifyAll(jrawMonitorID monitor)
 {
     jvmtiError error;
 
-    error = FUNC_PTR(gdata->jvmti,RawMonitorNotifyAll)
+    error = JVMTI_FUNC_PTR(gdata->jvmti,RawMonitorNotifyAll)
                 (gdata->jvmti, monitor);
     error = ignore_vm_death(error);
     if (error != JVMTI_ERROR_NONE) {
@@ -1160,7 +1105,7 @@ debugMonitorCreate(char *name)
     jrawMonitorID monitor;
     jvmtiError error;
 
-    error = FUNC_PTR(gdata->jvmti,CreateRawMonitor)
+    error = JVMTI_FUNC_PTR(gdata->jvmti,CreateRawMonitor)
                 (gdata->jvmti, name, &monitor);
     if (error != JVMTI_ERROR_NONE) {
         EXIT_ERROR(error, "on creation of a raw monitor");
@@ -1173,7 +1118,7 @@ debugMonitorDestroy(jrawMonitorID monitor)
 {
     jvmtiError error;
 
-    error = FUNC_PTR(gdata->jvmti,DestroyRawMonitor)
+    error = JVMTI_FUNC_PTR(gdata->jvmti,DestroyRawMonitor)
                 (gdata->jvmti, monitor);
     error = ignore_vm_death(error);
     if (error != JVMTI_ERROR_NONE) {
@@ -1232,7 +1177,7 @@ classSignature(jclass clazz, char **psignature, char **pgeneric_signature)
      * pgeneric_signature can be NULL, and GetClassSignature
      * accepts NULL.
      */
-    error = FUNC_PTR(gdata->jvmti,GetClassSignature)
+    error = JVMTI_FUNC_PTR(gdata->jvmti,GetClassSignature)
                 (gdata->jvmti, clazz, &signature, pgeneric_signature);
 
     if ( psignature != NULL ) {
@@ -1586,6 +1531,13 @@ isClass(jobject object)
 }
 
 jboolean
+isVThread(jobject object)
+{
+    JNIEnv *env = getEnv();
+    return JNI_FUNC_PTR(env,IsVirtualThread)(env, object);
+}
+
+jboolean
 isThread(jobject object)
 {
     JNIEnv *env = getEnv();
@@ -1673,13 +1625,26 @@ setAgentPropertyValue(JNIEnv *env, char *propertyName, char* propertyValue)
     /* Create jstrings for property name and value */
     nameString = JNI_FUNC_PTR(env,NewStringUTF)(env, propertyName);
     if (nameString != NULL) {
-        valueString = JNI_FUNC_PTR(env,NewStringUTF)(env, propertyValue);
-        if (valueString != NULL) {
-            /* invoke Properties.setProperty */
-            JNI_FUNC_PTR(env,CallObjectMethod)
-                (env, gdata->agent_properties,
-                 gdata->setProperty,
-                 nameString, valueString);
+        /* convert the value to UTF8 */
+        int len;
+        char *utf8value;
+        int utf8maxSize;
+
+        len = (int)strlen(propertyValue);
+        utf8maxSize = len * 4 + 1;
+        utf8value = (char *)jvmtiAllocate(utf8maxSize);
+        if (utf8value != NULL) {
+            utf8FromPlatform(propertyValue, len, (jbyte *)utf8value, utf8maxSize);
+            valueString = JNI_FUNC_PTR(env, NewStringUTF)(env, utf8value);
+            jvmtiDeallocate(utf8value);
+
+            if (valueString != NULL) {
+                /* invoke Properties.setProperty */
+                JNI_FUNC_PTR(env,CallObjectMethod)
+                    (env, gdata->agent_properties,
+                     gdata->setProperty,
+                     nameString, valueString);
+            }
         }
     }
     if (JNI_FUNC_PTR(env,ExceptionOccurred)(env)) {
@@ -1742,7 +1707,7 @@ isMethodObsolete(jmethodID method)
 }
 
 /* Get the jvmti environment to be used with tags */
-static jvmtiEnv *
+jvmtiEnv *
 getSpecialJvmti(void)
 {
     jvmtiEnv  *jvmti;
@@ -1753,7 +1718,7 @@ getSpecialJvmti(void)
     jvmtiCapabilities caps;
 
     rc = JVM_FUNC_PTR(gdata->jvm,GetEnv)
-                     (gdata->jvm, (void **)&jvmti, JVMTI_VERSION_1);
+                     (gdata->jvm, (void **)&jvmti, JVMTI_VERSION);
     if (rc != JNI_OK) {
         return NULL;
     }
@@ -1791,7 +1756,7 @@ jvmtiAllocate(jint numBytes)
     if ( numBytes == 0 ) {
         return NULL;
     }
-    error = FUNC_PTR(gdata->jvmti,Allocate)
+    error = JVMTI_FUNC_PTR(gdata->jvmti,Allocate)
                 (gdata->jvmti, numBytes, (unsigned char**)&ptr);
     if (error != JVMTI_ERROR_NONE ) {
         EXIT_ERROR(error, "Can't allocate jvmti memory");
@@ -1806,7 +1771,7 @@ jvmtiDeallocate(void *ptr)
     if ( ptr == NULL ) {
         return;
     }
-    error = FUNC_PTR(gdata->jvmti,Deallocate)
+    error = JVMTI_FUNC_PTR(gdata->jvmti,Deallocate)
                 (gdata->jvmti, ptr);
     if (error != JVMTI_ERROR_NONE ) {
         EXIT_ERROR(error, "Can't deallocate jvmti memory");
@@ -1952,7 +1917,7 @@ eventIndexInit(void)
     index2jvmti[EI_THREAD_START       -EI_min] = JVMTI_EVENT_THREAD_START;
     index2jvmti[EI_THREAD_END         -EI_min] = JVMTI_EVENT_THREAD_END;
     index2jvmti[EI_CLASS_PREPARE      -EI_min] = JVMTI_EVENT_CLASS_PREPARE;
-    index2jvmti[EI_GC_FINISH          -EI_min] = JVMTI_EVENT_GARBAGE_COLLECTION_FINISH;
+    index2jvmti[EI_CLASS_UNLOAD       -EI_min] = 0; // No mapping to JVMTI event
     index2jvmti[EI_CLASS_LOAD         -EI_min] = JVMTI_EVENT_CLASS_LOAD;
     index2jvmti[EI_FIELD_ACCESS       -EI_min] = JVMTI_EVENT_FIELD_ACCESS;
     index2jvmti[EI_FIELD_MODIFICATION -EI_min] = JVMTI_EVENT_FIELD_MODIFICATION;
@@ -1965,6 +1930,8 @@ eventIndexInit(void)
     index2jvmti[EI_MONITOR_WAITED     -EI_min] = JVMTI_EVENT_MONITOR_WAITED;
     index2jvmti[EI_VM_INIT            -EI_min] = JVMTI_EVENT_VM_INIT;
     index2jvmti[EI_VM_DEATH           -EI_min] = JVMTI_EVENT_VM_DEATH;
+    index2jvmti[EI_VIRTUAL_THREAD_START -EI_min] = JVMTI_EVENT_VIRTUAL_THREAD_START;
+    index2jvmti[EI_VIRTUAL_THREAD_END   -EI_min] = JVMTI_EVENT_VIRTUAL_THREAD_END;
 
     index2jdwp[EI_SINGLE_STEP         -EI_min] = JDWP_EVENT(SINGLE_STEP);
     index2jdwp[EI_BREAKPOINT          -EI_min] = JDWP_EVENT(BREAKPOINT);
@@ -1973,7 +1940,7 @@ eventIndexInit(void)
     index2jdwp[EI_THREAD_START        -EI_min] = JDWP_EVENT(THREAD_START);
     index2jdwp[EI_THREAD_END          -EI_min] = JDWP_EVENT(THREAD_END);
     index2jdwp[EI_CLASS_PREPARE       -EI_min] = JDWP_EVENT(CLASS_PREPARE);
-    index2jdwp[EI_GC_FINISH           -EI_min] = JDWP_EVENT(CLASS_UNLOAD);
+    index2jdwp[EI_CLASS_UNLOAD        -EI_min] = JDWP_EVENT(CLASS_UNLOAD);
     index2jdwp[EI_CLASS_LOAD          -EI_min] = JDWP_EVENT(CLASS_LOAD);
     index2jdwp[EI_FIELD_ACCESS        -EI_min] = JDWP_EVENT(FIELD_ACCESS);
     index2jdwp[EI_FIELD_MODIFICATION  -EI_min] = JDWP_EVENT(FIELD_MODIFICATION);
@@ -1986,24 +1953,89 @@ eventIndexInit(void)
     index2jdwp[EI_MONITOR_WAITED      -EI_min] = JDWP_EVENT(MONITOR_WAITED);
     index2jdwp[EI_VM_INIT             -EI_min] = JDWP_EVENT(VM_INIT);
     index2jdwp[EI_VM_DEATH            -EI_min] = JDWP_EVENT(VM_DEATH);
+    /* Just map VIRTUAL_THREAD_START/END to THREAD_START/END. */
+    index2jdwp[EI_VIRTUAL_THREAD_START -EI_min] = JDWP_EVENT(THREAD_START);
+    index2jdwp[EI_VIRTUAL_THREAD_END   -EI_min] = JDWP_EVENT(THREAD_END);
 }
 
 jdwpEvent
-eventIndex2jdwp(EventIndex i)
+eventIndex2jdwp(EventIndex ei)
 {
-    if ( i < EI_min || i > EI_max ) {
-        EXIT_ERROR(AGENT_ERROR_INVALID_INDEX,"bad EventIndex");
+    jdwpEvent event = 0;
+    if (ei >= EI_min && ei <= EI_max) {
+        event = index2jdwp[ei - EI_min];
     }
-    return index2jdwp[i-EI_min];
+    if (event == 0) {
+        EXIT_ERROR(AGENT_ERROR_INVALID_INDEX, "bad EventIndex");
+    }
+    return event;
 }
 
 jvmtiEvent
-eventIndex2jvmti(EventIndex i)
+eventIndex2jvmti(EventIndex ei)
 {
-    if ( i < EI_min || i > EI_max ) {
-        EXIT_ERROR(AGENT_ERROR_INVALID_INDEX,"bad EventIndex");
+    jvmtiEvent event = 0;
+    if (ei >= EI_min && ei <= EI_max) {
+        event = index2jvmti[ei - EI_min];
     }
-    return index2jvmti[i-EI_min];
+    if (event == 0) {
+        EXIT_ERROR(AGENT_ERROR_INVALID_INDEX, "bad EventIndex");
+    }
+    return event;
+}
+
+char*
+eventIndex2EventName(EventIndex ei)
+{
+    switch ( ei ) {
+        case EI_SINGLE_STEP:
+            return "EI_SINGLE_STEP";
+        case EI_BREAKPOINT:
+            return "EI_BREAKPOINT";
+        case EI_FRAME_POP:
+            return "EI_FRAME_POP";
+        case EI_EXCEPTION:
+            return "EI_EXCEPTION";
+        case EI_THREAD_START:
+            return "EI_THREAD_START";
+        case EI_THREAD_END:
+            return "EI_THREAD_END";
+        case EI_CLASS_PREPARE:
+            return "EI_CLASS_PREPARE";
+        case EI_CLASS_UNLOAD:
+            return "EI_CLASS_UNLOAD";
+        case EI_CLASS_LOAD:
+            return "EI_CLASS_LOAD";
+        case EI_FIELD_ACCESS:
+            return "EI_FIELD_ACCESS";
+        case EI_FIELD_MODIFICATION:
+            return "EI_FIELD_MODIFICATION";
+        case EI_EXCEPTION_CATCH:
+            return "EI_EXCEPTION_CATCH";
+        case EI_METHOD_ENTRY:
+            return "EI_METHOD_ENTRY";
+        case EI_METHOD_EXIT:
+            return "EI_METHOD_EXIT";
+        case EI_MONITOR_CONTENDED_ENTER:
+            return "EI_MONITOR_CONTENDED_ENTER";
+        case EI_MONITOR_CONTENDED_ENTERED:
+            return "EI_MONITOR_CONTENDED_ENTERED";
+        case EI_MONITOR_WAIT:
+            return "EI_MONITOR_WAIT";
+        case EI_MONITOR_WAITED:
+            return "EI_MONITOR_WAITED";
+        case EI_VM_INIT:
+            return "EI_VM_INIT";
+        case EI_VM_DEATH:
+            return "EI_VM_DEATH";
+        case EI_VIRTUAL_THREAD_START:
+            return "EI_VIRTUAL_THREAD_START";
+        case EI_VIRTUAL_THREAD_END:
+            return "EI_VIRTUAL_THREAD_END";
+        default:
+            JDI_ASSERT(JNI_FALSE);
+            return "Bad EI";
+    }
 }
 
 EventIndex
@@ -2025,7 +2057,7 @@ jdwp2EventIndex(jdwpEvent eventType)
         case JDWP_EVENT(CLASS_PREPARE):
             return EI_CLASS_PREPARE;
         case JDWP_EVENT(CLASS_UNLOAD):
-            return EI_GC_FINISH;
+            return EI_CLASS_UNLOAD;
         case JDWP_EVENT(CLASS_LOAD):
             return EI_CLASS_LOAD;
         case JDWP_EVENT(FIELD_ACCESS):
@@ -2081,8 +2113,6 @@ jvmti2EventIndex(jvmtiEvent kind)
             return EI_THREAD_END;
         case JVMTI_EVENT_CLASS_PREPARE:
             return EI_CLASS_PREPARE;
-        case JVMTI_EVENT_GARBAGE_COLLECTION_FINISH:
-            return EI_GC_FINISH;
         case JVMTI_EVENT_CLASS_LOAD:
             return EI_CLASS_LOAD;
         case JVMTI_EVENT_FIELD_ACCESS:
@@ -2111,6 +2141,12 @@ jvmti2EventIndex(jvmtiEvent kind)
             return EI_VM_INIT;
         case JVMTI_EVENT_VM_DEATH:
             return EI_VM_DEATH;
+        /* vthread events */
+        case JVMTI_EVENT_VIRTUAL_THREAD_START:
+            return EI_VIRTUAL_THREAD_START;
+        case JVMTI_EVENT_VIRTUAL_THREAD_END:
+            return EI_VIRTUAL_THREAD_END;
+
         default:
             EXIT_ERROR(AGENT_ERROR_INVALID_INDEX,"JVMTI to EventIndex mapping");
             break;
@@ -2224,6 +2260,8 @@ map2jdwpError(jvmtiError error)
             return JDWP_ERROR(METHOD_MODIFIERS_CHANGE_NOT_IMPLEMENTED);
         case JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED:
             return JDWP_ERROR(CLASS_ATTRIBUTE_CHANGE_NOT_IMPLEMENTED);
+        case JVMTI_ERROR_UNSUPPORTED_OPERATION:
+            return JDWP_ERROR(NOT_IMPLEMENTED);
         case AGENT_ERROR_NOT_CURRENT_FRAME:
             return JDWP_ERROR(NOT_CURRENT_FRAME);
         case AGENT_ERROR_INVALID_TAG:
@@ -2379,7 +2417,7 @@ log_debugee_location(const char *func,
         }
 
         /* Issue log message */
-        LOG_LOC(("%s: debugee: thread=%p(%s:0x%x),method=%p(%s@%d;%s)",
+        LOG_LOC(("%s: debuggee: thread=%p(%s:0x%x),method=%p(%s@%d;%s)",
                 func,
                 thread, info.name==NULL ? "?" : info.name, state,
                 method, method_name==NULL ? "?" : method_name,

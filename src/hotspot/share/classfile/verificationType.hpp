@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,18 +22,17 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_VERIFICATIONTYPE_HPP
-#define SHARE_VM_CLASSFILE_VERIFICATIONTYPE_HPP
+#ifndef SHARE_CLASSFILE_VERIFICATIONTYPE_HPP
+#define SHARE_CLASSFILE_VERIFICATIONTYPE_HPP
 
-#include "classfile/systemDictionary.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/signature.hpp"
 
-enum {
-  // As specifed in the JVM spec
+enum : uint {
+  // As specified in the JVM spec
   ITEM_Top = 0,
   ITEM_Integer = 1,
   ITEM_Float = 2,
@@ -50,10 +49,10 @@ class ClassVerifier;
 
 class VerificationType {
   private:
-    // Least significant bits of _handle are always 0, so we use these as
-    // the indicator that the _handle is valid.  Otherwise, the _data field
+    // Least significant 2 bits of _sym are always 0, so we use these as
+    // the indicator that _sym is a valid pointer.  Otherwise, the _data field
     // contains encoded data (as specified below).  Should the VM change
-    // and the lower bits on oops aren't 0, the assert in the constructor
+    // and the lower 2 bits of Symbol* aren't 0, the assert in the constructor
     // will catch this and we'll have to add a descriminator tag to this
     // structure.
     union {
@@ -68,7 +67,7 @@ class VerificationType {
     };
 
     // Enum for the _data field
-    enum {
+    enum : uint {
       // Bottom two bits determine if the type is a reference, primitive,
       // uninitialized or a query-type.
       TypeMask           = 0x00000003,
@@ -160,7 +159,7 @@ class VerificationType {
       assert(((uintptr_t)sh & 0x3) == 0, "Symbols must be aligned");
       // If the above assert fails in the future because oop* isn't aligned,
       // then this type encoding system will have to change to have a tag value
-      // to descriminate between oops and primitives.
+      // to discriminate between oops and primitives.
       return VerificationType((uintptr_t)sh);
   }
   static VerificationType uninitialized_type(u2 bci)
@@ -190,7 +189,7 @@ class VerificationType {
     // the 'query' types should technically return 'false' here, if we
     // allow this to return true, we can perform the test using only
     // 2 operations rather than 8 (3 masks, 3 compares and 2 logical 'ands').
-    // Since noone should call this on a query type anyway, this is ok.
+    // Since no one should call this on a query type anyway, this is ok.
     assert(!is_check(), "Must not be a check type (wrong value returned)");
     return ((_u._data & Category1) != Primitive);
     // should only return false if it's a primitive, and the category1 flag
@@ -207,26 +206,26 @@ class VerificationType {
   bool is_check() const { return (_u._data & TypeQuery) == TypeQuery; }
 
   bool is_x_array(char sig) const {
-    return is_null() || (is_array() && (name()->byte_at(1) == sig));
+    return is_null() || (is_array() && (name()->char_at(1) == sig));
   }
-  bool is_int_array() const { return is_x_array('I'); }
-  bool is_byte_array() const { return is_x_array('B'); }
-  bool is_bool_array() const { return is_x_array('Z'); }
-  bool is_char_array() const { return is_x_array('C'); }
-  bool is_short_array() const { return is_x_array('S'); }
-  bool is_long_array() const { return is_x_array('J'); }
-  bool is_float_array() const { return is_x_array('F'); }
-  bool is_double_array() const { return is_x_array('D'); }
-  bool is_object_array() const { return is_x_array('L'); }
-  bool is_array_array() const { return is_x_array('['); }
+  bool is_int_array() const { return is_x_array(JVM_SIGNATURE_INT); }
+  bool is_byte_array() const { return is_x_array(JVM_SIGNATURE_BYTE); }
+  bool is_bool_array() const { return is_x_array(JVM_SIGNATURE_BOOLEAN); }
+  bool is_char_array() const { return is_x_array(JVM_SIGNATURE_CHAR); }
+  bool is_short_array() const { return is_x_array(JVM_SIGNATURE_SHORT); }
+  bool is_long_array() const { return is_x_array(JVM_SIGNATURE_LONG); }
+  bool is_float_array() const { return is_x_array(JVM_SIGNATURE_FLOAT); }
+  bool is_double_array() const { return is_x_array(JVM_SIGNATURE_DOUBLE); }
+  bool is_object_array() const { return is_x_array(JVM_SIGNATURE_CLASS); }
+  bool is_array_array() const { return is_x_array(JVM_SIGNATURE_ARRAY); }
   bool is_reference_array() const
     { return is_object_array() || is_array_array(); }
   bool is_object() const
     { return (is_reference() && !is_null() && name()->utf8_length() >= 1 &&
-              name()->byte_at(0) != '['); }
+              name()->char_at(0) != JVM_SIGNATURE_ARRAY); }
   bool is_array() const
     { return (is_reference() && !is_null() && name()->utf8_length() >= 2 &&
-              name()->byte_at(0) == '['); }
+              name()->char_at(0) == JVM_SIGNATURE_ARRAY); }
   bool is_uninitialized() const
     { return ((_u._data & Uninitialized) == Uninitialized); }
   bool is_uninitialized_this() const
@@ -312,17 +311,17 @@ class VerificationType {
         case Short:
           return false;
         default:
-          return is_assignable_from(from, context, from_field_is_protected, CHECK_false);
+          return is_assignable_from(from, context, from_field_is_protected, THREAD);
       }
     }
   }
 
-  VerificationType get_component(ClassVerifier* context, TRAPS) const;
+  VerificationType get_component(ClassVerifier* context) const;
 
   int dimensions() const {
     assert(is_array(), "Must be an array");
     int index = 0;
-    while (name()->byte_at(index) == '[') index++;
+    while (name()->char_at(index) == JVM_SIGNATURE_ARRAY) index++;
     return index;
   }
 
@@ -341,4 +340,4 @@ class VerificationType {
                                               TRAPS);
 };
 
-#endif // SHARE_VM_CLASSFILE_VERIFICATIONTYPE_HPP
+#endif // SHARE_CLASSFILE_VERIFICATIONTYPE_HPP

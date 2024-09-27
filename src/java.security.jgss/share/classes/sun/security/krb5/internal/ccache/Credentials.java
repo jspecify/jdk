@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,7 +49,6 @@ public class Credentials {
     TicketFlags flags;
     Ticket ticket;
     Ticket secondTicket; //optional
-    private boolean DEBUG = Krb5.DEBUG;
 
     public Credentials(
             PrincipalName new_cname,
@@ -169,6 +169,18 @@ public class Credentials {
         return sname;
     }
 
+    public Ticket getTicket() throws RealmException {
+        return ticket;
+    }
+
+    public PrincipalName getServicePrincipal2() throws RealmException {
+        return secondTicket == null ? null : secondTicket.sname;
+    }
+
+    public PrincipalName getClientPrincipal() throws RealmException {
+        return cname;
+    }
+
     public sun.security.krb5.Credentials setKrbCreds() {
         // Note: We will not pass authorizationData to s.s.k.Credentials. The
         // field in that class will be passed to Krb5Context as the return
@@ -178,10 +190,11 @@ public class Credentials {
         //
         // This class is for the initiator side. Also, authdata inside a ccache
         // is most likely to be the one in Authenticator in PA-TGS-REQ encoded
-        // in TGS-REQ, therefore only stored with a service ticket. Currently
+        // in TGS-REQ, therefore only stored with a service ticket. Currently,
         // in Java, we only reads TGTs.
-        return new sun.security.krb5.Credentials(ticket,
-                cname, sname, key, flags, authtime, starttime, endtime, renewTill, caddr);
+        return new sun.security.krb5.Credentials(ticket, cname, null, sname,
+                null, key, flags, authtime, starttime, endtime, renewTill,
+                caddr);
     }
 
     public KerberosTime getStartTime() {
@@ -208,7 +221,15 @@ public class Credentials {
         return key.getEType();
     }
 
+    public EncryptionKey getKey() {
+        return key;
+    }
+
     public int getTktEType() {
         return ticket.encPart.getEType();
+    }
+
+    public int getTktEType2() {
+        return (secondTicket == null) ? 0 : secondTicket.encPart.getEType();
     }
 }

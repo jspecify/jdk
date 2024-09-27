@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_SERVICES_ATTACHLISTENER_HPP
-#define SHARE_VM_SERVICES_ATTACHLISTENER_HPP
+#ifndef SHARE_SERVICES_ATTACHLISTENER_HPP
+#define SHARE_SERVICES_ATTACHLISTENER_HPP
 
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
+#include "runtime/atomic.hpp"
+#include "runtime/globals.hpp"
+#include "runtime/javaThread.inline.hpp"
 #include "utilities/debug.hpp"
+#include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
@@ -49,6 +53,21 @@ struct AttachOperationFunctionInfo {
   AttachOperationFunction func;
 };
 
+enum AttachListenerState {
+  AL_NOT_INITIALIZED,
+  AL_INITIALIZING,
+  AL_INITIALIZED
+};
+
+class AttachListenerThread : public JavaThread {
+private:
+  static void thread_entry(JavaThread* thread, TRAPS);
+
+public:
+  AttachListenerThread() : JavaThread(&AttachListenerThread::thread_entry) {}
+  bool is_AttachListener_thread() const { return true; }
+};
+
 class AttachListener: AllStatic {
  public:
   static void vm_start() NOT_SERVICES_RETURN;
@@ -57,6 +76,9 @@ class AttachListener: AllStatic {
 
   // invoke to perform clean-up tasks when all clients detach
   static void detachall() NOT_SERVICES_RETURN;
+
+  // check unix domain socket file on filesystem
+  static bool check_socket_file() NOT_SERVICES_RETURN_(false);
 
   // indicates if the Attach Listener needs to be created at startup
   static bool init_at_startup() NOT_SERVICES_RETURN_(false);
@@ -67,24 +89,37 @@ class AttachListener: AllStatic {
 #if !INCLUDE_SERVICES
   static bool is_attach_supported()             { return false; }
 #else
+
  private:
-  static volatile bool _initialized;
+  static volatile AttachListenerState _state;
 
  public:
-  static bool is_initialized()                  { return _initialized; }
-  static void set_initialized()                 { _initialized = true; }
+  static void set_state(AttachListenerState new_state) {
+    Atomic::store(&_state, new_state);
+  }
+
+  static AttachListenerState get_state() {
+    return Atomic::load(&_state);
+  }
+
+  static AttachListenerState transit_state(AttachListenerState new_state,
+                                           AttachListenerState cmp_state) {
+    return Atomic::cmpxchg(&_state, cmp_state, new_state);
+  }
+
+  static bool is_initialized() {
+    return Atomic::load(&_state) == AL_INITIALIZED;
+  }
+
+  static void set_initialized() {
+    Atomic::store(&_state, AL_INITIALIZED);
+  }
 
   // indicates if this VM supports attach-on-demand
   static bool is_attach_supported()             { return !DisableAttachMechanism; }
 
   // platform specific initialization
   static int pd_init();
-
-  // platform specific operation
-  static AttachOperationFunctionInfo* pd_find_operation(const char* name);
-
-  // platform specific flag change
-  static jint pd_set_flag(AttachOperation* op, outputStream* out);
 
   // platform specific detachall
   static void pd_detachall();
@@ -121,7 +156,7 @@ class AttachOperation: public CHeapObj<mtInternal> {
   const char* name() const                      { return _name; }
 
   // set the operation name
-  void set_name(char* name) {
+  void set_name(const char* name) {
     assert(strlen(name) <= name_length_max, "exceeds maximum name length");
     size_t len = MIN2(strlen(name), (size_t)name_length_max);
     memcpy(_name, name, len);
@@ -137,7 +172,7 @@ class AttachOperation: public CHeapObj<mtInternal> {
   // set an argument value
   void set_arg(int i, char* arg) {
     assert(i>=0 && i<arg_count_max, "invalid argument index");
-    if (arg == NULL) {
+    if (arg == nullptr) {
       _arg[i][0] = '\0';
     } else {
       assert(strlen(arg) <= arg_length_max, "exceeds maximum argument length");
@@ -148,10 +183,10 @@ class AttachOperation: public CHeapObj<mtInternal> {
   }
 
   // create an operation of a given name
-  AttachOperation(char* name) {
+  AttachOperation(const char* name) {
     set_name(name);
     for (int i=0; i<arg_count_max; i++) {
-      set_arg(i, NULL);
+      set_arg(i, nullptr);
     }
   }
 
@@ -160,4 +195,4 @@ class AttachOperation: public CHeapObj<mtInternal> {
 };
 #endif // INCLUDE_SERVICES
 
-#endif // SHARE_VM_SERVICES_ATTACHLISTENER_HPP
+#endif // SHARE_SERVICES_ATTACHLISTENER_HPP

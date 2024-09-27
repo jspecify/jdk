@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_ADLC_ADLPARSE_HPP
-#define SHARE_VM_ADLC_ADLPARSE_HPP
+#ifndef SHARE_ADLC_ADLPARSE_HPP
+#define SHARE_ADLC_ADLPARSE_HPP
 
 // ADLPARSE.HPP - Definitions for Architecture Description Language Parser
 // Authors: Chris Vick and Mike Paleczny
@@ -47,6 +47,7 @@ class Encode;
 class Attribute;
 class Effect;
 class ExpandRule;
+class Flag;
 class RewriteRule;
 class Constraint;
 class ConstructRule;
@@ -62,7 +63,9 @@ class PipeDesc;
 class PipeClass;
 class RegList;
 // ***** Peephole Section *****
+class PeepPredicate;
 class PeepMatch;
+class PeepProcedure;
 class PeepConstraint;
 class PeepReplace;
 
@@ -86,8 +89,8 @@ protected:
   void instr_parse(void);       // Parse instruction definitions
   void oper_parse(void);        // Parse operand definitions
   void opclass_parse(void);     // Parse operand class definitions
-  void ins_attr_parse(void);    // Parse instruction attrubute definitions
-  void op_attr_parse(void);     // Parse operand attrubute definitions
+  void ins_attr_parse(void);    // Parse instruction attribute definitions
+  void op_attr_parse(void);     // Parse operand attribute definitions
   void source_parse(void);      // Parse source section
   void source_hpp_parse(void);  // Parse source_hpp section
   void reg_parse(void);         // Parse register section
@@ -110,18 +113,15 @@ protected:
   void enc_class_parse_block(EncClass* encoding, char* ec_name);
 
   // Parse the components of the frame section
-  void stack_dir_parse(FrameForm *frame);   // Parse the stack direction entry
   void sync_stack_slots_parse(FrameForm *frame);
   void frame_pointer_parse(FrameForm *frame, bool native);
   void interpreter_frame_pointer_parse(FrameForm *frame, bool native);
   void inline_cache_parse(FrameForm *frame, bool native);
   void interpreter_arg_ptr_parse(FrameForm *frame, bool native);
-  void interpreter_method_oop_parse(FrameForm *frame, bool native);
+  void interpreter_method_parse(FrameForm *frame, bool native);
   void cisc_spilling_operand_name_parse(FrameForm *frame, bool native);
   void stack_alignment_parse(FrameForm *frame);
   void return_addr_parse(FrameForm *frame, bool native);
-  void preserve_stack_parse(FrameForm *frame);
-  char *calling_convention_parse();
   char *return_value_parse();
 
   // Parse components of the register section
@@ -139,7 +139,9 @@ protected:
   void pipe_class_parse(PipelineForm &pipe); // Parse pipeline class definition
 
   // Parse components of a peephole rule
+  void peep_predicate_parse(Peephole &peep); // Parse the peephole predicate
   void peep_match_parse(Peephole &peep);     // Parse the peephole match rule
+  void peep_procedure_parse(Peephole &peep); // Parse the peephole procedure
   void peep_constraint_parse(Peephole &peep);// Parse the peephole constraints
   void peep_replace_parse(Peephole &peep);   // Parse peephole replacement rule
 
@@ -171,11 +173,12 @@ protected:
   Interface     *interface_parse();      // Parse operand interface rule
   Interface     *mem_interface_parse();  // Parse memory interface rule
   Interface     *cond_interface_parse(); // Parse conditional interface rule
-  char          *interface_field_parse(const char** format = NULL);// Parse field contents
+  char          *interface_field_parse(const char** format = nullptr);// Parse field contents
 
   FormatRule    *format_parse(void);     // Parse format rule
   FormatRule    *template_parse(void);     // Parse format rule
   void           effect_parse(InstructForm *instr); // Parse effect rule
+  Flag          *flag_parse(InstructForm *instr); // Parse flag rule
   ExpandRule    *expand_parse(InstructForm *instr); // Parse expand rule
   RewriteRule   *rewrite_parse(void);    // Parse rewrite rule
   Constraint    *constraint_parse(void); // Parse constraint rule
@@ -289,4 +292,4 @@ public:
   static void trim(char* &token);  // trim leading & trailing spaces
 };
 
-#endif // SHARE_VM_ADLC_ADLPARSE_HPP
+#endif // SHARE_ADLC_ADLPARSE_HPP

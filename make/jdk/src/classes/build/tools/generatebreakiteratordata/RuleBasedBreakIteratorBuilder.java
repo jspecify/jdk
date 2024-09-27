@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -148,7 +148,7 @@ class RuleBasedBreakIteratorBuilder {
 
     /**
      * Looping states actually have to be backfilled later in the process
-     * than everything else.  This is where a the list of states to backfill
+     * than everything else.  This is where the list of states to backfill
      * is accumulated.  This is also used to handle .*?
      */
     protected Vector<Integer> statesToBackfill = null;
@@ -290,7 +290,7 @@ class RuleBasedBreakIteratorBuilder {
                     }
 
                     lastOpen = c;
-                    parenStack.push(new Character((char)c));
+                    parenStack.push(Character.valueOf((char)c));
                     if (c == '<') {
                         sawVarName = true;
                     }
@@ -878,7 +878,7 @@ class RuleBasedBreakIteratorBuilder {
         //   It will not always work right when nested in parentheses or braces (although
         //   sometimes it will).  It also will not work right if the group of repeating
         //   characters and the group of characters that follows overlap partially
-        //   (e.g., "[a-g]*?[e-j]").  None of these capabilites was deemed necessary for
+        //   (e.g., "[a-g]*?[e-j]").  None of these capabilities was deemed necessary for
         //   describing breaking rules we know about, so we left them out for
         //   expeditiousness.
         //   - Rules such as "[a-z]*?abc;" will be treated the same as "[a-z]*?aa*bc;"--
@@ -902,11 +902,11 @@ class RuleBasedBreakIteratorBuilder {
         // if we're adding rules to the backward state table, mark the initial state
         // as a looping state
         if (!forward) {
-            loopingStates.addElement(new Integer(1));
+            loopingStates.addElement(Integer.valueOf(1));
         }
 
         // put the current state on the decision point list before we start
-        decisionPointList.addElement(new Integer(currentState)); // we want currentState to
+        decisionPointList.addElement(Integer.valueOf(currentState)); // we want currentState to
                                                                  // be 1 here...
         currentState = tempStateTable.size() - 1;   // but after that, we want it to be
                                                     // 1 less than the state number of the next state
@@ -978,7 +978,7 @@ class RuleBasedBreakIteratorBuilder {
                     // if the period is followed by an asterisk, then just set the current
                     // state to loop back on itself
                     if (p + 1 < rule.length() && rule.charAt(p + 1) == '*' && state[0] != 0) {
-                        decisionPointList.addElement(new Integer(state[0]));
+                        decisionPointList.addElement(Integer.valueOf(state[0]));
                         pendingChars = "";
                         ++p;
                     }
@@ -998,7 +998,7 @@ class RuleBasedBreakIteratorBuilder {
                 if (pendingChars.length() != 0) {
 
                     // if the expression is followed by an asterisk, then push a copy
-                    // of the current desicion point list onto the stack (this is
+                    // of the current decision point list onto the stack (this is
                     // the same thing we do on an opening brace)
                     if (p + 1 < rule.length() && rule.charAt(p + 1) == '*') {
                         @SuppressWarnings("unchecked")
@@ -1012,7 +1012,7 @@ class RuleBasedBreakIteratorBuilder {
                     // it to the end of the state table
                     int newState = tempStateTable.size();
                     if (loopingStates.size() != 0) {
-                        statesToBackfill.addElement(new Integer(newState));
+                        statesToBackfill.addElement(Integer.valueOf(newState));
                     }
                     state = new short[numCategories + 1];
                     if (sawEarlyBreak) {
@@ -1032,7 +1032,7 @@ class RuleBasedBreakIteratorBuilder {
                     lastState = currentState;
                     do {
                         ++currentState;
-                        decisionPointList.addElement(new Integer(currentState));
+                        decisionPointList.addElement(Integer.valueOf(currentState));
                     } while (currentState + 1 < tempStateTable.size());
                 }
             }
@@ -1058,7 +1058,7 @@ class RuleBasedBreakIteratorBuilder {
                 if (c == '*') {
                     for (int i = lastState + 1; i < tempStateTable.size(); i++) {
                         Vector<Integer> temp = new Vector<>();
-                        temp.addElement(new Integer(i));
+                        temp.addElement(Integer.valueOf(i));
                         updateStateTable(temp, pendingChars, (short)(lastState + 1));
                     }
                 }
@@ -1121,7 +1121,7 @@ class RuleBasedBreakIteratorBuilder {
 
                 // add the current state to the decision point list (add it at the
                 // BEGINNING so we can find it later)
-                decisionPointList.insertElementAt(new Integer(currentState), 0);
+                decisionPointList.insertElementAt(Integer.valueOf(currentState), 0);
 
                 // finally, push a copy of the current decision point list onto the
                 // stack (this keeps track of the active decision point list before
@@ -1208,7 +1208,7 @@ class RuleBasedBreakIteratorBuilder {
                     for (int i = 0; i < tempState.length; i++) {
                         if (tempState[i] > tempStateNum) {
                             updateStateTable(exitPoints,
-                                             new Character((char)(i + 0x100)).toString(),
+                                             Character.valueOf((char)(i + 0x100)).toString(),
                                              tempState[i]);
                         }
                     }
@@ -1273,7 +1273,7 @@ class RuleBasedBreakIteratorBuilder {
         for (int i = 0; i < decisionPointList.size(); i++) {
             int rowNum = decisionPointList.elementAt(i).intValue();
             state = tempStateTable.elementAt(rowNum);
-            state[numCategories] |= END_STATE_FLAG;
+            state[numCategories] |= (short) END_STATE_FLAG;
             if (sawEarlyBreak) {
                 state[numCategories] |= LOOKAHEAD_STATE_FLAG;
             }
@@ -1287,7 +1287,7 @@ class RuleBasedBreakIteratorBuilder {
      * @param rows The list of rows that need updating (the decision point list)
      * @param pendingChars A character category list, encoded in a String.  This is the
      * list of the columns that need updating.
-     * @param newValue Update the cells specfied above to contain this value
+     * @param newValue Update the cells specified above to contain this value
      */
     private void updateStateTable(Vector<Integer> rows,
                                   String pendingChars,
@@ -1300,7 +1300,7 @@ class RuleBasedBreakIteratorBuilder {
             newValues[(int)(pendingChars.charAt(i)) - 0x100] = newValue;
 
         // go through the list of rows to update, and update them by calling
-        // mergeStates() to merge them the the dummy state we created
+        // mergeStates() to merge them the dummy state we created
         for (int i = 0; i < rows.size(); i++) {
             mergeStates(rows.elementAt(i).intValue(), newValues, rows);
         }
@@ -1330,7 +1330,7 @@ class RuleBasedBreakIteratorBuilder {
                              short[] newValues,
                              Vector<Integer> rowsBeingUpdated) {
         short[] oldValues = tempStateTable.elementAt(rowNum);
-        boolean isLoopingState = loopingStates.contains(new Integer(rowNum));
+        boolean isLoopingState = loopingStates.contains(Integer.valueOf(rowNum));
 
         // for each of the cells in the rows we're reconciling, do...
         for (int i = 0; i < oldValues.length; i++) {
@@ -1343,7 +1343,7 @@ class RuleBasedBreakIteratorBuilder {
             // if oldValues is a looping state and the state the current cell points to
             // is too, then we can just stomp over the current value of that cell (and
             // set the clear-looping-states flag if necessary)
-            else if (isLoopingState && loopingStates.contains(new Integer(oldValues[i]))) {
+            else if (isLoopingState && loopingStates.contains(Integer.valueOf(oldValues[i]))) {
                 if (newValues[i] != 0) {
                     if (oldValues[i] == 0) {
                         clearLoopingStates = true;
@@ -1401,29 +1401,29 @@ class RuleBasedBreakIteratorBuilder {
 
                     // if the decision point list contains either of the parent rows,
                     // update it to include the new row as well
-                    if ((decisionPointList.contains(new Integer(oldRowNum))
-                            || decisionPointList.contains(new Integer(newRowNum)))
-                        && !decisionPointList.contains(new Integer(combinedRowNum))
+                    if ((decisionPointList.contains(Integer.valueOf(oldRowNum))
+                            || decisionPointList.contains(Integer.valueOf(newRowNum)))
+                        && !decisionPointList.contains(Integer.valueOf(combinedRowNum))
                     ) {
-                        decisionPointList.addElement(new Integer(combinedRowNum));
+                        decisionPointList.addElement(Integer.valueOf(combinedRowNum));
                     }
 
                     // do the same thing with the list of rows being updated
-                    if ((rowsBeingUpdated.contains(new Integer(oldRowNum))
-                            || rowsBeingUpdated.contains(new Integer(newRowNum)))
-                        && !rowsBeingUpdated.contains(new Integer(combinedRowNum))
+                    if ((rowsBeingUpdated.contains(Integer.valueOf(oldRowNum))
+                            || rowsBeingUpdated.contains(Integer.valueOf(newRowNum)))
+                        && !rowsBeingUpdated.contains(Integer.valueOf(combinedRowNum))
                     ) {
-                        decisionPointList.addElement(new Integer(combinedRowNum));
+                        decisionPointList.addElement(Integer.valueOf(combinedRowNum));
                     }
                     // now (groan) do the same thing for all the entries on the
                     // decision point stack
                     for (int k = 0; k < decisionPointStack.size(); k++) {
                         Vector<Integer> dpl = decisionPointStack.elementAt(k);
-                        if ((dpl.contains(new Integer(oldRowNum))
-                                || dpl.contains(new Integer(newRowNum)))
-                            && !dpl.contains(new Integer(combinedRowNum))
+                        if ((dpl.contains(Integer.valueOf(oldRowNum))
+                                || dpl.contains(Integer.valueOf(newRowNum)))
+                            && !dpl.contains(Integer.valueOf(combinedRowNum))
                         ) {
-                            dpl.addElement(new Integer(combinedRowNum));
+                            dpl.addElement(Integer.valueOf(combinedRowNum));
                         }
                     }
 
@@ -1536,10 +1536,10 @@ class RuleBasedBreakIteratorBuilder {
     private void eliminateBackfillStates(int baseState) {
 
         // don't do anything unless this state is actually in the backfill list...
-        if (statesToBackfill.contains(new Integer(baseState))) {
+        if (statesToBackfill.contains(Integer.valueOf(baseState))) {
 
             // if it is, take it out
-            statesToBackfill.removeElement(new Integer(baseState));
+            statesToBackfill.removeElement(Integer.valueOf(baseState));
 
             // then go through and recursively call this function for every
             // state that the base state points to
@@ -1580,7 +1580,7 @@ class RuleBasedBreakIteratorBuilder {
                 }
 
                 // clear out the backfill part of the flag word
-                state[numCategories] &= ALL_FLAGS;
+                state[numCategories] &= (short) ALL_FLAGS;
 
                 // then fill all zero cells in the current state with values
                 // from the corresponding cells of the fromState
@@ -1608,7 +1608,7 @@ class RuleBasedBreakIteratorBuilder {
 
         int[] rowNumMap = new int[tempStateTable.size()];
         Stack<Integer> rowsToFollow = new Stack<>();
-        rowsToFollow.push(new Integer(1));
+        rowsToFollow.push(Integer.valueOf(1));
         rowNumMap[1] = 1;
 
         // determine which states are no longer reachable from the start state
@@ -1622,7 +1622,7 @@ class RuleBasedBreakIteratorBuilder {
                 if (row[i] != 0) {
                     if (rowNumMap[row[i]] == 0) {
                         rowNumMap[row[i]] = row[i];
-                        rowsToFollow.push(new Integer(row[i]));
+                        rowsToFollow.push(Integer.valueOf(row[i]));
                     }
                 }
             }
@@ -1881,7 +1881,7 @@ class RuleBasedBreakIteratorBuilder {
         // we have to merge the resulting state table with the auto-generated one
         // above.  First copy the populated cells from row 1 over the populated
         // cells in the auto-generated table.  Then copy values from row 1 of the
-        // auto-generated table into all of the the unpopulated cells of the
+        // auto-generated table into all of the unpopulated cells of the
         // rule-based table.
         if (backTableOffset > 1) {
 

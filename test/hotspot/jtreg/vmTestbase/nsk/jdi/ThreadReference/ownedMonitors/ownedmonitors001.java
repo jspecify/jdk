@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,7 +58,9 @@ public class ownedmonitors001 {
 
     public static void main (String argv[]) {
         int result = run(argv, System.out);
-        System.exit(result + PASS_BASE);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run (String argv[], PrintStream out) {
@@ -281,7 +283,7 @@ public class ownedmonitors001 {
                 Value value = debuggeeRef.getValue(field);
                 expMonitors.add((ObjectReference)value);
             } catch (Exception e) {
-                log3("Unexpected excption while getting ObjectReference for monitors");
+                log3("Unexpected exception while getting ObjectReference for monitors");
                 testExitCode = FAILED;
             }
         }

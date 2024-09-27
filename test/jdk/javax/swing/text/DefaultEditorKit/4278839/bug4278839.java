@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 /*
  * @test
  * @key headful
- * @bug 4278839
+ * @bug 4278839 8233634
  * @summary Incorrect cursor movement between words at the end of line
  * @author Anton Nashatyrev
  * @library ../../../regtesthelpers
@@ -41,12 +41,13 @@ public class bug4278839 extends JFrame {
     private static boolean passed = true;
     private static JTextArea area;
     private static Robot robo;
+    private static JFrame frame;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         try {
 
             robo = new Robot();
-            robo.setAutoDelay(100);
+            robo.setAutoDelay(200);
 
             SwingUtilities.invokeAndWait(new Runnable() {
                 @Override
@@ -60,12 +61,7 @@ public class bug4278839 extends JFrame {
             clickMouse();
             robo.waitForIdle();
 
-
-            if ("Aqua".equals(UIManager.getLookAndFeel().getID())) {
-                Util.hitKeys(robo, KeyEvent.VK_HOME);
-            } else {
-                Util.hitKeys(robo, KeyEvent.VK_CONTROL, KeyEvent.VK_HOME);
-            }
+            area.setCaretPosition(0);
             robo.waitForIdle();
 
             passed &= moveCaret(true) == 1;
@@ -86,6 +82,10 @@ public class bug4278839 extends JFrame {
         } catch (Exception e) {
             throw new RuntimeException("Test failed because of an exception:",
                     e);
+        } finally {
+            if (frame != null) {
+                SwingUtilities.invokeAndWait(() -> frame.dispose());
+            }
         }
 
         if (!passed) {
@@ -143,9 +143,10 @@ public class bug4278839 extends JFrame {
     }
 
     private static void createAndShowGUI() {
-        JFrame frame = new JFrame();
+        frame = new JFrame();
         frame.setTitle("Bug# 4278839");
         frame.setSize(200, 200);
+        frame.setLocationRelativeTo(null);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         area = new JTextArea("\naaa bbb\nccc ddd\n");
         frame.getContentPane().add(new JScrollPane(area));

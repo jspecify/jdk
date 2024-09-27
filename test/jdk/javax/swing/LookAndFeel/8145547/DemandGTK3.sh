@@ -1,7 +1,7 @@
 #!/bin/ksh -p
 
 #
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,10 @@
 
 
 #   @test
-#   @summary  Try to force GTK3. We must bail out to GTK2 if no 3 available.
+#   @summary  Try to force GTK3.
 #
 #   @key headful
+#   @bug 8156128 8212903
 #   @compile ProvokeGTK.java
 #   @requires os.family == "linux"
 #   @run shell/timeout=400 DemandGTK3.sh
@@ -52,14 +53,11 @@ HAVE_3=`/sbin/ldconfig -v 2>/dev/null | grep libgtk-3.so | wc -l`
 
 if [ "${HAVE_3}" = "0" ]
 then
-    
-    echo "No GTK 3 library found: we should bail out to 2"
-    strace -o strace.log -fe open ${TESTJAVA}/bin/java  -cp ${TESTCLASSPATH}  -Djdk.gtk.version=3 ProvokeGTK
-    EXECRES=$?
-    grep  'libgtk-x11.*=\ *[0-9]*$' strace.log > logg
+    echo "No GTK 3 library found, do nothing"
+    exit 0
 else
     echo "There is GTK 3 library: we should use it"
-    strace -o strace.log -fe open ${TESTJAVA}/bin/java  -cp ${TESTCLASSPATH}  -Djdk.gtk.version=3 ProvokeGTK
+    strace -o strace.log -fe open,openat ${TESTJAVA}/bin/java  -cp ${TESTCLASSPATH}  -Djdk.gtk.version=3 ProvokeGTK
     EXECRES=$?
     grep  'libgtk-3.*=\ *[0-9]*$' strace.log > logg
 fi

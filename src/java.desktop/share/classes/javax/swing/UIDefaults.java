@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,8 @@ import javax.swing.event.SwingPropertyChangeSupport;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.lang.reflect.*;
 import java.util.HashMap;
@@ -69,7 +71,7 @@ import sun.swing.SwingUtilities2;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -344,6 +346,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      * Test if the specified baseName of the ROOT locale is in java.desktop module.
      * JDK always defines the resource bundle of the ROOT locale.
      */
+    @SuppressWarnings("removal")
     private static boolean isDesktopResourceBundle(String baseName) {
         Module thisModule = UIDefaults.class.getModule();
         return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
@@ -813,7 +816,11 @@ public class UIDefaults extends Hashtable<Object,Object>
                 getUIError("static createUI() method not found in " + uiClass);
             }
             catch (Exception e) {
-                getUIError("createUI() failed for " + target + " " + e);
+                StringWriter w = new StringWriter();
+                PrintWriter pw = new PrintWriter(w);
+                e.printStackTrace(pw);
+                pw.flush();
+                getUIError("createUI() failed for " + target + "\n" + w);
             }
         }
 
@@ -1067,6 +1074,7 @@ public class UIDefaults extends Hashtable<Object,Object>
      * @since 1.3
      */
     public static class ProxyLazyValue implements LazyValue {
+        @SuppressWarnings("removal")
         private AccessControlContext acc;
         private String className;
         private String methodName;
@@ -1103,7 +1111,7 @@ public class UIDefaults extends Hashtable<Object,Object>
          * @param c    a <code>String</code> specifying the classname
          *              of the instance to be created on demand
          * @param o    an array of <code>Objects</code> to be passed as
-         *              paramaters to the constructor in class c
+         *              parameters to the constructor in class c
          */
         public ProxyLazyValue(String c, Object[] o) {
             this(c, null, o);
@@ -1119,8 +1127,9 @@ public class UIDefaults extends Hashtable<Object,Object>
          * @param m    a <code>String</code> specifying the static method
          *              to be called on class c
          * @param o    an array of <code>Objects</code> to be passed as
-         *              paramaters to the static method in class c
+         *              parameters to the static method in class c
          */
+        @SuppressWarnings("removal")
         public ProxyLazyValue(String c, String m, Object[] o) {
             acc = AccessController.getContext();
             className = c;
@@ -1137,6 +1146,7 @@ public class UIDefaults extends Hashtable<Object,Object>
          * @param table  a <code>UIDefaults</code> table
          * @return the created <code>Object</code>
          */
+        @SuppressWarnings("removal")
         public Object createValue(final UIDefaults table) {
             // In order to pick up the security policy in effect at the
             // time of creation we use a doPrivileged with the
@@ -1367,8 +1377,8 @@ public class UIDefaults extends Hashtable<Object,Object>
             return value;
         }
 
-        String composeKey(String key, int reduce, String sufix) {
-            return key.substring(0, key.length() - reduce) + sufix;
+        String composeKey(String key, int reduce, String suffix) {
+            return key.substring(0, key.length() - reduce) + suffix;
         }
 
         String getTextFromProperty(String text) {

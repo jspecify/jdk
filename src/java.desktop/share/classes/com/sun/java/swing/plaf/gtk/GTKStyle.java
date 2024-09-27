@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -166,8 +166,7 @@ class GTKStyle extends SynthStyle implements GTKConstants {
                 id == Region.TABBED_PANE_TAB ||
                 id == Region.TOGGLE_BUTTON ||
                 id == Region.TOOL_TIP ||
-                id == Region.MENU_ITEM_ACCELERATOR ||
-                id == Region.TABBED_PANE_TAB)) {
+                id == Region.MENU_ITEM_ACCELERATOR)) {
             type = ColorType.FOREGROUND;
         } else if (id == Region.TABLE ||
                    id == Region.LIST ||
@@ -203,6 +202,14 @@ class GTKStyle extends SynthStyle implements GTKConstants {
 
     Color getGTKColor(int state, ColorType type) {
         return getGTKColor(null, state, type);
+    }
+
+    Color getGTKColor(int widgetType, int state, int colorType) {
+        synchronized (sun.awt.UNIXToolkit.GTK_LOCK) {
+            int rgb = nativeGetColorForState(widgetType, state,
+                    colorType);
+            return new ColorUIResource(rgb);
+        }
     }
 
     /**
@@ -739,19 +746,12 @@ class GTKStyle extends SynthStyle implements GTKConstants {
               region == Region.TOOL_BAR_DRAG_WINDOW ||
               region == Region.TOOL_TIP ||
               region == Region.TREE ||
-              region == Region.VIEWPORT) {
+              region == Region.VIEWPORT ||
+              region == Region.TEXT_PANE ||
+              region == Region.EDITOR_PANE) {
             return true;
         }
-        if (!GTKLookAndFeel.is3()) {
-            if (region == Region.EDITOR_PANE ||
-                  region == Region.FORMATTED_TEXT_FIELD ||
-                  region == Region.PASSWORD_FIELD ||
-                  region == Region.SPINNER ||
-                  region == Region.TEXT_FIELD ||
-                  region == Region.TEXT_PANE) {
-                return true;
-            }
-        }
+
         Component c = context.getComponent();
         String name = c.getName();
         if (name == "ComboBox.renderer" || name == "ComboBox.listRenderer") {
@@ -767,6 +767,14 @@ class GTKStyle extends SynthStyle implements GTKConstants {
         if (classKey != null) {
             Object value = getClassSpecificValue(classKey);
             if (value != null) {
+                //This is a workaround as the "slider-length" property has been
+                //deprecated for GtkScale from gtk 3.20, so the default value of 31
+                //is used and makes rendering of the slider wrong. Value 14 is being
+                //used as the default value for Slider.thumbHeight is 14 and making
+                //width 14 as well makes the slider thumb render in proper shape
+                if ("Slider.thumbWidth".equals(key) && value.equals(31)) {
+                    return 14;
+                }
                 return value;
             }
         }
@@ -779,8 +787,15 @@ class GTKStyle extends SynthStyle implements GTKConstants {
             return getColorForState(context, ColorType.FOREGROUND);
         }
         else if (key == "ScrollBar.minimumThumbSize") {
+            //This is a workaround as the "min-slider-length" property has been
+            //deprecated for GtkScrollBar from gtk 3.20, so default value of 21
+            //is used and makes ScrollBar thumb very small. Value 40 is being
+            //used as this is the value mentioned in css files
             int len =
                 getClassSpecificIntValue(context, "min-slider-length", 21);
+            if (len == 21) {
+                len = 40;
+            }
             JScrollBar sb = (JScrollBar)context.getComponent();
             if (sb.getOrientation() == JScrollBar.HORIZONTAL) {
                 return new DimensionUIResource(len, 0);
@@ -862,7 +877,7 @@ class GTKStyle extends SynthStyle implements GTKConstants {
             int focusPad =
                 getClassSpecificIntValue(context, "focus-padding", 1);
             return indicatorSpacing + focusSize + focusPad;
-        } else if (GTKLookAndFeel.is3() && "ComboBox.forceOpaque".equals(key)) {
+        } else if ("ComboBox.forceOpaque".equals(key)) {
             return true;
         } else if ("Tree.expanderSize".equals(key)) {
             Object value = getClassSpecificValue("expander-size");
@@ -873,11 +888,7 @@ class GTKStyle extends SynthStyle implements GTKConstants {
         }
 
         // Is it a stock icon ?
-        GTKStockIcon stockIcon = null;
-        synchronized (ICONS_MAP) {
-            stockIcon = ICONS_MAP.get(key);
-        }
-
+        GTKStockIcon stockIcon = ICONS_MAP.get(key);
         if (stockIcon != null) {
             return stockIcon;
         }
@@ -1105,7 +1116,7 @@ class GTKStyle extends SynthStyle implements GTKConstants {
     }
 
     /**
-     * GTKLazyValue is a slimmed down version of <code>ProxyLaxyValue</code>.
+     * GTKLazyValue is a slimmed down version of <code>ProxyLazyValue</code>.
      * The code is duplicate so that it can get at the package private
      * classes in gtk.
      */
@@ -1164,16 +1175,28 @@ class GTKStyle extends SynthStyle implements GTKConstants {
         CLASS_SPECIFIC_MAP.put("EditorPane.caretForeground", "cursor-color");
         CLASS_SPECIFIC_MAP.put("EditorPane.caretAspectRatio", "cursor-aspect-ratio");
 
-        ICONS_MAP = new HashMap<String, GTKStockIcon>();
-        ICONS_MAP.put("FileChooser.cancelIcon", new GTKStockIcon("gtk-cancel", 4));
-        ICONS_MAP.put("FileChooser.okIcon",     new GTKStockIcon("gtk-ok",     4));
-        ICONS_MAP.put("OptionPane.errorIcon", new GTKStockIcon("gtk-dialog-error", 6));
-        ICONS_MAP.put("OptionPane.informationIcon", new GTKStockIcon("gtk-dialog-info", 6));
-        ICONS_MAP.put("OptionPane.warningIcon", new GTKStockIcon("gtk-dialog-warning", 6));
-        ICONS_MAP.put("OptionPane.questionIcon", new GTKStockIcon("gtk-dialog-question", 6));
-        ICONS_MAP.put("OptionPane.yesIcon", new GTKStockIcon("gtk-yes", 4));
-        ICONS_MAP.put("OptionPane.noIcon", new GTKStockIcon("gtk-no", 4));
-        ICONS_MAP.put("OptionPane.cancelIcon", new GTKStockIcon("gtk-cancel", 4));
-        ICONS_MAP.put("OptionPane.okIcon", new GTKStockIcon("gtk-ok", 4));
+        Map<String,GTKStockIcon> iconsMap = new HashMap<>();
+        iconsMap.put("FileChooser.cancelIcon", new GTKStockIcon("gtk-cancel", 4));
+        iconsMap.put("FileChooser.okIcon",     new GTKStockIcon("gtk-ok",     4));
+        iconsMap.put("OptionPane.yesIcon", new GTKStockIcon("gtk-yes", 4));
+        iconsMap.put("OptionPane.noIcon", new GTKStockIcon("gtk-no", 4));
+        iconsMap.put("OptionPane.cancelIcon", new GTKStockIcon("gtk-cancel", 4));
+        iconsMap.put("OptionPane.okIcon", new GTKStockIcon("gtk-ok", 4));
+
+        //check whether the gtk version is >= 3.10 as the Icon names were
+        //changed from this version
+        UNIXToolkit tk = (UNIXToolkit)Toolkit.getDefaultToolkit();
+        if (tk.checkGtkVersion(3, 10, 0)) {
+            iconsMap.put("OptionPane.errorIcon", new GTKStockIcon("dialog-error", 6));
+            iconsMap.put("OptionPane.informationIcon", new GTKStockIcon("dialog-information", 6));
+            iconsMap.put("OptionPane.warningIcon", new GTKStockIcon("dialog-warning", 6));
+            iconsMap.put("OptionPane.questionIcon", new GTKStockIcon("dialog-question", 6));
+        } else {
+            iconsMap.put("OptionPane.errorIcon", new GTKStockIcon("gtk-dialog-error", 6));
+            iconsMap.put("OptionPane.informationIcon", new GTKStockIcon("gtk-dialog-info", 6));
+            iconsMap.put("OptionPane.warningIcon", new GTKStockIcon("gtk-dialog-warning", 6));
+            iconsMap.put("OptionPane.questionIcon", new GTKStockIcon("gtk-dialog-question", 6));
+        }
+        ICONS_MAP = Collections.unmodifiableMap(iconsMap);
     }
 }

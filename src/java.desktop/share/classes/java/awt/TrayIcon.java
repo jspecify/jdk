@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -77,6 +77,14 @@ import java.security.AccessController;
  * <p> See the {@link SystemTray} class overview for an example on how
  * to use the {@code TrayIcon} API.
  *
+ * @implNote
+ * When the {@systemProperty apple.awt.enableTemplateImages} property is
+ * set, all images associated with instances of this class are treated
+ * as template images by the native desktop system. This means all color
+ * information is discarded, and the image is adapted automatically to
+ * be visible when desktop theme and/or colors change. This property
+ * only affects MacOSX.
+ *
  * @since 1.6
  * @see SystemTray#add
  * @see java.awt.event.ComponentEvent#getComponent
@@ -109,11 +117,13 @@ public @UsesObjectEquals class TrayIcon {
      * Unlike the acc in Component, this field is made final
      * because TrayIcon is not serializable.
      */
+    @SuppressWarnings("removal")
     private final AccessControlContext acc = AccessController.getContext();
 
     /*
      * Returns the acc this tray icon was constructed with.
      */
+    @SuppressWarnings("removal")
     final AccessControlContext getAccessControlContext() {
         if (acc == null) {
             throw new SecurityException("TrayIcon is missing AccessControlContext");
@@ -631,7 +641,7 @@ public @UsesObjectEquals class TrayIcon {
         INFO,
         /** Simple message */
         NONE
-    };
+    }
 
     /**
      * Displays a popup message near the tray icon.  The message will

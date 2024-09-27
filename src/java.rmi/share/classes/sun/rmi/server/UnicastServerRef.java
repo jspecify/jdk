@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,7 @@ import java.rmi.ServerError;
 import java.rmi.ServerException;
 import java.rmi.UnmarshalException;
 import java.rmi.server.ExportException;
+import java.rmi.server.Operation;
 import java.rmi.server.RemoteCall;
 import java.rmi.server.RemoteRef;
 import java.rmi.server.RemoteStub;
@@ -79,6 +80,7 @@ public class UnicastServerRef extends UnicastRef
     implements ServerRef, Dispatcher
 {
     /** value of server call log property */
+    @SuppressWarnings("removal")
     public static final boolean logCalls = AccessController.doPrivileged(
         (PrivilegedAction<Boolean>) () -> Boolean.getBoolean("java.rmi.server.logCalls"));
 
@@ -90,6 +92,7 @@ public class UnicastServerRef extends UnicastRef
     private static final long serialVersionUID = -7384275867073752268L;
 
     /** flag to enable writing exceptions to System.err */
+    @SuppressWarnings("removal")
     private static final boolean wantExceptionLog =
         AccessController.doPrivileged((PrivilegedAction<Boolean>) () ->
             Boolean.getBoolean("sun.rmi.server.exceptionTrace"));
@@ -100,6 +103,7 @@ public class UnicastServerRef extends UnicastRef
      * flag to remove server-side stack traces before marshalling
      * exceptions thrown by remote invocations to this VM
      */
+    @SuppressWarnings("removal")
     private static final boolean suppressStackTraces =
         AccessController.doPrivileged((PrivilegedAction<Boolean>) () ->
             Boolean.getBoolean("sun.rmi.server.suppressStackTraces"));
@@ -126,8 +130,6 @@ public class UnicastServerRef extends UnicastRef
     /** cache of impl classes that have no corresponding skeleton class */
     private static final Map<Class<?>,?> withoutSkeletons =
         Collections.synchronizedMap(new WeakHashMap<Class<?>,Void>());
-
-    private final AtomicInteger methodCallIDCount = new AtomicInteger(0);
 
     /**
      * Create a new (empty) Unicast server remote reference.
@@ -292,15 +294,14 @@ public class UnicastServerRef extends UnicastRef
                 throw new UnmarshalException("error unmarshalling call header",
                                              readEx);
             }
-            if (num >= 0) {
-                if (skel != null) {
+            if (skel != null) {
+                // If there is a skeleton, use it
                     oldDispatch(obj, call, num);
                     return;
-                } else {
-                    throw new UnmarshalException(
-                        "skeleton class not found but required " +
-                        "for client version");
-                }
+
+            } else if (num >= 0){
+                throw new UnmarshalException(
+                        "skeleton class not found but required for client version");
             }
             try {
                 op = in.readLong();
@@ -412,6 +413,7 @@ public class UnicastServerRef extends UnicastRef
      * Sets a filter for invocation arguments, if a filter has been set.
      * Called by dispatch before the arguments are read.
      */
+    @SuppressWarnings("removal")
     protected void unmarshalCustomCallData(ObjectInput in)
             throws IOException, ClassNotFoundException {
         if (filter != null &&
@@ -428,8 +430,8 @@ public class UnicastServerRef extends UnicastRef
 
     /**
      * Handle server-side dispatch using the RMI 1.1 stub/skeleton
-     * protocol, given a non-negative operation number that has
-     * already been read from the call stream.
+     * protocol, given a non-negative operation number or negative method hash
+     * that has already been read from the call stream.
      * Exceptions are handled by the caller to be sent to the remote client.
      *
      * @param obj the target remote object for the call
@@ -461,7 +463,8 @@ public class UnicastServerRef extends UnicastRef
         }
 
         // if calls are being logged, write out object id and operation
-        logCall(obj, skel.getOperations()[op]);
+        Operation[] operations = skel.getOperations();
+        logCall(obj, op >= 0 && op < operations.length ?  operations[op] : "op: " + op);
         unmarshalCustomCallData(in);
         // dispatch to skeleton for remote object
         skel.dispatch(obj, call, op, hash);
@@ -573,6 +576,7 @@ public class UnicastServerRef extends UnicastRef
     {
         HashToMethod_Maps() {}
 
+        @SuppressWarnings("removal")
         protected Map<Long,Method> computeValue(Class<?> remoteClass) {
             Map<Long,Method> map = new HashMap<>();
             for (Class<?> cl = remoteClass;

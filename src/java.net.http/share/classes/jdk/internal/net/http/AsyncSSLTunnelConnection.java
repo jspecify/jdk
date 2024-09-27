@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,11 @@ package jdk.internal.net.http;
 import java.net.InetSocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.CompletableFuture;
-import java.net.http.HttpHeaders;
 import java.util.function.Function;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.SSLTube;
 import jdk.internal.net.http.common.Utils;
+import static jdk.internal.net.http.common.Utils.ProxyHeaders;
 
 /**
  * An SSL tunnel built on a Plain (CONNECT) TCP tunnel.
@@ -47,7 +47,7 @@ class AsyncSSLTunnelConnection extends AbstractAsyncSSLConnection {
                              HttpClientImpl client,
                              String[] alpn,
                              InetSocketAddress proxy,
-                             HttpHeaders proxyHeaders)
+                             ProxyHeaders proxyHeaders)
     {
         super(addr, client, Utils.getServerName(addr), addr.getPort(), alpn);
         this.plainConnection = new PlainTunnelingConnection(addr, proxy, client, proxyHeaders);
@@ -105,12 +105,17 @@ class AsyncSSLTunnelConnection extends AbstractAsyncSSLConnection {
 
     @Override
     ConnectionPool.CacheKey cacheKey() {
-        return ConnectionPool.cacheKey(address, plainConnection.proxyAddr);
+        return ConnectionPool.cacheKey(true, address, plainConnection.proxyAddr);
     }
 
     @Override
     public void close() {
         plainConnection.close();
+    }
+
+    @Override
+    void close(Throwable cause) {
+        plainConnection.close(cause);
     }
 
     @Override
@@ -121,6 +126,11 @@ class AsyncSSLTunnelConnection extends AbstractAsyncSSLConnection {
     @Override
     boolean isProxied() {
         return true;
+    }
+
+    @Override
+    InetSocketAddress proxy() {
+        return plainConnection.proxyAddr;
     }
 
     @Override

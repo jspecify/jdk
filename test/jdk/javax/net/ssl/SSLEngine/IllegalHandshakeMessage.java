@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@
  * @test
  * @bug 8180643
  * @summary Illegal handshake message
- * @ignore the dependent implementation details are changed
  * @run main/othervm IllegalHandshakeMessage
  */
 
@@ -70,7 +69,7 @@ public class IllegalHandshakeMessage {
             cliToSrv.put(7, (byte)0x80);    // use illegal message length
         } else {
             // unlikely
-            throw new Exception("No handshage message generated.");
+            throw new Exception("No handshake message is generated.");
         }
 
         try {

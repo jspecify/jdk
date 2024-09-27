@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,18 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_LEAKPROFILER_SAMPLING_OBJECTSAMPLE_HPP
-#define SHARE_VM_JFR_LEAKPROFILER_SAMPLING_OBJECTSAMPLE_HPP
+#ifndef SHARE_JFR_LEAKPROFILER_SAMPLING_OBJECTSAMPLE_HPP
+#define SHARE_JFR_LEAKPROFILER_SAMPLING_OBJECTSAMPLE_HPP
 
-#include "jfr/recorder/checkpoint/jfrCheckpointBlob.hpp"
 #include "jfr/utilities/jfrAllocation.hpp"
+#include "jfr/utilities/jfrBlob.hpp"
 #include "jfr/utilities/jfrTime.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
+#include "oops/weakHandle.hpp"
 #include "utilities/ticks.hpp"
+
 /*
  * Handle for diagnosing Java memory leaks.
  *
@@ -44,54 +46,43 @@ class ObjectSample : public JfrCHeapObj {
  private:
   ObjectSample* _next;
   ObjectSample* _previous;
-  JfrCheckpointBlobHandle _thread_cp;
-  JfrCheckpointBlobHandle _klass_cp;
-  oop _object;
+  JfrBlobHandle _stacktrace;
+  JfrBlobHandle _thread;
+  JfrBlobHandle _type_set;
+  WeakHandle    _object;
   Ticks _allocation_time;
-  traceid _stack_trace_id;
   traceid _thread_id;
-  int _index;
+  traceid _stack_trace_id;
+  traceid _stack_trace_hash;
   size_t _span;
   size_t _allocated;
   size_t _heap_used_at_last_gc;
-  unsigned int _stack_trace_hash;
-  bool _dead;
-
-  void set_dead() {
-    _dead = true;
-  }
+  int _index;
+  bool _virtual_thread;
 
   void release_references() {
-    if (_thread_cp.valid()) {
-      _thread_cp.~JfrCheckpointBlobHandle();
-    }
-    if (_klass_cp.valid()) {
-      _klass_cp.~JfrCheckpointBlobHandle();
-    }
+    _stacktrace.~JfrBlobHandle();
+    _thread.~JfrBlobHandle();
+    _type_set.~JfrBlobHandle();
   }
 
-  void reset() {
-    set_stack_trace_id(0);
-    set_stack_trace_hash(0),
-    release_references();
-    _dead = false;
-  }
+  void reset();
 
  public:
-  ObjectSample() : _next(NULL),
-                   _previous(NULL),
-                   _thread_cp(),
-                   _klass_cp(),
-                   _object(NULL),
+  ObjectSample() : _next(nullptr),
+                   _previous(nullptr),
+                   _stacktrace(),
+                   _thread(),
+                   _type_set(),
                    _allocation_time(),
-                   _stack_trace_id(0),
                    _thread_id(0),
-                   _index(0),
+                   _stack_trace_id(0),
+                   _stack_trace_hash(0),
                    _span(0),
                    _allocated(0),
                    _heap_used_at_last_gc(0),
-                   _stack_trace_hash(0),
-                   _dead(false) {}
+                   _index(0),
+                   _virtual_thread(false) {}
 
   ObjectSample* next() const {
     return _next;
@@ -109,26 +100,14 @@ class ObjectSample : public JfrCHeapObj {
     _previous = prev;
   }
 
-  bool is_dead() const {
-    return _dead;
-  }
+  bool is_dead() const;
 
-  const oop object() const {
-    return _object;
-  }
+  oop object() const;
+  void set_object(oop object);
 
-  const oop* object_addr() const {
-    return &_object;
-  }
+  const oop* object_addr() const;
 
-  void set_object(oop object) {
-    _object = object;
-  }
-
-  const Klass* klass() const {
-    assert(_object != NULL, "invariant");
-    return _object->klass();
-  }
+  void release();
 
   int index() const {
     return _index;
@@ -162,8 +141,13 @@ class ObjectSample : public JfrCHeapObj {
     return _allocation_time;
   }
 
-  const void set_allocation_time(const JfrTicks& time) {
+  void set_allocation_time(const JfrTicks& time) {
     _allocation_time = Ticks(time.value());
+  }
+
+  bool is_alive_and_older_than(jlong time_stamp) const {
+    return !is_dead() && (JfrTime::is_ft_enabled() ?
+      _allocation_time.ft_value() : _allocation_time.value()) < time_stamp;
   }
 
   void set_heap_used_at_last_gc(size_t heap_used) {
@@ -174,7 +158,7 @@ class ObjectSample : public JfrCHeapObj {
     return _heap_used_at_last_gc;
   }
 
-  bool has_stack_trace() const {
+  bool has_stack_trace_id() const {
     return stack_trace_id() != 0;
   }
 
@@ -186,16 +170,42 @@ class ObjectSample : public JfrCHeapObj {
     _stack_trace_id = id;
   }
 
-  unsigned int stack_trace_hash() const {
+  traceid stack_trace_hash() const {
     return _stack_trace_hash;
   }
 
-  void set_stack_trace_hash(unsigned int hash) {
+  void set_stack_trace_hash(traceid hash) {
     _stack_trace_hash = hash;
   }
 
+  const JfrBlobHandle& stacktrace() const {
+    return _stacktrace;
+  }
+
+  bool has_stacktrace() const {
+    return _stacktrace.valid();
+  }
+
+  // JfrBlobHandle assignment operator
+  // maintains proper reference counting
+  void set_stacktrace(const JfrBlobHandle& ref) {
+    if (_stacktrace != ref) {
+      _stacktrace = ref;
+    }
+  }
+
   bool has_thread() const {
-    return _thread_id != 0;
+    return _thread.valid();
+  }
+
+  const JfrBlobHandle& thread() const {
+    return _thread;
+  }
+
+  void set_thread(const JfrBlobHandle& ref) {
+    if (_thread != ref) {
+      _thread = ref;
+    }
   }
 
   traceid thread_id() const {
@@ -206,44 +216,32 @@ class ObjectSample : public JfrCHeapObj {
     _thread_id = id;
   }
 
-  bool is_alive_and_older_than(jlong time_stamp) const {
-    return !is_dead() && (JfrTime::is_ft_enabled() ?
-      _allocation_time.ft_value() : _allocation_time.value()) < time_stamp;
+  bool is_virtual_thread() const {
+    return _virtual_thread;
   }
 
-  const JfrCheckpointBlobHandle& thread_checkpoint() const {
-    return _thread_cp;
+  void set_thread_is_virtual() {
+    assert(!_virtual_thread, "invariant");
+    _virtual_thread = true;
   }
 
-  bool has_thread_checkpoint() const {
-    return _thread_cp.valid();
+  const JfrBlobHandle& type_set() const {
+    return _type_set;
   }
 
-  // JfrCheckpointBlobHandle assignment operator
-  // maintains proper reference counting
-  void set_thread_checkpoint(const JfrCheckpointBlobHandle& ref) {
-    if (_thread_cp != ref) {
-      _thread_cp = ref;
-    }
+  bool has_type_set() const {
+    return _type_set.valid();
   }
 
-  const JfrCheckpointBlobHandle& klass_checkpoint() const {
-    return _klass_cp;
-  }
-
-  bool has_klass_checkpoint() const {
-    return _klass_cp.valid();
-  }
-
-  void set_klass_checkpoint(const JfrCheckpointBlobHandle& ref) {
-    if (_klass_cp != ref) {
-      if (_klass_cp.valid()) {
-        _klass_cp->set_next(ref);
+  void install_type_set(const JfrBlobHandle& ref) {
+    if (_type_set != ref) {
+      if (_type_set.valid()) {
+        _type_set->set_next(ref);
         return;
       }
-      _klass_cp = ref;
+      _type_set = ref;
     }
   }
 };
 
-#endif // SHARE_VM_JFR_LEAKPROFILER_SAMPLING_OBJECTSAMPLE_HPP
+#endif // SHARE_JFR_LEAKPROFILER_SAMPLING_OBJECTSAMPLE_HPP

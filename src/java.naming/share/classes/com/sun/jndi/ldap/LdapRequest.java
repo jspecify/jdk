@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,92 +29,125 @@ import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import javax.naming.CommunicationException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 final class LdapRequest {
 
+    private static final BerDecoder EOF = new BerDecoder(new byte[]{}, -1, 0);
+    private static final String CLOSE_MSG = "LDAP connection has been closed";
+    private static final String TIMEOUT_MSG_FMT = "LDAP response read timed out, timeout used: %d ms.";
+
     LdapRequest next;   // Set/read in synchronized Connection methods
-    int msgId;          // read-only
+    final int msgId;          // read-only
 
-    private int gotten = 0;
-    private BlockingQueue<BerDecoder> replies;
-    private int highWatermark = -1;
-    private boolean cancelled = false;
-    private boolean pauseAfterReceipt = false;
-    private boolean completed = false;
-
-    LdapRequest(int msgId, boolean pause) {
-        this(msgId, pause, -1);
-    }
+    private final BlockingQueue<BerDecoder> replies;
+    private volatile boolean cancelled;
+    private volatile boolean closed;
+    private volatile boolean completed;
+    private final boolean pauseAfterReceipt;
+    // LdapRequest instance lock
+    private final ReentrantLock lock = new ReentrantLock();
 
     LdapRequest(int msgId, boolean pause, int replyQueueCapacity) {
         this.msgId = msgId;
         this.pauseAfterReceipt = pause;
         if (replyQueueCapacity == -1) {
-            this.replies = new LinkedBlockingQueue<BerDecoder>();
+            this.replies = new LinkedBlockingQueue<>();
         } else {
-            this.replies =
-                new LinkedBlockingQueue<BerDecoder>(replyQueueCapacity);
-            highWatermark = (replyQueueCapacity * 80) / 100; // 80% capacity
+            this.replies = new LinkedBlockingQueue<>(8 * replyQueueCapacity / 10);
         }
     }
 
-    synchronized void cancel() {
+    void cancel() {
         cancelled = true;
-
-        // Unblock reader of pending request
-        // Should only ever have at most one waiter
-        notify();
+        replies.offer(EOF);
     }
 
-    synchronized boolean addReplyBer(BerDecoder ber) {
+    void close() {
+        lock.lock();
+        try {
+            closed = true;
+            replies.offer(EOF);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private boolean isClosed() {
+        return closed && (replies.size() == 0 || replies.peek() == EOF);
+    }
+
+    boolean addReplyBer(BerDecoder ber) {
+        lock.lock();
+        try {
+            // check the closed boolean value here as we don't want anything
+            // to be added to the queue after close() has been called.
+            if (cancelled || closed) {
+                return false;
+            }
+
+            // peek at the BER buffer to check if it is a SearchResultDone PDU
+            try {
+                ber.parseSeq(null);
+                ber.parseInt();
+                completed = (ber.peekByte() == LdapClient.LDAP_REP_RESULT);
+            } catch (IOException e) {
+                // ignore
+            }
+            ber.reset();
+
+            // Add a new reply to the queue of unprocessed replies.
+            try {
+                replies.put(ber);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+
+            return pauseAfterReceipt;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Read reply BER
+     * @param millis timeout, infinite if the value is negative
+     * @return BerDecoder if reply was read successfully
+     * @throws CommunicationException request has been canceled and request does not need to be abandoned
+     * @throws IOException            request has been closed or timed out. Request does need to be abandoned
+     * @throws InterruptedException   LDAP operation has been interrupted
+     */
+    BerDecoder getReplyBer(long millis) throws IOException, CommunicationException,
+                                               InterruptedException {
         if (cancelled) {
-            return false;
+            throw new CommunicationException("Request: " + msgId +
+                " cancelled");
+        }
+        if (isClosed()) {
+            throw new IOException(CLOSE_MSG);
         }
 
-        // Add a new reply to the queue of unprocessed replies.
-        try {
-            replies.put(ber);
-        } catch (InterruptedException e) {
-            // ignore
-        }
+        BerDecoder result = millis > 0 ?
+                replies.poll(millis, TimeUnit.MILLISECONDS) : replies.take();
 
-        // peek at the BER buffer to check if it is a SearchResultDone PDU
-        try {
-            ber.parseSeq(null);
-            ber.parseInt();
-            completed = (ber.peekByte() == LdapClient.LDAP_REP_RESULT);
-        } catch (IOException e) {
-            // ignore
-        }
-        ber.reset();
-
-        notify(); // notify anyone waiting for reply
-        /*
-         * If a queue capacity has been set then trigger a pause when the
-         * queue has filled to 80% capacity. Later, when the queue has drained
-         * then the reader gets unpaused.
-         */
-        if (highWatermark != -1 && replies.size() >= highWatermark) {
-            return true; // trigger the pause
-        }
-        return pauseAfterReceipt;
-    }
-
-    synchronized BerDecoder getReplyBer() throws CommunicationException {
         if (cancelled) {
             throw new CommunicationException("Request: " + msgId +
                 " cancelled");
         }
 
-        /*
-         * Remove a reply if the queue is not empty.
-         * poll returns null if queue is empty.
-         */
-        BerDecoder reply = replies.poll();
-        return reply;
+        // poll from 'replies' blocking queue ended-up with timeout
+        if (result == null) {
+            throw new IOException(String.format(TIMEOUT_MSG_FMT, millis));
+        }
+        // Unexpected EOF can be caused by connection closure or cancellation
+        if (result == EOF) {
+            throw new IOException(CLOSE_MSG);
+        }
+        return result;
     }
 
-    synchronized boolean hasSearchCompleted() {
+    boolean hasSearchCompleted() {
         return completed;
     }
 }

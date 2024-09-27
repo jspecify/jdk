@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,16 +26,15 @@
 #include "ci/ciEnv.hpp"
 #include "ci/ciType.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 
 ciType* ciType::_basic_types[T_CONFLICT+1];
 
 // ciType
 //
-// This class represents either a class (T_OBJECT), array (T_ARRAY),
-// or one of the primitive types such as T_INT.
+// This class represents a Java reference or primitive type.
 
 // ------------------------------------------------------------------
 // ciType::ciType
@@ -102,20 +101,6 @@ ciInstance* ciType::java_mirror() {
 }
 
 // ------------------------------------------------------------------
-// ciType::box_klass
-//
-ciKlass* ciType::box_klass() {
-  if (!is_primitive_type())  return this->as_klass();  // reference types are "self boxing"
-
-  // Void is "boxed" with a null.
-  if (basic_type() == T_VOID)  return NULL;
-
-  VM_ENTRY_MARK;
-  return CURRENT_THREAD_ENV->get_instance_klass(SystemDictionary::box_klass(basic_type()));
-}
-
-
-// ------------------------------------------------------------------
 // ciType::make
 //
 // Produce the ciType for a given primitive BasicType.
@@ -126,7 +111,7 @@ ciType* ciType::make(BasicType t) {
   // Note: Bare T_ADDRESS means a raw pointer type, not a return_address.
   assert((uint)t < T_CONFLICT+1, "range check");
   if (t == T_OBJECT)  return ciEnv::_Object_klass;  // java/lang/Object
-  assert(_basic_types[t] != NULL, "domain check");
+  assert(_basic_types[t] != nullptr, "domain check");
   return _basic_types[t];
 }
 

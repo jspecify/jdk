@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,6 +49,7 @@ import java.io.*;
 @SuppressWarnings("removal")
 public abstract class Signer extends Identity {
 
+    @java.io.Serial
     private static final long serialVersionUID = -1763464102261361480L;
 
     /**
@@ -59,7 +60,7 @@ public abstract class Signer extends Identity {
     private PrivateKey privateKey;
 
     /**
-     * Creates a signer. This constructor should only be used for
+     * Creates a {@code Signer}. This constructor should only be used for
      * serialization.
      */
     protected Signer() {
@@ -68,7 +69,7 @@ public abstract class Signer extends Identity {
 
 
     /**
-     * Creates a signer with the specified identity name.
+     * Creates a {@code Signer} with the specified identity name.
      *
      * @param name the identity name.
      */
@@ -77,13 +78,13 @@ public abstract class Signer extends Identity {
     }
 
     /**
-     * Creates a signer with the specified identity name and scope.
+     * Creates a {@code Signer} with the specified identity name and scope.
      *
      * @param name the identity name.
      *
      * @param scope the scope of the identity.
      *
-     * @exception KeyManagementException if there is already an identity
+     * @throws    KeyManagementException if there is already an identity
      * with the same name in the scope.
      */
     public Signer(String name, IdentityScope scope)
@@ -98,10 +99,10 @@ public abstract class Signer extends Identity {
      * method is called with {@code "getSignerPrivateKey"}
      * as its argument to see if it's ok to return the private key.
      *
-     * @return this signer's private key, or null if the private key has
+     * @return this signer's private key, or {@code null} if the private key has
      * not yet been set.
      *
-     * @exception  SecurityException  if a security manager exists and its
+     * @throws     SecurityException  if a security manager exists and its
      * {@code checkSecurityAccess} method doesn't allow
      * returning the private key.
      *
@@ -112,8 +113,8 @@ public abstract class Signer extends Identity {
         return privateKey;
     }
 
-   /**
-     * Sets the key pair (public key and private key) for this signer.
+    /**
+     * Sets the key pair (public key and private key) for this {@code Signer}.
      *
      * <p>First, if there is a security manager, its {@code checkSecurityAccess}
      * method is called with {@code "setSignerKeyPair"}
@@ -121,11 +122,11 @@ public abstract class Signer extends Identity {
      *
      * @param pair an initialized key pair.
      *
-     * @exception InvalidParameterException if the key pair is not
+     * @throws    InvalidParameterException if the key pair is not
      * properly initialized.
-     * @exception KeyException if the key pair cannot be set for any
+     * @throws    KeyException if the key pair cannot be set for any
      * other reason.
-     * @exception  SecurityException  if a security manager exists and its
+     * @throws     SecurityException  if a security manager exists and its
      * {@code checkSecurityAccess} method doesn't allow
      * setting the key pair.
      *
@@ -167,9 +168,9 @@ public abstract class Signer extends Identity {
     }
 
     /**
-     * Returns a string of information about the signer.
+     * Returns a string of information about the {@code Signer}.
      *
-     * @return a string of information about the signer.
+     * @return a string of information about the {@code Signer}.
      */
     public String toString() {
         return "[Signer]" + super.toString();

@@ -69,7 +69,7 @@ import java.util.*;
  *         getContentPane().add(field1, BorderLayout.NORTH);
  *         getContentPane().add(field2, BorderLayout.SOUTH);
  *
- *         field.setInputVerifier(new InputVerifier() {
+ *         field1.setInputVerifier(new InputVerifier() {
  *             public boolean verify(JComponent input) {
  *                return "pass".equals(((JTextField) input).getText());
  *             }
@@ -97,6 +97,11 @@ import java.util.*;
  * @since 1.3
  */
 public abstract class InputVerifier {
+
+    /**
+     * Constructor for subclasses to call.
+     */
+    protected InputVerifier() {}
 
     /**
      * Checks whether the JComponent's input is valid. This method should

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,17 +24,26 @@
  * @test
  * @key headful
  * @bug 6580930 7184956
+ * @requires (os.family != "mac")
  * @summary Swing Popups should overlap taskbar
- * @author Alexander Potochkin
- * @library ../../../../lib/testlibrary
+ * @library /lib/client
  * @build ExtendedRobot
  * @run main bug6580930
  */
 
-import javax.swing.*;
-import java.awt.*;
+import java.awt.Dimension;
+import java.awt.Point;
+import java.awt.Insets;
+import java.awt.Robot;
+import java.awt.Toolkit;
+import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import javax.swing.JFrame;
+import javax.swing.JMenuItem;
+import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.SwingUtilities;
 
 public class bug6580930 {
     private static ExtendedRobot robot;
@@ -42,6 +51,8 @@ public class bug6580930 {
     private static JPopupMenu popup;
     private static Toolkit toolkit;
     private static volatile boolean skipTest = false;
+    private static Point loc;
+    private static int y;
 
     private static void createGui() {
         frame = new JFrame();
@@ -61,62 +72,73 @@ public class bug6580930 {
 
 
     public static void main(String[] args) throws Exception {
-        SwingUtilities.invokeAndWait(new Runnable() {
-            public void run() {
-                JPopupMenu.setDefaultLightWeightPopupEnabled(true);
-                bug6580930.createGui();
-            }
-        });
-
-        toolkit = Toolkit.getDefaultToolkit();
-        robot = new ExtendedRobot();
-        robot.setAutoDelay(10);
-        robot.waitForIdle();
-
-        SwingUtilities.invokeAndWait(new Runnable() {
-            public void run() {
-                Insets insets = toolkit.getScreenInsets(frame.getGraphicsConfiguration());
-                if (insets.bottom == 0) {
-                    System.out.println("This test is only for configurations with taskbar on the bottom");
-
-                    skipTest = true;
+        try {
+            SwingUtilities.invokeAndWait(new Runnable() {
+                public void run() {
+                    JPopupMenu.setDefaultLightWeightPopupEnabled(true);
+                    bug6580930.createGui();
                 }
+            });
 
-                Dimension screenSize = toolkit.getScreenSize();
-                frame.setLocation(screenSize.width/2, screenSize.height - frame.getHeight() - insets.bottom + 10);
-                frame.setVisible(true);
+            toolkit = Toolkit.getDefaultToolkit();
+            robot = new ExtendedRobot();
+            robot.setAutoDelay(10);
+            robot.waitForIdle();
+
+            SwingUtilities.invokeAndWait(new Runnable() {
+                public void run() {
+                    Insets insets = toolkit.getScreenInsets(frame.getGraphicsConfiguration());
+                    if (insets.bottom == 0) {
+                        System.out.println("This test is only for configurations with taskbar on the bottom");
+
+                        skipTest = true;
+                    }
+
+                    Dimension screenSize = toolkit.getScreenSize();
+                    frame.setLocation(screenSize.width/2, screenSize.height - frame.getHeight() - insets.bottom + 10);
+                    frame.setVisible(true);
+                }
+            });
+
+            robot.waitForIdle();
+
+            if(skipTest) {
+                return;
             }
-        });
 
-        robot.waitForIdle();
+            SwingUtilities.invokeAndWait(() -> loc = frame.getLocationOnScreen());
+            robot.waitForIdle();
 
-        if(skipTest) {
-            return;
-        }
-        Point loc = frame.getLocationOnScreen();
+            robot.mouseMove(loc.x, loc.y);
+            showPopup();
+            robot.waitForIdle();
+            if (!System.getProperty("os.name").startsWith("Mac")
+                && isHeavyWeightMenuVisible()) {
+                throw new RuntimeException("HeavyWeightPopup is unexpectedly visible");
+            }
 
-        robot.mouseMove(loc.x, loc.y);
-        showPopup();
-        robot.waitForIdle();
-        if (isHeavyWeightMenuVisible()) {
-            throw new RuntimeException("HeavyWeightPopup is unexpectedly visible");
-        }
+            robot.keyPress(KeyEvent.VK_ESCAPE);
+            robot.keyRelease(KeyEvent.VK_ESCAPE);
 
-        robot.keyPress(KeyEvent.VK_ESCAPE);
-        robot.keyRelease(KeyEvent.VK_ESCAPE);
+            int x = loc.x;
+            SwingUtilities.invokeAndWait( () -> y = loc.y + (frame.getHeight() -
+                    popup.getPreferredSize().height) + 1);
+            robot.waitForIdle();
+            robot.mouseMove(x, y);
 
-        int x = loc.x;
-        int y = loc.y + (frame.getHeight() - popup.getPreferredSize().height) + 1;
-        robot.mouseMove(x, y);
+            showPopup();
+            SwingUtilities.invokeAndWait(() -> loc = popup.getLocationOnScreen());
+            robot.waitForIdle();
 
-        showPopup();
+            if (!loc.equals(new Point(x, y))) {
+                throw new RuntimeException("Popup is unexpectedly shifted");
+            }
 
-        if (!popup.getLocationOnScreen().equals(new Point(x, y))) {
-            throw new RuntimeException("Popup is unexpectedly shifted");
-        }
-
-        if (!isHeavyWeightMenuVisible()) {
-            throw new RuntimeException("HeavyWeightPopup is unexpectedly hidden");
+            if (!isHeavyWeightMenuVisible()) {
+                throw new RuntimeException("HeavyWeightPopup is unexpectedly hidden");
+            }
+        } finally {
+            if (frame != null) SwingUtilities.invokeAndWait(() -> frame.dispose());
         }
     }
 

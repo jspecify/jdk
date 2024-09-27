@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,42 +21,27 @@
  * questions.
  */
 
+package gc;
+
 /*
- * @test TestNumWorkerOutput
+ * @test TestNumWorkerOutputG1
  * @bug 8165292
  * @summary Check that when PrintGCDetails is enabled, gc,task output is printed only once per collection.
- * @key gc
- * @requires vm.gc=="null"
+ * @requires vm.gc.G1
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -XX:+UseG1GC TestNumWorkerOutput UseG1GC
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run driver gc.TestNumWorkerOutput UseG1GC
  */
 
-/*
- * @test TestNumWorkerOutputCMS
- * @bug 8165292
- * @key gc
- * @comment Graal does not support CMS
- * @requires vm.gc=="null" & !vm.graal.enabled
- * @modules java.base/jdk.internal.misc
- * @library /test/lib
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -XX:+UseConcMarkSweepGC TestNumWorkerOutput UseConcMarkSweepGC
- */
-
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import jdk.test.lib.Platform;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
-
-import static jdk.test.lib.Asserts.*;
 
 public class TestNumWorkerOutput {
 
@@ -73,7 +58,7 @@ public class TestNumWorkerOutput {
     }
 
     public static void runTest(String gcArg) throws Exception {
-        final String[] arguments = {
+        OutputAnalyzer output = ProcessTools.executeLimitedTestJava(
             "-Xbootclasspath/a:.",
             "-XX:+UnlockExperimentalVMOptions",
             "-XX:+UnlockDiagnosticVMOptions",
@@ -81,11 +66,7 @@ public class TestNumWorkerOutput {
             "-XX:+" + gcArg,
             "-Xmx10M",
             "-XX:+PrintGCDetails",
-            GCTest.class.getName()
-            };
-
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(arguments);
-        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+            GCTest.class.getName());
 
         output.shouldHaveExitValue(0);
 
@@ -112,4 +93,3 @@ public class TestNumWorkerOutput {
         }
     }
 }
-

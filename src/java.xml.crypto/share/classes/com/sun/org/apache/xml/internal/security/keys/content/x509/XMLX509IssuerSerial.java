@@ -22,8 +22,6 @@
  */
 package com.sun.org.apache.xml.internal.security.keys.content.x509;
 
-import org.jspecify.annotations.Nullable;
-
 import java.math.BigInteger;
 import java.security.cert.X509Certificate;
 
@@ -134,9 +132,8 @@ public class XMLX509IssuerSerial extends SignatureElementProxy implements XMLX50
     }
 
     /** {@inheritDoc} */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (!(obj instanceof XMLX509IssuerSerial)) {
             return false;
         }
@@ -147,6 +144,7 @@ public class XMLX509IssuerSerial extends SignatureElementProxy implements XMLX50
             && this.getIssuerName().equals(other.getIssuerName());
     }
 
+    @Override
     public int hashCode() {
         int result = 17;
         result = 31 * result + getSerialNumber().hashCode();
@@ -155,6 +153,7 @@ public class XMLX509IssuerSerial extends SignatureElementProxy implements XMLX50
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getBaseLocalName() {
         return Constants._TAG_X509ISSUERSERIAL;
     }

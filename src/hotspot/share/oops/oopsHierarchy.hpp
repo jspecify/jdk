@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,33 +22,31 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_OOPSHIERARCHY_HPP
-#define SHARE_VM_OOPS_OOPSHIERARCHY_HPP
+#ifndef SHARE_OOPS_OOPSHIERARCHY_HPP
+#define SHARE_OOPS_OOPSHIERARCHY_HPP
 
-#include "metaprogramming/integralConstant.hpp"
 #include "metaprogramming/primitiveConversions.hpp"
-#include "runtime/globals.hpp"
 #include "utilities/globalDefinitions.hpp"
+
+#include <type_traits>
 
 // OBJECT hierarchy
 // This hierarchy is a representation hierarchy, i.e. if A is a superclass
 // of B, A's representation is a prefix of B's representation.
 
-typedef juint narrowOop; // Offset instead of address for an oop within a java object
-
-// If compressed klass pointers then use narrowKlass.
-typedef juint  narrowKlass;
+// Global offset instead of address for an oop within a java object.
+enum class narrowOop : uint32_t { null = 0 };
 
 typedef void* OopOrNarrowOopStar;
-typedef class   markOopDesc*                markOop;
 
 #ifndef CHECK_UNHANDLED_OOPS
 
-typedef class oopDesc*                            oop;
+typedef class oopDesc*                    oop;
 typedef class   instanceOopDesc*            instanceOop;
-typedef class   arrayOopDesc*                    arrayOop;
+typedef class     stackChunkOopDesc*          stackChunkOop;
+typedef class   arrayOopDesc*               arrayOop;
 typedef class     objArrayOopDesc*            objArrayOop;
-typedef class     typeArrayOopDesc*            typeArrayOop;
+typedef class     typeArrayOopDesc*           typeArrayOop;
 
 #else
 
@@ -67,13 +65,19 @@ typedef class     typeArrayOopDesc*            typeArrayOop;
 // a conversion to or from an oop to a numerical type is needed,
 // use the inline template methods, cast_*_oop, defined below.
 //
-// Converting NULL to oop to Handle implicit is no longer accepted by the
+// Converting null to oop to Handle implicit is no longer accepted by the
 // compiler because there are too many steps in the conversion.  Use Handle()
 // instead, which generates less code anyway.
 
 class Thread;
-class PromotedObject;
+class oopDesc;
 
+extern "C" bool CheckUnhandledOops;
+
+// Extra verification when creating and using oops.
+// Used to catch broken oops as soon as possible.
+using CheckOopFunctionPointer = void(*)(oopDesc*);
+extern CheckOopFunctionPointer check_oop_function;
 
 class oop {
   oopDesc* _o;
@@ -81,58 +85,37 @@ class oop {
   void register_oop();
   void unregister_oop();
 
-  // friend class markOop;
+  // Extra verification of the oop
+  void check_oop() const { if (check_oop_function != nullptr && _o != nullptr) check_oop_function(_o); }
+
+  void on_usage() const  { check_oop(); }
+  void on_construction() { check_oop(); if (CheckUnhandledOops)   register_oop(); }
+  void on_destruction()  {              if (CheckUnhandledOops) unregister_oop(); }
+
 public:
-  void set_obj(const void* p)         {
-    raw_set_obj(p);
-    if (CheckUnhandledOops) register_oop();
-  }
-  void raw_set_obj(const void* p)     { _o = (oopDesc*)p; }
-
-  oop()                               { set_obj(NULL); }
-  oop(const oop& o)                   { set_obj(o.obj()); }
-  oop(const volatile oop& o)          { set_obj(o.obj()); }
-  oop(const void* p)                  { set_obj(p); }
-  ~oop()                              {
-    if (CheckUnhandledOops) unregister_oop();
+  oop()             : _o(nullptr) { on_construction(); }
+  oop(const oop& o) : _o(o._o)    { on_construction(); }
+  oop(oopDesc* o)   : _o(o)       { on_construction(); }
+  ~oop() {
+    on_destruction();
   }
 
-  oopDesc* obj()  const volatile      { return _o; }
+  oopDesc* obj() const                  { on_usage(); return _o; }
 
-  // General access
-  oopDesc*  operator->() const        { return obj(); }
-  bool operator==(const oop o) const  { return obj() == o.obj(); }
-  bool operator==(void *p) const      { return obj() == p; }
-  bool operator!=(const volatile oop o) const  { return obj() != o.obj(); }
-  bool operator!=(void *p) const      { return obj() != p; }
+  oopDesc* operator->() const           { return obj(); }
+  operator oopDesc* () const            { return obj(); }
 
-  // Assignment
-  oop& operator=(const oop& o)                            { _o = o.obj(); return *this; }
-  volatile oop& operator=(const oop& o) volatile          { _o = o.obj(); return *this; }
-  volatile oop& operator=(const volatile oop& o) volatile { _o = o.obj(); return *this; }
+  bool operator==(const oop& o) const   { return obj() == o.obj(); }
+  bool operator!=(const oop& o) const   { return obj() != o.obj(); }
 
-  // Explict user conversions
-  operator void* () const             { return (void *)obj(); }
-#ifndef SOLARIS
-  operator void* () const volatile    { return (void *)obj(); }
-#endif
-  operator HeapWord* () const         { return (HeapWord*)obj(); }
-  operator oopDesc* () const volatile { return obj(); }
-  operator intptr_t* () const         { return (intptr_t*)obj(); }
-  operator PromotedObject* () const   { return (PromotedObject*)obj(); }
-  operator markOop () const volatile  { return markOop(obj()); }
-  operator address   () const         { return (address)obj(); }
+  bool operator==(std::nullptr_t) const { return obj() == nullptr; }
+  bool operator!=(std::nullptr_t) const { return obj() != nullptr; }
 
-  // from javaCalls.cpp
-  operator jobject () const           { return (jobject)obj(); }
-
-  // from parNewGeneration and other things that want to get to the end of
-  // an oop for stuff (like ObjArrayKlass.cpp)
-  operator oop* () const              { return (oop *)obj(); }
+  oop& operator=(const oop& o)          { _o = o.obj(); return *this; }
 };
 
 template<>
-struct PrimitiveConversions::Translate<oop> : public TrueType {
+struct PrimitiveConversions::Translate<oop> : public std::true_type {
   typedef oop Value;
   typedef oopDesc* Decayed;
 
@@ -140,60 +123,51 @@ struct PrimitiveConversions::Translate<oop> : public TrueType {
   static Value recover(Decayed x) { return oop(x); }
 };
 
-#define DEF_OOP(type)                                                      \
-   class type##OopDesc;                                                    \
-   class type##Oop : public oop {                                          \
-     public:                                                               \
-       type##Oop() : oop() {}                                              \
-       type##Oop(const oop& o) : oop(o) {}                                 \
-       type##Oop(const volatile oop& o) : oop(o) {}                        \
-       type##Oop(const void* p) : oop(p) {}                                \
-       operator type##OopDesc* () const { return (type##OopDesc*)obj(); }  \
-       type##OopDesc* operator->() const {                                 \
-            return (type##OopDesc*)obj();                                  \
-       }                                                                   \
-       type##Oop& operator=(const type##Oop& o) {                          \
-            oop::operator=(o);                                             \
-            return *this;                                                  \
-       }                                                                   \
-       volatile type##Oop& operator=(const type##Oop& o) volatile {        \
-            (void)const_cast<oop&>(oop::operator=(o));                     \
-            return *this;                                                  \
-       }                                                                   \
-       volatile type##Oop& operator=(const volatile type##Oop& o) volatile {\
-            (void)const_cast<oop&>(oop::operator=(o));                     \
-            return *this;                                                  \
-       }                                                                   \
-   };                                                                      \
-                                                                           \
-   template<>                                                              \
-   struct PrimitiveConversions::Translate<type##Oop> : public TrueType {   \
-     typedef type##Oop Value;                                              \
-     typedef type##OopDesc* Decayed;                                       \
-                                                                           \
-     static Decayed decay(Value x) { return (type##OopDesc*)x.obj(); }     \
-     static Value recover(Decayed x) { return type##Oop(x); }              \
+#define DEF_OOP(type)                                                          \
+   class type##OopDesc;                                                        \
+   class type##Oop : public oop {                                              \
+     public:                                                                   \
+       type##Oop() : oop() {}                                                  \
+       type##Oop(const type##Oop& o) : oop(o) {}                               \
+       type##Oop(const oop& o) : oop(o) {}                                     \
+       type##Oop(type##OopDesc* o) : oop((oopDesc*)o) {}                       \
+       operator type##OopDesc* () const { return (type##OopDesc*)obj(); }      \
+       type##OopDesc* operator->() const {                                     \
+            return (type##OopDesc*)obj();                                      \
+       }                                                                       \
+       type##Oop& operator=(const type##Oop& o) {                              \
+            oop::operator=(o);                                                 \
+            return *this;                                                      \
+       }                                                                       \
+   };                                                                          \
+                                                                               \
+   template<>                                                                  \
+   struct PrimitiveConversions::Translate<type##Oop> : public std::true_type { \
+     typedef type##Oop Value;                                                  \
+     typedef type##OopDesc* Decayed;                                           \
+                                                                               \
+     static Decayed decay(Value x) { return (type##OopDesc*)x.obj(); }         \
+     static Value recover(Decayed x) { return type##Oop(x); }                  \
    };
 
 DEF_OOP(instance);
+DEF_OOP(stackChunk);
 DEF_OOP(array);
 DEF_OOP(objArray);
 DEF_OOP(typeArray);
 
 #endif // CHECK_UNHANDLED_OOPS
 
-// For CHECK_UNHANDLED_OOPS, it is ambiguous C++ behavior to have the oop
-// structure contain explicit user defined conversions of both numerical
-// and pointer type. Define inline methods to provide the numerical conversions.
-template <class T> inline oop cast_to_oop(T value) {
-  return (oop)(CHECK_UNHANDLED_OOPS_ONLY((void *))(value));
+// Cast functions to convert to and from oops.
+template <typename T> inline oop cast_to_oop(T value) {
+  return (oopDesc*)value;
 }
-template <class T> inline T cast_from_oop(oop o) {
-  return (T)(CHECK_UNHANDLED_OOPS_ONLY((void*))o);
+template <typename T> inline T cast_from_oop(oop o) {
+  return (T)(CHECK_UNHANDLED_OOPS_ONLY((oopDesc*))o);
 }
 
-inline bool check_obj_alignment(oop obj) {
-  return (cast_from_oop<intptr_t>(obj) & MinObjAlignmentInBytesMask) == 0;
+inline intptr_t p2i(narrowOop o) {
+  return static_cast<intptr_t>(o);
 }
 
 // The metadata hierarchy is separate from the oop hierarchy
@@ -205,9 +179,6 @@ class   MethodData;
 //      class Metadata
 class   Method;
 class   ConstantPool;
-//      class CHeapObj
-class   CompiledICHolder;
-
 
 // The klass hierarchy is separate from the oop hierarchy.
 
@@ -216,8 +187,9 @@ class   InstanceKlass;
 class     InstanceMirrorKlass;
 class     InstanceClassLoaderKlass;
 class     InstanceRefKlass;
+class     InstanceStackChunkKlass;
 class   ArrayKlass;
 class     ObjArrayKlass;
 class     TypeArrayKlass;
 
-#endif // SHARE_VM_OOPS_OOPSHIERARCHY_HPP
+#endif // SHARE_OOPS_OOPSHIERARCHY_HPP

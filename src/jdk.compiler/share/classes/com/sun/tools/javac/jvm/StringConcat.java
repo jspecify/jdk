@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,9 @@
 package com.sun.tools.javac.jvm;
 
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.comp.Resolve;
+import com.sun.tools.javac.jvm.PoolConstant.LoadableConstant;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
@@ -35,6 +37,7 @@ import com.sun.tools.javac.util.*;
 import static com.sun.tools.javac.code.Kinds.Kind.MTH;
 import static com.sun.tools.javac.code.TypeTag.*;
 import static com.sun.tools.javac.jvm.ByteCodes.*;
+import static com.sun.tools.javac.tree.JCTree.Tag.LITERAL;
 import static com.sun.tools.javac.tree.JCTree.Tag.PLUS;
 import com.sun.tools.javac.jvm.Items.*;
 
@@ -103,6 +106,7 @@ public abstract class StringConcat {
         }
     }
 
+    @SuppressWarnings("this-escape")
     protected StringConcat(Context context) {
         context.put(concatKey, this);
         gen = Gen.instance(context);
@@ -138,25 +142,6 @@ public abstract class StringConcat {
             }
         }
         return res.append(tree);
-    }
-
-    /**
-     * If the type is not accessible from current context, try to figure out the
-     * sharpest accessible supertype.
-     *
-     * @param originalType type to sharpen
-     * @return sharped type
-     */
-    Type sharpestAccessible(Type originalType) {
-        if (originalType.hasTag(ARRAY)) {
-            return types.makeArrayType(sharpestAccessible(types.elemtype(originalType)));
-        }
-
-        Type type = originalType;
-        while (!rs.isAccessible(gen.getAttrEnv(), type.asElement())) {
-            type = types.supertype(type);
-        }
-        return type;
     }
 
     /**
@@ -222,7 +207,7 @@ public abstract class StringConcat {
 
         private JCDiagnostic.DiagnosticPosition newStringBuilder(JCTree tree) {
             JCDiagnostic.DiagnosticPosition pos = tree.pos();
-            gen.getCode().emitop2(new_, gen.makeRef(pos, syms.stringBuilderType));
+            gen.getCode().emitop2(new_, gen.makeRef(pos, syms.stringBuilderType), syms.stringBuilderType);
             gen.getCode().emitop0(dup);
             gen.callMethod(pos, syms.stringBuilderType, names.init, List.nil(), false);
             return pos;
@@ -252,7 +237,7 @@ public abstract class StringConcat {
     /**
      * Base class for indified concatenation bytecode flavors.
      */
-    private static abstract class Indy extends StringConcat {
+    private abstract static class Indy extends StringConcat {
         public Indy(Context context) {
             super(context);
         }
@@ -303,6 +288,14 @@ public abstract class StringConcat {
 
             return splits.toList();
         }
+
+        /**
+         * Returns true if the argument should be converted to a string eagerly, to preserve
+         * possible side-effects.
+         */
+        protected boolean shouldConvertToStringEagerly(Type argType) {
+            return !types.unboxedTypeOrType(argType).isPrimitive() && argType.tsym != syms.stringType.tsym;
+        }
     }
 
     /**
@@ -331,14 +324,18 @@ public abstract class StringConcat {
                 for (JCTree arg : t) {
                     Object constVal = arg.type.constValue();
                     if ("".equals(constVal)) continue;
-                    if (arg.type == syms.botType) {
-                        dynamicArgs.add(types.boxedClass(syms.voidType).type);
-                    } else {
-                        dynamicArgs.add(sharpestAccessible(arg.type));
+                    Type argType = arg.type;
+                    if (argType == syms.botType) {
+                        argType = types.boxedClass(syms.voidType).type;
                     }
                     if (!first || generateFirstArg) {
                         gen.genExpr(arg, arg.type).load();
                     }
+                    if (shouldConvertToStringEagerly(argType)) {
+                        gen.callMethod(pos, syms.stringType, names.valueOf, List.of(syms.objectType), true);
+                        argType = syms.stringType;
+                    }
+                    dynamicArgs.add(argType);
                     first = false;
                 }
                 doCall(type, pos, dynamicArgs.toList());
@@ -369,7 +366,7 @@ public abstract class StringConcat {
                         syms.stringType,
                         syms.methodTypeType);
 
-                Symbol bsm = rs.resolveInternalMethod(pos,
+                MethodSymbol bsm = rs.resolveInternalMethod(pos,
                         gen.getAttrEnv(),
                         syms.stringConcatFactory,
                         names.makeConcat,
@@ -378,10 +375,9 @@ public abstract class StringConcat {
 
                 Symbol.DynamicMethodSymbol dynSym = new Symbol.DynamicMethodSymbol(names.makeConcat,
                         syms.noSymbol,
-                        ClassFile.REF_invokeStatic,
-                        (Symbol.MethodSymbol)bsm,
+                        bsm.asHandle(),
                         indyType,
-                        List.nil().toArray());
+                        List.nil().toArray(new LoadableConstant[0]));
 
                 Items.Item item = gen.getItems().makeDynamicItem(dynSym);
                 item.invoke();
@@ -416,12 +412,12 @@ public abstract class StringConcat {
 
                 StringBuilder recipe = new StringBuilder(t.size());
                 ListBuffer<Type> dynamicArgs = new ListBuffer<>();
-                ListBuffer<Object> staticArgs = new ListBuffer<>();
+                ListBuffer<LoadableConstant> staticArgs = new ListBuffer<>();
 
                 for (JCTree arg : t) {
                     Object constVal = arg.type.constValue();
                     if ("".equals(constVal)) continue;
-                    if (arg.type == syms.botType) {
+                    if (arg.type == syms.botType && arg.hasTag(LITERAL)) {
                         // Concat the null into the recipe right away
                         recipe.append((String) null);
                     } else if (constVal != null) {
@@ -431,17 +427,22 @@ public abstract class StringConcat {
                         String a = arg.type.stringValue();
                         if (a.indexOf(TAG_CONST) != -1 || a.indexOf(TAG_ARG) != -1) {
                             recipe.append(TAG_CONST);
-                            staticArgs.add(a);
+                            staticArgs.add(LoadableConstant.String(a));
                         } else {
                             recipe.append(a);
                         }
                     } else {
                         // Ordinary arguments come through the dynamic arguments.
                         recipe.append(TAG_ARG);
-                        dynamicArgs.add(sharpestAccessible(arg.type));
+                        Type argType = arg.type;
                         if (!first || generateFirstArg) {
                             gen.genExpr(arg, arg.type).load();
                         }
+                        if (shouldConvertToStringEagerly(argType)) {
+                            gen.callMethod(pos, syms.stringType, names.valueOf, List.of(syms.objectType), true);
+                            argType = syms.stringType;
+                        }
+                        dynamicArgs.add(argType);
                         first = false;
                     }
                 }
@@ -463,7 +464,7 @@ public abstract class StringConcat {
         }
 
         /** Produce the actual invokedynamic call to StringConcatFactory */
-        private void doCall(Type type, JCDiagnostic.DiagnosticPosition pos, String recipe, List<Object> staticArgs, List<Type> dynamicArgTypes) {
+        private void doCall(Type type, JCDiagnostic.DiagnosticPosition pos, String recipe, List<LoadableConstant> staticArgs, List<Type> dynamicArgTypes) {
             Type.MethodType indyType = new Type.MethodType(dynamicArgTypes,
                     type,
                     List.nil(),
@@ -474,8 +475,8 @@ public abstract class StringConcat {
                 make.at(pos);
 
                 ListBuffer<Type> constTypes = new ListBuffer<>();
-                ListBuffer<Object> constants = new ListBuffer<>();
-                for (Object t : staticArgs) {
+                ListBuffer<LoadableConstant> constants = new ListBuffer<>();
+                for (LoadableConstant t : staticArgs) {
                     constants.add(t);
                     constTypes.add(syms.stringType);
                 }
@@ -486,7 +487,7 @@ public abstract class StringConcat {
                         .append(syms.stringType)
                         .appendList(constTypes);
 
-                Symbol bsm = rs.resolveInternalMethod(pos,
+                MethodSymbol bsm = rs.resolveInternalMethod(pos,
                         gen.getAttrEnv(),
                         syms.stringConcatFactory,
                         names.makeConcatWithConstants,
@@ -495,10 +496,10 @@ public abstract class StringConcat {
 
                 Symbol.DynamicMethodSymbol dynSym = new Symbol.DynamicMethodSymbol(names.makeConcatWithConstants,
                         syms.noSymbol,
-                        ClassFile.REF_invokeStatic,
-                        (Symbol.MethodSymbol)bsm,
+                        bsm.asHandle(),
                         indyType,
-                        List.<Object>of(recipe).appendList(constants).toArray());
+                        List.of(LoadableConstant.String(recipe))
+                                .appendList(constants).toArray(new LoadableConstant[constants.size()]));
 
                 Items.Item item = gen.getItems().makeDynamicItem(dynSym);
                 item.invoke();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package java.lang.invoke;
 
+import jdk.internal.misc.VM;
 import jdk.internal.ref.CleanerFactory;
 import sun.invoke.util.Wrapper;
 
@@ -45,22 +46,20 @@ class MethodHandleNatives {
 
     private MethodHandleNatives() { } // static only
 
-    /// MemberName support
+    //--- MemberName support
 
     static native void init(MemberName self, Object ref);
     static native void expand(MemberName self);
-    static native MemberName resolve(MemberName self, Class<?> caller,
+    static native MemberName resolve(MemberName self, Class<?> caller, int lookupMode,
             boolean speculativeResolve) throws LinkageError, ClassNotFoundException;
-    static native int getMembers(Class<?> defc, String matchName, String matchSig,
-            int matchFlags, Class<?> caller, int skip, MemberName[] results);
 
-    /// Field layout queries parallel to jdk.internal.misc.Unsafe:
+    //--- Field layout queries parallel to jdk.internal.misc.Unsafe:
     static native long objectFieldOffset(MemberName self);  // e.g., returns vmindex
     static native long staticFieldOffset(MemberName self);  // e.g., returns vmindex
     static native Object staticFieldBase(MemberName self);  // e.g., returns clazz
     static native Object getMemberVMInfo(MemberName self);  // returns {vmindex,vmtarget}
 
-    /// CallSite support
+    //--- CallSite support
 
     /** Tell the JVM that we need to change the target of a CallSite. */
     static native void setCallSiteTargetNormal(CallSite site, MethodHandle target);
@@ -75,6 +74,7 @@ class MethodHandleNatives {
     /** Represents a context to track nmethod dependencies on CallSite instance target. */
     static class CallSiteContext implements Runnable {
         //@Injected JVM_nmethodBucket* vmdependencies;
+        //@Injected jlong last_cleanup;
 
         static CallSiteContext make(CallSite cs) {
             final CallSiteContext newContext = new CallSiteContext();
@@ -115,11 +115,10 @@ class MethodHandleNatives {
             MN_IS_FIELD            = 0x00040000, // field
             MN_IS_TYPE             = 0x00080000, // nested type
             MN_CALLER_SENSITIVE    = 0x00100000, // @CallerSensitive annotation detected
+            MN_TRUSTED_FINAL       = 0x00200000, // trusted final field
+            MN_HIDDEN_MEMBER       = 0x00400000, // members defined in a hidden class or with @Hidden
             MN_REFERENCE_KIND_SHIFT = 24, // refKind
-            MN_REFERENCE_KIND_MASK = 0x0F000000 >> MN_REFERENCE_KIND_SHIFT,
-            // The SEARCH_* bits are not for MN.flags but for the matchFlags argument of MHN.getMembers:
-            MN_SEARCH_SUPERCLASSES = 0x00100000,
-            MN_SEARCH_INTERFACES   = 0x00200000;
+            MN_REFERENCE_KIND_MASK = 0x0F000000 >> MN_REFERENCE_KIND_SHIFT;
 
         /**
          * Constant pool reference-kind codes, as used by CONSTANT_MethodHandle CP entries.
@@ -136,6 +135,24 @@ class MethodHandleNatives {
             REF_newInvokeSpecial        = 8,
             REF_invokeInterface         = 9,
             REF_LIMIT                  = 10;
+
+        /**
+         * Flags for Lookup.ClassOptions
+         */
+        static final int
+            NESTMATE_CLASS            = 0x00000001,
+            HIDDEN_CLASS              = 0x00000002,
+            STRONG_LOADER_LINK        = 0x00000004,
+            ACCESS_VM_ANNOTATIONS     = 0x00000008;
+
+        /**
+         * Lookup modes
+         */
+        static final int
+            LM_MODULE        = Lookup.MODULE,
+            LM_UNCONDITIONAL = Lookup.UNCONDITIONAL,
+            LM_TRUSTED       = -1;
+
     }
 
     static boolean refKindIsValid(int refKind) {
@@ -183,18 +200,18 @@ class MethodHandleNatives {
     }
     static String refKindName(byte refKind) {
         assert(refKindIsValid(refKind));
-        switch (refKind) {
-        case REF_getField:          return "getField";
-        case REF_getStatic:         return "getStatic";
-        case REF_putField:          return "putField";
-        case REF_putStatic:         return "putStatic";
-        case REF_invokeVirtual:     return "invokeVirtual";
-        case REF_invokeStatic:      return "invokeStatic";
-        case REF_invokeSpecial:     return "invokeSpecial";
-        case REF_newInvokeSpecial:  return "newInvokeSpecial";
-        case REF_invokeInterface:   return "invokeInterface";
-        default:                    return "REF_???";
-        }
+        return switch (refKind) {
+            case REF_getField         -> "getField";
+            case REF_getStatic        -> "getStatic";
+            case REF_putField         -> "putField";
+            case REF_putStatic        -> "putStatic";
+            case REF_invokeVirtual    -> "invokeVirtual";
+            case REF_invokeStatic     -> "invokeStatic";
+            case REF_invokeSpecial    -> "invokeSpecial";
+            case REF_newInvokeSpecial -> "newInvokeSpecial";
+            case REF_invokeInterface  -> "invokeInterface";
+            default -> "REF_???";
+        };
     }
 
     private static native int getNamedCon(int which, Object[] name);
@@ -217,7 +234,7 @@ class MethodHandleNatives {
                 throw new InternalError(err);
             } catch (NoSuchFieldException | IllegalAccessException ex) {
                 String err = (name+": JVM has "+vmval+" which Java does not define");
-                // ignore exotic ops the JVM cares about; we just wont issue them
+                // ignore exotic ops the JVM cares about; we just won't issue them
                 //System.err.println("warning: "+err);
                 continue;
             }
@@ -225,6 +242,7 @@ class MethodHandleNatives {
         return true;
     }
     static {
+        VM.setJavaLangInvokeInited();
         assert(verifyConstants());
     }
 
@@ -235,7 +253,6 @@ class MethodHandleNatives {
      * The JVM is linking an invokedynamic instruction.  Create a reified call site for it.
      */
     static MemberName linkCallSite(Object callerObj,
-                                   int indexInCP,
                                    Object bootstrapMethodObj,
                                    Object nameObj, Object typeObj,
                                    Object staticArguments,
@@ -260,6 +277,12 @@ class MethodHandleNatives {
                                               type,
                                               staticArguments,
                                               caller);
+        if (TRACE_METHOD_LINKAGE) {
+            MethodHandle target = callSite.getTarget();
+            System.out.println("linkCallSite target class => " + target.getClass().getName());
+            System.out.println("linkCallSite target => " + target.debugString(0));
+        }
+
         if (callSite instanceof ConstantCallSite) {
             appendixResult[0] = callSite.dynamicInvoker();
             return Invokers.linkToTargetMethod(type);
@@ -277,13 +300,13 @@ class MethodHandleNatives {
         Object bsmReference = bootstrapMethod.internalMemberName();
         if (bsmReference == null)  bsmReference = bootstrapMethod;
         String staticArglist = staticArglistForTrace(staticArguments);
-        System.out.println("linkCallSite "+caller.getName()+" "+
+        System.out.println("linkCallSite "+getCallerInfo(caller)+" "+
                            bsmReference+" "+
                            name+type+"/"+staticArglist);
         try {
             MemberName res = linkCallSiteImpl(caller, bootstrapMethod, name, type,
                                               staticArguments, appendixResult);
-            System.out.println("linkCallSite => "+res+" + "+appendixResult[0]);
+            System.out.println("linkCallSite linkage => "+res+" + "+appendixResult[0]);
             return res;
         } catch (Throwable ex) {
             ex.printStackTrace(); // print now in case exception is swallowed
@@ -292,9 +315,22 @@ class MethodHandleNatives {
         }
     }
 
+    /**
+     * Return a human-readable description of the caller. Something like
+     * "java.base/java.security.Security.<clinit>(Security.java:82)"
+     */
+    private static String getCallerInfo(Class<?> caller) {
+        for (StackTraceElement e : Thread.currentThread().getStackTrace()) {
+            if (e.getClassName().equals(caller.getName())) {
+                return e.toString();
+            }
+        }
+        // fallback if the caller is somehow missing from the stack.
+        return caller.getName();
+    }
+
     // this implements the upcall from the JVM, MethodHandleNatives.linkDynamicConstant:
     static Object linkDynamicConstant(Object callerObj,
-                                      int indexInCP,
                                       Object bootstrapMethodObj,
                                       Object nameObj, Object typeObj,
                                       Object staticArguments) {
@@ -315,10 +351,10 @@ class MethodHandleNatives {
     }
 
     private static String staticArglistForTrace(Object staticArguments) {
-        if (staticArguments instanceof Object[])
-            return "BSA="+java.util.Arrays.asList((Object[]) staticArguments);
-        if (staticArguments instanceof int[])
-            return "BSA@"+java.util.Arrays.toString((int[]) staticArguments);
+        if (staticArguments instanceof Object[] array)
+            return "BSA="+java.util.Arrays.asList(array);
+        if (staticArguments instanceof int[] array)
+            return "BSA@"+java.util.Arrays.toString(array);
         if (staticArguments == null)
             return "BSA0=null";
         return "BSA1="+staticArguments;
@@ -373,7 +409,7 @@ class MethodHandleNatives {
      * The JVM wants a pointer to a MethodType.  Oblige it by finding or creating one.
      */
     static MethodType findMethodHandleType(Class<?> rtype, Class<?>[] ptypes) {
-        return MethodType.makeImpl(rtype, ptypes, true);
+        return MethodType.methodType(rtype, ptypes, true);
     }
 
     /**
@@ -433,7 +469,7 @@ class MethodHandleNatives {
      * completely in the linker method.
      * As a corner case, if N==255, no appendix is possible.
      * In this case, the method returned must be custom-generated to
-     * to perform any needed type checking.
+     * perform any needed type checking.
      * <p>
      * If the JVM does not reify a method at a call site, but instead
      * calls {@code linkMethod}, the corresponding call represented
@@ -474,8 +510,8 @@ class MethodHandleNatives {
         throw new LinkageError("no such method "+defc.getName()+"."+name+type);
     }
     private static MethodType fixMethodType(Class<?> callerClass, Object type) {
-        if (type instanceof MethodType)
-            return (MethodType) type;
+        if (type instanceof MethodType mt)
+            return mt;
         else
             return MethodType.fromDescriptor((String)type, callerClass.getClassLoader());
     }
@@ -498,7 +534,7 @@ class MethodHandleNatives {
     /**
      * Obtain the method to link to the VarHandle operation.
      * This method is located here and not in Invokers to avoid
-     * intializing that and other classes early on in VM bootup.
+     * initializing that and other classes early on in VM bootup.
      */
     private static MemberName varHandleOperationLinkerMethod(String name,
                                                              MethodType mtype,
@@ -541,21 +577,21 @@ class MethodHandleNatives {
             }
             // Access descriptor at end
             guardParams[guardParams.length - 1] = VarHandle.AccessDescriptor.class;
-            MethodType guardType = MethodType.makeImpl(guardReturnType, guardParams, true);
+            MethodType guardType = MethodType.methodType(guardReturnType, guardParams, true);
 
             MemberName linker = new MemberName(
                     VarHandleGuards.class, getVarHandleGuardMethodName(guardType),
                     guardType, REF_invokeStatic);
 
             linker = MemberName.getFactory().resolveOrNull(REF_invokeStatic, linker,
-                                                           VarHandleGuards.class);
+                                                           VarHandleGuards.class, LM_TRUSTED);
             if (linker != null) {
                 return linker;
             }
             // Fall back to lambda form linkage if guard method is not available
             // TODO Optionally log fallback ?
         }
-        return Invokers.varHandleInvokeLinkerMethod(ak, mtype);
+        return Invokers.varHandleInvokeLinkerMethod(mtype);
     }
     static String getVarHandleGuardMethodName(MethodType guardType) {
         String prefix = "guard_";
@@ -602,8 +638,8 @@ class MethodHandleNatives {
         LinkageError err;
         if (ex instanceof IllegalAccessException) {
             Throwable cause = ex.getCause();
-            if (cause instanceof AbstractMethodError) {
-                return (AbstractMethodError) cause;
+            if (cause instanceof AbstractMethodError ame) {
+                return ame;
             } else {
                 err = new IllegalAccessError(ex.getMessage());
             }
@@ -644,11 +680,7 @@ class MethodHandleNatives {
 
     static boolean canBeCalledVirtual(MemberName mem) {
         assert(mem.isInvocable());
-        switch (mem.getName()) {
-        case "getContextClassLoader":
-            return canBeCalledVirtual(mem, java.lang.Thread.class);
-        }
-        return false;
+        return mem.getName().equals("getContextClassLoader") && canBeCalledVirtual(mem, java.lang.Thread.class);
     }
 
     static boolean canBeCalledVirtual(MemberName symbolicRef, Class<?> definingClass) {

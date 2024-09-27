@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,10 @@
 
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.awt.Graphics2D;
 import java.awt.font.FontRenderContext;
 import java.awt.font.LineMetrics;
 import java.awt.geom.Rectangle2D;
+import java.io.Serial;
 import java.text.CharacterIterator;
 
 /**
@@ -99,8 +96,7 @@ import java.text.CharacterIterator;
  * @see         java.awt.Font
  * @since       1.0
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class FontMetrics implements java.io.Serializable {
+public abstract class FontMetrics implements java.io.Serializable {
 
     static {
         /* ensure that the necessary native libraries are loaded */
@@ -123,9 +119,10 @@ public abstract @UsesObjectEquals class FontMetrics implements java.io.Serializa
      */
     protected Font font;
 
-    /*
-     * JDK 1.1 serialVersionUID
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = 1681126225205050147L;
 
     /**
@@ -264,12 +261,59 @@ public abstract @UsesObjectEquals class FontMetrics implements java.io.Serializa
     }
 
     /**
-     * Gets the maximum advance width of any character in this
-     * {@code Font}.  The advance is the
-     * distance from the leftmost point to the rightmost point on the
-     * string's baseline.  The advance of a {@code String} is
-     * not necessarily the sum of the advances of its characters.
-     * @return    the maximum advance width of any character
+     * Returns an estimate of the maximum advance width of any character
+     * in the {@code Font} described by this {@code FontMetrics} object,
+     * with important caveats, enumerated below.
+     * <p>
+     * The advance is the distance from the leftmost point used to position
+     * the character to the rightmost point along the baseline.
+     * This is not the same thing as the visible width of the glyph image
+     * representing the character.
+     * <p>
+     * The advance of a {@code String} is not necessarily the sum of the
+     * advances of its characters. It may differ substantially if
+     * complex text layout is required for proper rendering.
+     * <p>
+     * Some of the caveats of the reported value include
+     * <ul>
+     * <li> The returned value is relying upon information from some
+     * underlying system font, and the correctness of that information
+     * is outside of AWT's control.
+     * <li> When specific characters are mapped into glyphs
+     * in some rendering context, instructions in the font itself
+     * together with the rasterization process may cause some glyph
+     * to have a wider advance than reported.
+     * <li> When a font is requested in some style, eg {@code Font.BOLD},
+     * for which no exact match is available, then techniques to satisfy
+     * the requested rendering may similarly result in glyphs that are
+     * wider than the reported maximum.
+     * <li> Depending on the implementation, an AWT logical font or
+     * physical font may need to locate some characters from one or more
+     * "fall back" fonts, when the primary underlying physical font does not
+     * support the character. These fonts may not all be known or considered
+     * in the calculation of the reported maximum advance. It is common
+     * for the design center of such fall back fonts to be for a different
+     * script than the design center of the primary font, so their
+     * advances can be quite different. This can also lead to the
+     * unexpected result that a font such as {@code Font.MONOSPACED} can
+     * render glyphs that are not all the same width.
+     * </ul>
+     * None of these caveats are exposed as they are all implementation details,
+     * and there is no practical way to determine when these are in effect.
+     * An application which needs a better estimate of the maximum advance,
+     * and knows the subset of characters it expects to display can query
+     * the advance of each such character to find the widest, however,
+     * as discussed above, since the displayed width of a {@code String}
+     * is not necessarily the sum of the advances the value still needs
+     * to be used with caution.
+     * <p>
+     * In summary, this method makes no absolute guarantee, nor can
+     * it even make a guarantee to be correct within some margin of error.
+     * So it should be used at most only for estimating the total space
+     * sufficient to display some number of as yet unknown characters from
+     * the font. And that might be either an overestimate, or an
+     * underestimate depending on the specific text and rendering context.
+     * @return    an estimate of the maximum advance width of any character
      *            in the {@code Font}, or {@code -1} if the
      *            maximum advance width is not known.
      */
@@ -321,8 +365,9 @@ public abstract @UsesObjectEquals class FontMetrics implements java.io.Serializa
      * of its characters.
      *
      * <p><b>Note:</b> This method cannot handle <a
-     * href="../lang/Character.html#supplementary"> supplementary
-     * characters</a>. To support all Unicode characters, including
+     * href="../../../java.base/java/lang/Character.html#supplementary">
+     * supplementary characters</a>.
+     * To support all Unicode characters, including
      * supplementary characters, use the {@link #charWidth(int)} method.
      *
      * @param ch the character to be measured
@@ -336,7 +381,7 @@ public abstract @UsesObjectEquals class FontMetrics implements java.io.Serializa
         if (ch < 256) {
             return getWidths()[ch];
         }
-        char data[] = {ch};
+        char[] data = {ch};
         return charsWidth(data, 0, 1);
     }
 
@@ -359,7 +404,7 @@ public abstract @UsesObjectEquals class FontMetrics implements java.io.Serializa
      */
     public int stringWidth(String str) {
         int len = str.length();
-        char data[] = new char[len];
+        char[] data = new char[len];
         str.getChars(0, len, data, 0);
         return charsWidth(data, 0, len);
     }
@@ -387,7 +432,7 @@ public abstract @UsesObjectEquals class FontMetrics implements java.io.Serializa
      * @see       #bytesWidth(byte[], int, int)
      * @see       #stringWidth(String)
      */
-    public int charsWidth(char data[], int off, int len) {
+    public int charsWidth(char[] data, int off, int len) {
         return stringWidth(new String(data, off, len));
     }
 
@@ -414,7 +459,7 @@ public abstract @UsesObjectEquals class FontMetrics implements java.io.Serializa
      * @see       #stringWidth(String)
      */
     @SuppressWarnings("deprecation")
-    public int bytesWidth(byte data[], int off, int len) {
+    public int bytesWidth(byte[] data, int off, int len) {
         return stringWidth(new String(data, 0, off, len));
     }
 
@@ -430,7 +475,7 @@ public abstract @UsesObjectEquals class FontMetrics implements java.io.Serializa
      *                 described by this {@code FontMetrics} object.
      */
     public int[] getWidths() {
-        int widths[] = new int[256];
+        int[] widths = new int[256];
         for (char ch = 0 ; ch < 256 ; ch++) {
             widths[ch] = charWidth(ch);
         }

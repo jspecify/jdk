@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,14 @@
 package vm.jit.LongTransitions;
 import java.io.*;
 import java.util.Random;
+import jdk.test.lib.Utils;
+
 public class LTTest
 {
     public static boolean flag = false;
     static Random rnd;
     static{
-        rnd=new Random();
+        rnd=Utils.getRandomInstance();
         System.loadLibrary("LTTest");
     }
     public static int getRndInt(){return rnd.nextInt(Integer.MAX_VALUE);}
@@ -6216,6 +6218,14 @@ public class LTTest
             fisJava.read(javaData);
             for ( int cnt=0;cnt<byteCount;++cnt)
             {
+                // Special handling for a decimal point.
+                // Decimal point differs based on locale, could be '.' or ','.
+                // Due to settings on a test host environment locale may differ between
+                // the native side vs Java side thus causing mismatch and test failure.
+                if ((cData[cnt] == '.' || cData[cnt] == ',') &&
+                    (javaData[cnt] == '.' || javaData[cnt] == ',')) {
+                    continue;
+                }
                 if ( cData[cnt]!=javaData[cnt] )
                 {
                     System.out.println("FAIL:Test failed! "+cnt+" byte are wrong! C file - " + cData[cnt] + " Java file - "+javaData[cnt] );

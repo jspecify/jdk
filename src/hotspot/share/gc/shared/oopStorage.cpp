@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,84 +28,92 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
+#include "nmt/memTracker.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/javaThread.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/orderAccess.hpp"
+#include "runtime/os.hpp"
+#include "runtime/safefetch.hpp"
 #include "runtime/safepoint.hpp"
-#include "runtime/stubRoutines.hpp"
-#include "runtime/thread.hpp"
 #include "utilities/align.hpp"
 #include "utilities/count_trailing_zeros.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
-#include "utilities/spinYield.hpp"
+#include "utilities/population_count.hpp"
+#include "utilities/powerOfTwo.hpp"
 
-OopStorage::AllocateEntry::AllocateEntry() : _prev(NULL), _next(NULL) {}
+OopStorage::AllocationListEntry::AllocationListEntry() : _prev(nullptr), _next(nullptr) {}
 
-OopStorage::AllocateEntry::~AllocateEntry() {
-  assert(_prev == NULL, "deleting attached block");
-  assert(_next == NULL, "deleting attached block");
+OopStorage::AllocationListEntry::~AllocationListEntry() {
+  assert(_prev == nullptr, "deleting attached block");
+  assert(_next == nullptr, "deleting attached block");
 }
 
-OopStorage::AllocateList::AllocateList() : _head(NULL), _tail(NULL) {}
+OopStorage::AllocationList::AllocationList() : _head(nullptr), _tail(nullptr) {}
 
-OopStorage::AllocateList::~AllocateList() {
+OopStorage::AllocationList::~AllocationList() {
   // ~OopStorage() empties its lists before destroying them.
-  assert(_head == NULL, "deleting non-empty block list");
-  assert(_tail == NULL, "deleting non-empty block list");
+  assert(_head == nullptr, "deleting non-empty block list");
+  assert(_tail == nullptr, "deleting non-empty block list");
 }
 
-void OopStorage::AllocateList::push_front(const Block& block) {
+void OopStorage::AllocationList::push_front(const Block& block) {
   const Block* old = _head;
-  if (old == NULL) {
-    assert(_tail == NULL, "invariant");
+  if (old == nullptr) {
+    assert(_tail == nullptr, "invariant");
     _head = _tail = &block;
   } else {
-    block.allocate_entry()._next = old;
-    old->allocate_entry()._prev = &block;
+    block.allocation_list_entry()._next = old;
+    old->allocation_list_entry()._prev = &block;
     _head = &block;
   }
 }
 
-void OopStorage::AllocateList::push_back(const Block& block) {
+void OopStorage::AllocationList::push_back(const Block& block) {
   const Block* old = _tail;
-  if (old == NULL) {
-    assert(_head == NULL, "invariant");
+  if (old == nullptr) {
+    assert(_head == nullptr, "invariant");
     _head = _tail = &block;
   } else {
-    old->allocate_entry()._next = &block;
-    block.allocate_entry()._prev = old;
+    old->allocation_list_entry()._next = &block;
+    block.allocation_list_entry()._prev = old;
     _tail = &block;
   }
 }
 
-void OopStorage::AllocateList::unlink(const Block& block) {
-  const AllocateEntry& block_entry = block.allocate_entry();
+void OopStorage::AllocationList::unlink(const Block& block) {
+  const AllocationListEntry& block_entry = block.allocation_list_entry();
   const Block* prev_blk = block_entry._prev;
   const Block* next_blk = block_entry._next;
-  block_entry._prev = NULL;
-  block_entry._next = NULL;
-  if ((prev_blk == NULL) && (next_blk == NULL)) {
+  block_entry._prev = nullptr;
+  block_entry._next = nullptr;
+  if ((prev_blk == nullptr) && (next_blk == nullptr)) {
     assert(_head == &block, "invariant");
     assert(_tail == &block, "invariant");
-    _head = _tail = NULL;
-  } else if (prev_blk == NULL) {
+    _head = _tail = nullptr;
+  } else if (prev_blk == nullptr) {
     assert(_head == &block, "invariant");
-    next_blk->allocate_entry()._prev = NULL;
+    next_blk->allocation_list_entry()._prev = nullptr;
     _head = next_blk;
-  } else if (next_blk == NULL) {
+  } else if (next_blk == nullptr) {
     assert(_tail == &block, "invariant");
-    prev_blk->allocate_entry()._next = NULL;
+    prev_blk->allocation_list_entry()._next = nullptr;
     _tail = prev_blk;
   } else {
-    next_blk->allocate_entry()._prev = prev_blk;
-    prev_blk->allocate_entry()._next = next_blk;
+    next_blk->allocation_list_entry()._prev = prev_blk;
+    prev_blk->allocation_list_entry()._next = next_blk;
   }
+}
+
+bool OopStorage::AllocationList::contains(const Block& block) const {
+  return (next(block) != nullptr) || (ctail() == &block);
 }
 
 OopStorage::ActiveArray::ActiveArray(size_t size) :
@@ -118,10 +126,12 @@ OopStorage::ActiveArray::~ActiveArray() {
   assert(_refcount == 0, "precondition");
 }
 
-OopStorage::ActiveArray* OopStorage::ActiveArray::create(size_t size, AllocFailType alloc_fail) {
+OopStorage::ActiveArray* OopStorage::ActiveArray::create(size_t size,
+                                                         MemTag mem_tag,
+                                                         AllocFailType alloc_fail) {
   size_t size_in_bytes = blocks_offset() + sizeof(Block*) * size;
-  void* mem = NEW_C_HEAP_ARRAY3(char, size_in_bytes, mtGC, CURRENT_PC, alloc_fail);
-  if (mem == NULL) return NULL;
+  void* mem = NEW_C_HEAP_ARRAY3(char, size_in_bytes, mem_tag, CURRENT_PC, alloc_fail);
+  if (mem == nullptr) return nullptr;
   return new (mem) ActiveArray(size);
 }
 
@@ -139,16 +149,16 @@ size_t OopStorage::ActiveArray::block_count() const {
 }
 
 size_t OopStorage::ActiveArray::block_count_acquire() const {
-  return OrderAccess::load_acquire(&_block_count);
+  return Atomic::load_acquire(&_block_count);
 }
 
 void OopStorage::ActiveArray::increment_refcount() const {
-  int new_value = Atomic::add(1, &_refcount);
+  int new_value = Atomic::add(&_refcount, 1);
   assert(new_value >= 1, "negative refcount %d", new_value - 1);
 }
 
 bool OopStorage::ActiveArray::decrement_refcount() const {
-  int new_value = Atomic::sub(1, &_refcount);
+  int new_value = Atomic::sub(&_refcount, 1);
   assert(new_value >= 0, "negative refcount %d", new_value);
   return new_value == 0;
 }
@@ -160,7 +170,7 @@ bool OopStorage::ActiveArray::push(Block* block) {
     *block_ptr(index) = block;
     // Use a release_store to ensure all the setup is complete before
     // making the block visible.
-    OrderAccess::release_store(&_block_count, index + 1);
+    Atomic::release_store(&_block_count, index + 1);
     return true;
   } else {
     return false;
@@ -207,27 +217,27 @@ const unsigned block_alignment = sizeof(oop) * section_size;
 OopStorage::Block::Block(const OopStorage* owner, void* memory) :
   _data(),
   _allocated_bitmask(0),
-  _owner(owner),
+  _owner_address(reinterpret_cast<intptr_t>(owner)),
   _memory(memory),
   _active_index(0),
-  _allocate_entry(),
-  _deferred_updates_next(NULL),
+  _allocation_list_entry(),
+  _deferred_updates_next(nullptr),
   _release_refcount(0)
 {
   STATIC_ASSERT(_data_pos == 0);
   STATIC_ASSERT(section_size * section_count == ARRAY_SIZE(_data));
   assert(offset_of(Block, _data) == _data_pos, "invariant");
-  assert(owner != NULL, "NULL owner");
+  assert(owner != nullptr, "null owner");
   assert(is_aligned(this, block_alignment), "misaligned block");
 }
 
 OopStorage::Block::~Block() {
   assert(_release_refcount == 0, "deleting block while releasing");
-  assert(_deferred_updates_next == NULL, "deleting block with deferred update");
+  assert(_deferred_updates_next == nullptr, "deleting block with deferred update");
   // Clear fields used by block_for_ptr and entry validation, which
   // might help catch bugs.  Volatile to prevent dead-store elimination.
   const_cast<uintx volatile&>(_allocated_bitmask) = 0;
-  const_cast<OopStorage* volatile&>(_owner) = NULL;
+  const_cast<intptr_t volatile&>(_owner_address) = 0;
 }
 
 size_t OopStorage::Block::allocation_size() {
@@ -240,8 +250,8 @@ size_t OopStorage::Block::allocation_alignment_shift() {
   return exact_log2(block_alignment);
 }
 
-inline bool is_full_bitmask(uintx bitmask) { return ~bitmask == 0; }
-inline bool is_empty_bitmask(uintx bitmask) { return bitmask == 0; }
+static inline bool is_full_bitmask(uintx bitmask) { return ~bitmask == 0; }
+static inline bool is_empty_bitmask(uintx bitmask) { return bitmask == 0; }
 
 bool OopStorage::Block::is_full() const {
   return is_full_bitmask(allocated_bitmask());
@@ -255,16 +265,16 @@ uintx OopStorage::Block::bitmask_for_entry(const oop* ptr) const {
   return bitmask_for_index(get_index(ptr));
 }
 
-// A block is deletable if
-// (1) It is empty.
-// (2) There is not a release() operation currently operating on it.
-// (3) It is not in the deferred updates list.
-// The order of tests is important for proper interaction between release()
-// and concurrent deletion.
-bool OopStorage::Block::is_deletable() const {
-  return (OrderAccess::load_acquire(&_allocated_bitmask) == 0) &&
-         (OrderAccess::load_acquire(&_release_refcount) == 0) &&
-         (OrderAccess::load_acquire(&_deferred_updates_next) == NULL);
+// An empty block is not yet deletable if either:
+// (1) There is a release() operation currently operating on it.
+// (2) It is in the deferred updates list.
+// For interaction with release(), these must follow the empty check,
+// and the order of these checks is important.
+bool OopStorage::Block::is_safe_to_delete() const {
+  assert(is_empty(), "precondition");
+  OrderAccess::loadload();
+  return (Atomic::load_acquire(&_release_refcount) == 0) &&
+         (Atomic::load_acquire(&_deferred_updates_next) == nullptr);
 }
 
 OopStorage::Block* OopStorage::Block::deferred_updates_next() const {
@@ -290,7 +300,6 @@ void OopStorage::Block::set_active_index(size_t index) {
 
 size_t OopStorage::Block::active_index_safe(const Block* block) {
   STATIC_ASSERT(sizeof(intptr_t) == sizeof(block->_active_index));
-  assert(CanUseSafeFetchN(), "precondition");
   return SafeFetchN((intptr_t*)&block->_active_index, 0);
 }
 
@@ -299,28 +308,44 @@ unsigned OopStorage::Block::get_index(const oop* ptr) const {
   return static_cast<unsigned>(ptr - get_pointer(0));
 }
 
+// Merge new allocation bits into _allocated_bitmask.  Only one thread at a
+// time is ever allocating from a block, but other threads may concurrently
+// release entries and clear bits in _allocated_bitmask.
+// precondition: _allocated_bitmask & add == 0
+void OopStorage::Block::atomic_add_allocated(uintx add) {
+  // Since the current allocated bitmask has no set bits in common with add,
+  // we can use an atomic add to implement the operation.  The assert post
+  // facto verifies the precondition held; if there were any set bits in
+  // common, then after the add at least one of them will be zero.
+  uintx sum = Atomic::add(&_allocated_bitmask, add);
+  assert((sum & add) == add, "some already present: " UINTX_FORMAT ":" UINTX_FORMAT,
+         sum, add);
+}
+
 oop* OopStorage::Block::allocate() {
-  // Use CAS loop because release may change bitmask outside of lock.
   uintx allocated = allocated_bitmask();
-  while (true) {
-    assert(!is_full_bitmask(allocated), "attempt to allocate from full block");
-    unsigned index = count_trailing_zeros(~allocated);
-    uintx new_value = allocated | bitmask_for_index(index);
-    uintx fetched = Atomic::cmpxchg(new_value, &_allocated_bitmask, allocated);
-    if (fetched == allocated) {
-      return get_pointer(index); // CAS succeeded; return entry for index.
-    }
-    allocated = fetched;       // CAS failed; retry with latest value.
-  }
+  assert(!is_full_bitmask(allocated), "attempt to allocate from full block");
+  unsigned index = count_trailing_zeros(~allocated);
+  // Use atomic update because release may change bitmask.
+  atomic_add_allocated(bitmask_for_index(index));
+  return get_pointer(index);
+}
+
+uintx OopStorage::Block::allocate_all() {
+  uintx new_allocated = ~allocated_bitmask();
+  assert(new_allocated != 0, "attempt to allocate from full block");
+  // Use atomic update because release may change bitmask.
+  atomic_add_allocated(new_allocated);
+  return new_allocated;
 }
 
 OopStorage::Block* OopStorage::Block::new_block(const OopStorage* owner) {
   // _data must be first member: aligning block => aligning _data.
   STATIC_ASSERT(_data_pos == 0);
   size_t size_needed = allocation_size();
-  void* memory = NEW_C_HEAP_ARRAY_RETURN_NULL(char, size_needed, mtGC);
-  if (memory == NULL) {
-    return NULL;
+  void* memory = NEW_C_HEAP_ARRAY_RETURN_NULL(char, size_needed, owner->mem_tag());
+  if (memory == nullptr) {
+    return nullptr;
   }
   void* block_mem = align_up(memory, block_alignment);
   assert(sizeof(Block) + pointer_delta(block_mem, memory, 1) <= size_needed,
@@ -340,7 +365,6 @@ void OopStorage::Block::delete_block(const Block& block) {
 // require additional validation of the result.
 OopStorage::Block*
 OopStorage::Block::block_for_ptr(const OopStorage* owner, const oop* ptr) {
-  assert(CanUseSafeFetchN(), "precondition");
   STATIC_ASSERT(_data_pos == 0);
   // Const-ness of ptr is not related to const-ness of containing block.
   // Blocks are allocated section-aligned, so get the containing section.
@@ -351,130 +375,193 @@ OopStorage::Block::block_for_ptr(const OopStorage* owner, const oop* ptr) {
   // Walk up through the potential block start positions, looking for
   // the owner in the expected location.  If we're below the actual block
   // start position, the value at the owner position will be some oop
-  // (possibly NULL), which can never match the owner.
+  // (possibly null), which can never match the owner.
   intptr_t owner_addr = reinterpret_cast<intptr_t>(owner);
   for (unsigned i = 0; i < section_count; ++i, section += section_size) {
     Block* candidate = reinterpret_cast<Block*>(section);
-    intptr_t* candidate_owner_addr
-      = reinterpret_cast<intptr_t*>(&candidate->_owner);
-    if (SafeFetchN(candidate_owner_addr, 0) == owner_addr) {
+    if (SafeFetchN(&candidate->_owner_address, 0) == owner_addr) {
       return candidate;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////////
 // Allocation
 //
-// Allocation involves the _allocate_list, which contains a subset of the
+// Allocation involves the _allocation_list, which contains a subset of the
 // blocks owned by a storage object.  This is a doubly-linked list, linked
 // through dedicated fields in the blocks.  Full blocks are removed from this
 // list, though they are still present in the _active_array.  Empty blocks are
-// kept at the end of the _allocate_list, to make it easy for empty block
+// kept at the end of the _allocation_list, to make it easy for empty block
 // deletion to find them.
 //
-// allocate(), and delete_empty_blocks_concurrent() lock the
-// _allocate_mutex while performing any list and array modifications.
+// allocate(), and delete_empty_blocks() lock the
+// _allocation_mutex while performing any list and array modifications.
 //
 // allocate() and release() update a block's _allocated_bitmask using CAS
 // loops.  This prevents loss of updates even though release() performs
 // its updates without any locking.
 //
-// allocate() obtains the entry from the first block in the _allocate_list,
+// allocate() obtains the entry from the first block in the _allocation_list,
 // and updates that block's _allocated_bitmask to indicate the entry is in
 // use.  If this makes the block full (all entries in use), the block is
-// removed from the _allocate_list so it won't be considered by future
+// removed from the _allocation_list so it won't be considered by future
 // allocations until some entries in it are released.
 //
-// release() is performed lock-free. release() first looks up the block for
+// release() is performed lock-free. (Note: This means it can't notify the
+// ServiceThread of pending cleanup work.  It must be lock-free because
+// it is called in all kinds of contexts where even quite low ranked locks
+// may be held.)  release() first looks up the block for
 // the entry, using address alignment to find the enclosing block (thereby
 // avoiding iteration over the _active_array).  Once the block has been
 // determined, its _allocated_bitmask needs to be updated, and its position in
-// the _allocate_list may need to be updated.  There are two cases:
+// the _allocation_list may need to be updated.  There are two cases:
 //
 // (a) If the block is neither full nor would become empty with the release of
 // the entry, only its _allocated_bitmask needs to be updated.  But if the CAS
 // update fails, the applicable case may change for the retry.
 //
-// (b) Otherwise, the _allocate_list also needs to be modified.  This requires
-// locking the _allocate_mutex.  To keep the release() operation lock-free,
-// rather than updating the _allocate_list itself, it instead performs a
+// (b) Otherwise, the _allocation_list also needs to be modified.  This requires
+// locking the _allocation_mutex.  To keep the release() operation lock-free,
+// rather than updating the _allocation_list itself, it instead performs a
 // lock-free push of the block onto the _deferred_updates list.  Entries on
-// that list are processed by allocate() and delete_empty_blocks_XXX(), while
+// that list are processed by allocate() and delete_empty_blocks(), while
 // they already hold the necessary lock.  That processing makes the block's
 // list state consistent with its current _allocated_bitmask.  The block is
-// added to the _allocate_list if not already present and the bitmask is not
-// full.  The block is moved to the end of the _allocated_list if the bitmask
+// added to the _allocation_list if not already present and the bitmask is not
+// full.  The block is moved to the end of the _allocation_list if the bitmask
 // is empty, for ease of empty block deletion processing.
 
 oop* OopStorage::allocate() {
-  MutexLockerEx ml(_allocate_mutex, Mutex::_no_safepoint_check_flag);
-  // Do some deferred update processing every time we allocate.
-  // Continue processing deferred updates if _allocate_list is empty,
-  // in the hope that we'll get a block from that, rather than
-  // allocating a new block.
-  while (reduce_deferred_updates() && (_allocate_list.head() == NULL)) {}
+  MutexLocker ml(_allocation_mutex, Mutex::_no_safepoint_check_flag);
 
-  // Use the first block in _allocate_list for the allocation.
-  Block* block = _allocate_list.head();
-  if (block == NULL) {
-    // No available blocks; make a new one, and add to storage.
-    {
-      MutexUnlockerEx mul(_allocate_mutex, Mutex::_no_safepoint_check_flag);
-      block = Block::new_block(this);
-    }
-    if (block == NULL) {
-      while (_allocate_list.head() == NULL) {
-        if (!reduce_deferred_updates()) {
-          // Failed to make new block, no other thread made a block
-          // available while the mutex was released, and didn't get
-          // one from a deferred update either, so return failure.
-          log_info(oopstorage, ref)("%s: failed block allocation", name());
-          return NULL;
-        }
-      }
-    } else {
-      // Add new block to storage.
-      log_info(oopstorage, blocks)("%s: new block " PTR_FORMAT, name(), p2i(block));
-
-      // Add new block to the _active_array, growing if needed.
-      if (!_active_array->push(block)) {
-        if (expand_active_array()) {
-          guarantee(_active_array->push(block), "push failed after expansion");
-        } else {
-          log_info(oopstorage, blocks)("%s: failed active array expand", name());
-          Block::delete_block(*block);
-          return NULL;
-        }
-      }
-      // Add to end of _allocate_list.  The mutex release allowed
-      // other threads to add blocks to the _allocate_list.  We prefer
-      // to allocate from non-empty blocks, to allow empty blocks to
-      // be deleted.
-      _allocate_list.push_back(*block);
-    }
-    block = _allocate_list.head();
-  }
-  // Allocate from first block.
-  assert(block != NULL, "invariant");
+  Block* block = block_for_allocation();
+  if (block == nullptr) return nullptr; // Block allocation failed.
   assert(!block->is_full(), "invariant");
   if (block->is_empty()) {
     // Transitioning from empty to not empty.
-    log_debug(oopstorage, blocks)("%s: block not empty " PTR_FORMAT, name(), p2i(block));
+    log_block_transition(block, "not empty");
   }
   oop* result = block->allocate();
-  assert(result != NULL, "allocation failed");
+  assert(result != nullptr, "allocation failed");
   assert(!block->is_empty(), "postcondition");
   Atomic::inc(&_allocation_count); // release updates outside lock.
   if (block->is_full()) {
     // Transitioning from not full to full.
     // Remove full blocks from consideration by future allocates.
-    log_debug(oopstorage, blocks)("%s: block full " PTR_FORMAT, name(), p2i(block));
-    _allocate_list.unlink(*block);
+    log_block_transition(block, "full");
+    _allocation_list.unlink(*block);
   }
-  log_info(oopstorage, ref)("%s: allocated " PTR_FORMAT, name(), p2i(result));
+  log_trace(oopstorage, ref)("%s: allocated " PTR_FORMAT, name(), p2i(result));
   return result;
+}
+
+// Bulk allocation takes the first block off the _allocation_list, and marks
+// all remaining entries in that block as allocated.  It then drops the lock
+// and fills buffer with those newly allocated entries.  If more entries
+// were obtained than requested, the remaining entries are released back
+// (which is a lock-free operation).  Finally, the number actually added to
+// the buffer is returned.  It's best to request at least as many entries as
+// a single block can provide, to avoid the release case.  That number is
+// available as bulk_allocate_limit.
+size_t OopStorage::allocate(oop** ptrs, size_t size) {
+  assert(size > 0, "precondition");
+  Block* block;
+  uintx taken;
+  {
+    MutexLocker ml(_allocation_mutex, Mutex::_no_safepoint_check_flag);
+    block = block_for_allocation();
+    if (block == nullptr) return 0; // Block allocation failed.
+    // Taking all remaining entries, so remove from list.
+    _allocation_list.unlink(*block);
+    // Transitioning from empty to not empty.
+    if (block->is_empty()) {
+      log_block_transition(block, "not empty");
+    }
+    taken = block->allocate_all();
+    // Safe to drop the lock, since we have claimed our entries.
+    assert(!is_empty_bitmask(taken), "invariant");
+  } // Drop lock, now that we've taken all available entries from block.
+  size_t num_taken = population_count(taken);
+  Atomic::add(&_allocation_count, num_taken);
+  // Fill ptrs from those taken entries.
+  size_t limit = MIN2(num_taken, size);
+  for (size_t i = 0; i < limit; ++i) {
+    assert(taken != 0, "invariant");
+    unsigned index = count_trailing_zeros(taken);
+    taken ^= block->bitmask_for_index(index);
+    ptrs[i] = block->get_pointer(index);
+  }
+  // If more entries taken than requested, release remainder.
+  if (taken == 0) {
+    assert(num_taken == limit, "invariant");
+  } else {
+    assert(size == limit, "invariant");
+    assert(num_taken == (limit + population_count(taken)), "invariant");
+    block->release_entries(taken, this);
+    Atomic::sub(&_allocation_count, num_taken - limit);
+  }
+  log_trace(oopstorage, ref)("%s: bulk allocate %zu, returned %zu",
+                             name(), limit, num_taken - limit);
+  return limit;                 // Return number allocated.
+}
+
+void OopStorage::log_block_transition(Block* block, const char* new_state) const {
+  log_trace(oopstorage, blocks)("%s: block %s " PTR_FORMAT, name(), new_state, p2i(block));
+}
+
+bool OopStorage::try_add_block() {
+  assert_lock_strong(_allocation_mutex);
+  Block* block;
+  {
+    MutexUnlocker ul(_allocation_mutex, Mutex::_no_safepoint_check_flag);
+    block = Block::new_block(this);
+  }
+  if (block == nullptr) return false;
+
+  // Add new block to the _active_array, growing if needed.
+  if (!_active_array->push(block)) {
+    if (expand_active_array()) {
+      guarantee(_active_array->push(block), "push failed after expansion");
+    } else {
+      log_debug(oopstorage, blocks)("%s: failed active array expand", name());
+      Block::delete_block(*block);
+      return false;
+    }
+  }
+  // Add to end of _allocation_list.  The mutex release allowed other
+  // threads to add blocks to the _allocation_list.  We prefer to
+  // allocate from non-empty blocks, to allow empty blocks to be
+  // deleted.  But we don't bother notifying about the empty block
+  // because we're (probably) about to allocate an entry from it.
+  _allocation_list.push_back(*block);
+  log_debug(oopstorage, blocks)("%s: new block " PTR_FORMAT, name(), p2i(block));
+  return true;
+}
+
+OopStorage::Block* OopStorage::block_for_allocation() {
+  assert_lock_strong(_allocation_mutex);
+  while (true) {
+    // Use the first block in _allocation_list for the allocation.
+    Block* block = _allocation_list.head();
+    if (block != nullptr) {
+      return block;
+    } else if (reduce_deferred_updates()) {
+      // Might have added a block to the _allocation_list, so retry.
+    } else if (try_add_block()) {
+      // Successfully added a new block to the list, so retry.
+      assert(_allocation_list.chead() != nullptr, "invariant");
+    } else if (_allocation_list.chead() != nullptr) {
+      // Trying to add a block failed, but some other thread added to the
+      // list while we'd dropped the lock over the new block allocation.
+    } else if (!reduce_deferred_updates()) { // Once more before failure.
+      // Attempt to add a block failed, no other thread added a block,
+      // and no deferred updated added a block, then allocation failed.
+      log_info(oopstorage, blocks)("%s: failed block allocation", name());
+      return nullptr;
+    }
+  }
 }
 
 // Create a new, larger, active array with the same content as the
@@ -482,59 +569,19 @@ oop* OopStorage::allocate() {
 // Return true if the array was successfully expanded, false to
 // indicate allocation failure.
 bool OopStorage::expand_active_array() {
-  assert_lock_strong(_allocate_mutex);
+  assert_lock_strong(_allocation_mutex);
   ActiveArray* old_array = _active_array;
   size_t new_size = 2 * old_array->size();
-  log_info(oopstorage, blocks)("%s: expand active array " SIZE_FORMAT,
-                               name(), new_size);
-  ActiveArray* new_array = ActiveArray::create(new_size, AllocFailStrategy::RETURN_NULL);
-  if (new_array == NULL) return false;
+  log_debug(oopstorage, blocks)("%s: expand active array " SIZE_FORMAT,
+                                name(), new_size);
+  ActiveArray* new_array = ActiveArray::create(new_size,
+                                               mem_tag(),
+                                               AllocFailStrategy::RETURN_NULL);
+  if (new_array == nullptr) return false;
   new_array->copy_from(old_array);
   replace_active_array(new_array);
   relinquish_block_array(old_array);
   return true;
-}
-
-OopStorage::ProtectActive::ProtectActive() : _enter(0), _exit() {}
-
-// Begin read-side critical section.
-uint OopStorage::ProtectActive::read_enter() {
-  return Atomic::add(2u, &_enter);
-}
-
-// End read-side critical section.
-void OopStorage::ProtectActive::read_exit(uint enter_value) {
-  Atomic::add(2u, &_exit[enter_value & 1]);
-}
-
-// Wait until all readers that entered the critical section before
-// synchronization have exited that critical section.
-void OopStorage::ProtectActive::write_synchronize() {
-  SpinYield spinner;
-  // Determine old and new exit counters, based on bit0 of the
-  // on-entry _enter counter.
-  uint value = OrderAccess::load_acquire(&_enter);
-  volatile uint* new_ptr = &_exit[(value + 1) & 1];
-  // Atomically change the in-use exit counter to the new counter, by
-  // adding 1 to the _enter counter (flipping bit0 between 0 and 1)
-  // and initializing the new exit counter to that enter value.  Note:
-  // The new exit counter is not being used by read operations until
-  // this change succeeds.
-  uint old;
-  do {
-    old = value;
-    *new_ptr = ++value;
-    value = Atomic::cmpxchg(value, &_enter, old);
-  } while (old != value);
-  // Readers that entered the critical section before we changed the
-  // selected exit counter will use the old exit counter.  Readers
-  // entering after the change will use the new exit counter.  Wait
-  // for all the critical sections started before the change to
-  // complete, e.g. for the value of old_ptr to catch up with old.
-  volatile uint* old_ptr = &_exit[old & 1];
-  while (old != OrderAccess::load_acquire(old_ptr)) {
-    spinner.wait();
-  }
 }
 
 // Make new_array the _active_array.  Increments new_array's refcount
@@ -546,9 +593,12 @@ void OopStorage::replace_active_array(ActiveArray* new_array) {
   // Update new_array refcount to account for the new reference.
   new_array->increment_refcount();
   // Install new_array, ensuring its initialization is complete first.
-  OrderAccess::release_store(&_active_array, new_array);
+  Atomic::release_store(&_active_array, new_array);
   // Wait for any readers that could read the old array from _active_array.
-  _protect_active.write_synchronize();
+  // Can't use GlobalCounter here, because this is called from allocate(),
+  // which may be called in the scope of a GlobalCounter critical section
+  // when inserting a StringTable entry.
+  _protect_active.synchronize();
   // All obtain critical sections that could see the old array have
   // completed, having incremented the refcount of the old array.  The
   // caller can now safely relinquish the old array.
@@ -560,10 +610,9 @@ void OopStorage::replace_active_array(ActiveArray* new_array) {
 // _active_array.  The caller must relinquish the array when done
 // using it.
 OopStorage::ActiveArray* OopStorage::obtain_active_array() const {
-  uint enter_value = _protect_active.read_enter();
-  ActiveArray* result = OrderAccess::load_acquire(&_active_array);
+  SingleWriterSynchronizer::CriticalSection cs(&_protect_active);
+  ActiveArray* result = Atomic::load_acquire(&_active_array);
   result->increment_refcount();
-  _protect_active.read_exit(enter_value);
   return result;
 }
 
@@ -595,7 +644,7 @@ public:
 };
 
 OopStorage::Block* OopStorage::find_block_or_null(const oop* ptr) const {
-  assert(ptr != NULL, "precondition");
+  assert(ptr != nullptr, "precondition");
   return Block::block_for_ptr(this, ptr);
 }
 
@@ -603,17 +652,19 @@ static void log_release_transitions(uintx releasing,
                                     uintx old_allocated,
                                     const OopStorage* owner,
                                     const void* block) {
-  Log(oopstorage, blocks) log;
-  LogStream ls(log.debug());
-  if (is_full_bitmask(old_allocated)) {
-    ls.print_cr("%s: block not full " PTR_FORMAT, owner->name(), p2i(block));
-  }
-  if (releasing == old_allocated) {
-    ls.print_cr("%s: block empty " PTR_FORMAT, owner->name(), p2i(block));
+  LogTarget(Trace, oopstorage, blocks) lt;
+  if (lt.is_enabled()) {
+    LogStream ls(lt);
+    if (is_full_bitmask(old_allocated)) {
+      ls.print_cr("%s: block not full " PTR_FORMAT, owner->name(), p2i(block));
+    }
+    if (releasing == old_allocated) {
+      ls.print_cr("%s: block empty " PTR_FORMAT, owner->name(), p2i(block));
+    }
   }
 }
 
-void OopStorage::Block::release_entries(uintx releasing, Block* volatile* deferred_list) {
+void OopStorage::Block::release_entries(uintx releasing, OopStorage* owner) {
   assert(releasing != 0, "preconditon");
   // Prevent empty block deletion when transitioning to empty.
   Atomic::inc(&_release_refcount);
@@ -623,7 +674,7 @@ void OopStorage::Block::release_entries(uintx releasing, Block* volatile* deferr
   while (true) {
     assert((releasing & ~old_allocated) == 0, "releasing unallocated entries");
     uintx new_value = old_allocated ^ releasing;
-    uintx fetched = Atomic::cmpxchg(new_value, &_allocated_bitmask, old_allocated);
+    uintx fetched = Atomic::cmpxchg(&_allocated_bitmask, old_allocated, new_value);
     if (fetched == old_allocated) break; // Successful update.
     old_allocated = fetched;             // Retry with updated bitmask.
   }
@@ -632,29 +683,35 @@ void OopStorage::Block::release_entries(uintx releasing, Block* volatile* deferr
   // (updated bitmask is empty or old bitmask was full), atomically push
   // this block onto the deferred updates list.  Some future call to
   // reduce_deferred_updates will make any needed changes related to this
-  // block and _allocate_list.  This deferral avoids list updates and the
-  // associated locking here.
+  // block and _allocation_list.  This deferral avoids _allocation_list
+  // updates and the associated locking here.
   if ((releasing == old_allocated) || is_full_bitmask(old_allocated)) {
     // Log transitions.  Both transitions are possible in a single update.
-    if (log_is_enabled(Debug, oopstorage, blocks)) {
-      log_release_transitions(releasing, old_allocated, _owner, this);
-    }
+    log_release_transitions(releasing, old_allocated, owner, this);
     // Attempt to claim responsibility for adding this block to the deferred
-    // list, by setting the link to non-NULL by self-looping.  If this fails,
+    // list, by setting the link to non-null by self-looping.  If this fails,
     // then someone else has made such a claim and the deferred update has not
     // yet been processed and will include our change, so we don't need to do
     // anything further.
-    if (Atomic::replace_if_null(this, &_deferred_updates_next)) {
+    if (Atomic::replace_if_null(&_deferred_updates_next, this)) {
       // Successfully claimed.  Push, with self-loop for end-of-list.
-      Block* head = *deferred_list;
+      Block* head = owner->_deferred_updates;
       while (true) {
-        _deferred_updates_next = (head == NULL) ? this : head;
-        Block* fetched = Atomic::cmpxchg(this, deferred_list, head);
+        _deferred_updates_next = (head == nullptr) ? this : head;
+        Block* fetched = Atomic::cmpxchg(&owner->_deferred_updates, head, this);
         if (fetched == head) break; // Successful update.
         head = fetched;             // Retry with updated head.
       }
-      log_debug(oopstorage, blocks)("%s: deferred update " PTR_FORMAT,
-                                    _owner->name(), p2i(this));
+      // Only request cleanup for to-empty transitions, not for from-full.
+      // There isn't any rush to process from-full transitions.  Allocation
+      // will reduce deferrals before allocating new blocks, so may process
+      // some.  And the ServiceThread will drain the entire deferred list
+      // if there are any pending to-empty transitions.
+      if (releasing == old_allocated) {
+        owner->record_needs_cleanup();
+      }
+      log_trace(oopstorage, blocks)("%s: deferred update " PTR_FORMAT,
+                                    owner->name(), p2i(this));
     }
   }
   // Release hold on empty block deletion.
@@ -663,62 +720,61 @@ void OopStorage::Block::release_entries(uintx releasing, Block* volatile* deferr
 
 // Process one available deferred update.  Returns true if one was processed.
 bool OopStorage::reduce_deferred_updates() {
-  assert_locked_or_safepoint(_allocate_mutex);
+  assert_lock_strong(_allocation_mutex);
   // Atomically pop a block off the list, if any available.
   // No ABA issue because this is only called by one thread at a time.
   // The atomicity is wrto pushes by release().
-  Block* block = OrderAccess::load_acquire(&_deferred_updates);
+  Block* block = Atomic::load_acquire(&_deferred_updates);
   while (true) {
-    if (block == NULL) return false;
+    if (block == nullptr) return false;
     // Try atomic pop of block from list.
     Block* tail = block->deferred_updates_next();
-    if (block == tail) tail = NULL; // Handle self-loop end marker.
-    Block* fetched = Atomic::cmpxchg(tail, &_deferred_updates, block);
+    if (block == tail) tail = nullptr; // Handle self-loop end marker.
+    Block* fetched = Atomic::cmpxchg(&_deferred_updates, block, tail);
     if (fetched == block) break; // Update successful.
     block = fetched;             // Retry with updated block.
   }
-  block->set_deferred_updates_next(NULL); // Clear tail after updating head.
+  block->set_deferred_updates_next(nullptr); // Clear tail after updating head.
   // Ensure bitmask read after pop is complete, including clearing tail, for
   // ordering with release().  Without this, we may be processing a stale
   // bitmask state here while blocking a release() operation from recording
   // the deferred update needed for its bitmask change.
-  OrderAccess::storeload();
-  // Process popped block.
+  OrderAccess::fence();
+  // Make list state consistent with bitmask state.
   uintx allocated = block->allocated_bitmask();
-
-  // Make membership in list consistent with bitmask state.
-  if ((_allocate_list.ctail() != NULL) &&
-      ((_allocate_list.ctail() == block) ||
-       (_allocate_list.next(*block) != NULL))) {
-    // Block is in the allocate list.
-    assert(!is_full_bitmask(allocated), "invariant");
-  } else if (!is_full_bitmask(allocated)) {
-    // Block is not in the allocate list, but now should be.
-    _allocate_list.push_front(*block);
-  } // Else block is full and not in list, which is correct.
-
-  // Move empty block to end of list, for possible deletion.
-  if (is_empty_bitmask(allocated)) {
-    _allocate_list.unlink(*block);
-    _allocate_list.push_back(*block);
+  if (is_full_bitmask(allocated)) {
+    // If full then it shouldn't be in the list, and should stay that way.
+    assert(!_allocation_list.contains(*block), "invariant");
+  } else if (_allocation_list.contains(*block)) {
+    // Block is in list.  If empty, move to the end for possible deletion.
+    if (is_empty_bitmask(allocated)) {
+      _allocation_list.unlink(*block);
+      _allocation_list.push_back(*block);
+    }
+  } else if (is_empty_bitmask(allocated)) {
+    // Block is empty and not in list. Add to back for possible deletion.
+    _allocation_list.push_back(*block);
+  } else {
+    // Block is neither full nor empty, and not in list.  Add to front.
+    _allocation_list.push_front(*block);
   }
 
-  log_debug(oopstorage, blocks)("%s: processed deferred update " PTR_FORMAT,
+  log_trace(oopstorage, blocks)("%s: processed deferred update " PTR_FORMAT,
                                 name(), p2i(block));
   return true;              // Processed one pending update.
 }
 
-inline void check_release_entry(const oop* entry) {
-  assert(entry != NULL, "Releasing NULL");
-  assert(*entry == NULL, "Releasing uncleared entry: " PTR_FORMAT, p2i(entry));
+static inline void check_release_entry(const oop* entry) {
+  assert(entry != nullptr, "Releasing null");
+  assert(Universe::heap()->contains_null(entry), "Releasing uncleared entry: " PTR_FORMAT, p2i(entry));
 }
 
 void OopStorage::release(const oop* ptr) {
   check_release_entry(ptr);
   Block* block = find_block_or_null(ptr);
-  assert(block != NULL, "%s: invalid release " PTR_FORMAT, name(), p2i(ptr));
-  log_info(oopstorage, ref)("%s: released " PTR_FORMAT, name(), p2i(ptr));
-  block->release_entries(block->bitmask_for_entry(ptr), &_deferred_updates);
+  assert(block != nullptr, "%s: invalid release " PTR_FORMAT, name(), p2i(ptr));
+  log_trace(oopstorage, ref)("%s: releasing " PTR_FORMAT, name(), p2i(ptr));
+  block->release_entries(block->bitmask_for_entry(ptr), this);
   Atomic::dec(&_allocation_count);
 }
 
@@ -727,8 +783,7 @@ void OopStorage::release(const oop* const* ptrs, size_t size) {
   while (i < size) {
     check_release_entry(ptrs[i]);
     Block* block = find_block_or_null(ptrs[i]);
-    assert(block != NULL, "%s: invalid release " PTR_FORMAT, name(), p2i(ptrs[i]));
-    log_info(oopstorage, ref)("%s: released " PTR_FORMAT, name(), p2i(ptrs[i]));
+    assert(block != nullptr, "%s: invalid release " PTR_FORMAT, name(), p2i(ptrs[i]));
     size_t count = 0;
     uintx releasing = 0;
     for ( ; i < size; ++i) {
@@ -737,7 +792,7 @@ void OopStorage::release(const oop* const* ptrs, size_t size) {
       // If entry not in block, finish block and resume outer loop with entry.
       if (!block->contains(entry)) break;
       // Add entry to releasing bitmap.
-      log_info(oopstorage, ref)("%s: released " PTR_FORMAT, name(), p2i(entry));
+      log_trace(oopstorage, ref)("%s: releasing " PTR_FORMAT, name(), p2i(entry));
       uintx entry_bitmask = block->bitmask_for_entry(entry);
       assert((releasing & entry_bitmask) == 0,
              "Duplicate entry: " PTR_FORMAT, p2i(entry));
@@ -745,54 +800,59 @@ void OopStorage::release(const oop* const* ptrs, size_t size) {
       ++count;
     }
     // Release the contiguous entries that are in block.
-    block->release_entries(releasing, &_deferred_updates);
-    Atomic::sub(count, &_allocation_count);
+    block->release_entries(releasing, this);
+    Atomic::sub(&_allocation_count, count);
   }
 }
 
-const char* dup_name(const char* name) {
-  char* dup = NEW_C_HEAP_ARRAY(char, strlen(name) + 1, mtGC);
-  strcpy(dup, name);
-  return dup;
+OopStorage* OopStorage::create(const char* name, MemTag mem_tag) {
+  return new (mem_tag) OopStorage(name, mem_tag);
 }
 
 const size_t initial_active_array_size = 8;
 
-OopStorage::OopStorage(const char* name,
-                       Mutex* allocate_mutex,
-                       Mutex* active_mutex) :
-  _name(dup_name(name)),
-  _active_array(ActiveArray::create(initial_active_array_size)),
-  _allocate_list(),
-  _deferred_updates(NULL),
-  _allocate_mutex(allocate_mutex),
-  _active_mutex(active_mutex),
+static Mutex* make_oopstorage_mutex(const char* storage_name,
+                                    const char* kind,
+                                    Mutex::Rank rank) {
+  char name[256];
+  os::snprintf(name, sizeof(name), "%s %s lock", storage_name, kind);
+  return new PaddedMutex(rank, name);
+}
+
+OopStorage::OopStorage(const char* name, MemTag mem_tag) :
+  _name(os::strdup(name)),
+  _active_array(ActiveArray::create(initial_active_array_size, mem_tag)),
+  _allocation_list(),
+  _deferred_updates(nullptr),
+  _allocation_mutex(make_oopstorage_mutex(name, "alloc", Mutex::oopstorage)),
+  _active_mutex(make_oopstorage_mutex(name, "active", Mutex::oopstorage - 1)),
+  _num_dead_callback(nullptr),
   _allocation_count(0),
-  _concurrent_iteration_active(false)
+  _concurrent_iteration_count(0),
+  _mem_tag(mem_tag),
+  _needs_cleanup(false)
 {
   _active_array->increment_refcount();
-  assert(_active_mutex->rank() < _allocate_mutex->rank(),
-         "%s: active_mutex must have lower rank than allocate_mutex", _name);
-  assert(_active_mutex->_safepoint_check_required != Mutex::_safepoint_check_always,
-         "%s: active mutex requires safepoint check", _name);
-  assert(_allocate_mutex->_safepoint_check_required != Mutex::_safepoint_check_always,
-         "%s: allocate mutex requires safepoint check", _name);
+  assert(_active_mutex->rank() < _allocation_mutex->rank(),
+         "%s: active_mutex must have lower rank than allocation_mutex", _name);
+  assert(Service_lock->rank() < _active_mutex->rank(),
+         "%s: active_mutex must have higher rank than Service_lock", _name);
 }
 
 void OopStorage::delete_empty_block(const Block& block) {
   assert(block.is_empty(), "discarding non-empty block");
-  log_info(oopstorage, blocks)("%s: delete empty block " PTR_FORMAT, name(), p2i(&block));
+  log_debug(oopstorage, blocks)("%s: delete empty block " PTR_FORMAT, name(), p2i(&block));
   Block::delete_block(block);
 }
 
 OopStorage::~OopStorage() {
   Block* block;
-  while ((block = _deferred_updates) != NULL) {
+  while ((block = _deferred_updates) != nullptr) {
     _deferred_updates = block->deferred_updates_next();
-    block->set_deferred_updates_next(NULL);
+    block->set_deferred_updates_next(nullptr);
   }
-  while ((block = _allocate_list.head()) != NULL) {
-    _allocate_list.unlink(*block);
+  while ((block = _allocation_list.head()) != nullptr) {
+    _allocation_list.unlink(*block);
   }
   bool unreferenced = _active_array->decrement_refcount();
   assert(unreferenced, "deleting storage while _active_array is referenced");
@@ -801,66 +861,138 @@ OopStorage::~OopStorage() {
     Block::delete_block(*block);
   }
   ActiveArray::destroy(_active_array);
-  FREE_C_HEAP_ARRAY(char, _name);
+  os::free(const_cast<char*>(_name));
 }
 
-void OopStorage::delete_empty_blocks_safepoint() {
-  assert_at_safepoint();
-  // Process any pending release updates, which may make more empty
-  // blocks available for deletion.
-  while (reduce_deferred_updates()) {}
-  // Don't interfere with a concurrent iteration.
-  if (_concurrent_iteration_active) return;
-  // Delete empty (and otherwise deletable) blocks from end of _allocate_list.
-  for (Block* block = _allocate_list.tail();
-       (block != NULL) && block->is_deletable();
-       block = _allocate_list.tail()) {
-    _active_array->remove(block);
-    _allocate_list.unlink(*block);
-    delete_empty_block(*block);
+void OopStorage::register_num_dead_callback(NumDeadCallback f) {
+  assert(_num_dead_callback == nullptr, "Only one callback function supported");
+  _num_dead_callback = f;
+}
+
+void OopStorage::report_num_dead(size_t num_dead) const {
+  if (_num_dead_callback != nullptr) {
+    _num_dead_callback(num_dead);
   }
 }
 
-void OopStorage::delete_empty_blocks_concurrent() {
-  MutexLockerEx ml(_allocate_mutex, Mutex::_no_safepoint_check_flag);
-  // Other threads could be adding to the empty block count while we
-  // release the mutex across the block deletions.  Set an upper bound
-  // on how many blocks we'll try to release, so other threads can't
-  // cause an unbounded stay in this function.
-  size_t limit = block_count();
+bool OopStorage::should_report_num_dead() const {
+  return _num_dead_callback != nullptr;
+}
+
+// Managing service thread notifications.
+
+// When a release operation changes a block's state to empty, it records the
+// need for cleanup in both the associated storage object and in the global
+// request state. The ServiceThread checks at timed intervals if
+// there may be cleanup work for any storage object, based on the global
+// request state.  We don't want to run empty block cleanup too often in the
+// face of frequent explicit ServiceThread wakeups, hence the defer period.
+
+// Global cleanup request state.
+static volatile bool needs_cleanup_requested = false;
+
+// Time after which a cleanup is permitted.
+static jlong cleanup_permit_time = 0;
+
+// Minimum time between ServiceThread cleanups.
+// The value of 500ms was an arbitrary choice; frequent, but not too frequent.
+const jlong cleanup_defer_period = 500 * NANOSECS_PER_MILLISEC;
+
+bool OopStorage::has_cleanup_work_and_reset() {
+  assert_lock_strong(Service_lock);
+
+  if (Atomic::load_acquire(&needs_cleanup_requested) &&
+      os::javaTimeNanos() > cleanup_permit_time) {
+    cleanup_permit_time =
+      os::javaTimeNanos() + cleanup_defer_period;
+    // Set the request flag false and return its old value.
+    Atomic::release_store(&needs_cleanup_requested, false);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+// Record that cleanup is needed, without notifying the Service thread, because
+// we can't lock the Service_lock.  Used by release().
+void OopStorage::record_needs_cleanup() {
+  // Set local flag first, else ServiceThread could wake up and miss
+  // the request.
+  Atomic::release_store(&_needs_cleanup, true);
+  Atomic::release_store_fence(&needs_cleanup_requested, true);
+}
+
+bool OopStorage::delete_empty_blocks() {
+  // ServiceThread might have oopstorage work, but not for this object.
+  // But check for deferred updates, which might provide cleanup work.
+  if (!Atomic::load_acquire(&_needs_cleanup) &&
+      (Atomic::load_acquire(&_deferred_updates) == nullptr)) {
+    return false;
+  }
+
+  MutexLocker ml(_allocation_mutex, Mutex::_no_safepoint_check_flag);
+
+  // Clear the request before processing.
+  Atomic::release_store_fence(&_needs_cleanup, false);
+
+  // Other threads could be adding to the empty block count or the
+  // deferred update list while we're working.  Set an upper bound on
+  // how many updates we'll process and blocks we'll try to release,
+  // so other threads can't cause an unbounded stay in this function.
+  // We add a bit of slop because the reduce_deferred_updates clause
+  // can cause blocks to be double counted.  If there are few blocks
+  // and many of them are deferred and empty, we might hit the limit
+  // and spin the caller without doing very much work.  Otherwise,
+  // we don't normally hit the limit anyway, instead running out of
+  // work to do.
+  size_t limit = block_count() + 10;
 
   for (size_t i = 0; i < limit; ++i) {
-    // Additional updates might become available while we dropped the
-    // lock.  But limit number processed to limit lock duration.
-    reduce_deferred_updates();
+    // Process deferred updates, which might make empty blocks available.
+    // Continue checking once deletion starts, since additional updates
+    // might become available while we're working.
+    if (reduce_deferred_updates()) {
+      // Be safepoint-polite while looping.
+      MutexUnlocker ul(_allocation_mutex, Mutex::_no_safepoint_check_flag);
+      ThreadBlockInVM tbiv(JavaThread::current());
+    } else {
+      Block* block = _allocation_list.tail();
+      if ((block == nullptr) || !block->is_empty()) {
+        return false;
+      } else if (!block->is_safe_to_delete()) {
+        // Look for other work while waiting for block to be deletable.
+        break;
+      }
 
-    Block* block = _allocate_list.tail();
-    if ((block == NULL) || !block->is_deletable()) {
-      // No block to delete, so done.  There could be more pending
-      // deferred updates that could give us more work to do; deal with
-      // that in some later call, to limit lock duration here.
-      return;
+      // Try to delete the block.  First, try to remove from _active_array.
+      {
+        MutexLocker aml(_active_mutex, Mutex::_no_safepoint_check_flag);
+        // Don't interfere with an active concurrent iteration.
+        // Instead, give up immediately.  There is more work to do,
+        // but don't re-notify, to avoid useless spinning of the
+        // ServiceThread.  Instead, iteration completion notifies.
+        if (_concurrent_iteration_count > 0) return true;
+        _active_array->remove(block);
+      }
+      // Remove block from _allocation_list and delete it.
+      _allocation_list.unlink(*block);
+      // Be safepoint-polite while deleting and looping.
+      MutexUnlocker ul(_allocation_mutex, Mutex::_no_safepoint_check_flag);
+      delete_empty_block(*block);
+      ThreadBlockInVM tbiv(JavaThread::current());
     }
-
-    {
-      MutexLockerEx aml(_active_mutex, Mutex::_no_safepoint_check_flag);
-      // Don't interfere with a concurrent iteration.
-      if (_concurrent_iteration_active) return;
-      _active_array->remove(block);
-    }
-    // Remove block from _allocate_list and delete it.
-    _allocate_list.unlink(*block);
-    // Release mutex while deleting block.
-    MutexUnlockerEx ul(_allocate_mutex, Mutex::_no_safepoint_check_flag);
-    delete_empty_block(*block);
   }
+  // Exceeded work limit or can't delete last block so still needs cleanup
+  // for the next time.
+  record_needs_cleanup();
+  return true;
 }
 
 OopStorage::EntryStatus OopStorage::allocation_status(const oop* ptr) const {
   const Block* block = find_block_or_null(ptr);
-  if (block != NULL) {
+  if (block != nullptr) {
     // Prevent block deletion and _active_array modification.
-    MutexLockerEx ml(_allocate_mutex, Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(_allocation_mutex, Mutex::_no_safepoint_check_flag);
     // Block could be a false positive, so get index carefully.
     size_t index = Block::active_index_safe(block);
     if ((index < _active_array->block_count()) &&
@@ -898,6 +1030,8 @@ size_t OopStorage::total_memory_usage() const {
   return total_size;
 }
 
+MemTag OopStorage::mem_tag() const { return _mem_tag; }
+
 // Parallel iteration support
 
 uint OopStorage::BasicParState::default_estimated_thread_count(bool concurrent) {
@@ -913,10 +1047,11 @@ OopStorage::BasicParState::BasicParState(const OopStorage* storage,
   _block_count(0),              // initialized properly below
   _next_block(0),
   _estimated_thread_count(estimated_thread_count),
-  _concurrent(concurrent)
+  _concurrent(concurrent),
+  _num_dead(0)
 {
   assert(estimated_thread_count > 0, "estimated thread count must be positive");
-  update_iteration_state(true);
+  update_concurrent_iteration_count(1);
   // Get the block count *after* iteration state updated, so concurrent
   // empty block deletion is suppressed and can't reduce the count.  But
   // ensure the count we use was written after the block with that count
@@ -926,20 +1061,24 @@ OopStorage::BasicParState::BasicParState(const OopStorage* storage,
 
 OopStorage::BasicParState::~BasicParState() {
   _storage->relinquish_block_array(_active_array);
-  update_iteration_state(false);
+  update_concurrent_iteration_count(-1);
+  if (_concurrent) {
+    // We may have deferred some cleanup work.
+    const_cast<OopStorage*>(_storage)->record_needs_cleanup();
+  }
 }
 
-void OopStorage::BasicParState::update_iteration_state(bool value) {
+void OopStorage::BasicParState::update_concurrent_iteration_count(int value) {
   if (_concurrent) {
-    MutexLockerEx ml(_storage->_active_mutex, Mutex::_no_safepoint_check_flag);
-    assert(_storage->_concurrent_iteration_active != value, "precondition");
-    _storage->_concurrent_iteration_active = value;
+    MutexLocker ml(_storage->_active_mutex, Mutex::_no_safepoint_check_flag);
+    _storage->_concurrent_iteration_count += value;
+    assert(_storage->_concurrent_iteration_count >= 0, "invariant");
   }
 }
 
 bool OopStorage::BasicParState::claim_next_segment(IterationData* data) {
   data->_processed += data->_segment_end - data->_segment_start;
-  size_t start = OrderAccess::load_acquire(&_next_block);
+  size_t start = Atomic::load_acquire(&_next_block);
   if (start >= _block_count) {
     return finish_iteration(data); // No more blocks available.
   }
@@ -956,7 +1095,7 @@ bool OopStorage::BasicParState::claim_next_segment(IterationData* data) {
   // than a CAS loop on some platforms when there is contention.
   // We can cope with the uncertainty by recomputing start/end from
   // the result of the add, and dealing with potential overshoot.
-  size_t end = Atomic::add(step, &_next_block);
+  size_t end = Atomic::add(&_next_block, step);
   // _next_block may have changed, so recompute start from result of add.
   start = end - step;
   // _next_block may have changed so much that end has overshot.
@@ -974,15 +1113,47 @@ bool OopStorage::BasicParState::claim_next_segment(IterationData* data) {
 }
 
 bool OopStorage::BasicParState::finish_iteration(const IterationData* data) const {
-  log_debug(oopstorage, blocks, stats)
-           ("Parallel iteration on %s: blocks = " SIZE_FORMAT
-            ", processed = " SIZE_FORMAT " (%2.f%%)",
-            _storage->name(), _block_count, data->_processed,
-            percent_of(data->_processed, _block_count));
+  log_info(oopstorage, blocks, stats)
+          ("Parallel iteration on %s: blocks = " SIZE_FORMAT
+           ", processed = " SIZE_FORMAT " (%2.f%%)",
+           _storage->name(), _block_count, data->_processed,
+           percent_of(data->_processed, _block_count));
   return false;
 }
 
+size_t OopStorage::BasicParState::num_dead() const {
+  return Atomic::load(&_num_dead);
+}
+
+void OopStorage::BasicParState::increment_num_dead(size_t num_dead) {
+  Atomic::add(&_num_dead, num_dead);
+}
+
+void OopStorage::BasicParState::report_num_dead() const {
+  _storage->report_num_dead(Atomic::load(&_num_dead));
+}
+
 const char* OopStorage::name() const { return _name; }
+
+bool OopStorage::print_containing(const oop* addr, outputStream* st) {
+  if (addr != nullptr) {
+    Block* block = find_block_or_null(addr);
+    if (block != nullptr && block->print_containing(addr, st)) {
+      st->print(" in oop storage \"%s\"", name());
+      return true;
+    }
+  }
+  return false;
+}
+
+bool OopStorage::Block::print_containing(const oop* addr, outputStream* st) {
+  if (contains(addr)) {
+    st->print(PTR_FORMAT " is a pointer %u/%zu into block %zu",
+              p2i(addr), get_index(addr), ARRAY_SIZE(_data), _active_index);
+    return true;
+  }
+  return false;
+}
 
 #ifndef PRODUCT
 
@@ -995,7 +1166,7 @@ void OopStorage::print_on(outputStream* st) const {
 
   st->print("%s: " SIZE_FORMAT " entries in " SIZE_FORMAT " blocks (%.F%%), " SIZE_FORMAT " bytes",
             name(), allocations, blocks, alloc_percentage, total_memory_usage());
-  if (_concurrent_iteration_active) {
+  if (_concurrent_iteration_count > 0) {
     st->print(", concurrent iteration active");
   }
 }

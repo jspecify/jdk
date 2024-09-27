@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@ import java.io.IOException;
 
 public class InvalidPropertiesFormatException extends IOException {
 
+    @java.io.Serial
     private static final long serialVersionUID = 7763056076009360219L;
 
     /**
@@ -54,6 +55,7 @@ public class InvalidPropertiesFormatException extends IOException {
      * @param  cause the cause (which is saved for later retrieval by the
      *         {@link Throwable#getCause()} method).
      */
+    @SuppressWarnings("this-escape")
     public InvalidPropertiesFormatException(Throwable cause) {
         super(cause==null ? null : cause.toString());
         this.initCause(cause);
@@ -74,6 +76,7 @@ public class InvalidPropertiesFormatException extends IOException {
      * Throws NotSerializableException, since InvalidPropertiesFormatException
      * objects are not intended to be serializable.
      */
+    @java.io.Serial
     private void writeObject(java.io.ObjectOutputStream out)
         throws NotSerializableException
     {
@@ -84,6 +87,7 @@ public class InvalidPropertiesFormatException extends IOException {
      * Throws NotSerializableException, since InvalidPropertiesFormatException
      * objects are not intended to be serializable.
      */
+    @java.io.Serial
     private void readObject(java.io.ObjectInputStream in)
         throws NotSerializableException
     {

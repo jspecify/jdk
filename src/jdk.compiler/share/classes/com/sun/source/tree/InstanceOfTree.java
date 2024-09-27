@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,13 +33,14 @@ package com.sun.source.tree;
  *   <em>expression</em> instanceof <em>type</em>
  * </pre>
  *
- * @jls section 15.20.2
+ * @jls 15.20.2 The instanceof Operator
  *
  * @author Peter von der Ah&eacute;
  * @author Jonathan Gibbons
  * @since 1.6
  */
 public interface InstanceOfTree extends ExpressionTree {
+
     /**
      * Returns the expression to be tested.
      * @return the expression
@@ -49,6 +50,29 @@ public interface InstanceOfTree extends ExpressionTree {
     /**
      * Returns the type for which to check.
      * @return the type
+     * @see #getPattern()
      */
     Tree getType();
+
+    /**
+     * Returns the tested pattern, or null if this instanceof does not use
+     * a pattern.
+     *
+     * <p>For instanceof with a pattern, i.e. in the following form:
+     * <pre>
+     *   <em>expression</em> instanceof <em>type</em> <em>variable name</em>
+     * </pre>
+     * returns the pattern.
+     *
+     * <p>For instanceof without a pattern, i.e. in the following form:
+     * <pre>
+     *   <em>expression</em> instanceof <em>type</em>
+     * </pre>
+     * returns null.
+     *
+     * @return the tested pattern, or null if this instanceof does not use a pattern
+     * @since 16
+     */
+    PatternTree getPattern();
+
 }

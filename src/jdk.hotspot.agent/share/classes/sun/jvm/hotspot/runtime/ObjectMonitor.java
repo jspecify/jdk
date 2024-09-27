@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,8 @@ import java.util.*;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class ObjectMonitor extends VMObject {
   static {
@@ -42,17 +44,20 @@ public class ObjectMonitor extends VMObject {
   private static synchronized void initialize(TypeDataBase db) throws WrongTypeException {
     heap = VM.getVM().getObjectHeap();
     Type type  = db.lookupType("ObjectMonitor");
-    sun.jvm.hotspot.types.Field f = type.getField("_header");
-    headerFieldOffset = f.getOffset();
+
+    sun.jvm.hotspot.types.Field f = type.getField("_metadata");
+    metadataFieldOffset = f.getOffset();
     f = type.getField("_object");
     objectFieldOffset = f.getOffset();
     f = type.getField("_owner");
     ownerFieldOffset = f.getOffset();
-    f = type.getField("FreeNext");
-    FreeNextFieldOffset = f.getOffset();
-    countField  = type.getJIntField("_count");
-    waitersField = type.getJIntField("_waiters");
-    recursionsField = type.getCIntegerField("_recursions");
+    f = type.getField("_next_om");
+    nextOMFieldOffset = f.getOffset();
+    contentionsField  = new CIntField(type.getCIntegerField("_contentions"), 0);
+    waitersField      = new CIntField(type.getCIntegerField("_waiters"), 0);
+    recursionsField   = type.getCIntegerField("_recursions");
+
+    ANONYMOUS_OWNER = db.lookupLongConstant("ObjectMonitor::ANONYMOUS_OWNER").longValue();
   }
 
   public ObjectMonitor(Address addr) {
@@ -60,11 +65,11 @@ public class ObjectMonitor extends VMObject {
   }
 
   public Mark header() {
-    return new Mark(addr.addOffsetTo(headerFieldOffset));
+    return new Mark(addr.addOffsetTo(metadataFieldOffset));
   }
 
   // FIXME
-  //  void      set_header(markOop hdr);
+  //  void      set_header(markWord hdr);
 
   // FIXME: must implement and delegate to platform-dependent implementation
   //  public boolean isBusy();
@@ -77,45 +82,46 @@ public class ObjectMonitor extends VMObject {
     return false;
   }
 
+  public boolean isOwnedAnonymous() {
+    return addr.getAddressAt(ownerFieldOffset).asLongValue() == ANONYMOUS_OWNER;
+  }
+
   public Address owner() { return addr.getAddressAt(ownerFieldOffset); }
   // FIXME
   //  void      set_owner(void* owner);
 
-  public int    waiters() { return waitersField.getValue(addr); }
+  public int    waiters() { return (int)waitersField.getValue(this); }
 
-  public Address freeNext() { return addr.getAddressAt(FreeNextFieldOffset); }
+  public Address nextOM() { return addr.getAddressAt(nextOMFieldOffset); }
   // FIXME
   //  void      set_queue(void* owner);
-
-  public int count() { return countField.getValue(addr); }
-  // FIXME
-  //  void      set_count(int count);
 
   public long recursions() { return recursionsField.getValue(addr); }
 
   public OopHandle object() {
-    return addr.getOopHandleAt(objectFieldOffset);
+    Address objAddr = addr.getAddressAt(objectFieldOffset);
+    if (objAddr == null) {
+      return null;
+    }
+    return objAddr.getOopHandleAt(0);
   }
 
-  // contentions is always equal to count
   public int contentions() {
-      return count();
+      return (int)contentionsField.getValue(this);
   }
-
-  // FIXME
-  //  void*     object_addr();
-  //  void      set_object(void* obj);
 
   // The following four either aren't expressed as typed fields in
   // vmStructs.cpp because they aren't strongly typed in the VM, or
   // would confuse the SA's type system.
   private static ObjectHeap    heap;
-  private static long          headerFieldOffset;
+  private static long          metadataFieldOffset;
   private static long          objectFieldOffset;
   private static long          ownerFieldOffset;
-  private static long          FreeNextFieldOffset;
-  private static JIntField     countField;
-  private static JIntField     waitersField;
+  private static long          nextOMFieldOffset;
+  private static CIntField     contentionsField;
+  private static CIntField     waitersField;
   private static CIntegerField recursionsField;
+  private static long          ANONYMOUS_OWNER;
+
   // FIXME: expose platform-dependent stuff
 }

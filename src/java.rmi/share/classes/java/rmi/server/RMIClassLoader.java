@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,7 +71,7 @@ import java.util.ServiceLoader;
  * <ul>
  *
  * <li>If the system property
- * <code>java.rmi.server.RMIClassLoaderSpi</code> is defined, then if
+ * {@systemProperty java.rmi.server.RMIClassLoaderSpi} is defined, then if
  * its value equals the string <code>"default"</code>, the provider
  * instance will be the value returned by an invocation of the {@link
  * #getDefaultProviderInstance()} method, and for any other value, if
@@ -118,6 +118,7 @@ public @UsesObjectEquals class RMIClassLoader {
         newDefaultProviderInstance();
 
     /** provider instance */
+    @SuppressWarnings("removal")
     private static final RMIClassLoaderSpi provider =
         AccessController.doPrivileged(
             new PrivilegedAction<RMIClassLoaderSpi>() {
@@ -327,7 +328,7 @@ public @UsesObjectEquals class RMIClassLoader {
      * {@link RMIClassLoaderSpi#getClassLoader(String)} method
      * of the provider instance, passing <code>codebase</code> as the argument.
      *
-     * <p>If there is a security manger, its <code>checkPermission</code>
+     * <p>If there is a security manager, its <code>checkPermission</code>
      * method will be invoked with a
      * <code>RuntimePermission("getClassLoader")</code> permission;
      * this could result in a <code>SecurityException</code>.
@@ -433,7 +434,7 @@ public @UsesObjectEquals class RMIClassLoader {
      * system class loader such as the loader used for installed
      * extensions, or the bootstrap class loader (which may be
      * represented by <code>null</code>), then the value of the
-     * <code>java.rmi.server.codebase</code> property (or possibly an
+     * {@systemProperty java.rmi.server.codebase} property (or possibly an
      * earlier cached value) is returned, or
      * <code>null</code> is returned if that property is not set.
      *
@@ -605,6 +606,7 @@ public @UsesObjectEquals class RMIClassLoader {
      * @since   1.4
      */
     public static RMIClassLoaderSpi getDefaultProviderInstance() {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new RuntimePermission("setFactory"));
@@ -696,10 +698,8 @@ public @UsesObjectEquals class RMIClassLoader {
             } catch (InstantiationException e) {
                 throw new InstantiationError(e.getMessage());
             } catch (ClassCastException e) {
-                Error error = new LinkageError(
-                    "provider class not assignable to RMIClassLoaderSpi");
-                error.initCause(e);
-                throw error;
+                throw new LinkageError(
+                    "provider class not assignable to RMIClassLoaderSpi", e);
             }
         }
 
@@ -713,10 +713,8 @@ public @UsesObjectEquals class RMIClassLoader {
             try {
                 return iter.next();
             } catch (ClassCastException e) {
-                Error error = new LinkageError(
-                    "provider class not assignable to RMIClassLoaderSpi");
-                error.initCause(e);
-                throw error;
+                throw new LinkageError(
+                    "provider class not assignable to RMIClassLoaderSpi", e);
             }
         }
 

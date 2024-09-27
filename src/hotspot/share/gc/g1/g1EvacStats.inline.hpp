@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,24 +22,33 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1EVACSTATS_INLINE_HPP
-#define SHARE_VM_GC_G1_G1EVACSTATS_INLINE_HPP
+#ifndef SHARE_GC_G1_G1EVACSTATS_INLINE_HPP
+#define SHARE_GC_G1_G1EVACSTATS_INLINE_HPP
 
 #include "gc/g1/g1EvacStats.hpp"
+
 #include "runtime/atomic.hpp"
 
 inline void G1EvacStats::add_direct_allocated(size_t value) {
-  Atomic::add(value, &_direct_allocated);
+  Atomic::add(&_direct_allocated, value, memory_order_relaxed);
+}
+
+inline void G1EvacStats::add_num_plab_filled(size_t value) {
+  Atomic::add(&_num_plab_filled, value, memory_order_relaxed);
+}
+
+inline void G1EvacStats::add_num_direct_allocated(size_t value) {
+  Atomic::add(&_num_direct_allocated, value, memory_order_relaxed);
 }
 
 inline void G1EvacStats::add_region_end_waste(size_t value) {
-  Atomic::add(value, &_region_end_waste);
-  Atomic::inc(&_regions_filled);
+  Atomic::add(&_region_end_waste, value, memory_order_relaxed);
+  Atomic::inc(&_regions_filled, memory_order_relaxed);
 }
 
 inline void G1EvacStats::add_failure_used_and_waste(size_t used, size_t waste) {
-  Atomic::add(used, &_failure_used);
-  Atomic::add(waste, &_failure_waste);
+  Atomic::add(&_failure_used, used, memory_order_relaxed);
+  Atomic::add(&_failure_waste, waste, memory_order_relaxed);
 }
 
-#endif // SHARE_VM_GC_G1_G1EVACSTATS_INLINE_HPP
+#endif // SHARE_GC_G1_G1EVACSTATS_INLINE_HPP

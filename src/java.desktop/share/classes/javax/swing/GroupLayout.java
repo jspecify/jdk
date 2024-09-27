@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -430,7 +430,7 @@ public class GroupLayout implements LayoutManager2 {
      * indicates that if {@code component} is not visible it should
      * not be treated as part of the layout. A value of {@code false}
      * indicates that {@code component} is positioned and sized
-     * regardless of it's visibility.  A value of {@code null}
+     * regardless of its visibility.  A value of {@code null}
      * indicates the value specified by the single argument method {@code
      * setHonorsVisibility} should be used.
      * <p>
@@ -667,7 +667,7 @@ public class GroupLayout implements LayoutManager2 {
     }
 
     /**
-     * Creates and returns a {@code ParallelGroup} that aligns it's
+     * Creates and returns a {@code ParallelGroup} that aligns its
      * elements along the baseline.
      *
      * @param resizable whether the group is resizable
@@ -1230,7 +1230,7 @@ public class GroupLayout implements LayoutManager2 {
         String padding = "";
         if (spring instanceof ComponentSpring) {
             ComponentSpring cSpring = (ComponentSpring)spring;
-            origin = Integer.toString(cSpring.getOrigin()) + " ";
+            origin = cSpring.getOrigin() + " ";
             String name = cSpring.getComponent().getName();
             if (name != null) {
                 origin = "name=" + name + ", ";
@@ -1267,7 +1267,7 @@ public class GroupLayout implements LayoutManager2 {
      * min/max/pref.  If the min/pref/max has internally changes, or needs
      * to be updated you must invoke clear.
      */
-    private abstract class Spring {
+    private abstract static class Spring {
         private int size;
         private int min;
         private int max;
@@ -1479,7 +1479,10 @@ public class GroupLayout implements LayoutManager2 {
      * @see #createParallelGroup
      * @since 1.6
      */
-    public abstract class Group extends Spring {
+    public abstract sealed class Group extends Spring
+        permits ParallelGroup,
+                SequentialGroup {
+
         // private int origin;
         // private int size;
         List<Spring> springs;
@@ -1648,7 +1651,7 @@ public class GroupLayout implements LayoutManager2 {
 
         /**
          * Used to compute how the two values representing two springs
-         * will be combined.  For example, a group that layed things out
+         * will be combined.  For example, a group that laid things out
          * one after the next would return {@code a + b}.
          */
         abstract int operator(int a, int b);
@@ -1758,7 +1761,7 @@ public class GroupLayout implements LayoutManager2 {
      * @see #createSequentialGroup
      * @since 1.6
      */
-    public class SequentialGroup extends Group {
+    public final class SequentialGroup extends Group {
         private Spring baselineSpring;
 
         SequentialGroup() {
@@ -1885,7 +1888,7 @@ public class GroupLayout implements LayoutManager2 {
          * @param comp1 the first component
          * @param comp2 the second component
          * @param type the type of gap
-         * @param pref the preferred size of the grap; one of
+         * @param pref the preferred size of the gap; one of
          *        {@code DEFAULT_SIZE} or a value &gt;= 0
          * @param max the maximum size of the gap; one of
          *        {@code DEFAULT_SIZE}, {@code PREFERRED_SIZE}
@@ -1944,7 +1947,7 @@ public class GroupLayout implements LayoutManager2 {
          * @param type the type of gap; one of
          *        {@code LayoutStyle.ComponentPlacement.RELATED} or
          *        {@code LayoutStyle.ComponentPlacement.UNRELATED}
-         * @param pref the preferred size of the grap; one of
+         * @param pref the preferred size of the gap; one of
          *        {@code DEFAULT_SIZE} or a value &gt;= 0
          * @param max the maximum size of the gap; one of
          *        {@code DEFAULT_SIZE}, {@code PREFERRED_SIZE}
@@ -2373,12 +2376,12 @@ public class GroupLayout implements LayoutManager2 {
 
 
     /**
-     * A {@code Group} that aligns and sizes it's children.
-     * {@code ParallelGroup} aligns it's children in
+     * A {@code Group} that aligns and sizes its children.
+     * {@code ParallelGroup} aligns its children in
      * four possible ways: along the baseline, centered, anchored to the
      * leading edge, or anchored to the trailing edge.
-     * <h3>Baseline</h3>
-     * A {@code ParallelGroup} that aligns it's children along the
+     * <h2>Baseline</h2>
+     * A {@code ParallelGroup} that aligns its children along the
      * baseline must first decide where the baseline is
      * anchored. The baseline can either be anchored to the top, or
      * anchored to the bottom of the group. That is, the distance between the
@@ -2415,7 +2418,7 @@ public class GroupLayout implements LayoutManager2 {
      * {@code maxDescent} is the maximum descent (preferred height - baseline)
      * of all elements that have a baseline and are aligned along the baseline.
      * <p>
-     * A {@code ParallelGroup} that aligns it's elements along the baseline
+     * A {@code ParallelGroup} that aligns its elements along the baseline
      * is only useful along the vertical axis. If you create a
      * baseline group and use it along the horizontal axis an
      * {@code IllegalStateException} is thrown when you ask
@@ -2427,7 +2430,7 @@ public class GroupLayout implements LayoutManager2 {
      * ways: centered, anchored to the leading edge, or anchored to the
      * trailing edge.
      *
-     * <h3>Non-baseline {@code ParallelGroup}</h3>
+     * <h2>Non-baseline {@code ParallelGroup}</h2>
      * {@code ParallelGroup}s created with an alignment other than
      * {@code BASELINE} align elements that are smaller than the size
      * of the group in one of three ways: centered, anchored to the
@@ -2454,8 +2457,10 @@ public class GroupLayout implements LayoutManager2 {
      * @see #createBaselineGroup(boolean,boolean)
      * @since 1.6
      */
-    public class ParallelGroup extends Group {
-        // How children are layed out.
+    public sealed class ParallelGroup extends Group
+         permits BaselineGroup {
+
+        // How children are laid out.
         private final Alignment childAlignment;
         // Whether or not we're resizable.
         private final boolean resizable;
@@ -2654,7 +2659,7 @@ public class GroupLayout implements LayoutManager2 {
      * An extension of {@code ParallelGroup} that aligns its
      * constituent {@code Spring}s along the baseline.
      */
-    private class BaselineGroup extends ParallelGroup {
+    private final class BaselineGroup extends ParallelGroup {
         // Whether or not all child springs have a baseline
         private boolean allSpringsHaveBaseline;
 
@@ -3167,7 +3172,7 @@ public class GroupLayout implements LayoutManager2 {
     /**
      * Spring represented a certain amount of space.
      */
-    private class GapSpring extends Spring {
+    private static class GapSpring extends Spring {
         private final int min;
         private final int pref;
         private final int max;
@@ -3506,17 +3511,17 @@ public class GroupLayout implements LayoutManager2 {
 
         String getMatchDescription() {
             if (targets != null) {
-                return "leading: " + targets.toString();
+                return "leading: " + targets;
             }
             if (sources != null) {
-                return "trailing: " + sources.toString();
+                return "trailing: " + sources;
             }
             return "--";
         }
     }
 
 
-    // LinkInfo contains the set of ComponentInfosthat are linked along a
+    // LinkInfo contains the set of ComponentInfos that are linked along a
     // particular axis.
     private static class LinkInfo {
         private final int axis;
@@ -3586,7 +3591,7 @@ public class GroupLayout implements LayoutManager2 {
      * linked.
      */
     private class ComponentInfo {
-        // Component being layed out
+        // Component being laid out
         private Component component;
 
         ComponentSpring horizontalSpring;

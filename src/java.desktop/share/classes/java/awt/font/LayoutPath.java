@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,6 @@
  */
 package java.awt.font;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.geom.Point2D;
 
 /**
@@ -43,8 +40,13 @@ import java.awt.geom.Point2D;
  *
  * @since 1.6
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class LayoutPath {
+public abstract class LayoutPath {
+
+    /**
+     * Constructor for subclasses to call.
+     */
+    protected LayoutPath() {}
+
     /**
      * Convert a point in user space to a location relative to the
      * path. The location is chosen so as to minimize the distance

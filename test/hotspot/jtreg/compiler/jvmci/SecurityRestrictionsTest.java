@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,14 +36,17 @@
  *      NO_SEC_MAN
  * @run main/othervm -XX:+UnlockExperimentalVMOptions
  *      -XX:+EnableJVMCI
+ *      -Djava.security.manager=allow
  *      compiler.jvmci.SecurityRestrictionsTest
  *      NO_PERM
  * @run main/othervm -XX:+UnlockExperimentalVMOptions
  *      -XX:+EnableJVMCI
+ *      -Djava.security.manager=allow
  *      compiler.jvmci.SecurityRestrictionsTest
  *      ALL_PERM
  * @run main/othervm -XX:+UnlockExperimentalVMOptions
  *      -XX:+EnableJVMCI -XX:-UseJVMCICompiler
+ *      -Djava.security.manager=allow
  *      compiler.jvmci.SecurityRestrictionsTest
  *      NO_JVMCI_ACCESS_PERM
  * @run main/othervm -XX:+UnlockExperimentalVMOptions
@@ -84,7 +87,7 @@ public class SecurityRestrictionsTest {
         NO_JVMCI {
             @Override
             public Class<? extends Throwable> getExpectedException() {
-                return InternalError.class;
+                return Error.class;
             }
         },
         ALL_PERM {
@@ -172,12 +175,8 @@ public class SecurityRestrictionsTest {
                 }
             };
             Utils.runAndCheckException(() -> {
-                try {
-                    // CompilerToVM::<cinit> provokes CompilerToVM::<init>
-                    Class.forName("jdk.vm.ci.hotspot.CompilerToVMHelper");
-                } catch (ClassNotFoundException e) {
-                    throw new Error("TESTBUG : " + e, e);
-                }
+                // CompilerToVM::<cinit> provokes CompilerToVM::<init>
+                Class.forName("jdk.vm.ci.hotspot.CompilerToVMHelper");
             }, exceptionCheck);
         }
 

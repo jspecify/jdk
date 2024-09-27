@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,26 +25,30 @@
 
 package jdk.security.jarsigner;
 
-import com.sun.jarsigner.ContentSigner;
-import com.sun.jarsigner.ContentSignerParameters;
-import sun.security.tools.PathList;
-import sun.security.tools.jarsigner.TimestampedSigner;
+import jdk.internal.access.JavaUtilZipFileAccess;
+import jdk.internal.access.SharedSecrets;
+import sun.security.pkcs.PKCS7;
+import sun.security.pkcs.PKCS9Attribute;
+import sun.security.pkcs.PKCS9Attributes;
+import sun.security.timestamp.HttpTimestamper;
+import sun.security.util.Event;
 import sun.security.util.ManifestDigester;
 import sun.security.util.SignatureFileVerifier;
+import sun.security.util.SignatureUtil;
 import sun.security.x509.AlgorithmId;
 
 import java.io.*;
 import java.net.SocketTimeoutException;
 import java.net.URI;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.security.*;
 import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.security.spec.InvalidParameterSpecException;
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -52,6 +56,8 @@ import java.util.jar.Manifest;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
+
+import static sun.security.util.SignatureFileVerifier.isInMetaInf;
 
 /**
  * An immutable utility class to sign a jar file.
@@ -66,20 +72,22 @@ import java.util.zip.ZipOutputStream;
  * a {@link NullPointerException}.
  * <p>
  * Example:
- * <pre>
- * JarSigner signer = new JarSigner.Builder(key, certPath)
- *         .digestAlgorithm("SHA-1")
- *         .signatureAlgorithm("SHA1withDSA")
- *         .build();
- * try (ZipFile in = new ZipFile(inputFile);
- *         FileOutputStream out = new FileOutputStream(outputFile)) {
- *     signer.sign(in, out);
+ * {@snippet lang="java" :
+ *     JarSigner signer = new JarSigner.Builder(key, certPath)
+ *             .digestAlgorithm("SHA-256")
+ *             .signatureAlgorithm("SHA256withRSA")
+ *             .build();
+ *     try (ZipFile  in = new ZipFile(inputFile);
+ *             FileOutputStream out = new FileOutputStream(outputFile)) {
+ *         signer.sign(in, out);
+ *     }
  * }
- * </pre>
  *
  * @since 9
  */
 public final class JarSigner {
+
+    static final JavaUtilZipFileAccess JUZFA = SharedSecrets.getJavaUtilZipFileAccess();
 
     /**
      * A mutable builder class that can create an immutable {@code JarSigner}
@@ -107,10 +115,8 @@ public final class JarSigner {
         // Implementation-specific properties:
         String tSAPolicyID;
         String tSADigestAlg;
-        boolean signManifest = true;
-        boolean externalSF = true;
-        String altSignerPath;
-        String altSigner;
+        boolean sectionsonly = false;
+        boolean internalsf = false;
 
         /**
          * Creates a {@code JarSigner.Builder} object with
@@ -230,8 +236,7 @@ public final class JarSigner {
                 throws NoSuchAlgorithmException {
             // Check availability
             Signature.getInstance(Objects.requireNonNull(algorithm));
-            AlgorithmId.checkKeyAndSigAlgMatch(
-                    privateKey.getAlgorithm(), algorithm);
+            SignatureUtil.checkKeyAndSigAlgMatch(privateKey, algorithm);
             this.sigalg = algorithm;
             this.sigProvider = null;
             return this;
@@ -261,8 +266,7 @@ public final class JarSigner {
             Signature.getInstance(
                     Objects.requireNonNull(algorithm),
                     Objects.requireNonNull(provider));
-            AlgorithmId.checkKeyAndSigAlgMatch(
-                    privateKey.getAlgorithm(), algorithm);
+            SignatureUtil.checkKeyAndSigAlgMatch(privateKey, algorithm);
             this.sigalg = algorithm;
             this.sigProvider = provider;
             return this;
@@ -374,36 +378,10 @@ public final class JarSigner {
                     this.tSAPolicyID = value;
                     break;
                 case "internalsf":
-                    switch (value) {
-                        case "true":
-                            externalSF = false;
-                            break;
-                        case "false":
-                            externalSF = true;
-                            break;
-                        default:
-                            throw new IllegalArgumentException(
-                                "Invalid internalsf value");
-                    }
+                    this.internalsf = parseBoolean("interalsf", value);
                     break;
                 case "sectionsonly":
-                    switch (value) {
-                        case "true":
-                            signManifest = false;
-                            break;
-                        case "false":
-                            signManifest = true;
-                            break;
-                        default:
-                            throw new IllegalArgumentException(
-                                "Invalid signManifest value");
-                    }
-                    break;
-                case "altsignerpath":
-                    altSignerPath = value;
-                    break;
-                case "altsigner":
-                    altSigner = value;
+                    this.sectionsonly = parseBoolean("sectionsonly", value);
                     break;
                 default:
                     throw new UnsupportedOperationException(
@@ -412,32 +390,45 @@ public final class JarSigner {
             return this;
         }
 
+        private static boolean parseBoolean(String name, String value) {
+            switch (value) {
+                case "true":
+                    return true;
+                case "false":
+                    return false;
+                default:
+                    throw new IllegalArgumentException(
+                            "Invalid " + name + " value");
+            }
+        }
+
         /**
          * Gets the default digest algorithm.
          *
-         * @implNote This implementation returns "SHA-256". The value may
+         * @implNote This implementation returns "SHA-384". The value may
          * change in the future.
          *
          * @return the default digest algorithm.
          */
         public static String getDefaultDigestAlgorithm() {
-            return "SHA-256";
+            return "SHA-384";
         }
 
         /**
          * Gets the default signature algorithm for a private key.
-         * For example, SHA256withRSA for a 2048-bit RSA key, and
+         * For example, SHA384withRSA for a 2048-bit RSA key, and
          * SHA384withECDSA for a 384-bit EC key.
          *
          * @implNote This implementation makes use of comparable strengths
-         * as defined in Tables 2 and 3 of NIST SP 800-57 Part 1-Rev.4.
-         * Specifically, if a DSA or RSA key with a key size greater than 7680
+         * as defined in Tables 2 and 3 of NIST SP 800-57 Part 1-Rev.5 as
+         * well as NIST recommendations as appropriate.
+         * Specifically, if an RSA key with a key size greater than 7680
          * bits, or an EC key with a key size greater than or equal to 512 bits,
          * SHA-512 will be used as the hash function for the signature.
-         * If a DSA or RSA key has a key size greater than 3072 bits, or an
-         * EC key has a key size greater than or equal to 384 bits, SHA-384 will
-         * be used. Otherwise, SHA-256 will be used. The value may
-         * change in the future.
+         * Otherwise, SHA-384 will be used unless the key size is too small
+         * for resulting signature algorithm. As for DSA keys, the SHA256withDSA
+         * signature algorithm is returned regardless of key size.
+         * The value may change in the future.
          *
          * @param key the private key.
          * @return the default signature algorithm. Returns null if a default
@@ -447,7 +438,9 @@ public final class JarSigner {
          *      will throw an {@link IllegalArgumentException}.
          */
         public static String getDefaultSignatureAlgorithm(PrivateKey key) {
-            return AlgorithmId.getDefaultSigAlgForKey(Objects.requireNonNull(key));
+            // Attention: sync the spec with SignatureUtil::ecStrength and
+            // SignatureUtil::ifcFfcStrength.
+            return SignatureUtil.getDefaultSigAlgForKey(Objects.requireNonNull(key));
         }
 
         /**
@@ -469,8 +462,6 @@ public final class JarSigner {
             return new JarSigner(this);
         }
     }
-
-    private static final String META_INF = "META-INF/";
 
     // All fields in Builder are duplicated here as final. Those not
     // provided but has a default value will be filled with default value.
@@ -495,10 +486,9 @@ public final class JarSigner {
     // Implementation-specific properties:
     private final String tSAPolicyID;
     private final String tSADigestAlg;
-    private final boolean signManifest; // "sign" the whole manifest
-    private final boolean externalSF; // leave the .SF out of the PKCS7 block
-    private final String altSignerPath;
-    private final String altSigner;
+    private final boolean sectionsonly; // do not "sign" the whole manifest
+    private final boolean internalsf; // include the .SF inside the PKCS7 block
+    private boolean externalFileAttributesDetected;
 
     private JarSigner(JarSigner.Builder builder) {
 
@@ -538,10 +528,8 @@ public final class JarSigner {
             this.tSADigestAlg = Builder.getDefaultDigestAlgorithm();
         }
         this.tSAPolicyID = builder.tSAPolicyID;
-        this.signManifest = builder.signManifest;
-        this.externalSF = builder.externalSF;
-        this.altSigner = builder.altSigner;
-        this.altSignerPath = builder.altSignerPath;
+        this.sectionsonly = builder.sectionsonly;
+        this.internalsf = builder.internalsf;
     }
 
     /**
@@ -567,7 +555,8 @@ public final class JarSigner {
             throw new JarSignerException("Error applying timestamp", e);
         } catch (IOException ioe) {
             throw new JarSignerException("I/O error", ioe);
-        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException
+                | InvalidParameterSpecException e) {
             throw new JarSignerException("Error in signer materials", e);
         } catch (SignatureException se) {
             throw new JarSignerException("Error creating signature", se);
@@ -638,13 +627,9 @@ public final class JarSigner {
             case "tsapolicyid":
                 return tSAPolicyID;
             case "internalsf":
-                return Boolean.toString(!externalSF);
+                return Boolean.toString(internalsf);
             case "sectionsonly":
-                return Boolean.toString(!signManifest);
-            case "altsignerpath":
-                return altSignerPath;
-            case "altsigner":
-                return altSigner;
+                return Boolean.toString(sectionsonly);
             default:
                 throw new UnsupportedOperationException(
                         "Unsupported key " + key);
@@ -653,7 +638,7 @@ public final class JarSigner {
 
     private void sign0(ZipFile zipFile, OutputStream os)
             throws IOException, CertificateException, NoSuchAlgorithmException,
-            SignatureException, InvalidKeyException {
+            SignatureException, InvalidKeyException, InvalidParameterSpecException {
         MessageDigest[] digests;
         try {
             digests = new MessageDigest[digestalg.length];
@@ -671,26 +656,19 @@ public final class JarSigner {
             throw new AssertionError(asae);
         }
 
-        PrintStream ps = new PrintStream(os);
-        ZipOutputStream zos = new ZipOutputStream(ps);
+        ZipOutputStream zos = new ZipOutputStream(
+                (os instanceof BufferedOutputStream) ? os : new BufferedOutputStream(os));
 
         Manifest manifest = new Manifest();
-        Map<String, Attributes> mfEntries = manifest.getEntries();
-
-        // The Attributes of manifest before updating
-        Attributes oldAttr = null;
-
-        boolean mfModified = false;
-        boolean mfCreated = false;
         byte[] mfRawBytes = null;
 
         // Check if manifest exists
-        ZipEntry mfFile;
-        if ((mfFile = getManifestFile(zipFile)) != null) {
+        ZipEntry mfFile = getManifestFile(zipFile);
+        boolean mfCreated = mfFile == null;
+        if (!mfCreated) {
             // Manifest exists. Read its raw bytes.
             mfRawBytes = zipFile.getInputStream(mfFile).readAllBytes();
             manifest.read(new ByteArrayInputStream(mfRawBytes));
-            oldAttr = (Attributes) (manifest.getMainAttributes().clone());
         } else {
             // Create new manifest
             Attributes mattr = manifest.getMainAttributes();
@@ -701,7 +679,6 @@ public final class JarSigner {
             mattr.putValue("Created-By", jdkVersion + " (" + javaVendor
                     + ")");
             mfFile = new ZipEntry(JarFile.MANIFEST_NAME);
-            mfCreated = true;
         }
 
         /*
@@ -723,13 +700,17 @@ public final class JarSigner {
              enum_.hasMoreElements(); ) {
             ZipEntry ze = enum_.nextElement();
 
-            if (ze.getName().startsWith(META_INF)) {
+            if (isInMetaInf(ze.getName())) {
                 // Store META-INF files in vector, so they can be written
                 // out first
                 mfFiles.addElement(ze);
 
-                if (SignatureFileVerifier.isBlockOrSF(
-                        ze.getName().toUpperCase(Locale.ENGLISH))) {
+                String zeNameUp = ze.getName().toUpperCase(Locale.ENGLISH);
+                if (SignatureFileVerifier.isBlockOrSF(zeNameUp)
+                    // no need to preserve binary manifest portions
+                    // if the only existing signature will be replaced
+                        && !zeNameUp.startsWith(SignatureFile
+                            .getBaseSignatureFilesName(signerName))) {
                     wasSigned = true;
                 }
 
@@ -742,55 +723,75 @@ public final class JarSigner {
             if (manifest.getAttributes(ze.getName()) != null) {
                 // jar entry is contained in manifest, check and
                 // possibly update its digest attributes
-                if (updateDigests(ze, zipFile, digests,
-                        manifest)) {
-                    mfModified = true;
-                }
+                updateDigests(ze, zipFile, digests, manifest);
             } else if (!ze.isDirectory()) {
                 // Add entry to manifest
                 Attributes attrs = getDigestAttributes(ze, zipFile, digests);
-                mfEntries.put(ze.getName(), attrs);
-                mfModified = true;
+                manifest.getEntries().put(ze.getName(), attrs);
             }
         }
 
-        // Recalculate the manifest raw bytes if necessary
-        if (mfModified) {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        /*
+         * Note:
+         *
+         * The Attributes object is based on HashMap and can handle
+         * continuation lines. Therefore, even if the contents are not changed
+         * (in a Map view), the bytes that it write() may be different from
+         * the original bytes that it read() from. Since the signature is
+         * based on raw bytes, we must retain the exact bytes.
+         */
+        boolean mfModified;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        if (mfCreated || !wasSigned) {
+            mfModified = true;
             manifest.write(baos);
-            if (wasSigned) {
-                byte[] newBytes = baos.toByteArray();
-                if (mfRawBytes != null
-                        && oldAttr.equals(manifest.getMainAttributes())) {
+            mfRawBytes = baos.toByteArray();
+        } else {
 
-                    /*
-                     * Note:
-                     *
-                     * The Attributes object is based on HashMap and can handle
-                     * continuation columns. Therefore, even if the contents are
-                     * not changed (in a Map view), the bytes that it write()
-                     * may be different from the original bytes that it read()
-                     * from. Since the signature on the main attributes is based
-                     * on raw bytes, we must retain the exact bytes.
-                     */
+            // the manifest before updating
+            Manifest oldManifest = new Manifest(
+                    new ByteArrayInputStream(mfRawBytes));
+            mfModified = !oldManifest.equals(manifest);
+            if (!mfModified) {
+                // leave whole manifest (mfRawBytes) unmodified
+            } else {
+                // reproduce the manifest raw bytes for unmodified sections
+                manifest.write(baos);
+                byte[] mfNewRawBytes = baos.toByteArray();
+                baos.reset();
 
-                    int newPos = findHeaderEnd(newBytes);
-                    int oldPos = findHeaderEnd(mfRawBytes);
+                ManifestDigester oldMd = new ManifestDigester(mfRawBytes);
+                ManifestDigester newMd = new ManifestDigester(mfNewRawBytes);
 
-                    if (newPos == oldPos) {
-                        System.arraycopy(mfRawBytes, 0, newBytes, 0, oldPos);
+                ManifestDigester.Entry oldEntry = oldMd.getMainAttsEntry();
+
+                // main attributes
+                if (oldEntry != null
+                        && manifest.getMainAttributes().equals(
+                                oldManifest.getMainAttributes())
+                        && (manifest.getEntries().isEmpty() ||
+                                oldEntry.isProperlyDelimited())) {
+                    oldEntry.reproduceRaw(baos);
+                } else {
+                    if (newMd.getMainAttsEntry() == null) {
+                        throw new SignatureException("Error getting new main attribute entry");
+                    }
+                    newMd.getMainAttsEntry().reproduceRaw(baos);
+                }
+
+                // individual sections
+                for (Map.Entry<String,Attributes> entry :
+                        manifest.getEntries().entrySet()) {
+                    String sectionName = entry.getKey();
+                    Attributes entryAtts = entry.getValue();
+                    if (entryAtts.equals(oldManifest.getAttributes(sectionName))
+                            && oldMd.get(sectionName).isProperlyDelimited()) {
+                        oldMd.get(sectionName).reproduceRaw(baos);
                     } else {
-                        // cat oldHead newTail > newBytes
-                        byte[] lastBytes = new byte[oldPos +
-                                newBytes.length - newPos];
-                        System.arraycopy(mfRawBytes, 0, lastBytes, 0, oldPos);
-                        System.arraycopy(newBytes, newPos, lastBytes, oldPos,
-                                newBytes.length - newPos);
-                        newBytes = lastBytes;
+                        newMd.get(sectionName).reproduceRaw(baos);
                     }
                 }
-                mfRawBytes = newBytes;
-            } else {
+
                 mfRawBytes = baos.toByteArray();
             }
         }
@@ -801,52 +802,47 @@ public final class JarSigner {
             mfFile = new ZipEntry(JarFile.MANIFEST_NAME);
         }
         if (handler != null) {
-            if (mfCreated) {
+            if (mfCreated || !mfModified) {
                 handler.accept("adding", mfFile.getName());
-            } else if (mfModified) {
+            } else {
                 handler.accept("updating", mfFile.getName());
             }
         }
-
         zos.putNextEntry(mfFile);
         zos.write(mfRawBytes);
 
         // Calculate SignatureFile (".SF") and SignatureBlockFile
         ManifestDigester manDig = new ManifestDigester(mfRawBytes);
         SignatureFile sf = new SignatureFile(digests, manifest, manDig,
-                signerName, signManifest);
+                signerName, sectionsonly);
 
         byte[] block;
 
-        Signature signer;
-        if (sigProvider == null ) {
-            signer = Signature.getInstance(sigalg);
-        } else {
-            signer = Signature.getInstance(sigalg, sigProvider);
-        }
-        signer.initSign(privateKey);
-
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        baos.reset();
         sf.write(baos);
-
         byte[] content = baos.toByteArray();
 
-        signer.update(content);
-        byte[] signature = signer.sign();
+        Function<byte[], PKCS9Attributes> timestamper = null;
+        if (tsaUrl != null) {
+            timestamper = s -> {
+                try {
+                    // Timestamp the signature
+                    HttpTimestamper tsa = new HttpTimestamper(tsaUrl);
+                    byte[] tsToken = PKCS7.generateTimestampToken(
+                            tsa, tSAPolicyID, tSADigestAlg, s);
 
-        @SuppressWarnings("deprecation")
-        ContentSigner signingMechanism = null;
-        if (altSigner != null) {
-            signingMechanism = loadSigningMechanism(altSigner,
-                    altSignerPath);
+                    return new PKCS9Attributes(new PKCS9Attribute[]{
+                            new PKCS9Attribute(
+                                    PKCS9Attribute.SIGNATURE_TIMESTAMP_TOKEN_OID,
+                                    tsToken)});
+                } catch (IOException | CertificateException e) {
+                    throw new RuntimeException(e);
+                }
+            };
         }
-
-        @SuppressWarnings("deprecation")
-        ContentSignerParameters params =
-                new JarSignerParameters(null, tsaUrl, tSAPolicyID,
-                        tSADigestAlg, signature,
-                        signer.getAlgorithm(), certChain, content, zipFile);
-        block = sf.generateBlock(params, externalSF, signingMechanism);
+        // We now create authAttrs in block data, so "direct == false".
+        block = PKCS7.generateSignedData(sigalg, sigProvider, privateKey, certChain,
+                content, internalsf, false, timestamper);
 
         String sfFilename = sf.getMetaName();
         String bkFilename = sf.getBlockName(privateKey);
@@ -889,6 +885,14 @@ public final class JarSigner {
             if (!ze.getName().equalsIgnoreCase(JarFile.MANIFEST_NAME)
                     && !ze.getName().equalsIgnoreCase(sfFilename)
                     && !ze.getName().equalsIgnoreCase(bkFilename)) {
+                if (ze.getName().startsWith(SignatureFile
+                        .getBaseSignatureFilesName(signerName))
+                        && SignatureFileVerifier.isBlockOrSF(ze.getName())) {
+                    if (handler != null) {
+                        handler.accept("updating", ze.getName());
+                    }
+                    continue;
+                }
                 if (handler != null) {
                     if (manifest.getAttributes(ze.getName()) != null) {
                         handler.accept("signing", ze.getName());
@@ -905,7 +909,7 @@ public final class JarSigner {
              enum_.hasMoreElements(); ) {
             ZipEntry ze = enum_.nextElement();
 
-            if (!ze.getName().startsWith(META_INF)) {
+            if (!isInMetaInf(ze.getName())) {
                 if (handler != null) {
                     if (manifest.getAttributes(ze.getName()) != null) {
                         handler.accept("signing", ze.getName());
@@ -920,6 +924,7 @@ public final class JarSigner {
         zos.close();
     }
 
+
     private void writeEntry(ZipFile zf, ZipOutputStream os, ZipEntry ze)
             throws IOException {
         ZipEntry ze2 = new ZipEntry(ze.getName());
@@ -927,6 +932,12 @@ public final class JarSigner {
         ze2.setTime(ze.getTime());
         ze2.setComment(ze.getComment());
         ze2.setExtra(ze.getExtra());
+        int externalFileAttributes = JUZFA.getExternalFileAttributes(ze);
+        if (!externalFileAttributesDetected && externalFileAttributes != -1) {
+            externalFileAttributesDetected = true;
+            Event.report(Event.ReporterCategory.ZIPFILEATTRS, "detected");
+        }
+        JUZFA.setExternalFileAttributes(ze2, externalFileAttributes);
         if (ze.getMethod() == ZipEntry.STORED) {
             ze2.setSize(ze.getSize());
             ze2.setCrc(ze.getCrc());
@@ -942,11 +953,9 @@ public final class JarSigner {
         }
     }
 
-    private boolean updateDigests(ZipEntry ze, ZipFile zf,
+    private void updateDigests(ZipEntry ze, ZipFile zf,
                                   MessageDigest[] digests,
                                   Manifest mf) throws IOException {
-        boolean update = false;
-
         Attributes attrs = mf.getAttributes(ze.getName());
         String[] base64Digests = getDigests(ze, zf, digests);
 
@@ -976,19 +985,9 @@ public final class JarSigner {
 
             if (name == null) {
                 name = digests[i].getAlgorithm() + "-Digest";
-                attrs.putValue(name, base64Digests[i]);
-                update = true;
-            } else {
-                // compare digests, and replace the one in the manifest
-                // if they are different
-                String mfDigest = attrs.getValue(name);
-                if (!mfDigest.equalsIgnoreCase(base64Digests[i])) {
-                    attrs.putValue(name, base64Digests[i]);
-                    update = true;
-                }
             }
+            attrs.putValue(name, base64Digests[i]);
         }
-        return update;
     }
 
     private Attributes getDigestAttributes(
@@ -1051,62 +1050,6 @@ public final class JarSigner {
         return base64Digests;
     }
 
-    @SuppressWarnings("fallthrough")
-    private int findHeaderEnd(byte[] bs) {
-        // Initial state true to deal with empty header
-        boolean newline = true;     // just met a newline
-        int len = bs.length;
-        for (int i = 0; i < len; i++) {
-            switch (bs[i]) {
-                case '\r':
-                    if (i < len - 1 && bs[i + 1] == '\n') i++;
-                    // fallthrough
-                case '\n':
-                    if (newline) return i + 1;    //+1 to get length
-                    newline = true;
-                    break;
-                default:
-                    newline = false;
-            }
-        }
-        // If header end is not found, it means the MANIFEST.MF has only
-        // the main attributes section and it does not end with 2 newlines.
-        // Returns the whole length so that it can be completely replaced.
-        return len;
-    }
-
-    /*
-     * Try to load the specified signing mechanism.
-     * The URL class loader is used.
-     */
-    @SuppressWarnings("deprecation")
-    private ContentSigner loadSigningMechanism(String signerClassName,
-                                               String signerClassPath) {
-
-        // construct class loader
-        String cpString;   // make sure env.class.path defaults to dot
-
-        // do prepends to get correct ordering
-        cpString = PathList.appendPath(
-                System.getProperty("env.class.path"), null);
-        cpString = PathList.appendPath(
-                System.getProperty("java.class.path"), cpString);
-        cpString = PathList.appendPath(signerClassPath, cpString);
-        URL[] urls = PathList.pathToURLs(cpString);
-        ClassLoader appClassLoader = new URLClassLoader(urls);
-
-        try {
-            // attempt to find signer
-            Class<?> signerClass = appClassLoader.loadClass(signerClassName);
-            Object signer = signerClass.newInstance();
-            return (ContentSigner) signer;
-        } catch (ClassNotFoundException|InstantiationException|
-                IllegalAccessException|ClassCastException e) {
-            throw new IllegalArgumentException(
-                    "Invalid altSigner or altSignerPath", e);
-        }
-    }
-
     static class SignatureFile {
 
         /**
@@ -1123,7 +1066,7 @@ public final class JarSigner {
                              Manifest mf,
                              ManifestDigester md,
                              String baseName,
-                             boolean signManifest) {
+                             boolean sectionsonly) {
 
             this.baseName = baseName;
 
@@ -1136,7 +1079,7 @@ public final class JarSigner {
             mattr.putValue(Attributes.Name.SIGNATURE_VERSION.toString(), "1.0");
             mattr.putValue("Created-By", version + " (" + javaVendor + ")");
 
-            if (signManifest) {
+            if (!sectionsonly) {
                 for (MessageDigest digest: digests) {
                     mattr.putValue(digest.getAlgorithm() + "-Digest-Manifest",
                             Base64.getEncoder().encodeToString(
@@ -1145,14 +1088,12 @@ public final class JarSigner {
             }
 
             // create digest of the manifest main attributes
-            ManifestDigester.Entry mde =
-                    md.get(ManifestDigester.MF_MAIN_ATTRS, false);
+            ManifestDigester.Entry mde = md.getMainAttsEntry(false);
             if (mde != null) {
-                for (MessageDigest digest: digests) {
-                    mattr.putValue(digest.getAlgorithm() +
-                                    "-Digest-" + ManifestDigester.MF_MAIN_ATTRS,
-                            Base64.getEncoder().encodeToString(
-                                    mde.digest(digest)));
+                for (MessageDigest digest : digests) {
+                    mattr.putValue(digest.getAlgorithm() + "-Digest-" +
+                            ManifestDigester.MF_MAIN_ATTRS,
+                            Base64.getEncoder().encodeToString(mde.digest(digest)));
                 }
             } else {
                 throw new IllegalStateException
@@ -1181,109 +1122,19 @@ public final class JarSigner {
             sf.write(out);
         }
 
+        private static String getBaseSignatureFilesName(String baseName) {
+            return "META-INF/" + baseName + ".";
+        }
+
         // get .SF file name
         public String getMetaName() {
-            return "META-INF/" + baseName + ".SF";
+            return getBaseSignatureFilesName(baseName) + "SF";
         }
 
         // get .DSA (or .DSA, .EC) file name
         public String getBlockName(PrivateKey privateKey) {
-            String keyAlgorithm = privateKey.getAlgorithm();
-            return "META-INF/" + baseName + "." + keyAlgorithm;
-        }
-
-        // Generates the PKCS#7 content of block file
-        @SuppressWarnings("deprecation")
-        public byte[] generateBlock(ContentSignerParameters params,
-                                    boolean externalSF,
-                                    ContentSigner signingMechanism)
-                throws NoSuchAlgorithmException,
-                       IOException, CertificateException {
-
-            if (signingMechanism == null) {
-                signingMechanism = new TimestampedSigner();
-            }
-            return signingMechanism.generateSignedData(
-                    params,
-                    externalSF,
-                    params.getTimestampingAuthority() != null
-                        || params.getTimestampingAuthorityCertificate() != null);
-        }
-    }
-
-    @SuppressWarnings("deprecation")
-    class JarSignerParameters implements ContentSignerParameters {
-
-        private String[] args;
-        private URI tsa;
-        private byte[] signature;
-        private String signatureAlgorithm;
-        private X509Certificate[] signerCertificateChain;
-        private byte[] content;
-        private ZipFile source;
-        private String tSAPolicyID;
-        private String tSADigestAlg;
-
-        JarSignerParameters(String[] args, URI tsa,
-                            String tSAPolicyID, String tSADigestAlg,
-                            byte[] signature, String signatureAlgorithm,
-                            X509Certificate[] signerCertificateChain,
-                            byte[] content, ZipFile source) {
-
-            Objects.requireNonNull(signature);
-            Objects.requireNonNull(signatureAlgorithm);
-            Objects.requireNonNull(signerCertificateChain);
-
-            this.args = args;
-            this.tsa = tsa;
-            this.tSAPolicyID = tSAPolicyID;
-            this.tSADigestAlg = tSADigestAlg;
-            this.signature = signature;
-            this.signatureAlgorithm = signatureAlgorithm;
-            this.signerCertificateChain = signerCertificateChain;
-            this.content = content;
-            this.source = source;
-        }
-
-        public String[] getCommandLine() {
-            return args;
-        }
-
-        public URI getTimestampingAuthority() {
-            return tsa;
-        }
-
-        public X509Certificate getTimestampingAuthorityCertificate() {
-            // We don't use this param. Always provide tsaURI.
-            return null;
-        }
-
-        public String getTSAPolicyID() {
-            return tSAPolicyID;
-        }
-
-        public String getTSADigestAlg() {
-            return tSADigestAlg;
-        }
-
-        public byte[] getSignature() {
-            return signature;
-        }
-
-        public String getSignatureAlgorithm() {
-            return signatureAlgorithm;
-        }
-
-        public X509Certificate[] getSignerCertificateChain() {
-            return signerCertificateChain;
-        }
-
-        public byte[] getContent() {
-            return content;
-        }
-
-        public ZipFile getSource() {
-            return source;
+            String type = SignatureFileVerifier.getBlockExtension(privateKey);
+            return getBaseSignatureFilesName(baseName) + type;
         }
     }
 }

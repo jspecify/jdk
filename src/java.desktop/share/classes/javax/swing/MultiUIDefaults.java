@@ -107,6 +107,19 @@ class MultiUIDefaults extends UIDefaults
     }
 
     @Override
+    public Set<Object> keySet()
+    {
+        Set<Object> set = new HashSet<Object>();
+        for (int i = tables.length - 1; i >= 0; i--) {
+            if (tables[i] != null) {
+                set.addAll(tables[i].keySet());
+            }
+        }
+        set.addAll(super.keySet());
+        return set;
+    }
+
+    @Override
     public Enumeration<Object> elements()
     {
         return new MultiUIDefaultsEnumerator(
@@ -136,7 +149,7 @@ class MultiUIDefaults extends UIDefaults
 
     private static class MultiUIDefaultsEnumerator implements Enumeration<Object>
     {
-        public static enum Type { KEYS, ELEMENTS };
+        public static enum Type { KEYS, ELEMENTS }
         private Iterator<Entry<Object, Object>> iterator;
         private Type type;
 

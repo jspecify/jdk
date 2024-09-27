@@ -123,7 +123,7 @@ class SynthPainterImpl extends SynthPainter {
     private void paintBackground(SynthContext ctx, Graphics g, int x, int y, int w, int h, int orientation) {
         Component c = ctx.getComponent();
         boolean ltr = c.getComponentOrientation().isLeftToRight();
-        // Don't RTL flip JSpliders as they handle it internaly
+        // Don't RTL flip JSliders as they handle it internally
         if (ctx.getComponent() instanceof JSlider) ltr = true;
 
         if (orientation == SwingConstants.VERTICAL && ltr) {
@@ -2098,24 +2098,27 @@ class SynthPainterImpl extends SynthPainter {
     public void paintTabbedPaneTabBackground(SynthContext context, Graphics g,
                                          int x, int y, int w, int h,
                                          int tabIndex, int orientation) {
-        if (orientation == JTabbedPane.LEFT) {
-            AffineTransform transform = new AffineTransform();
-            transform.scale(-1, 1);
-            transform.rotate(Math.toRadians(90));
-            paintBackground(context, g, y, x, h, w, transform);
-        } else if (orientation == JTabbedPane.RIGHT) {
-            AffineTransform transform = new AffineTransform();
-            transform.rotate(Math.toRadians(90));
-            transform.translate(0, -(x + w));
-            paintBackground(context, g, y, 0, h, w, transform);
-        } else if (orientation == JTabbedPane.BOTTOM) {
-            AffineTransform transform = new AffineTransform();
-            transform.translate(x,y);
-            transform.scale(1, -1);
-            transform.translate(0,-h);
-            paintBackground(context, g, 0, 0, w, h, transform);
-        } else {
-            paintBackground(context, g, x, y, w, h, null);
+        JTabbedPane pane = (JTabbedPane)context.getComponent();
+        if (UIManager.getBoolean("TabbedPane.tabsOpaque") || pane.isOpaque()) {
+            if (orientation == JTabbedPane.LEFT) {
+                AffineTransform transform = new AffineTransform();
+                transform.scale(-1, 1);
+                transform.rotate(Math.toRadians(90));
+                paintBackground(context, g, y, x, h, w, transform);
+            } else if (orientation == JTabbedPane.RIGHT) {
+                AffineTransform transform = new AffineTransform();
+                transform.rotate(Math.toRadians(90));
+                transform.translate(0, -(x + w));
+                paintBackground(context, g, y, 0, h, w, transform);
+            } else if (orientation == JTabbedPane.BOTTOM) {
+                AffineTransform transform = new AffineTransform();
+                transform.translate(x, y);
+                transform.scale(1, -1);
+                transform.translate(0, -h);
+                paintBackground(context, g, 0, 0, w, h, transform);
+            } else {
+                paintBackground(context, g, x, y, w, h, null);
+            }
         }
     }
 

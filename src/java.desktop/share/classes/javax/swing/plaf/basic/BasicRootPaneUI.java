@@ -53,6 +53,11 @@ public class BasicRootPaneUI extends RootPaneUI implements
     private static RootPaneUI rootPaneUI = new BasicRootPaneUI();
 
     /**
+     * Constructs a {@code BasicRootPaneUI}.
+     */
+    public BasicRootPaneUI() {}
+
+    /**
      * Returns a new instance of {@code BasicRootPaneUI}.
      *
      * @param c a component

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,27 +22,52 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_BASICLOCK_HPP
-#define SHARE_VM_RUNTIME_BASICLOCK_HPP
+#ifndef SHARE_RUNTIME_BASICLOCK_HPP
+#define SHARE_RUNTIME_BASICLOCK_HPP
 
-#include "oops/markOop.hpp"
+#include "oops/markWord.hpp"
+#include "runtime/atomic.hpp"
 #include "runtime/handles.hpp"
+#include "utilities/globalDefinitions.hpp"
+#include "utilities/sizes.hpp"
 
 class BasicLock {
   friend class VMStructs;
   friend class JVMCIVMStructs;
  private:
-  volatile markOop _displaced_header;
+  // * For LM_MONITOR
+  // Unused.
+  // * For LM_LEGACY
+  // This is either the actual displaced header from a locked object, or
+  // a sentinel zero value indicating a recursive stack-lock.
+  // * For LM_LIGHTWEIGHT
+  // Used as a cache of the ObjectMonitor* used when locking. Must either
+  // be nullptr or the ObjectMonitor* used when locking.
+  volatile uintptr_t _metadata;
+
+  uintptr_t get_metadata() const { return Atomic::load(&_metadata); }
+  void set_metadata(uintptr_t value) { Atomic::store(&_metadata, value); }
+  static int metadata_offset_in_bytes() { return (int)offset_of(BasicLock, _metadata); }
+
  public:
-  markOop      displaced_header() const               { return _displaced_header; }
-  void         set_displaced_header(markOop header)   { _displaced_header = header; }
+  // LM_MONITOR
+  void set_bad_metadata_deopt() { set_metadata(badDispHeaderDeopt); }
 
-  void print_on(outputStream* st) const;
+  // LM_LEGACY
+  inline markWord displaced_header() const;
+  inline void set_displaced_header(markWord header);
+  static int displaced_header_offset_in_bytes() { return metadata_offset_in_bytes(); }
 
-  // move a basic lock (used during deoptimization
+  // LM_LIGHTWEIGHT
+  inline ObjectMonitor* object_monitor_cache() const;
+  inline void clear_object_monitor_cache();
+  inline void set_object_monitor_cache(ObjectMonitor* mon);
+  static int object_monitor_cache_offset_in_bytes() { return metadata_offset_in_bytes(); }
+
+  void print_on(outputStream* st, oop owner) const;
+
+  // move a basic lock (used during deoptimization)
   void move_to(oop obj, BasicLock* dest);
-
-  static int displaced_header_offset_in_bytes()       { return offset_of(BasicLock, _displaced_header); }
 };
 
 // A BasicObjectLock associates a specific Java object with a BasicLock.
@@ -73,9 +98,9 @@ class BasicObjectLock {
   // GC support
   void oops_do(OopClosure* f) { f->do_oop(&_obj); }
 
-  static int obj_offset_in_bytes()                    { return offset_of(BasicObjectLock, _obj);  }
-  static int lock_offset_in_bytes()                   { return offset_of(BasicObjectLock, _lock); }
+  static ByteSize obj_offset()                { return byte_offset_of(BasicObjectLock, _obj);  }
+  static ByteSize lock_offset()               { return byte_offset_of(BasicObjectLock, _lock); }
 };
 
 
-#endif // SHARE_VM_RUNTIME_BASICLOCK_HPP
+#endif // SHARE_RUNTIME_BASICLOCK_HPP

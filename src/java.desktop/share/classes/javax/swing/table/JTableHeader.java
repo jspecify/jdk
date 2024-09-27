@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,28 +22,52 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package javax.swing.table;
 
-import sun.swing.table.DefaultTableCellHeaderRenderer;
-
-import java.util.*;
-import java.awt.*;
-import java.awt.event.*;
-
-import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.plaf.*;
-import javax.accessibility.*;
-
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.FocusListener;
+import java.awt.event.MouseEvent;
 import java.beans.BeanProperty;
 import java.beans.PropertyChangeListener;
 import java.beans.Transient;
-
-import java.io.ObjectOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.util.Locale;
+
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleAction;
+import javax.accessibility.AccessibleComponent;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleRole;
+import javax.accessibility.AccessibleSelection;
+import javax.accessibility.AccessibleState;
+import javax.accessibility.AccessibleStateSet;
+import javax.accessibility.AccessibleText;
+import javax.accessibility.AccessibleValue;
+import javax.swing.JComponent;
+import javax.swing.JTable;
+import javax.swing.SwingUtilities;
+import javax.swing.ToolTipManager;
+import javax.swing.UIDefaults;
+import javax.swing.UIManager;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.TableColumnModelEvent;
+import javax.swing.event.TableColumnModelListener;
+import javax.swing.plaf.TableHeaderUI;
 
 import sun.awt.AWTAccessor;
 import sun.awt.AWTAccessor.MouseEventAccessor;
+import sun.swing.table.DefaultTableCellHeaderRenderer;
 
 /**
  * This is the object which manages the header of the <code>JTable</code>.
@@ -53,7 +77,7 @@ import sun.awt.AWTAccessor.MouseEventAccessor;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -506,9 +530,8 @@ public class JTableHeader extends JComponent implements TableColumnModelListener
     /**
      * Returns the suffix used to construct the name of the look and feel
      * (L&amp;F) class used to render this component.
-     * @return the string "TableHeaderUI"
      *
-     * @return "TableHeaderUI"
+     * @return the string "TableHeaderUI"
      * @see JComponent#getUIClassID
      * @see UIDefaults#getUI
      */
@@ -527,7 +550,7 @@ public class JTableHeader extends JComponent implements TableColumnModelListener
      *  for listener notifications from the new column model.
      *
      * @param   columnModel     the new data source for this table
-     * @exception IllegalArgumentException
+     * @throws IllegalArgumentException
      *                          if <code>newModel</code> is <code>null</code>
      * @see     #getColumnModel
      */
@@ -720,18 +743,6 @@ public class JTableHeader extends JComponent implements TableColumnModelListener
         resizingColumn = aColumn;
     }
 
-    /**
-     * See <code>readObject</code> and <code>writeObject</code> in
-     * <code>JComponent</code> for more
-     * information about serialization in Swing.
-     */
-    private void writeObject(ObjectOutputStream s) throws IOException {
-        s.defaultWriteObject();
-        if ((ui != null) && (getUIClassID().equals(uiClassID))) {
-            ui.installUI(this);
-        }
-    }
-
     private int getWidthInRightToLeft() {
         if ((table != null) &&
             (table.getAutoResizeMode() != JTable.AUTO_RESIZE_OFF)) {
@@ -802,12 +813,17 @@ public class JTableHeader extends JComponent implements TableColumnModelListener
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
     @SuppressWarnings("serial") // Same-version serialization only
     protected class AccessibleJTableHeader extends AccessibleJComponent {
+
+        /**
+         * Constructs an {@code AccessibleJTableHeader}.
+         */
+        protected AccessibleJTableHeader() {}
 
         /**
          * Get the role of this object.
@@ -906,7 +922,7 @@ public class JTableHeader extends JComponent implements TableColumnModelListener
             private JTable table;
 
             /**
-             *  Constructs an AccessiblJTableHeaaderEntry
+             * Constructs an AccessibleJTableHeaderEntry
              * @since 1.4
              *
              * @param c  the column index
@@ -935,7 +951,7 @@ public class JTableHeader extends JComponent implements TableColumnModelListener
             private AccessibleContext getCurrentAccessibleContext() {
                 TableColumnModel tcm = table.getColumnModel();
                 if (tcm != null) {
-                    // Fixes 4772355 - ArrayOutOfBoundsException in
+                    // Fixes 4772355 - ArrayIndexOutOfBoundsException in
                     // JTableHeader
                     if (column < 0 || column >= tcm.getColumnCount()) {
                         return null;
@@ -963,7 +979,7 @@ public class JTableHeader extends JComponent implements TableColumnModelListener
             private Component getCurrentComponent() {
                 TableColumnModel tcm = table.getColumnModel();
                 if (tcm != null) {
-                    // Fixes 4772355 - ArrayOutOfBoundsException in
+                    // Fixes 4772355 - ArrayIndexOutOfBoundsException in
                     // JTableHeader
                     if (column < 0 || column >= tcm.getColumnCount()) {
                         return null;
@@ -1344,9 +1360,12 @@ public class JTableHeader extends JComponent implements TableColumnModelListener
             }
 
             public Point getLocationOnScreen() {
-                if (parent != null) {
+                if (parent != null && parent.isShowing()) {
                     Point parentLocation = parent.getLocationOnScreen();
                     Point componentLocation = getLocation();
+                    if (parentLocation == null || componentLocation == null) {
+                        return null;
+                    }
                     componentLocation.translate(parentLocation.x, parentLocation.y);
                     return componentLocation;
                 } else {

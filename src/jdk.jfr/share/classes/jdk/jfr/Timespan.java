@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,8 @@ import java.lang.annotation.Target;
 
 /**
  * Event field annotation, specifies that the value is a duration.
+ * <p>
+ * If the annotated value equals {@code Long.MAX_VALUE}, it represents forever.
  *
  * @since 9
  */
@@ -69,7 +71,7 @@ public @interface Timespan {
      * <p>
      * By default, the unit is nanoseconds.
      *
-     * @return the time span unit, default {@code #NANOSECONDS}, not {@code null}
+     * @return the time span unit, default {@link #NANOSECONDS}, not {@code null}
      */
     String value() default NANOSECONDS;
 }

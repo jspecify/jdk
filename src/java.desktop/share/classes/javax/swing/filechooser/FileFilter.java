@@ -39,7 +39,7 @@ import java.io.File;
  * For an example implementation of a simple file filter, see
  * <code><i>yourJDK</i>/demo/jfc/FileChooserDemo/ExampleFileFilter.java</code>.
  * For more information and examples see
- * <a href="http://docs.oracle.com/javase/tutorial/uiswing/components/filechooser.html">How to Use File Choosers</a>,
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/filechooser.html">How to Use File Choosers</a>,
  * a section in <em>The Java Tutorial</em>.
  *
  * @see FileNameExtensionFilter
@@ -49,6 +49,11 @@ import java.io.File;
  * @author Jeff Dinkins
  */
 public abstract class FileFilter {
+    /**
+     * Constructor for subclasses to call.
+     */
+    protected FileFilter() {}
+
     /**
      * Whether the given file is accepted by this filter.
      *

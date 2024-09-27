@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,23 +29,23 @@ import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.text.BreakIterator;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Locale;
 import sun.text.Normalizer;
 
 
 /**
- * This is a utility class for <code>String.toLowerCase()</code> and
- * <code>String.toUpperCase()</code>, that handles special casing with
+ * This is a utility class for {@code String.toLowerCase()} and
+ * {@code String.toUpperCase()}, that handles special casing with
  * conditions.  In other words, it handles the mappings with conditions
  * that are defined in
  * <a href="http://www.unicode.org/Public/UNIDATA/SpecialCasing.txt">Special
  * Casing Properties</a> file.
  * <p>
  * Note that the unconditional case mappings (including 1:M mappings)
- * are handled in <code>Character.toLower/UpperCase()</code>.
+ * are handled in {@code Character.toLower/UpperCase()}.
  */
 @AnnotatedFor({"interning"})
 final @UsesObjectEquals class ConditionalSpecialCasing {
@@ -93,7 +93,7 @@ final @UsesObjectEquals class ConditionalSpecialCasing {
     };
 
     // A hash table that contains the above entries
-    static Hashtable<Integer, HashSet<Entry>> entryTable = new Hashtable<>();
+    private static final HashMap<Integer, HashSet<Entry>> entryTable = new HashMap<>();
     static {
         // create hashtable from the entry
         for (Entry cur : entry) {
@@ -174,25 +174,14 @@ final @UsesObjectEquals class ConditionalSpecialCasing {
     }
 
     private static boolean isConditionMet(String src, int index, Locale locale, int condition) {
-        switch (condition) {
-        case FINAL_CASED:
-            return isFinalCased(src, index, locale);
-
-        case AFTER_SOFT_DOTTED:
-            return isAfterSoftDotted(src, index);
-
-        case MORE_ABOVE:
-            return isMoreAbove(src, index);
-
-        case AFTER_I:
-            return isAfterI(src, index);
-
-        case NOT_BEFORE_DOT:
-            return !isBeforeDot(src, index);
-
-        default:
-            return true;
-        }
+        return switch (condition) {
+            case FINAL_CASED       -> isFinalCased(src, index, locale);
+            case AFTER_SOFT_DOTTED -> isAfterSoftDotted(src, index);
+            case MORE_ABOVE        -> isMoreAbove(src, index);
+            case AFTER_I           -> isAfterI(src, index);
+            case NOT_BEFORE_DOT    -> !isBeforeDot(src, index);
+            default -> true;
+        };
     }
 
     /**
@@ -333,7 +322,7 @@ final @UsesObjectEquals class ConditionalSpecialCasing {
     /**
      * Implements the "Before_Dot" condition
      *
-     * Specification: C is followed by <code>U+0307 COMBINING DOT ABOVE</code>.
+     * Specification: C is followed by {@code U+0307 COMBINING DOT ABOVE}.
      * Any sequence of characters with a combining class that is
      * neither 0 nor 230 may intervene between the current character
      * and the combining dot above.

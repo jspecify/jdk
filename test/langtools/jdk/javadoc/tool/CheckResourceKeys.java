@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,19 +23,23 @@
 
 /*
  * @test
- * @bug 8000612
+ * @bug 8000612 8254627 8247994
  * @summary need test program to validate javadoc resource bundles
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  *          jdk.javadoc/jdk.javadoc.internal.doclets.formats.html.resources:open
  *          jdk.javadoc/jdk.javadoc.internal.doclets.toolkit.resources:open
  *          jdk.javadoc/jdk.javadoc.internal.tool.resources:open
- *          jdk.jdeps/com.sun.tools.classfile
+ * @enablePreview
  */
 
 import java.io.*;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassModel;
+import java.lang.classfile.constantpool.Utf8Entry;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.tools.*;
-import com.sun.tools.classfile.*;
 
 /**
  * Compare string constants in javadoc classes against keys in javadoc resource bundles.
@@ -149,6 +153,9 @@ public class CheckResourceKeys {
             // ignore these synthesized keys, tested by usageTests
             if (rk.matches("main\\.opt\\..*\\.(arg|desc)"))
                 continue;
+            // ignore this partial key
+            if (rk.startsWith("doclet.Declared_Using_Preview."))
+                continue;
             if (codeKeys.contains(rk))
                 continue;
 
@@ -168,8 +175,8 @@ public class CheckResourceKeys {
             // ignore this partial key, tested by usageTests
             if (ck.equals("main.opt."))
                 continue;
-            // ignore this system property name
-            if (ck.equals("javadoc.internal.show.taglets"))
+            // ignore these system property names
+            if (ck.equals("javadoc.internal.show.taglets") || ck.equals("javadoc.legal-notices"))
                 continue;
             if (resourceKeys.contains(ck))
                 continue;
@@ -200,10 +207,23 @@ public class CheckResourceKeys {
                 }
             }
 
+            // special handling for strings in .js.template files
+            for (String fileName : List.of("resources/search.js.template", "resources/script.js.template")) {
+                FileObject fo = fm.getFileForInput(javadocLoc,
+                        "jdk.javadoc.internal.doclets.formats.html",
+                        fileName);
+                CharSequence search_js = fo.getCharContent(true);
+                Pattern p = Pattern.compile("##REPLACE:(?<key>[A-Za-z0-9._]+)##");
+                Matcher m = p.matcher(search_js);
+                while (m.find()) {
+                    results.add(m.group("key"));
+                }
+            }
+
             // special handling for code strings synthesized in
-            // com.sun.tools.doclets.internal.toolkit.util.Util.getTypeName
+            // jdk.javadoc.internal.doclets.toolkit.util.Utils.getTypeName
             String[] extras = {
-                "AnnotationType", "Class", "Enum", "Error", "Exception", "Interface"
+                "AnnotationType", "Class", "Enum", "EnumClass", "ExceptionClass", "Interface", "RecordClass"
             };
             for (String s: extras) {
                 if (results.contains("doclet." + s))
@@ -211,11 +231,13 @@ public class CheckResourceKeys {
             }
 
             // special handling for code strings synthesized in
-            // com.sun.tools.javadoc.Messager
-            results.add("javadoc.error.msg");
-            results.add("javadoc.note.msg");
-            results.add("javadoc.note.pos.msg");
-            results.add("javadoc.warning.msg");
+            // jdk.javadoc.internal.tool.JavadocLog
+            // see JavadocLog report(DiagnosticType dt, Set<DiagnosticFlag> flags,
+            //                       DiagnosticSource ds, DiagnosticPosition dp, String message)
+            // line: report(javadocDiags.create(dt, null, flags, ds, dp, "message", message));
+            results.add("javadoc.err.message");
+            results.add("javadoc.warn.message");
+            results.add("javadoc.note.message");
 
             return results;
         }
@@ -248,15 +270,15 @@ public class CheckResourceKeys {
         //System.err.println("scan " + fo.getName());
         InputStream in = fo.openInputStream();
         try {
-            ClassFile cf = ClassFile.read(in);
-            for (ConstantPool.CPInfo cpinfo: cf.constant_pool.entries()) {
-                if (cpinfo.getTag() == ConstantPool.CONSTANT_Utf8) {
-                    String v = ((ConstantPool.CONSTANT_Utf8_info) cpinfo).value;
+            ClassModel cf = ClassFile.of().parse(in.readAllBytes());
+            for (var cpinfo : cf.constantPool()) {
+                if (cpinfo instanceof Utf8Entry utf8Entry) {
+                    String v = utf8Entry.stringValue();
                     if (v.matches("(doclet|main|javadoc|tag)\\.[A-Za-z0-9-_.]+"))
                         results.add(v);
                 }
             }
-        } catch (ConstantPoolException ignore) {
+        } catch (IllegalArgumentException ignore) {
         } finally {
             in.close();
         }

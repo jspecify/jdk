@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2023, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,22 +30,26 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import javax.swing.AbstractAction;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JDesktopPane;
+import javax.swing.JInternalFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextField;
 
-import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.text.*;
-import javax.swing.border.*;
-import javax.swing.colorchooser.*;
-import javax.swing.filechooser.*;
-import javax.accessibility.*;
-
-import java.awt.*;
-import java.awt.event.*;
-import java.beans.*;
-import java.util.*;
-import java.io.*;
-import java.applet.*;
-import java.net.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.GridLayout;
+import java.awt.Insets;
+import java.awt.event.ActionEvent;
 
 /**
  * Internal Frames Demo
@@ -59,9 +63,9 @@ public class InternalFrameDemo extends DemoModule {
     ImageIcon icon1, icon2, icon3, icon4;
     ImageIcon smIcon1, smIcon2, smIcon3, smIcon4;
 
-    public Integer FIRST_FRAME_LAYER  = new Integer(1);
-    public Integer DEMO_FRAME_LAYER   = new Integer(2);
-    public Integer PALETTE_LAYER     = new Integer(3);
+    public Integer FIRST_FRAME_LAYER  = Integer.valueOf(1);
+    public Integer DEMO_FRAME_LAYER   = Integer.valueOf(2);
+    public Integer PALETTE_LAYER     = Integer.valueOf(3);
 
     public int FRAME0_X        = 15;
     public int FRAME0_Y        = 280;
@@ -267,6 +271,7 @@ public class InternalFrameDemo extends DemoModule {
 
         windowTitleField = new JTextField(getString("InternalFrameDemo.frame_label"));
         windowTitleLabel = new JLabel(getString("InternalFrameDemo.title_text_field_label"));
+        windowTitleLabel.setLabelFor(windowTitleField);
 
         p.setLayout(new BoxLayout(p, BoxLayout.X_AXIS));
         p.add(Box.createRigidArea(HGAP5));

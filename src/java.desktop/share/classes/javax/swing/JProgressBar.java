@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,21 +22,28 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package javax.swing;
 
 import java.awt.Graphics;
-import java.beans.JavaBean;
 import java.beans.BeanProperty;
-
+import java.beans.JavaBean;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.io.Serializable;
 import java.text.Format;
 import java.text.NumberFormat;
 
-import java.io.Serializable;
-import java.io.ObjectOutputStream;
-import java.io.IOException;
-
-import javax.swing.event.*;
-import javax.accessibility.*;
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleRole;
+import javax.accessibility.AccessibleState;
+import javax.accessibility.AccessibleStateSet;
+import javax.accessibility.AccessibleValue;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import javax.swing.event.EventListenerList;
 import javax.swing.plaf.ProgressBarUI;
 
 /**
@@ -98,7 +105,7 @@ import javax.swing.plaf.ProgressBarUI;
  * <p>
  *
  * For complete examples and further documentation see
- * <a href="http://docs.oracle.com/javase/tutorial/uiswing/components/progress.html" target="_top">How to Monitor Progress</a>,
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/progress.html" target="_top">How to Monitor Progress</a>,
  * a section in <em>The Java Tutorial.</em>
  *
  * <p>
@@ -112,7 +119,7 @@ import javax.swing.plaf.ProgressBarUI;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -387,7 +394,7 @@ public class JProgressBar extends JComponent implements SwingConstants, Accessib
      * is {@code SwingConstants.HORIZONTAL}.
      *
      * @param  newOrientation  <code>HORIZONTAL</code> or <code>VERTICAL</code>
-     * @exception      IllegalArgumentException    if <code>newOrientation</code>
+     * @throws      IllegalArgumentException    if <code>newOrientation</code>
      *                                              is an illegal value
      * @see #getOrientation
      */
@@ -626,7 +633,7 @@ public class JProgressBar extends JComponent implements SwingConstants, Accessib
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
@@ -891,7 +898,7 @@ public class JProgressBar extends JComponent implements SwingConstants, Accessib
      * <p>
      *
      * See
-     * <a href="http://docs.oracle.com/javase/tutorial/uiswing/components/progress.html" target="_top">How to Monitor Progress</a>
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/progress.html" target="_top">How to Monitor Progress</a>
      * for examples of using indeterminate progress bars.
      *
      * @param newValue  <code>true</code> if the progress bar
@@ -928,6 +935,7 @@ public class JProgressBar extends JComponent implements SwingConstants, Accessib
      * See readObject() and writeObject() in JComponent for more
      * information about serialization in Swing.
      */
+    @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         s.defaultWriteObject();
         if (getUIClassID().equals(uiClassID)) {
@@ -1003,13 +1011,18 @@ public class JProgressBar extends JComponent implements SwingConstants, Accessib
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
     @SuppressWarnings("serial") // Same-version serialization only
     protected class AccessibleJProgressBar extends AccessibleJComponent
         implements AccessibleValue {
+
+        /**
+         * Constructs an {@code AccessibleJProgressBar}.
+         */
+        protected AccessibleJProgressBar() {}
 
         /**
          * Gets the state set of this object.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,12 +38,12 @@
  */
 WCHAR* pathToNTPath(JNIEnv *env, jstring path, jboolean throwFNFE);
 WCHAR* fileToNTPath(JNIEnv *env, jobject file, jfieldID id);
-WCHAR* getPrefixed(const WCHAR* path, int pathlen);
+JNIEXPORT WCHAR* getPrefixed(const WCHAR* path, int pathlen);
 WCHAR* currentDir(int di);
 int currentDirLength(const WCHAR* path, int pathlen);
 int handleAvailable(FD fd, jlong *pbytes);
 int handleSync(FD fd);
-int handleSetLength(FD fd, jlong length);
+jint handleSetLength(FD fd, jlong length);
 jlong handleGetLength(FD fd);
 JNIEXPORT jint handleRead(FD fd, void *buf, jint len);
 jint handleWrite(FD fd, const void *buf, jint len);
@@ -56,21 +56,15 @@ handleLseek(FD fd, jlong offset, jint whence);
  * Returns an opaque handle to file named by "path".  If an error occurs,
  * returns -1 and an exception is pending.
  */
-JNIEXPORT FD JNICALL
-winFileHandleOpen(JNIEnv *env, jstring path, int flags);
+FD winFileHandleOpen(JNIEnv *env, jstring path, int flags);
 
 /*
- * Macros to set/get fd from the java.io.FileDescriptor.
- * If GetObjectField returns null, SET_FD will stop and GET_FD
- * will simply return -1 to avoid crashing VM.
+ * Function to get fd from the java.io.FileDescriptor field of an
+ * object.  These functions rely on having an appropriately
+ * defined object with a FileDescriptor object at the fid offset.
+ * If the FD object is null, return -1 to avoid crashing VM.
  */
-#define SET_FD(this, fd, fid) \
-    if ((*env)->GetObjectField(env, (this), (fid)) != NULL) \
-        (*env)->SetLongField(env, (*env)->GetObjectField(env, (this), (fid)), IO_handle_fdID, (fd))
-
-#define GET_FD(this, fid) \
-    ((*env)->GetObjectField(env, (this), (fid)) == NULL) ? \
-      -1 : (*env)->GetLongField(env, (*env)->GetObjectField(env, (this), (fid)), IO_handle_fdID)
+FD getFD(JNIEnv *env, jobject cur, jfieldID fid);
 
 /*
  * Macros to set/get fd when inside java.io.FileDescriptor

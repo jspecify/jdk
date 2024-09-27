@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@ import java.awt.image.ColorModel;
  * provides the calls needed to channel all of the pixel data through a
  * single method which converts pixels one at a time in the default RGB
  * ColorModel regardless of the ColorModel being used by the ImageProducer.
- * The only method which needs to be defined to create a useable image
+ * The only method which needs to be defined to create a usable image
  * filter is the filterRGB method.  Here is an example of a definition
  * of a filter which swaps the red and blue components of an image:
  * <pre>{@code
@@ -65,6 +65,11 @@ import java.awt.image.ColorModel;
  * @author      Jim Graham
  */
 public abstract class RGBImageFilter extends ImageFilter {
+
+    /**
+     * Constructor for subclasses to call.
+     */
+    protected RGBImageFilter() {}
 
     /**
      * The {@code ColorModel} to be replaced by
@@ -141,15 +146,15 @@ public abstract class RGBImageFilter extends ImageFilter {
      * a color table entry is being filtered rather than an actual
      * pixel value.
      * @param icm the IndexColorModel object to be filtered
-     * @exception NullPointerException if {@code icm} is null
+     * @throws NullPointerException if {@code icm} is null
      * @return a new IndexColorModel representing the filtered colors
      */
     public IndexColorModel filterIndexColorModel(IndexColorModel icm) {
         int mapsize = icm.getMapSize();
-        byte r[] = new byte[mapsize];
-        byte g[] = new byte[mapsize];
-        byte b[] = new byte[mapsize];
-        byte a[] = new byte[mapsize];
+        byte[] r = new byte[mapsize];
+        byte[] g = new byte[mapsize];
+        byte[] b = new byte[mapsize];
+        byte[] a = new byte[mapsize];
         icm.getReds(r);
         icm.getGreens(g);
         icm.getBlues(b);
@@ -192,7 +197,7 @@ public abstract class RGBImageFilter extends ImageFilter {
      * @see #filterRGB
      */
     public void filterRGBPixels(int x, int y, int w, int h,
-                                int pixels[], int off, int scansize) {
+                                int[] pixels, int off, int scansize) {
         int index = off;
         for (int cy = 0; cy < h; cy++) {
             for (int cx = 0; cx < w; cx++) {
@@ -222,12 +227,12 @@ public abstract class RGBImageFilter extends ImageFilter {
      * @see #filterRGBPixels
      */
     public void setPixels(int x, int y, int w, int h,
-                          ColorModel model, byte pixels[], int off,
+                          ColorModel model, byte[] pixels, int off,
                           int scansize) {
         if (model == origmodel) {
             consumer.setPixels(x, y, w, h, newmodel, pixels, off, scansize);
         } else {
-            int filteredpixels[] = new int[w];
+            int[] filteredpixels = new int[w];
             int index = off;
             for (int cy = 0; cy < h; cy++) {
                 for (int cx = 0; cx < w; cx++) {
@@ -259,12 +264,12 @@ public abstract class RGBImageFilter extends ImageFilter {
      * @see #filterRGBPixels
      */
     public void setPixels(int x, int y, int w, int h,
-                          ColorModel model, int pixels[], int off,
+                          ColorModel model, int[] pixels, int off,
                           int scansize) {
         if (model == origmodel) {
             consumer.setPixels(x, y, w, h, newmodel, pixels, off, scansize);
         } else {
-            int filteredpixels[] = new int[w];
+            int[] filteredpixels = new int[w];
             int index = off;
             for (int cy = 0; cy < h; cy++) {
                 for (int cx = 0; cx < w; cx++) {

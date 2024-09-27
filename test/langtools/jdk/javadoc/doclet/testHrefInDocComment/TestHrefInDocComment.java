@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,25 +23,26 @@
 
 /*
  * @test
- * @bug 4638015
+ * @bug 4638015 8248001
  * @summary Determine if Hrefs are processed properly when they
  * appear in doc comments.
- * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestHrefInDocComment
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestHrefInDocComment extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestHrefInDocComment tester = new TestHrefInDocComment();
+        var tester = new TestHrefInDocComment();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc, "pkg");
         checkExit(Exit.OK);

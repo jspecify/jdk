@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,16 @@
 
 package java.security;
 
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.util.*;
-import java.util.regex.*;
+import sun.security.jca.GetInstance;
+import sun.security.jca.GetInstance.Instance;
+import sun.security.jca.Providers;
+import sun.security.provider.SunEntries;
+import sun.security.util.Debug;
 
 import java.security.Provider.Service;
-
-import sun.security.jca.*;
-import sun.security.jca.GetInstance.Instance;
-import sun.security.util.Debug;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * This class provides a cryptographically strong random number
@@ -43,14 +42,14 @@ import sun.security.util.Debug;
  *
  * <p>A cryptographically strong random number minimally complies with the
  * statistical random number generator tests specified in
- * <a href="http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.140-2.pdf">
+ * <a href="https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.140-2.pdf">
  * <i>FIPS 140-2, Security Requirements for Cryptographic Modules</i></a>,
  * section 4.9.1.
  * Additionally, {@code SecureRandom} must produce non-deterministic output.
- * Therefore any seed material passed to a {@code SecureRandom} object must be
+ * Therefore, any seed material passed to a {@code SecureRandom} object must be
  * unpredictable, and all {@code SecureRandom} output sequences must be
  * cryptographically strong, as described in
- * <a href="http://tools.ietf.org/html/rfc4086">
+ * <a href="https://tools.ietf.org/html/rfc4086">
  * <i>RFC 4086: Randomness Requirements for Security</i></a>.
  *
  * <p> Many {@code SecureRandom} implementations are in the form of a
@@ -149,7 +148,6 @@ import sun.security.util.Debug;
  * @since 1.1
  */
 
-@AnnotatedFor({"signedness"})
 public class SecureRandom extends java.util.Random {
 
     private static final Debug pdebug =
@@ -181,8 +179,8 @@ public class SecureRandom extends java.util.Random {
      */
     private final boolean threadSafe;
 
-    /*
-     * The algorithm name of null if unknown.
+    /**
+     * The algorithm name or {@code null} if unknown.
      *
      * @serial
      * @since 1.5
@@ -199,9 +197,9 @@ public class SecureRandom extends java.util.Random {
      * <p> This constructor traverses the list of registered security Providers,
      * starting with the most preferred Provider.
      * A new {@code SecureRandom} object encapsulating the
-     * {@code SecureRandomSpi} implementation from the first
-     * Provider that supports a {@code SecureRandom} (RNG) algorithm is returned.
-     * If none of the Providers support a RNG algorithm,
+     * {@code SecureRandomSpi} implementation from the first provider
+     * that supports a {@code SecureRandom} (RNG) algorithm is returned.
+     * If none of the providers support an RNG algorithm,
      * then an implementation-specific default is returned.
      *
      * <p> Note that the list of registered providers may be retrieved via
@@ -227,8 +225,8 @@ public class SecureRandom extends java.util.Random {
         if (provider == null || algorithm == null) {
             return false;
         } else {
-            return Boolean.parseBoolean(provider.getProperty(
-                    "SecureRandom." + algorithm + " ThreadSafe", "false"));
+            Service service = provider.getService("SecureRandom", algorithm);
+            return Boolean.parseBoolean(service.getAttribute("ThreadSafe"));
         }
     }
 
@@ -240,9 +238,9 @@ public class SecureRandom extends java.util.Random {
      * <p> This constructor traverses the list of registered security Providers,
      * starting with the most preferred Provider.
      * A new {@code SecureRandom} object encapsulating the
-     * {@code SecureRandomSpi} implementation from the first
-     * Provider that supports a {@code SecureRandom} (RNG) algorithm is returned.
-     * If none of the Providers support a RNG algorithm,
+     * {@code SecureRandomSpi} implementation from the first provider
+     * that supports a {@code SecureRandom} (RNG) algorithm is returned.
+     * If none of the providers support an RNG algorithm,
      * then an implementation-specific default is returned.
      *
      * <p> Note that the list of registered providers may be retrieved via
@@ -254,35 +252,53 @@ public class SecureRandom extends java.util.Random {
      * for information about standard RNG algorithm names.
      *
      * @param seed the seed.
+     * @throws NullPointerException if {@code seed} is {@code null}
      */
     public SecureRandom(byte[] seed) {
         super(0);
+        Objects.requireNonNull(seed);
         getDefaultPRNG(true, seed);
         this.threadSafe = getThreadSafe();
     }
 
     private void getDefaultPRNG(boolean setSeed, byte[] seed) {
-        String prng = getPrngAlgorithm();
-        if (prng == null) {
-            // bummer, get the SUN implementation
-            prng = "SHA1PRNG";
+        Service prngService = null;
+        String prngAlgorithm = null;
+        for (Provider p : Providers.getProviderList().providers()) {
+            // SUN provider uses the SunEntries.DEF_SECURE_RANDOM_ALGO
+            // as the default SecureRandom algorithm; for other providers,
+            // Provider.getDefaultSecureRandom() will use the 1st
+            // registered SecureRandom algorithm
+            if (p.getName().equals("SUN")) {
+                prngAlgorithm = SunEntries.DEF_SECURE_RANDOM_ALGO;
+                prngService = p.getService("SecureRandom", prngAlgorithm);
+                break;
+            } else {
+                prngService = p.getDefaultSecureRandomService();
+                if (prngService != null) {
+                    prngAlgorithm = prngService.getAlgorithm();
+                    break;
+                }
+            }
+        }
+        // per javadoc, if none of the Providers support an RNG algorithm,
+        // then an implementation-specific default is returned.
+        if (prngService == null) {
+            prngAlgorithm = "SHA1PRNG";
             this.secureRandomSpi = new sun.security.provider.SecureRandom();
             this.provider = Providers.getSunProvider();
-            if (setSeed) {
-                this.secureRandomSpi.engineSetSeed(seed);
-            }
         } else {
             try {
-                SecureRandom random = SecureRandom.getInstance(prng);
-                this.secureRandomSpi = random.getSecureRandomSpi();
-                this.provider = random.getProvider();
-                if (setSeed) {
-                    this.secureRandomSpi.engineSetSeed(seed);
-                }
+                this.secureRandomSpi = (SecureRandomSpi)
+                    prngService.newInstance(null);
+                this.provider = prngService.getProvider();
             } catch (NoSuchAlgorithmException nsae) {
-                // never happens, because we made sure the algorithm exists
+                // should not happen
                 throw new RuntimeException(nsae);
             }
+        }
+        if (setSeed) {
+            this.secureRandomSpi.engineSetSeed(seed);
         }
         // JDK 1.1 based implementations subclass SecureRandom instead of
         // SecureRandomSpi. They will also go through this code path because
@@ -290,7 +306,7 @@ public class SecureRandom extends java.util.Random {
         // If we are dealing with such an implementation, do not set the
         // algorithm value as it would be inaccurate.
         if (getClass() == SecureRandom.class) {
-            this.algorithm = prng;
+            this.algorithm = prngAlgorithm;
         }
     }
 
@@ -331,7 +347,7 @@ public class SecureRandom extends java.util.Random {
      * starting with the most preferred Provider.
      * A new {@code SecureRandom} object encapsulating the
      * {@code SecureRandomSpi} implementation from the first
-     * Provider that supports the specified algorithm is returned.
+     * provider that supports the specified algorithm is returned.
      *
      * <p> Note that the list of registered providers may be retrieved via
      * the {@link Security#getProviders() Security.getProviders()} method.
@@ -341,7 +357,7 @@ public class SecureRandom extends java.util.Random {
      * {@code jdk.security.provider.preferred}
      * {@link Security#getProperty(String) Security} property to determine
      * the preferred provider order for the specified algorithm. This
-     * may be different than the order of providers returned by
+     * may be different from the order of providers returned by
      * {@link Security#getProviders() Security.getProviders()}.
      *
      * @param algorithm the name of the RNG algorithm.
@@ -423,9 +439,9 @@ public class SecureRandom extends java.util.Random {
      * Random Number Generator (RNG) algorithm.
      *
      * <p> A new {@code SecureRandom} object encapsulating the
-     * {@code SecureRandomSpi} implementation from the specified {@code Provider}
-     * object is returned.  Note that the specified {@code Provider} object
-     * does not have to be registered in the provider list.
+     * {@code SecureRandomSpi} implementation from the specified provider
+     * is returned.  Note that the specified provider does not
+     * have to be registered in the provider list.
      *
      * @param algorithm the name of the RNG algorithm.
      * See the {@code SecureRandom} section in the <a href=
@@ -464,11 +480,11 @@ public class SecureRandom extends java.util.Random {
      * Random Number Generator (RNG) algorithm and supports the specified
      * {@code SecureRandomParameters} request.
      *
-     * <p> This method traverses the list of registered security Providers,
-     * starting with the most preferred Provider.
+     * <p> This method traverses the list of registered security providers,
+     * starting with the most preferred provider.
      * A new {@code SecureRandom} object encapsulating the
      * {@code SecureRandomSpi} implementation from the first
-     * Provider that supports the specified algorithm and the specified
+     * provider that supports the specified algorithm and the specified
      * {@code SecureRandomParameters} is returned.
      *
      * <p> Note that the list of registered providers may be retrieved via
@@ -478,7 +494,7 @@ public class SecureRandom extends java.util.Random {
      * The JDK Reference Implementation additionally uses the
      * {@code jdk.security.provider.preferred} property to determine
      * the preferred provider order for the specified algorithm. This
-     * may be different than the order of providers returned by
+     * may be different from the order of providers returned by
      * {@link Security#getProviders() Security.getProviders()}.
      *
      * @param algorithm the name of the RNG algorithm.
@@ -580,9 +596,8 @@ public class SecureRandom extends java.util.Random {
      *
      * <p> A new {@code SecureRandom} object encapsulating the
      * {@code SecureRandomSpi} implementation from the specified
-     * {@code Provider} object is returned.  Note that the specified
-     * {@code Provider} object does not have to be registered in the
-     * provider list.
+     * provider is returned.  Note that the specified provider
+     * does not have to be registered in the provider list.
      *
      * @param algorithm the name of the RNG algorithm.
      * See the {@code SecureRandom} section in the <a href=
@@ -621,13 +636,6 @@ public class SecureRandom extends java.util.Random {
                 SecureRandomSpi.class, algorithm, params, provider);
         return new SecureRandom((SecureRandomSpi)instance.impl,
                 instance.provider, algorithm);
-    }
-
-    /**
-     * Returns the {@code SecureRandomSpi} of this {@code SecureRandom} object.
-     */
-    SecureRandomSpi getSecureRandomSpi() {
-        return secureRandomSpi;
     }
 
     /**
@@ -695,10 +703,12 @@ public class SecureRandom extends java.util.Random {
      * contains enough entropy for the security of this {@code SecureRandom}.
      *
      * @param seed the seed.
+     * @throws NullPointerException if {@code seed} is {@code null}
      *
      * @see #getSeed
      */
     public void setSeed(byte[] seed) {
+        Objects.requireNonNull(seed);
         if (threadSafe) {
             secureRandomSpi.engineSetSeed(seed);
         } else {
@@ -713,6 +723,11 @@ public class SecureRandom extends java.util.Random {
      * in the given {@code long seed}. The given seed supplements,
      * rather than replaces, the existing seed. Thus, repeated calls
      * are guaranteed never to reduce randomness.
+     * <p>
+     * A PRNG {@code SecureRandom} will not seed itself automatically if
+     * {@code setSeed} is called before any {@code nextBytes} or {@code reseed}
+     * calls. The caller should make sure that the {@code seed} argument
+     * contains enough entropy for the security of this {@code SecureRandom}.
      *
      * <p>This method is defined for compatibility with
      * {@code java.util.Random}.
@@ -724,10 +739,11 @@ public class SecureRandom extends java.util.Random {
     @Override
     public void setSeed(long seed) {
         /*
-         * Ignore call from super constructor (as well as any other calls
-         * unfortunate enough to be passing 0).  It's critical that we
-         * ignore call from superclass constructor, as digest has not
-         * yet been initialized at that point.
+         * Ignore call from super constructor as well as any other calls
+         * unfortunate enough to be passing 0. All SecureRandom
+         * constructors call `super(0)` which leads to `setSeed(0)`.
+         * We either keep the object unseeded (in `new SecureRandom()`)
+         * or we seed the object explicitly (in `new SecureRandom(byte[])`).
          */
         if (seed != 0) {
             setSeed(longToByteArray(seed));
@@ -738,9 +754,11 @@ public class SecureRandom extends java.util.Random {
      * Generates a user-specified number of random bytes.
      *
      * @param bytes the array to be filled in with random bytes.
+     * @throws NullPointerException if {@code bytes} is {@code null}
      */
     @Override
-    public void nextBytes(@PolySigned byte[] bytes) {
+    public void nextBytes(byte[] bytes) {
+        Objects.requireNonNull(bytes);
         if (threadSafe) {
             secureRandomSpi.engineNextBytes(bytes);
         } else {
@@ -756,7 +774,7 @@ public class SecureRandom extends java.util.Random {
      *
      * @param bytes the array to be filled in with random bytes
      * @param params additional parameters
-     * @throws NullPointerException if {@code bytes} is null
+     * @throws NullPointerException if {@code bytes} is {@code null}
      * @throws UnsupportedOperationException if the underlying provider
      *         implementation has not overridden this method
      * @throws IllegalArgumentException if {@code params} is {@code null},
@@ -768,13 +786,12 @@ public class SecureRandom extends java.util.Random {
         if (params == null) {
             throw new IllegalArgumentException("params cannot be null");
         }
+        Objects.requireNonNull(bytes);
         if (threadSafe) {
-            secureRandomSpi.engineNextBytes(
-                    Objects.requireNonNull(bytes), params);
+            secureRandomSpi.engineNextBytes(bytes, params);
         } else {
             synchronized (this) {
-                secureRandomSpi.engineNextBytes(
-                        Objects.requireNonNull(bytes), params);
+                secureRandomSpi.engineNextBytes(bytes, params);
             }
         }
     }
@@ -783,7 +800,7 @@ public class SecureRandom extends java.util.Random {
      * Generates an integer containing the user-specified number of
      * pseudo-random bits (right justified, with leading zeros).  This
      * method overrides a {@code java.util.Random} method, and serves
-     * to provide a source of random bits to all of the methods inherited
+     * to provide a source of random bits to all the methods inherited
      * from that class (for example, {@code nextInt},
      * {@code nextLong}, and {@code nextFloat}).
      *
@@ -871,23 +888,6 @@ public class SecureRandom extends java.util.Random {
         return retVal;
     }
 
-    /**
-     * Gets a default PRNG algorithm by looking through all registered
-     * providers. Returns the first PRNG algorithm of the first provider that
-     * has registered a {@code SecureRandom} implementation, or null if none of
-     * the registered providers supplies a {@code SecureRandom} implementation.
-     */
-    private static String getPrngAlgorithm() {
-        for (Provider p : Providers.getProviderList().providers()) {
-            for (Service s : p.getServices()) {
-                if (s.getType().equals("SecureRandom")) {
-                    return s.getAlgorithm();
-                }
-            }
-        }
-        return null;
-    }
-
     /*
      * Lazily initialize since Pattern.compile() is heavy.
      * Effective Java (2nd Edition), Item 71.
@@ -904,9 +904,9 @@ public class SecureRandom extends java.util.Random {
          *     4 - ,nextEntry (optional)
          *     5 - nextEntry (optional)
          */
-        private static Pattern pattern =
+        private static final Pattern pattern =
             Pattern.compile(
-                "\\s*([\\S&&[^:,]]*)(\\:([\\S&&[^,]]*))?\\s*(\\,(.*))?");
+                "\\s*([\\S&&[^:,]]*)(:([\\S&&[^,]]*))?\\s*(,(.*))?");
     }
 
     /**
@@ -937,16 +937,12 @@ public class SecureRandom extends java.util.Random {
     public static SecureRandom getInstanceStrong()
             throws NoSuchAlgorithmException {
 
+        @SuppressWarnings("removal")
         String property = AccessController.doPrivileged(
-            new PrivilegedAction<>() {
-                @Override
-                public String run() {
-                    return Security.getProperty(
-                        "securerandom.strongAlgorithms");
-                }
-            });
+                (PrivilegedAction<String>) () -> Security.getProperty(
+                    "securerandom.strongAlgorithms"));
 
-        if ((property == null) || (property.length() == 0)) {
+        if (property == null || property.isEmpty()) {
             throw new NoSuchAlgorithmException(
                 "Null/empty securerandom.strongAlgorithms Security Property");
         }
@@ -1028,6 +1024,7 @@ public class SecureRandom extends java.util.Random {
     }
 
     // Declare serialVersionUID to be compatible with JDK1.1
+    @java.io.Serial
     static final long serialVersionUID = 4940670005562187L;
 
     // Retain unused values serialized from JDK1.1
@@ -1038,6 +1035,7 @@ public class SecureRandom extends java.util.Random {
     /**
      * @serial
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private MessageDigest digest = null;
     /**
      * @serial

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
+import jdk.internal.org.jline.terminal.Size;
 import jdk.jshell.tool.JavaShellToolBuilder;
 
 /**
@@ -51,7 +52,9 @@ public class JShellToolBuilder implements JavaShellToolBuilder {
     private PersistentStorage prefs = null;
     private Map<String, String> vars = null;
     private Locale locale = Locale.getDefault();
+    private boolean interactiveTerminal;
     private boolean capturePrompt = false;
+    private Size windowSize = null;
 
     /**
      * Set the input channels.
@@ -208,6 +211,22 @@ public class JShellToolBuilder implements JavaShellToolBuilder {
         return this;
     }
 
+    @Override
+    public JavaShellToolBuilder interactiveTerminal(boolean terminal) {
+        this.interactiveTerminal = terminal;
+        return this;
+    }
+
+    @Override
+    public JavaShellToolBuilder windowSize(int columns, int rows) {
+        if (columns <= 0)
+            throw new IllegalArgumentException("columns = " + columns);
+        if (rows <= 0)
+            throw new IllegalArgumentException("rows = " + rows);
+        this.windowSize = new Size(columns, rows);
+        return this;
+    }
+
     /**
      * Create a tool instance for testing. Not in JavaShellToolBuilder.
      *
@@ -221,7 +240,7 @@ public class JShellToolBuilder implements JavaShellToolBuilder {
             vars = System.getenv();
         }
         JShellTool sh = new JShellTool(cmdIn, cmdOut, cmdErr, console, userIn,
-                userOut, userErr, prefs, vars, locale);
+                userOut, userErr, prefs, vars, locale, interactiveTerminal, windowSize);
         sh.testPrompt = capturePrompt;
         return sh;
     }

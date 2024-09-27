@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,33 +22,23 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PARALLELSCAVENGEHEAP_INLINE_HPP
-#define SHARE_VM_GC_PARALLEL_PARALLELSCAVENGEHEAP_INLINE_HPP
+#ifndef SHARE_GC_PARALLEL_PARALLELSCAVENGEHEAP_INLINE_HPP
+#define SHARE_GC_PARALLEL_PARALLELSCAVENGEHEAP_INLINE_HPP
 
 #include "gc/parallel/parallelScavengeHeap.hpp"
-#include "gc/parallel/psMarkSweepProxy.hpp"
-#include "gc/parallel/psParallelCompact.inline.hpp"
-#include "gc/parallel/psScavenge.hpp"
 
-inline size_t ParallelScavengeHeap::total_invocations() {
-  return UseParallelOldGC ? PSParallelCompact::total_invocations() :
-    PSMarkSweepProxy::total_invocations();
-}
+#include "gc/parallel/psScavenge.hpp"
 
 inline bool ParallelScavengeHeap::should_alloc_in_eden(const size_t size) const {
   const size_t eden_size = young_gen()->eden_space()->capacity_in_words();
   return size < eden_size / 2;
 }
 
-inline void ParallelScavengeHeap::invoke_scavenge() {
-  PSScavenge::invoke();
-}
-
-inline bool ParallelScavengeHeap::is_in_young(oop p) {
-  // Assumes the the old gen address range is lower than that of the young gen.
-  bool result = ((HeapWord*)p) >= young_gen()->reserved().start();
+inline bool ParallelScavengeHeap::is_in_young(const void* p) const {
+  // Assumes the old gen address range is lower than that of the young gen.
+  bool result = p >= young_gen()->reserved().start();
   assert(result == young_gen()->is_in_reserved(p),
-         "incorrect test - result=%d, p=" PTR_FORMAT, result, p2i((void*)p));
+         "incorrect test - result=%d, p=" PTR_FORMAT, result, p2i(p));
   return result;
 }
-#endif // SHARE_VM_GC_PARALLEL_PARALLELSCAVENGEHEAP_INLINE_HPP
+#endif // SHARE_GC_PARALLEL_PARALLELSCAVENGEHEAP_INLINE_HPP

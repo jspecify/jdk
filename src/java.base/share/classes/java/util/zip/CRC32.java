@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,15 +25,14 @@
 
 package java.util.zip;
 
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
 import sun.nio.ch.DirectBuffer;
-import jdk.internal.HotSpotIntrinsicCandidate;
+import jdk.internal.util.Preconditions;
+import jdk.internal.vm.annotation.IntrinsicCandidate;
+
+import static java.util.zip.ZipUtils.NIO_ACCESS;
 
 /**
  * A class that can be used to compute the CRC-32 of a data stream.
@@ -44,9 +43,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @author      David Connelly
  * @since 1.1
  */
-@AnnotatedFor({"index", "interning"})
-public
-@UsesObjectEquals class CRC32 implements Checksum {
+public class CRC32 implements Checksum {
     private int crc;
 
     /**
@@ -74,13 +71,11 @@ public
      *         the array {@code b}.
      */
     @Override
-    public void update(byte[] b, @IndexOrHigh({"#1"}) int off, @IndexOrHigh({"#1"}) int len) {
+    public void update(byte[] b, int off, int len) {
         if (b == null) {
             throw new NullPointerException();
         }
-        if (off < 0 || len < 0 || off > b.length - len) {
-            throw new ArrayIndexOutOfBoundsException();
-        }
+        Preconditions.checkFromIndexSize(off, len, b.length, Preconditions.AIOOBE_FORMATTER);
         crc = updateBytes(crc, b, off, len);
     }
 
@@ -101,8 +96,13 @@ public
         int rem = limit - pos;
         if (rem <= 0)
             return;
-        if (buffer instanceof DirectBuffer) {
-            crc = updateByteBuffer(crc, ((DirectBuffer)buffer).address(), pos, rem);
+        if (buffer.isDirect()) {
+            NIO_ACCESS.acquireSession(buffer);
+            try {
+                crc = updateByteBuffer(crc, ((DirectBuffer)buffer).address(), pos, rem);
+            } finally {
+                NIO_ACCESS.releaseSession(buffer);
+            }
         } else if (buffer.hasArray()) {
             crc = updateBytes(crc, buffer.array(), pos + buffer.arrayOffset(), rem);
         } else {
@@ -132,7 +132,7 @@ public
         return (long)crc & 0xffffffffL;
     }
 
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     private static native int update(int crc, int b);
 
     private static int updateBytes(int crc, byte[] b, int off, int len) {
@@ -140,7 +140,7 @@ public
         return updateBytes0(crc, b, off, len);
     }
 
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     private static native int updateBytes0(int crc, byte[] b, int off, int len);
 
     private static void updateBytesCheck(byte[] b, int off, int len) {
@@ -149,15 +149,8 @@ public
         }
 
         Objects.requireNonNull(b);
-
-        if (off < 0 || off >= b.length) {
-            throw new ArrayIndexOutOfBoundsException(off);
-        }
-
-        int endIndex = off + len - 1;
-        if (endIndex < 0 || endIndex >= b.length) {
-            throw new ArrayIndexOutOfBoundsException(endIndex);
-        }
+        Preconditions.checkIndex(off, b.length, Preconditions.AIOOBE_FORMATTER);
+        Preconditions.checkIndex(off + len - 1, b.length, Preconditions.AIOOBE_FORMATTER);
     }
 
     private static int updateByteBuffer(int alder, long addr,
@@ -166,7 +159,7 @@ public
         return updateByteBuffer0(alder, addr, off, len);
     }
 
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     private static native int updateByteBuffer0(int alder, long addr,
                                                 int off, int len);
 

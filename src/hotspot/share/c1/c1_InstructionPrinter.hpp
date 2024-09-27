@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_C1_C1_INSTRUCTIONPRINTER_HPP
-#define SHARE_VM_C1_C1_INSTRUCTIONPRINTER_HPP
+#ifndef SHARE_C1_C1_INSTRUCTIONPRINTER_HPP
+#define SHARE_C1_C1_INSTRUCTIONPRINTER_HPP
 
 #include "c1/c1_IR.hpp"
 #include "c1/c1_Instruction.hpp"
@@ -47,8 +47,8 @@ class InstructionPrinter: public InstructionVisitor {
 
  public:
   InstructionPrinter(bool print_phis = true, outputStream* output = tty)
-    : _print_phis(print_phis)
-    , _output(output)
+    : _output(output)
+    , _print_phis(print_phis)
   {}
 
   outputStream* output() { return _output; }
@@ -74,8 +74,6 @@ class InstructionPrinter: public InstructionVisitor {
   void print_stack(ValueStack* stack);
   void print_inline_level(BlockBegin* block);
   void print_unsafe_op(UnsafeOp* op, const char* name);
-  void print_unsafe_raw_op(UnsafeRawOp* op, const char* name);
-  void print_unsafe_object_op(UnsafeObjectOp* op, const char* name);
   void print_phi(int i, Value v, BlockBegin* b);
   void print_alias(Value v);
 
@@ -115,7 +113,6 @@ class InstructionPrinter: public InstructionVisitor {
   virtual void do_BlockBegin     (BlockBegin*      x);
   virtual void do_Goto           (Goto*            x);
   virtual void do_If             (If*              x);
-  virtual void do_IfInstanceOf   (IfInstanceOf*    x);
   virtual void do_TableSwitch    (TableSwitch*     x);
   virtual void do_LookupSwitch   (LookupSwitch*    x);
   virtual void do_Return         (Return*          x);
@@ -124,11 +121,9 @@ class InstructionPrinter: public InstructionVisitor {
   virtual void do_OsrEntry       (OsrEntry*        x);
   virtual void do_ExceptionObject(ExceptionObject* x);
   virtual void do_RoundFP        (RoundFP*         x);
-  virtual void do_UnsafeGetRaw   (UnsafeGetRaw*    x);
-  virtual void do_UnsafePutRaw   (UnsafePutRaw*    x);
-  virtual void do_UnsafeGetObject(UnsafeGetObject* x);
-  virtual void do_UnsafePutObject(UnsafePutObject* x);
-  virtual void do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x);
+  virtual void do_UnsafeGet      (UnsafeGet*       x);
+  virtual void do_UnsafePut      (UnsafePut*       x);
+  virtual void do_UnsafeGetAndSet(UnsafeGetAndSet* x);
   virtual void do_ProfileCall    (ProfileCall*     x);
   virtual void do_ProfileReturnType (ProfileReturnType*  x);
   virtual void do_ProfileInvoke  (ProfileInvoke*   x);
@@ -141,4 +136,4 @@ class InstructionPrinter: public InstructionVisitor {
 };
 #endif // PRODUCT
 
-#endif // SHARE_VM_C1_C1_INSTRUCTIONPRINTER_HPP
+#endif // SHARE_C1_C1_INSTRUCTIONPRINTER_HPP

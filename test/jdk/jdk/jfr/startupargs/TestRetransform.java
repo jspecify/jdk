@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -25,9 +23,11 @@
 
 package jdk.jfr.startupargs;
 
+import java.util.List;
 import jdk.jfr.Event;
 import jdk.jfr.EventType;
 import jdk.jfr.Recording;
+import jdk.jfr.consumer.RecordedEvent;
 import jdk.test.lib.Asserts;
 import jdk.test.lib.jfr.Events;
 import jdk.test.lib.jfr.SimpleEvent;
@@ -37,8 +37,8 @@ import jdk.test.lib.jfr.SimpleEvent;
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib
- * @run main/othervm -XX:FlightRecorderOptions=retransform=false jdk.jfr.startupargs.TestRetransform
- * @run main/othervm -XX:FlightRecorderOptions=retransform=true jdk.jfr.startupargs.TestRetransform
+ * @run main/othervm -XX:FlightRecorderOptions:retransform=false jdk.jfr.startupargs.TestRetransform
+ * @run main/othervm -XX:FlightRecorderOptions:retransform=true jdk.jfr.startupargs.TestRetransform
  */
 public class TestRetransform {
     private static class TestEvent extends Event {
@@ -60,8 +60,9 @@ public class TestRetransform {
         if (type.isEnabled()) {
             Asserts.fail("Expected event to be disabled after recording stopped");
         }
-        Events.hasEvent(r, SimpleEvent.class.getName());
-        Events.hasEvent(r, TestEvent.class.getName());
+        List<RecordedEvent> events = Events.fromRecording(r);
+        Events.hasEvent(events, SimpleEvent.class.getName());
+        Events.hasEvent(events, TestEvent.class.getName());
     }
 
     // Classes that are loaded during a recording

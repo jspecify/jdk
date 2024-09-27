@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package java.net;
 
-import java.net.*;
 import java.util.Formatter;
 import java.util.Locale;
 import sun.net.util.IPAddressUtil;
@@ -60,7 +59,7 @@ class HostPortrange {
     HostPortrange(String scheme, String str) {
         // Parse the host name.  A name has up to three components, the
         // hostname, a port number, or two numbers representing a port
-        // range.   "www.sun.com:8080-9090" is a valid host name.
+        // range.   "www.example.com:8080-9090" is a valid host name.
 
         // With IPv6 an address can be 2010:836B:4179::836B:4179
         // An IPv6 address needs to be enclose in []
@@ -137,7 +136,7 @@ class HostPortrange {
                     }
                     this.ipv4 = this.literal = ipv4;
                     if (ipv4) {
-                        byte[] ip = IPAddressUtil.textToNumericFormatV4(hoststr);
+                        byte[] ip = IPAddressUtil.validateNumericFormatV4(hoststr, false);
                         if (ip == null) {
                             throw new IllegalArgumentException("illegal IPv4 address");
                         }
@@ -186,7 +185,8 @@ class HostPortrange {
                 }
                 sb.append((char)(c - CASE_DIFF));
             } else {
-                throw new IllegalArgumentException("Invalid characters in hostname");
+                final String message = String.format("Invalid character \\u%04x in hostname", (int) c);
+                throw new IllegalArgumentException(message);
             }
         }
         return sb == null ? s : sb.toString();
@@ -241,7 +241,7 @@ class HostPortrange {
     int[] parsePort(String port)
     {
 
-        if (port == null || port.equals("")) {
+        if (port == null || port.isEmpty()) {
             return defaultPort();
         }
 
@@ -260,13 +260,13 @@ class HostPortrange {
                 String high = port.substring(dash+1);
                 int l,h;
 
-                if (low.equals("")) {
+                if (low.isEmpty()) {
                     l = PORT_MIN;
                 } else {
                     l = Integer.parseInt(low);
                 }
 
-                if (high.equals("")) {
+                if (high.isEmpty()) {
                     h = PORT_MAX;
                 } else {
                     h = Integer.parseInt(high);

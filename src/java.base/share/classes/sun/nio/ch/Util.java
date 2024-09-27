@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package sun.nio.ch;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
+import java.lang.foreign.MemorySegment;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
@@ -51,8 +52,8 @@ public class Util {
     // The max size allowed for a cached temp buffer, in bytes
     private static final long MAX_CACHED_BUFFER_SIZE = getMaxCachedBufferSize();
 
-    // Per-thread cache of temporary direct buffers
-    private static ThreadLocal<BufferCache> bufferCache = new TerminatingThreadLocal<>() {
+    // Per-carrier-thread cache of temporary direct buffers
+    private static final TerminatingThreadLocal<BufferCache> bufferCache = new TerminatingThreadLocal<>() {
         @Override
         protected BufferCache initialValue() {
             return new BufferCache();
@@ -74,8 +75,7 @@ public class Util {
      * for potential future-proofing.
      */
     private static long getMaxCachedBufferSize() {
-        String s = GetPropertyAction
-                .privilegedGetProperty("jdk.nio.maxCachedBufferSize");
+        String s = GetPropertyAction.privilegedGetProperty("jdk.nio.maxCachedBufferSize");
         if (s != null) {
             try {
                 long m = Long.parseLong(s);
@@ -112,7 +112,7 @@ public class Util {
      */
     private static class BufferCache {
         // the array of buffers
-        private ByteBuffer[] buffers;
+        private final ByteBuffer[] buffers;
 
         // the number of buffers in the cache
         private int count;
@@ -378,7 +378,7 @@ public class Util {
 
     // -- Unsafe access --
 
-    private static Unsafe unsafe = Unsafe.getUnsafe();
+    private static final Unsafe unsafe = Unsafe.getUnsafe();
 
     private static byte _get(long a) {
         return unsafe.getByte(a);
@@ -406,6 +406,7 @@ public class Util {
 
     private static volatile Constructor<?> directByteBufferConstructor;
 
+    @SuppressWarnings("removal")
     private static void initDBBConstructor() {
         AccessController.doPrivileged(new PrivilegedAction<Void>() {
                 public Void run() {
@@ -415,7 +416,8 @@ public class Util {
                             new Class<?>[] { int.class,
                                              long.class,
                                              FileDescriptor.class,
-                                             Runnable.class });
+                                             Runnable.class,
+                                             boolean.class, MemorySegment.class});
                         ctor.setAccessible(true);
                         directByteBufferConstructor = ctor;
                     } catch (ClassNotFoundException   |
@@ -430,7 +432,8 @@ public class Util {
 
     static MappedByteBuffer newMappedByteBuffer(int size, long addr,
                                                 FileDescriptor fd,
-                                                Runnable unmapper)
+                                                Runnable unmapper,
+                                                boolean isSync)
     {
         MappedByteBuffer dbb;
         if (directByteBufferConstructor == null)
@@ -440,7 +443,8 @@ public class Util {
               new Object[] { size,
                              addr,
                              fd,
-                             unmapper });
+                             unmapper,
+                             isSync, null});
         } catch (InstantiationException |
                  IllegalAccessException |
                  InvocationTargetException e) {
@@ -451,6 +455,7 @@ public class Util {
 
     private static volatile Constructor<?> directByteBufferRConstructor;
 
+    @SuppressWarnings("removal")
     private static void initDBBRConstructor() {
         AccessController.doPrivileged(new PrivilegedAction<Void>() {
                 public Void run() {
@@ -460,7 +465,8 @@ public class Util {
                             new Class<?>[] { int.class,
                                              long.class,
                                              FileDescriptor.class,
-                                             Runnable.class });
+                                             Runnable.class,
+                                             boolean.class, MemorySegment.class });
                         ctor.setAccessible(true);
                         directByteBufferRConstructor = ctor;
                     } catch (ClassNotFoundException |
@@ -475,7 +481,8 @@ public class Util {
 
     static MappedByteBuffer newMappedByteBufferR(int size, long addr,
                                                  FileDescriptor fd,
-                                                 Runnable unmapper)
+                                                 Runnable unmapper,
+                                                 boolean isSync)
     {
         MappedByteBuffer dbb;
         if (directByteBufferRConstructor == null)
@@ -485,7 +492,8 @@ public class Util {
               new Object[] { size,
                              addr,
                              fd,
-                             unmapper });
+                             unmapper,
+                             isSync, null});
         } catch (InstantiationException |
                  IllegalAccessException |
                  InvocationTargetException e) {
@@ -494,19 +502,18 @@ public class Util {
         return dbb;
     }
 
-    static void checkBufferPositionAligned(ByteBuffer bb,
-                                                     int pos, int alignment)
+    static void checkBufferPositionAligned(ByteBuffer bb, int pos, int alignment)
         throws IOException
     {
-        if (bb.alignmentOffset(pos, alignment) != 0) {
-            throw new IOException("Current location of the bytebuffer ("
+        final int alignmentOffset = bb.alignmentOffset(pos, alignment);
+        if (alignmentOffset != 0) {
+            throw new IOException("Current position of the bytebuffer ("
                 + pos + ") is not a multiple of the block size ("
-                + alignment + ")");
+                + alignment + "): alignment offset = " + alignmentOffset);
         }
     }
 
-    static void checkRemainingBufferSizeAligned(int rem,
-                                                          int alignment)
+    static void checkRemainingBufferSizeAligned(int rem, int alignment)
         throws IOException
     {
         if (rem % alignment != 0) {
@@ -516,8 +523,7 @@ public class Util {
         }
     }
 
-    static void checkChannelPositionAligned(long position,
-                                                      int alignment)
+    static void checkChannelPositionAligned(long position, int alignment)
         throws IOException
     {
         if (position % alignment != 0) {

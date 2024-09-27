@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,16 +21,17 @@
  * questions.
  */
 
+package gc;
+
 /**
  * @test TestSmallHeap
  * @bug 8067438 8152239
- * @requires vm.gc=="null"
  * @summary Verify that starting the VM with a small heap works
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI TestSmallHeap
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI gc.TestSmallHeap
  */
 
 /* Note: It would be nice to verify the minimal supported heap size here,
@@ -60,9 +61,9 @@ import jdk.test.lib.Asserts;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
-import java.util.LinkedList;
-
-import sun.hotspot.WhiteBox;
+import jtreg.SkippedException;
+import jdk.test.whitebox.WhiteBox;
+import jdk.test.whitebox.gc.GC;
 
 public class TestSmallHeap {
 
@@ -74,23 +75,32 @@ public class TestSmallHeap {
         int pageSize = wb.getVMPageSize();
         int heapBytesPerCard = 512;
         long expectedMaxHeap = pageSize * heapBytesPerCard;
+        boolean noneGCSupported = true;
 
-        verifySmallHeapSize("-XX:+UseParallelGC", expectedMaxHeap);
-        verifySmallHeapSize("-XX:+UseSerialGC", expectedMaxHeap);
-        verifySmallHeapSize("-XX:+UseG1GC", expectedMaxHeap);
-        verifySmallHeapSize("-XX:+UseConcMarkSweepGC", expectedMaxHeap);
+        if (GC.Parallel.isSupported()) {
+            noneGCSupported = false;
+            verifySmallHeapSize("-XX:+UseParallelGC", expectedMaxHeap);
+        }
+        if (GC.Serial.isSupported()) {
+            noneGCSupported = false;
+            verifySmallHeapSize("-XX:+UseSerialGC", expectedMaxHeap);
+        }
+        if (GC.G1.isSupported()) {
+            noneGCSupported = false;
+            verifySmallHeapSize("-XX:+UseG1GC", expectedMaxHeap);
+        }
+        if (noneGCSupported) {
+            throw new SkippedException("Skipping test because none of Parallel/Serial/G1 is supported.");
+        }
     }
 
     private static void verifySmallHeapSize(String gc, long expectedMaxHeap) throws Exception {
         long minMaxHeap = 4 * 1024 * 1024;
-        LinkedList<String> vmOptions = new LinkedList<>();
-        vmOptions.add(gc);
-        vmOptions.add("-Xmx" + minMaxHeap);
-        vmOptions.add("-XX:+PrintFlagsFinal");
-        vmOptions.add(VerifyHeapSize.class.getName());
-
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(vmOptions.toArray(new String[0]));
-        OutputAnalyzer analyzer = new OutputAnalyzer(pb.start());
+        OutputAnalyzer analyzer = ProcessTools.executeLimitedTestJava(
+            gc,
+            "-Xmx" + minMaxHeap,
+            "-XX:+PrintFlagsFinal",
+            VerifyHeapSize.class.getName());
         analyzer.shouldHaveExitValue(0);
 
         expectedMaxHeap = Math.max(expectedMaxHeap, minMaxHeap);

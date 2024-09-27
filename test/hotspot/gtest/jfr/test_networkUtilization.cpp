@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,26 +32,28 @@
 // with the ones that should pick up the mocks removed. Those should be included
 // later after the mocks have been defined.
 
-#include "logging/log.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "jfr/metadata/jfrSerializer.hpp"
 #include "jfr/periodic/jfrOSInterface.hpp"
 #include "jfr/utilities/jfrTime.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
+#include "logging/log.hpp"
 #include "runtime/os_perf.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/growableArray.hpp"
 
-#include "unittest.hpp"
-
+#include "utilities/vmassert_uninstall.hpp"
 #include <vector>
 #include <list>
 #include <map>
+#include "utilities/vmassert_reinstall.hpp"
+
+#include "unittest.hpp"
 
 namespace {
 
   class MockFastUnorderedElapsedCounterSource : public ::FastUnorderedElapsedCounterSource {
-  public:
+   public:
     static jlong current_ticks;
     static Type now() {
       return current_ticks;
@@ -65,7 +67,7 @@ namespace {
   typedef TimeInterval<CounterRepresentation, MockFastUnorderedElapsedCounterSource> MockJfrTickspan;
 
   class MockJfrCheckpointWriter {
-  public:
+   public:
     traceid current;
     std::map<traceid, std::string> ids;
 
@@ -78,44 +80,100 @@ namespace {
     void write_key(traceid id) {
       current = id;
     }
-    void write(const char* data) {
-      ids[current] = data;
-    }
+    void write_type(JfrTypeId id) {}
+    MockJfrCheckpointWriter() {}
+    void write(const char* data) {}
     void set_context(const JfrCheckpointContext ctx) { }
-    void write_count(u4 nof_entries, jlong offset) { }
+    void write_count(u4 nof_entries) { }
   };
 
   class MockJfrSerializer {
-  public:
-    static MockJfrSerializer* current;
-
-    static bool register_serializer(JfrTypeId id, bool require_safepoint, bool permit_cache, MockJfrSerializer* serializer) {
-      current = serializer;
+   public:
+    static bool register_serializer(JfrTypeId id, bool permit_cache, MockJfrSerializer* serializer) {
       return true;
     }
-
-    virtual void serialize(MockJfrCheckpointWriter& writer) = 0;
+    virtual void on_rotation() {}
+    virtual void serialize(MockJfrCheckpointWriter& writer) {}
   };
 
-  MockJfrSerializer* MockJfrSerializer::current;
+  struct MockNetworkInterface {
+    std::string name;
+    uint64_t bytes_in;
+    uint64_t bytes_out;
+    traceid id;
+    MockNetworkInterface(std::string name, uint64_t bytes_in, uint64_t bytes_out, traceid id) :
+      name(name), bytes_in(bytes_in), bytes_out(bytes_out), id(id) {}
 
-  class MockEventNetworkUtilization : public ::EventNetworkUtilization
-  {
-  public:
+    bool operator==(const MockNetworkInterface& rhs) const {
+      return name == rhs.name;
+    }
+  };
+
+  class NetworkInterface : public ::NetworkInterface {
+   public:
+    NetworkInterface(const char* name, uint64_t bytes_in, uint64_t bytes_out, NetworkInterface* next) :
+      ::NetworkInterface(name, bytes_in, bytes_out, next) {}
+    NetworkInterface* next(void) const {
+      return reinterpret_cast<NetworkInterface*>(::NetworkInterface::next());
+    }
+  };
+
+  class MockJfrOSInterface {
+    static std::list<MockNetworkInterface> _interfaces;
+   public:
+    MockJfrOSInterface() {}
+    static int network_utilization(NetworkInterface** network_interfaces) {
+      *network_interfaces = nullptr;
+      for (std::list<MockNetworkInterface>::const_iterator i = _interfaces.begin();
+           i != _interfaces.end();
+           ++i) {
+        // The gtests are compiled with exceptions, which requires operator delete.
+        // Allocate in CHeap instead.
+        void* mem = AllocateHeap(sizeof(NetworkInterface), mtTest);
+        NetworkInterface* cur = ::new (mem) NetworkInterface(i->name.c_str(), i->bytes_in, i->bytes_out, *network_interfaces);
+        *network_interfaces = cur;
+      }
+      return OS_OK;
+    }
+    static MockNetworkInterface& add_interface(const std::string& name, traceid id) {
+      MockNetworkInterface iface(name, 0, 0, id);
+      _interfaces.push_front(iface);
+      return _interfaces.front();
+    }
+    static void remove_interface(const MockNetworkInterface& iface) {
+      _interfaces.remove(iface);
+    }
+    static void clear_interfaces() {
+      _interfaces.clear();
+    }
+    static const MockNetworkInterface& get_interface(traceid id) {
+      std::list<MockNetworkInterface>::const_iterator i = _interfaces.begin();
+      for (; i != _interfaces.end(); ++i) {
+        if (i->id == id) {
+          break;
+        }
+      }
+      return *i;
+    }
+  };
+
+  std::list<MockNetworkInterface> MockJfrOSInterface::_interfaces;
+
+  class MockEventNetworkUtilization : public ::EventNetworkUtilization {
+   public:
     std::string iface;
     s8 readRate;
     s8 writeRate;
     static std::vector<MockEventNetworkUtilization> committed;
     MockJfrCheckpointWriter writer;
 
-  public:
+   public:
     MockEventNetworkUtilization(EventStartTime timing=TIMED) :
-    ::EventNetworkUtilization(timing) {
-    }
+    ::EventNetworkUtilization(timing) {}
 
     void set_networkInterface(traceid new_value) {
-      MockJfrSerializer::current->serialize(writer);
-      iface = writer.ids[new_value];
+      const MockNetworkInterface& entry  = MockJfrOSInterface::get_interface(new_value);
+      iface = entry.name;
     }
     void set_readRate(s8 new_value) {
       readRate = new_value;
@@ -129,7 +187,6 @@ namespace {
     }
 
     void set_starttime(const MockJfrTicks& time) {}
-
     void set_endtime(const MockJfrTicks& time) {}
 
     static const MockEventNetworkUtilization& get_committed(const std::string& name) {
@@ -148,62 +205,6 @@ namespace {
   std::vector<MockEventNetworkUtilization> MockEventNetworkUtilization::committed;
 
   jlong MockFastUnorderedElapsedCounterSource::current_ticks;
-
-  struct MockNetworkInterface {
-    std::string name;
-    uint64_t bytes_in;
-    uint64_t bytes_out;
-    MockNetworkInterface(std::string name, uint64_t bytes_in, uint64_t bytes_out)
-    : name(name),
-    bytes_in(bytes_in),
-    bytes_out(bytes_out) {
-
-    }
-    bool operator==(const MockNetworkInterface& rhs) const {
-      return name == rhs.name;
-    }
-  };
-
-  class NetworkInterface : public ::NetworkInterface {
-  public:
-    NetworkInterface(const char* name, uint64_t bytes_in, uint64_t bytes_out, NetworkInterface* next)
-    : ::NetworkInterface(name, bytes_in, bytes_out, next) {
-    }
-    NetworkInterface* next(void) const {
-      return reinterpret_cast<NetworkInterface*>(::NetworkInterface::next());
-    }
-  };
-
-  class MockJfrOSInterface {
-    static std::list<MockNetworkInterface> _interfaces;
-
-  public:
-    MockJfrOSInterface() {
-    }
-    static int network_utilization(NetworkInterface** network_interfaces) {
-      *network_interfaces = NULL;
-      for (std::list<MockNetworkInterface>::const_iterator i = _interfaces.begin();
-           i != _interfaces.end();
-           ++i) {
-        NetworkInterface* cur = new NetworkInterface(i->name.c_str(), i->bytes_in, i->bytes_out, *network_interfaces);
-        *network_interfaces = cur;
-      }
-      return OS_OK;
-    }
-    static MockNetworkInterface& add_interface(const std::string& name) {
-      MockNetworkInterface iface(name, 0, 0);
-      _interfaces.push_back(iface);
-      return _interfaces.back();
-    }
-    static void remove_interface(const MockNetworkInterface& iface) {
-      _interfaces.remove(iface);
-    }
-    static void clear_interfaces() {
-      _interfaces.clear();
-    }
-  };
-
-  std::list<MockNetworkInterface> MockJfrOSInterface::_interfaces;
 
 // Reincluding source files in the anonymous namespace unfortunately seems to
 // behave strangely with precompiled headers (only when using gcc though)
@@ -246,9 +247,11 @@ protected:
   }
 };
 
+static traceid id = 0;
+
 TEST_VM_F(JfrTestNetworkUtilization, RequestFunctionBasic) {
 
-  MockNetworkInterface& eth0 = MockJfrOSInterface::add_interface("eth0");
+  MockNetworkInterface& eth0 = MockJfrOSInterface::add_interface("eth0", ++id);
   JfrNetworkUtilization::send_events();
   ASSERT_EQ(0u, MockEventNetworkUtilization::committed.size());
 
@@ -258,16 +261,16 @@ TEST_VM_F(JfrTestNetworkUtilization, RequestFunctionBasic) {
   JfrNetworkUtilization::send_events();
   ASSERT_EQ(1u, MockEventNetworkUtilization::committed.size());
   MockEventNetworkUtilization& e = MockEventNetworkUtilization::committed[0];
-  EXPECT_EQ(5, e.readRate);
+  EXPECT_EQ(40, e.readRate);
   EXPECT_EQ(0, e.writeRate);
   EXPECT_STREQ("eth0", e.iface.c_str());
 }
 
 TEST_VM_F(JfrTestNetworkUtilization, RequestFunctionMultiple) {
 
-  MockNetworkInterface& eth0 = MockJfrOSInterface::add_interface("eth0");
-  MockNetworkInterface& eth1 = MockJfrOSInterface::add_interface("eth1");
-  MockNetworkInterface& ppp0 = MockJfrOSInterface::add_interface("ppp0");
+  MockNetworkInterface& eth0 = MockJfrOSInterface::add_interface("eth0", ++id);
+  MockNetworkInterface& eth1 = MockJfrOSInterface::add_interface("eth1", ++id);
+  MockNetworkInterface& ppp0 = MockJfrOSInterface::add_interface("ppp0", ++id);
   JfrNetworkUtilization::send_events();
   ASSERT_EQ(0u, MockEventNetworkUtilization::committed.size());
 
@@ -282,22 +285,22 @@ TEST_VM_F(JfrTestNetworkUtilization, RequestFunctionMultiple) {
   const MockEventNetworkUtilization& eth1_event = MockEventNetworkUtilization::get_committed("eth1");
   const MockEventNetworkUtilization& ppp0_event = MockEventNetworkUtilization::get_committed("ppp0");
 
-  EXPECT_EQ(5, eth0_event.readRate);
+  EXPECT_EQ(40, eth0_event.readRate);
   EXPECT_EQ(0, eth0_event.writeRate);
   EXPECT_STREQ("eth0", eth0_event.iface.c_str());
 
-  EXPECT_EQ(50, eth1_event.readRate);
+  EXPECT_EQ(400, eth1_event.readRate);
   EXPECT_EQ(0, eth1_event.writeRate);
   EXPECT_STREQ("eth1", eth1_event.iface.c_str());
 
   EXPECT_EQ(0, ppp0_event.readRate);
-  EXPECT_EQ(25, ppp0_event.writeRate);
+  EXPECT_EQ(200, ppp0_event.writeRate);
   EXPECT_STREQ("ppp0", ppp0_event.iface.c_str());
 }
 
 TEST_VM_F(JfrTestNetworkUtilization, InterfaceRemoved) {
-  MockNetworkInterface& eth0 = MockJfrOSInterface::add_interface("eth0");
-  MockNetworkInterface& eth1 = MockJfrOSInterface::add_interface("eth1");
+  MockNetworkInterface& eth0 = MockJfrOSInterface::add_interface("eth0", ++id);
+  MockNetworkInterface& eth1 = MockJfrOSInterface::add_interface("eth1", ++id);
   JfrNetworkUtilization::send_events();
   ASSERT_EQ(0u, MockEventNetworkUtilization::committed.size());
 
@@ -310,11 +313,11 @@ TEST_VM_F(JfrTestNetworkUtilization, InterfaceRemoved) {
   const MockEventNetworkUtilization& eth0_event = MockEventNetworkUtilization::get_committed("eth0");
   const MockEventNetworkUtilization& eth1_event = MockEventNetworkUtilization::get_committed("eth1");
 
-  EXPECT_EQ(5, eth0_event.readRate);
+  EXPECT_EQ(40, eth0_event.readRate);
   EXPECT_EQ(0, eth0_event.writeRate);
   EXPECT_STREQ("eth0", eth0_event.iface.c_str());
 
-  EXPECT_EQ(10, eth1_event.readRate);
+  EXPECT_EQ(80, eth1_event.readRate);
   EXPECT_EQ(0, eth1_event.writeRate);
   EXPECT_STREQ("eth1", eth1_event.iface.c_str());
 
@@ -327,13 +330,13 @@ TEST_VM_F(JfrTestNetworkUtilization, InterfaceRemoved) {
   ASSERT_EQ(1u, MockEventNetworkUtilization::committed.size());
   const MockEventNetworkUtilization& eth1_event_v2 = MockEventNetworkUtilization::get_committed("eth1");
 
-  EXPECT_EQ(5, eth1_event_v2.readRate);
+  EXPECT_EQ(40, eth1_event_v2.readRate);
   EXPECT_EQ(0, eth1_event_v2.writeRate);
   EXPECT_STREQ("eth1", eth1_event_v2.iface.c_str());
 }
 
 TEST_VM_F(JfrTestNetworkUtilization, InterfaceReset) {
-  MockNetworkInterface& eth0 = MockJfrOSInterface::add_interface("eth0");
+  MockNetworkInterface& eth0 = MockJfrOSInterface::add_interface("eth0", ++id);
   JfrNetworkUtilization::send_events();
   ASSERT_EQ(0u, MockEventNetworkUtilization::committed.size());
 
@@ -343,7 +346,7 @@ TEST_VM_F(JfrTestNetworkUtilization, InterfaceReset) {
   JfrNetworkUtilization::send_events();
   ASSERT_EQ(1u, MockEventNetworkUtilization::committed.size());
   const MockEventNetworkUtilization& event = MockEventNetworkUtilization::committed[0];
-  EXPECT_EQ(5, event.readRate);
+  EXPECT_EQ(40, event.readRate);
   EXPECT_EQ(0, event.writeRate);
   EXPECT_STREQ("eth0", event.iface.c_str());
 
@@ -360,7 +363,7 @@ TEST_VM_F(JfrTestNetworkUtilization, InterfaceReset) {
   JfrNetworkUtilization::send_events();
   ASSERT_EQ(1u, MockEventNetworkUtilization::committed.size());
   const MockEventNetworkUtilization& event_v2 = MockEventNetworkUtilization::committed[0];
-  EXPECT_EQ(5, event_v2.readRate);
+  EXPECT_EQ(40, event_v2.readRate);
   EXPECT_EQ(0, event_v2.writeRate);
   EXPECT_STREQ("eth0", event_v2.iface.c_str());
 }

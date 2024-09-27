@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,7 +54,7 @@ void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
 LIR_Opr ModRefBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem& cmp_value, LIRItem& new_value) {
   if (access.is_oop()) {
     pre_barrier(access, access.resolved_addr(),
-                LIR_OprFact::illegalOpr /* pre_val */, NULL);
+                LIR_OprFact::illegalOpr /* pre_val */, nullptr);
   }
 
   LIR_Opr result = BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
@@ -69,7 +69,7 @@ LIR_Opr ModRefBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRIte
 LIR_Opr ModRefBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& value) {
   if (access.is_oop()) {
     pre_barrier(access, access.resolved_addr(),
-                LIR_OprFact::illegalOpr /* pre_val */, NULL);
+                LIR_OprFact::illegalOpr /* pre_val */, nullptr);
   }
 
   LIR_Opr result = BarrierSetC1::atomic_xchg_at_resolved(access, value);
@@ -86,7 +86,7 @@ LIR_Opr ModRefBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& 
 LIR_Opr ModRefBarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_register) {
   DecoratorSet decorators = access.decorators();
   bool needs_patching = (decorators & C1_NEEDS_PATCHING) != 0;
-  bool is_write = (decorators & C1_WRITE_ACCESS) != 0;
+  bool is_write = (decorators & ACCESS_WRITE) != 0;
   bool is_array = (decorators & IS_ARRAY) != 0;
   bool on_anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
   bool precise = is_array || on_anonymous;

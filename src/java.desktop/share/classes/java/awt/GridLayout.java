@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,7 @@
 
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import java.io.Serial;
 
 /**
  * The {@code GridLayout} class is a layout manager that
@@ -58,26 +57,21 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * If the container's {@code ComponentOrientation} property is horizontal
  * and right-to-left, the example produces the output shown in Figure 2.
  *
- * <table style="float:center;width:600">
- * <caption style="display:none">Figures</caption>
- * <tr style="text-align:center">
- * <td><img SRC="doc-files/GridLayout-1.gif"
- *      alt="Shows 6 buttons in rows of 2. Row 1 shows buttons 1 then 2.
- * Row 2 shows buttons 3 then 4. Row 3 shows buttons 5 then 6.">
- * </td>
- *
- * <td style="text-align:center"><img SRC="doc-files/GridLayout-2.gif"
- *              alt="Shows 6 buttons in rows of 2. Row 1 shows buttons 2 then 1.
- * Row 2 shows buttons 4 then 3. Row 3 shows buttons 6 then 5.">
- * </td>
- * </tr>
- *
- * <tr style="text-align:center">
- * <td>Figure 1: Horizontal, Left-to-Right</td>
- *
- * <td>Figure 2: Horizontal, Right-to-Left</td>
- * </tr>
- * </table>
+ * <div style="margin:0 auto;width:600px;text-align:center;font-weight:bold">
+ *   <div style="float:left">
+ *     <p><img SRC="doc-files/GridLayout-1.gif"
+ *        alt="Shows 6 buttons in rows of 2. Row 1 shows buttons 1 then 2.
+ *        Row 2 shows buttons 3 then 4. Row 3 shows buttons 5 then 6.">
+ *     <p>Figure 1: Horizontal, Left-to-Right
+ *   </div>
+ *   <div style="float:right">
+ *     <p><img SRC="doc-files/GridLayout-2.gif"
+ *        alt="Shows 6 buttons in rows of 2. Row 1 shows buttons 2 then 1.
+ *        Row 2 shows buttons 4 then 3. Row 3 shows buttons 6 then 5.">
+ *     <p>Figure 2: Horizontal, Right-to-Left
+ *   </div>
+ *   <br style="clear:both;">
+ * </div>
  * <p>
  * When both the number of rows and the number of columns have
  * been set to non-zero values, either by a constructor or
@@ -94,11 +88,12 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  Arthur van Hoff
  * @since   1.0
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class GridLayout implements LayoutManager, java.io.Serializable {
-    /*
-     * serialVersionUID
+public class GridLayout implements LayoutManager, java.io.Serializable {
+
+    /**
+     * Use serialVersionUID from JDK 1.6 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = -7411804673224730901L;
 
     /**
@@ -191,7 +186,7 @@ public @UsesObjectEquals class GridLayout implements LayoutManager, java.io.Seri
      *                   any number of columns
      * @param     hgap   the horizontal gap
      * @param     vgap   the vertical gap
-     * @exception   IllegalArgumentException  if the value of both
+     * @throws   IllegalArgumentException  if the value of both
      *                  {@code rows} and {@code cols} is
      *                  set to zero
      */
@@ -217,7 +212,7 @@ public @UsesObjectEquals class GridLayout implements LayoutManager, java.io.Seri
     /**
      * Sets the number of rows in this layout to the specified value.
      * @param        rows   the number of rows in this layout
-     * @exception    IllegalArgumentException  if the value of both
+     * @throws    IllegalArgumentException  if the value of both
      *               {@code rows} and {@code cols} is set to zero
      * @since        1.1
      */
@@ -239,13 +234,13 @@ public @UsesObjectEquals class GridLayout implements LayoutManager, java.io.Seri
 
     /**
      * Sets the number of columns in this layout to the specified value.
-     * Setting the number of columns has no affect on the layout
+     * Setting the number of columns has no effect on the layout
      * if the number of rows specified by a constructor or by
      * the {@code setRows} method is non-zero. In that case, the number
      * of columns displayed in the layout is determined by the total
      * number of components and the number of rows specified.
      * @param        cols   the number of columns in this layout
-     * @exception    IllegalArgumentException  if the value of both
+     * @throws    IllegalArgumentException  if the value of both
      *               {@code rows} and {@code cols} is set to zero
      * @since        1.1
      */
@@ -440,10 +435,10 @@ public @UsesObjectEquals class GridLayout implements LayoutManager, java.io.Seri
             nrows = (ncomponents + ncols - 1) / ncols;
         }
         // 4370316. To position components in the center we should:
-        // 1. get an amount of extra space within Container
+        // 1. get the amount of extra space within Container
         // 2. incorporate half of that value to the left/top position
-        // Note that we use trancating division for widthOnComponent
-        // The reminder goes to extraWidthAvailable
+        // Note that we use truncating division for widthOnComponent
+        // The remainder goes to extraWidthAvailable
         int totalGapsWidth = (ncols - 1) * hgap;
         int widthWOInsets = parent.width - (insets.left + insets.right);
         int widthOnComponent = (widthWOInsets - totalGapsWidth) / ncols;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,8 @@ package javax.swing;
 import java.awt.event.*;
 import java.awt.*;
 import java.util.Objects;
+import javax.swing.event.MenuKeyEvent;
+import javax.swing.event.MenuKeyListener;
 
 /**
  * Manages all the <code>ToolTips</code> in the system.
@@ -52,7 +54,7 @@ import java.util.Objects;
  * @author Rich Schiavi
  * @since 1.2
  */
-public class ToolTipManager extends MouseAdapter implements MouseMotionListener  {
+public final class ToolTipManager extends MouseAdapter implements MouseMotionListener  {
     Timer enterTimer, exitTimer, insideTimer;
     String toolTipText;
     Point  preferredLocation;
@@ -218,7 +220,7 @@ public class ToolTipManager extends MouseAdapter implements MouseMotionListener 
     /**
      * Returns the reshow delay property.
      *
-     * @return reshown delay property
+     * @return reshow delay property
      * @see #setReshowDelay
      */
     public int getReshowDelay() {
@@ -230,7 +232,7 @@ public class ToolTipManager extends MouseAdapter implements MouseMotionListener 
     // Point(20000, 20000))
     private GraphicsConfiguration getDrawingGC(Point toFind) {
         GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
-        GraphicsDevice devices[] = env.getScreenDevices();
+        GraphicsDevice[] devices = env.getScreenDevices();
         for (GraphicsDevice device : devices) {
             GraphicsConfiguration config = device.getDefaultConfiguration();
             Rectangle rect = config.getBounds();
@@ -263,13 +265,19 @@ public class ToolTipManager extends MouseAdapter implements MouseMotionListener 
                 toFind = new Point(screenLocation.x + preferredLocation.x,
                         screenLocation.y + preferredLocation.y);
             } else {
-                toFind = mouseEvent.getLocationOnScreen();
+                if (mouseEvent != null) {
+                    toFind = mouseEvent.getLocationOnScreen();
+                } else {
+                    toFind = screenLocation;
+                }
             }
 
             GraphicsConfiguration gc = getDrawingGC(toFind);
             if (gc == null) {
-                toFind = mouseEvent.getLocationOnScreen();
-                gc = getDrawingGC(toFind);
+                if (mouseEvent != null) {
+                    toFind = mouseEvent.getLocationOnScreen();
+                    gc = getDrawingGC(toFind);
+                }
                 if (gc == null) {
                     gc = insideComponent.getGraphicsConfiguration();
                 }
@@ -299,8 +307,12 @@ public class ToolTipManager extends MouseAdapter implements MouseMotionListener 
             location.x -= size.width;
         }
             } else {
-                location = new Point(screenLocation.x + mouseEvent.getX(),
-                        screenLocation.y + mouseEvent.getY() + 20);
+                if (mouseEvent != null) {
+                    location = new Point(screenLocation.x + mouseEvent.getX(),
+                            screenLocation.y + mouseEvent.getY() + 20);
+                } else {
+                    location = screenLocation;
+                }
         if (!leftToRight) {
             if(location.x - size.width>=0) {
                 location.x -= size.width;
@@ -415,8 +427,14 @@ public class ToolTipManager extends MouseAdapter implements MouseMotionListener 
         component.addMouseListener(this);
         component.removeMouseMotionListener(moveBeforeEnterListener);
         component.addMouseMotionListener(moveBeforeEnterListener);
-        component.removeKeyListener(accessibilityKeyListener);
-        component.addKeyListener(accessibilityKeyListener);
+        // use MenuKeyListener for menu items/elements
+        if (component instanceof JMenuItem) {
+            ((JMenuItem) component).removeMenuKeyListener((MenuKeyListener) accessibilityKeyListener);
+            ((JMenuItem) component).addMenuKeyListener((MenuKeyListener) accessibilityKeyListener);
+        } else {
+            component.removeKeyListener(accessibilityKeyListener);
+            component.addKeyListener(accessibilityKeyListener);
+        }
     }
 
     /**
@@ -427,7 +445,11 @@ public class ToolTipManager extends MouseAdapter implements MouseMotionListener 
     public void unregisterComponent(JComponent component) {
         component.removeMouseListener(this);
         component.removeMouseMotionListener(moveBeforeEnterListener);
-        component.removeKeyListener(accessibilityKeyListener);
+        if (component instanceof JMenuItem) {
+            ((JMenuItem) component).removeMenuKeyListener((MenuKeyListener) accessibilityKeyListener);
+        } else {
+            component.removeKeyListener(accessibilityKeyListener);
+        }
     }
 
     // implements java.awt.event.MouseListener
@@ -665,6 +687,12 @@ public class ToolTipManager extends MouseAdapter implements MouseMotionListener 
      * Inside timer action.
      */
     protected class insideTimerAction implements ActionListener {
+
+        /**
+         * Constructs an {@code insideTimerAction}.
+         */
+        protected insideTimerAction() {}
+
         /**
          * {@inheritDoc}
          */
@@ -695,6 +723,12 @@ public class ToolTipManager extends MouseAdapter implements MouseMotionListener 
      * Outside timer action.
      */
     protected class outsideTimerAction implements ActionListener {
+
+        /**
+         * Constructs an {@code outsideTimerAction}.
+         */
+        protected outsideTimerAction() {}
+
         /**
          * {@inheritDoc}
          */
@@ -707,6 +741,12 @@ public class ToolTipManager extends MouseAdapter implements MouseMotionListener 
      * Still inside timer action.
      */
     protected class stillInsideTimerAction implements ActionListener {
+
+        /**
+         * Constructs a {@code stillInsideTimerAction}.
+         */
+        protected stillInsideTimerAction() {}
+
         /**
          * {@inheritDoc}
          */
@@ -754,7 +794,7 @@ public class ToolTipManager extends MouseAdapter implements MouseMotionListener 
   // Returns: 0 no adjust
   //         -1 can't fit
   //         >0 adjust value by amount returned
- @SuppressWarnings("deprecation")
+ @SuppressWarnings("removal")
   private int getPopupFitWidth(Rectangle popupRectInScreen, Component invoker){
     if (invoker != null){
       Container parent;
@@ -780,7 +820,7 @@ public class ToolTipManager extends MouseAdapter implements MouseMotionListener 
 
   // Returns:  0 no adjust
   //          >0 adjust by value return
-  @SuppressWarnings("deprecation")
+  @SuppressWarnings("removal")
   private int getPopupFitHeight(Rectangle popupRectInScreen, Component invoker){
     if (invoker != null){
       Container parent;
@@ -867,7 +907,7 @@ public class ToolTipManager extends MouseAdapter implements MouseMotionListener 
      * Post Tip: Ctrl+F1
      * Unpost Tip: Esc and Ctrl+F1
      */
-    private class AccessibilityKeyListener extends KeyAdapter {
+    private class AccessibilityKeyListener extends KeyAdapter implements MenuKeyListener {
         public void keyPressed(KeyEvent e) {
             if (!e.isConsumed()) {
                 JComponent source = (JComponent) e.getComponent();
@@ -884,5 +924,32 @@ public class ToolTipManager extends MouseAdapter implements MouseMotionListener 
                 }
             }
         }
+
+        @Override
+        public void menuKeyTyped(MenuKeyEvent e) {}
+
+        @Override
+        public void menuKeyPressed(MenuKeyEvent e) {
+            if (postTip.equals(KeyStroke.getKeyStrokeForEvent(e))) {
+                // get element for the event
+                MenuElement path[] = e.getPath();
+                MenuElement element = path[path.length - 1];
+
+                // retrieve currently highlighted element
+                MenuSelectionManager msm = e.getMenuSelectionManager();
+                MenuElement selectedPath[] = msm.getSelectedPath();
+                MenuElement selectedElement = selectedPath[selectedPath.length - 1];
+
+                if (element.equals(selectedElement)) {
+                    // show/hide tooltip message
+                    JComponent source = (JComponent) element.getComponent();
+                    ToolTipManager.this.show(source);
+                    e.consume();
+                }
+            }
+        }
+
+        @Override
+        public void menuKeyReleased(MenuKeyEvent e) {}
     }
 }
