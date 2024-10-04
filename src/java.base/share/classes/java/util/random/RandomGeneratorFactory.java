@@ -25,6 +25,8 @@
 
 package java.util.random;
 
+import org.jspecify.annotations.NullMarked;
+
 import jdk.internal.random.L128X1024MixRandom;
 import jdk.internal.random.L128X128MixRandom;
 import jdk.internal.random.L128X256MixRandom;
@@ -112,6 +114,7 @@ import java.util.stream.Stream;
  * @see java.util.random
  *
  */
+@NullMarked
 public final class RandomGeneratorFactory<T extends RandomGenerator> {
 
     private static final String DEFAULT_ALGORITHM = "L32X64MixRandom";
