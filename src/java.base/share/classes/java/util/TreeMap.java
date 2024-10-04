@@ -328,7 +328,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * @throws UnsupportedOperationException always
      * @since 21
      */
-     public V putFirst(K k, V v) {
+     public @Nullable V putFirst(K k, V v) {
         throw new UnsupportedOperationException();
     }
 
@@ -340,7 +340,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * @throws UnsupportedOperationException always
      * @since 21
      */
-    public V putLast(K k, V v) {
+    public @Nullable V putLast(K k, V v) {
         throw new UnsupportedOperationException();
     }
 
