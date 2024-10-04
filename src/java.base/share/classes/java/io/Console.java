@@ -172,7 +172,7 @@ public sealed class Console implements Flushable permits ProxyingConsole {
      * @since 23
      */
     @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
-    public Console println(Object obj) {
+    public Console println(@Nullable Object obj) {
         throw newUnsupportedOperationException();
     }
 
@@ -192,7 +192,7 @@ public sealed class Console implements Flushable permits ProxyingConsole {
      * @since 23
      */
     @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
-    public Console print(Object obj) {
+    public Console print(@Nullable Object obj) {
         throw newUnsupportedOperationException();
     }
 
@@ -214,7 +214,7 @@ public sealed class Console implements Flushable permits ProxyingConsole {
      * @since 23
      */
     @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
-    public String readln(String prompt) {
+    public String readln(@Nullable String prompt) {
         throw newUnsupportedOperationException();
     }
 
@@ -289,7 +289,7 @@ public sealed class Console implements Flushable permits ProxyingConsole {
      * @return  This console
      * @since   23
      */
-    public Console format(Locale locale, String format, Object ... args) {
+    public Console format(@Nullable Locale locale, String format, @Nullable Object ... args) {
         throw newUnsupportedOperationException();
     }
 
@@ -369,7 +369,7 @@ public sealed class Console implements Flushable permits ProxyingConsole {
      * @return  This console
      * @since   23
      */
-    public Console printf(Locale locale, String format, Object ... args) {
+    public Console printf(@Nullable Locale locale, String format, @Nullable Object ... args) {
         throw newUnsupportedOperationException();
     }
 
@@ -453,7 +453,7 @@ public sealed class Console implements Flushable permits ProxyingConsole {
      *          if an end of stream has been reached.
      * @since   23
      */
-    public String readLine(Locale locale, String format, Object ... args) {
+    public @Nullable String readLine(@Nullable Locale locale, String format, @Nullable Object ... args) {
         throw newUnsupportedOperationException();
     }
 
@@ -553,7 +553,7 @@ public sealed class Console implements Flushable permits ProxyingConsole {
      *          or {@code null} if an end of stream has been reached.
      * @since   23
      */
-    public char[] readPassword(Locale locale, String format, Object ... args) {
+    public char @Nullable [] readPassword(@Nullable Locale locale, String format, @Nullable Object ... args) {
         throw newUnsupportedOperationException();
     }
 
