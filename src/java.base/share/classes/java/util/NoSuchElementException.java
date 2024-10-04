@@ -25,6 +25,9 @@
 
 package java.util;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * Thrown by various accessor methods to indicate that the element being requested
  * does not exist.
@@ -33,6 +36,7 @@ package java.util;
  * @see     java.util.Iterator#next()
  * @since   1.0
  */
+@NullMarked
 public class NoSuchElementException extends RuntimeException {
     @java.io.Serial
     private static final long serialVersionUID = 6769829250639411880L;
@@ -54,7 +58,7 @@ public class NoSuchElementException extends RuntimeException {
      *              {@link #getCause()} method), or null
      * @since 15
      */
-    public NoSuchElementException(String s, Throwable cause) {
+    public NoSuchElementException(@Nullable String s, @Nullable Throwable cause) {
         super(s, cause);
     }
 
@@ -68,7 +72,7 @@ public class NoSuchElementException extends RuntimeException {
      *              {@link #getCause()} method)
      * @since 15
      */
-    public NoSuchElementException(Throwable cause) {
+    public NoSuchElementException(@Nullable Throwable cause) {
         super(cause);
     }
 
@@ -79,7 +83,7 @@ public class NoSuchElementException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    public NoSuchElementException(String s) {
+    public NoSuchElementException(@Nullable String s) {
         super(s);
     }
 }
