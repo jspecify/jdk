@@ -26,6 +26,9 @@
 
 package java.util;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.util.HexDigits;
@@ -137,6 +140,7 @@ import java.nio.charset.StandardCharsets;
  */
 
 
+@NullMarked
 public final class HexFormat {
 
     // Access to create strings from a byte array.
@@ -1056,7 +1060,7 @@ public final class HexFormat {
      *         otherwise {@code false}
      */
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
         if (this == o)
             return true;
         if (o == null || getClass() != o.getClass())
