@@ -112,7 +112,7 @@ public class NullPointerException extends RuntimeException {
      *
      * @return the detail message string, which may be {@code null}.
      */
-    public String getMessage() {
+    public @Nullable String getMessage() {
         String message = super.getMessage();
         if (message == null) {
             synchronized(this) {

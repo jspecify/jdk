@@ -56,7 +56,7 @@ public abstract class ObjectStreamException extends IOException {
      * @param cause the cause
      * @since 19
      */
-    protected ObjectStreamException(String message, Throwable cause) {
+    protected ObjectStreamException(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }
 
@@ -73,7 +73,7 @@ public abstract class ObjectStreamException extends IOException {
      * @param cause the cause
      * @since 19
      */
-    protected ObjectStreamException(Throwable cause) {
+    protected ObjectStreamException(@Nullable Throwable cause) {
         super(cause);
     }
 }
