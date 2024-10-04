@@ -1329,7 +1329,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @see    StandardSocketOptions#IP_MULTICAST_IF
      * @since  17
      */
-    public void joinGroup(SocketAddress mcastaddr, NetworkInterface netIf)
+    public void joinGroup(SocketAddress mcastaddr, @Nullable NetworkInterface netIf)
             throws IOException {
         delegate().joinGroup(mcastaddr, netIf);
     }
@@ -1373,7 +1373,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @see    StandardSocketOptions#IP_MULTICAST_IF
      * @since  17
      */
-    public void leaveGroup(SocketAddress mcastaddr, NetworkInterface netIf)
+    public void leaveGroup(SocketAddress mcastaddr, @Nullable NetworkInterface netIf)
             throws IOException {
         delegate().leaveGroup(mcastaddr, netIf);
     }
