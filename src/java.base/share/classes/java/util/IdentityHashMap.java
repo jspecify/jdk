@@ -1444,7 +1444,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      * {@code false}.
      */
     @Override
-    public boolean remove(Object key, Object value) {
+    public boolean remove(@Nullable Object key, @Nullable Object value) {
         return removeMapping(key, value);
     }
 

@@ -382,12 +382,12 @@ public class HashSet<E extends @Nullable Object>
     }
 
     @Override
-    public Object[] toArray() {
+    public @Nullable Object[] toArray() {
         return map.keysToArray(new Object[map.size()]);
     }
 
     @Override
-    public <T> T[] toArray(T[] a) {
+    public <T extends @Nullable Object> T[] toArray(T[] a) {
         return map.keysToArray(map.prepareArray(a));
     }
 
