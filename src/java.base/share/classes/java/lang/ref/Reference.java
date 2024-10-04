@@ -376,7 +376,7 @@ public abstract sealed class Reference<T>
      * @return {@code true} if {@code obj} is the referent of this reference object
      * @since 16
      */
-    public final boolean refersTo(T obj) {
+    public final boolean refersTo(@Nullable T obj) {
         return refersToImpl(obj);
     }
 
