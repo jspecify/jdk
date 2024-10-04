@@ -24,6 +24,8 @@
  */
 package java.time;
 
+import org.jspecify.annotations.NullMarked;
+
 import java.time.Clock.SourceClock;
 import java.time.Clock.SystemInstantSource;
 import java.util.Objects;
@@ -95,6 +97,7 @@ import java.util.Objects;
  *
  * @since 17
  */
+@NullMarked
 public interface InstantSource {
 
     /**
