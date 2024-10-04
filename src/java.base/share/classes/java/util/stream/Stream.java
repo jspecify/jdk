@@ -429,7 +429,7 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      * @see #flatMap flatMap
      * @since 16
      */
-    default <R> Stream<R> mapMulti(BiConsumer<? super T, ? super Consumer<R>> mapper) {
+    default <R extends @Nullable Object> Stream<R> mapMulti(BiConsumer<? super T, ? super Consumer<R>> mapper) {
         Objects.requireNonNull(mapper);
         return flatMap(e -> {
             SpinedBuffer<R> buffer = new SpinedBuffer<>();
