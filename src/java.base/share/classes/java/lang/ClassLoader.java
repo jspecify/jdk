@@ -764,7 +764,7 @@ public abstract  class ClassLoader {
      *
      * @since 9
      */
-    protected Class<?> findClass(String moduleName, String name) {
+    protected @Nullable Class<?> findClass(@Nullable String moduleName, String name) {
         if (moduleName == null) {
             try {
                 return findClass(name);
@@ -1358,7 +1358,7 @@ public abstract  class ClassLoader {
      * @see java.lang.module.ModuleReader#find(String)
      * @since 9
      */
-    protected URL findResource(String moduleName, String name) throws IOException {
+    protected @Nullable URL findResource(@Nullable String moduleName, String name) throws IOException {
         if (moduleName == null) {
             return findResource(name);
         } else {

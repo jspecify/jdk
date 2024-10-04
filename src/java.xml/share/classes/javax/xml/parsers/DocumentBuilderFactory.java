@@ -124,7 +124,7 @@ public abstract class DocumentBuilderFactory {
      * @since 13
      */
     public static DocumentBuilderFactory newNSInstance(String factoryClassName,
-            ClassLoader classLoader) {
+            @Nullable ClassLoader classLoader) {
             return makeNSAware(FactoryFinder.newInstance(
                     DocumentBuilderFactory.class, factoryClassName, classLoader, false));
     }
