@@ -696,7 +696,7 @@ public final  class Class< T> implements java.io.Serializable,
      * @jls 15.8.2 Class Literals
      * @since 22
      */
-    public static Class<?> forPrimitiveName(String primitiveName) {
+    public static @Nullable Class<?> forPrimitiveName(String primitiveName) {
         return switch(primitiveName) {
         // Integral types
         case "int"     -> int.class;
@@ -2683,7 +2683,7 @@ public final  class Class< T> implements java.io.Serializable,
      * @since 16
      */
     @CallerSensitive
-    public RecordComponent[] getRecordComponents() {
+    public RecordComponent @Nullable [] getRecordComponents() {
         @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -4700,7 +4700,7 @@ public final  class Class< T> implements java.io.Serializable,
      * @since 12
      */
     @Override
-    public Class<?> componentType() {
+    public @Nullable Class<?> componentType() {
         return isArray() ? componentType : null;
     }
 
@@ -4789,7 +4789,7 @@ public final  class Class< T> implements java.io.Serializable,
      * @since 17
      */
     @CallerSensitive
-    public Class<?>[] getPermittedSubclasses() {
+    public Class<?> @Nullable [] getPermittedSubclasses() {
         Class<?>[] subClasses;
         if (isArray() || isPrimitive() || (subClasses = getPermittedSubclasses0()) == null) {
             return null;
