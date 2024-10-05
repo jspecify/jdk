@@ -1964,7 +1964,7 @@ abstract sealed class AbstractStringBuilder implements Appendable, CharSequence
      *
      * @since 21
      */
-    public AbstractStringBuilder repeat(CharSequence cs, int count) {
+    public AbstractStringBuilder repeat(@Nullable CharSequence cs, int count) {
         if (count < 0) {
             throw new IllegalArgumentException("count is negative: " + count);
         } else if (count == 0) {
