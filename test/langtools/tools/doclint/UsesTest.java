@@ -2,9 +2,9 @@
  * @test /nodynamiccopyright/
  * @bug 8160196
  * @summary Module summary page should display information based on "api" or "detail" mode.
- * @modules jdk.compiler/com.sun.tools.doclint
+ * @modules jdk.javadoc/jdk.javadoc.internal.doclint
  * @build DocLintTester
- * @run main DocLintTester -ref UsesTest.out UsesTest.java
+ * @run main DocLintTester -Xmsgs:all,-missing -ref UsesTest.out UsesTest.java
  */
 
 /**

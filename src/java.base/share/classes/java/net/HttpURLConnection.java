@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -277,9 +277,11 @@ public abstract class HttpURLConnection extends URLConnection {
      * <p>
      * This method must be called before the URLConnection is connected.
      *
-     * @param   chunklen The number of bytes to write in each chunk.
-     *          If chunklen is less than or equal to zero, a default
-     *          value will be used.
+     * @param   chunklen The number of bytes to be written in each chunk,
+     *          including a chunk size header as a hexadecimal string
+     *          (minimum of 1 byte), two CRLF's (4 bytes) and a minimum
+     *          payload length of 1 byte. If chunklen is less than or equal
+     *          to 5, a higher default value will be used.
      *
      * @throws  IllegalStateException if URLConnection is already connected
      *          or if a different streaming mode is already enabled.
@@ -371,8 +373,7 @@ public abstract class HttpURLConnection extends URLConnection {
 
     /**
      * Sets whether HTTP redirects  (requests with response code 3xx) should
-     * be automatically followed by this class.  True by default.  Applets
-     * cannot change this variable.
+     * be automatically followed by this class.  True by default.
      * <p>
      * If there is a security manager, this method first calls
      * the security manager's {@code checkSetFactory} method
@@ -381,13 +382,14 @@ public abstract class HttpURLConnection extends URLConnection {
      *
      * @param set a {@code boolean} indicating whether or not
      * to follow HTTP redirects.
-     * @exception  SecurityException  if a security manager exists and its
+     * @throws     SecurityException  if a security manager exists and its
      *             {@code checkSetFactory} method doesn't
      *             allow the operation.
      * @see        SecurityManager#checkSetFactory
      * @see #getFollowRedirects()
      */
     public static void setFollowRedirects(boolean set) {
+        @SuppressWarnings("removal")
         SecurityManager sec = System.getSecurityManager();
         if (sec != null) {
             // seems to be the best check here...
@@ -424,11 +426,11 @@ public abstract class HttpURLConnection extends URLConnection {
      * @see #getInstanceFollowRedirects
      * @since 1.3
      */
-     public void setInstanceFollowRedirects(boolean followRedirects) {
+    public void setInstanceFollowRedirects(boolean followRedirects) {
         instanceFollowRedirects = followRedirects;
-     }
+    }
 
-     /**
+    /**
      * Returns the value of this {@code HttpURLConnection}'s
      * {@code instanceFollowRedirects} field.
      *
@@ -438,9 +440,9 @@ public abstract class HttpURLConnection extends URLConnection {
      * @see #setInstanceFollowRedirects(boolean)
      * @since 1.3
      */
-     public boolean getInstanceFollowRedirects() {
-         return instanceFollowRedirects;
-     }
+    public boolean getInstanceFollowRedirects() {
+        return instanceFollowRedirects;
+    }
 
     /**
      * Set the method for the URL request, one of:
@@ -456,9 +458,9 @@ public abstract class HttpURLConnection extends URLConnection {
      * method is GET.
      *
      * @param method the HTTP method
-     * @exception ProtocolException if the method cannot be reset or if
+     * @throws    ProtocolException if the method cannot be reset or if
      *              the requested method isn't valid for HTTP.
-     * @exception SecurityException if a security manager is set and the
+     * @throws    SecurityException if a security manager is set and the
      *              method is "TRACE", but the "allowHttpTrace"
      *              NetPermission is not granted.
      * @see #getRequestMethod()
@@ -475,6 +477,7 @@ public abstract class HttpURLConnection extends URLConnection {
         for (int i = 0; i < methods.length; i++) {
             if (methods[i].equals(method)) {
                 if (method.equals("TRACE")) {
+                    @SuppressWarnings("removal")
                     SecurityManager s = System.getSecurityManager();
                     if (s != null) {
                         s.checkPermission(new NetPermission("allowHttpTrace"));
@@ -511,7 +514,7 @@ public abstract class HttpURLConnection extends URLConnection {
      */
     public int getResponseCode() throws IOException {
         /*
-         * We're got the response code already
+         * We've got the response code already
          */
         if (responseCode != -1) {
             return responseCode;
@@ -530,7 +533,7 @@ public abstract class HttpURLConnection extends URLConnection {
         }
 
         /*
-         * If we can't a status-line then re-throw any exception
+         * If we can't find a status-line then re-throw any exception
          * that getInputStream threw.
          */
         String statusLine = getHeaderField(0);
@@ -595,16 +598,18 @@ public abstract class HttpURLConnection extends URLConnection {
     }
 
     @SuppressWarnings("deprecation")
-    public long getHeaderFieldDate(String name, long Default) {
+    public long getHeaderFieldDate(String name, long defaultValue) {
         String dateString = getHeaderField(name);
-        try {
-            if (dateString.indexOf("GMT") == -1) {
-                dateString = dateString+" GMT";
+        if (dateString != null) {
+            if (!dateString.contains("GMT")) {
+                dateString = dateString + " GMT";
             }
-            return Date.parse(dateString);
-        } catch (Exception e) {
+            try {
+                return Date.parse(dateString);
+            } catch (Exception e) {
+            }
         }
-        return Default;
+        return defaultValue;
     }
 
 
@@ -618,8 +623,13 @@ public abstract class HttpURLConnection extends URLConnection {
 
     /**
      * Indicates if the connection is going through a proxy.
-     * @return a boolean indicating if the connection is
-     * using a proxy.
+     *
+     * This method returns {@code true} if the connection is known
+     * to be going or has gone through proxies, and returns {@code false}
+     * if the connection will never go through a proxy or if
+     * the use of a proxy cannot be determined.
+     *
+     * @return a boolean indicating if the connection is using a proxy.
      */
     public abstract boolean usingProxy();
 
@@ -627,7 +637,7 @@ public abstract class HttpURLConnection extends URLConnection {
      * Returns a {@link SocketPermission} object representing the
      * permission necessary to connect to the destination host and port.
      *
-     * @exception IOException if an error occurs while computing
+     * @throws    IOException if an error occurs while computing
      *            the permission.
      *
      * @return a {@code SocketPermission} object representing the
@@ -664,7 +674,7 @@ public abstract class HttpURLConnection extends URLConnection {
         return null;
     }
 
-    /**
+    /*
      * The response codes for HTTP, as of version 1.1.
      */
 

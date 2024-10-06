@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,26 +24,39 @@
 
 #include "precompiled.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "gc/shared/oopStorage.hpp"
+#include "gc/shared/oopStorageSet.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "jfr/support/jfrThreadId.hpp"
+#include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
-#include "oops/markOop.hpp"
+#include "oops/markWord.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopHandle.inline.hpp"
+#include "oops/weakHandle.inline.hpp"
+#include "prims/jvmtiDeferredUpdates.hpp"
+#include "prims/jvmtiExport.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/javaThread.inline.hpp"
+#include "runtime/lightweightSynchronizer.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/objectMonitor.inline.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
+#include "runtime/perfData.hpp"
+#include "runtime/safefetch.hpp"
 #include "runtime/safepointMechanism.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
-#include "runtime/stubRoutines.hpp"
-#include "runtime/thread.inline.hpp"
 #include "services/threadService.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/dtrace.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/preserveException.hpp"
 #if INCLUDE_JFR
@@ -57,11 +70,11 @@
 
 
 #define DTRACE_MONITOR_PROBE_COMMON(obj, thread)                           \
-  char* bytes = NULL;                                                      \
+  char* bytes = nullptr;                                                   \
   int len = 0;                                                             \
   jlong jtid = SharedRuntime::get_java_tid(thread);                        \
-  Symbol* klassname = ((oop)obj)->klass()->name();                         \
-  if (klassname != NULL) {                                                 \
+  Symbol* klassname = obj->klass()->name();                                \
+  if (klassname != nullptr) {                                              \
     bytes = (char*)klassname->bytes();                                     \
     len = klassname->utf8_length();                                        \
   }
@@ -97,44 +110,9 @@
 
 #endif // ndef DTRACE_ENABLED
 
-// Tunables ...
-// The knob* variables are effectively final.  Once set they should
-// never be modified hence.  Consider using __read_mostly with GCC.
+DEBUG_ONLY(static volatile bool InitDone = false;)
 
-int ObjectMonitor::Knob_ExitRelease  = 0;
-int ObjectMonitor::Knob_InlineNotify = 1;
-int ObjectMonitor::Knob_Verbose      = 0;
-int ObjectMonitor::Knob_VerifyInUse  = 0;
-int ObjectMonitor::Knob_VerifyMatch  = 0;
-int ObjectMonitor::Knob_SpinLimit    = 5000;    // derived by an external tool -
-
-static int Knob_ReportSettings      = 0;
-static int Knob_SpinBase            = 0;       // Floor AKA SpinMin
-static int Knob_SpinBackOff         = 0;       // spin-loop backoff
-static int Knob_CASPenalty          = -1;      // Penalty for failed CAS
-static int Knob_OXPenalty           = -1;      // Penalty for observed _owner change
-static int Knob_SpinSetSucc         = 1;       // spinners set the _succ field
-static int Knob_SpinEarly           = 1;
-static int Knob_SuccEnabled         = 1;       // futile wake throttling
-static int Knob_SuccRestrict        = 0;       // Limit successors + spinners to at-most-one
-static int Knob_MaxSpinners         = -1;      // Should be a function of # CPUs
-static int Knob_Bonus               = 100;     // spin success bonus
-static int Knob_BonusB              = 100;     // spin success bonus
-static int Knob_Penalty             = 200;     // spin failure penalty
-static int Knob_Poverty             = 1000;
-static int Knob_SpinAfterFutile     = 1;       // Spin after returning from park()
-static int Knob_FixedSpin           = 0;
-static int Knob_OState              = 3;       // Spinner checks thread state of _owner
-static int Knob_UsePause            = 1;
-static int Knob_ExitPolicy          = 0;
-static int Knob_PreSpin             = 10;      // 20-100 likely better
-static int Knob_ResetEvent          = 0;
-static int BackOffMask              = 0;
-
-static int Knob_FastHSSEC           = 0;
-static int Knob_MoveNotifyee        = 2;       // notify() - disposition of notifyee
-static int Knob_QMode               = 0;       // EntryList-cxq policy - queue discipline
-static volatile int InitDone        = 0;
+OopStorage* ObjectMonitor::_oop_storage = nullptr;
 
 // -----------------------------------------------------------------------------
 // Theory of operations -- Monitors lists, thread residency, etc:
@@ -246,95 +224,264 @@ static volatile int InitDone        = 0;
 // * See also http://blogs.sun.com/dave
 
 
-void* ObjectMonitor::operator new (size_t size) throw() {
-  return AllocateHeap(size, mtInternal);
+// Check that object() and set_object() are called from the right context:
+static void check_object_context() {
+#ifdef ASSERT
+  Thread* self = Thread::current();
+  if (self->is_Java_thread()) {
+    // Mostly called from JavaThreads so sanity check the thread state.
+    JavaThread* jt = JavaThread::cast(self);
+    switch (jt->thread_state()) {
+    case _thread_in_vm:    // the usual case
+    case _thread_in_Java:  // during deopt
+      break;
+    default:
+      fatal("called from an unsafe thread state");
+    }
+    assert(jt->is_active_Java_thread(), "must be active JavaThread");
+  } else {
+    // However, ThreadService::get_current_contended_monitor()
+    // can call here via the VMThread so sanity check it.
+    assert(self->is_VM_thread(), "must be");
+  }
+#endif // ASSERT
 }
-void* ObjectMonitor::operator new[] (size_t size) throw() {
-  return operator new (size);
+
+ObjectMonitor::ObjectMonitor(oop object) :
+  _metadata(0),
+  _object(_oop_storage, object),
+  _owner(nullptr),
+  _previous_owner_tid(0),
+  _next_om(nullptr),
+  _recursions(0),
+  _EntryList(nullptr),
+  _cxq(nullptr),
+  _succ(nullptr),
+  _Responsible(nullptr),
+  _SpinDuration(ObjectMonitor::Knob_SpinLimit),
+  _contentions(0),
+  _WaitSet(nullptr),
+  _waiters(0),
+  _WaitSetLock(0)
+{ }
+
+ObjectMonitor::~ObjectMonitor() {
+  _object.release(_oop_storage);
 }
-void ObjectMonitor::operator delete(void* p) {
-  FreeHeap(p);
+
+oop ObjectMonitor::object() const {
+  check_object_context();
+  return _object.resolve();
 }
-void ObjectMonitor::operator delete[] (void *p) {
-  operator delete(p);
+
+void ObjectMonitor::ExitOnSuspend::operator()(JavaThread* current) {
+  if (current->is_suspended()) {
+    _om->_recursions = 0;
+    _om->_succ = nullptr;
+    // Don't need a full fence after clearing successor here because of the call to exit().
+    _om->exit(current, false /* not_suspended */);
+    _om_exited = true;
+
+    current->set_current_pending_monitor(_om);
+  }
 }
+
+void ObjectMonitor::ClearSuccOnSuspend::operator()(JavaThread* current) {
+  if (current->is_suspended()) {
+    if (_om->_succ == current) {
+      _om->_succ = nullptr;
+      OrderAccess::fence(); // always do a full fence when successor is cleared
+    }
+  }
+}
+
+#define assert_mark_word_consistency()                                         \
+  assert(UseObjectMonitorTable || object()->mark() == markWord::encode(this),  \
+         "object mark must match encoded this: mark=" INTPTR_FORMAT            \
+         ", encoded this=" INTPTR_FORMAT, object()->mark().value(),            \
+         markWord::encode(this).value());
 
 // -----------------------------------------------------------------------------
 // Enter support
 
-void ObjectMonitor::enter(TRAPS) {
-  // The following code is ordered to check the most common cases first
-  // and to reduce RTS->RTO cache line upgrades on SPARC and IA32 processors.
-  Thread * const Self = THREAD;
+bool ObjectMonitor::enter_is_async_deflating() {
+  if (is_being_async_deflated()) {
+    if (!UseObjectMonitorTable) {
+      const oop l_object = object();
+      if (l_object != nullptr) {
+        // Attempt to restore the header/dmw to the object's header so that
+        // we only retry once if the deflater thread happens to be slow.
+        install_displaced_markword_in_object(l_object);
+      }
+    }
+    return true;
+  }
 
-  void * cur = Atomic::cmpxchg(Self, &_owner, (void*)NULL);
-  if (cur == NULL) {
-    // Either ASSERT _recursions == 0 or explicitly set _recursions = 0.
+  return false;
+}
+
+void ObjectMonitor::enter_for_with_contention_mark(JavaThread* locking_thread, ObjectMonitorContentionMark& contention_mark) {
+  // Used by ObjectSynchronizer::enter_for to enter for another thread.
+  // The monitor is private to or already owned by locking_thread which must be suspended.
+  // So this code may only contend with deflation.
+  assert(locking_thread == Thread::current() || locking_thread->is_obj_deopt_suspend(), "must be");
+  assert(contention_mark._monitor == this, "must be");
+  assert(!is_being_async_deflated(), "must be");
+
+
+  void* prev_owner = try_set_owner_from(nullptr, locking_thread);
+
+  bool success = false;
+
+  if (prev_owner == nullptr) {
     assert(_recursions == 0, "invariant");
-    assert(_owner == Self, "invariant");
-    return;
-  }
-
-  if (cur == Self) {
-    // TODO-FIXME: check for integer overflow!  BUGID 6557169.
+    success = true;
+  } else if (prev_owner == locking_thread) {
     _recursions++;
-    return;
+    success = true;
+  } else if (prev_owner == DEFLATER_MARKER) {
+    // Racing with deflation.
+    prev_owner = try_set_owner_from(DEFLATER_MARKER, locking_thread);
+    if (prev_owner == DEFLATER_MARKER) {
+      // Cancelled deflation. Increment contentions as part of the deflation protocol.
+      add_to_contentions(1);
+      success = true;
+    } else if (prev_owner == nullptr) {
+      // At this point we cannot race with deflation as we have both incremented
+      // contentions, seen contention > 0 and seen a DEFLATER_MARKER.
+      // success will only be false if this races with something other than
+      // deflation.
+      prev_owner = try_set_owner_from(nullptr, locking_thread);
+      success = prev_owner == nullptr;
+    }
+  } else if (LockingMode == LM_LEGACY && locking_thread->is_lock_owned((address)prev_owner)) {
+    assert(_recursions == 0, "must be");
+    _recursions = 1;
+    set_owner_from_BasicLock(prev_owner, locking_thread);
+    success = true;
+  }
+  assert(success, "Failed to enter_for: locking_thread=" INTPTR_FORMAT
+          ", this=" INTPTR_FORMAT "{owner=" INTPTR_FORMAT "}, observed owner: " INTPTR_FORMAT,
+          p2i(locking_thread), p2i(this), p2i(owner_raw()), p2i(prev_owner));
+}
+
+bool ObjectMonitor::enter_for(JavaThread* locking_thread) {
+
+  // Block out deflation as soon as possible.
+  ObjectMonitorContentionMark contention_mark(this);
+
+  // Check for deflation.
+  if (enter_is_async_deflating()) {
+    return false;
   }
 
-  if (Self->is_lock_owned ((address)cur)) {
+  enter_for_with_contention_mark(locking_thread, contention_mark);
+  assert(owner_raw() == locking_thread, "must be");
+  return true;
+}
+
+bool ObjectMonitor::try_enter(JavaThread* current) {
+  // TryLock avoids the CAS
+  TryLockResult r = TryLock(current);
+  if (r == TryLockResult::Success) {
+    assert(_recursions == 0, "invariant");
+    return true;
+  }
+
+  if (r == TryLockResult::HasOwner && owner() == current) {
+    _recursions++;
+    return true;
+  }
+
+  void* cur = owner_raw();
+  if (LockingMode == LM_LEGACY && current->is_lock_owned((address)cur)) {
     assert(_recursions == 0, "internal state error");
     _recursions = 1;
-    // Commute owner from a thread-specific on-stack BasicLockObject address to
-    // a full-fledged "Thread *".
-    _owner = Self;
-    return;
+    set_owner_from_BasicLock(cur, current);  // Convert from BasicLock* to Thread*.
+    return true;
+  }
+
+  return false;
+}
+
+bool ObjectMonitor::spin_enter(JavaThread* current) {
+  assert(current == JavaThread::current(), "must be");
+
+  // Check for recursion.
+  if (try_enter(current)) {
+    return true;
+  }
+
+  // Check for deflation.
+  if (enter_is_async_deflating()) {
+    return false;
   }
 
   // We've encountered genuine contention.
-  assert(Self->_Stalled == 0, "invariant");
-  Self->_Stalled = intptr_t(this);
 
-  // Try one round of spinning *before* enqueueing Self
-  // and before going through the awkward and expensive state
-  // transitions.  The following spin is strictly optional ...
+  // Do one round of spinning.
   // Note that if we acquire the monitor from an initial spin
   // we forgo posting JVMTI events and firing DTRACE probes.
-  if (Knob_SpinEarly && TrySpin (Self) > 0) {
-    assert(_owner == Self, "invariant");
-    assert(_recursions == 0, "invariant");
-    assert(((oop)(object()))->mark() == markOopDesc::encode(this), "invariant");
-    Self->_Stalled = 0;
-    return;
+  if (TrySpin(current)) {
+    assert(owner_raw() == current, "must be current: owner=" INTPTR_FORMAT, p2i(owner_raw()));
+    assert(_recursions == 0, "must be 0: recursions=" INTX_FORMAT, _recursions);
+    assert_mark_word_consistency();
+    return true;
   }
 
-  assert(_owner != Self, "invariant");
-  assert(_succ != Self, "invariant");
-  assert(Self->is_Java_thread(), "invariant");
-  JavaThread * jt = (JavaThread *) Self;
+  return false;
+}
+
+bool ObjectMonitor::enter(JavaThread* current) {
+  assert(current == JavaThread::current(), "must be");
+
+  if (spin_enter(current)) {
+    return true;
+  }
+
+  assert(owner_raw() != current, "invariant");
+  assert(_succ != current, "invariant");
   assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
-  assert(jt->thread_state() != _thread_blocked, "invariant");
-  assert(this->object() != NULL, "invariant");
-  assert(_count >= 0, "invariant");
+  assert(current->thread_state() != _thread_blocked, "invariant");
 
-  // Prevent deflation at STW-time.  See deflate_idle_monitors() and is_busy().
-  // Ensure the object-monitor relationship remains stable while there's contention.
-  Atomic::inc(&_count);
+  // Keep is_being_async_deflated stable across the rest of enter
+  ObjectMonitorContentionMark contention_mark(this);
 
-  JFR_ONLY(JfrConditionalFlushWithStacktrace<EventJavaMonitorEnter> flush(jt);)
+  // Check for deflation.
+  if (enter_is_async_deflating()) {
+    return false;
+  }
+
+  // At this point this ObjectMonitor cannot be deflated, finish contended enter
+  enter_with_contention_mark(current, contention_mark);
+  return true;
+}
+
+void ObjectMonitor::enter_with_contention_mark(JavaThread *current, ObjectMonitorContentionMark &cm) {
+  assert(current == JavaThread::current(), "must be");
+  assert(owner_raw() != current, "must be");
+  assert(cm._monitor == this, "must be");
+  assert(!is_being_async_deflated(), "must be");
+
+  JFR_ONLY(JfrConditionalFlush<EventJavaMonitorEnter> flush(current);)
   EventJavaMonitorEnter event;
-  if (event.should_commit()) {
-    event.set_monitorClass(((oop)this->object())->klass());
-    event.set_address((uintptr_t)(this->object_addr()));
+  if (event.is_started()) {
+    event.set_monitorClass(object()->klass());
+    // Set an address that is 'unique enough', such that events close in
+    // time and with the same address are likely (but not guaranteed) to
+    // belong to the same object.
+    event.set_address((uintptr_t)this);
   }
 
   { // Change java thread status to indicate blocked on monitor enter.
-    JavaThreadBlockedOnMonitorEnterState jtbmes(jt, this);
+    JavaThreadBlockedOnMonitorEnterState jtbmes(current, this);
 
-    Self->set_current_pending_monitor(this);
+    assert(current->current_pending_monitor() == nullptr, "invariant");
+    current->set_current_pending_monitor(this);
 
-    DTRACE_MONITOR_PROBE(contended__enter, this, object(), jt);
+    DTRACE_MONITOR_PROBE(contended__enter, this, object(), current);
     if (JvmtiExport::should_post_monitor_contended_enter()) {
-      JvmtiExport::post_monitor_contended_enter(jt, this);
+      JvmtiExport::post_monitor_contended_enter(current, this);
 
       // The current thread does not yet own the monitor and does not
       // yet appear on any queues that would get it made the successor.
@@ -343,51 +490,42 @@ void ObjectMonitor::enter(TRAPS) {
       // ParkEvent associated with this ObjectMonitor.
     }
 
-    OSThreadContendState osts(Self->osthread());
-    ThreadBlockInVM tbivm(jt);
+    OSThreadContendState osts(current->osthread());
 
-    // TODO-FIXME: change the following for(;;) loop to straight-line code.
+    assert(current->thread_state() == _thread_in_vm, "invariant");
+
     for (;;) {
-      jt->set_suspend_equivalent();
-      // cleared by handle_special_suspend_equivalent_condition()
-      // or java_suspend_self()
-
-      EnterI(THREAD);
-
-      if (!ExitSuspendEquivalent(jt)) break;
-
-      // We have acquired the contended monitor, but while we were
-      // waiting another thread suspended us. We don't want to enter
-      // the monitor while suspended because that would surprise the
-      // thread that suspended us.
-      //
-      _recursions = 0;
-      _succ = NULL;
-      exit(false, Self);
-
-      jt->java_suspend_self();
+      ExitOnSuspend eos(this);
+      {
+        ThreadBlockInVMPreprocess<ExitOnSuspend> tbivs(current, eos, true /* allow_suspend */);
+        EnterI(current);
+        current->set_current_pending_monitor(nullptr);
+        // We can go to a safepoint at the end of this block. If we
+        // do a thread dump during that safepoint, then this thread will show
+        // as having "-locked" the monitor, but the OS and java.lang.Thread
+        // states will still report that the thread is blocked trying to
+        // acquire it.
+        // If there is a suspend request, ExitOnSuspend will exit the OM
+        // and set the OM as pending.
+      }
+      if (!eos.exited()) {
+        // ExitOnSuspend did not exit the OM
+        assert(owner_raw() == current, "invariant");
+        break;
+      }
     }
-    Self->set_current_pending_monitor(NULL);
 
-    // We cleared the pending monitor info since we've just gotten past
-    // the enter-check-for-suspend dance and we now own the monitor free
-    // and clear, i.e., it is no longer pending. The ThreadBlockInVM
-    // destructor can go to a safepoint at the end of this block. If we
-    // do a thread dump during that safepoint, then this thread will show
-    // as having "-locked" the monitor, but the OS and java.lang.Thread
-    // states will still report that the thread is blocked trying to
-    // acquire it.
+    // We've just gotten past the enter-check-for-suspend dance and we now own
+    // the monitor free and clear.
   }
 
-  Atomic::dec(&_count);
-  assert(_count >= 0, "invariant");
-  Self->_Stalled = 0;
+  assert(contentions() >= 0, "must not be negative: contentions=%d", contentions());
 
   // Must either set _recursions = 0 or ASSERT _recursions == 0.
   assert(_recursions == 0, "invariant");
-  assert(_owner == Self, "invariant");
-  assert(_succ != Self, "invariant");
-  assert(((oop)(object()))->mark() == markOopDesc::encode(this), "invariant");
+  assert(owner_raw() == current, "invariant");
+  assert(_succ != current, "invariant");
+  assert_mark_word_consistency();
 
   // The thread -- now the owner -- is back in vm mode.
   // Report the glorious news via TI,DTrace and jvmstat.
@@ -401,9 +539,9 @@ void ObjectMonitor::enter(TRAPS) {
   // yet to acquire the lock.  While spinning that thread could
   // spinning we could increment JVMStat counters, etc.
 
-  DTRACE_MONITOR_PROBE(contended__entered, this, object(), jt);
+  DTRACE_MONITOR_PROBE(contended__entered, this, object(), current);
   if (JvmtiExport::should_post_monitor_contended_entered()) {
-    JvmtiExport::post_monitor_contended_entered(jt, this);
+    JvmtiExport::post_monitor_contended_entered(current, this);
 
     // The current thread already owns the monitor and is not going to
     // call park() for the remainder of the monitor enter protocol. So
@@ -412,7 +550,7 @@ void ObjectMonitor::enter(TRAPS) {
     // just exited the monitor.
   }
   if (event.should_commit()) {
-    event.set_previousOwner((uintptr_t)_previous_owner_tid);
+    event.set_previousOwner(_previous_owner_tid);
     event.commit();
   }
   OM_PERFDATA_OP(ContendedLockAttempts, inc());
@@ -421,87 +559,274 @@ void ObjectMonitor::enter(TRAPS) {
 // Caveat: TryLock() is not necessarily serializing if it returns failure.
 // Callers must compensate as needed.
 
-int ObjectMonitor::TryLock(Thread * Self) {
-  void * own = _owner;
-  if (own != NULL) return 0;
-  if (Atomic::replace_if_null(Self, &_owner)) {
-    // Either guarantee _recursions == 0 or set _recursions = 0.
+ObjectMonitor::TryLockResult ObjectMonitor::TryLock(JavaThread* current) {
+  void* own = owner_raw();
+  if (own != nullptr) return TryLockResult::HasOwner;
+  if (try_set_owner_from(nullptr, current) == nullptr) {
     assert(_recursions == 0, "invariant");
-    assert(_owner == Self, "invariant");
-    return 1;
+    return TryLockResult::Success;
   }
   // The lock had been free momentarily, but we lost the race to the lock.
   // Interference -- the CAS failed.
   // We can either return -1 or retry.
   // Retry doesn't make as much sense because the lock was just acquired.
-  return -1;
+  return TryLockResult::Interference;
+}
+
+// Deflate the specified ObjectMonitor if not in-use. Returns true if it
+// was deflated and false otherwise.
+//
+// The async deflation protocol sets owner to DEFLATER_MARKER and
+// makes contentions negative as signals to contending threads that
+// an async deflation is in progress. There are a number of checks
+// as part of the protocol to make sure that the calling thread has
+// not lost the race to a contending thread.
+//
+// The ObjectMonitor has been successfully async deflated when:
+//   (contentions < 0)
+// Contending threads that see that condition know to retry their operation.
+//
+bool ObjectMonitor::deflate_monitor(Thread* current) {
+  if (is_busy()) {
+    // Easy checks are first - the ObjectMonitor is busy so no deflation.
+    return false;
+  }
+
+  const oop obj = object_peek();
+
+  if (obj == nullptr) {
+    // If the object died, we can recycle the monitor without racing with
+    // Java threads. The GC already broke the association with the object.
+    set_owner_from(nullptr, DEFLATER_MARKER);
+    assert(contentions() >= 0, "must be non-negative: contentions=%d", contentions());
+    _contentions = INT_MIN; // minimum negative int
+  } else {
+    // Attempt async deflation protocol.
+
+    // Set a null owner to DEFLATER_MARKER to force any contending thread
+    // through the slow path. This is just the first part of the async
+    // deflation dance.
+    if (try_set_owner_from(nullptr, DEFLATER_MARKER) != nullptr) {
+      // The owner field is no longer null so we lost the race since the
+      // ObjectMonitor is now busy.
+      return false;
+    }
+
+    if (contentions() > 0 || _waiters != 0) {
+      // Another thread has raced to enter the ObjectMonitor after
+      // is_busy() above or has already entered and waited on
+      // it which makes it busy so no deflation. Restore owner to
+      // null if it is still DEFLATER_MARKER.
+      if (try_set_owner_from(DEFLATER_MARKER, nullptr) != DEFLATER_MARKER) {
+        // Deferred decrement for the JT EnterI() that cancelled the async deflation.
+        add_to_contentions(-1);
+      }
+      return false;
+    }
+
+    // Make a zero contentions field negative to force any contending threads
+    // to retry. This is the second part of the async deflation dance.
+    if (Atomic::cmpxchg(&_contentions, 0, INT_MIN) != 0) {
+      // Contentions was no longer 0 so we lost the race since the
+      // ObjectMonitor is now busy. Restore owner to null if it is
+      // still DEFLATER_MARKER:
+      if (try_set_owner_from(DEFLATER_MARKER, nullptr) != DEFLATER_MARKER) {
+        // Deferred decrement for the JT EnterI() that cancelled the async deflation.
+        add_to_contentions(-1);
+      }
+      return false;
+    }
+  }
+
+  // Sanity checks for the races:
+  guarantee(owner_is_DEFLATER_MARKER(), "must be deflater marker");
+  guarantee(contentions() < 0, "must be negative: contentions=%d",
+            contentions());
+  guarantee(_waiters == 0, "must be 0: waiters=%d", _waiters);
+  guarantee(_cxq == nullptr, "must be no contending threads: cxq="
+            INTPTR_FORMAT, p2i(_cxq));
+  guarantee(_EntryList == nullptr,
+            "must be no entering threads: EntryList=" INTPTR_FORMAT,
+            p2i(_EntryList));
+
+  if (obj != nullptr) {
+    if (log_is_enabled(Trace, monitorinflation)) {
+      ResourceMark rm;
+      log_trace(monitorinflation)("deflate_monitor: object=" INTPTR_FORMAT
+                                  ", mark=" INTPTR_FORMAT ", type='%s'",
+                                  p2i(obj), obj->mark().value(),
+                                  obj->klass()->external_name());
+    }
+  }
+
+  if (UseObjectMonitorTable) {
+    LightweightSynchronizer::deflate_monitor(current, obj, this);
+  } else if (obj != nullptr) {
+    // Install the old mark word if nobody else has already done it.
+    install_displaced_markword_in_object(obj);
+  }
+
+  // We leave owner == DEFLATER_MARKER and contentions < 0
+  // to force any racing threads to retry.
+  return true;  // Success, ObjectMonitor has been deflated.
+}
+
+// Install the displaced mark word (dmw) of a deflating ObjectMonitor
+// into the header of the object associated with the monitor. This
+// idempotent method is called by a thread that is deflating a
+// monitor and by other threads that have detected a race with the
+// deflation process.
+void ObjectMonitor::install_displaced_markword_in_object(const oop obj) {
+  assert(!UseObjectMonitorTable, "ObjectMonitorTable has no dmw");
+  // This function must only be called when (owner == DEFLATER_MARKER
+  // && contentions <= 0), but we can't guarantee that here because
+  // those values could change when the ObjectMonitor gets moved from
+  // the global free list to a per-thread free list.
+
+  guarantee(obj != nullptr, "must be non-null");
+
+  // Separate loads in is_being_async_deflated(), which is almost always
+  // called before this function, from the load of dmw/header below.
+
+  // _contentions and dmw/header may get written by different threads.
+  // Make sure to observe them in the same order when having several observers.
+  OrderAccess::loadload_for_IRIW();
+
+  const oop l_object = object_peek();
+  if (l_object == nullptr) {
+    // ObjectMonitor's object ref has already been cleared by async
+    // deflation or GC so we're done here.
+    return;
+  }
+  assert(l_object == obj, "object=" INTPTR_FORMAT " must equal obj="
+         INTPTR_FORMAT, p2i(l_object), p2i(obj));
+
+  markWord dmw = header();
+  // The dmw has to be neutral (not null, not locked and not marked).
+  assert(dmw.is_neutral(), "must be neutral: dmw=" INTPTR_FORMAT, dmw.value());
+
+  // Install displaced mark word if the object's header still points
+  // to this ObjectMonitor. More than one racing caller to this function
+  // can rarely reach this point, but only one can win.
+  markWord res = obj->cas_set_mark(dmw, markWord::encode(this));
+  if (res != markWord::encode(this)) {
+    // This should be rare so log at the Info level when it happens.
+    log_info(monitorinflation)("install_displaced_markword_in_object: "
+                               "failed cas_set_mark: new_mark=" INTPTR_FORMAT
+                               ", old_mark=" INTPTR_FORMAT ", res=" INTPTR_FORMAT,
+                               dmw.value(), markWord::encode(this).value(),
+                               res.value());
+  }
+
+  // Note: It does not matter which thread restored the header/dmw
+  // into the object's header. The thread deflating the monitor just
+  // wanted the object's header restored and it is. The threads that
+  // detected a race with the deflation process also wanted the
+  // object's header restored before they retry their operation and
+  // because it is restored they will only retry once.
+}
+
+// Convert the fields used by is_busy() to a string that can be
+// used for diagnostic output.
+const char* ObjectMonitor::is_busy_to_string(stringStream* ss) {
+  ss->print("is_busy: waiters=%d"
+            ", contentions=%d"
+            ", owner=" PTR_FORMAT
+            ", cxq=" PTR_FORMAT
+            ", EntryList=" PTR_FORMAT,
+            _waiters,
+            (contentions() > 0 ? contentions() : 0),
+            owner_is_DEFLATER_MARKER()
+                // We report null instead of DEFLATER_MARKER here because is_busy()
+                // ignores DEFLATER_MARKER values.
+                ? p2i(nullptr)
+                : p2i(owner_raw()),
+            p2i(_cxq),
+            p2i(_EntryList));
+  return ss->base();
 }
 
 #define MAX_RECHECK_INTERVAL 1000
 
-void ObjectMonitor::EnterI(TRAPS) {
-  Thread * const Self = THREAD;
-  assert(Self->is_Java_thread(), "invariant");
-  assert(((JavaThread *) Self)->thread_state() == _thread_blocked, "invariant");
+void ObjectMonitor::EnterI(JavaThread* current) {
+  assert(current->thread_state() == _thread_blocked, "invariant");
 
   // Try the lock - TATAS
-  if (TryLock (Self) > 0) {
-    assert(_succ != Self, "invariant");
-    assert(_owner == Self, "invariant");
-    assert(_Responsible != Self, "invariant");
+  if (TryLock(current) == TryLockResult::Success) {
+    assert(_succ != current, "invariant");
+    assert(owner_raw() == current, "invariant");
+    assert(_Responsible != current, "invariant");
     return;
   }
 
-  DeferredInitialize();
+  if (try_set_owner_from(DEFLATER_MARKER, current) == DEFLATER_MARKER) {
+    // Cancelled the in-progress async deflation by changing owner from
+    // DEFLATER_MARKER to current. As part of the contended enter protocol,
+    // contentions was incremented to a positive value before EnterI()
+    // was called and that prevents the deflater thread from winning the
+    // last part of the 2-part async deflation protocol. After EnterI()
+    // returns to enter(), contentions is decremented because the caller
+    // now owns the monitor. We bump contentions an extra time here to
+    // prevent the deflater thread from winning the last part of the
+    // 2-part async deflation protocol after the regular decrement
+    // occurs in enter(). The deflater thread will decrement contentions
+    // after it recognizes that the async deflation was cancelled.
+    add_to_contentions(1);
+    assert(_succ != current, "invariant");
+    assert(_Responsible != current, "invariant");
+    return;
+  }
 
-  // We try one round of spinning *before* enqueueing Self.
+  assert(InitDone, "Unexpectedly not initialized");
+
+  // We try one round of spinning *before* enqueueing current.
   //
   // If the _owner is ready but OFFPROC we could use a YieldTo()
   // operation to donate the remainder of this thread's quantum
   // to the owner.  This has subtle but beneficial affinity
   // effects.
 
-  if (TrySpin (Self) > 0) {
-    assert(_owner == Self, "invariant");
-    assert(_succ != Self, "invariant");
-    assert(_Responsible != Self, "invariant");
+  if (TrySpin(current)) {
+    assert(owner_raw() == current, "invariant");
+    assert(_succ != current, "invariant");
+    assert(_Responsible != current, "invariant");
     return;
   }
 
   // The Spin failed -- Enqueue and park the thread ...
-  assert(_succ != Self, "invariant");
-  assert(_owner != Self, "invariant");
-  assert(_Responsible != Self, "invariant");
+  assert(_succ != current, "invariant");
+  assert(owner_raw() != current, "invariant");
+  assert(_Responsible != current, "invariant");
 
-  // Enqueue "Self" on ObjectMonitor's _cxq.
+  // Enqueue "current" on ObjectMonitor's _cxq.
   //
-  // Node acts as a proxy for Self.
+  // Node acts as a proxy for current.
   // As an aside, if were to ever rewrite the synchronization code mostly
   // in Java, WaitNodes, ObjectMonitors, and Events would become 1st-class
   // Java objects.  This would avoid awkward lifecycle and liveness issues,
   // as well as eliminate a subset of ABA issues.
   // TODO: eliminate ObjectWaiter and enqueue either Threads or Events.
 
-  ObjectWaiter node(Self);
-  Self->_ParkEvent->reset();
-  node._prev   = (ObjectWaiter *) 0xBAD;
+  ObjectWaiter node(current);
+  current->_ParkEvent->reset();
+  node._prev   = (ObjectWaiter*) 0xBAD;
   node.TState  = ObjectWaiter::TS_CXQ;
 
-  // Push "Self" onto the front of the _cxq.
-  // Once on cxq/EntryList, Self stays on-queue until it acquires the lock.
+  // Push "current" onto the front of the _cxq.
+  // Once on cxq/EntryList, current stays on-queue until it acquires the lock.
   // Note that spinning tends to reduce the rate at which threads
   // enqueue and dequeue on EntryList|cxq.
-  ObjectWaiter * nxt;
+  ObjectWaiter* nxt;
   for (;;) {
     node._next = nxt = _cxq;
-    if (Atomic::cmpxchg(&node, &_cxq, nxt) == nxt) break;
+    if (Atomic::cmpxchg(&_cxq, nxt, &node) == nxt) break;
 
     // Interference - the CAS failed because _cxq changed.  Just retry.
     // As an optional optimization we retry the lock.
-    if (TryLock (Self) > 0) {
-      assert(_succ != Self, "invariant");
-      assert(_owner == Self, "invariant");
-      assert(_Responsible != Self, "invariant");
+    if (TryLock(current) == TryLockResult::Success) {
+      assert(_succ != current, "invariant");
+      assert(owner_raw() == current, "invariant");
+      assert(_Responsible != current, "invariant");
       return;
     }
   }
@@ -529,10 +854,10 @@ void ObjectMonitor::EnterI(TRAPS) {
   // timer scalability issues we see on some platforms as we'd only have one thread
   // -- the checker -- parked on a timer.
 
-  if ((SyncFlags & 16) == 0 && nxt == NULL && _EntryList == NULL) {
+  if (nxt == nullptr && _EntryList == nullptr) {
     // Try to assume the role of responsible thread for the monitor.
-    // CONSIDER:  ST vs CAS vs { if (Responsible==null) Responsible=Self }
-    Atomic::replace_if_null(Self, &_Responsible);
+    // CONSIDER:  ST vs CAS vs { if (Responsible==null) Responsible=current }
+    Atomic::replace_if_null(&_Responsible, current);
   }
 
   // The lock might have been released while this thread was occupied queueing
@@ -546,90 +871,93 @@ void ObjectMonitor::EnterI(TRAPS) {
   // to defer the state transitions until absolutely necessary,
   // and in doing so avoid some transitions ...
 
-  TEVENT(Inflated enter - Contention);
-  int nWakeups = 0;
   int recheckInterval = 1;
 
   for (;;) {
 
-    if (TryLock(Self) > 0) break;
-    assert(_owner != Self, "invariant");
-
-    if ((SyncFlags & 2) && _Responsible == NULL) {
-      Atomic::replace_if_null(Self, &_Responsible);
+    if (TryLock(current) == TryLockResult::Success) {
+      break;
     }
+    assert(owner_raw() != current, "invariant");
 
     // park self
-    if (_Responsible == Self || (SyncFlags & 1)) {
-      TEVENT(Inflated enter - park TIMED);
-      Self->_ParkEvent->park((jlong) recheckInterval);
+    if (_Responsible == current) {
+      current->_ParkEvent->park((jlong) recheckInterval);
       // Increase the recheckInterval, but clamp the value.
       recheckInterval *= 8;
       if (recheckInterval > MAX_RECHECK_INTERVAL) {
         recheckInterval = MAX_RECHECK_INTERVAL;
       }
     } else {
-      TEVENT(Inflated enter - park UNTIMED);
-      Self->_ParkEvent->park();
+      current->_ParkEvent->park();
     }
 
-    if (TryLock(Self) > 0) break;
+    if (TryLock(current) == TryLockResult::Success) {
+      break;
+    }
+
+    if (try_set_owner_from(DEFLATER_MARKER, current) == DEFLATER_MARKER) {
+      // Cancelled the in-progress async deflation by changing owner from
+      // DEFLATER_MARKER to current. As part of the contended enter protocol,
+      // contentions was incremented to a positive value before EnterI()
+      // was called and that prevents the deflater thread from winning the
+      // last part of the 2-part async deflation protocol. After EnterI()
+      // returns to enter(), contentions is decremented because the caller
+      // now owns the monitor. We bump contentions an extra time here to
+      // prevent the deflater thread from winning the last part of the
+      // 2-part async deflation protocol after the regular decrement
+      // occurs in enter(). The deflater thread will decrement contentions
+      // after it recognizes that the async deflation was cancelled.
+      add_to_contentions(1);
+      break;
+    }
 
     // The lock is still contested.
+
     // Keep a tally of the # of futile wakeups.
     // Note that the counter is not protected by a lock or updated by atomics.
     // That is by design - we trade "lossy" counters which are exposed to
     // races during updates for a lower probe effect.
-    TEVENT(Inflated enter - Futile wakeup);
     // This PerfData object can be used in parallel with a safepoint.
     // See the work around in PerfDataManager::destroy().
     OM_PERFDATA_OP(FutileWakeups, inc());
-    ++nWakeups;
 
-    // Assuming this is not a spurious wakeup we'll normally find _succ == Self.
+    // Assuming this is not a spurious wakeup we'll normally find _succ == current.
     // We can defer clearing _succ until after the spin completes
-    // TrySpin() must tolerate being called with _succ == Self.
+    // TrySpin() must tolerate being called with _succ == current.
     // Try yet another round of adaptive spinning.
-    if ((Knob_SpinAfterFutile & 1) && TrySpin(Self) > 0) break;
+    if (TrySpin(current)) {
+      break;
+    }
 
     // We can find that we were unpark()ed and redesignated _succ while
     // we were spinning.  That's harmless.  If we iterate and call park(),
     // park() will consume the event and return immediately and we'll
     // just spin again.  This pattern can repeat, leaving _succ to simply
-    // spin on a CPU.  Enable Knob_ResetEvent to clear pending unparks().
-    // Alternately, we can sample fired() here, and if set, forgo spinning
-    // in the next iteration.
+    // spin on a CPU.
 
-    if ((Knob_ResetEvent & 1) && Self->_ParkEvent->fired()) {
-      Self->_ParkEvent->reset();
-      OrderAccess::fence();
-    }
-    if (_succ == Self) _succ = NULL;
+    if (_succ == current) _succ = nullptr;
 
     // Invariant: after clearing _succ a thread *must* retry _owner before parking.
     OrderAccess::fence();
   }
 
   // Egress :
-  // Self has acquired the lock -- Unlink Self from the cxq or EntryList.
-  // Normally we'll find Self on the EntryList .
+  // current has acquired the lock -- Unlink current from the cxq or EntryList.
+  // Normally we'll find current on the EntryList .
   // From the perspective of the lock owner (this thread), the
   // EntryList is stable and cxq is prepend-only.
   // The head of cxq is volatile but the interior is stable.
-  // In addition, Self.TState is stable.
+  // In addition, current.TState is stable.
 
-  assert(_owner == Self, "invariant");
-  assert(object() != NULL, "invariant");
-  // I'd like to write:
-  //   guarantee (((oop)(object()))->mark() == markOopDesc::encode(this), "invariant") ;
-  // but as we're at a safepoint that's not safe.
+  assert(owner_raw() == current, "invariant");
 
-  UnlinkAfterAcquire(Self, &node);
-  if (_succ == Self) _succ = NULL;
+  UnlinkAfterAcquire(current, &node);
+  if (_succ == current) _succ = nullptr;
 
-  assert(_succ != Self, "invariant");
-  if (_Responsible == Self) {
-    _Responsible = NULL;
+  assert(_succ != current, "invariant");
+  if (_Responsible == current) {
+    _Responsible = nullptr;
     OrderAccess::fence(); // Dekker pivot-point
 
     // We may leave threads on cxq|EntryList without a designated
@@ -675,9 +1003,6 @@ void ObjectMonitor::EnterI(TRAPS) {
   // monitorexit.  Recall too, that in 1-0 mode monitorexit does not necessarily
   // execute a serializing instruction.
 
-  if (SyncFlags & 8) {
-    OrderAccess::fence();
-  }
   return;
 }
 
@@ -685,95 +1010,84 @@ void ObjectMonitor::EnterI(TRAPS) {
 // contended slow-path from EnterI().  We use ReenterI() only for
 // monitor reentry in wait().
 //
-// In the future we should reconcile EnterI() and ReenterI(), adding
-// Knob_Reset and Knob_SpinAfterFutile support and restructuring the
-// loop accordingly.
+// In the future we should reconcile EnterI() and ReenterI().
 
-void ObjectMonitor::ReenterI(Thread * Self, ObjectWaiter * SelfNode) {
-  assert(Self != NULL, "invariant");
-  assert(SelfNode != NULL, "invariant");
-  assert(SelfNode->_thread == Self, "invariant");
+void ObjectMonitor::ReenterI(JavaThread* current, ObjectWaiter* currentNode) {
+  assert(current != nullptr, "invariant");
+  assert(current->thread_state() != _thread_blocked, "invariant");
+  assert(currentNode != nullptr, "invariant");
+  assert(currentNode->_thread == current, "invariant");
   assert(_waiters > 0, "invariant");
-  assert(((oop)(object()))->mark() == markOopDesc::encode(this), "invariant");
-  assert(((JavaThread *)Self)->thread_state() != _thread_blocked, "invariant");
-  JavaThread * jt = (JavaThread *) Self;
+  assert_mark_word_consistency();
 
-  int nWakeups = 0;
   for (;;) {
-    ObjectWaiter::TStates v = SelfNode->TState;
+    ObjectWaiter::TStates v = currentNode->TState;
     guarantee(v == ObjectWaiter::TS_ENTER || v == ObjectWaiter::TS_CXQ, "invariant");
-    assert(_owner != Self, "invariant");
+    assert(owner_raw() != current, "invariant");
 
-    if (TryLock(Self) > 0) break;
-    if (TrySpin(Self) > 0) break;
+    // This thread has been notified so try to reacquire the lock.
+    if (TryLock(current) == TryLockResult::Success) {
+      break;
+    }
 
-    TEVENT(Wait Reentry - parking);
+    // If that fails, spin again.  Note that spin count may be zero so the above TryLock
+    // is necessary.
+    if (TrySpin(current)) {
+        break;
+    }
 
-    // State transition wrappers around park() ...
-    // ReenterI() wisely defers state transitions until
-    // it's clear we must park the thread.
     {
-      OSThreadContendState osts(Self->osthread());
-      ThreadBlockInVM tbivm(jt);
+      OSThreadContendState osts(current->osthread());
 
-      // cleared by handle_special_suspend_equivalent_condition()
-      // or java_suspend_self()
-      jt->set_suspend_equivalent();
-      if (SyncFlags & 1) {
-        Self->_ParkEvent->park((jlong)MAX_RECHECK_INTERVAL);
-      } else {
-        Self->_ParkEvent->park();
-      }
+      assert(current->thread_state() == _thread_in_vm, "invariant");
 
-      // were we externally suspended while we were waiting?
-      for (;;) {
-        if (!ExitSuspendEquivalent(jt)) break;
-        if (_succ == Self) { _succ = NULL; OrderAccess::fence(); }
-        jt->java_suspend_self();
-        jt->set_suspend_equivalent();
+      {
+        ClearSuccOnSuspend csos(this);
+        ThreadBlockInVMPreprocess<ClearSuccOnSuspend> tbivs(current, csos, true /* allow_suspend */);
+        current->_ParkEvent->park();
       }
     }
 
     // Try again, but just so we distinguish between futile wakeups and
     // successful wakeups.  The following test isn't algorithmically
     // necessary, but it helps us maintain sensible statistics.
-    if (TryLock(Self) > 0) break;
+    if (TryLock(current) == TryLockResult::Success) {
+      break;
+    }
 
     // The lock is still contested.
-    // Keep a tally of the # of futile wakeups.
-    // Note that the counter is not protected by a lock or updated by atomics.
-    // That is by design - we trade "lossy" counters which are exposed to
-    // races during updates for a lower probe effect.
-    TEVENT(Wait Reentry - futile wakeup);
-    ++nWakeups;
 
     // Assuming this is not a spurious wakeup we'll normally
-    // find that _succ == Self.
-    if (_succ == Self) _succ = NULL;
+    // find that _succ == current.
+    if (_succ == current) _succ = nullptr;
 
     // Invariant: after clearing _succ a contending thread
     // *must* retry  _owner before parking.
     OrderAccess::fence();
 
+    // Keep a tally of the # of futile wakeups.
+    // Note that the counter is not protected by a lock or updated by atomics.
+    // That is by design - we trade "lossy" counters which are exposed to
+    // races during updates for a lower probe effect.
     // This PerfData object can be used in parallel with a safepoint.
     // See the work around in PerfDataManager::destroy().
     OM_PERFDATA_OP(FutileWakeups, inc());
   }
 
-  // Self has acquired the lock -- Unlink Self from the cxq or EntryList .
-  // Normally we'll find Self on the EntryList.
+  // current has acquired the lock -- Unlink current from the cxq or EntryList .
+  // Normally we'll find current on the EntryList.
   // Unlinking from the EntryList is constant-time and atomic-free.
   // From the perspective of the lock owner (this thread), the
   // EntryList is stable and cxq is prepend-only.
   // The head of cxq is volatile but the interior is stable.
-  // In addition, Self.TState is stable.
+  // In addition, current.TState is stable.
 
-  assert(_owner == Self, "invariant");
-  assert(((oop)(object()))->mark() == markOopDesc::encode(this), "invariant");
-  UnlinkAfterAcquire(Self, SelfNode);
-  if (_succ == Self) _succ = NULL;
-  assert(_succ != Self, "invariant");
-  SelfNode->TState = ObjectWaiter::TS_RUN;
+  assert(owner_raw() == current, "invariant");
+  assert_mark_word_consistency();
+  UnlinkAfterAcquire(current, currentNode);
+  if (_succ == current) _succ = nullptr;
+  assert(_succ != current, "invariant");
+  currentNode->TState = ObjectWaiter::TS_RUN;
   OrderAccess::fence();      // see comments at the end of EnterI()
 }
 
@@ -781,67 +1095,65 @@ void ObjectMonitor::ReenterI(Thread * Self, ObjectWaiter * SelfNode) {
 // after the thread acquires the lock in ::enter().  Equally, we could defer
 // unlinking the thread until ::exit()-time.
 
-void ObjectMonitor::UnlinkAfterAcquire(Thread *Self, ObjectWaiter *SelfNode) {
-  assert(_owner == Self, "invariant");
-  assert(SelfNode->_thread == Self, "invariant");
+void ObjectMonitor::UnlinkAfterAcquire(JavaThread* current, ObjectWaiter* currentNode) {
+  assert(owner_raw() == current, "invariant");
+  assert(currentNode->_thread == current, "invariant");
 
-  if (SelfNode->TState == ObjectWaiter::TS_ENTER) {
-    // Normal case: remove Self from the DLL EntryList .
+  if (currentNode->TState == ObjectWaiter::TS_ENTER) {
+    // Normal case: remove current from the DLL EntryList .
     // This is a constant-time operation.
-    ObjectWaiter * nxt = SelfNode->_next;
-    ObjectWaiter * prv = SelfNode->_prev;
-    if (nxt != NULL) nxt->_prev = prv;
-    if (prv != NULL) prv->_next = nxt;
-    if (SelfNode == _EntryList) _EntryList = nxt;
-    assert(nxt == NULL || nxt->TState == ObjectWaiter::TS_ENTER, "invariant");
-    assert(prv == NULL || prv->TState == ObjectWaiter::TS_ENTER, "invariant");
-    TEVENT(Unlink from EntryList);
+    ObjectWaiter* nxt = currentNode->_next;
+    ObjectWaiter* prv = currentNode->_prev;
+    if (nxt != nullptr) nxt->_prev = prv;
+    if (prv != nullptr) prv->_next = nxt;
+    if (currentNode == _EntryList) _EntryList = nxt;
+    assert(nxt == nullptr || nxt->TState == ObjectWaiter::TS_ENTER, "invariant");
+    assert(prv == nullptr || prv->TState == ObjectWaiter::TS_ENTER, "invariant");
   } else {
-    assert(SelfNode->TState == ObjectWaiter::TS_CXQ, "invariant");
-    // Inopportune interleaving -- Self is still on the cxq.
+    assert(currentNode->TState == ObjectWaiter::TS_CXQ, "invariant");
+    // Inopportune interleaving -- current is still on the cxq.
     // This usually means the enqueue of self raced an exiting thread.
-    // Normally we'll find Self near the front of the cxq, so
+    // Normally we'll find current near the front of the cxq, so
     // dequeueing is typically fast.  If needbe we can accelerate
     // this with some MCS/CHL-like bidirectional list hints and advisory
     // back-links so dequeueing from the interior will normally operate
     // in constant-time.
-    // Dequeue Self from either the head (with CAS) or from the interior
+    // Dequeue current from either the head (with CAS) or from the interior
     // with a linear-time scan and normal non-atomic memory operations.
-    // CONSIDER: if Self is on the cxq then simply drain cxq into EntryList
-    // and then unlink Self from EntryList.  We have to drain eventually,
+    // CONSIDER: if current is on the cxq then simply drain cxq into EntryList
+    // and then unlink current from EntryList.  We have to drain eventually,
     // so it might as well be now.
 
-    ObjectWaiter * v = _cxq;
-    assert(v != NULL, "invariant");
-    if (v != SelfNode || Atomic::cmpxchg(SelfNode->_next, &_cxq, v) != v) {
+    ObjectWaiter* v = _cxq;
+    assert(v != nullptr, "invariant");
+    if (v != currentNode || Atomic::cmpxchg(&_cxq, v, currentNode->_next) != v) {
       // The CAS above can fail from interference IFF a "RAT" arrived.
-      // In that case Self must be in the interior and can no longer be
+      // In that case current must be in the interior and can no longer be
       // at the head of cxq.
-      if (v == SelfNode) {
+      if (v == currentNode) {
         assert(_cxq != v, "invariant");
         v = _cxq;          // CAS above failed - start scan at head of list
       }
-      ObjectWaiter * p;
-      ObjectWaiter * q = NULL;
-      for (p = v; p != NULL && p != SelfNode; p = p->_next) {
+      ObjectWaiter* p;
+      ObjectWaiter* q = nullptr;
+      for (p = v; p != nullptr && p != currentNode; p = p->_next) {
         q = p;
         assert(p->TState == ObjectWaiter::TS_CXQ, "invariant");
       }
-      assert(v != SelfNode, "invariant");
-      assert(p == SelfNode, "Node not found on cxq");
+      assert(v != currentNode, "invariant");
+      assert(p == currentNode, "Node not found on cxq");
       assert(p != _cxq, "invariant");
-      assert(q != NULL, "invariant");
+      assert(q != nullptr, "invariant");
       assert(q->_next == p, "invariant");
       q->_next = p->_next;
     }
-    TEVENT(Unlink from cxq);
   }
 
 #ifdef ASSERT
   // Diagnostic hygiene ...
-  SelfNode->_prev  = (ObjectWaiter *) 0xBAD;
-  SelfNode->_next  = (ObjectWaiter *) 0xBAD;
-  SelfNode->TState = ObjectWaiter::TS_RUN;
+  currentNode->_prev  = (ObjectWaiter*) 0xBAD;
+  currentNode->_next  = (ObjectWaiter*) 0xBAD;
+  currentNode->TState = ObjectWaiter::TS_RUN;
 #endif
 }
 
@@ -859,8 +1171,8 @@ void ObjectMonitor::UnlinkAfterAcquire(Thread *Self, ObjectWaiter *SelfNode) {
 // We'd like to assert that: (THREAD->thread_state() != _thread_blocked) ;
 // There's one exception to the claim above, however.  EnterI() can call
 // exit() to drop a lock if the acquirer has been externally suspended.
-// In that case exit() is called with _thread_state as _thread_blocked,
-// but the monitor's _count field is > 0, which inhibits reclamation.
+// In that case exit() is called with _thread_state == _thread_blocked,
+// but the monitor's _contentions field is > 0, which inhibits reclamation.
 //
 // 1-0 exit
 // ~~~~~~~~
@@ -902,16 +1214,12 @@ void ObjectMonitor::UnlinkAfterAcquire(Thread *Self, ObjectWaiter *SelfNode) {
 // structured the code so the windows are short and the frequency
 // of such futile wakups is low.
 
-void ObjectMonitor::exit(bool not_suspended, TRAPS) {
-  Thread * const Self = THREAD;
-  if (THREAD != _owner) {
-    if (THREAD->is_lock_owned((address) _owner)) {
-      // Transmute _owner from a BasicLock pointer to a Thread address.
-      // We don't need to hold _mutex for this transition.
-      // Non-null to Non-null is safe as long as all readers can
-      // tolerate either flavor.
+void ObjectMonitor::exit(JavaThread* current, bool not_suspended) {
+  void* cur = owner_raw();
+  if (current != cur) {
+    if (LockingMode != LM_LIGHTWEIGHT && current->is_lock_owned((address)cur)) {
       assert(_recursions == 0, "invariant");
-      _owner = THREAD;
+      set_owner_from_BasicLock(cur, current);  // Convert from BasicLock* to Thread*.
       _recursions = 0;
     } else {
       // Apparent unbalanced locking ...
@@ -923,486 +1231,278 @@ void ObjectMonitor::exit(bool not_suspended, TRAPS) {
       // way we should encounter this situation is in the presence of
       // unbalanced JNI locking. TODO: CheckJNICalls.
       // See also: CR4414101
-      TEVENT(Exit - Throw IMSX);
-      assert(false, "Non-balanced monitor enter/exit! Likely JNI locking");
+#ifdef ASSERT
+      LogStreamHandle(Error, monitorinflation) lsh;
+      lsh.print_cr("ERROR: ObjectMonitor::exit(): thread=" INTPTR_FORMAT
+                    " is exiting an ObjectMonitor it does not own.", p2i(current));
+      lsh.print_cr("The imbalance is possibly caused by JNI locking.");
+      print_debug_style_on(&lsh);
+      assert(false, "Non-balanced monitor enter/exit!");
+#endif
       return;
     }
   }
 
   if (_recursions != 0) {
     _recursions--;        // this is simple recursive enter
-    TEVENT(Inflated exit - recursive);
     return;
   }
 
   // Invariant: after setting Responsible=null an thread must execute
   // a MEMBAR or other serializing instruction before fetching EntryList|cxq.
-  if ((SyncFlags & 4) == 0) {
-    _Responsible = NULL;
-  }
+  _Responsible = nullptr;
 
 #if INCLUDE_JFR
   // get the owner's thread id for the MonitorEnter event
   // if it is enabled and the thread isn't suspended
   if (not_suspended && EventJavaMonitorEnter::is_enabled()) {
-    _previous_owner_tid = JFR_THREAD_ID(Self);
+    _previous_owner_tid = JFR_THREAD_ID(current);
   }
 #endif
 
   for (;;) {
-    assert(THREAD == _owner, "invariant");
+    assert(current == owner_raw(), "invariant");
 
-    if (Knob_ExitPolicy == 0) {
-      // release semantics: prior loads and stores from within the critical section
-      // must not float (reorder) past the following store that drops the lock.
-      // On SPARC that requires MEMBAR #loadstore|#storestore.
-      // But of course in TSO #loadstore|#storestore is not required.
-      // I'd like to write one of the following:
-      // A.  OrderAccess::release() ; _owner = NULL
-      // B.  OrderAccess::loadstore(); OrderAccess::storestore(); _owner = NULL;
-      // Unfortunately OrderAccess::release() and OrderAccess::loadstore() both
-      // store into a _dummy variable.  That store is not needed, but can result
-      // in massive wasteful coherency traffic on classic SMP systems.
-      // Instead, I use release_store(), which is implemented as just a simple
-      // ST on x64, x86 and SPARC.
-      OrderAccess::release_store(&_owner, (void*)NULL);   // drop the lock
-      OrderAccess::storeload();                        // See if we need to wake a successor
-      if ((intptr_t(_EntryList)|intptr_t(_cxq)) == 0 || _succ != NULL) {
-        TEVENT(Inflated exit - simple egress);
-        return;
-      }
-      TEVENT(Inflated exit - complex egress);
-      // Other threads are blocked trying to acquire the lock.
+    // Drop the lock.
+    // release semantics: prior loads and stores from within the critical section
+    // must not float (reorder) past the following store that drops the lock.
+    // Uses a storeload to separate release_store(owner) from the
+    // successor check. The try_set_owner() below uses cmpxchg() so
+    // we get the fence down there.
+    release_clear_owner(current);
+    OrderAccess::storeload();
 
-      // Normally the exiting thread is responsible for ensuring succession,
-      // but if other successors are ready or other entering threads are spinning
-      // then this thread can simply store NULL into _owner and exit without
-      // waking a successor.  The existence of spinners or ready successors
-      // guarantees proper succession (liveness).  Responsibility passes to the
-      // ready or running successors.  The exiting thread delegates the duty.
-      // More precisely, if a successor already exists this thread is absolved
-      // of the responsibility of waking (unparking) one.
-      //
-      // The _succ variable is critical to reducing futile wakeup frequency.
-      // _succ identifies the "heir presumptive" thread that has been made
-      // ready (unparked) but that has not yet run.  We need only one such
-      // successor thread to guarantee progress.
-      // See http://www.usenix.org/events/jvm01/full_papers/dice/dice.pdf
-      // section 3.3 "Futile Wakeup Throttling" for details.
-      //
-      // Note that spinners in Enter() also set _succ non-null.
-      // In the current implementation spinners opportunistically set
-      // _succ so that exiting threads might avoid waking a successor.
-      // Another less appealing alternative would be for the exiting thread
-      // to drop the lock and then spin briefly to see if a spinner managed
-      // to acquire the lock.  If so, the exiting thread could exit
-      // immediately without waking a successor, otherwise the exiting
-      // thread would need to dequeue and wake a successor.
-      // (Note that we'd need to make the post-drop spin short, but no
-      // shorter than the worst-case round-trip cache-line migration time.
-      // The dropped lock needs to become visible to the spinner, and then
-      // the acquisition of the lock by the spinner must become visible to
-      // the exiting thread).
-
-      // It appears that an heir-presumptive (successor) must be made ready.
-      // Only the current lock owner can manipulate the EntryList or
-      // drain _cxq, so we need to reacquire the lock.  If we fail
-      // to reacquire the lock the responsibility for ensuring succession
-      // falls to the new owner.
-      //
-      if (!Atomic::replace_if_null(THREAD, &_owner)) {
-        return;
-      }
-      TEVENT(Exit - Reacquired);
-    } else {
-      if ((intptr_t(_EntryList)|intptr_t(_cxq)) == 0 || _succ != NULL) {
-        OrderAccess::release_store(&_owner, (void*)NULL);   // drop the lock
-        OrderAccess::storeload();
-        // Ratify the previously observed values.
-        if (_cxq == NULL || _succ != NULL) {
-          TEVENT(Inflated exit - simple egress);
-          return;
-        }
-
-        // inopportune interleaving -- the exiting thread (this thread)
-        // in the fast-exit path raced an entering thread in the slow-enter
-        // path.
-        // We have two choices:
-        // A.  Try to reacquire the lock.
-        //     If the CAS() fails return immediately, otherwise
-        //     we either restart/rerun the exit operation, or simply
-        //     fall-through into the code below which wakes a successor.
-        // B.  If the elements forming the EntryList|cxq are TSM
-        //     we could simply unpark() the lead thread and return
-        //     without having set _succ.
-        if (!Atomic::replace_if_null(THREAD, &_owner)) {
-          TEVENT(Inflated exit - reacquired succeeded);
-          return;
-        }
-        TEVENT(Inflated exit - reacquired failed);
-      } else {
-        TEVENT(Inflated exit - complex egress);
-      }
+    if ((intptr_t(_EntryList)|intptr_t(_cxq)) == 0 || _succ != nullptr) {
+      return;
     }
+    // Other threads are blocked trying to acquire the lock.
 
-    guarantee(_owner == THREAD, "invariant");
+    // Normally the exiting thread is responsible for ensuring succession,
+    // but if other successors are ready or other entering threads are spinning
+    // then this thread can simply store null into _owner and exit without
+    // waking a successor.  The existence of spinners or ready successors
+    // guarantees proper succession (liveness).  Responsibility passes to the
+    // ready or running successors.  The exiting thread delegates the duty.
+    // More precisely, if a successor already exists this thread is absolved
+    // of the responsibility of waking (unparking) one.
+    //
+    // The _succ variable is critical to reducing futile wakeup frequency.
+    // _succ identifies the "heir presumptive" thread that has been made
+    // ready (unparked) but that has not yet run.  We need only one such
+    // successor thread to guarantee progress.
+    // See http://www.usenix.org/events/jvm01/full_papers/dice/dice.pdf
+    // section 3.3 "Futile Wakeup Throttling" for details.
+    //
+    // Note that spinners in Enter() also set _succ non-null.
+    // In the current implementation spinners opportunistically set
+    // _succ so that exiting threads might avoid waking a successor.
+    // Another less appealing alternative would be for the exiting thread
+    // to drop the lock and then spin briefly to see if a spinner managed
+    // to acquire the lock.  If so, the exiting thread could exit
+    // immediately without waking a successor, otherwise the exiting
+    // thread would need to dequeue and wake a successor.
+    // (Note that we'd need to make the post-drop spin short, but no
+    // shorter than the worst-case round-trip cache-line migration time.
+    // The dropped lock needs to become visible to the spinner, and then
+    // the acquisition of the lock by the spinner must become visible to
+    // the exiting thread).
 
-    ObjectWaiter * w = NULL;
-    int QMode = Knob_QMode;
-
-    if (QMode == 2 && _cxq != NULL) {
-      // QMode == 2 : cxq has precedence over EntryList.
-      // Try to directly wake a successor from the cxq.
-      // If successful, the successor will need to unlink itself from cxq.
-      w = _cxq;
-      assert(w != NULL, "invariant");
-      assert(w->TState == ObjectWaiter::TS_CXQ, "Invariant");
-      ExitEpilog(Self, w);
+    // It appears that an heir-presumptive (successor) must be made ready.
+    // Only the current lock owner can manipulate the EntryList or
+    // drain _cxq, so we need to reacquire the lock.  If we fail
+    // to reacquire the lock the responsibility for ensuring succession
+    // falls to the new owner.
+    //
+    if (try_set_owner_from(nullptr, current) != nullptr) {
       return;
     }
 
-    if (QMode == 3 && _cxq != NULL) {
-      // Aggressively drain cxq into EntryList at the first opportunity.
-      // This policy ensure that recently-run threads live at the head of EntryList.
-      // Drain _cxq into EntryList - bulk transfer.
-      // First, detach _cxq.
-      // The following loop is tantamount to: w = swap(&cxq, NULL)
-      w = _cxq;
-      for (;;) {
-        assert(w != NULL, "Invariant");
-        ObjectWaiter * u = Atomic::cmpxchg((ObjectWaiter*)NULL, &_cxq, w);
-        if (u == w) break;
-        w = u;
-      }
-      assert(w != NULL, "invariant");
+    guarantee(owner_raw() == current, "invariant");
 
-      ObjectWaiter * q = NULL;
-      ObjectWaiter * p;
-      for (p = w; p != NULL; p = p->_next) {
-        guarantee(p->TState == ObjectWaiter::TS_CXQ, "Invariant");
-        p->TState = ObjectWaiter::TS_ENTER;
-        p->_prev = q;
-        q = p;
-      }
-
-      // Append the RATs to the EntryList
-      // TODO: organize EntryList as a CDLL so we can locate the tail in constant-time.
-      ObjectWaiter * Tail;
-      for (Tail = _EntryList; Tail != NULL && Tail->_next != NULL;
-           Tail = Tail->_next)
-        /* empty */;
-      if (Tail == NULL) {
-        _EntryList = w;
-      } else {
-        Tail->_next = w;
-        w->_prev = Tail;
-      }
-
-      // Fall thru into code that tries to wake a successor from EntryList
-    }
-
-    if (QMode == 4 && _cxq != NULL) {
-      // Aggressively drain cxq into EntryList at the first opportunity.
-      // This policy ensure that recently-run threads live at the head of EntryList.
-
-      // Drain _cxq into EntryList - bulk transfer.
-      // First, detach _cxq.
-      // The following loop is tantamount to: w = swap(&cxq, NULL)
-      w = _cxq;
-      for (;;) {
-        assert(w != NULL, "Invariant");
-        ObjectWaiter * u = Atomic::cmpxchg((ObjectWaiter*)NULL, &_cxq, w);
-        if (u == w) break;
-        w = u;
-      }
-      assert(w != NULL, "invariant");
-
-      ObjectWaiter * q = NULL;
-      ObjectWaiter * p;
-      for (p = w; p != NULL; p = p->_next) {
-        guarantee(p->TState == ObjectWaiter::TS_CXQ, "Invariant");
-        p->TState = ObjectWaiter::TS_ENTER;
-        p->_prev = q;
-        q = p;
-      }
-
-      // Prepend the RATs to the EntryList
-      if (_EntryList != NULL) {
-        q->_next = _EntryList;
-        _EntryList->_prev = q;
-      }
-      _EntryList = w;
-
-      // Fall thru into code that tries to wake a successor from EntryList
-    }
+    ObjectWaiter* w = nullptr;
 
     w = _EntryList;
-    if (w != NULL) {
-      // I'd like to write: guarantee (w->_thread != Self).
+    if (w != nullptr) {
+      // I'd like to write: guarantee (w->_thread != current).
       // But in practice an exiting thread may find itself on the EntryList.
       // Let's say thread T1 calls O.wait().  Wait() enqueues T1 on O's waitset and
-      // then calls exit().  Exit release the lock by setting O._owner to NULL.
+      // then calls exit().  Exit release the lock by setting O._owner to null.
       // Let's say T1 then stalls.  T2 acquires O and calls O.notify().  The
       // notify() operation moves T1 from O's waitset to O's EntryList. T2 then
       // release the lock "O".  T2 resumes immediately after the ST of null into
       // _owner, above.  T2 notices that the EntryList is populated, so it
       // reacquires the lock and then finds itself on the EntryList.
       // Given all that, we have to tolerate the circumstance where "w" is
-      // associated with Self.
+      // associated with current.
       assert(w->TState == ObjectWaiter::TS_ENTER, "invariant");
-      ExitEpilog(Self, w);
+      ExitEpilog(current, w);
       return;
     }
 
     // If we find that both _cxq and EntryList are null then just
     // re-run the exit protocol from the top.
     w = _cxq;
-    if (w == NULL) continue;
+    if (w == nullptr) continue;
 
     // Drain _cxq into EntryList - bulk transfer.
     // First, detach _cxq.
-    // The following loop is tantamount to: w = swap(&cxq, NULL)
+    // The following loop is tantamount to: w = swap(&cxq, nullptr)
     for (;;) {
-      assert(w != NULL, "Invariant");
-      ObjectWaiter * u = Atomic::cmpxchg((ObjectWaiter*)NULL, &_cxq, w);
+      assert(w != nullptr, "Invariant");
+      ObjectWaiter* u = Atomic::cmpxchg(&_cxq, w, (ObjectWaiter*)nullptr);
       if (u == w) break;
       w = u;
     }
-    TEVENT(Inflated exit - drain cxq into EntryList);
 
-    assert(w != NULL, "invariant");
-    assert(_EntryList == NULL, "invariant");
+    assert(w != nullptr, "invariant");
+    assert(_EntryList == nullptr, "invariant");
 
     // Convert the LIFO SLL anchored by _cxq into a DLL.
     // The list reorganization step operates in O(LENGTH(w)) time.
     // It's critical that this step operate quickly as
-    // "Self" still holds the outer-lock, restricting parallelism
+    // "current" still holds the outer-lock, restricting parallelism
     // and effectively lengthening the critical section.
     // Invariant: s chases t chases u.
     // TODO-FIXME: consider changing EntryList from a DLL to a CDLL so
     // we have faster access to the tail.
 
-    if (QMode == 1) {
-      // QMode == 1 : drain cxq to EntryList, reversing order
-      // We also reverse the order of the list.
-      ObjectWaiter * s = NULL;
-      ObjectWaiter * t = w;
-      ObjectWaiter * u = NULL;
-      while (t != NULL) {
-        guarantee(t->TState == ObjectWaiter::TS_CXQ, "invariant");
-        t->TState = ObjectWaiter::TS_ENTER;
-        u = t->_next;
-        t->_prev = u;
-        t->_next = s;
-        s = t;
-        t = u;
-      }
-      _EntryList  = s;
-      assert(s != NULL, "invariant");
-    } else {
-      // QMode == 0 or QMode == 2
-      _EntryList = w;
-      ObjectWaiter * q = NULL;
-      ObjectWaiter * p;
-      for (p = w; p != NULL; p = p->_next) {
-        guarantee(p->TState == ObjectWaiter::TS_CXQ, "Invariant");
-        p->TState = ObjectWaiter::TS_ENTER;
-        p->_prev = q;
-        q = p;
-      }
+    _EntryList = w;
+    ObjectWaiter* q = nullptr;
+    ObjectWaiter* p;
+    for (p = w; p != nullptr; p = p->_next) {
+      guarantee(p->TState == ObjectWaiter::TS_CXQ, "Invariant");
+      p->TState = ObjectWaiter::TS_ENTER;
+      p->_prev = q;
+      q = p;
     }
 
-    // In 1-0 mode we need: ST EntryList; MEMBAR #storestore; ST _owner = NULL
+    // In 1-0 mode we need: ST EntryList; MEMBAR #storestore; ST _owner = nullptr
     // The MEMBAR is satisfied by the release_store() operation in ExitEpilog().
 
     // See if we can abdicate to a spinner instead of waking a thread.
     // A primary goal of the implementation is to reduce the
     // context-switch rate.
-    if (_succ != NULL) continue;
+    if (_succ != nullptr) continue;
 
     w = _EntryList;
-    if (w != NULL) {
+    if (w != nullptr) {
       guarantee(w->TState == ObjectWaiter::TS_ENTER, "invariant");
-      ExitEpilog(Self, w);
+      ExitEpilog(current, w);
       return;
     }
   }
 }
 
-// ExitSuspendEquivalent:
-// A faster alternate to handle_special_suspend_equivalent_condition()
-//
-// handle_special_suspend_equivalent_condition() unconditionally
-// acquires the SR_lock.  On some platforms uncontended MutexLocker()
-// operations have high latency.  Note that in ::enter() we call HSSEC
-// while holding the monitor, so we effectively lengthen the critical sections.
-//
-// There are a number of possible solutions:
-//
-// A.  To ameliorate the problem we might also defer state transitions
-//     to as late as possible -- just prior to parking.
-//     Given that, we'd call HSSEC after having returned from park(),
-//     but before attempting to acquire the monitor.  This is only a
-//     partial solution.  It avoids calling HSSEC while holding the
-//     monitor (good), but it still increases successor reacquisition latency --
-//     the interval between unparking a successor and the time the successor
-//     resumes and retries the lock.  See ReenterI(), which defers state transitions.
-//     If we use this technique we can also avoid EnterI()-exit() loop
-//     in ::enter() where we iteratively drop the lock and then attempt
-//     to reacquire it after suspending.
-//
-// B.  In the future we might fold all the suspend bits into a
-//     composite per-thread suspend flag and then update it with CAS().
-//     Alternately, a Dekker-like mechanism with multiple variables
-//     would suffice:
-//       ST Self->_suspend_equivalent = false
-//       MEMBAR
-//       LD Self_>_suspend_flags
-//
-// UPDATE 2007-10-6: since I've replaced the native Mutex/Monitor subsystem
-// with a more efficient implementation, the need to use "FastHSSEC" has
-// decreased. - Dave
-
-
-bool ObjectMonitor::ExitSuspendEquivalent(JavaThread * jSelf) {
-  const int Mode = Knob_FastHSSEC;
-  if (Mode && !jSelf->is_external_suspend()) {
-    assert(jSelf->is_suspend_equivalent(), "invariant");
-    jSelf->clear_suspend_equivalent();
-    if (2 == Mode) OrderAccess::storeload();
-    if (!jSelf->is_external_suspend()) return false;
-    // We raced a suspension -- fall thru into the slow path
-    TEVENT(ExitSuspendEquivalent - raced);
-    jSelf->set_suspend_equivalent();
-  }
-  return jSelf->handle_special_suspend_equivalent_condition();
-}
-
-
-void ObjectMonitor::ExitEpilog(Thread * Self, ObjectWaiter * Wakee) {
-  assert(_owner == Self, "invariant");
+void ObjectMonitor::ExitEpilog(JavaThread* current, ObjectWaiter* Wakee) {
+  assert(owner_raw() == current, "invariant");
 
   // Exit protocol:
   // 1. ST _succ = wakee
   // 2. membar #loadstore|#storestore;
-  // 2. ST _owner = NULL
+  // 2. ST _owner = nullptr
   // 3. unpark(wakee)
 
-  _succ = Knob_SuccEnabled ? Wakee->_thread : NULL;
+  _succ = Wakee->_thread;
   ParkEvent * Trigger = Wakee->_event;
 
-  // Hygiene -- once we've set _owner = NULL we can't safely dereference Wakee again.
+  // Hygiene -- once we've set _owner = nullptr we can't safely dereference Wakee again.
   // The thread associated with Wakee may have grabbed the lock and "Wakee" may be
   // out-of-scope (non-extant).
-  Wakee  = NULL;
+  Wakee  = nullptr;
 
-  // Drop the lock
-  OrderAccess::release_store(&_owner, (void*)NULL);
-  OrderAccess::fence();                               // ST _owner vs LD in unpark()
+  // Drop the lock.
+  // Uses a fence to separate release_store(owner) from the LD in unpark().
+  release_clear_owner(current);
+  OrderAccess::fence();
 
-  if (SafepointMechanism::poll(Self)) {
-    TEVENT(unpark before SAFEPOINT);
-  }
-
-  DTRACE_MONITOR_PROBE(contended__exit, this, object(), Self);
+  DTRACE_MONITOR_PROBE(contended__exit, this, object(), current);
   Trigger->unpark();
 
   // Maintain stats and report events to JVMTI
   OM_PERFDATA_OP(Parks, inc());
 }
 
-
-// -----------------------------------------------------------------------------
-// Class Loader deadlock handling.
-//
 // complete_exit exits a lock returning recursion count
-// complete_exit/reenter operate as a wait without waiting
 // complete_exit requires an inflated monitor
 // The _owner field is not always the Thread addr even with an
 // inflated monitor, e.g. the monitor can be inflated by a non-owning
 // thread due to contention.
-intptr_t ObjectMonitor::complete_exit(TRAPS) {
-  Thread * const Self = THREAD;
-  assert(Self->is_Java_thread(), "Must be Java thread!");
-  JavaThread *jt = (JavaThread *)THREAD;
+intx ObjectMonitor::complete_exit(JavaThread* current) {
+  assert(InitDone, "Unexpectedly not initialized");
 
-  DeferredInitialize();
-
-  if (THREAD != _owner) {
-    if (THREAD->is_lock_owned ((address)_owner)) {
+  void* cur = owner_raw();
+  if (current != cur) {
+    if (LockingMode != LM_LIGHTWEIGHT && current->is_lock_owned((address)cur)) {
       assert(_recursions == 0, "internal state error");
-      _owner = THREAD;   // Convert from basiclock addr to Thread addr
+      set_owner_from_BasicLock(cur, current);  // Convert from BasicLock* to Thread*.
       _recursions = 0;
     }
   }
 
-  guarantee(Self == _owner, "complete_exit not owner");
-  intptr_t save = _recursions; // record the old recursion count
-  _recursions = 0;        // set the recursion level to be 0
-  exit(true, Self);           // exit the monitor
-  guarantee(_owner != Self, "invariant");
+  guarantee(current == owner_raw(), "complete_exit not owner");
+  intx save = _recursions; // record the old recursion count
+  _recursions = 0;         // set the recursion level to be 0
+  exit(current);           // exit the monitor
+  guarantee(owner_raw() != current, "invariant");
   return save;
 }
 
-// reenter() enters a lock and sets recursion count
-// complete_exit/reenter operate as a wait without waiting
-void ObjectMonitor::reenter(intptr_t recursions, TRAPS) {
-  Thread * const Self = THREAD;
-  assert(Self->is_Java_thread(), "Must be Java thread!");
-  JavaThread *jt = (JavaThread *)THREAD;
-
-  guarantee(_owner != Self, "reenter already owner");
-  enter(THREAD);       // enter the monitor
-  guarantee(_recursions == 0, "reenter recursion");
-  _recursions = recursions;
-  return;
-}
-
-
-// -----------------------------------------------------------------------------
-// A macro is used below because there may already be a pending
-// exception which should not abort the execution of the routines
-// which use this (which is why we don't put this into check_slow and
-// call it with a CHECK argument).
-
-#define CHECK_OWNER()                                                       \
-  do {                                                                      \
-    if (THREAD != _owner) {                                                 \
-      if (THREAD->is_lock_owned((address) _owner)) {                        \
-        _owner = THREAD;  /* Convert from basiclock addr to Thread addr */  \
-        _recursions = 0;                                                    \
-      } else {                                                              \
-        TEVENT(Throw IMSX);                                                 \
-        THROW(vmSymbols::java_lang_IllegalMonitorStateException());         \
-      }                                                                     \
-    }                                                                       \
+// Checks that the current THREAD owns this monitor and causes an
+// immediate return if it doesn't. We don't use the CHECK macro
+// because we want the IMSE to be the only exception that is thrown
+// from the call site when false is returned. Any other pending
+// exception is ignored.
+#define CHECK_OWNER()                                                  \
+  do {                                                                 \
+    if (!check_owner(THREAD)) {                                        \
+       assert(HAS_PENDING_EXCEPTION, "expected a pending IMSE here."); \
+       return;                                                         \
+     }                                                                 \
   } while (false)
 
-// check_slow() is a misnomer.  It's called to simply to throw an IMSX exception.
-// TODO-FIXME: remove check_slow() -- it's likely dead.
-
-void ObjectMonitor::check_slow(TRAPS) {
-  TEVENT(check_slow - throw IMSX);
-  assert(THREAD != _owner && !THREAD->is_lock_owned((address) _owner), "must not be owner");
-  THROW_MSG(vmSymbols::java_lang_IllegalMonitorStateException(), "current thread not owner");
+// Returns true if the specified thread owns the ObjectMonitor.
+// Otherwise returns false and throws IllegalMonitorStateException
+// (IMSE). If there is a pending exception and the specified thread
+// is not the owner, that exception will be replaced by the IMSE.
+bool ObjectMonitor::check_owner(TRAPS) {
+  JavaThread* current = THREAD;
+  void* cur = owner_raw();
+  assert(cur != anon_owner_ptr(), "no anon owner here");
+  if (cur == current) {
+    return true;
+  }
+  if (LockingMode != LM_LIGHTWEIGHT && current->is_lock_owned((address)cur)) {
+    set_owner_from_BasicLock(cur, current);  // Convert from BasicLock* to Thread*.
+    _recursions = 0;
+    return true;
+  }
+  THROW_MSG_(vmSymbols::java_lang_IllegalMonitorStateException(),
+             "current thread is not owner", false);
 }
 
-static int Adjust(volatile int * adr, int dx) {
-  int v;
-  for (v = *adr; Atomic::cmpxchg(v + dx, adr, v) != v; v = *adr) /* empty */;
-  return v;
+static inline bool is_excluded(const Klass* monitor_klass) {
+  assert(monitor_klass != nullptr, "invariant");
+  NOT_JFR_RETURN_(false);
+  JFR_ONLY(return vmSymbols::jdk_jfr_internal_management_HiddenWait() == monitor_klass->name();)
 }
 
 static void post_monitor_wait_event(EventJavaMonitorWait* event,
                                     ObjectMonitor* monitor,
-                                    jlong notifier_tid,
+                                    uint64_t notifier_tid,
                                     jlong timeout,
                                     bool timedout) {
-  assert(event != NULL, "invariant");
-  assert(monitor != NULL, "invariant");
-  event->set_monitorClass(((oop)monitor->object())->klass());
+  assert(event != nullptr, "invariant");
+  assert(monitor != nullptr, "invariant");
+  const Klass* monitor_klass = monitor->object()->klass();
+  if (is_excluded(monitor_klass)) {
+    return;
+  }
+  event->set_monitorClass(monitor_klass);
   event->set_timeout(timeout);
-  event->set_address((uintptr_t)monitor->object_addr());
+  // Set an address that is 'unique enough', such that events close in
+  // time and with the same address are likely (but not guaranteed) to
+  // belong to the same object.
+  event->set_address((uintptr_t)monitor);
   event->set_notifier(notifier_tid);
   event->set_timedOut(timedout);
   event->commit();
@@ -1414,24 +1514,21 @@ static void post_monitor_wait_event(EventJavaMonitorWait* event,
 // Note: a subset of changes to ObjectMonitor::wait()
 // will need to be replicated in complete_exit
 void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
-  Thread * const Self = THREAD;
-  assert(Self->is_Java_thread(), "Must be Java thread!");
-  JavaThread *jt = (JavaThread *)THREAD;
+  JavaThread* current = THREAD;
 
-  DeferredInitialize();
+  assert(InitDone, "Unexpectedly not initialized");
 
-  // Throw IMSX or IEX.
-  CHECK_OWNER();
+  CHECK_OWNER();  // Throws IMSE if not owner.
 
   EventJavaMonitorWait event;
 
   // check for a pending interrupt
-  if (interruptible && Thread::is_interrupted(Self, true) && !HAS_PENDING_EXCEPTION) {
+  if (interruptible && current->is_interrupted(true) && !HAS_PENDING_EXCEPTION) {
     // post monitor waited event.  Note that this is past-tense, we are done waiting.
     if (JvmtiExport::should_post_monitor_waited()) {
       // Note: 'false' parameter is passed here because the
       // wait was not timed out due to thread interrupt.
-      JvmtiExport::post_monitor_waited(jt, this, false);
+      JvmtiExport::post_monitor_waited(current, this, false);
 
       // In this short circuit of the monitor wait protocol, the
       // current thread never drops ownership of the monitor and
@@ -1444,29 +1541,24 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
     if (event.should_commit()) {
       post_monitor_wait_event(&event, this, 0, millis, false);
     }
-    TEVENT(Wait - Throw IEX);
     THROW(vmSymbols::java_lang_InterruptedException());
     return;
   }
 
-  TEVENT(Wait);
-
-  assert(Self->_Stalled == 0, "invariant");
-  Self->_Stalled = intptr_t(this);
-  jt->set_current_waiting_monitor(this);
+  current->set_current_waiting_monitor(this);
 
   // create a node to be put into the queue
   // Critically, after we reset() the event but prior to park(), we must check
   // for a pending interrupt.
-  ObjectWaiter node(Self);
+  ObjectWaiter node(current);
   node.TState = ObjectWaiter::TS_WAIT;
-  Self->_ParkEvent->reset();
+  current->_ParkEvent->reset();
   OrderAccess::fence();          // ST into Event; membar ; LD interrupted-flag
 
   // Enter the waiting queue, which is a circular doubly linked list in this case
   // but it could be a priority queue or any data structure.
   // _WaitSetLock protects the wait queue.  Normally the wait queue is accessed only
-  // by the the owner of the monitor *except* in the case where park()
+  // by the owner of the monitor *except* in the case where park()
   // returns because of a timeout of interrupt.  Contention is exceptionally rare
   // so we use a simple spin-lock instead of a heavier-weight blocking lock.
 
@@ -1474,14 +1566,13 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
   AddWaiter(&node);
   Thread::SpinRelease(&_WaitSetLock);
 
-  if ((SyncFlags & 4) == 0) {
-    _Responsible = NULL;
-  }
-  intptr_t save = _recursions; // record the old recursion count
+  _Responsible = nullptr;
+
+  intx save = _recursions;     // record the old recursion count
   _waiters++;                  // increment the number of waiters
   _recursions = 0;             // set the recursion level to be 1
-  exit(true, Self);                    // exit the monitor
-  guarantee(_owner != Self, "invariant");
+  exit(current);               // exit the monitor
+  guarantee(owner_raw() != current, "invariant");
 
   // The thread is on the WaitSet list - now park() it.
   // On MP systems it's conceivable that a brief spin before we park
@@ -1492,31 +1583,29 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
 
   int ret = OS_OK;
   int WasNotified = 0;
-  { // State transition wrappers
-    OSThread* osthread = Self->osthread();
-    OSThreadWaitState osts(osthread, true);
-    {
-      ThreadBlockInVM tbivm(jt);
-      // Thread is in thread_blocked state and oop access is unsafe.
-      jt->set_suspend_equivalent();
 
-      if (interruptible && (Thread::is_interrupted(THREAD, false) || HAS_PENDING_EXCEPTION)) {
+  // Need to check interrupt state whilst still _thread_in_vm
+  bool interrupted = interruptible && current->is_interrupted(false);
+
+  { // State transition wrappers
+    OSThread* osthread = current->osthread();
+    OSThreadWaitState osts(osthread, true);
+
+    assert(current->thread_state() == _thread_in_vm, "invariant");
+
+    {
+      ClearSuccOnSuspend csos(this);
+      ThreadBlockInVMPreprocess<ClearSuccOnSuspend> tbivs(current, csos, true /* allow_suspend */);
+      if (interrupted || HAS_PENDING_EXCEPTION) {
         // Intentionally empty
       } else if (node._notified == 0) {
         if (millis <= 0) {
-          Self->_ParkEvent->park();
+          current->_ParkEvent->park();
         } else {
-          ret = Self->_ParkEvent->park(millis);
+          ret = current->_ParkEvent->park(millis);
         }
       }
-
-      // were we externally suspended while we were waiting?
-      if (ExitSuspendEquivalent (jt)) {
-        // TODO-FIXME: add -- if succ == Self then succ = null.
-        jt->java_suspend_self();
-      }
-
-    } // Exit thread safepoint: transition _thread_blocked -> _thread_in_vm
+    }
 
     // Node may be on the WaitSet, the EntryList (or cxq), or in transition
     // from the WaitSet to the EntryList.
@@ -1549,7 +1638,7 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
     // No other threads will asynchronously modify TState.
     guarantee(node.TState != ObjectWaiter::TS_WAIT, "invariant");
     OrderAccess::loadload();
-    if (_succ == Self) _succ = NULL;
+    if (_succ == current) _succ = nullptr;
     WasNotified = node._notified;
 
     // Reentry phase -- reacquire the monitor.
@@ -1561,9 +1650,9 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
 
     // post monitor waited event. Note that this is past-tense, we are done waiting.
     if (JvmtiExport::should_post_monitor_waited()) {
-      JvmtiExport::post_monitor_waited(jt, this, ret == OS_TIMEOUT);
+      JvmtiExport::post_monitor_waited(current, this, ret == OS_TIMEOUT);
 
-      if (node._notified != 0 && _succ == Self) {
+      if (node._notified != 0 && _succ == current) {
         // In this part of the monitor wait-notify-reenter protocol it
         // is possible (and normal) for another thread to do a fastpath
         // monitor enter-exit while this thread is still trying to get
@@ -1589,49 +1678,44 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
 
     OrderAccess::fence();
 
-    assert(Self->_Stalled != 0, "invariant");
-    Self->_Stalled = 0;
-
-    assert(_owner != Self, "invariant");
+    assert(owner_raw() != current, "invariant");
     ObjectWaiter::TStates v = node.TState;
     if (v == ObjectWaiter::TS_RUN) {
-      enter(Self);
+      enter(current);
     } else {
       guarantee(v == ObjectWaiter::TS_ENTER || v == ObjectWaiter::TS_CXQ, "invariant");
-      ReenterI(Self, &node);
+      ReenterI(current, &node);
       node.wait_reenter_end(this);
     }
 
-    // Self has reacquired the lock.
-    // Lifecycle - the node representing Self must not appear on any queues.
+    // current has reacquired the lock.
+    // Lifecycle - the node representing current must not appear on any queues.
     // Node is about to go out-of-scope, but even if it were immortal we wouldn't
     // want residual elements associated with this thread left on any lists.
     guarantee(node.TState == ObjectWaiter::TS_RUN, "invariant");
-    assert(_owner == Self, "invariant");
-    assert(_succ != Self, "invariant");
+    assert(owner_raw() == current, "invariant");
+    assert(_succ != current, "invariant");
   } // OSThreadWaitState()
 
-  jt->set_current_waiting_monitor(NULL);
+  current->set_current_waiting_monitor(nullptr);
 
   guarantee(_recursions == 0, "invariant");
-  _recursions = save;     // restore the old recursion count
+  int relock_count = JvmtiDeferredUpdates::get_and_reset_relock_count_after_wait(current);
+  _recursions =   save          // restore the old recursion count
+                + relock_count; //  increased by the deferred relock count
+  current->inc_held_monitor_count(relock_count); // Deopt never entered these counts.
   _waiters--;             // decrement the number of waiters
 
   // Verify a few postconditions
-  assert(_owner == Self, "invariant");
-  assert(_succ != Self, "invariant");
-  assert(((oop)(object()))->mark() == markOopDesc::encode(this), "invariant");
-
-  if (SyncFlags & 32) {
-    OrderAccess::fence();
-  }
+  assert(owner_raw() == current, "invariant");
+  assert(_succ != current, "invariant");
+  assert_mark_word_consistency();
 
   // check if the notification happened
   if (!WasNotified) {
     // no, it could be timeout or Thread.interrupt() or both
     // check for interrupt event, otherwise it is timeout
-    if (interruptible && Thread::is_interrupted(Self, true) && !HAS_PENDING_EXCEPTION) {
-      TEVENT(Wait - throw IEX from epilog);
+    if (interruptible && current->is_interrupted(true) && !HAS_PENDING_EXCEPTION) {
       THROW(vmSymbols::java_lang_InterruptedException());
     }
   }
@@ -1646,13 +1730,10 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
 // then instead of transferring a thread from the WaitSet to the EntryList
 // we might just dequeue a thread from the WaitSet and directly unpark() it.
 
-void ObjectMonitor::INotify(Thread * Self) {
-  const int policy = Knob_MoveNotifyee;
-
+void ObjectMonitor::INotify(JavaThread* current) {
   Thread::SpinAcquire(&_WaitSetLock, "WaitSet - notify");
-  ObjectWaiter * iterator = DequeueWaiter();
-  if (iterator != NULL) {
-    TEVENT(Notify1 - Transfer);
+  ObjectWaiter* iterator = DequeueWaiter();
+  if (iterator != nullptr) {
     guarantee(iterator->TState == ObjectWaiter::TS_WAIT, "invariant");
     guarantee(iterator->_notified == 0, "invariant");
     // Disposition - what might we do with iterator ?
@@ -1660,80 +1741,32 @@ void ObjectMonitor::INotify(Thread * Self) {
     //     or head (policy == 0).
     // b.  push it onto the front of the _cxq (policy == 2).
     // For now we use (b).
-    if (policy != 4) {
-      iterator->TState = ObjectWaiter::TS_ENTER;
-    }
-    iterator->_notified = 1;
-    iterator->_notifier_tid = JFR_THREAD_ID(Self);
 
-    ObjectWaiter * list = _EntryList;
-    if (list != NULL) {
-      assert(list->_prev == NULL, "invariant");
+    iterator->TState = ObjectWaiter::TS_ENTER;
+
+    iterator->_notified = 1;
+    iterator->_notifier_tid = JFR_THREAD_ID(current);
+
+    ObjectWaiter* list = _EntryList;
+    if (list != nullptr) {
+      assert(list->_prev == nullptr, "invariant");
       assert(list->TState == ObjectWaiter::TS_ENTER, "invariant");
       assert(list != iterator, "invariant");
     }
 
-    if (policy == 0) {       // prepend to EntryList
-      if (list == NULL) {
-        iterator->_next = iterator->_prev = NULL;
-        _EntryList = iterator;
-      } else {
-        list->_prev = iterator;
-        iterator->_next = list;
-        iterator->_prev = NULL;
-        _EntryList = iterator;
-      }
-    } else if (policy == 1) {      // append to EntryList
-      if (list == NULL) {
-        iterator->_next = iterator->_prev = NULL;
-        _EntryList = iterator;
-      } else {
-        // CONSIDER:  finding the tail currently requires a linear-time walk of
-        // the EntryList.  We can make tail access constant-time by converting to
-        // a CDLL instead of using our current DLL.
-        ObjectWaiter * tail;
-        for (tail = list; tail->_next != NULL; tail = tail->_next) {}
-        assert(tail != NULL && tail->_next == NULL, "invariant");
-        tail->_next = iterator;
-        iterator->_prev = tail;
-        iterator->_next = NULL;
-      }
-    } else if (policy == 2) {      // prepend to cxq
-      if (list == NULL) {
-        iterator->_next = iterator->_prev = NULL;
-        _EntryList = iterator;
-      } else {
-        iterator->TState = ObjectWaiter::TS_CXQ;
-        for (;;) {
-          ObjectWaiter * front = _cxq;
-          iterator->_next = front;
-          if (Atomic::cmpxchg(iterator, &_cxq, front) == front) {
-            break;
-          }
-        }
-      }
-    } else if (policy == 3) {      // append to cxq
+    // prepend to cxq
+    if (list == nullptr) {
+      iterator->_next = iterator->_prev = nullptr;
+      _EntryList = iterator;
+    } else {
       iterator->TState = ObjectWaiter::TS_CXQ;
       for (;;) {
-        ObjectWaiter * tail = _cxq;
-        if (tail == NULL) {
-          iterator->_next = NULL;
-          if (Atomic::replace_if_null(iterator, &_cxq)) {
-            break;
-          }
-        } else {
-          while (tail->_next != NULL) tail = tail->_next;
-          tail->_next = iterator;
-          iterator->_prev = tail;
-          iterator->_next = NULL;
+        ObjectWaiter* front = _cxq;
+        iterator->_next = front;
+        if (Atomic::cmpxchg(&_cxq, front, iterator) == front) {
           break;
         }
       }
-    } else {
-      ParkEvent * ev = iterator->_event;
-      iterator->TState = ObjectWaiter::TS_RUN;
-      OrderAccess::fence();
-      ev->unpark();
     }
 
     // _WaitSetLock protects the wait queue, not the EntryList.  We could
@@ -1744,9 +1777,7 @@ void ObjectMonitor::INotify(Thread * Self) {
     // on _WaitSetLock so it's not profitable to reduce the length of the
     // critical section.
 
-    if (policy < 4) {
-      iterator->wait_reenter_begin(this);
-    }
+    iterator->wait_reenter_begin(this);
   }
   Thread::SpinRelease(&_WaitSetLock);
 }
@@ -1759,18 +1790,16 @@ void ObjectMonitor::INotify(Thread * Self) {
 // Note: We can also detect many such problems with a "minimum wait".
 // When the "minimum wait" is set to a small non-zero timeout value
 // and the program does not hang whereas it did absent "minimum wait",
-// that suggests a lost wakeup bug. The '-XX:SyncFlags=1' option uses
-// a "minimum wait" for all park() operations; see the recheckInterval
-// variable and MAX_RECHECK_INTERVAL.
+// that suggests a lost wakeup bug.
 
 void ObjectMonitor::notify(TRAPS) {
-  CHECK_OWNER();
-  if (_WaitSet == NULL) {
-    TEVENT(Empty-Notify);
+  JavaThread* current = THREAD;
+  CHECK_OWNER();  // Throws IMSE if not owner.
+  if (_WaitSet == nullptr) {
     return;
   }
-  DTRACE_MONITOR_PROBE(notify, this, object(), THREAD);
-  INotify(THREAD);
+  DTRACE_MONITOR_PROBE(notify, this, object(), current);
+  INotify(current);
   OM_PERFDATA_OP(Notifications, inc(1));
 }
 
@@ -1783,17 +1812,17 @@ void ObjectMonitor::notify(TRAPS) {
 // mode the waitset will be empty and the EntryList will be "DCBAXYZ".
 
 void ObjectMonitor::notifyAll(TRAPS) {
-  CHECK_OWNER();
-  if (_WaitSet == NULL) {
-    TEVENT(Empty-NotifyAll);
+  JavaThread* current = THREAD;
+  CHECK_OWNER();  // Throws IMSE if not owner.
+  if (_WaitSet == nullptr) {
     return;
   }
 
-  DTRACE_MONITOR_PROBE(notifyAll, this, object(), THREAD);
+  DTRACE_MONITOR_PROBE(notifyAll, this, object(), current);
   int tally = 0;
-  while (_WaitSet != NULL) {
+  while (_WaitSet != nullptr) {
     tally++;
-    INotify(THREAD);
+    INotify(current);
   }
 
   OM_PERFDATA_OP(Notifications, inc(tally));
@@ -1865,31 +1894,64 @@ void ObjectMonitor::notifyAll(TRAPS) {
 // hysteresis control to damp the transition rate between spinning and
 // not spinning.
 
-// Spinning: Fixed frequency (100%), vary duration
-int ObjectMonitor::TrySpin(Thread * Self) {
-  // Dumb, brutal spin.  Good for comparative measurements against adaptive spinning.
-  int ctr = Knob_FixedSpin;
-  if (ctr != 0) {
-    while (--ctr >= 0) {
-      if (TryLock(Self) > 0) return 1;
-      SpinPause();
-    }
-    return 0;
-  }
+int ObjectMonitor::Knob_SpinLimit    = 5000;   // derived by an external tool
 
-  for (ctr = Knob_PreSpin + 1; --ctr >= 0;) {
-    if (TryLock(Self) > 0) {
-      // Increase _SpinDuration ...
-      // Note that we don't clamp SpinDuration precisely at SpinLimit.
-      // Raising _SpurDuration to the poverty line is key.
-      int x = _SpinDuration;
-      if (x < Knob_SpinLimit) {
-        if (x < Knob_Poverty) x = Knob_Poverty;
-        _SpinDuration = x + Knob_BonusB;
+static int Knob_Bonus               = 100;     // spin success bonus
+static int Knob_Penalty             = 200;     // spin failure penalty
+static int Knob_Poverty             = 1000;
+static int Knob_FixedSpin           = 0;
+static int Knob_PreSpin             = 10;      // 20-100 likely better, but it's not better in my testing.
+
+inline static int adjust_up(int spin_duration) {
+  int x = spin_duration;
+  if (x < ObjectMonitor::Knob_SpinLimit) {
+    if (x < Knob_Poverty) {
+      x = Knob_Poverty;
+    }
+    return x + Knob_Bonus;
+  } else {
+    return spin_duration;
+  }
+}
+
+inline static int adjust_down(int spin_duration) {
+  // TODO: Use an AIMD-like policy to adjust _SpinDuration.
+  // AIMD is globally stable.
+  int x = spin_duration;
+  if (x > 0) {
+    // Consider an AIMD scheme like: x -= (x >> 3) + 100
+    // This is globally sample and tends to damp the response.
+    x -= Knob_Penalty;
+    if (x < 0) { x = 0; }
+    return x;
+  } else {
+    return spin_duration;
+  }
+}
+
+bool ObjectMonitor::short_fixed_spin(JavaThread* current, int spin_count, bool adapt) {
+  for (int ctr = 0; ctr < spin_count; ctr++) {
+    TryLockResult status = TryLock(current);
+    if (status == TryLockResult::Success) {
+      if (adapt) {
+        _SpinDuration = adjust_up(_SpinDuration);
       }
-      return 1;
+      return true;
+    } else if (status == TryLockResult::Interference) {
+      break;
     }
     SpinPause();
+  }
+  return false;
+}
+
+// Spinning: Fixed frequency (100%), vary duration
+bool ObjectMonitor::TrySpin(JavaThread* current) {
+
+  // Dumb, brutal spin.  Good for comparative measurements against adaptive spinning.
+  int knob_fixed_spin = Knob_FixedSpin;  // 0 (don't spin: default), 2000 good test
+  if (knob_fixed_spin > 0) {
+    return short_fixed_spin(current, knob_fixed_spin, false);
   }
 
   // Admission control - verify preconditions for spinning
@@ -1898,6 +1960,12 @@ int ObjectMonitor::TrySpin(Thread * Self) {
   // becoming an absorbing state.  Put another way, we spin briefly to
   // sample, just in case the system load, parallelism, contention, or lock
   // modality changed.
+
+  int knob_pre_spin = Knob_PreSpin; // 10 (default), 100, 1000 or 2000
+  if (short_fixed_spin(current, knob_pre_spin, true)) {
+    return true;
+  }
+
   //
   // Consider the following alternative:
   // Periodically set _SpinDuration = _SpinLimit and try a long/full
@@ -1906,37 +1974,17 @@ int ObjectMonitor::TrySpin(Thread * Self) {
   // This takes us into the realm of 1-out-of-N spinning, where we
   // hold the duration constant but vary the frequency.
 
-  ctr = _SpinDuration;
-  if (ctr < Knob_SpinBase) ctr = Knob_SpinBase;
-  if (ctr <= 0) return 0;
-
-  if (Knob_SuccRestrict && _succ != NULL) return 0;
-  if (Knob_OState && NotRunnable (Self, (Thread *) _owner)) {
-    TEVENT(Spin abort - notrunnable [TOP]);
-    return 0;
-  }
-
-  int MaxSpin = Knob_MaxSpinners;
-  if (MaxSpin >= 0) {
-    if (_Spinner > MaxSpin) {
-      TEVENT(Spin abort -- too many spinners);
-      return 0;
-    }
-    // Slightly racy, but benign ...
-    Adjust(&_Spinner, 1);
-  }
+  int ctr = _SpinDuration;
+  if (ctr <= 0) return false;
 
   // We're good to spin ... spin ingress.
   // CONSIDER: use Prefetch::write() to avoid RTS->RTO upgrades
   // when preparing to LD...CAS _owner, etc and the CAS is likely
   // to succeed.
-  int hits    = 0;
-  int msk     = 0;
-  int caspty  = Knob_CASPenalty;
-  int oxpty   = Knob_OXPenalty;
-  int sss     = Knob_SpinSetSucc;
-  if (sss && _succ == NULL) _succ = Self;
-  Thread * prv = NULL;
+  if (_succ == nullptr) {
+    _succ = current;
+  }
+  Thread* prv = nullptr;
 
   // There are three ways to exit the following loop:
   // 1.  A successful spin where this thread has acquired the lock.
@@ -1955,36 +2003,13 @@ int ObjectMonitor::TrySpin(Thread * Self) {
     // This is in keeping with the "no loitering in runtime" rule.
     // We periodically check to see if there's a safepoint pending.
     if ((ctr & 0xFF) == 0) {
-      if (SafepointMechanism::poll(Self)) {
-        TEVENT(Spin: safepoint);
-        goto Abort;           // abrupt spin egress
+      // Can't call SafepointMechanism::should_process() since that
+      // might update the poll values and we could be in a thread_blocked
+      // state here which is not allowed so just check the poll.
+      if (SafepointMechanism::local_poll_armed(current)) {
+        break;
       }
-      if (Knob_UsePause & 1) SpinPause();
-    }
-
-    if (Knob_UsePause & 2) SpinPause();
-
-    // Exponential back-off ...  Stay off the bus to reduce coherency traffic.
-    // This is useful on classic SMP systems, but is of less utility on
-    // N1-style CMT platforms.
-    //
-    // Trade-off: lock acquisition latency vs coherency bandwidth.
-    // Lock hold times are typically short.  A histogram
-    // of successful spin attempts shows that we usually acquire
-    // the lock early in the spin.  That suggests we want to
-    // sample _owner frequently in the early phase of the spin,
-    // but then back-off and sample less frequently as the spin
-    // progresses.  The back-off makes a good citizen on SMP big
-    // SMP systems.  Oversampling _owner can consume excessive
-    // coherency bandwidth.  Relatedly, if we _oversample _owner we
-    // can inadvertently interfere with the the ST m->owner=null.
-    // executed by the lock owner.
-    if (ctr & msk) continue;
-    ++hits;
-    if ((hits & 0xF) == 0) {
-      // The 0xF, above, corresponds to the exponent.
-      // Consider: (msk+1)|msk
-      msk = ((msk << 2)|3) & BackOffMask;
+      SpinPause();
     }
 
     // Probe _owner with TATAS
@@ -1997,16 +2022,15 @@ int ObjectMonitor::TrySpin(Thread * Self) {
     // the spin without prejudice or apply a "penalty" to the
     // spin count-down variable "ctr", reducing it by 100, say.
 
-    Thread * ox = (Thread *) _owner;
-    if (ox == NULL) {
-      ox = (Thread*)Atomic::cmpxchg(Self, &_owner, (void*)NULL);
-      if (ox == NULL) {
+    JavaThread* ox = static_cast<JavaThread*>(owner_raw());
+    if (ox == nullptr) {
+      ox = static_cast<JavaThread*>(try_set_owner_from(nullptr, current));
+      if (ox == nullptr) {
         // The CAS succeeded -- this thread acquired ownership
         // Take care of some bookkeeping to exit spin state.
-        if (sss && _succ == Self) {
-          _succ = NULL;
+        if (_succ == current) {
+          _succ = nullptr;
         }
-        if (MaxSpin > 0) Adjust(&_Spinner, -1);
 
         // Increase _SpinDuration :
         // The spin was successful (profitable) so we tend toward
@@ -2015,171 +2039,79 @@ int ObjectMonitor::TrySpin(Thread * Self) {
         // If we acquired the lock early in the spin cycle it
         // makes sense to increase _SpinDuration proportionally.
         // Note that we don't clamp SpinDuration precisely at SpinLimit.
-        int x = _SpinDuration;
-        if (x < Knob_SpinLimit) {
-          if (x < Knob_Poverty) x = Knob_Poverty;
-          _SpinDuration = x + Knob_Bonus;
-        }
-        return 1;
+        _SpinDuration = adjust_up(_SpinDuration);
+        return true;
       }
 
       // The CAS failed ... we can take any of the following actions:
-      // * penalize: ctr -= Knob_CASPenalty
-      // * exit spin with prejudice -- goto Abort;
+      // * penalize: ctr -= CASPenalty
+      // * exit spin with prejudice -- abort without adapting spinner
       // * exit spin without prejudice.
       // * Since CAS is high-latency, retry again immediately.
-      prv = ox;
-      TEVENT(Spin: cas failed);
-      if (caspty == -2) break;
-      if (caspty == -1) goto Abort;
-      ctr -= caspty;
-      continue;
+      break;
     }
 
     // Did lock ownership change hands ?
-    if (ox != prv && prv != NULL) {
-      TEVENT(spin: Owner changed)
-      if (oxpty == -2) break;
-      if (oxpty == -1) goto Abort;
-      ctr -= oxpty;
+    if (ox != prv && prv != nullptr) {
+      break;
     }
     prv = ox;
 
-    // Abort the spin if the owner is not executing.
-    // The owner must be executing in order to drop the lock.
-    // Spinning while the owner is OFFPROC is idiocy.
-    // Consider: ctr -= RunnablePenalty ;
-    if (Knob_OState && NotRunnable (Self, ox)) {
-      TEVENT(Spin abort - notrunnable);
-      goto Abort;
+    if (_succ == nullptr) {
+      _succ = current;
     }
-    if (sss && _succ == NULL) _succ = Self;
   }
 
   // Spin failed with prejudice -- reduce _SpinDuration.
-  // TODO: Use an AIMD-like policy to adjust _SpinDuration.
-  // AIMD is globally stable.
-  TEVENT(Spin failure);
-  {
-    int x = _SpinDuration;
-    if (x > 0) {
-      // Consider an AIMD scheme like: x -= (x >> 3) + 100
-      // This is globally sample and tends to damp the response.
-      x -= Knob_Penalty;
-      if (x < 0) x = 0;
-      _SpinDuration = x;
-    }
+  if (ctr < 0) {
+    _SpinDuration = adjust_down(_SpinDuration);
   }
 
- Abort:
-  if (MaxSpin >= 0) Adjust(&_Spinner, -1);
-  if (sss && _succ == Self) {
-    _succ = NULL;
+  if (_succ == current) {
+    _succ = nullptr;
     // Invariant: after setting succ=null a contending thread
     // must recheck-retry _owner before parking.  This usually happens
     // in the normal usage of TrySpin(), but it's safest
     // to make TrySpin() as foolproof as possible.
     OrderAccess::fence();
-    if (TryLock(Self) > 0) return 1;
-  }
-  return 0;
-}
-
-// NotRunnable() -- informed spinning
-//
-// Don't bother spinning if the owner is not eligible to drop the lock.
-// Peek at the owner's schedctl.sc_state and Thread._thread_values and
-// spin only if the owner thread is _thread_in_Java or _thread_in_vm.
-// The thread must be runnable in order to drop the lock in timely fashion.
-// If the _owner is not runnable then spinning will not likely be
-// successful (profitable).
-//
-// Beware -- the thread referenced by _owner could have died
-// so a simply fetch from _owner->_thread_state might trap.
-// Instead, we use SafeFetchXX() to safely LD _owner->_thread_state.
-// Because of the lifecycle issues the schedctl and _thread_state values
-// observed by NotRunnable() might be garbage.  NotRunnable must
-// tolerate this and consider the observed _thread_state value
-// as advisory.
-//
-// Beware too, that _owner is sometimes a BasicLock address and sometimes
-// a thread pointer.
-// Alternately, we might tag the type (thread pointer vs basiclock pointer)
-// with the LSB of _owner.  Another option would be to probablistically probe
-// the putative _owner->TypeTag value.
-//
-// Checking _thread_state isn't perfect.  Even if the thread is
-// in_java it might be blocked on a page-fault or have been preempted
-// and sitting on a ready/dispatch queue.  _thread state in conjunction
-// with schedctl.sc_state gives us a good picture of what the
-// thread is doing, however.
-//
-// TODO: check schedctl.sc_state.
-// We'll need to use SafeFetch32() to read from the schedctl block.
-// See RFE #5004247 and http://sac.sfbay.sun.com/Archives/CaseLog/arc/PSARC/2005/351/
-//
-// The return value from NotRunnable() is *advisory* -- the
-// result is based on sampling and is not necessarily coherent.
-// The caller must tolerate false-negative and false-positive errors.
-// Spinning, in general, is probabilistic anyway.
-
-
-int ObjectMonitor::NotRunnable(Thread * Self, Thread * ox) {
-  // Check ox->TypeTag == 2BAD.
-  if (ox == NULL) return 0;
-
-  // Avoid transitive spinning ...
-  // Say T1 spins or blocks trying to acquire L.  T1._Stalled is set to L.
-  // Immediately after T1 acquires L it's possible that T2, also
-  // spinning on L, will see L.Owner=T1 and T1._Stalled=L.
-  // This occurs transiently after T1 acquired L but before
-  // T1 managed to clear T1.Stalled.  T2 does not need to abort
-  // its spin in this circumstance.
-  intptr_t BlockedOn = SafeFetchN((intptr_t *) &ox->_Stalled, intptr_t(1));
-
-  if (BlockedOn == 1) return 1;
-  if (BlockedOn != 0) {
-    return BlockedOn != intptr_t(this) && _owner == ox;
+    if (TryLock(current) == TryLockResult::Success) {
+      return true;
+    }
   }
 
-  assert(sizeof(((JavaThread *)ox)->_thread_state == sizeof(int)), "invariant");
-  int jst = SafeFetch32((int *) &((JavaThread *) ox)->_thread_state, -1);;
-  // consider also: jst != _thread_in_Java -- but that's overspecific.
-  return jst == _thread_blocked || jst == _thread_in_native;
+  return false;
 }
 
 
 // -----------------------------------------------------------------------------
 // WaitSet management ...
 
-ObjectWaiter::ObjectWaiter(Thread* thread) {
-  _next     = NULL;
-  _prev     = NULL;
+ObjectWaiter::ObjectWaiter(JavaThread* current) {
+  _next     = nullptr;
+  _prev     = nullptr;
   _notified = 0;
   _notifier_tid = 0;
   TState    = TS_RUN;
-  _thread   = thread;
-  _event    = thread->_ParkEvent;
+  _thread   = current;
+  _event    = _thread->_ParkEvent;
   _active   = false;
-  assert(_event != NULL, "invariant");
+  assert(_event != nullptr, "invariant");
 }
 
 void ObjectWaiter::wait_reenter_begin(ObjectMonitor * const mon) {
-  JavaThread *jt = (JavaThread *)this->_thread;
-  _active = JavaThreadBlockedOnMonitorEnterState::wait_reenter_begin(jt, mon);
+  _active = JavaThreadBlockedOnMonitorEnterState::wait_reenter_begin(_thread, mon);
 }
 
 void ObjectWaiter::wait_reenter_end(ObjectMonitor * const mon) {
-  JavaThread *jt = (JavaThread *)this->_thread;
-  JavaThreadBlockedOnMonitorEnterState::wait_reenter_end(jt, _active);
+  JavaThreadBlockedOnMonitorEnterState::wait_reenter_end(_thread, _active);
 }
 
 inline void ObjectMonitor::AddWaiter(ObjectWaiter* node) {
-  assert(node != NULL, "should not add NULL node");
-  assert(node->_prev == NULL, "node already in list");
-  assert(node->_next == NULL, "node already in list");
+  assert(node != nullptr, "should not add null node");
+  assert(node->_prev == nullptr, "node already in list");
+  assert(node->_next == nullptr, "node already in list");
   // put node at end of queue (circular doubly linked list)
-  if (_WaitSet == NULL) {
+  if (_WaitSet == nullptr) {
     _WaitSet = node;
     node->_prev = node;
     node->_next = node;
@@ -2204,16 +2136,16 @@ inline ObjectWaiter* ObjectMonitor::DequeueWaiter() {
 }
 
 inline void ObjectMonitor::DequeueSpecificWaiter(ObjectWaiter* node) {
-  assert(node != NULL, "should not dequeue NULL node");
-  assert(node->_prev != NULL, "node already removed from list");
-  assert(node->_next != NULL, "node already removed from list");
+  assert(node != nullptr, "should not dequeue nullptr node");
+  assert(node->_prev != nullptr, "node already removed from list");
+  assert(node->_next != nullptr, "node already removed from list");
   // when the waiter has woken up because of interrupt,
   // timeout or other spurious wake-up, dequeue the
   // waiter from waiting list
   ObjectWaiter* next = node->_next;
   if (next == node) {
     assert(node->_prev == node, "invariant check");
-    _WaitSet = NULL;
+    _WaitSet = nullptr;
   } else {
     ObjectWaiter* prev = node->_prev;
     assert(prev->_next == node, "invariant check");
@@ -2224,29 +2156,35 @@ inline void ObjectMonitor::DequeueSpecificWaiter(ObjectWaiter* node) {
       _WaitSet = next;
     }
   }
-  node->_next = NULL;
-  node->_prev = NULL;
+  node->_next = nullptr;
+  node->_prev = nullptr;
 }
 
 // -----------------------------------------------------------------------------
 // PerfData support
-PerfCounter * ObjectMonitor::_sync_ContendedLockAttempts       = NULL;
-PerfCounter * ObjectMonitor::_sync_FutileWakeups               = NULL;
-PerfCounter * ObjectMonitor::_sync_Parks                       = NULL;
-PerfCounter * ObjectMonitor::_sync_Notifications               = NULL;
-PerfCounter * ObjectMonitor::_sync_Inflations                  = NULL;
-PerfCounter * ObjectMonitor::_sync_Deflations                  = NULL;
-PerfLongVariable * ObjectMonitor::_sync_MonExtant              = NULL;
+PerfCounter * ObjectMonitor::_sync_ContendedLockAttempts       = nullptr;
+PerfCounter * ObjectMonitor::_sync_FutileWakeups               = nullptr;
+PerfCounter * ObjectMonitor::_sync_Parks                       = nullptr;
+PerfCounter * ObjectMonitor::_sync_Notifications               = nullptr;
+PerfCounter * ObjectMonitor::_sync_Inflations                  = nullptr;
+PerfCounter * ObjectMonitor::_sync_Deflations                  = nullptr;
+PerfLongVariable * ObjectMonitor::_sync_MonExtant              = nullptr;
 
 // One-shot global initialization for the sync subsystem.
 // We could also defer initialization and initialize on-demand
-// the first time we call inflate().  Initialization would
-// be protected - like so many things - by the MonitorCache_lock.
+// the first time we call ObjectSynchronizer::inflate().
+// Initialization would be protected - like so many things - by
+// the MonitorCache_lock.
 
 void ObjectMonitor::Initialize() {
-  static int InitializationCompleted = 0;
-  assert(InitializationCompleted == 0, "invariant");
-  InitializationCompleted = 1;
+  assert(!InitDone, "invariant");
+
+  if (!os::is_MP()) {
+    Knob_SpinLimit = 0;
+    Knob_PreSpin   = 0;
+    Knob_FixedSpin = -1;
+  }
+
   if (UsePerfData) {
     EXCEPTION_MARK;
 #define NEWPERFCOUNTER(n)                                                \
@@ -2269,177 +2207,79 @@ void ObjectMonitor::Initialize() {
 #undef NEWPERFCOUNTER
 #undef NEWPERFVARIABLE
   }
+
+  _oop_storage = OopStorageSet::create_weak("ObjectSynchronizer Weak", mtSynchronizer);
+
+  DEBUG_ONLY(InitDone = true;)
 }
 
-static char * kvGet(char * kvList, const char * Key) {
-  if (kvList == NULL) return NULL;
-  size_t n = strlen(Key);
-  char * Search;
-  for (Search = kvList; *Search; Search += strlen(Search) + 1) {
-    if (strncmp (Search, Key, n) == 0) {
-      if (Search[n] == '=') return Search + n + 1;
-      if (Search[n] == 0)   return(char *) "1";
-    }
-  }
-  return NULL;
+void ObjectMonitor::print_on(outputStream* st) const {
+  // The minimal things to print for markWord printing, more can be added for debugging and logging.
+  st->print("{contentions=0x%08x,waiters=0x%08x"
+            ",recursions=" INTX_FORMAT ",owner=" INTPTR_FORMAT "}",
+            contentions(), waiters(), recursions(),
+            p2i(owner()));
 }
+void ObjectMonitor::print() const { print_on(tty); }
 
-static int kvGetInt(char * kvList, const char * Key, int Default) {
-  char * v = kvGet(kvList, Key);
-  int rslt = v ? ::strtol(v, NULL, 0) : Default;
-  if (Knob_ReportSettings && v != NULL) {
-    tty->print_cr("INFO: SyncKnob: %s %d(%d)", Key, rslt, Default) ;
-    tty->flush();
-  }
-  return rslt;
-}
-
-void ObjectMonitor::DeferredInitialize() {
-  if (InitDone > 0) return;
-  if (Atomic::cmpxchg (-1, &InitDone, 0) != 0) {
-    while (InitDone != 1) /* empty */;
-    return;
-  }
-
-  // One-shot global initialization ...
-  // The initialization is idempotent, so we don't need locks.
-  // In the future consider doing this via os::init_2().
-  // SyncKnobs consist of <Key>=<Value> pairs in the style
-  // of environment variables.  Start by converting ':' to NUL.
-
-  if (SyncKnobs == NULL) SyncKnobs = "";
-
-  size_t sz = strlen(SyncKnobs);
-  char * knobs = (char *) os::malloc(sz + 2, mtInternal);
-  if (knobs == NULL) {
-    vm_exit_out_of_memory(sz + 2, OOM_MALLOC_ERROR, "Parse SyncKnobs");
-    guarantee(0, "invariant");
-  }
-  strcpy(knobs, SyncKnobs);
-  knobs[sz+1] = 0;
-  for (char * p = knobs; *p; p++) {
-    if (*p == ':') *p = 0;
-  }
-
-  #define SETKNOB(x) { Knob_##x = kvGetInt(knobs, #x, Knob_##x); }
-  SETKNOB(ReportSettings);
-  SETKNOB(ExitRelease);
-  SETKNOB(InlineNotify);
-  SETKNOB(Verbose);
-  SETKNOB(VerifyInUse);
-  SETKNOB(VerifyMatch);
-  SETKNOB(FixedSpin);
-  SETKNOB(SpinLimit);
-  SETKNOB(SpinBase);
-  SETKNOB(SpinBackOff);
-  SETKNOB(CASPenalty);
-  SETKNOB(OXPenalty);
-  SETKNOB(SpinSetSucc);
-  SETKNOB(SuccEnabled);
-  SETKNOB(SuccRestrict);
-  SETKNOB(Penalty);
-  SETKNOB(Bonus);
-  SETKNOB(BonusB);
-  SETKNOB(Poverty);
-  SETKNOB(SpinAfterFutile);
-  SETKNOB(UsePause);
-  SETKNOB(SpinEarly);
-  SETKNOB(OState);
-  SETKNOB(MaxSpinners);
-  SETKNOB(PreSpin);
-  SETKNOB(ExitPolicy);
-  SETKNOB(QMode);
-  SETKNOB(ResetEvent);
-  SETKNOB(MoveNotifyee);
-  SETKNOB(FastHSSEC);
-  #undef SETKNOB
-
-  if (Knob_Verbose) {
-    sanity_checks();
-  }
-
-  if (os::is_MP()) {
-    BackOffMask = (1 << Knob_SpinBackOff) - 1;
-    if (Knob_ReportSettings) {
-      tty->print_cr("INFO: BackOffMask=0x%X", BackOffMask);
-    }
-    // CONSIDER: BackOffMask = ROUNDUP_NEXT_POWER2 (ncpus-1)
-  } else {
-    Knob_SpinLimit = 0;
-    Knob_SpinBase  = 0;
-    Knob_PreSpin   = 0;
-    Knob_FixedSpin = -1;
-  }
-
-  os::free(knobs);
-  OrderAccess::fence();
-  InitDone = 1;
-}
-
-void ObjectMonitor::sanity_checks() {
-  int error_cnt = 0;
-  int warning_cnt = 0;
-  bool verbose = Knob_Verbose != 0 NOT_PRODUCT(|| VerboseInternalVMTests);
-
-  if (verbose) {
-    tty->print_cr("INFO: sizeof(ObjectMonitor)=" SIZE_FORMAT,
-                  sizeof(ObjectMonitor));
-    tty->print_cr("INFO: sizeof(PaddedEnd<ObjectMonitor>)=" SIZE_FORMAT,
-                  sizeof(PaddedEnd<ObjectMonitor>));
-  }
-
-  uint cache_line_size = VM_Version::L1_data_cache_line_size();
-  if (verbose) {
-    tty->print_cr("INFO: L1_data_cache_line_size=%u", cache_line_size);
-  }
-
-  ObjectMonitor dummy;
-  u_char *addr_begin  = (u_char*)&dummy;
-  u_char *addr_header = (u_char*)&dummy._header;
-  u_char *addr_owner  = (u_char*)&dummy._owner;
-
-  uint offset_header = (uint)(addr_header - addr_begin);
-  if (verbose) tty->print_cr("INFO: offset(_header)=%u", offset_header);
-
-  uint offset_owner = (uint)(addr_owner - addr_begin);
-  if (verbose) tty->print_cr("INFO: offset(_owner)=%u", offset_owner);
-
-  if ((uint)(addr_header - addr_begin) != 0) {
-    tty->print_cr("ERROR: offset(_header) must be zero (0).");
-    error_cnt++;
-  }
-
-  if (cache_line_size != 0) {
-    // We were able to determine the L1 data cache line size so
-    // do some cache line specific sanity checks
-
-    if ((offset_owner - offset_header) < cache_line_size) {
-      tty->print_cr("WARNING: the _header and _owner fields are closer "
-                    "than a cache line which permits false sharing.");
-      warning_cnt++;
-    }
-
-    if ((sizeof(PaddedEnd<ObjectMonitor>) % cache_line_size) != 0) {
-      tty->print_cr("WARNING: PaddedEnd<ObjectMonitor> size is not a "
-                    "multiple of a cache line which permits false sharing.");
-      warning_cnt++;
-    }
-  }
-
-  ObjectSynchronizer::sanity_checks(verbose, cache_line_size, &error_cnt,
-                                    &warning_cnt);
-
-  if (verbose || error_cnt != 0 || warning_cnt != 0) {
-    tty->print_cr("INFO: error_cnt=%d", error_cnt);
-    tty->print_cr("INFO: warning_cnt=%d", warning_cnt);
-  }
-
-  guarantee(error_cnt == 0,
-            "Fatal error(s) found in ObjectMonitor::sanity_checks()");
-}
-
-#ifndef PRODUCT
-void ObjectMonitor_test() {
-  ObjectMonitor::sanity_checks();
+#ifdef ASSERT
+// Print the ObjectMonitor like a debugger would:
+//
+// (ObjectMonitor) 0x00007fdfb6012e40 = {
+//   _metadata = 0x0000000000000001
+//   _object = 0x000000070ff45fd0
+//   _pad_buf0 = {
+//     [0] = '\0'
+//     ...
+//     [43] = '\0'
+//   }
+//   _owner = 0x0000000000000000
+//   _previous_owner_tid = 0
+//   _pad_buf1 = {
+//     [0] = '\0'
+//     ...
+//     [47] = '\0'
+//   }
+//   _next_om = 0x0000000000000000
+//   _recursions = 0
+//   _EntryList = 0x0000000000000000
+//   _cxq = 0x0000000000000000
+//   _succ = 0x0000000000000000
+//   _Responsible = 0x0000000000000000
+//   _SpinDuration = 5000
+//   _contentions = 0
+//   _WaitSet = 0x0000700009756248
+//   _waiters = 1
+//   _WaitSetLock = 0
+// }
+//
+void ObjectMonitor::print_debug_style_on(outputStream* st) const {
+  st->print_cr("(ObjectMonitor*) " INTPTR_FORMAT " = {", p2i(this));
+  st->print_cr("  _metadata = " INTPTR_FORMAT, _metadata);
+  st->print_cr("  _object = " INTPTR_FORMAT, p2i(object_peek()));
+  st->print_cr("  _pad_buf0 = {");
+  st->print_cr("    [0] = '\\0'");
+  st->print_cr("    ...");
+  st->print_cr("    [%d] = '\\0'", (int)sizeof(_pad_buf0) - 1);
+  st->print_cr("  }");
+  st->print_cr("  _owner = " INTPTR_FORMAT, p2i(owner_raw()));
+  st->print_cr("  _previous_owner_tid = " UINT64_FORMAT, _previous_owner_tid);
+  st->print_cr("  _pad_buf1 = {");
+  st->print_cr("    [0] = '\\0'");
+  st->print_cr("    ...");
+  st->print_cr("    [%d] = '\\0'", (int)sizeof(_pad_buf1) - 1);
+  st->print_cr("  }");
+  st->print_cr("  _next_om = " INTPTR_FORMAT, p2i(next_om()));
+  st->print_cr("  _recursions = " INTX_FORMAT, _recursions);
+  st->print_cr("  _EntryList = " INTPTR_FORMAT, p2i(_EntryList));
+  st->print_cr("  _cxq = " INTPTR_FORMAT, p2i(_cxq));
+  st->print_cr("  _succ = " INTPTR_FORMAT, p2i(_succ));
+  st->print_cr("  _Responsible = " INTPTR_FORMAT, p2i(_Responsible));
+  st->print_cr("  _SpinDuration = %d", _SpinDuration);
+  st->print_cr("  _contentions = %d", contentions());
+  st->print_cr("  _WaitSet = " INTPTR_FORMAT, p2i(_WaitSet));
+  st->print_cr("  _waiters = %d", _waiters);
+  st->print_cr("  _WaitSetLock = %d", _WaitSetLock);
+  st->print_cr("}");
 }
 #endif

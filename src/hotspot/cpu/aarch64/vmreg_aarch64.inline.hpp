@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, Red Hat Inc. All rights reserved.
+ * Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,21 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_VMREG_AARCH64_INLINE_HPP
-#define CPU_AARCH64_VM_VMREG_AARCH64_INLINE_HPP
+#ifndef CPU_AARCH64_VMREG_AARCH64_INLINE_HPP
+#define CPU_AARCH64_VMREG_AARCH64_INLINE_HPP
 
-inline VMReg RegisterImpl::as_VMReg() {
-  if( this==noreg ) return VMRegImpl::Bad();
-  return VMRegImpl::as_VMReg(encoding() << 1 );
+inline VMReg Register::RegisterImpl::as_VMReg() const {
+  return VMRegImpl::as_VMReg(encoding() * Register::max_slots_per_register);
 }
 
-inline VMReg FloatRegisterImpl::as_VMReg() {
-  return VMRegImpl::as_VMReg((encoding() << 1) + ConcreteRegisterImpl::max_gpr);
+inline VMReg FloatRegister::FloatRegisterImpl::as_VMReg() const {
+  return VMRegImpl::as_VMReg((encoding() * FloatRegister::max_slots_per_register) +
+                             ConcreteRegisterImpl::max_gpr);
 }
 
-#endif // CPU_AARCH64_VM_VMREG_AARCH64_INLINE_HPP
+inline VMReg PRegister::PRegisterImpl::as_VMReg() const {
+  return VMRegImpl::as_VMReg((encoding() * PRegister::max_slots_per_register) +
+                             ConcreteRegisterImpl::max_fpr);
+}
+
+#endif // CPU_AARCH64_VMREG_AARCH64_INLINE_HPP

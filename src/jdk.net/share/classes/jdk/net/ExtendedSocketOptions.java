@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,13 +28,13 @@ package jdk.net;
 import java.io.FileDescriptor;
 import java.net.SocketException;
 import java.net.SocketOption;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
+import java.net.StandardProtocolFamily;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import jdk.internal.misc.JavaIOFileDescriptorAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaIOFileDescriptorAccess;
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.util.OperatingSystem;
 
 /**
  * Defines extended socket options, beyond those defined in
@@ -58,15 +58,6 @@ public final class ExtendedSocketOptions {
     }
 
     private ExtendedSocketOptions() { }
-
-    /**
-     * Service level properties. When a security manager is installed,
-     * setting or getting this option requires a {@link NetworkPermission}
-     * {@code ("setOption.SO_FLOW_SLA")} or {@code "getOption.SO_FLOW_SLA"}
-     * respectively.
-     */
-    public static final SocketOption<SocketFlow> SO_FLOW_SLA = new
-        ExtSocketOption<SocketFlow>("SO_FLOW_SLA", SocketFlow.class);
 
     /**
      * Disable Delayed Acknowledgements.
@@ -161,27 +152,112 @@ public final class ExtendedSocketOptions {
     public static final SocketOption<Integer> TCP_KEEPCOUNT
             = new ExtSocketOption<Integer>("TCP_KEEPCOUNT", Integer.class);
 
+    /**
+     * Identifies the receive queue that the last incoming packet for the socket
+     * was received on.
+     *
+     * <p> The value of this socket option is a positive {@code Integer} that
+     * identifies a receive queue that the application can use to split the
+     * incoming flows among threads based on the queue identifier. The value is
+     * {@code 0} when the socket is not bound, a packet has not been received,
+     * or more generally, when there is no receive queue to identify.
+     * The socket option is supported by both stream-oriented and datagram-oriented
+     * sockets.
+     *
+     * <p> The socket option is read-only and an attempt to set the socket option
+     * will throw {@code SocketException}.
+     *
+     * @apiNote
+     * Network devices may have multiple queues or channels to transmit and receive
+     * network packets. The {@code SO_INCOMING_NAPI_ID} socket option provides a hint
+     * to the application to indicate the receive queue on which an incoming socket
+     * connection or packets for that connection are directed to. An application may
+     * take advantage of this by handling all socket connections assigned to a
+     * specific queue on one thread.
+     *
+     * @since 15
+     */
+    public static final SocketOption<Integer> SO_INCOMING_NAPI_ID
+            = new ExtSocketOption<Integer>("SO_INCOMING_NAPI_ID", Integer.class);
+
+    /**
+     * Unix Domain peer credentials.
+     *
+     * <p> The value of this socket option is a {@link UnixDomainPrincipal} that
+     * represents the credentials of a peer connected to a Unix Domain socket.
+     * The credentials are those that applied at the time the socket was first
+     * connected or accepted.
+     *
+     * <p> The socket option is read-only and an attempt to set the socket option
+     * will throw {@code SocketException}. {@code SocketException} is also thrown
+     * when attempting to get the value of the socket option on an unconnected Unix
+     * Domain socket.
+     *
+     * @since 16
+     */
+    public static final SocketOption<UnixDomainPrincipal> SO_PEERCRED
+        = new ExtSocketOption<UnixDomainPrincipal>
+            ("SO_PEERCRED", UnixDomainPrincipal.class);
+
+    /**
+     * Disable IP packet fragmentation.
+     *
+     * <p> The value of this socket option is a {@code Boolean} that represents
+     * whether the option is enabled or disabled. When {@code true} fragmentation
+     * of outgoing IPv4 and IPv6 packets does not occur. This option can only be used
+     * with datagram sockets. When set, care must be taken to limit outgoing packet
+     * sizes to the {@link java.net.NetworkInterface#getMTU() local MTU}. Depending
+     * on the implementation and the network interface, packets larger than the MTU
+     * may be sent or dropped silently or dropped with an exception thrown.
+     * For {@link StandardProtocolFamily#INET6 IPv6} sockets it is
+     * system dependent whether the option also applies to datagrams
+     * sent to IPv4 addresses.
+     *
+     * @apiNote
+     * For IPv4 this option sets the DF (Do not Fragment) flag in the IP packet
+     * header. This instructs intermediate routers to not fragment the packet.
+     * IPv6 routers never fragment packets. Instead, fragmentation is handled
+     * by the sending and receiving nodes exclusively. Setting this option for
+     * an IPv6 socket ensures that packets to be sent are never fragmented, in
+     * which case, the local network MTU must be observed.
+     *
+     * @since 19
+     */
+    public static final SocketOption<Boolean> IP_DONTFRAGMENT =
+        new ExtSocketOption<Boolean>("IP_DONTFRAGMENT", Boolean.class);
+
     private static final PlatformSocketOptions platformSocketOptions =
             PlatformSocketOptions.get();
 
-    private static final boolean flowSupported =
-            platformSocketOptions.flowSupported();
     private static final boolean quickAckSupported =
             platformSocketOptions.quickAckSupported();
     private static final boolean keepAliveOptSupported =
             platformSocketOptions.keepAliveOptionsSupported();
+    private static final boolean peerCredentialsSupported =
+            platformSocketOptions.peerCredentialsSupported();
+    private static final boolean incomingNapiIdOptSupported  =
+            platformSocketOptions.incomingNapiIdSupported();
+    private static final boolean ipDontFragmentSupported  =
+            platformSocketOptions.ipDontFragmentSupported();
+
     private static final Set<SocketOption<?>> extendedOptions = options();
 
     static Set<SocketOption<?>> options() {
         Set<SocketOption<?>> options = new HashSet<>();
-        if (flowSupported) {
-            options.add(SO_FLOW_SLA);
-        }
         if (quickAckSupported) {
             options.add(TCP_QUICKACK);
         }
+        if (incomingNapiIdOptSupported) {
+            options.add(SO_INCOMING_NAPI_ID);
+        }
         if (keepAliveOptSupported) {
             options.addAll(Set.of(TCP_KEEPCOUNT, TCP_KEEPIDLE, TCP_KEEPINTERVAL));
+        }
+        if (peerCredentialsSupported) {
+            options.add(SO_PEERCRED);
+        }
+        if (ipDontFragmentSupported) {
+            options.add(IP_DONTFRAGMENT);
         }
         return Collections.unmodifiableSet(options);
     }
@@ -194,28 +270,29 @@ public final class ExtendedSocketOptions {
             @Override
             public void setOption(FileDescriptor fd,
                                   SocketOption<?> option,
-                                  Object value)
+                                  Object value, boolean isIPv6)
                 throws SocketException
             {
-                SecurityManager sm = System.getSecurityManager();
-                if (sm != null)
-                    sm.checkPermission(new NetworkPermission("setOption." + option.name()));
-
                 if (fd == null || !fd.valid())
                     throw new SocketException("socket closed");
 
-                if (option == SO_FLOW_SLA) {
-                    assert flowSupported;
-                    SocketFlow flow = checkValueType(value, option.type());
-                    setFlowOption(fd, flow);
-                } else if (option == TCP_QUICKACK) {
+                if (option == TCP_QUICKACK) {
                     setQuickAckOption(fd, (boolean) value);
                 } else if (option == TCP_KEEPCOUNT) {
-                    setTcpkeepAliveProbes(fd, (Integer) value);
+                    setTcpKeepAliveProbes(fd, (Integer) value);
+                } else if (option == IP_DONTFRAGMENT) {
+                    setIpDontFragment(fd, (Boolean) value, isIPv6);
                 } else if (option == TCP_KEEPIDLE) {
                     setTcpKeepAliveTime(fd, (Integer) value);
                 } else if (option == TCP_KEEPINTERVAL) {
                     setTcpKeepAliveIntvl(fd, (Integer) value);
+                } else if (option == SO_INCOMING_NAPI_ID) {
+                    if (!incomingNapiIdOptSupported)
+                        throw new UnsupportedOperationException("Attempt to set unsupported option " + option);
+                    else
+                        throw new SocketException("Attempt to set read only option " + option);
+                } else if (option == SO_PEERCRED) {
+                    throw new SocketException("SO_PEERCRED cannot be set ");
                 } else {
                     throw new InternalError("Unexpected option " + option);
                 }
@@ -223,29 +300,26 @@ public final class ExtendedSocketOptions {
 
             @Override
             public Object getOption(FileDescriptor fd,
-                                    SocketOption<?> option)
+                                    SocketOption<?> option, boolean isIPv6)
                 throws SocketException
             {
-                SecurityManager sm = System.getSecurityManager();
-                if (sm != null)
-                    sm.checkPermission(new NetworkPermission("getOption." + option.name()));
-
                 if (fd == null || !fd.valid())
                     throw new SocketException("socket closed");
 
-                if (option == SO_FLOW_SLA) {
-                    assert flowSupported;
-                    SocketFlow flow = SocketFlow.create();
-                    getFlowOption(fd, flow);
-                    return flow;
-                } else if (option == TCP_QUICKACK) {
+                if (option == TCP_QUICKACK) {
                     return getQuickAckOption(fd);
                 } else if (option == TCP_KEEPCOUNT) {
-                    return getTcpkeepAliveProbes(fd);
+                    return getTcpKeepAliveProbes(fd);
+                } else if (option == IP_DONTFRAGMENT) {
+                    return getIpDontFragment(fd, isIPv6);
                 } else if (option == TCP_KEEPIDLE) {
                     return getTcpKeepAliveTime(fd);
                 } else if (option == TCP_KEEPINTERVAL) {
                     return getTcpKeepAliveIntvl(fd);
+                } else if (option == SO_PEERCRED) {
+                    return getSoPeerCred(fd);
+                } else if (option == SO_INCOMING_NAPI_ID) {
+                    return getIncomingNapiId(fd);
                 } else {
                     throw new InternalError("Unexpected option " + option);
                 }
@@ -253,36 +327,17 @@ public final class ExtendedSocketOptions {
         });
     }
 
-    @SuppressWarnings("unchecked")
-    private static <T> T checkValueType(Object value, Class<?> type) {
-        if (!type.isAssignableFrom(value.getClass())) {
-            String s = "Found: " + value.getClass() + ", Expected: " + type;
-            throw new IllegalArgumentException(s);
-        }
-        return (T) value;
-    }
-
     private static final JavaIOFileDescriptorAccess fdAccess =
             SharedSecrets.getJavaIOFileDescriptorAccess();
-
-    private static void setFlowOption(FileDescriptor fd, SocketFlow f)
-        throws SocketException
-    {
-        int status = platformSocketOptions.setFlowOption(fdAccess.get(fd),
-                                                         f.priority(),
-                                                         f.bandwidth());
-        f.status(status);  // augment the given flow with the status
-    }
-
-    private static void getFlowOption(FileDescriptor fd, SocketFlow f)
-            throws SocketException {
-        int status = platformSocketOptions.getFlowOption(fdAccess.get(fd), f);
-        f.status(status);  // augment the given flow with the status
-    }
 
     private static void setQuickAckOption(FileDescriptor fd, boolean enable)
             throws SocketException {
         platformSocketOptions.setQuickAck(fdAccess.get(fd), enable);
+    }
+
+    private static Object getSoPeerCred(FileDescriptor fd)
+            throws SocketException {
+        return platformSocketOptions.getSoPeerCred(fdAccess.get(fd));
     }
 
     private static Object getQuickAckOption(FileDescriptor fd)
@@ -290,9 +345,9 @@ public final class ExtendedSocketOptions {
         return platformSocketOptions.getQuickAck(fdAccess.get(fd));
     }
 
-    private static void setTcpkeepAliveProbes(FileDescriptor fd, int value)
+    private static void setTcpKeepAliveProbes(FileDescriptor fd, int value)
             throws SocketException {
-        platformSocketOptions.setTcpkeepAliveProbes(fdAccess.get(fd), value);
+        platformSocketOptions.setTcpKeepAliveProbes(fdAccess.get(fd), value);
     }
 
     private static void setTcpKeepAliveTime(FileDescriptor fd, int value)
@@ -300,13 +355,22 @@ public final class ExtendedSocketOptions {
         platformSocketOptions.setTcpKeepAliveTime(fdAccess.get(fd), value);
     }
 
+    private static void setIpDontFragment(FileDescriptor fd, boolean value, boolean isIPv6)
+            throws SocketException {
+        platformSocketOptions.setIpDontFragment(fdAccess.get(fd), value, isIPv6);
+    }
+
     private static void setTcpKeepAliveIntvl(FileDescriptor fd, int value)
             throws SocketException {
         platformSocketOptions.setTcpKeepAliveIntvl(fdAccess.get(fd), value);
     }
 
-    private static int getTcpkeepAliveProbes(FileDescriptor fd) throws SocketException {
-        return platformSocketOptions.getTcpkeepAliveProbes(fdAccess.get(fd));
+    private static int getTcpKeepAliveProbes(FileDescriptor fd) throws SocketException {
+        return platformSocketOptions.getTcpKeepAliveProbes(fdAccess.get(fd));
+    }
+
+    private static boolean getIpDontFragment(FileDescriptor fd, boolean isIPv6) throws SocketException {
+        return platformSocketOptions.getIpDontFragment(fdAccess.get(fd), isIPv6);
     }
 
     private static int getTcpKeepAliveTime(FileDescriptor fd) throws SocketException {
@@ -315,6 +379,10 @@ public final class ExtendedSocketOptions {
 
     private static int getTcpKeepAliveIntvl(FileDescriptor fd) throws SocketException {
         return platformSocketOptions.getTcpKeepAliveIntvl(fdAccess.get(fd));
+    }
+
+    private static int getIncomingNapiId(FileDescriptor fd) throws SocketException {
+        return platformSocketOptions.getIncomingNapiId(fdAccess.get(fd));
     }
 
     static class PlatformSocketOptions {
@@ -333,21 +401,13 @@ public final class ExtendedSocketOptions {
         }
 
         private static PlatformSocketOptions create() {
-            String osname = AccessController.doPrivileged(
-                    new PrivilegedAction<String>() {
-                        public String run() {
-                            return System.getProperty("os.name");
-                        }
-                    });
-            if ("SunOS".equals(osname)) {
-                return newInstance("jdk.net.SolarisSocketOptions");
-            } else if ("Linux".equals(osname)) {
-                return newInstance("jdk.net.LinuxSocketOptions");
-            } else if (osname.startsWith("Mac")) {
-                return newInstance("jdk.net.MacOSXSocketOptions");
-            } else {
-                return new PlatformSocketOptions();
-            }
+            return switch (OperatingSystem.current()) {
+                case LINUX -> newInstance("jdk.net.LinuxSocketOptions");
+                case MACOS -> newInstance("jdk.net.MacOSXSocketOptions");
+                case WINDOWS -> newInstance("jdk.net.WindowsSocketOptions");
+                case AIX -> newInstance("jdk.net.AIXSocketOptions");
+                default -> new PlatformSocketOptions();
+            };
         }
 
         private static final PlatformSocketOptions instance = create();
@@ -356,17 +416,7 @@ public final class ExtendedSocketOptions {
             return instance;
         }
 
-        int setFlowOption(int fd, int priority, long bandwidth)
-            throws SocketException
-        {
-            throw new UnsupportedOperationException("unsupported socket option");
-        }
-
-        int getFlowOption(int fd, SocketFlow f) throws SocketException {
-            throw new UnsupportedOperationException("unsupported socket option");
-        }
-
-        boolean flowSupported() {
+        boolean peerCredentialsSupported() {
             return false;
         }
 
@@ -386,7 +436,11 @@ public final class ExtendedSocketOptions {
             return false;
         }
 
-        void setTcpkeepAliveProbes(int fd, final int value) throws SocketException {
+        boolean ipDontFragmentSupported() {
+            return false;
+        }
+
+        void setTcpKeepAliveProbes(int fd, final int value) throws SocketException {
             throw new UnsupportedOperationException("unsupported TCP_KEEPCNT option");
         }
 
@@ -394,11 +448,23 @@ public final class ExtendedSocketOptions {
             throw new UnsupportedOperationException("unsupported TCP_KEEPIDLE option");
         }
 
+        UnixDomainPrincipal getSoPeerCred(int fd) throws SocketException {
+            throw new UnsupportedOperationException("unsupported SO_PEERCRED option");
+        }
+
         void setTcpKeepAliveIntvl(int fd, final int value) throws SocketException {
             throw new UnsupportedOperationException("unsupported TCP_KEEPINTVL option");
         }
 
-        int getTcpkeepAliveProbes(int fd) throws SocketException {
+        void setIpDontFragment(int fd, final boolean value, boolean isIPv6) throws SocketException {
+            throw new UnsupportedOperationException("unsupported IP_DONTFRAGMENT option");
+        }
+
+        boolean getIpDontFragment(int fd, boolean isIPv6) throws SocketException {
+            throw new UnsupportedOperationException("unsupported IP_DONTFRAGMENT option");
+        }
+
+        int getTcpKeepAliveProbes(int fd) throws SocketException {
             throw new UnsupportedOperationException("unsupported TCP_KEEPCNT option");
         }
 
@@ -408,6 +474,14 @@ public final class ExtendedSocketOptions {
 
         int getTcpKeepAliveIntvl(int fd) throws SocketException {
             throw new UnsupportedOperationException("unsupported TCP_KEEPINTVL option");
+        }
+
+        boolean incomingNapiIdSupported() {
+            return false;
+        }
+
+        int getIncomingNapiId(int fd) throws SocketException {
+            throw new UnsupportedOperationException("unsupported SO_INCOMING_NAPI_ID socket option");
         }
     }
 }

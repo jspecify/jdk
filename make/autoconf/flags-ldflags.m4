@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -31,30 +31,12 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS],
   FLAGS_SETUP_LDFLAGS_HELPER
 
   # Setup the target toolchain
-
-  # On some platforms (mac) the linker warns about non existing -L dirs.
-  # For any of the variants server, client or minimal, the dir matches the
-  # variant name. The "main" variant should be used for linking. For the
-  # rest, the dir is just server.
-  if HOTSPOT_CHECK_JVM_VARIANT(server) || HOTSPOT_CHECK_JVM_VARIANT(client) \
-      || HOTSPOT_CHECK_JVM_VARIANT(minimal); then
-    TARGET_JVM_VARIANT_PATH=$JVM_VARIANT_MAIN
-  else
-    TARGET_JVM_VARIANT_PATH=server
-  fi
   FLAGS_SETUP_LDFLAGS_CPU_DEP([TARGET])
 
   # Setup the build toolchain
-
-  # When building a buildjdk, it's always only the server variant
-  BUILD_JVM_VARIANT_PATH=server
-
   FLAGS_SETUP_LDFLAGS_CPU_DEP([BUILD], [OPENJDK_BUILD_])
 
-  LDFLAGS_TESTLIB="$LDFLAGS_JDKLIB"
-  LDFLAGS_TESTEXE="$LDFLAGS_JDKEXE ${TARGET_LDFLAGS_JDK_LIBPATH}"
-  AC_SUBST(LDFLAGS_TESTLIB)
-  AC_SUBST(LDFLAGS_TESTEXE)
+  AC_SUBST(ADLC_LDFLAGS)
 ])
 
 ################################################################################
@@ -64,53 +46,59 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
 [
   # Setup basic LDFLAGS
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    # If this is a --hash-style=gnu system, use --hash-style=both, why?
-    # We have previously set HAS_GNU_HASH if this is the case
-    if test -n "$HAS_GNU_HASH"; then
-      BASIC_LDFLAGS="-Wl,--hash-style=both"
-      LIBJSIG_HASHSTYLE_LDFLAGS="-Wl,--hash-style=both"
+    # Add -z,defs, to forbid undefined symbols in object files.
+    # add -z,relro (mark relocations read only) for all libs
+    # add -z,now ("full relro" - more of the Global Offset Table GOT is marked read only)
+    # add --no-as-needed to disable default --as-needed link flag on some GCC toolchains
+    BASIC_LDFLAGS="-Wl,-z,defs -Wl,-z,relro -Wl,-z,now -Wl,--no-as-needed -Wl,--exclude-libs,ALL"
+    # Linux : remove unused code+data in link step
+    if test "x$ENABLE_LINKTIME_GC" = xtrue; then
+      if test "x$OPENJDK_TARGET_CPU" = xs390x; then
+        BASIC_LDFLAGS="$BASIC_LDFLAGS -Wl,--gc-sections"
+      else
+        BASIC_LDFLAGS_JDK_ONLY="$BASIC_LDFLAGS_JDK_ONLY -Wl,--gc-sections"
+      fi
     fi
 
-    # Add -z defs, to forbid undefined symbols in object files.
-    BASIC_LDFLAGS="$BASIC_LDFLAGS -Wl,-z,defs"
+    BASIC_LDFLAGS_JVM_ONLY=""
 
-    BASIC_LDFLAGS_JVM_ONLY="-Wl,-z,noexecstack -Wl,-O1 -Wl,-z,relro"
-
-    BASIC_LDFLAGS_JDK_LIB_ONLY="-Wl,-z,noexecstack"
-    LIBJSIG_NOEXECSTACK_LDFLAGS="-Wl,-z,noexecstack"
+    LDFLAGS_CXX_PARTIAL_LINKING="$MACHINE_FLAG -r"
 
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     BASIC_LDFLAGS_JVM_ONLY="-mno-omit-leaf-frame-pointer -mstack-alignment=16 \
         -fPIC"
 
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    BASIC_LDFLAGS="-Wl,-z,defs"
-    BASIC_LDFLAGS_ONLYCXX="-norunpath"
-    BASIC_LDFLAGS_ONLYCXX_JDK_ONLY="-xnolib"
+    LDFLAGS_CXX_PARTIAL_LINKING="$MACHINE_FLAG -r"
 
-    BASIC_LDFLAGS_JDK_ONLY="-ztext"
-    BASIC_LDFLAGS_JVM_ONLY="-library=%none -mt -z noversion"
-
-  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    BASIC_LDFLAGS="-b64 -brtl -bnolibpath -bexpall -bernotok -btextpsize:64K \
-        -bdatapsize:64K -bstackpsize:64K"
-    # libjvm.so has gotten too large for normal TOC size; compile with qpic=large and link with bigtoc
-    BASIC_LDFLAGS_JVM_ONLY="-Wl,-lC_r -bbigtoc"
+    if test "x$OPENJDK_TARGET_OS" = xlinux; then
+      # Clang needs the lld linker to work correctly
+      BASIC_LDFLAGS="-fuse-ld=lld -Wl,--exclude-libs,ALL"
+      UTIL_REQUIRE_PROGS(LLD, lld)
+    fi
+    if test "x$OPENJDK_TARGET_OS" = xaix; then
+      BASIC_LDFLAGS="-Wl,-b64 -Wl,-brtl -Wl,-bnorwexec -Wl,-bnolibpath -Wl,-bnoexpall \
+        -Wl,-bernotok -Wl,-bdatapsize:64k -Wl,-btextpsize:64k -Wl,-bstackpsize:64k"
+      BASIC_LDFLAGS_JVM_ONLY="$BASIC_LDFLAGS_JVM_ONLY -Wl,-lC_r -Wl,-bbigtoc"
+    fi
 
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    BASIC_LDFLAGS="-nologo -opt:ref"
+    BASIC_LDFLAGS="-opt:ref"
     BASIC_LDFLAGS_JDK_ONLY="-incremental:no"
     BASIC_LDFLAGS_JVM_ONLY="-opt:icf,8 -subsystem:windows"
   fi
 
-  # Setup OS-dependent LDFLAGS
-  if test "x$TOOLCHAIN_TYPE" = xclang || test "x$TOOLCHAIN_TYPE" = xgcc; then
-    if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-      # Assume clang or gcc.
-      # FIXME: We should really generalize SET_SHARED_LIBRARY_ORIGIN instead.
-      OS_LDFLAGS_JVM_ONLY="-Wl,-rpath,@loader_path/. -Wl,-rpath,@loader_path/.."
-      OS_LDFLAGS_JDK_ONLY="-mmacosx-version-min=$MACOSX_VERSION_MIN"
+  if (test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang) \
+      && test "x$OPENJDK_TARGET_OS" != xaix; then
+    if test -n "$HAS_NOEXECSTACK"; then
+      BASIC_LDFLAGS="$BASIC_LDFLAGS -Wl,-z,noexecstack"
     fi
+  fi
+
+  # Setup OS-dependent LDFLAGS
+  if test "x$OPENJDK_TARGET_OS" = xmacosx && test "x$TOOLCHAIN_TYPE" = xclang; then
+    # FIXME: We should really generalize SET_SHARED_LIBRARY_ORIGIN instead.
+    OS_LDFLAGS_JVM_ONLY="-Wl,-rpath,@loader_path/. -Wl,-rpath,@loader_path/.."
+    OS_LDFLAGS="-mmacosx-version-min=$MACOSX_VERSION_MIN"
   fi
 
   # Setup debug level-dependent LDFLAGS
@@ -118,35 +106,48 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
     if test "x$OPENJDK_TARGET_OS" = xlinux; then
       if test x$DEBUG_LEVEL = xrelease; then
         DEBUGLEVEL_LDFLAGS_JDK_ONLY="$DEBUGLEVEL_LDFLAGS_JDK_ONLY -Wl,-O1"
-      else
-        # mark relocations read only on (fast/slow) debug builds
-        DEBUGLEVEL_LDFLAGS_JDK_ONLY="-Wl,-z,relro"
-      fi
-      if test x$DEBUG_LEVEL = xslowdebug; then
-        # do relocations at load
-        DEBUGLEVEL_LDFLAGS="-Wl,-z,now"
       fi
     fi
 
-  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    # We need '-qminimaltoc' or '-qpic=large -bbigtoc' if the TOC overflows.
+  elif test "x$TOOLCHAIN_TYPE" = xclang && test "x$OPENJDK_TARGET_OS" = xaix; then
+    # We need '-fpic' or '-fpic -mcmodel=large -Wl,-bbigtoc' if the TOC overflows.
     # Hotspot now overflows its 64K TOC (currently only for debug),
-    # so we build with '-qpic=large -bbigtoc'.
+    # so we build with '-fpic -mcmodel=large -Wl,-bbigtoc'.
     if test "x$DEBUG_LEVEL" != xrelease; then
-      DEBUGLEVEL_LDFLAGS_JVM_ONLY="$DEBUGLEVEL_LDFLAGS_JVM_ONLY -bbigtoc"
+      DEBUGLEVEL_LDFLAGS_JVM_ONLY="$DEBUGLEVEL_LDFLAGS_JVM_ONLY -Wl,-bbigtoc"
     fi
   fi
 
   # Setup LDFLAGS for linking executables
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    EXECUTABLE_LDFLAGS="$EXECUTABLE_LDFLAGS -Wl,--allow-shlib-undefined"
+    # Enabling pie on 32 bit builds prevents the JVM from allocating a continuous
+    # java heap.
+    if test "x$OPENJDK_TARGET_CPU_BITS" != "x32"; then
+      EXECUTABLE_LDFLAGS="$EXECUTABLE_LDFLAGS -pie"
+    fi
+  fi
+
+  if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+    REPRODUCIBLE_LDFLAGS="-experimental:deterministic"
+    FLAGS_LINKER_CHECK_ARGUMENTS(ARGUMENT: [$REPRODUCIBLE_LDFLAGS],
+        IF_FALSE: [
+            REPRODUCIBLE_LDFLAGS=
+        ]
+    )
+  fi
+
+  if test "x$ALLOW_ABSOLUTE_PATHS_IN_OUTPUT" = "xfalse"; then
+    if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+      BASIC_LDFLAGS="$BASIC_LDFLAGS -pdbaltpath:%_PDB%"
+      # PATHMAP_FLAGS is setup in flags-cflags.m4.
+      FILE_MACRO_LDFLAGS="${PATHMAP_FLAGS}"
+    fi
   fi
 
   # Export some intermediate variables for compatibility
-  LDFLAGS_CXX_JDK="$BASIC_LDFLAGS_ONLYCXX $BASIC_LDFLAGS_ONLYCXX_JDK_ONLY $DEBUGLEVEL_LDFLAGS_JDK_ONLY"
+  LDFLAGS_CXX_JDK="$DEBUGLEVEL_LDFLAGS_JDK_ONLY"
   AC_SUBST(LDFLAGS_CXX_JDK)
-  AC_SUBST(LIBJSIG_HASHSTYLE_LDFLAGS)
-  AC_SUBST(LIBJSIG_NOEXECSTACK_LDFLAGS)
+  AC_SUBST(LDFLAGS_CXX_PARTIAL_LINKING)
 ])
 
 ################################################################################
@@ -163,48 +164,41 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_CPU_DEP],
     elif test "x$OPENJDK_$1_CPU" = xarm; then
       $1_CPU_LDFLAGS_JVM_ONLY="${$1_CPU_LDFLAGS_JVM_ONLY} -fsigned-char"
       $1_CPU_LDFLAGS="$ARM_ARCH_TYPE_FLAGS $ARM_FLOAT_TYPE_FLAGS"
-    elif test "x$FLAGS_CPU" = xaarch64; then
-      if test "x$HOTSPOT_TARGET_CPU_PORT" = xarm64; then
-        $1_CPU_LDFLAGS_JVM_ONLY="${$1_CPU_LDFLAGS_JVM_ONLY} -fsigned-char"
-      fi
     fi
 
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    if test "x${OPENJDK_$1_CPU}" = "xsparcv9"; then
-      $1_CPU_LDFLAGS_JVM_ONLY="-xarch=sparc"
+    # MIPS ABI does not support GNU hash style
+    if test "x${OPENJDK_$1_CPU}" = xmips ||
+        test "x${OPENJDK_$1_CPU}" = xmipsel ||
+        test "x${OPENJDK_$1_CPU}" = xmips64 ||
+        test "x${OPENJDK_$1_CPU}" = xmips64el; then
+      $1_CPU_LDFLAGS="${$1_CPU_LDFLAGS} -Wl,--hash-style=sysv"
+    else
+      $1_CPU_LDFLAGS="${$1_CPU_LDFLAGS} -Wl,--hash-style=gnu"
     fi
 
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    if test "x${OPENJDK_$1_CPU}" = "xx86"; then
-      $1_CPU_LDFLAGS="-safeseh"
-      # NOTE: Old build added -machine. Probably not needed.
-      $1_CPU_LDFLAGS_JVM_ONLY="-machine:I386"
+    if test "x${OPENJDK_$1_CPU_BITS}" = "x32"; then
       $1_CPU_EXECUTABLE_LDFLAGS="-stack:327680"
-    else
-      $1_CPU_LDFLAGS_JVM_ONLY="-machine:AMD64"
+    elif test "x${OPENJDK_$1_CPU_BITS}" = "x64"; then
       $1_CPU_EXECUTABLE_LDFLAGS="-stack:1048576"
     fi
-  fi
-
-  # JVM_VARIANT_PATH depends on if this is build or target...
-  if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    $1_LDFLAGS_JDK_LIBPATH="-libpath:${OUTPUTDIR}/support/modules_libs/java.base"
-  else
-    $1_LDFLAGS_JDK_LIBPATH="-L\$(SUPPORT_OUTPUTDIR)/modules_libs/java.base \
-        -L\$(SUPPORT_OUTPUTDIR)/modules_libs/java.base/${$1_JVM_VARIANT_PATH}"
+    if test "x${OPENJDK_$1_CPU}" = "xx86"; then
+      $1_CPU_LDFLAGS="-safeseh"
+    fi
   fi
 
   # Export variables according to old definitions, prefix with $2 if present.
   LDFLAGS_JDK_COMMON="$BASIC_LDFLAGS $BASIC_LDFLAGS_JDK_ONLY \
-      $OS_LDFLAGS_JDK_ONLY $DEBUGLEVEL_LDFLAGS_JDK_ONLY ${$2EXTRA_LDFLAGS}"
+      $OS_LDFLAGS $DEBUGLEVEL_LDFLAGS_JDK_ONLY ${$2EXTRA_LDFLAGS}"
   $2LDFLAGS_JDKLIB="$LDFLAGS_JDK_COMMON $BASIC_LDFLAGS_JDK_LIB_ONLY \
-      ${$1_LDFLAGS_JDK_LIBPATH} $SHARED_LIBRARY_FLAGS"
+      $SHARED_LIBRARY_FLAGS $REPRODUCIBLE_LDFLAGS $FILE_MACRO_LDFLAGS"
   $2LDFLAGS_JDKEXE="$LDFLAGS_JDK_COMMON $EXECUTABLE_LDFLAGS \
-      ${$1_CPU_EXECUTABLE_LDFLAGS}"
+      ${$1_CPU_EXECUTABLE_LDFLAGS} $REPRODUCIBLE_LDFLAGS $FILE_MACRO_LDFLAGS"
 
-  $2JVM_LDFLAGS="$BASIC_LDFLAGS $BASIC_LDFLAGS_JVM_ONLY $OS_LDFLAGS_JVM_ONLY \
+  $2JVM_LDFLAGS="$BASIC_LDFLAGS $BASIC_LDFLAGS_JVM_ONLY $OS_LDFLAGS $OS_LDFLAGS_JVM_ONLY \
       $DEBUGLEVEL_LDFLAGS $DEBUGLEVEL_LDFLAGS_JVM_ONLY $BASIC_LDFLAGS_ONLYCXX \
-      ${$1_CPU_LDFLAGS} ${$1_CPU_LDFLAGS_JVM_ONLY} ${$2EXTRA_LDFLAGS}"
+      ${$1_CPU_LDFLAGS} ${$1_CPU_LDFLAGS_JVM_ONLY} ${$2EXTRA_LDFLAGS} \
+      $REPRODUCIBLE_LDFLAGS $FILE_MACRO_LDFLAGS"
 
   AC_SUBST($2LDFLAGS_JDKLIB)
   AC_SUBST($2LDFLAGS_JDKEXE)

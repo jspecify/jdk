@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,21 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package java.awt;
 
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.peer.TextFieldPeer;
-import java.awt.event.*;
-import java.util.EventListener;
-import java.io.ObjectOutputStream;
-import java.io.ObjectInputStream;
 import java.io.IOException;
-import javax.accessibility.*;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.util.EventListener;
 
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleState;
+import javax.accessibility.AccessibleStateSet;
 
 /**
  * A {@code TextField} object is a text component
@@ -41,8 +46,8 @@ import javax.accessibility.*;
  * text fields of varying widths. Two of these text fields
  * display the predefined text {@code "Hello"}.
  * <p>
- * <img src="doc-files/TextField-1.gif" alt="The preceding text describes this image."
- * style="float:center; margin: 7px 10px;">
+ * <img src="doc-files/TextField-1.gif" alt="The preceding text describes this
+ * image." style="margin: 7px 10px;">
  * <p>
  * Here is the code that produces these four text fields:
  *
@@ -94,7 +99,7 @@ import javax.accessibility.*;
  * @see         java.awt.TextField#addActionListener
  * @since       1.0
  */
-public class TextField extends TextComponent {
+public non-sealed class TextField extends TextComponent {
 
     /**
      * The number of columns in the text field.
@@ -126,27 +131,15 @@ public class TextField extends TextComponent {
     private static final String base = "textfield";
     private static int nameCounter = 0;
 
-    /*
-     * JDK 1.1 serialVersionUID
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = -2966288784432217853L;
 
     /**
-     * Initialize JNI field and method ids
-     */
-    private static native void initIDs();
-
-    static {
-        /* ensure that the necessary native libraries are loaded */
-        Toolkit.loadLibraries();
-        if (!GraphicsEnvironment.isHeadless()) {
-            initIDs();
-        }
-    }
-
-    /**
      * Constructs a new text field.
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true.
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -161,7 +154,7 @@ public class TextField extends TextComponent {
      *             string {@code ""} will be displayed.
      *             If {@code text} contains EOL and/or LF characters, then
      *             each will be replaced by space character.
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true.
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -176,7 +169,7 @@ public class TextField extends TextComponent {
      * @param      columns     the number of columns.  If
      *             {@code columns} is less than {@code 0},
      *             {@code columns} is set to {@code 0}.
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true.
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -197,7 +190,7 @@ public class TextField extends TextComponent {
      * @param      columns     the number of columns.  If
      *             {@code columns} is less than {@code 0},
      *             {@code columns} is set to {@code 0}.
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true.
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -363,7 +356,7 @@ public class TextField extends TextComponent {
      * approximate average character width that is platform-dependent.
      * @param      columns   the number of columns.
      * @see        java.awt.TextField#getColumns
-     * @exception  IllegalArgumentException   if the value
+     * @throws  IllegalArgumentException   if the value
      *                 supplied for {@code columns}
      *                 is less than {@code 0}.
      * @since      1.1
@@ -579,7 +572,7 @@ public class TextField extends TextComponent {
      *          <code><em>Foo</em>Listener</code>s on this textfield,
      *          or an empty array if no such
      *          listeners have been added
-     * @exception ClassCastException if {@code listenerType}
+     * @throws ClassCastException if {@code listenerType}
      *          doesn't specify a class or interface that implements
      *          {@code java.util.EventListener}
      *
@@ -701,9 +694,12 @@ public class TextField extends TextComponent {
      *             is one of the following :
      *             ActionListenerK indicating and ActionListener object.
      *
+     * @param  s the {@code ObjectOutputStream} to write
+     * @throws IOException if an I/O error occurs
      * @see AWTEventMulticaster#save(ObjectOutputStream, String, EventListener)
      * @see java.awt.Component#actionListenerK
      */
+    @Serial
     private void writeObject(ObjectOutputStream s)
       throws IOException
     {
@@ -719,13 +715,17 @@ public class TextField extends TextComponent {
      * TextField.  Unrecognized keys or values will be
      * ignored.
      *
-     * @exception HeadlessException if
-     * {@code GraphicsEnvironment.isHeadless()} returns
-     * {@code true}
+     * @param  s the {@code ObjectInputStream} to read
+     * @throws ClassNotFoundException if the class of a serialized object could
+     *         not be found
+     * @throws IOException if an I/O error occurs
+     * @throws HeadlessException if {@code GraphicsEnvironment.isHeadless()}
+     *         returns {@code true}
      * @see #removeActionListener(ActionListener)
      * @see #addActionListener(ActionListener)
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
+    @Serial
     private void readObject(ObjectInputStream s)
       throws ClassNotFoundException, IOException, HeadlessException
     {
@@ -783,10 +783,16 @@ public class TextField extends TextComponent {
      */
     protected class AccessibleAWTTextField extends AccessibleAWTTextComponent
     {
-        /*
-         * JDK 1.3 serialVersionUID
+        /**
+         * Use serialVersionUID from JDK 1.3 for interoperability.
          */
+        @Serial
         private static final long serialVersionUID = 6219164359235943158L;
+
+        /**
+         * Constructs an {@code AccessibleAWTTextField}.
+         */
+        protected AccessibleAWTTextField() {}
 
         /**
          * Gets the state set of this object.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,12 +21,13 @@
  * questions.
  */
 
-/**
+/*
  * @test
  * @bug 8177076 8185840 8178109 8192863
  * @modules
  *     jdk.compiler/com.sun.tools.javac.api
  *     jdk.compiler/com.sun.tools.javac.main
+ *     jdk.jshell/jdk.internal.jshell.tool:open
  *     jdk.jshell/jdk.internal.jshell.tool.resources:open
  *     jdk.jshell/jdk.jshell:open
  * @library /tools/lib
@@ -40,6 +41,10 @@ import org.testng.annotations.Test;
 
 @Test
 public class ToolTabCommandTest extends UITesting {
+
+    public ToolTabCommandTest() {
+        super(true);
+    }
 
     public void testCommand() throws Exception {
         // set terminal height so that help output won't hit page breaks
@@ -84,7 +89,7 @@ public class ToolTabCommandTest extends UITesting {
             waitOutput(out, resource("help.edit"));
 
             inputSink.write(INTERRUPT + "/env " + TAB);
-            waitOutput(out, PROMPT + "/env -\n" +
+            waitOutput(out, PROMPT + "/env \n" +
                             "-add-exports    -add-modules    -class-path     -module-path    \n" +
                             "\n" +
                             resource("jshell.console.see.synopsis") +
@@ -118,7 +123,7 @@ public class ToolTabCommandTest extends UITesting {
                             REDRAW_PROMPT + "/exit ");
             inputSink.write(INTERRUPT);
             inputSink.write("int zebraStripes = 11\n");
-            waitOutput(out, "zebraStripes ==> 11\n\u0005");
+            waitOutput(out, "\\u001B\\[\\?2004lzebraStripes ==> 11\n\\u001B\\[\\?2004h" + PROMPT);
             inputSink.write("/exit zeb" + TAB);
             waitOutput(out, "braStr.*es");
             inputSink.write(INTERRUPT + "/doesnotexist" + TAB);

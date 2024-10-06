@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_ZERO_VM_INTERPRETERRT_ZERO_HPP
-#define CPU_ZERO_VM_INTERPRETERRT_ZERO_HPP
+#ifndef CPU_ZERO_INTERPRETERRT_ZERO_HPP
+#define CPU_ZERO_INTERPRETERRT_ZERO_HPP
 
 // This is included in the middle of class Interpreter.
 // Do not include files here.
@@ -98,18 +98,10 @@ class SignatureHandlerGenerator : public SignatureHandlerGeneratorBase {
   CodeBuffer* _cb;
 
  public:
-  SignatureHandlerGenerator(const methodHandle& method, CodeBuffer* buffer)
-    : SignatureHandlerGeneratorBase(method, (ffi_cif *) buffer->insts_end()),
-      _cb(buffer) {
-    _cb->set_insts_end((address) (cif() + 1));
-  }
+  SignatureHandlerGenerator(const methodHandle& method, CodeBuffer* buffer);
 
  private:
-  void push(intptr_t value) {
-    intptr_t *dst = (intptr_t *) _cb->insts_end();
-    _cb->set_insts_end((address) (dst + 1));
-    *dst = value;
-  }
+  void push(intptr_t value);
 };
 
 class SlowSignatureHandlerGenerator : public SignatureHandlerGeneratorBase {
@@ -133,4 +125,4 @@ class SlowSignatureHandlerGenerator : public SignatureHandlerGeneratorBase {
   }
 };
 
-#endif // CPU_ZERO_VM_INTERPRETERRT_ZERO_HPP
+#endif // CPU_ZERO_INTERPRETERRT_ZERO_HPP

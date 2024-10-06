@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -107,8 +107,10 @@ public class TTYResources extends java.util.ListResourceBundle {
         {"Current thread isnt suspended.", "Current thread isn't suspended."},
         {"Current thread not set.", "Current thread not set."},
         {"dbgtrace flag value must be an integer:", "dbgtrace flag value must be an integer: {0}"},
+        {"dbgtrace command value must be an integer:", "dbgtrace command value must be an integer: {0}"},
         {"Deferring.", "Deferring {0}.\nIt will be set after the class is loaded."},
         {"End of stack.", "End of stack."},
+        {"EOF", "EOF"},
         {"Error popping frame", "Error popping frame - {0}"},
         {"Error reading file", "Error reading ''{0}'' - {1}"},
         {"Error redefining class to file", "Error redefining {0} to {1} - {2}"},
@@ -119,12 +121,14 @@ public class TTYResources extends java.util.ListResourceBundle {
         {"Exception occurred caught", "Exception occurred: {0} (to be caught at: {1})"},
         {"Exception occurred uncaught", "Exception occurred: {0} (uncaught)"},
         {"Exceptions caught:", "Break when these exceptions occur:"},
+        {"Expected at, in, or an integer <thread_id>:", "Expected \"at\", \"in\", or an integer <thread_id>: {0}"},
         {"expr is null", "{0} = null"},
         {"expr is value", "{0} = {1}"},
         {"expr is value <collected>", "  {0} = {1} <collected>"},
         {"Expression cannot be void", "Expression cannot be void"},
         {"Expression must evaluate to an object", "Expression must evaluate to an object"},
         {"extends:", "extends: {0}"},
+        {"Extra tokens after breakpoint location", "Extra tokens after breakpoint location"},
         {"Failed reading output", "Failed reading output of child java interpreter."},
         {"Fatal error", "Fatal error:"},
         {"Field access encountered before after", "Field ({0}) is {1}, will be {2}: "},
@@ -137,6 +141,8 @@ public class TTYResources extends java.util.ListResourceBundle {
         {"grouping end character", "}"},
         {"Illegal Argument Exception", "Illegal Argument Exception"},
         {"Illegal connector argument", "Illegal connector argument: {0}"},
+        {"Illegal thread state", "Illegal thread state"},
+        {"Illegal thread state (virtual thread not suspended)", "Illegal thread state (virtual thread not suspended)"},
         {"implementor:", "implementor: {0}"},
         {"implements:", "implements: {0}"},
         {"Initializing progname", "Initializing {0} ..."},
@@ -153,11 +159,14 @@ public class TTYResources extends java.util.ListResourceBundle {
         {"Invalid connect type", "Invalid connect type"},
         {"Invalid consecutive invocations", "Invalid consecutive invocations"},
         {"Invalid exception object", "Invalid exception object"},
-        {"Invalid method specification:", "Invalid method specification: {0}"},
+        {"Invalid line number specified", "Invalid line number specified"},
+        {"Invalid <method_name> specification:", "Invalid <method_name> specification: {0}"},
         {"Invalid option on class command", "Invalid option on class command"},
         {"invalid option", "invalid option: {0}"},
         {"Invalid thread status.", "Invalid thread status."},
+        {"Invalid <thread_id>:", "Invalid <thread_id>: {0}"},
         {"Invalid transport name:", "Invalid transport name: {0}"},
+        {"Invalid <class>.<method_name> specification", "Invalid <class>.<method_name> specification"},
         {"I/O exception occurred:", "I/O Exception occurred: {0}"},
         {"is an ambiguous method name in", "\"{0}\" is an ambiguous method name in \"{1}\""},
         {"is an invalid line number for",  "{0,number,integer} is an invalid line number for {1}"},
@@ -190,6 +199,7 @@ public class TTYResources extends java.util.ListResourceBundle {
         {"Method exitedValue:", "Method exited: return value = {0}, "},
         {"Method is overloaded; specify arguments", "Method {0} is overloaded; specify arguments"},
         {"minus version", "This is {0} version {1,number,integer}.{2,number,integer} (Java SE version {3})"},
+        {"Missing at or in", "Missing \"at\" or \"in\""},
         {"Monitor information for thread", "Monitor information for thread {0}:"},
         {"Monitor information for expr", "Monitor information for {0} ({1}):"},
         {"More than one class named", "More than one class named: ''{0}''"},
@@ -234,14 +244,28 @@ public class TTYResources extends java.util.ListResourceBundle {
         {"Not owned", "  Not owned"},
         {"Not waiting for a monitor", "  Not waiting for a monitor"},
         {"Nothing suspended.", "Nothing suspended."},
-        {"object description and hex id", "({0}){1}"},
-        {"Operation is not supported on the target VM", "Operation is not supported on the target VM"},
+        {"object description and id", "({0}){1}"},
+        {"Operation is not supported on the current frame", "Operation is not supported on the current frame"},
         {"operation not yet supported", "operation not yet supported"},
         {"Owned by:", "  Owned by: {0}, entry count: {1,number,integer}"},
         {"Owned monitor:", "  Owned monitor: {0}"},
         {"Parse exception:", "Parse Exception: {0}"},
-        {"printbreakpointcommandusage", "Usage: {0} <class>:<line_number> or\n       {1} <class>.<method_name>[(argument_type,...)]"},
+        {"printclearcommandusage", "Usage clear <class>:<line_number> or\n      clear <class>.<method_name>[(argument_type,...)]"},
+        {"printstopcommandusage",
+         "Usage: stop [go|thread] [<thread_id>] <at|in> <location>\n" +
+         "  If \"go\" is specified, immediately resume after stopping\n" +
+         "  If \"thread\" is specified, only suspend the thread we stop in\n" +
+         "  If neither \"go\" nor \"thread\" are specified, suspend all threads\n" +
+         "  If an integer <thread_id> is specified, only stop in the specified thread\n" +
+         "  \"at\" and \"in\" have the same meaning\n" +
+         "  <location> can either be a line number or a method:\n" +
+         "    <class_id>:<line_number>\n" +
+         "    <class_id>.<method>[(argument_type,...)]"
+        },
         {"Removed:", "Removed: {0}"},
+        {"repeat is on", "Repeat is on"},
+        {"repeat is off", "Repeat is off"},
+        {"repeat usage", "Usage: repeat <on|off>"},
         {"Requested stack frame is no longer active:", "Requested stack frame is no longer active: {0,number,integer}"},
         {"run <args> command is valid only with launched VMs", "'run <args>' command is valid only with launched VMs"},
         {"run", "run {0}"},
@@ -290,7 +314,8 @@ public class TTYResources extends java.util.ListResourceBundle {
         {"Thread has been resumed", "Thread has been resumed"},
         {"Thread not suspended", "Thread not suspended"},
         {"thread group number description name", "{0,number,integer}. {1} {2}"},
-        {"Threadgroup name not specified.", "Threadgroup name not specified."},
+        {"<thread_id> option not valid until the VM is started with the run command",
+         "<thread_id> option not valid until the VM is started with the run command"},
         {"Threads must be suspended", "Threads must be suspended"},
         {"trace method exit in effect for", "trace method exit in effect for {0}"},
         {"trace method exits in effect", "trace method exits in effect"},
@@ -317,7 +342,6 @@ public class TTYResources extends java.util.ListResourceBundle {
         {"Usage: unmonitor <monitor#>", "Usage: unmonitor <monitor#>"},
         {"Usage: up [n frames]", "Usage: up [n frames]"},
         {"Use java minus X to see", "Use 'java -X' to see the available non-standard options"},
-        {"Use stop at to set a breakpoint at a line number", "Use 'stop at' to set a breakpoint at a line number"},
         {"VM already running. use cont to continue after events.", "VM already running. Use 'cont' to continue after events."},
         {"VM Started:", "VM Started: "},
         {"vmstartexception", "VM start exception: {0}"},
@@ -331,7 +355,7 @@ public class TTYResources extends java.util.ListResourceBundle {
              "\n" +
              "run [class [args]]        -- start execution of application's main class\n" +
              "\n" +
-             "threads [threadgroup]     -- list threads\n" +
+             "threads [threadgroup]     -- list threads in threadgroup. Use current threadgroup if none specified.\n" +
              "thread <thread id>        -- set default thread\n" +
              "suspend [thread id(s)]    -- suspend threads (default: all)\n" +
              "resume [thread id(s)]     -- resume threads (default: all)\n" +
@@ -354,11 +378,20 @@ public class TTYResources extends java.util.ListResourceBundle {
              "fields <class id>         -- list a class's fields\n" +
              "\n" +
              "threadgroups              -- list threadgroups\n" +
-             "threadgroup <name>        -- set current threadgroup\n" +
+             "threadgroup <name>        -- set current threadgroup to <name>\n" +
+             "threadgroup               -- set current threadgroup back to the top level threadgroup\n" +
              "\n" +
-             "stop in <class id>.<method>[(argument_type,...)]\n" +
-             "                          -- set a breakpoint in a method\n" +
-             "stop at <class id>:<line> -- set a breakpoint at a line\n" +
+             "stop [go|thread] [<thread_id>] <at|in> <location>\n" +
+             "                          -- set a breakpoint\n" +
+             "                          -- if no options are given, the current list of breakpoints is printed\n" +
+             "                          -- if \"go\" is specified, immediately resume after stopping\n" +
+             "                          -- if \"thread\" is specified, only suspend the thread we stop in\n" +
+             "                          -- if neither \"go\" nor \"thread\" are specified, suspend all threads\n" +
+             "                          -- if an integer <thread_id> is specified, only stop in the specified thread\n" +
+             "                          -- \"at\" and \"in\" have the same meaning\n" +
+             "                          -- <location> can either be a line number or a method:\n" +
+             "                          --   <class_id>:<line_number>\n" +
+             "                          --   <class_id>.<method>[(argument_type,...)]\n" +
              "clear <class id>.<method>[(argument_type,...)]\n" +
              "                          -- clear a breakpoint in a method\n" +
              "clear <class id>:<line>   -- clear a breakpoint at a line\n" +
@@ -377,7 +410,7 @@ public class TTYResources extends java.util.ListResourceBundle {
              "trace [go] method exit | exits [thread]\n" +
              "                          -- trace the current method's exit, or all methods' exits\n" +
              "                          -- All threads are suspended unless 'go' is specified\n" +
-             "untrace [methods]         -- stop tracing method entrys and/or exits\n" +
+             "untrace [methods]         -- stop tracing method entries and/or exits\n" +
              "step                      -- execute current line\n" +
              "step up                   -- execute until the current method returns to its caller\n" +
              "stepi                     -- execute current instruction\n" +
@@ -409,8 +442,11 @@ public class TTYResources extends java.util.ListResourceBundle {
              "\n" +
              "!!                        -- repeat last command\n" +
              "<n> <command>             -- repeat command n times\n" +
+             "repeat                    -- show whether GDB-style empty command repetition is enabled\n" +
+             "repeat <on|off>           -- enable/disable GDB-style repetition\n" +
              "# <command>               -- discard (no-op)\n" +
              "help (or ?)               -- list commands\n" +
+             "dbgtrace [flag]           -- same as dbgtrace command line option\n" +
              "version                   -- print version information\n" +
              "exit (or quit)            -- exit debugger\n" +
              "\n" +
@@ -441,10 +477,12 @@ public class TTYResources extends java.util.ListResourceBundle {
              "    -connect <connector-name>:<name1>=<value1>,...\n" +
              "                      connect to target VM using named connector with listed argument values\n" +
              "    -dbgtrace [flags] print info for debugging {0}\n" +
+             "    -trackallthreads  Track all threads, including virtual threads.\n" +
              "    -tclient          run the application in the HotSpot(TM) Client Compiler\n" +
              "    -tserver          run the application in the HotSpot(TM) Server Compiler\n" +
+             "    -R<option>        forward <option> to debuggee process if launched by jdb, otherwise ignored\n" +
              "\n" +
-             "options forwarded to debuggee process:\n" +
+             "options forwarded to debuggee process if launched by jdb (shorthand instead of using -R):\n" +
              "    -v -verbose[:class|gc|jni]\n" +
              "                      turn on verbose mode\n" +
              "    -D<name>=<value>  set a system property\n" +

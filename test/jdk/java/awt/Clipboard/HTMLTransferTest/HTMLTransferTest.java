@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,26 +22,19 @@
  */
 
 /*
+  @test
+  @key headful
   @bug 6392086 8014725
-  @summary Tests basic DnD functionality in an applet
-  @author Alexey Utkin, Semyon Sadetsky
-  @run applet HTMLTransferTest.html
+  @summary tests that HTMLs of all supported native HTML formats are transfered
+           properly
+  @run main/othervm HTMLTransferTest
 */
 
-/**
- * HTMLTransferTest.java
- *
- * summary: tests that HTMLs of all supported native HTML formats
- *          are transfered properly
- */
-
-import java.applet.Applet;
 import java.awt.*;
 import java.awt.datatransfer.*;
 import java.io.*;
 
-
-public class HTMLTransferTest extends Applet {
+public class HTMLTransferTest {
     public static final int CODE_NOT_RETURNED = 100;
     public static final int CODE_CONSUMER_TEST_FAILED = 101;
     public static final int CODE_FAILURE = 102;
@@ -65,6 +58,12 @@ public class HTMLTransferTest extends Applet {
 
     private THTMLProducer imPr;
     private int returnCode = CODE_NOT_RETURNED;
+
+    public static void main(final String[] args) {
+        HTMLTransferTest app = new HTMLTransferTest();
+        app.init();
+        app.start();
+    }
 
     public void init() {
         initImpl();
@@ -91,7 +90,7 @@ public class HTMLTransferTest extends Applet {
             String javaPath = System.getProperty("java.home", "");
             String cmd = javaPath + File.separator + "bin" + File.separator
                 + "java -cp " + System.getProperty("test.classes", ".") +
-                //+ "-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000 "
+                //+ "-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000 "
                 " THTMLConsumer"
                 //+ stFormats
                 ;

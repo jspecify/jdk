@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_ADLC_ADLC_HPP
-#define SHARE_VM_ADLC_ADLC_HPP
+#ifndef SHARE_ADLC_ADLC_HPP
+#define SHARE_ADLC_ADLC_HPP
 
 //
 // Standard include file for ADLC parser
@@ -42,13 +42,9 @@
 /* Make sure that we have the intptr_t and uintptr_t definitions */
 #ifdef _WIN32
 
-#if _MSC_VER >= 1300
 using namespace std;
-#endif
 
-#if _MSC_VER >= 1400
 #define strdup _strdup
-#endif
 
 #ifndef _INTPTR_T_DEFINED
 #ifdef _WIN64
@@ -89,7 +85,7 @@ typedef unsigned int uintptr_t;
 #define max(a, b)   (((a)>(b)) ? (a) : (b))
 
 // ADLC components
-#include "arena.hpp"
+#include "adlArena.hpp"
 #include "opto/adlcVMDeps.hpp"
 #include "filebuff.hpp"
 #include "dict2.hpp"
@@ -104,4 +100,8 @@ typedef unsigned int uintptr_t;
 // it everywhere it needs to be available.
 extern ArchDesc* globalAD;
 
-#endif // SHARE_VM_ADLC_ADLC_HPP
+// Performs snprintf and asserts the result is non-negative (so there was not
+// an encoding error) and that the output was not truncated.
+extern int snprintf_checked(char* buf, size_t len, const char* fmt, ...);
+
+#endif // SHARE_ADLC_ADLC_HPP

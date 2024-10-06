@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,16 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_INSTANCECLASSLOADERKLASS_INLINE_HPP
-#define SHARE_VM_OOPS_INSTANCECLASSLOADERKLASS_INLINE_HPP
+#ifndef SHARE_OOPS_INSTANCECLASSLOADERKLASS_INLINE_HPP
+#define SHARE_OOPS_INSTANCECLASSLOADERKLASS_INLINE_HPP
+
+#include "oops/instanceClassLoaderKlass.hpp"
 
 #include "classfile/javaClasses.hpp"
-#include "memory/iterator.hpp"
-#include "oops/instanceClassLoaderKlass.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/debug.hpp"
+#include "utilities/devirtualizer.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
@@ -41,7 +42,7 @@ inline void InstanceClassLoaderKlass::oop_oop_iterate(oop obj, OopClosureType* c
   if (Devirtualizer::do_metadata(closure)) {
     ClassLoaderData* cld = java_lang_ClassLoader::loader_data(obj);
     // cld can be null if we have a non-registered class loader.
-    if (cld != NULL) {
+    if (cld != nullptr) {
       Devirtualizer::do_cld(closure, cld);
     }
   }
@@ -63,11 +64,11 @@ inline void InstanceClassLoaderKlass::oop_oop_iterate_bounded(oop obj, OopClosur
     if (mr.contains(obj)) {
       ClassLoaderData* cld = java_lang_ClassLoader::loader_data(obj);
       // cld can be null if we have a non-registered class loader.
-      if (cld != NULL) {
+      if (cld != nullptr) {
         Devirtualizer::do_cld(closure, cld);
       }
     }
   }
 }
 
-#endif // SHARE_VM_OOPS_INSTANCECLASSLOADERKLASS_INLINE_HPP
+#endif // SHARE_OOPS_INSTANCECLASSLOADERKLASS_INLINE_HPP

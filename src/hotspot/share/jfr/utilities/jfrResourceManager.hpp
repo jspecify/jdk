@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_UTILITIES_RESOURCEMANAGER_HPP
-#define SHARE_VM_JFR_UTILITIES_RESOURCEMANAGER_HPP
+#ifndef SHARE_JFR_UTILITIES_JFRRESOURCEMANAGER_HPP
+#define SHARE_JFR_UTILITIES_JFRRESOURCEMANAGER_HPP
 
 #include "memory/allocation.hpp"
 
@@ -34,7 +34,7 @@ class ResourceManager : public StackObj {
  public:
   ResourceManager(T* resource) : _resource(resource) {}
   ~ResourceManager() {
-    if (_resource != NULL) {
+    if (_resource != nullptr) {
       delete _resource;
     }
   }
@@ -49,7 +49,7 @@ class ResourceArrayManager : public StackObj {
  public:
   ResourceArrayManager(T* resource_array) : _resource_array(resource_array) {}
   ~ResourceArrayManager() {
-    if (_resource_array != NULL) {
+    if (_resource_array != nullptr) {
       delete [] _resource_array;
     }
   }
@@ -57,4 +57,4 @@ class ResourceArrayManager : public StackObj {
   T* operator->() const { return _resource_array; }
 };
 
-#endif // SHARE_VM_JFR_UTILITIES_RESOURCEMANAGER_HPP
+#endif // SHARE_JFR_UTILITIES_JFRRESOURCEMANAGER_HPP

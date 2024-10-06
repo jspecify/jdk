@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -77,7 +77,6 @@ public class X509CRLEntryImpl extends X509CRLEntry
     private X500Principal certIssuer;
 
     private static final boolean isExplicit = false;
-    private static final long YR_2050 = 2524636800000L;
 
     /**
      * Constructs a revoked certificate entry using the given
@@ -145,7 +144,7 @@ public class X509CRLEntryImpl extends X509CRLEntry
      * false.
      */
     public boolean hasExtensions() {
-        return (extensions != null);
+        return extensions != null;
     }
 
     /**
@@ -153,47 +152,40 @@ public class X509CRLEntryImpl extends X509CRLEntry
      *
      * @param outStrm an output stream to which the encoded revoked
      * certificate is written.
-     * @exception CRLException on encoding errors.
      */
-    public void encode(DerOutputStream outStrm) throws CRLException {
-        try {
-            if (revokedCert == null) {
-                DerOutputStream tmp = new DerOutputStream();
-                // sequence { serialNumber, revocationDate, extensions }
-                serialNumber.encode(tmp);
+    public void encode(DerOutputStream outStrm) {
+        if (revokedCert == null) {
+            DerOutputStream tmp = new DerOutputStream();
+            // sequence { serialNumber, revocationDate, extensions }
+            serialNumber.encode(tmp);
 
-                if (revocationDate.getTime() < YR_2050) {
-                    tmp.putUTCTime(revocationDate);
-                } else {
-                    tmp.putGeneralizedTime(revocationDate);
-                }
-
-                if (extensions != null)
-                    extensions.encode(tmp, isExplicit);
-
-                DerOutputStream seq = new DerOutputStream();
-                seq.write(DerValue.tag_Sequence, tmp);
-
-                revokedCert = seq.toByteArray();
+            if (revocationDate.getTime() < CertificateValidity.YR_2050) {
+                tmp.putUTCTime(revocationDate);
+            } else {
+                tmp.putGeneralizedTime(revocationDate);
             }
-            outStrm.write(revokedCert);
-        } catch (IOException e) {
-             throw new CRLException("Encoding error: " + e.toString());
+
+            if (extensions != null)
+                extensions.encode(tmp, isExplicit);
+
+            DerOutputStream seq = new DerOutputStream();
+            seq.write(DerValue.tag_Sequence, tmp);
+
+            revokedCert = seq.toByteArray();
         }
+        outStrm.writeBytes(revokedCert);
     }
 
     /**
      * Returns the ASN.1 DER-encoded form of this CRL Entry,
      * which corresponds to the inner SEQUENCE.
-     *
-     * @exception CRLException if an encoding error occurs.
      */
-    public byte[] getEncoded() throws CRLException {
+    public byte[] getEncoded() {
         return getEncoded0().clone();
     }
 
     // Called internally to avoid clone
-    private byte[] getEncoded0() throws CRLException {
+    private byte[] getEncoded0() {
         if (revokedCert == null)
             this.encode(new DerOutputStream());
         return revokedCert;
@@ -253,7 +245,8 @@ public class X509CRLEntryImpl extends X509CRLEntry
      */
     public static CRLReason getRevocationReason(X509CRLEntry crlEntry) {
         try {
-            byte[] ext = crlEntry.getExtensionValue("2.5.29.21");
+            byte[] ext = crlEntry.getExtensionValue
+                    (KnownOIDs.ReasonCode.value());
             if (ext == null) {
                 return null;
             }
@@ -272,14 +265,13 @@ public class X509CRLEntryImpl extends X509CRLEntry
      * get Reason Code from CRL entry.
      *
      * @return Integer or null, if no such extension
-     * @throws IOException on error
      */
-    public Integer getReasonCode() throws IOException {
+    public Integer getReasonCode() {
         Object obj = getExtension(PKIXExtensions.ReasonCode_Id);
         if (obj == null)
             return null;
         CRLReasonCodeExtension reasonCode = (CRLReasonCodeExtension)obj;
-        return reasonCode.get(CRLReasonCodeExtension.REASON);
+        return reasonCode.getReason();
     }
 
     /**
@@ -403,24 +395,20 @@ public class X509CRLEntryImpl extends X509CRLEntry
         if (extensions == null)
             return null;
         try {
-            String extAlias = OIDMap.getName(new ObjectIdentifier(oid));
+            String extAlias = OIDMap.getName(ObjectIdentifier.of(oid));
             Extension crlExt = null;
 
             if (extAlias == null) { // may be unknown
-                ObjectIdentifier findOID = new ObjectIdentifier(oid);
-                Extension ex = null;
-                ObjectIdentifier inCertOID;
-                for (Enumeration<Extension> e = extensions.getElements();
-                                                 e.hasMoreElements();) {
-                    ex = e.nextElement();
-                    inCertOID = ex.getExtensionId();
+                ObjectIdentifier findOID = ObjectIdentifier.of(oid);
+                for (Extension ex : extensions.getAllExtensions()) {
+                    ObjectIdentifier inCertOID = ex.getExtensionId();
                     if (inCertOID.equals(findOID)) {
                         crlExt = ex;
                         break;
                     }
                 }
             } else
-                crlExt = extensions.get(extAlias);
+                crlExt = extensions.getExtension(extAlias);
             if (crlExt == null)
                 return null;
             byte[] extData = crlExt.getExtensionValue();
@@ -447,7 +435,7 @@ public class X509CRLEntryImpl extends X509CRLEntry
 
         // following returns null if no such OID in map
         //XXX consider cloning this
-        return extensions.get(OIDMap.getName(oid));
+        return extensions.getExtension(OIDMap.getName(oid));
     }
 
     private void parse(DerValue derVal)
@@ -528,17 +516,13 @@ public class X509CRLEntryImpl extends X509CRLEntry
         if (compSerial != 0) {
             return compSerial;
         }
-        try {
-            byte[] thisEncoded = this.getEncoded0();
-            byte[] thatEncoded = that.getEncoded0();
-            for (int i=0; i<thisEncoded.length && i<thatEncoded.length; i++) {
-                int a = thisEncoded[i] & 0xff;
-                int b = thatEncoded[i] & 0xff;
-                if (a != b) return a-b;
-            }
-            return thisEncoded.length -thatEncoded.length;
-        } catch (CRLException ce) {
-            return -1;
+        byte[] thisEncoded = this.getEncoded0();
+        byte[] thatEncoded = that.getEncoded0();
+        for (int i=0; i<thisEncoded.length && i<thatEncoded.length; i++) {
+            int a = thisEncoded[i] & 0xff;
+            int b = thatEncoded[i] & 0xff;
+            if (a != b) return a-b;
         }
+        return thisEncoded.length -thatEncoded.length;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,20 +21,21 @@
  * questions.
  */
 
+package gc.arguments;
+
 /*
  * @test TestG1PercentageOptions
- * @key gc
  * @bug 8068942
- * @requires vm.gc.G1
+ * @requires vm.gc.G1 & vm.opt.G1ConfidencePercent == null
  * @summary Test argument processing of various percentage options
  * @library /test/lib
+ * @library /
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run driver TestG1PercentageOptions
+ * @run driver gc.arguments.TestG1PercentageOptions
  */
 
 import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.process.ProcessTools;
 
 public class TestG1PercentageOptions {
 
@@ -50,21 +51,19 @@ public class TestG1PercentageOptions {
         }
     }
 
-    private static final String[] defaultValid = new String[] {
-        "0", "1", "50", "95", "100" };
-    private static final String[] defaultInvalid = new String[] {
-        "-10", "110", "bad" };
+    private static final String[] rangeOneToHundredValid = new String[] {
+        "1", "50", "95", "100" };
+    private static final String[] rangeOneToHundredInvalid = new String[] {
+        "0", "-10", "110", "bad" };
 
     // All of the G1 product arguments that are percentages.
     private static final OptionDescription[] percentOptions = new OptionDescription[] {
-        new OptionDescription("G1ConfidencePercent", defaultValid, defaultInvalid)
+        new OptionDescription("G1ConfidencePercent", rangeOneToHundredValid, rangeOneToHundredInvalid)
         // Other percentage options are not yet validated by argument processing.
     };
 
     private static void check(String flag, boolean is_valid) throws Exception {
-        String[] flags = new String[] { "-XX:+UseG1GC", flag, "-version" };
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(flags);
-        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        OutputAnalyzer output = GCArguments.executeTestJava("-XX:+UseG1GC", flag, "-version");
         if (is_valid) {
             output.shouldHaveExitValue(0);
         } else {
@@ -72,8 +71,7 @@ public class TestG1PercentageOptions {
         }
     }
 
-    private static
-    void check(String name, String value, boolean is_valid) throws Exception {
+    private static void check(String name, String value, boolean is_valid) throws Exception {
         check("-XX:" + name + "=" + value, is_valid);
     }
 

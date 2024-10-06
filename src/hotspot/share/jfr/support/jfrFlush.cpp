@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,18 +28,18 @@
 #include "jfr/recorder/stacktrace/jfrStackTraceRepository.hpp"
 #include "jfr/support/jfrFlush.hpp"
 #include "jfr/support/jfrThreadLocal.hpp"
-#include "runtime/thread.inline.hpp"
+#include "runtime/javaThread.hpp"
 #include "utilities/debug.hpp"
 
-JfrFlush::JfrFlush(JfrStorage::Buffer* old, size_t used, size_t requested, Thread* t) :
-  _result(JfrStorage::flush(old, used, requested, true, t)) {
+JfrFlush::JfrFlush(JfrStorage::BufferPtr old, size_t used, size_t requested, Thread* thread) :
+  _result(JfrStorage::flush(old, used, requested, true, thread)) {
 }
 
 template <typename T>
 class LessThanHalfBufferSize : AllStatic {
 public:
   static bool evaluate(T* t) {
-    assert(t != NULL, "invariant");
+    assert(t != nullptr, "invariant");
     return t->free_size() < t->size() / 2;
   }
 };
@@ -48,7 +48,7 @@ template <typename T>
 class LessThanSize : AllStatic {
  public:
   static bool evaluate(T* t, size_t size) {
-    assert(t != NULL, "invariant");
+    assert(t != nullptr, "invariant");
     return t->free_size() < size;
   }
 };
@@ -61,25 +61,24 @@ bool jfr_has_stacktrace_enabled(JfrEventId id) {
   return JfrEventSetting::has_stacktrace(id);
 }
 
-void jfr_conditional_flush(JfrEventId id, size_t size, Thread* t) {
-  assert(jfr_is_event_enabled(id), "invariant");
-  if (t->jfr_thread_local()->has_native_buffer()) {
-    JfrStorage::Buffer* const buffer = t->jfr_thread_local()->native_buffer();
+void jfr_conditional_flush(JfrEventId id, size_t size, Thread* thread) {
+  if (thread->jfr_thread_local()->has_native_buffer()) {
+    JfrStorage::BufferPtr buffer = thread->jfr_thread_local()->native_buffer();
     if (LessThanSize<JfrStorage::Buffer>::evaluate(buffer, size)) {
-      JfrFlush f(buffer, 0, 0, t);
+      JfrFlush f(buffer, 0, 0, thread);
     }
   }
 }
 
-bool jfr_save_stacktrace(Thread* t) {
-  JfrThreadLocal* const tl = t->jfr_thread_local();
+bool jfr_save_stacktrace(Thread* thread) {
+  JfrThreadLocal* const tl = thread->jfr_thread_local();
   if (tl->has_cached_stack_trace()) {
     return false; // no ownership
   }
-  tl->set_cached_stack_trace_id(JfrStackTraceRepository::record(t));
+  tl->set_cached_stack_trace_id(JfrStackTraceRepository::record(thread));
   return true;
 }
 
-void jfr_clear_stacktrace(Thread* t) {
-  t->jfr_thread_local()->clear_cached_stack_trace();
+void jfr_clear_stacktrace(Thread* thread) {
+  thread->jfr_thread_local()->clear_cached_stack_trace();
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,23 +25,24 @@
 
 package com.sun.security.sasl.digest;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.math.BigInteger;
+import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
-import java.math.BigInteger;
 import java.util.Random;
-
-import java.io.ByteArrayOutputStream;
-import java.io.UnsupportedEncodingException;
-import java.io.IOException;
-
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.InvalidKeyException;
 import java.security.spec.KeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.InvalidAlgorithmParameterException;
+
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
@@ -54,15 +55,15 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.crypto.spec.DESKeySpec;
 import javax.crypto.spec.DESedeKeySpec;
 
-import javax.security.sasl.*;
-import com.sun.security.sasl.util.AbstractSaslImpl;
-
 import javax.security.auth.callback.CallbackHandler;
+import javax.security.sasl.*;
+
+import com.sun.security.sasl.util.AbstractSaslImpl;
 
 /**
  * Utility class for DIGEST-MD5 mechanism. Provides utility methods
  * and contains two inner classes which implement the SecurityCtx
- * interface. The inner classes provide the funtionality to allow
+ * interface. The inner classes provide the functionality to allow
  * for quality-of-protection (QOP) with integrity checking and
  * privacy.
  *
@@ -151,13 +152,13 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
     protected String negotiatedQop;
     protected String negotiatedRealm;
     protected boolean useUTF8 = false;
-    protected String encoding = "8859_1";  // default unless server specifies utf-8
+    protected Charset encoding = ISO_8859_1;  // default unless server specifies utf-8
 
     protected String digestUri;
     protected String authzid;       // authzid or canonicalized authzid
 
     /**
-     * Constucts an instance of DigestMD5Base. Calls super constructor
+     * Constructs an instance of DigestMD5Base. Calls super constructor
      * to parse properties for mechanism.
      *
      * @param props A map of property/value pairs
@@ -171,7 +172,7 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
     protected DigestMD5Base(Map<String, ?> props, String className,
         int firstStep, String digestUri, CallbackHandler cbh)
         throws SaslException {
-        super(props, className); // sets QOP, STENGTH and BUFFER_SIZE
+        super(props, className); // sets QOP, STRENGTH and BUFFER_SIZE
 
         step = firstStep;
         this.digestUri = digestUri;
@@ -272,7 +273,7 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
      */
 
     /** This array maps the characters to their 6 bit values */
-    private final static char[] pem_array = {
+    private static final char[] pem_array = {
         //       0   1   2   3   4   5   6   7
                 'A','B','C','D','E','F','G','H', // 0
                 'I','J','K','L','M','N','O','P', // 1
@@ -384,8 +385,7 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
      * @param a non-null byte array
      * @return a non-null String contain the HEX value
      */
-    protected byte[] binaryToHex(byte[] digest) throws
-    UnsupportedEncodingException {
+    protected byte[] binaryToHex(byte[] digest) {
 
         StringBuilder digestString = new StringBuilder();
 
@@ -405,26 +405,21 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
      * if all chars in string are within the 8859_1 (Latin 1) encoding range.
      *
      * @param a non-null String
-     * @return a non-nuill byte array containing the correct character encoding
+     * @return a non-null byte array containing the correct character encoding
      * for username, paswd or realm.
      */
-    protected byte[] stringToByte_8859_1(String str) throws SaslException {
+    protected byte[] stringToByte_8859_1(String str) {
 
         char[] buffer = str.toCharArray();
 
-        try {
-            if (useUTF8) {
-                for( int i = 0; i< buffer.length; i++ ) {
-                    if( buffer[i] > '\u00FF' ) {
-                        return str.getBytes("UTF8");
-                    }
+        if (useUTF8) {
+            for (int i = 0; i < buffer.length; i++) {
+                if (buffer[i] > '\u00FF') {
+                    return str.getBytes(UTF_8);
                 }
             }
-            return str.getBytes("8859_1");
-        } catch (UnsupportedEncodingException e) {
-            throw new SaslException(
-                "cannot encode string in UTF8 or 8859-1 (Latin-1)", e);
         }
+        return str.getBytes(ISO_8859_1);
     }
 
     protected static byte[] getPlatformCiphers() {
@@ -438,9 +433,7 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
 
                 logger.log(Level.FINE, "DIGEST01:Platform supports {0}", JCE_CIPHER_NAME[i]);
                 ciphers[i] |= CIPHER_MASKS[i];
-            } catch (NoSuchAlgorithmException e) {
-                // no implementation found for requested algorithm.
-            } catch (NoSuchPaddingException e) {
+            } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
                 // no implementation found for requested algorithm.
             }
         }
@@ -461,8 +454,6 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
      * @return A non-null byte array containing the repsonse-value.
      * @throws NoSuchAlgorithmException if the platform does not have MD5
      * digest support.
-     * @throws UnsupportedEncodingException if a an error occurs
-     * encoding a string into either Latin-1 or UTF-8.
      * @throws IOException if an error occurs writing to the output
      * byte array buffer.
      */
@@ -478,7 +469,6 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
         int nonceCount,
         byte[] authzidValue
         ) throws NoSuchAlgorithmException,
-            UnsupportedEncodingException,
             IOException {
 
         MessageDigest md5 = MessageDigest.getInstance("MD5");
@@ -816,9 +806,9 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
      */
     class DigestIntegrity implements SecurityCtx {
         /* Used for generating integrity keys - specified in RFC 2831*/
-        static final private String CLIENT_INT_MAGIC = "Digest session key to " +
+        private static final String CLIENT_INT_MAGIC = "Digest session key to " +
             "client-to-server signing key magic constant";
-        static final private String SVR_INT_MAGIC = "Digest session key to " +
+        private static final String SVR_INT_MAGIC = "Digest session key to " +
             "server-to-client signing key magic constant";
 
         /* Key pairs for integrity checking */
@@ -845,14 +835,9 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
             try {
                 generateIntegrityKeyPair(clientMode);
 
-            } catch (UnsupportedEncodingException e) {
-                throw new SaslException(
-                    "DIGEST-MD5: Error encoding strings into UTF-8", e);
-
             } catch (IOException e) {
                 throw new SaslException("DIGEST-MD5: Error accessing buffers " +
                     "required to create integrity key pairs", e);
-
             } catch (NoSuchAlgorithmException e) {
                 throw new SaslException("DIGEST-MD5: Unsupported digest " +
                     "algorithm used to create integrity key pairs", e);
@@ -866,16 +851,13 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
          * Generate client-server, server-client key pairs for DIGEST-MD5
          * integrity checking.
          *
-         * @throws UnsupportedEncodingException if the UTF-8 encoding is not
-         * supported on the platform.
          * @throws IOException if an error occurs when writing to or from the
          * byte array output buffers.
          * @throws NoSuchAlgorithmException if the MD5 message digest algorithm
          * cannot loaded.
          */
         private void generateIntegrityKeyPair(boolean clientMode)
-            throws UnsupportedEncodingException, IOException,
-                NoSuchAlgorithmException {
+            throws IOException, NoSuchAlgorithmException {
 
             byte[] cimagic = CLIENT_INT_MAGIC.getBytes(encoding);
             byte[] simagic = SVR_INT_MAGIC.getBytes(encoding);
@@ -1103,9 +1085,9 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
      */
     final class DigestPrivacy extends DigestIntegrity implements SecurityCtx {
         /* Used for generating privacy keys - specified in RFC 2831 */
-        static final private String CLIENT_CONF_MAGIC =
+        private static final String CLIENT_CONF_MAGIC =
             "Digest H(A1) to client-to-server sealing key magic constant";
-        static final private String SVR_CONF_MAGIC =
+        private static final String SVR_CONF_MAGIC =
             "Digest H(A1) to server-to-client sealing key magic constant";
 
         private Cipher encCipher;
@@ -1130,11 +1112,6 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
 
             } catch (SaslException e) {
                 throw e;
-
-            } catch (UnsupportedEncodingException e) {
-                throw new SaslException(
-                    "DIGEST-MD5: Error encoding string value into UTF-8", e);
-
             } catch (IOException e) {
                 throw new SaslException("DIGEST-MD5: Error accessing " +
                     "buffers required to generate cipher keys", e);
@@ -1152,14 +1129,11 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
          * byte array output buffers.
          * @throws NoSuchAlgorithmException if the MD5 message digest algorithm
          * cannot loaded.
-         * @throws UnsupportedEncodingException if an UTF-8 encoding is not
-         * supported on the platform.
-         * @throw SaslException if an error occurs initializing the keys and
+         * @throws SaslException if an error occurs initializing the keys and
          * IVs for the chosen cipher.
          */
         private void generatePrivacyKeyPair(boolean clientMode)
-            throws IOException, UnsupportedEncodingException,
-            NoSuchAlgorithmException, SaslException {
+            throws IOException, NoSuchAlgorithmException, SaslException {
 
             byte[] ccmagic = CLIENT_CONF_MAGIC.getBytes(encoding);
             byte[] scmagic = SVR_CONF_MAGIC.getBytes(encoding);
@@ -1277,7 +1251,7 @@ abstract class DigestMD5Base extends AbstractSaslImpl {
                     "specification used.", e);
             } catch (InvalidAlgorithmParameterException e) {
                 throw new SaslException("DIGEST-MD5: Invalid cipher " +
-                    "algorithem parameter used to create cipher instance", e);
+                    "algorithm parameter used to create cipher instance", e);
             } catch (NoSuchPaddingException e) {
                 throw new SaslException("DIGEST-MD5: Unsupported " +
                     "padding used for chosen cipher", e);

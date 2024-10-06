@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,24 +28,28 @@
  *          get overwritten when the sourcepath is equal to the destination
  *          directory.
  *          Also test that -docfilessubdirs and -excludedocfilessubdir both work.
- * @author jamieh
- * @library ../lib
+ * @library /tools/lib ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build toolbox.ToolBox javadoc.tester.*
  * @run main TestDocFileDir
  */
+
+import javadoc.tester.JavadocTester;
+import toolbox.ToolBox;
 
 public class TestDocFileDir extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestDocFileDir tester = new TestDocFileDir();
+        var tester = new TestDocFileDir();
         tester.runTests();
     }
 
+    ToolBox tb = new ToolBox();
+
     // Output dir = "", Input dir = ""
     @Test
-    void test1() {
-        copyDir(testSrc("pkg"), ".");
+    public void test1() {
+        tb.copyDir(testSrc("pkg"), "pkg");
         setOutputDirectoryCheck(DirectoryCheck.NO_HTML_FILES);
         javadoc("pkg/C.java");
         checkExit(Exit.OK);
@@ -55,9 +59,9 @@ public class TestDocFileDir extends JavadocTester {
 
     // Output dir = Input Dir
     @Test
-    void test2() {
+    public void test2() {
         String outdir = "out2";
-        copyDir(testSrc("pkg"), outdir);
+        tb.copyDir(testSrc("pkg"), outdir + "/pkg");
         setOutputDirectoryCheck(DirectoryCheck.NO_HTML_FILES);
         javadoc("-d", outdir,
             "-sourcepath", "blah" + PS + outdir + PS + "blah",
@@ -69,7 +73,7 @@ public class TestDocFileDir extends JavadocTester {
 
     // Exercising -docfilessubdirs and -excludedocfilessubdir
     @Test
-    void test3() {
+    public void test3() {
         String outdir = "out3";
         setOutputDirectoryCheck(DirectoryCheck.NONE);
         javadoc("-d", outdir,

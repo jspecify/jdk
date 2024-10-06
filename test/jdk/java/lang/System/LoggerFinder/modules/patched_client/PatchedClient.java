@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -25,6 +23,7 @@
 
 import java.lang.reflect.Method;
 import java.lang.System.Logger;
+import java.time.Instant;
 import java.util.ResourceBundle;
 import java.util.ListResourceBundle;
 
@@ -38,9 +37,14 @@ public class PatchedClient {
         String loggerMode = args[0];
         String loggerClassName = args[1];
         String underlyingLoggerClassName = args.length >= 3 ? args[2] : null;
+        System.err.println("PatchedClient starting at " + Instant.now());
+        try {
+            testLogger(loggerMode, loggerClassName, underlyingLoggerClassName);
+            testLog(underlyingLoggerClassName);
+        } finally {
+            System.err.println("PatchedClient finished at " + Instant.now());
+        }
 
-        testLogger(loggerMode, loggerClassName, underlyingLoggerClassName);
-        testLog(underlyingLoggerClassName);
     }
 
     /*

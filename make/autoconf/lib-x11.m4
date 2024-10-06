@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@ AC_DEFUN_ONCE([LIB_SETUP_X11],
     X_CFLAGS=
     X_LIBS=
   else
+    x_libraries_orig="$x_libraries"
 
     if test "x${with_x}" = xno; then
       AC_MSG_ERROR([It is not possible to disable the use of X11. Remove the --without-x option.])
@@ -48,6 +49,7 @@ AC_DEFUN_ONCE([LIB_SETUP_X11],
       fi
       if test "x$x_libraries" = xNONE; then
         x_libraries="${with_x}/lib"
+        x_libraries_orig="$x_libraries"
       fi
     else
       # Check if the user has specified sysroot, but not --with-x, --x-includes or --x-libraries.
@@ -68,6 +70,10 @@ AC_DEFUN_ONCE([LIB_SETUP_X11],
             x_libraries="$SYSROOT/usr/lib64"
           elif test -f "$SYSROOT/usr/lib/libX11.so"; then
             x_libraries="$SYSROOT/usr/lib"
+          elif test -f "$SYSROOT/usr/lib/$OPENJDK_TARGET_CPU-$OPENJDK_TARGET_OS-$OPENJDK_TARGET_ABI/libX11.so"; then
+            x_libraries="$SYSROOT/usr/lib/$OPENJDK_TARGET_CPU-$OPENJDK_TARGET_OS-$OPENJDK_TARGET_ABI"
+          elif test -f "$SYSROOT/usr/lib/$OPENJDK_TARGET_CPU_AUTOCONF-$OPENJDK_TARGET_OS-$OPENJDK_TARGET_ABI/libX11.so"; then
+            x_libraries="$SYSROOT/usr/lib/$OPENJDK_TARGET_CPU_AUTOCONF-$OPENJDK_TARGET_OS-$OPENJDK_TARGET_ABI"
           fi
         fi
       fi
@@ -78,8 +84,8 @@ AC_DEFUN_ONCE([LIB_SETUP_X11],
     AC_PATH_XTRA
 
     # AC_PATH_XTRA creates X_LIBS and sometimes adds -R flags. When cross compiling
-    # this doesn't make sense so we remove it.
-    if test "x$COMPILE_TYPE" = xcross; then
+    # this doesn't make sense so we remove it; same for sysroot (devkit).
+    if test "x$COMPILE_TYPE" = xcross || (test "x$SYSROOT" != "x" && test "x$x_libraries_orig" = xNONE); then
       X_LIBS=`$ECHO $X_LIBS | $SED 's/-R \{0,1\}[[^ ]]*//g'`
     fi
 
@@ -88,41 +94,37 @@ AC_DEFUN_ONCE([LIB_SETUP_X11],
       AC_MSG_ERROR([Could not find X11 libraries. $HELP_MSG])
     fi
 
-    if test "x$OPENJDK_TARGET_OS" = xsolaris; then
-      OPENWIN_HOME="/usr/openwin"
-      X_CFLAGS="-I$SYSROOT$OPENWIN_HOME/include -I$SYSROOT$OPENWIN_HOME/include/X11/extensions"
-      X_LIBS="-L$SYSROOT$OPENWIN_HOME/lib$OPENJDK_TARGET_CPU_ISADIR \
-          -R$OPENWIN_HOME/lib$OPENJDK_TARGET_CPU_ISADIR"
-    fi
-
     AC_LANG_PUSH(C)
     OLD_CFLAGS="$CFLAGS"
     CFLAGS="$CFLAGS $SYSROOT_CFLAGS $X_CFLAGS"
 
-    # Need to include Xlib.h and Xutil.h to avoid "present but cannot be compiled" warnings on Solaris 10
-    AC_CHECK_HEADERS([X11/extensions/shape.h X11/extensions/Xrender.h X11/extensions/XTest.h X11/Intrinsic.h],
-        [X11_HEADERS_OK=yes],
-        [X11_HEADERS_OK=no; break],
-        [
-          # include <X11/Xlib.h>
-          # include <X11/Xutil.h>
-        ]
-    )
+    if test "x$OPENJDK_TARGET_OS" = xaix; then
+      # There is no Xrandr extension on AIX. Code is duplicated to avoid autoconf
+      # 2.71+ warning "AC_CHECK_HEADERS: you should use literals"
+      X_CFLAGS="$X_CFLAGS -DNO_XRANDR"
+      AC_CHECK_HEADERS([X11/extensions/shape.h X11/extensions/Xrender.h X11/extensions/XTest.h X11/Intrinsic.h],
+          [X11_HEADERS_OK=yes],
+          [X11_HEADERS_OK=no; break],
+          [
+            # include <X11/Xlib.h>
+            # include <X11/Xutil.h>
+          ]
+      )
+    else
+      AC_CHECK_HEADERS([X11/extensions/shape.h X11/extensions/Xrender.h X11/extensions/XTest.h X11/Intrinsic.h X11/extensions/Xrandr.h],
+          [X11_HEADERS_OK=yes],
+          [X11_HEADERS_OK=no; break],
+          [
+            # include <X11/Xlib.h>
+            # include <X11/Xutil.h>
+          ]
+      )
+    fi
 
     if test "x$X11_HEADERS_OK" = xno; then
       HELP_MSG_MISSING_DEPENDENCY([x11])
-      AC_MSG_ERROR([Could not find all X11 headers (shape.h Xrender.h XTest.h Intrinsic.h). $HELP_MSG])
+      AC_MSG_ERROR([Could not find all X11 headers (shape.h Xrender.h Xrandr.h XTest.h Intrinsic.h). $HELP_MSG])
     fi
-
-    # If XLinearGradient isn't available in Xrender.h, signal that it needs to be
-    # defined in libawt_xawt.
-    AC_MSG_CHECKING([if XlinearGradient is defined in Xrender.h])
-    AC_COMPILE_IFELSE(
-        [AC_LANG_PROGRAM([[#include <X11/extensions/Xrender.h>]],
-            [[XLinearGradient x;]])],
-        [AC_MSG_RESULT([yes])],
-        [AC_MSG_RESULT([no])
-         X_CFLAGS="$X_CFLAGS -DSOLARIS10_NO_XRENDER_STRUCTS"])
 
     CFLAGS="$OLD_CFLAGS"
     AC_LANG_POP(C)

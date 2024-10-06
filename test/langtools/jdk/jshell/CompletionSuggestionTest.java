@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8131025 8141092 8153761 8145263 8131019 8175886 8176184 8176241 8176110 8177466 8197439
+ * @bug 8131025 8141092 8153761 8145263 8131019 8175886 8176184 8176241 8176110 8177466 8197439 8221759 8234896 8240658 8278039 8286206 8296789 8314662 8326333
  * @summary Test Completion and Documentation
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
@@ -48,13 +48,16 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
+import jdk.jshell.MethodSnippet;
 
 import jdk.jshell.Snippet;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import static jdk.jshell.Snippet.Status.NONEXISTENT;
 import static jdk.jshell.Snippet.Status.VALID;
 import static jdk.jshell.Snippet.Status.OVERWRITTEN;
+import static jdk.jshell.Snippet.Status.RECOVERABLE_DEFINED;
 
 @Test
 public class CompletionSuggestionTest extends KullaTesting {
@@ -83,9 +86,9 @@ public class CompletionSuggestionTest extends KullaTesting {
         assertCompletion("Object[].|", "class");
         assertCompletion("int[].|", "class");
         assertEval("Object[] ao = null;");
-        assertCompletion("int i = ao.|", "length");
+        assertCompletion("int i = ao.le|", "length");
         assertEval("int[] ai = null;");
-        assertCompletion("int i = ai.|", "length");
+        assertCompletion("int i = ai.le|", "length");
         assertCompletionIncludesExcludes("\"\".|",
                 new HashSet<>(Collections.emptyList()),
                 new HashSet<>(Arrays.asList("String(")));
@@ -107,6 +110,8 @@ public class CompletionSuggestionTest extends KullaTesting {
         assertCompletionIncludesExcludes("new C() {}.|",
                 new HashSet<>(Arrays.asList("method()", "number")),
                 new HashSet<>(Arrays.asList("D", "E", "F", "H", "class")));
+        assertCompletion("\"\".leng|", "length()");
+        assertCompletion("\"\"\"\n\"\"\".leng|", "length()");
     }
 
     public void testStartOfExpression() {
@@ -148,6 +153,7 @@ public class CompletionSuggestionTest extends KullaTesting {
         assertCompletion("class A implements doubl|");
         assertCompletion("interface A extends doubl|");
         assertCompletion("enum A implements doubl|");
+        assertCompletion("record R() implements doubl|");
         assertCompletion("class A<T extends doubl|");
     }
 
@@ -325,6 +331,15 @@ public class CompletionSuggestionTest extends KullaTesting {
         assertSignature("\"\".getBytes(\"\" |", "void String.getBytes(int, int, byte[], int)",
                                                      "byte[] String.getBytes(String) throws java.io.UnsupportedEncodingException",
                                                      "byte[] String.getBytes(java.nio.charset.Charset)");
+        //JDK-8221759:
+        Compiler compiler = new Compiler();
+        Path testOutDir = Paths.get("WithPrivateField");
+        String input = "package field; public class FieldTest { private static String field; private static String field2; public record R<E>(String s, E e) {} }";
+        compiler.compile(testOutDir, input);
+        addToClasspath(compiler.getPath(testOutDir));
+        assertSignature("field.FieldTest.field|");
+        assertSignature("field.FieldTest.field2|");
+        assertSignature("field.FieldTest.R|", "field.FieldTest.R<E>(java.lang.String s, E e)");
     }
 
     public void testMethodsWithNoArguments() throws Exception {
@@ -665,9 +680,53 @@ public class CompletionSuggestionTest extends KullaTesting {
         assertCompletionIncludesExcludes("new Undefined() { int i = \"\".l|", Set.of("length()"), Set.of());
     }
 
+    public void testMemberReferences() {
+        assertEval("class C {" +
+                   "    public static String stat() { return null; }" +
+                   "    public static void statVoid(String s) {}" +
+                   "    public static Integer statConvert1(String s) { return null; }" +
+                   "    public static String statConvert2(Integer s) { return null; }" +
+                   "    public static String statConvert3(CharSequence s) { return null; }" +
+                   "    public String inst() { return null; }" +
+                   "    public void instVoid(String s) { }" +
+                   "}");
+        assertEval("interface FI { public void t(String s); }");
+        assertCompletion("FI fi = C::|", (Boolean) null, "stat", "statConvert1", "statConvert2", "statConvert3", "statVoid");
+        assertCompletion("FI fi = C::|", true, "statConvert1", "statConvert3","statVoid");
+        assertCompletion("FI fi = new C()::i|", (Boolean) null, "inst", "instVoid");
+        assertCompletion("FI fi = new C()::i|", true, "instVoid");
+        assertEval("interface FI2<R, P> { public R t(P p); }");
+        assertCompletion("FI2<String, Integer> fi = C::|", (Boolean) null, "stat", "statConvert1", "statConvert2", "statConvert3", "statVoid");
+        assertCompletion("FI2<String, Integer> fi = C::|", true, "statConvert2");
+        assertCompletion("FI2<String, CharSequence> fi = C::|", true, "statConvert3");
+        assertCompletion("FI2<String, String> fi = C::|", true, "statConvert3");
+        assertCompletion("FI2<Object, String> fi = C::|", true, "statConvert1", "statConvert3");
+    }
+
+    public void testBrokenLambdaCompletion() {
+        assertEval("interface Consumer<T> { public void consume(T t); }");
+        assertEval("interface Function<T, R> { public R convert(T t); }");
+        assertEval("<T> void m1(T t, Consumer<T> f) { }");
+        assertCompletion("m1(\"\", x -> {x.tri|", "trim()");
+        assertEval("<T> void m2(T t, Function<T, String> f) { }");
+        assertCompletion("m2(\"\", x -> {x.tri|", "trim()");
+        assertEval("<T> void m3(T t, Consumer<T> f, int i) { }");
+        assertCompletion("m3(\"\", x -> {x.tri|", "trim()");
+        assertEval("<T> void m4(T t, Function<T, String> f, int i) { }");
+        assertCompletion("m4(\"\", x -> {x.tri|", "trim()");
+        assertEval("<T> T m5(Consumer<T> f) { return null; }");
+        assertCompletion("String s = m5(x -> {x.tri|", "trim()");
+        assertEval("<T> T m6(Function<T, String> f) { return null; }");
+        assertCompletion("String s = m6(x -> {x.tri|", "trim()");
+        assertEval("<T> T m7(Consumer<T> f, int i) { return null; }");
+        assertCompletion("String s = m7(x -> {x.tri|", "trim()");
+        assertEval("<T> T m8(Function<T, String> f, int i) { return null; }");
+        assertCompletion("String s = m8(x -> {x.tri|", "trim()");
+    }
+
     @BeforeMethod
     public void setUp() {
-        super.setUp();
+        setUp(builder -> builder.executionEngine("local"));
 
         Path srcZip = Paths.get("src.zip");
 
@@ -718,5 +777,48 @@ public class CompletionSuggestionTest extends KullaTesting {
 
         assertEval("import p.*;");
         assertCompletion("Broke|", "BrokenA", "BrokenC");
+    }
+
+    public void testStatements() {
+        assertEval("String s = \"\";");
+        assertCompletion("if (s.conta|", (Boolean) null, "contains(");
+        assertCompletion("if (s.ch|", (Boolean) null, "charAt(", "chars()");
+        assertCompletion("while (s.conta|", (Boolean) null, "contains(");
+        assertCompletion("do {} while (s.conta|", (Boolean) null, "contains(");
+        assertCompletion("try (var v = s.conta|", (Boolean) null, "contains(");
+        assertCompletion("for (var v = s.conta|", (Boolean) null, "contains(");
+        assertCompletion("for (;;s.conta|", (Boolean) null, "contains(");
+        assertCompletion("for (var v : s.conta|", (Boolean) null, "contains(");
+    }
+
+    public void testRecord() {
+        assertCompletion("record R() implements Ru|", true, "Runnable");
+    }
+
+    //JDK-8296789
+    public void testParentMembers() {
+        assertEval("var sb=new StringBuilder();");
+        assertCompletionIncludesExcludes("sb.|", true, Set.of("capacity()", "setLength("), Set.of("maybeLatin1"));
+    }
+
+    //JDK-8314662
+    public void testDuplicateImport() {
+        MethodSnippet m1 = methodKey(assertEval("void test(String s) { foo(); }", ste(MAIN_SNIPPET, NONEXISTENT, RECOVERABLE_DEFINED, true, null)));
+        MethodSnippet m2 = methodKey(assertEval("void test(Integer i) { foo(); }", ste(MAIN_SNIPPET, NONEXISTENT, RECOVERABLE_DEFINED, true, null)));
+        assertEval("void foo() { }", ste(MAIN_SNIPPET, NONEXISTENT, VALID, true, null),
+                                     ste(m1, RECOVERABLE_DEFINED, VALID, true, MAIN_SNIPPET),
+                                     ste(m2, RECOVERABLE_DEFINED, VALID, true, MAIN_SNIPPET));
+        assertSignature("test(|", "void test(String s)", "void test(Integer i)");
+    }
+
+    //JDK-8326333: verify completion returns sensible output for arrays:
+    public void testArray() {
+        assertEval("String[] strs = null;");
+        assertCompletion("strs.to|", "toString()");
+        assertCompletion("strs.le|", "length");
+        assertEval("int[] ints = null;");
+        assertCompletion("ints.no|", "notify()", "notifyAll()");
+        assertCompletion("ints.le|", "length");
+        assertCompletion("String[].|", "class");
     }
 }

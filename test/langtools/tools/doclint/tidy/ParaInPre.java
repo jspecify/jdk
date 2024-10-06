@@ -3,9 +3,9 @@
  * @bug 8004832
  * @summary Add new doclint package
  * @library ..
- * @modules jdk.compiler/com.sun.tools.doclint
+ * @modules jdk.javadoc/jdk.javadoc.internal.doclint
  * @build DocLintTester
- * @run main DocLintTester -ref ParaInPre.out ParaInPre.java
+ * @run main DocLintTester -Xmsgs:all,-missing -ref ParaInPre.out ParaInPre.java
  */
 
 // tidy: Warning: replacing <p> by <br>

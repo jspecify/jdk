@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -30,10 +30,10 @@
  *          SystemDictionary::check_constraints().
  * @library /test/lib
  * @compile D_ambgs.jasm
- * @run driver ClassFileInstaller test.D_ambgs
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller test.D_ambgs
  * @compile  ../common/PreemptingClassLoader.java
  *           test/D_ambgs.java Test.java test/B.java
- * @run driver ClassFileInstaller test.B
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller test.B
  * @run main/othervm Test
  */
 
@@ -78,11 +78,9 @@ public class Test {
     // Break the expectedErrorMessage into 2 pieces since the loader name will include
     // its identity hash and can not be compared against.
     static String expectedErrorMessage_part1 = "loader constraint violation: loader PreemptingClassLoader @";
-    static String expectedErrorMessage_part2 = " (instance of PreemptingClassLoader, " +
-        "child of 'app' jdk.internal.loader.ClassLoaders$AppClassLoader) wants to load " +
-        "class test.D_ambgs. A different class with the same name was previously loaded " +
-        "by 'app' (instance of jdk.internal.loader.ClassLoaders$AppClassLoader).";
-
+    static String expectedErrorMessage_part2 = " wants to load class test.D_ambgs. A different class " +
+                                               "with the same name was previously loaded by 'app'. " +
+                                               "(test.D_ambgs is in unnamed module of loader 'app')";
     public static void test_access() throws Exception {
         try {
             // Make a Class 'D_ambgs' under the default loader.
@@ -118,4 +116,3 @@ public class Test {
         test_access();
     }
 }
-

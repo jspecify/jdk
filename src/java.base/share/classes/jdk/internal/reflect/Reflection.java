@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,18 @@
 
 package jdk.internal.reflect;
 
-
 import java.lang.reflect.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import jdk.internal.HotSpotIntrinsicCandidate;
-import jdk.internal.loader.ClassLoaders;
+import java.util.Set;
+
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.VM;
+import jdk.internal.module.ModuleBootstrap;
+import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /** Common utility routines used by both java.lang and
     java.lang.reflect */
@@ -43,25 +47,31 @@ public class Reflection {
         view, where they are sensitive or they may contain VM-internal objects.
         These Maps are updated very rarely. Rather than synchronize on
         each access, we use copy-on-write */
-    private static volatile Map<Class<?>,String[]> fieldFilterMap;
-    private static volatile Map<Class<?>,String[]> methodFilterMap;
+    private static volatile Map<Class<?>, Set<String>> fieldFilterMap;
+    private static volatile Map<Class<?>, Set<String>> methodFilterMap;
+    private static final String WILDCARD = "*";
+    public static final Set<String> ALL_MEMBERS = Set.of(WILDCARD);
 
     static {
-        Map<Class<?>,String[]> map = new HashMap<Class<?>,String[]>();
-        map.put(Reflection.class,
-            new String[] {"fieldFilterMap", "methodFilterMap"});
-        map.put(System.class, new String[] {"security"});
-        map.put(Class.class, new String[] {"classLoader"});
-        fieldFilterMap = map;
-
-        methodFilterMap = new HashMap<>();
+        fieldFilterMap = Map.of(
+            Reflection.class, ALL_MEMBERS,
+            AccessibleObject.class, ALL_MEMBERS,
+            Class.class, Set.of("classLoader", "classData"),
+            ClassLoader.class, ALL_MEMBERS,
+            Constructor.class, ALL_MEMBERS,
+            Field.class, ALL_MEMBERS,
+            Method.class, ALL_MEMBERS,
+            Module.class, ALL_MEMBERS,
+            System.class, Set.of("security")
+        );
+        methodFilterMap = Map.of();
     }
 
     /** Returns the class of the caller of the method calling this method,
         ignoring frames associated with java.lang.reflect.Method.invoke()
         and its implementation. */
     @CallerSensitive
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     public static native Class<?> getCallerClass();
 
     /** Retrieves the access flags written to the class file. For
@@ -72,7 +82,7 @@ public class Reflection {
         to compatibility reasons; see 4471811. Only the values of the
         low 13 bits (i.e., a mask of 0x1FFF) are guaranteed to be
         valid. */
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     public static native int getClassAccessFlags(Class<?> c);
 
 
@@ -100,6 +110,21 @@ public class Reflection {
         }
     }
 
+    @ForceInline
+    public static void ensureNativeAccess(Class<?> currentClass, Class<?> owner, String methodName, boolean jni) {
+        // if there is no caller class, act as if the call came from unnamed module of system class loader
+        Module module = currentClass != null ?
+                currentClass.getModule() :
+                ClassLoader.getSystemClassLoader().getUnnamedModule();
+        class Holder {
+            static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
+        }
+        if (module != null) {
+            // not in init phase
+            Holder.JLA.ensureNativeAccess(module, owner, methodName, currentClass, jni);
+        }
+    }
+
     /**
      * Verify access to a member and return {@code true} if it is granted.
      *
@@ -117,6 +142,9 @@ public class Reflection {
                                              Class<?> targetClass,
                                              int modifiers)
     {
+        Objects.requireNonNull(currentClass);
+        Objects.requireNonNull(memberClass);
+
         if (currentClass == memberClass) {
             // Always succeeds
             return true;
@@ -196,6 +224,22 @@ public class Reflection {
         return true;
     }
 
+    /*
+     * Verify if a member is public and memberClass is a public type
+     * in a package that is unconditionally exported and
+     * return {@code true} if it is granted.
+     *
+     * @param memberClass the declaring class of the member being accessed
+     * @param modifiers the member's access modifiers
+     * @return {@code true} if the member is public and in a publicly accessible type
+     */
+    public static boolean verifyPublicMemberAccess(Class<?> memberClass, int modifiers) {
+        Module m = memberClass.getModule();
+        return Modifier.isPublic(modifiers)
+            && m.isExported(memberClass.getPackageName())
+            && Modifier.isPublic(Reflection.getClassAccessFlags(memberClass));
+    }
+
     /**
      * Returns {@code true} if memberClass's module exports memberClass's
      * package to currentModule.
@@ -236,31 +280,31 @@ public class Reflection {
 
     // fieldNames must contain only interned Strings
     public static synchronized void registerFieldsToFilter(Class<?> containingClass,
-                                              String ... fieldNames) {
+                                                           Set<String> fieldNames) {
         fieldFilterMap =
             registerFilter(fieldFilterMap, containingClass, fieldNames);
     }
 
     // methodNames must contain only interned Strings
     public static synchronized void registerMethodsToFilter(Class<?> containingClass,
-                                              String ... methodNames) {
+                                                            Set<String> methodNames) {
         methodFilterMap =
             registerFilter(methodFilterMap, containingClass, methodNames);
     }
 
-    private static Map<Class<?>,String[]> registerFilter(Map<Class<?>,String[]> map,
-            Class<?> containingClass, String ... names) {
+    private static Map<Class<?>, Set<String>> registerFilter(Map<Class<?>, Set<String>> map,
+                                                             Class<?> containingClass,
+                                                             Set<String> names) {
         if (map.get(containingClass) != null) {
             throw new IllegalArgumentException
                             ("Filter already registered: " + containingClass);
         }
-        map = new HashMap<Class<?>,String[]>(map);
-        map.put(containingClass, names);
+        map = new HashMap<>(map);
+        map.put(containingClass, Set.copyOf(names));
         return map;
     }
 
-    public static Field[] filterFields(Class<?> containingClass,
-                                       Field[] fields) {
+    public static Field[] filterFields(Class<?> containingClass, Field[] fields) {
         if (fieldFilterMap == null) {
             // Bootstrapping
             return fields;
@@ -276,35 +320,24 @@ public class Reflection {
         return (Method[])filter(methods, methodFilterMap.get(containingClass));
     }
 
-    private static Member[] filter(Member[] members, String[] filteredNames) {
+    private static Member[] filter(Member[] members, Set<String> filteredNames) {
         if ((filteredNames == null) || (members.length == 0)) {
             return members;
         }
+        Class<?> memberType = members[0].getClass();
+        if (filteredNames.contains(WILDCARD)) {
+            return (Member[]) Array.newInstance(memberType, 0);
+        }
         int numNewMembers = 0;
         for (Member member : members) {
-            boolean shouldSkip = false;
-            for (String filteredName : filteredNames) {
-                if (member.getName() == filteredName) {
-                    shouldSkip = true;
-                    break;
-                }
-            }
-            if (!shouldSkip) {
+            if (!filteredNames.contains(member.getName())) {
                 ++numNewMembers;
             }
         }
-        Member[] newMembers =
-            (Member[])Array.newInstance(members[0].getClass(), numNewMembers);
+        Member[] newMembers = (Member[])Array.newInstance(memberType, numNewMembers);
         int destIdx = 0;
         for (Member member : members) {
-            boolean shouldSkip = false;
-            for (String filteredName : filteredNames) {
-                if (member.getName() == filteredName) {
-                    shouldSkip = true;
-                    break;
-                }
-            }
-            if (!shouldSkip) {
+            if (!filteredNames.contains(member.getName())) {
                 newMembers[destIdx++] = member;
             }
         }
@@ -323,6 +356,14 @@ public class Reflection {
         return false;
     }
 
+    /*
+     * Tests if the given Field is a trusted final field and it cannot be
+     * modified reflectively regardless of the value of its accessible flag.
+     */
+    public static boolean isTrustedFinalField(Field field) {
+        return SharedSecrets.getJavaLangReflectAccess().isTrustedFinalField(field);
+    }
+
     /**
      * Returns an IllegalAccessException with an exception message based on
      * the access that is denied.
@@ -331,8 +372,10 @@ public class Reflection {
                                                                    Class<?> memberClass,
                                                                    Class<?> targetClass,
                                                                    int modifiers)
-        throws IllegalAccessException
     {
+        if (currentClass == null)
+            return newIllegalAccessException(memberClass, modifiers);
+
         String currentSuffix = "";
         String memberSuffix = "";
         Module m1 = currentClass.getModule();
@@ -346,11 +389,8 @@ public class Reflection {
 
         String msg = currentClass + currentSuffix + " cannot access ";
         if (m2.isExported(memberPackageName, m1)) {
-
             // module access okay so include the modifiers in the message
-            msg += "a member of " + memberClass + memberSuffix +
-                    " with modifiers \"" + Modifier.toString(modifiers) + "\"";
-
+            msg += "a member of " + memberClass + memberSuffix + msgSuffix(modifiers);
         } else {
             // module access failed
             msg += memberClass + memberSuffix+ " because "
@@ -359,6 +399,43 @@ public class Reflection {
         }
 
         return new IllegalAccessException(msg);
+    }
+
+    /**
+     * Returns an IllegalAccessException with an exception message where
+     * there is no caller frame.
+     */
+    private static IllegalAccessException newIllegalAccessException(Class<?> memberClass,
+                                                                    int modifiers)
+    {
+        String memberSuffix = "";
+        Module m2 = memberClass.getModule();
+        if (m2.isNamed())
+            memberSuffix = " (in " + m2 + ")";
+
+        String memberPackageName = memberClass.getPackageName();
+
+        String msg = "JNI attached native thread (null caller frame) cannot access ";
+        if (m2.isExported(memberPackageName)) {
+            // module access okay so include the modifiers in the message
+            msg += "a member of " + memberClass + memberSuffix + msgSuffix(modifiers);
+        } else {
+            // module access failed
+            msg += memberClass + memberSuffix+ " because "
+                + m2 + " does not export " + memberPackageName;
+        }
+
+        return new IllegalAccessException(msg);
+    }
+
+    private static String msgSuffix(int modifiers) {
+        boolean packageAccess =
+            ((Modifier.PRIVATE |
+              Modifier.PROTECTED |
+              Modifier.PUBLIC) & modifiers) == 0;
+        return packageAccess ?
+            " with package access" :
+            " with modifiers \"" + Modifier.toString(modifiers) + "\"";
     }
 
     /**

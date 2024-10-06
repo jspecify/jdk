@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,13 @@
 
 package sun.awt.X11;
 
-import java.awt.*;
-import sun.awt.*;
-import java.util.*;
+import java.awt.Dimension;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.util.HashSet;
+import java.util.Set;
+
+import sun.awt.SunToolkit;
 import sun.util.logging.PlatformLogger;
 
 public class XBaseWindow {
@@ -81,7 +85,7 @@ public class XBaseWindow {
         INITIALISING,
         INITIALISED,
         FAILED_INITIALISATION
-    };
+    }
 
     private InitialiseState initialising;
 
@@ -483,7 +487,7 @@ public class XBaseWindow {
 
     /*
      * Call this method under AWTLock.
-     * The lock should be acquired untill all operations with XSizeHints are completed.
+     * The lock should be acquired until all operations with XSizeHints are completed.
      */
     public XSizeHints getHints() {
         if (hints == null) {
@@ -912,7 +916,7 @@ public class XBaseWindow {
         }
     }
 
-    static void ungrabInput() {
+    public static void ungrabInput() {
         XToolkit.awtLock();
         try {
             XBaseWindow grabWindow = XAwtState.getGrabWindow();
@@ -941,7 +945,7 @@ public class XBaseWindow {
 
     static void checkSecurity() {
         if (XToolkit.isSecurityWarningEnabled() && XToolkit.isToolkitThread()) {
-            StackTraceElement stack[] = (new Throwable()).getStackTrace();
+            StackTraceElement[] stack = (new Throwable()).getStackTrace();
             log.warning(stack[1] + ": Security violation: calling user code on toolkit thread");
         }
     }
@@ -1025,29 +1029,37 @@ public class XBaseWindow {
          * InputEvent.BUTTON_DOWN_MASK.
          * One more bit is reserved for FIRST_HIGH_BIT.
          */
-        if (xbe.get_button() > SunToolkit.MAX_BUTTONS_SUPPORTED) {
+        int theButton = xbe.get_button();
+        if (theButton > SunToolkit.MAX_BUTTONS_SUPPORTED) {
             return;
         }
         int buttonState = 0;
         buttonState = xbe.get_state() & XConstants.ALL_BUTTONS_MASK;
-        switch (xev.get_type()) {
-        case XConstants.ButtonPress:
-            if (buttonState == 0) {
-                XWindowPeer parent = getToplevelXWindow();
-                // See 6385277, 6981400.
-                if (parent != null && parent.isFocusableWindow()) {
-                    // A click in a client area drops the actual focused window retaining.
-                    parent.setActualFocusedWindow(null);
-                    parent.requestWindowFocus(xbe.get_time(), true);
-                }
-                XAwtState.setAutoGrabWindow(this);
+
+        boolean isWheel = (theButton == XConstants.MouseWheelUp ||
+                           theButton == XConstants.MouseWheelDown);
+
+        // don't give focus if it's just the mouse wheel turning
+        if (!isWheel) {
+            switch (xev.get_type()) {
+                case XConstants.ButtonPress:
+                    if (buttonState == 0) {
+                        XWindowPeer parent = getToplevelXWindow();
+                        // See 6385277, 6981400.
+                        if (parent != null && parent.isFocusableWindow()) {
+                            // A click in a client area drops the actual focused window retaining.
+                            parent.setActualFocusedWindow(null);
+                            parent.requestWindowFocus(xbe.get_time(), true);
+                        }
+                        XAwtState.setAutoGrabWindow(this);
+                    }
+                    break;
+                case XConstants.ButtonRelease:
+                    if (isFullRelease(buttonState, xbe.get_button())) {
+                        XAwtState.setAutoGrabWindow(null);
+                    }
+                    break;
             }
-            break;
-        case XConstants.ButtonRelease:
-            if (isFullRelease(buttonState, xbe.get_button())) {
-                XAwtState.setAutoGrabWindow(null);
-            }
-            break;
         }
     }
     public void handleMotionNotify(XEvent xev) {

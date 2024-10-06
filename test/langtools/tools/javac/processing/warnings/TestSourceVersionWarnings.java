@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,13 +29,12 @@
  * @modules java.compiler
  *          jdk.compiler
  * @compile TestSourceVersionWarnings.java
- * @compile/ref=gold_0.out             -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only                           -source 1.6 -Xlint:-options HelloWorld.java
- * @compile/ref=gold_sv_warn_5_6.out   -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_5 -source 1.6 -Xlint:-options HelloWorld.java
- * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_6 -source 1.6 -Xlint:-options HelloWorld.java
- * @compile/ref=gold_unsp_warn.out     -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_6 -source 1.6 -Xlint:-options -Aunsupported HelloWorld.java
- * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_7 -source 1.7 -Xlint:-options HelloWorld.java
- * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_8 -source 1.8 -Xlint:-options HelloWorld.java
- * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_9 -source 1.9 -Xlint:-options HelloWorld.java
+ * @compile/ref=gold_0.out             -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only                            -source  8 -Xlint:-options HelloWorld.java
+ * @compile/ref=gold_sv_warn_5_6.out   -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_5  -source  8 -Xlint:-options HelloWorld.java
+ * @compile/ref=gold_unsp_warn.out     -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_8  -source  8 -Xlint:-options -Aunsupported HelloWorld.java
+ * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_10 -source 10 -Xlint:-options HelloWorld.java
+ * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_11 -source 11 -Xlint:-options HelloWorld.java
+ * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_12 -source 12 -Xlint:-options HelloWorld.java
  */
 
 import java.util.Set;
@@ -46,7 +45,7 @@ import javax.lang.model.SourceVersion;
 import static javax.lang.model.SourceVersion.*;
 import javax.lang.model.element.*;
 import javax.lang.model.util.*;
-import static javax.tools.Diagnostic.Kind.*;
+
 
 /**
  * This processor returns the supported source level as indicated by
@@ -62,9 +61,8 @@ public class TestSourceVersionWarnings extends AbstractProcessor {
     public SourceVersion getSupportedSourceVersion() {
         String sourceVersion = processingEnv.getOptions().get("SourceVersion");
         if (sourceVersion == null) {
-            processingEnv.getMessager().printMessage(WARNING,
-                                                     "No SourceVersion option given");
-            return SourceVersion.RELEASE_6;
+            processingEnv.getMessager().printWarning("No SourceVersion option given");
+            return SourceVersion.RELEASE_8;
         } else {
             return SourceVersion.valueOf(sourceVersion);
         }

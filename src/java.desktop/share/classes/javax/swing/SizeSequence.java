@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,7 +76,7 @@ package javax.swing;
  * could be just as valid.
  *
  *
- * <h3>Implementation Notes</h3>
+ * <h2>Implementation Notes</h2>
  *
  * Normally when storing the size and position of entries,
  * one would choose between
@@ -122,7 +122,7 @@ package javax.swing;
 public class SizeSequence {
 
     private static int[] emptyArray = new int[0];
-    private int a[];
+    private int[] a;
 
     /**
      * Creates a new <code>SizeSequence</code> object
@@ -142,7 +142,7 @@ public class SizeSequence {
      * all initialized to have size 0.
      *
      * @param numEntries  the number of sizes to track
-     * @exception NegativeArraySizeException if
+     * @throws NegativeArraySizeException if
      *    <code>numEntries &lt; 0</code>
      */
     public SizeSequence(int numEntries) {
@@ -355,12 +355,12 @@ public class SizeSequence {
      *                in the group
      * @param length  the number of entries in the group
      * @param value   the size to be assigned to each new entry
-     * @exception ArrayIndexOutOfBoundsException if the parameters
+     * @throws ArrayIndexOutOfBoundsException if the parameters
      *   are outside of the range:
      *   (<code>0 &lt;= start &lt; (getSizes().length)) AND (length &gt;= 0)</code>
      */
     public void insertEntries(int start, int length, int value) {
-        int sizes[] = getSizes();
+        int[] sizes = getSizes();
         int end = start + length;
         int n = a.length + length;
         a = new int[n];
@@ -390,7 +390,7 @@ public class SizeSequence {
      * @param length  the number of entries to be removed
      */
     public void removeEntries(int start, int length) {
-        int sizes[] = getSizes();
+        int[] sizes = getSizes();
         int end = start + length;
         int n = a.length - length;
         a = new int[n];

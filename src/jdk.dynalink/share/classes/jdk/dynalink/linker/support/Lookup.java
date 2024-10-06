@@ -64,7 +64,6 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
@@ -73,6 +72,7 @@ import java.lang.reflect.Method;
  * checked exceptions. It is useful in those cases when you're looking up
  * methods within your own codebase (therefore it is an error if they are not
  * present).
+ * @since 9
  */
 public final class Lookup {
     private final MethodHandles.Lookup lookup;

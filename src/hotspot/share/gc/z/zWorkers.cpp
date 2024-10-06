@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,112 +22,146 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/gc_globals.hpp"
+#include "gc/shared/gcLogPrecious.hpp"
+#include "gc/z/zHeap.inline.hpp"
+#include "gc/z/zLock.inline.hpp"
+#include "gc/z/zStat.hpp"
 #include "gc/z/zTask.hpp"
-#include "gc/z/zWorkers.inline.hpp"
-#include "runtime/os.hpp"
-#include "runtime/mutexLocker.hpp"
-#include "runtime/safepoint.hpp"
+#include "gc/z/zWorkers.hpp"
+#include "runtime/java.hpp"
 
-uint ZWorkers::calculate_ncpus(double share_in_percent) {
-  return ceil(os::initial_active_processor_count() * share_in_percent / 100.0);
+static const char* workers_name(ZGenerationId id) {
+  return (id == ZGenerationId::young) ? "ZWorkerYoung" : "ZWorkerOld";
 }
 
-uint ZWorkers::calculate_nparallel() {
-  // Use 60% of the CPUs, rounded up. We would like to use as many threads as
-  // possible to increase parallelism. However, using a thread count that is
-  // close to the number of processors tends to lead to over-provisioning and
-  // scheduling latency issues. Using 60% of the active processors appears to
-  // be a fairly good balance.
-  return calculate_ncpus(60.0);
+static const char* generation_name(ZGenerationId id) {
+  return (id == ZGenerationId::young) ? "Young" : "Old";
 }
 
-uint ZWorkers::calculate_nconcurrent() {
-  // Use 12.5% of the CPUs, rounded up. The number of concurrent threads we
-  // would like to use heavily depends on the type of workload we are running.
-  // Using too many threads will have a negative impact on the application
-  // throughput, while using too few threads will prolong the GC-cycle and
-  // we then risk being out-run by the application. Using 12.5% of the active
-  // processors appears to be a fairly good balance.
-  return calculate_ncpus(12.5);
+static uint max_nworkers(ZGenerationId id) {
+  return id == ZGenerationId::young ? ZYoungGCThreads : ZOldGCThreads;
 }
 
-class ZWorkersWarmupTask : public ZTask {
-private:
-  const uint _nworkers;
-  uint       _started;
-  Monitor    _monitor;
+ZWorkers::ZWorkers(ZGenerationId id, ZStatWorkers* stats)
+  : _workers(workers_name(id),
+             max_nworkers(id)),
+    _generation_name(generation_name(id)),
+    _resize_lock(),
+    _requested_nworkers(0),
+    _is_active(false),
+    _stats(stats) {
 
-public:
-  ZWorkersWarmupTask(uint nworkers) :
-      ZTask("ZWorkersWarmupTask"),
-      _nworkers(nworkers),
-      _started(0),
-      _monitor(Monitor::leaf, "ZWorkersWarmup", false, Monitor::_safepoint_check_never) {}
-
-  virtual void work() {
-    // Wait for all threads to start
-    MonitorLockerEx ml(&_monitor, Monitor::_no_safepoint_check_flag);
-    if (++_started == _nworkers) {
-      // All threads started
-      ml.notify_all();
-    } else {
-      while (_started != _nworkers) {
-        ml.wait(Monitor::_no_safepoint_check_flag);
-      }
-    }
-  }
-};
-
-ZWorkers::ZWorkers() :
-    _boost(false),
-    _workers("ZWorker",
-             nworkers(),
-             true /* are_GC_task_threads */,
-             true /* are_ConcurrentGC_threads */) {
-
-  log_info(gc, init)("Workers: %u parallel, %u concurrent", nparallel(), nconcurrent());
+  log_info_p(gc, init)("GC Workers for %s Generation: %u (%s)",
+                       _generation_name,
+                       _workers.max_workers(),
+                       UseDynamicNumberOfGCThreads ? "dynamic" : "static");
 
   // Initialize worker threads
   _workers.initialize_workers();
-  _workers.update_active_workers(nworkers());
-  if (_workers.active_workers() != nworkers()) {
+  _workers.set_active_workers(_workers.max_workers());
+  if (_workers.active_workers() != _workers.max_workers()) {
     vm_exit_during_initialization("Failed to create ZWorkers");
   }
-
-  // Warm up worker threads by having them execute a dummy task.
-  // This helps reduce latency in early GC pauses, which otherwise
-  // would have to take on any warmup costs.
-  ZWorkersWarmupTask task(nworkers());
-  run(&task, nworkers());
 }
 
-void ZWorkers::set_boost(bool boost) {
-  if (boost) {
-    log_debug(gc)("Boosting workers");
+bool ZWorkers::is_active() const {
+  return _is_active;
+}
+
+uint ZWorkers::active_workers() const {
+  return _workers.active_workers();
+}
+
+void ZWorkers::set_active_workers(uint nworkers) {
+  log_info(gc, task)("Using %u Workers for %s Generation", nworkers, _generation_name);
+  ZLocker<ZLock> locker(&_resize_lock);
+  _workers.set_active_workers(nworkers);
+}
+
+void ZWorkers::set_active() {
+  ZLocker<ZLock> locker(&_resize_lock);
+  _is_active = true;
+  _requested_nworkers = 0;
+}
+
+void ZWorkers::set_inactive() {
+  ZLocker<ZLock> locker(&_resize_lock);
+  _is_active = false;
+}
+
+void ZWorkers::run(ZTask* task) {
+  log_debug(gc, task)("Executing %s using %s with %u workers", task->name(), _workers.name(), active_workers());
+
+  {
+    ZLocker<ZLock> locker(&_resize_lock);
+    _stats->at_start(active_workers());
   }
 
-  _boost = boost;
+  _workers.run_task(task->worker_task());
+
+  {
+    ZLocker<ZLock> locker(&_resize_lock);
+    _stats->at_end();
+  }
 }
 
-void ZWorkers::run(ZTask* task, uint nworkers) {
-  log_debug(gc, task)("Executing Task: %s, Active Workers: %u", task->name(), nworkers);
-  _workers.update_active_workers(nworkers);
-  _workers.run_task(task->gang_task());
+void ZWorkers::run(ZRestartableTask* task) {
+  for (;;) {
+    // Run task
+    run(static_cast<ZTask*>(task));
+
+    ZLocker<ZLock> locker(&_resize_lock);
+    if (_requested_nworkers == 0) {
+      // Task completed
+      return;
+    }
+
+    // Restart task with requested number of active workers
+    _workers.set_active_workers(_requested_nworkers);
+    task->resize_workers(active_workers());
+    _requested_nworkers = 0;
+  }
 }
 
-void ZWorkers::run_parallel(ZTask* task) {
-  assert(SafepointSynchronize::is_at_safepoint(), "Should be at a safepoint");
-  run(task, nparallel());
-}
+void ZWorkers::run_all(ZTask* task) {
+  // Get and set number of active workers
+  const uint prev_active_workers = _workers.active_workers();
+  _workers.set_active_workers(_workers.max_workers());
 
-void ZWorkers::run_concurrent(ZTask* task) {
-  run(task, nconcurrent());
+  // Execute task using all workers
+  log_debug(gc, task)("Executing %s using %s with %u workers", task->name(), _workers.name(), active_workers());
+  _workers.run_task(task->worker_task());
+
+  // Restore number of active workers
+  _workers.set_active_workers(prev_active_workers);
 }
 
 void ZWorkers::threads_do(ThreadClosure* tc) const {
   _workers.threads_do(tc);
 }
 
-void ZWorkers::print_threads_on(outputStream* st) const {
-  _workers.print_worker_threads_on(st);
+ZLock* ZWorkers::resizing_lock() {
+  return &_resize_lock;
+}
+
+void ZWorkers::request_resize_workers(uint nworkers) {
+  assert(nworkers != 0, "Never ask for zero workers");
+
+  ZLocker<ZLock> locker(&_resize_lock);
+
+  if (_requested_nworkers == nworkers) {
+    // Already requested
+    return;
+  }
+
+  if (_workers.active_workers() == nworkers) {
+    // Already the right amount of threads
+    return;
+  }
+
+  log_info(gc, task)("Adjusting Workers for %s Generation: %u -> %u",
+                     _generation_name, _workers.active_workers(), nworkers);
+
+  _requested_nworkers = nworkers;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,8 @@
 
 package sun.nio.fs;
 
-import java.nio.file.*;
-import java.io.IOException;
-import java.util.*;
 import java.util.regex.Pattern;
+import sun.security.action.GetPropertyAction;
 
 import static sun.nio.fs.MacOSXNativeDispatcher.*;
 
@@ -38,8 +36,24 @@ import static sun.nio.fs.MacOSXNativeDispatcher.*;
 
 class MacOSXFileSystem extends BsdFileSystem {
 
+    private static final String PROPERTY_NORMALIZE_FILE_PATHS =
+        "jdk.nio.path.useNormalizationFormD";
+
+    private static final boolean NORMALIZE_FILE_PATHS;
+
+    static {
+        final String name = PROPERTY_NORMALIZE_FILE_PATHS;
+        String value = GetPropertyAction.privilegedGetProperty(name);
+        NORMALIZE_FILE_PATHS = (value != null)
+            && ("".equals(value) || Boolean.parseBoolean(value));
+    }
+
     MacOSXFileSystem(UnixFileSystemProvider provider, String dir) {
         super(provider, dir);
+    }
+
+    boolean isCaseInsensitiveAndPreserving() {
+        return true;
     }
 
     // match in unicode canon_eq
@@ -47,19 +61,27 @@ class MacOSXFileSystem extends BsdFileSystem {
         return Pattern.compile(expr, Pattern.CANON_EQ) ;
     }
 
-    char[] normalizeNativePath(char[] path) {
-        for (char c : path) {
-            if (c > 0x80)
-                return normalizepath(path, kCFStringNormalizationFormD);
+    @Override
+    String normalizeNativePath(String path) {
+        if (NORMALIZE_FILE_PATHS) {
+            for (int i = 0; i < path.length(); i++) {
+                char c = path.charAt(i);
+                if (c > 0x80)
+                    return new String(normalizepath(path.toCharArray(),
+                                  kCFStringNormalizationFormD));
+            }
         }
         return path;
     }
 
+    @Override
     String normalizeJavaPath(String path) {
-        for (int i = 0; i < path.length(); i++) {
-            if (path.charAt(i) > 0x80)
-                return new String(normalizepath(path.toCharArray(),
-                                  kCFStringNormalizationFormC));
+        if (NORMALIZE_FILE_PATHS) {
+            for (int i = 0; i < path.length(); i++) {
+                if (path.charAt(i) > 0x80)
+                    return new String(normalizepath(path.toCharArray(),
+                                      kCFStringNormalizationFormC));
+            }
         }
         return path;
     }

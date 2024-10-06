@@ -42,42 +42,47 @@ public class bug4692443 {
     public static PassedListener pass;
     public static FailedListener fail;
     public static volatile Boolean passed;
+    public static JFrame mainFrame;
 
     public static void main(String args[]) throws Throwable {
+        try {
+            fail = new FailedListener();
+            pass = new PassedListener();
+            passed = false;
+            Robot robo = new Robot();
+            robo.setAutoDelay(100);
 
-        fail = new FailedListener();
-        pass = new PassedListener();
-        passed = false;
-        Robot robo = new Robot();
+            SwingUtilities.invokeAndWait(new Runnable() {
+                public void run() {
+                    createAndShowGUI();
+                }
+            });
 
-        SwingUtilities.invokeAndWait(new Runnable() {
-            public void run() {
-                createAndShowGUI();
+            robo.waitForIdle();
+            robo.delay(1000);
+
+            int altKey = java.awt.event.KeyEvent.VK_ALT;
+            Util.hitMnemonics(robo, KeyEvent.VK_F); // Enter File menu
+            robo.keyPress(KeyEvent.VK_S);  // Enter submenu
+            robo.keyRelease(KeyEvent.VK_S);
+            robo.keyPress(KeyEvent.VK_O); // Launch "One" action
+            robo.keyRelease(KeyEvent.VK_O);
+            robo.keyPress(KeyEvent.VK_M); // Launch "One" action
+            robo.keyRelease(KeyEvent.VK_M);
+
+            robo.waitForIdle();
+
+            if (!passed) {
+                throw new RuntimeException("Test failed.");
             }
-        });
-
-        robo.waitForIdle();
-
-        int altKey = java.awt.event.KeyEvent.VK_ALT;
-        robo.setAutoDelay(100);
-        Util.hitMnemonics(robo, KeyEvent.VK_F); // Enter File menu
-        robo.keyPress(KeyEvent.VK_S);  // Enter submenu
-        robo.keyRelease(KeyEvent.VK_S);
-        robo.keyPress(KeyEvent.VK_O); // Launch "One" action
-        robo.keyRelease(KeyEvent.VK_O);
-        robo.keyPress(KeyEvent.VK_M); // Launch "One" action
-        robo.keyRelease(KeyEvent.VK_M);
-
-        robo.waitForIdle();
-
-        if (!passed) {
-            throw new RuntimeException("Test failed.");
+        } finally {
+             if (mainFrame != null) SwingUtilities.invokeAndWait(() -> mainFrame.dispose());
         }
-
     }
 
+
     private static void createAndShowGUI() {
-        JFrame mainFrame = new JFrame("Bug 4692443");
+        mainFrame = new JFrame("Bug 4692443");
         JMenuBar mbar = new JMenuBar();
         JMenu menu = new JMenu("File");
         menu.setMnemonic('F');
@@ -106,7 +111,7 @@ public class bug4692443 {
         mainFrame.setJMenuBar(mbar);
 
         mainFrame.setSize(200, 200);
-        mainFrame.setLocation(200, 200);
+        mainFrame.setLocationRelativeTo(null);
         mainFrame.setVisible(true);
         mainFrame.toFront();
     }

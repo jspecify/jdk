@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,22 +24,22 @@
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import jdk.test.lib.apps.LingeredApp;
-import jdk.testlibrary.Utils;
-import jdk.test.lib.Platform;
+import jdk.test.lib.SA.SATestUtils;
+import jdk.test.lib.Utils;
 
 /**
  * @test
  * @bug 8042397
  * @summary Unit test for jmap utility test heap configuration reader
  *
- * @requires vm.hasSAandCanAttach
+ * @requires vm.hasSA
  * @library /test/lib
- * @library /lib/testlibrary
  * @modules java.management
  *          jdk.hotspot.agent/sun.jvm.hotspot
  *
@@ -54,14 +54,11 @@ public class JMapHeapConfigTest {
         "MaxHeapSize",
         "NewSize",
         "MaxNewSize",
-        "OldSize",
         "NewRatio",
         "SurvivorRatio",
         "MetaspaceSize",
         "CompressedClassSpaceSize",
-        "G1HeapRegionSize"};
-
-    // ignoring MaxMetaspaceSize
+        "MaxMetaspaceSize"};
 
     static final String desiredMaxHeapSize = "-Xmx128m";
 
@@ -119,6 +116,7 @@ public class JMapHeapConfigTest {
 
     public static void main(String[] args) throws Exception {
         System.out.println("Starting JMapHeapConfigTest");
+        SATestUtils.skipIfCannotAttach(); // throws SkippedException if attach not expected to work.
 
         if (!LingeredApp.isLastModifiedWorking()) {
             // Exact behaviour of the test depends to operating system and the test nature,
@@ -127,7 +125,7 @@ public class JMapHeapConfigTest {
         }
 
         boolean mx_found = false;
-        List<String> jvmOptions = Utils.getVmOptions();
+        String[] jvmOptions = Utils.getTestJavaOpts();
         for (String option : jvmOptions) {
             if (option.startsWith("-Xmx")) {
                System.out.println("INFO: maximum heap size set by JTREG as " + option);
@@ -138,7 +136,7 @@ public class JMapHeapConfigTest {
 
         // Forward vm options to LingeredApp
         ArrayList<String> cmd = new ArrayList();
-        cmd.addAll(Utils.getVmOptions());
+        Collections.addAll(cmd, Utils.getTestJavaOpts());
         if (!mx_found) {
             cmd.add(desiredMaxHeapSize);
             System.out.println("INFO: maximum heap size set explicitly as " + desiredMaxHeapSize);
@@ -146,9 +144,14 @@ public class JMapHeapConfigTest {
         cmd.add("-XX:+PrintFlagsFinal");
 
         TmtoolTestScenario tmt = TmtoolTestScenario.create("jmap", "--heap");
-        int exitcode = tmt.launch(cmd);
+        int exitcode = tmt.launch(cmd.toArray(new String[0]));
         if (exitcode != 0) {
             throw new RuntimeException("Test FAILED jmap exits with non zero exit code " + exitcode);
+        }
+
+        System.out.println("Jmap Output:");
+        for (String line : tmt.getToolOutput()) {
+            System.out.println(line);
         }
 
         Map<String,String> parsedJmapOutput = parseJMapOutput(tmt.getToolOutput());

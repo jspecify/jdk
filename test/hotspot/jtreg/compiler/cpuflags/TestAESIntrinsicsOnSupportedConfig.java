@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,8 @@
  * @modules java.base/jdk.internal.misc
  *          java.management
  * @requires vm.cpu.features ~= ".*aes.*" & !vm.graal.enabled
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:.
  *                   -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI -Xbatch
@@ -41,7 +40,7 @@ package compiler.cpuflags;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.Platform;
 import jdk.test.lib.process.ProcessTools;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 import static jdk.test.lib.cli.CommandLineOptionTest.*;
 
 public class TestAESIntrinsicsOnSupportedConfig extends AESIntrinsicsBase {
@@ -49,10 +48,8 @@ public class TestAESIntrinsicsOnSupportedConfig extends AESIntrinsicsBase {
     protected void runTestCases() throws Throwable {
         testUseAES();
         testUseAESUseSSE2();
-        testUseAESUseVIS2();
         testNoUseAES();
         testNoUseAESUseSSE2();
-        testNoUseAESUseVIS2();
         testNoUseAESIntrinsic();
     }
 
@@ -75,7 +72,7 @@ public class TestAESIntrinsicsOnSupportedConfig extends AESIntrinsicsBase {
      * @throws Throwable
      */
     private void testUseAES() throws Throwable {
-        OutputAnalyzer outputAnalyzer = ProcessTools.executeTestJvm(
+        OutputAnalyzer outputAnalyzer = ProcessTools.executeTestJava(
                 prepareArguments(prepareBooleanFlag(AESIntrinsicsBase
                         .USE_AES, true)));
         final String errorMessage = "Case testUseAES failed";
@@ -106,7 +103,7 @@ public class TestAESIntrinsicsOnSupportedConfig extends AESIntrinsicsBase {
      */
     private void testUseAESUseSSE2() throws Throwable {
         if (Platform.isX86() || Platform.isX64()) {
-            OutputAnalyzer outputAnalyzer = ProcessTools.executeTestJvm(
+            OutputAnalyzer outputAnalyzer = ProcessTools.executeTestJava(
                     prepareArguments(prepareBooleanFlag(AESIntrinsicsBase
                                     .USE_AES_INTRINSICS, true),
                             prepareNumericFlag(AESIntrinsicsBase.USE_SSE, 2)));
@@ -135,7 +132,7 @@ public class TestAESIntrinsicsOnSupportedConfig extends AESIntrinsicsBase {
      */
     private void testNoUseAESUseSSE2() throws Throwable {
         if (Platform.isX86() || Platform.isX64()) {
-            OutputAnalyzer outputAnalyzer = ProcessTools.executeTestJvm(
+            OutputAnalyzer outputAnalyzer = ProcessTools.executeTestJava(
                     prepareArguments(prepareBooleanFlag(AESIntrinsicsBase
                                     .USE_AES, false),
                             prepareNumericFlag(AESIntrinsicsBase.USE_SSE, 2)));
@@ -154,65 +151,6 @@ public class TestAESIntrinsicsOnSupportedConfig extends AESIntrinsicsBase {
 
     /**
      * Test checks following situation: <br/>
-     * UseAES flag is set to true, UseVIS flag is set to 2,
-     * Platform should support UseVIS (sparc) <br/>
-     * TestAESMain is executed <br/>
-     * Expected result: UseAESIntrinsics flag is set to false <br/>
-     * Output shouldn't contain intrinsics usage <br/>
-     *
-     * @throws Throwable
-     */
-    private void testUseAESUseVIS2() throws Throwable {
-        if (Platform.isSparc()) {
-            OutputAnalyzer outputAnalyzer = ProcessTools.executeTestJvm(
-                    prepareArguments(prepareBooleanFlag(AESIntrinsicsBase
-                                    .USE_AES_INTRINSICS, true),
-                            prepareNumericFlag(AESIntrinsicsBase.USE_VIS, 2)));
-            final String errorMessage = "Case testUseAESUseVIS2 failed";
-            verifyOutput(null, new String[]{AESIntrinsicsBase.CIPHER_INTRINSIC,
-                            AESIntrinsicsBase.AES_INTRINSIC},
-                    errorMessage, outputAnalyzer);
-            verifyOptionValue(AESIntrinsicsBase.USE_AES, "true", errorMessage,
-                    outputAnalyzer);
-            verifyOptionValue(AESIntrinsicsBase.USE_AES_INTRINSICS, "false",
-                    errorMessage, outputAnalyzer);
-            verifyOptionValue(AESIntrinsicsBase.USE_VIS, "2", errorMessage,
-                    outputAnalyzer);
-        }
-    }
-
-
-    /**
-     * Test checks following situation: <br/>
-     * UseAES flag is set to false, UseVIS flag is set to 2,
-     * Platform should support UseVIS (sparc) <br/>
-     * TestAESMain is executed <br/>
-     * Expected result: UseAESIntrinsics flag is set to false <br/>
-     * Output shouldn't contain intrinsics usage <br/>
-     *
-     * @throws Throwable
-     */
-    private void testNoUseAESUseVIS2() throws Throwable {
-        if (Platform.isSparc()) {
-            OutputAnalyzer outputAnalyzer = ProcessTools.executeTestJvm(
-                    prepareArguments(prepareBooleanFlag(AESIntrinsicsBase
-                                    .USE_AES, false),
-                            prepareNumericFlag(AESIntrinsicsBase.USE_VIS, 2)));
-            final String errorMessage = "Case testNoUseAESUseVIS2 failed";
-            verifyOutput(null, new String[]{AESIntrinsicsBase.CIPHER_INTRINSIC,
-                            AESIntrinsicsBase.AES_INTRINSIC},
-                    errorMessage, outputAnalyzer);
-            verifyOptionValue(AESIntrinsicsBase.USE_AES, "false", errorMessage,
-                    outputAnalyzer);
-            verifyOptionValue(AESIntrinsicsBase.USE_AES_INTRINSICS, "false",
-                    errorMessage, outputAnalyzer);
-            verifyOptionValue(AESIntrinsicsBase.USE_VIS, "2", errorMessage,
-                    outputAnalyzer);
-        }
-    }
-
-    /**
-     * Test checks following situation: <br/>
      * UseAES flag is set to false, TestAESMain is executed <br/>
      * Expected result: UseAESIntrinsics flag is set to false <br/>
      * Output shouldn't contain intrinsics usage <br/>
@@ -220,7 +158,7 @@ public class TestAESIntrinsicsOnSupportedConfig extends AESIntrinsicsBase {
      * @throws Throwable
      */
     private void testNoUseAES() throws Throwable {
-        OutputAnalyzer outputAnalyzer = ProcessTools.executeTestJvm(
+        OutputAnalyzer outputAnalyzer = ProcessTools.executeTestJava(
                 prepareArguments(prepareBooleanFlag(AESIntrinsicsBase
                         .USE_AES, false)));
         final String errorMessage = "Case testNoUseAES failed";
@@ -242,7 +180,7 @@ public class TestAESIntrinsicsOnSupportedConfig extends AESIntrinsicsBase {
      * @throws Throwable
      */
     private void testNoUseAESIntrinsic() throws Throwable {
-        OutputAnalyzer outputAnalyzer = ProcessTools.executeTestJvm(
+        OutputAnalyzer outputAnalyzer = ProcessTools.executeTestJava(
                 prepareArguments(prepareBooleanFlag(AESIntrinsicsBase
                         .USE_AES_INTRINSICS, false)));
         final String errorMessage = "Case testNoUseAESIntrinsic failed";

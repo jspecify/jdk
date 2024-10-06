@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 /*
  * @test
  * @summary Test writeable VM Options with ranges.
+ * @requires vm.flagless
  * @library /test/lib /runtime/CommandLine/OptionsValidation/common
  * @modules java.base/jdk.internal.misc
  *          jdk.attach/sun.tools.attach
@@ -38,12 +39,28 @@ import optionsvalidation.JVMOptionsUtils;
 
 public class TestOptionsWithRangesDynamic {
 
+    private static List<JVMOption> allWriteableOptions;
+
+    private static void excludeTestRange(String optionName) {
+        for (JVMOption option: allWriteableOptions) {
+            if (option.getName().equals(optionName)) {
+                option.excludeTestMinRange();
+                option.excludeTestMaxRange();
+                break;
+            }
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         int failedTests;
-        List<JVMOption> allWriteableOptions;
 
         /* Get only writeable options */
         allWriteableOptions = JVMOptionsUtils.getOptionsWithRange(origin -> (origin.contains("manageable") || origin.contains("rw")));
+
+        /*
+         * Exclude SoftMaxHeapSize as its valid range is only known at runtime.
+         */
+        excludeTestRange("SoftMaxHeapSize");
 
         Asserts.assertGT(allWriteableOptions.size(), 0, "Options with ranges not found!");
 

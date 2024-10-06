@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -99,7 +99,6 @@ jfieldID AwtFrame::handleID;
 
 jfieldID AwtFrame::undecoratedID;
 jmethodID AwtFrame::getExtendedStateMID;
-jmethodID AwtFrame::setExtendedStateMID;
 
 jmethodID AwtFrame::activateEmbeddingTopLevelMID;
 jfieldID AwtFrame::isEmbeddedInIEID;
@@ -329,17 +328,13 @@ AwtFrame* AwtFrame::Create(jobject self, jobject parent)
                 frame->CreateHWnd(env, L"",
                                   style,
                                   exStyle,
-                                  0, 0, 0, 0,
+                                  x, y, width, height,
                                   hwndParent,
                                   NULL,
                                   ::GetSysColor(COLOR_WINDOWTEXT),
                                   ::GetSysColor(COLOR_WINDOWFRAME),
                                   self);
-                /*
-                 * Reshape here instead of during create, so that a
-                 * WM_NCCALCSIZE is sent.
-                 */
-                frame->Reshape(x, y, width, height);
+                frame->RecalcNonClient();
             }
         }
     } catch (...) {
@@ -656,31 +651,38 @@ MsgRouting AwtFrame::WmNcMouseDown(WPARAM hitTest, int x, int y, int button) {
 
 // Override AwtWindow::Reshape() to handle minimized/maximized
 // frames (see 6525850, 4065534)
-void AwtFrame::Reshape(int x, int y, int width, int height)
+void AwtFrame::Reshape(int x, int y, int w, int h)
 {
     if (isIconic()) {
     // normal AwtComponent::Reshape will not work for iconified windows so...
+        POINT pt = {x + w / 2, y + h / 2};
+        Devices::InstanceAccess devices;
+        HMONITOR monitor = MonitorFromPoint(pt, MONITOR_DEFAULTTONEAREST);
+        int screen = AwtWin32GraphicsDevice::GetScreenFromHMONITOR(monitor);
+        AwtWin32GraphicsDevice *device = devices->GetDevice(screen);
+        // Try to set the correct size and jump to the correct location, even if
+        // it is on the different monitor. Note that for the "size" we use the
+        // current monitor, so the WM_DPICHANGED will adjust it for the "target"
+        // monitor.
+        MONITORINFO *miInfo = AwtWin32GraphicsDevice::GetMonitorInfo(screen);
+        x = device == NULL ? x : device->ScaleUpAbsX(x);
+        y = device == NULL ? y : device->ScaleUpAbsY(y);
+        w = ScaleUpX(w);
+        h = ScaleUpY(h);
+        // SetWindowPlacement takes workspace coordinates, but if taskbar is at
+        // top/left of screen, workspace coords != screen coords, so offset by
+        // workspace origin
+        x = x - (miInfo->rcWork.left - miInfo->rcMonitor.left);
+        y = y - (miInfo->rcWork.top - miInfo->rcMonitor.top);
         WINDOWPLACEMENT wp;
-        POINT       ptMinPosition = {x,y};
-        POINT       ptMaxPosition = {0,0};
-        RECT        rcNormalPosition = {x,y,x+width,y+height};
-        RECT        rcWorkspace;
-        HWND        hWndDesktop = GetDesktopWindow();
-        HWND        hWndSelf = GetHWnd();
-
-        // SetWindowPlacement takes workspace coordinates, but
-        // if taskbar is at top of screen, workspace coords !=
-        // screen coords, so offset by workspace origin
-        VERIFY(::SystemParametersInfo(SPI_GETWORKAREA, 0, (PVOID)&rcWorkspace, 0));
-        ::OffsetRect(&rcNormalPosition, -rcWorkspace.left, -rcWorkspace.top);
-
+        ::ZeroMemory(&wp, sizeof(WINDOWPLACEMENT));
         // set the window size for when it is not-iconified
         wp.length = sizeof(wp);
         wp.flags = WPF_SETMINPOSITION;
         wp.showCmd = IsVisible() ? SW_SHOWMINIMIZED : SW_HIDE;
-        wp.ptMinPosition = ptMinPosition;
-        wp.ptMaxPosition = ptMaxPosition;
-        wp.rcNormalPosition = rcNormalPosition;
+        wp.ptMinPosition = {x, y};
+        wp.ptMaxPosition = {0, 0};
+        wp.rcNormalPosition = {x, y, x + w, y + h};
 
         // If the call is not guarded with ignoreWmSize,
         // a regression for bug 4851435 appears.
@@ -688,7 +690,7 @@ void AwtFrame::Reshape(int x, int y, int width, int height)
         // changing the iconified state of the frame
         // while calling the Frame.setBounds() method.
         m_ignoreWmSize = TRUE;
-        ::SetWindowPlacement(hWndSelf, &wp);
+        ::SetWindowPlacement(GetHWnd(), &wp);
         m_ignoreWmSize = FALSE;
 
         return;
@@ -699,13 +701,16 @@ void AwtFrame::Reshape(int x, int y, int width, int height)
     // maximized state bit (matches Motif behaviour)
     // (calling ShowWindow(SW_RESTORE) would fire an
     //  activation event which we don't want)
-        LONG    style = GetStyle();
-        DASSERT(style & WS_MAXIMIZE);
-        style ^= WS_MAXIMIZE;
-        SetStyle(style);
+        HWND hWnd = GetHWnd();
+        if (hWnd != NULL && ::IsWindowVisible(hWnd)) {
+            LONG style = GetStyle();
+            DASSERT(style & WS_MAXIMIZE);
+            style ^= WS_MAXIMIZE;
+            SetStyle(style);
+        }
     }
 
-    AwtWindow::Reshape(x, y, width, height);
+    AwtWindow::Reshape(x, y, w, h);
 }
 
 
@@ -811,13 +816,6 @@ AwtFrame::Show()
 }
 
 void
-AwtFrame::SendWindowStateEvent(int oldState, int newState)
-{
-    SendWindowEvent(java_awt_event_WindowEvent_WINDOW_STATE_CHANGED,
-                    NULL, oldState, newState);
-}
-
-void
 AwtFrame::ClearMaximizedBounds()
 {
     m_maxBoundsSet = FALSE;
@@ -894,6 +892,21 @@ MsgRouting AwtFrame::WmGetMinMaxInfo(LPMINMAXINFO lpmmi)
     return mrConsume;
 }
 
+MsgRouting AwtFrame::WmWindowPosChanging(LPARAM windowPos) {
+    if (::IsZoomed(GetHWnd()) && m_maxBoundsSet) {
+        // Limits the size of the maximized window, effectively cuts the
+        // adjustments added by the window manager
+        WINDOWPOS *wp = (WINDOWPOS *) windowPos;
+        if (m_maxSize.x < java_lang_Integer_MAX_VALUE && wp->cx > m_maxSize.x) {
+            wp->cx = m_maxSize.x;
+        }
+        if (m_maxSize.y < java_lang_Integer_MAX_VALUE && wp->cy > m_maxSize.y) {
+            wp->cy = m_maxSize.y;
+        }
+    }
+    return AwtWindow::WmWindowPosChanging(windowPos);
+}
+
 MsgRouting AwtFrame::WmSize(UINT type, int w, int h)
 {
     currentWmSizeState = type;
@@ -955,24 +968,7 @@ MsgRouting AwtFrame::WmSize(UINT type, int w, int h)
 
     jint changed = oldState ^ newState;
     if (changed != 0) {
-        DTRACE_PRINTLN2("AwtFrame::WmSize: reporting state change %x -> %x",
-                oldState, newState);
-
-        // sync target with peer
-        JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
-        env->CallVoidMethod(GetPeer(env), AwtFrame::setExtendedStateMID, newState);
-
-        // report (de)iconification to old clients
-        if (changed & java_awt_Frame_ICONIFIED) {
-            if (newState & java_awt_Frame_ICONIFIED) {
-                SendWindowEvent(java_awt_event_WindowEvent_WINDOW_ICONIFIED);
-            } else {
-                SendWindowEvent(java_awt_event_WindowEvent_WINDOW_DEICONIFIED);
-            }
-        }
-
-        // New (since 1.4) state change event
-        SendWindowStateEvent(oldState, newState);
+        NotifyWindowStateChanged(oldState, newState);
     }
 
     // If window is in iconic state, do not send COMPONENT_RESIZED event
@@ -1179,7 +1175,7 @@ MsgRouting AwtFrame::WmMeasureItem(UINT ctrlId, MEASUREITEMSTRUCT& measureInfo)
 MsgRouting AwtFrame::WmGetIcon(WPARAM iconType, LRESULT& retVal)
 {
     //Workaround windows bug:
-    //when reseting from specific icon to class icon
+    //when resetting from specific icon to class icon
     //taskbar is not updated
     if (iconType <= 2 /*ICON_SMALL2*/) {
         retVal = (LRESULT)GetEffectiveIcon(iconType);
@@ -1192,7 +1188,7 @@ MsgRouting AwtFrame::WmGetIcon(WPARAM iconType, LRESULT& retVal)
 void AwtFrame::DoUpdateIcon()
 {
     //Workaround windows bug:
-    //when reseting from specific icon to class icon
+    //when resetting from specific icon to class icon
     //taskbar is not updated
     HICON hIcon = GetEffectiveIcon(ICON_BIG);
     HICON hIconSm = GetEffectiveIcon(ICON_SMALL);
@@ -1268,7 +1264,7 @@ LRESULT AwtFrame::WinThreadExecProc(ExecuteArgs * args)
         }
 
         default:
-            AwtWindow::WinThreadExecProc(args);
+            DASSERT(FALSE);
             break;
     }
 
@@ -1344,15 +1340,27 @@ void AwtFrame::_SetState(void *param)
 {
     JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
 
-    SetStateStruct *sss = (SetStateStruct *)param;
+    SetStateStruct *sss = static_cast<SetStateStruct *>(param);
     jobject self = sss->frame;
     jint state = sss->state;
 
     AwtFrame *f = NULL;
 
-    PDATA pData;
-    JNI_CHECK_PEER_GOTO(self, ret);
-    f = (AwtFrame *)pData;
+    if (self == NULL) {
+        env->ExceptionClear();
+        JNU_ThrowNullPointerException(env, "self");
+        delete sss;
+        return;
+    } else {
+        f = (AwtFrame *)JNI_GET_PDATA(self);
+        if (f == NULL) {
+            THROW_NULL_PDATA_IF_NOT_DESTROYED(self);
+            env->DeleteGlobalRef(self);
+            delete sss;
+            return;
+        }
+    }
+
     HWND hwnd = f->GetHWnd();
     if (::IsWindow(hwnd))
     {
@@ -1409,7 +1417,7 @@ void AwtFrame::_SetState(void *param)
             f->setZoomed(zoom);
         }
     }
-ret:
+
     env->DeleteGlobalRef(self);
 
     delete sss;
@@ -1573,21 +1581,59 @@ void AwtFrame::_NotifyModalBlocked(void *param)
 {
     JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
 
-    NotifyModalBlockedStruct *nmbs = (NotifyModalBlockedStruct *)param;
+    NotifyModalBlockedStruct *nmbs = static_cast<NotifyModalBlockedStruct *>(param);
     jobject self = nmbs->frame;
     jobject peer = nmbs->peer;
     jobject blockerPeer = nmbs->blockerPeer;
     jboolean blocked = nmbs->blocked;
 
-    PDATA pData;
+    AwtFrame *f = NULL;
 
-    JNI_CHECK_PEER_GOTO(peer, ret);
-    AwtFrame *f = (AwtFrame *)pData;
+    if (peer == NULL) {
+        env->ExceptionClear();
+        JNU_ThrowNullPointerException(env, "peer");
+        env->DeleteGlobalRef(self);
+        env->DeleteGlobalRef(blockerPeer);
+
+        delete nmbs;
+        return;
+    } else {
+        f = (AwtFrame *)JNI_GET_PDATA(peer);
+        if (f == NULL) {
+            THROW_NULL_PDATA_IF_NOT_DESTROYED(peer);
+            env->DeleteGlobalRef(self);
+            env->DeleteGlobalRef(peer);
+            env->DeleteGlobalRef(blockerPeer);
+
+            delete nmbs;
+            return;
+        }
+    }
 
     // dialog here may be NULL, for example, if the blocker is a native dialog
     // however, we need to install/unistall modal hooks anyway
-    JNI_CHECK_PEER_GOTO(blockerPeer, ret);
-    AwtDialog *d = (AwtDialog *)pData;
+    AwtDialog *d = NULL;
+
+    if (blockerPeer == NULL) {
+        env->ExceptionClear();
+        JNU_ThrowNullPointerException(env, "blockerPeer");
+        env->DeleteGlobalRef(self);
+        env->DeleteGlobalRef(peer);
+
+        delete nmbs;
+        return;
+    } else {
+        d = (AwtDialog *)JNI_GET_PDATA(blockerPeer);
+        if (d == NULL) {
+            THROW_NULL_PDATA_IF_NOT_DESTROYED(blockerPeer);
+            env->DeleteGlobalRef(self);
+            env->DeleteGlobalRef(peer);
+            env->DeleteGlobalRef(blockerPeer);
+
+            delete nmbs;
+            return;
+        }
+    }
 
     if ((f != NULL) && ::IsWindow(f->GetHWnd()))
     {
@@ -1638,7 +1684,7 @@ void AwtFrame::_NotifyModalBlocked(void *param)
             }
         }
     }
-ret:
+
     env->DeleteGlobalRef(self);
     env->DeleteGlobalRef(peer);
     env->DeleteGlobalRef(blockerPeer);
@@ -1677,10 +1723,6 @@ JNIEXPORT void JNICALL
 Java_sun_awt_windows_WFramePeer_initIDs(JNIEnv *env, jclass cls)
 {
     TRY;
-
-    AwtFrame::setExtendedStateMID = env->GetMethodID(cls, "setExtendedState", "(I)V");
-    DASSERT(AwtFrame::setExtendedStateMID);
-    CHECK_NULL(AwtFrame::setExtendedStateMID);
 
     AwtFrame::getExtendedStateMID = env->GetMethodID(cls, "getExtendedState", "()I");
     DASSERT(AwtFrame::getExtendedStateMID);
@@ -1791,7 +1833,7 @@ Java_sun_awt_windows_WFramePeer_setMenuBar0(JNIEnv *env, jobject self,
     smbs->menubar = env->NewGlobalRef(mbPeer);
 
     AwtToolkit::GetInstance().SyncCall(AwtFrame::_SetMenuBar, smbs);
-    // global refs ans smbs are deleted in _SetMenuBar()
+    // global refs and smbs are deleted in _SetMenuBar()
 
     CATCH_BAD_ALLOC;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,8 +37,8 @@ public class StreamMonitor implements Runnable {
 
   private String  waitString;
   private boolean waitStringSeen;
-  private List    triggers = new LinkedList();
-  private List    triggersSeen = new LinkedList();
+  private List<Trigger> triggers = new LinkedList<>();
+  private List<Integer> triggersSeen = new LinkedList<>();
 
   private String  prefixString;
   private boolean printContents;
@@ -63,7 +63,7 @@ public class StreamMonitor implements Runnable {
 
     boolean matches(String str) {
       for (int i = 0; i < triggerStrings.length; i++) {
-        if (str.indexOf(triggerStrings[i]) == -1) {
+        if (!str.contains(triggerStrings[i])) {
           return false;
         }
       }
@@ -145,9 +145,9 @@ public class StreamMonitor implements Runnable {
       values of the triggers seen since the last call to
       getTriggersSeen. If there were no triggers seen, returns an
       empty list; does not return null. */
-  public synchronized List getTriggersSeen() {
-    List tmpList = triggersSeen;
-    triggersSeen = new LinkedList();
+  public synchronized List<Integer> getTriggersSeen() {
+    List<Integer> tmpList = triggersSeen;
+    triggersSeen = new LinkedList<>();
     return tmpList;
   }
 
@@ -198,7 +198,7 @@ public class StreamMonitor implements Runnable {
 
             // Check wait string
             if ((waitString != null) &&
-                (str.indexOf(waitString) != -1)) {
+                str.contains(waitString)) {
               waitStringSeen = true;
               notifyAll();
             }
@@ -207,7 +207,7 @@ public class StreamMonitor implements Runnable {
             for (Iterator iter = triggers.iterator(); iter.hasNext(); ) {
               Trigger trigger = (Trigger) iter.next();
               if (trigger.matches(str)) {
-                triggersSeen.add(new Integer(trigger.triggerVal));
+                triggersSeen.add(trigger.triggerVal);
               }
             }
           }

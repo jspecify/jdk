@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,25 +25,26 @@
  * @test
  * @bug      4979486
  * @summary  Make sure tool parses CR line separators properly.
- * @author   jamieh
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestCRLineSeparator
  */
 
 import java.io.*;
 import java.util.*;
 
+import javadoc.tester.JavadocTester;
+
 public class TestCRLineSeparator extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestCRLineSeparator tester = new TestCRLineSeparator();
+        var tester = new TestCRLineSeparator();
         tester.runTests();
     }
 
     @Test
-    void test() throws IOException {
+    public void test() throws IOException {
         initFiles(new File(testSrc), new File("src"), "pkg");
         javadoc("-d", "out",
                 "-sourcepath", "src",

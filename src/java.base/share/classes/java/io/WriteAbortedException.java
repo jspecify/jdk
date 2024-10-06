@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,38 +25,30 @@
 
 package java.io;
 
-import org.jspecify.annotations.Nullable;
-
 /**
  * Signals that one of the ObjectStreamExceptions was thrown during a
  * write operation.  Thrown during a read operation when one of the
  * ObjectStreamExceptions was thrown during a write operation.  The
  * exception that terminated the write can be found in the detail
- * field. The stream is reset to it's initial state and all references
+ * field. The stream is reset to its initial state and all references
  * to objects already deserialized are discarded.
  *
- * <p>As of release 1.4, this exception has been retrofitted to conform to
- * the general purpose exception-chaining mechanism.  The "exception causing
- * the abort" that is provided at construction time and
- * accessed via the public {@link #detail} field is now known as the
- * <i>cause</i>, and may be accessed via the {@link Throwable#getCause()}
- * method, as well as the aforementioned "legacy field."
- *
- * @author  unascribed
  * @since   1.1
  */
 public class WriteAbortedException extends ObjectStreamException {
+    @java.io.Serial
     private static final long serialVersionUID = -3326426625597282442L;
 
     /**
      * Exception that was caught while writing the ObjectStream.
      *
-     * <p>This field predates the general-purpose exception chaining facility.
-     * The {@link Throwable#getCause()} method is now the preferred means of
-     * obtaining this information.
+     * @deprecated This field predates the general-purpose exception
+     * chaining facility.  The {@link Throwable#getCause()} method is
+     * now the preferred means of obtaining this information.
      *
      * @serial
      */
+    @Deprecated(since="17")
     public Exception detail;
 
     /**
@@ -65,6 +57,7 @@ public class WriteAbortedException extends ObjectStreamException {
      * @param s   String describing the exception.
      * @param ex  Exception causing the abort.
      */
+    @SuppressWarnings("this-escape")
     public WriteAbortedException(String s, Exception ex) {
         super(s);
         initCause(null);  // Disallow subsequent initCause
@@ -89,7 +82,8 @@ public class WriteAbortedException extends ObjectStreamException {
      *          which may be null.
      * @since   1.4
      */
-    public @Nullable Throwable getCause() {
+    @Override
+    public Throwable getCause() {
         return detail;
     }
 }

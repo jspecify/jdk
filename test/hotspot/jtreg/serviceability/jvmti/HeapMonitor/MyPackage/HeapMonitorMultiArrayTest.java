@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Google and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -28,6 +29,7 @@ import java.util.List;
 /**
  * @test
  * @summary Verifies the JVMTI Heap Monitor API when allocating a multi-array.
+ * @requires vm.jvmti
  * @build Frame HeapMonitor
  * @compile HeapMonitorMultiArrayTest.java
  * @run main/othervm/native -agentlib:HeapMonitorTest MyPackage.HeapMonitorMultiArrayTest

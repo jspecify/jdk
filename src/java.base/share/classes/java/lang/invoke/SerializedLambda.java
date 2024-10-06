@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 package java.lang.invoke;
 
 import java.io.Serializable;
+import java.io.InvalidObjectException;
+import java.io.ObjectStreamException;
 import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
@@ -55,7 +57,7 @@ import java.util.Objects;
  *
  * <p>The identity of a function object produced by deserializing the serialized
  * form is unpredictable, and therefore identity-sensitive operations (such as
- * reference equality, object locking, and {@code System.identityHashCode()} may
+ * reference equality, object locking, and {@code System.identityHashCode()}) may
  * produce different results in different implementations, or even upon
  * different deserializations in the same implementation.
  *
@@ -63,16 +65,48 @@ import java.util.Objects;
  * @since 1.8
  */
 public final class SerializedLambda implements Serializable {
+    @java.io.Serial
     private static final long serialVersionUID = 8025925345765570181L;
+    /**
+     * The capturing class.
+     */
     private final Class<?> capturingClass;
+    /**
+     * The functional interface class.
+     */
     private final String functionalInterfaceClass;
+    /**
+     * The functional interface method name.
+     */
     private final String functionalInterfaceMethodName;
+    /**
+     * The functional interface method signature.
+     */
     private final String functionalInterfaceMethodSignature;
+    /**
+     * The implementation class.
+     */
     private final String implClass;
+    /**
+     * The implementation method name.
+     */
     private final String implMethodName;
+    /**
+     * The implementation method signature.
+     */
     private final String implMethodSignature;
+    /**
+     * The implementation method kind.
+     */
     private final int implMethodKind;
+    /**
+     * The instantiated method type.
+     */
     private final String instantiatedMethodType;
+    /**
+     * The captured arguments.
+     */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private final Object[] capturedArgs;
 
     /**
@@ -223,8 +257,15 @@ public final class SerializedLambda implements Serializable {
         return capturedArgs[i];
     }
 
-    private Object readResolve() throws ReflectiveOperationException {
+    /**
+     * Resolve a {@code SerializedLambda} to an object.
+     * @return a SerializedLambda
+     * @throws ObjectStreamException if the object is not valid
+     */
+    @java.io.Serial
+    private Object readResolve() throws ObjectStreamException {
         try {
+            @SuppressWarnings("removal")
             Method deserialize = AccessController.doPrivileged(new PrivilegedExceptionAction<>() {
                 @Override
                 public Method run() throws Exception {
@@ -235,13 +276,12 @@ public final class SerializedLambda implements Serializable {
             });
 
             return deserialize.invoke(null, this);
-        }
-        catch (PrivilegedActionException e) {
+        } catch (ReflectiveOperationException roe) {
+            throw new InvalidObjectException("ReflectiveOperationException during deserialization", roe);
+        } catch (PrivilegedActionException e) {
             Exception cause = e.getException();
-            if (cause instanceof ReflectiveOperationException)
-                throw (ReflectiveOperationException) cause;
-            else if (cause instanceof RuntimeException)
-                throw (RuntimeException) cause;
+            if (cause instanceof RuntimeException re)
+                throw re;
             else
                 throw new RuntimeException("Exception in SerializedLambda.readResolve", e);
         }

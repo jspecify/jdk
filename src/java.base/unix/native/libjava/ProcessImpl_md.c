@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,62 +44,143 @@
 #include <signal.h>
 #include <string.h>
 
-#if defined(__solaris__) || defined(_ALLBSD_SOURCE) || defined(_AIX)
 #include <spawn.h>
-#endif
 
 #include "childproc.h"
 
 /*
- * There are 4 possible strategies we might use to "fork":
  *
- * - fork(2).  Very portable and reliable but subject to
- *   failure due to overcommit (see the documentation on
- *   /proc/sys/vm/overcommit_memory in Linux proc(5)).
- *   This is the ancient problem of spurious failure whenever a large
- *   process starts a small subprocess.
+ * When starting a child on Unix, we need to do three things:
+ * - fork off
+ * - in the child process, do some pre-exec work: duping/closing file
+ *   descriptors to set up stdio-redirection, setting environment variables,
+ *   changing paths...
+ * - then exec(2) the target binary
  *
- * - vfork().  Using this is scary because all relevant man pages
- *   contain dire warnings, e.g. Linux vfork(2).  But at least it's
- *   documented in the glibc docs and is standardized by XPG4.
- *   http://www.opengroup.org/onlinepubs/000095399/functions/vfork.html
- *   On Linux, one might think that vfork() would be implemented using
- *   the clone system call with flag CLONE_VFORK, but in fact vfork is
- *   a separate system call (which is a good sign, suggesting that
- *   vfork will continue to be supported at least on Linux).
- *   Another good sign is that glibc implements posix_spawn using
- *   vfork whenever possible.  Note that we cannot use posix_spawn
- *   ourselves because there's no reliable way to close all inherited
- *   file descriptors.
+ * There are three ways to fork off:
  *
- * - clone() with flags CLONE_VM but not CLONE_THREAD.  clone() is
- *   Linux-specific, but this ought to work - at least the glibc
- *   sources contain code to handle different combinations of CLONE_VM
- *   and CLONE_THREAD.  However, when this was implemented, it
- *   appeared to fail on 32-bit i386 (but not 64-bit x86_64) Linux with
- *   the simple program
- *     Runtime.getRuntime().exec("/bin/true").waitFor();
- *   with:
- *     #  Internal Error (os_linux_x86.cpp:683), pid=19940, tid=2934639536
- *     #  Error: pthread_getattr_np failed with errno = 3 (ESRCH)
- *   We believe this is a glibc bug, reported here:
- *     http://sources.redhat.com/bugzilla/show_bug.cgi?id=10311
- *   but the glibc maintainers closed it as WONTFIX.
+ * A) fork(2). Portable and safe (no side effects) but may fail with ENOMEM on
+ *    all Unices when invoked from a VM with a high memory footprint. On Unices
+ *    with strict no-overcommit policy this problem is most visible.
  *
- * - posix_spawn(). While posix_spawn() is a fairly elaborate and
- *   complicated system call, it can't quite do everything that the old
- *   fork()/exec() combination can do, so the only feasible way to do
- *   this, is to use posix_spawn to launch a new helper executable
- *   "jprochelper", which in turn execs the target (after cleaning
- *   up file-descriptors etc.) The end result is the same as before,
- *   a child process linked to the parent in the same way, but it
- *   avoids the problem of duplicating the parent (VM) process
- *   address space temporarily, before launching the target command.
+ *    This is because forking the VM will first create a child process with
+ *    theoretically the same memory footprint as the parent - even if you plan
+ *    to follow up with exec'ing a tiny binary. In reality techniques like
+ *    copy-on-write etc mitigate the problem somewhat but we still run the risk
+ *    of hitting system limits.
  *
- * Based on the above analysis, we are currently using vfork() on
- * Linux and posix_spawn() on other Unix systems.
+ *    For a Linux centric description of this problem, see the documentation on
+ *    /proc/sys/vm/overcommit_memory in Linux proc(5).
+ *
+ * B) vfork(2): Portable and fast but very unsafe. It bypasses the memory
+ *    problems related to fork(2) by starting the child in the memory image of
+ *    the parent. Things that can go wrong include:
+ *    - Programming errors in the child process before the exec(2) call may
+ *      trash memory in the parent process, most commonly the stack of the
+ *      thread invoking vfork.
+ *    - Signals received by the child before the exec(2) call may be at best
+ *      misdirected to the parent, at worst immediately kill child and parent.
+ *
+ *    This is mitigated by very strict rules about what one is allowed to do in
+ *    the child process between vfork(2) and exec(2), which is basically nothing.
+ *    However, we always broke this rule by doing the pre-exec work between
+ *    vfork(2) and exec(2).
+ *
+ *    Also note that vfork(2) has been deprecated by the OpenGroup, presumably
+ *    because of its many dangers.
+ *
+ * C) clone(2): This is a Linux specific call which gives the caller fine
+ *    grained control about how exactly the process fork is executed. It is
+ *    powerful, but Linux-specific.
+ *
+ * Aside from these three possibilities there is a forth option:  posix_spawn(3).
+ * Where fork/vfork/clone all fork off the process and leave pre-exec work and
+ * calling exec(2) to the user, posix_spawn(3) offers the user fork+exec-like
+ * functionality in one package, similar to CreateProcess() on Windows.
+ *
+ * It is not a system call in itself, but usually a wrapper implemented within
+ * the libc in terms of one of (fork|vfork|clone)+exec - so whether or not it
+ * has advantages over calling the naked (fork|vfork|clone) functions depends
+ * on how posix_spawn(3) is implemented.
+ *
+ * Note that when using posix_spawn(3), we exec twice: first a tiny binary called
+ * the jspawnhelper, then in the jspawnhelper we do the pre-exec work and exec a
+ * second time, this time the target binary (similar to the "exec-twice-technique"
+ * described in http://mail.openjdk.org/pipermail/core-libs-dev/2018-September/055333.html).
+ *
+ * This is a JDK-specific implementation detail which just happens to be
+ * implemented for jdk.lang.Process.launchMechanism=POSIX_SPAWN.
+ *
+ * --- Linux-specific ---
+ *
+ * How does glibc implement posix_spawn?
+ * (see: sysdeps/posix/spawni.c for glibc < 2.24,
+ *       sysdeps/unix/sysv/linux/spawni.c for glibc >= 2.24):
+ *
+ * 1) Before glibc 2.4 (released 2006), posix_spawn(3) used just fork(2)/exec(2).
+ *    This would be bad for the JDK since we would risk the known memory issues with
+ *    fork(2). But since this only affects glibc variants which have long been
+ *    phased out by modern distributions, this is irrelevant.
+ *
+ * 2) Between glibc 2.4 and glibc 2.23, posix_spawn uses either fork(2) or
+ *    vfork(2) depending on how exactly the user called posix_spawn(3):
+ *
+ * <quote>
+ *       The child process is created using vfork(2) instead of fork(2) when
+ *       either of the following is true:
+ *
+ *       * the spawn-flags element of the attributes object pointed to by
+ *          attrp contains the GNU-specific flag POSIX_SPAWN_USEVFORK; or
+ *
+ *       * file_actions is NULL and the spawn-flags element of the attributes
+ *          object pointed to by attrp does not contain
+ *          POSIX_SPAWN_SETSIGMASK, POSIX_SPAWN_SETSIGDEF,
+ *          POSIX_SPAWN_SETSCHEDPARAM, POSIX_SPAWN_SETSCHEDULER,
+ *          POSIX_SPAWN_SETPGROUP, or POSIX_SPAWN_RESETIDS.
+ * </quote>
+ *
+ * Due to the way the JDK calls posix_spawn(3), it would therefore call vfork(2).
+ * So we would avoid the fork(2) memory problems. However, there still remains the
+ * risk associated with vfork(2). But it is smaller than were we to call vfork(2)
+ * directly since we use the jspawnhelper, moving all pre-exec work off to after
+ * the first exec, thereby reducing the vulnerable time window.
+ *
+ * 3) Since glibc >= 2.24, glibc uses clone+exec:
+ *
+ *    new_pid = CLONE (__spawni_child, STACK (stack, stack_size), stack_size,
+ *                     CLONE_VM | CLONE_VFORK | SIGCHLD, &args);
+ *
+ * This is even better than (2):
+ *
+ * CLONE_VM means we run in the parent's memory image, as with (2)
+ * CLONE_VFORK means parent waits until we exec, as with (2)
+ *
+ * However, error possibilities are further reduced since:
+ * - posix_spawn(3) passes a separate stack for the child to run on, eliminating
+ *   the danger of trashing the forking thread's stack in the parent process.
+ * - posix_spawn(3) takes care to temporarily block all incoming signals to the
+ *   child process until the first exec(2) has been called,
+ *
+ * TL;DR
+ * Calling posix_spawn(3) for glibc
+ * (2) < 2.24 is not perfect but still better than using plain vfork(2), since
+ *     the chance of an error happening is greatly reduced
+ * (3) >= 2.24 is the best option - portable, fast and as safe as possible.
+ *
+ * ---
+ *
+ * How does muslc implement posix_spawn?
+ *
+ * They always did use the clone (.. CLONE_VM | CLONE_VFORK ...)
+ * technique. So we are safe to use posix_spawn() here regardless of muslc
+ * version.
+ *
+ * </Linux-specific>
+ *
+ *
+ * Based on the above analysis, we are currently defaulting to posix_spawn()
+ * on all Unices including Linux.
  */
-
 
 static void
 setSIGCHLDHandler(JNIEnv *env)
@@ -149,14 +230,7 @@ xmalloc(JNIEnv *env, size_t size)
 static const char*
 defaultPath(void)
 {
-#ifdef __solaris__
-    /* These really are the Solaris defaults! */
-    return (geteuid() == 0 || getuid() == 0) ?
-        "/usr/xpg4/bin:/usr/bin:/opt/SUNWspro/bin:/usr/sbin" :
-        "/usr/xpg4/bin:/usr/bin:/opt/SUNWspro/bin:";
-#else
-    return ":/bin:/usr/bin";    /* glibc */
-#endif
+    return ":/bin:/usr/bin";
 }
 
 static const char*
@@ -226,6 +300,10 @@ Java_java_lang_ProcessImpl_init(JNIEnv *env, jclass clazz)
 #define WTERMSIG(status) ((status)&0x7F)
 #endif
 
+#ifndef VERSION_STRING
+#error VERSION_STRING must be defined
+#endif
+
 static const char *
 getBytes(JNIEnv *env, jbyteArray arr)
 {
@@ -273,6 +351,27 @@ throwIOException(JNIEnv *env, int errnum, const char *defaultDetail)
     free(errmsg);
 }
 
+/**
+ * Throws an IOException with a message composed from the result of waitpid status.
+ */
+static void throwExitCause(JNIEnv *env, int pid, int status) {
+    char ebuf[128];
+    if (WIFEXITED(status)) {
+        snprintf(ebuf, sizeof ebuf,
+            "Failed to exec spawn helper: pid: %d, exit value: %d",
+            pid, WEXITSTATUS(status));
+    } else if (WIFSIGNALED(status)) {
+        snprintf(ebuf, sizeof ebuf,
+            "Failed to exec spawn helper: pid: %d, signal: %d",
+            pid, WTERMSIG(status));
+    } else {
+        snprintf(ebuf, sizeof ebuf,
+            "Failed to exec spawn helper: pid: %d, status: 0x%08x",
+            pid, status);
+    }
+    throwIOException(env, 0, ebuf);
+}
+
 #ifdef DEBUG_PROCESS
 /* Debugging process code is difficult; where to write debug output? */
 static void
@@ -304,10 +403,8 @@ copyPipe(int from[2], int to[2])
  */
 static void arraysize(const char * const *arg, int *nelems, int *nbytes)
 {
-    int i, bytes, count;
+    int bytes, count;
     const char * const *a = arg;
-    char *p;
-    int *q;
     if (arg == 0) {
         *nelems = 0;
         *nbytes = 0;
@@ -349,8 +446,8 @@ static int copystrings(char *buf, int offset, const char * const *arg) {
 __attribute_noinline__
 #endif
 
-/* vfork(2) is deprecated on Solaris */
-#ifndef __solaris__
+/* vfork(2) is deprecated on Darwin */
+#ifndef __APPLE__
 static pid_t
 vforkChild(ChildStuff *c) {
     volatile pid_t resultPid;
@@ -390,23 +487,27 @@ forkChild(ChildStuff *c) {
     return resultPid;
 }
 
-#if defined(__solaris__) || defined(_ALLBSD_SOURCE) || defined(_AIX)
 static pid_t
 spawnChild(JNIEnv *env, jobject process, ChildStuff *c, const char *helperpath) {
     pid_t resultPid;
-    jboolean isCopy;
     int i, offset, rval, bufsize, magic;
-    char *buf, buf1[16];
-    char *hlpargs[2];
+    char *buf, buf1[(3 * 11) + 3]; // "%d:%d:%d\0"
+    char *hlpargs[4];
     SpawnInfo sp;
 
     /* need to tell helper which fd is for receiving the childstuff
      * and which fd to send response back on
      */
-    snprintf(buf1, sizeof(buf1), "%d:%d", c->childenv[0], c->fail[1]);
-    /* put the fd string as argument to the helper cmd */
-    hlpargs[0] = buf1;
-    hlpargs[1] = 0;
+    snprintf(buf1, sizeof(buf1), "%d:%d:%d", c->childenv[0], c->childenv[1], c->fail[1]);
+    /* NULL-terminated argv array.
+     * argv[0] contains path to jspawnhelper, to follow conventions.
+     * argv[1] contains the version string as argument to jspawnhelper
+     * argv[2] contains the fd string as argument to jspawnhelper
+     */
+    hlpargs[0] = (char*)helperpath;
+    hlpargs[1] = VERSION_STRING;
+    hlpargs[2] = buf1;
+    hlpargs[3] = NULL;
 
     /* Following items are sent down the pipe to the helper
      * after it is spawned.
@@ -436,7 +537,7 @@ spawnChild(JNIEnv *env, jobject process, ChildStuff *c, const char *helperpath) 
         if (c->fds[i] != -1) {
             int flags = fcntl(c->fds[i], F_GETFD);
             if (flags & FD_CLOEXEC) {
-                fcntl(c->fds[i], F_SETFD, flags & (~1));
+                fcntl(c->fds[i], F_SETFD, flags & (~FD_CLOEXEC));
             }
         }
     }
@@ -447,6 +548,10 @@ spawnChild(JNIEnv *env, jobject process, ChildStuff *c, const char *helperpath) 
         return -1;
     }
 
+#ifdef DEBUG
+    jtregSimulateCrash(resultPid, 1);
+#endif
+
     /* now the lengths are known, copy the data */
     buf = NEW(char, bufsize);
     if (buf == 0) {
@@ -454,26 +559,49 @@ spawnChild(JNIEnv *env, jobject process, ChildStuff *c, const char *helperpath) 
     }
     offset = copystrings(buf, 0, &c->argv[0]);
     offset = copystrings(buf, offset, &c->envv[0]);
-    memcpy(buf+offset, c->pdir, sp.dirlen);
-    offset += sp.dirlen;
+    if (c->pdir != NULL) {
+        if (sp.dirlen > 0) {
+            memcpy(buf+offset, c->pdir, sp.dirlen);
+            offset += sp.dirlen;
+        }
+    } else {
+        if (sp.dirlen > 0) {
+            free(buf);
+            return -1;
+        }
+    }
     offset = copystrings(buf, offset, parentPathv);
     assert(offset == bufsize);
 
     magic = magicNumber();
 
     /* write the two structs and the data buffer */
-    write(c->childenv[1], (char *)&magic, sizeof(magic)); // magic number first
-    write(c->childenv[1], (char *)c, sizeof(*c));
-    write(c->childenv[1], (char *)&sp, sizeof(sp));
-    write(c->childenv[1], buf, bufsize);
+    if (writeFully(c->childenv[1], (char *)&magic, sizeof(magic)) != sizeof(magic)) { // magic number first
+        free(buf);
+        return -1;
+    }
+#ifdef DEBUG
+    jtregSimulateCrash(resultPid, 2);
+#endif
+    if (writeFully(c->childenv[1], (char *)c, sizeof(*c)) != sizeof(*c) ||
+        writeFully(c->childenv[1], (char *)&sp, sizeof(sp)) != sizeof(sp) ||
+        writeFully(c->childenv[1], buf, bufsize) != bufsize) {
+        free(buf);
+        return -1;
+    }
+    /* We're done. Let jspwanhelper know he can't expect any more data from us. */
+    close(c->childenv[1]);
+    c->childenv[1] = -1;
     free(buf);
+#ifdef DEBUG
+    jtregSimulateCrash(resultPid, 3);
+#endif
 
     /* In this mode an external main() in invoked which calls back into
      * childProcess() in this file, rather than directly
      * via the statement below */
     return resultPid;
 }
-#endif
 
 /*
  * Start a child process running function childProcess.
@@ -482,17 +610,15 @@ spawnChild(JNIEnv *env, jobject process, ChildStuff *c, const char *helperpath) 
 static pid_t
 startChild(JNIEnv *env, jobject process, ChildStuff *c, const char *helperpath) {
     switch (c->mode) {
-/* vfork(2) is deprecated on Solaris */
-#ifndef __solaris__
+/* vfork(2) is deprecated on Darwin*/
+      #ifndef __APPLE__
       case MODE_VFORK:
         return vforkChild(c);
-#endif
+      #endif
       case MODE_FORK:
         return forkChild(c);
-#if defined(__solaris__) || defined(_ALLBSD_SOURCE) || defined(_AIX)
       case MODE_POSIX_SPAWN:
         return spawnChild(env, process, c, helperpath);
-#endif
       default:
         return -1;
     }
@@ -522,6 +648,8 @@ Java_java_lang_ProcessImpl_forkAndExec(JNIEnv *env,
 
     in[0] = in[1] = out[0] = out[1] = err[0] = err[1] = fail[0] = fail[1] = -1;
     childenv[0] = childenv[1] = -1;
+    // Reset errno to protect against bogus error messages
+    errno = 0;
 
     if ((c = NEW(ChildStuff, 1)) == NULL) return -1;
     c->argv = NULL;
@@ -578,6 +706,18 @@ Java_java_lang_ProcessImpl_forkAndExec(JNIEnv *env,
     c->redirectErrorStream = redirectErrorStream;
     c->mode = mode;
 
+    /* In posix_spawn mode, require the child process to signal aliveness
+     * right after it comes up. This is because there are implementations of
+     * posix_spawn() which do not report failed exec()s back to the caller
+     * (e.g. glibc, see JDK-8223777). In those cases, the fork() will have
+     * worked and successfully started the child process, but the exec() will
+     * have failed. There is no way for us to distinguish this from a target
+     * binary just exiting right after start.
+     *
+     * Note that we could do this additional handshake in all modes but for
+     * prudence only do it when it is needed (in posix_spawn mode). */
+    c->sendAlivePing = (mode == MODE_POSIX_SPAWN) ? 1 : 0;
+
     resultPid = startChild(env, process, c, phelperpath);
     assert(resultPid != 0);
 
@@ -596,6 +736,31 @@ Java_java_lang_ProcessImpl_forkAndExec(JNIEnv *env,
         goto Catch;
     }
     close(fail[1]); fail[1] = -1; /* See: WhyCantJohnnyExec  (childproc.c)  */
+
+    /* If we expect the child to ping aliveness, wait for it. */
+    if (c->sendAlivePing) {
+        switch(readFully(fail[0], &errnum, sizeof(errnum))) {
+        case 0: /* First exec failed; */
+            {
+                int tmpStatus = 0;
+                int p = waitpid(resultPid, &tmpStatus, 0);
+                throwExitCause(env, p, tmpStatus);
+                goto Catch;
+            }
+        case sizeof(errnum):
+            if (errnum != CHILD_IS_ALIVE) {
+                /* This can happen if the spawn helper encounters an error
+                 * before or during the handshake with the parent. */
+                throwIOException(env, 0, "Bad code from spawn helper "
+                                         "(Failed to exec spawn helper)");
+                goto Catch;
+            }
+            break;
+        default:
+            throwIOException(env, errno, "Read failed");
+            goto Catch;
+        }
+    }
 
     switch (readFully(fail[0], &errnum, sizeof(errnum))) {
     case 0: break; /* Exec succeeded */
@@ -621,8 +786,12 @@ Java_java_lang_ProcessImpl_forkAndExec(JNIEnv *env,
     /* Always clean up fail and childEnv descriptors */
     closeSafely(fail[0]);
     closeSafely(fail[1]);
-    closeSafely(childenv[0]);
-    closeSafely(childenv[1]);
+    /* We use 'c->childenv' here rather than 'childenv' because 'spawnChild()' might have
+     * already closed 'c->childenv[1]' and signaled this by setting 'c->childenv[1]' to '-1'.
+     * Otherwise 'c->childenv' and 'childenv' are the same because we just copied 'childenv'
+     * to 'c->childenv' (with 'copyPipe()') before calling 'startChild()'. */
+    closeSafely(c->childenv[0]);
+    closeSafely(c->childenv[1]);
 
     releaseBytes(env, helperpath, phelperpath);
     releaseBytes(env, prog,       pprog);
@@ -646,4 +815,3 @@ Java_java_lang_ProcessImpl_forkAndExec(JNIEnv *env,
     closeSafely(err[0]); err[0] = -1;
     goto Finally;
 }
-

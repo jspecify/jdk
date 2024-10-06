@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2014 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_PPC_VM_ORDERACCESS_LINUX_PPC_HPP
-#define OS_CPU_LINUX_PPC_VM_ORDERACCESS_LINUX_PPC_HPP
+#ifndef OS_CPU_LINUX_PPC_ORDERACCESS_LINUX_PPC_HPP
+#define OS_CPU_LINUX_PPC_ORDERACCESS_LINUX_PPC_HPP
 
 // Included in orderAccess.hpp header file.
 
@@ -68,8 +68,6 @@
 #define inlasm_lwsync()   __asm__ __volatile__ ("lwsync" : : : "memory");
 #define inlasm_eieio()    __asm__ __volatile__ ("eieio"  : : : "memory");
 #define inlasm_isync()    __asm__ __volatile__ ("isync"  : : : "memory");
-// Use twi-isync for load_acquire (faster than lwsync).
-#define inlasm_acquire_reg(X) __asm__ __volatile__ ("twi 0,%0,0\n isync\n" : : "r" (X) : "memory");
 
 inline void   OrderAccess::loadload()   { inlasm_lwsync(); }
 inline void   OrderAccess::storestore() { inlasm_lwsync(); }
@@ -79,19 +77,12 @@ inline void   OrderAccess::storeload()  { inlasm_sync();   }
 inline void   OrderAccess::acquire()    { inlasm_lwsync(); }
 inline void   OrderAccess::release()    { inlasm_lwsync(); }
 inline void   OrderAccess::fence()      { inlasm_sync();   }
-
-
-template<size_t byte_size>
-struct OrderAccess::PlatformOrderedLoad<byte_size, X_ACQUIRE>
-{
-  template <typename T>
-  T operator()(const volatile T* p) const { register T t = Atomic::load(p); inlasm_acquire_reg(t); return t; }
-};
+inline void   OrderAccess::cross_modify_fence_impl()
+                                        { inlasm_isync();  }
 
 #undef inlasm_sync
 #undef inlasm_lwsync
 #undef inlasm_eieio
 #undef inlasm_isync
-#undef inlasm_acquire_reg
 
-#endif // OS_CPU_LINUX_PPC_VM_ORDERACCESS_LINUX_PPC_HPP
+#endif // OS_CPU_LINUX_PPC_ORDERACCESS_LINUX_PPC_HPP

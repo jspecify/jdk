@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -130,6 +130,9 @@ void ImageLocation::set_data(u1* data) {
         // Extract kind from header byte.
         u1 kind = attribute_kind(byte);
         assert(kind < ATTRIBUTE_COUNT && "invalid image location attribute");
+        if (kind == ATTRIBUTE_END) {
+            break;
+        }
         // Extract length of data (in bytes).
         u1 n = attribute_length(byte);
         // Read value (most significant first.)
@@ -178,8 +181,8 @@ const char* ImageModuleData::package_to_module(const char* package_name) {
     // retrieve package location
     ImageLocation location;
     bool found = _image_file->find_location(path, location);
+    delete[] path;
     if (!found) {
-        delete[] path;
         return NULL;
     }
 
@@ -209,17 +212,6 @@ const char* ImageModuleData::package_to_module(const char* package_name) {
 ImageFileReaderTable::ImageFileReaderTable() : _count(0), _max(_growth) {
     _table = static_cast<ImageFileReader**>(calloc(_max, sizeof(ImageFileReader*)));
     assert(_table != NULL && "allocation failed");
-}
-
-ImageFileReaderTable::~ImageFileReaderTable() {
-    for (u4 i = 0; i < _count; i++) {
-        ImageFileReader* image = _table[i];
-
-        if (image != NULL) {
-            delete image;
-        }
-    }
-    free(_table);
 }
 
 // Add a new image entry to the table.
@@ -328,7 +320,7 @@ void ImageFileReader::close(ImageFileReader *reader) {
     }
 }
 
-// Return an id for the specifed ImageFileReader.
+// Return an id for the specified ImageFileReader.
 u8 ImageFileReader::reader_to_ID(ImageFileReader *reader) {
     // ID is just the cloaked reader address.
     return (u8)reader;
@@ -341,14 +333,15 @@ bool ImageFileReader::id_check(u8 id) {
     return _reader_table.contains((ImageFileReader*)id);
 }
 
-// Return an id for the specifed ImageFileReader.
+// Return an id for the specified ImageFileReader.
 ImageFileReader* ImageFileReader::id_to_reader(u8 id) {
     assert(id_check(id) && "invalid image id");
     return (ImageFileReader*)id;
 }
 
-// Constructor intializes to a closed state.
-ImageFileReader::ImageFileReader(const char* name, bool big_endian) {
+// Constructor initializes to a closed state.
+ImageFileReader::ImageFileReader(const char* name, bool big_endian) :
+    _module_data(NULL) {
     // Copy the image file name.
      int len = (int) strlen(name) + 1;
     _name = new char[len];
@@ -368,6 +361,10 @@ ImageFileReader::~ImageFileReader() {
     if (_name) {
         delete[] _name;
         _name = NULL;
+    }
+
+    if (_module_data != NULL) {
+        delete _module_data;
     }
 }
 
@@ -419,22 +416,27 @@ bool ImageFileReader::open() {
     _string_bytes = _index_data + string_bytes_offset;
 
     // Initialize the module data
-    module_data = new ImageModuleData(this);
+    _module_data = new ImageModuleData(this);
     // Successful open (if memory allocation succeeded).
-    return module_data != NULL;
+    return _module_data != NULL;
 }
 
 // Close image file.
 void ImageFileReader::close() {
     // Deallocate the index.
     if (_index_data) {
-        osSupport::unmap_memory((char*)_index_data, _index_size);
+        osSupport::unmap_memory((char*)_index_data, (size_t)map_size());
         _index_data = NULL;
     }
     // Close file.
     if (_fd != -1) {
         osSupport::close(_fd);
         _fd = -1;
+    }
+
+    if (_module_data != NULL) {
+        delete _module_data;
+        _module_data = NULL;
     }
 }
 
@@ -479,65 +481,6 @@ u4 ImageFileReader::find_location_index(const char* path, u8 *size) const {
         }
     }
     return 0;            // not found
-}
-
-// Assemble the location path from the string fragments indicated in the location attributes.
-void ImageFileReader::location_path(ImageLocation& location, char* path, size_t max) const {
-    // Manage the image string table.
-    ImageStrings strings(_string_bytes, _header.strings_size(_endian));
-    // Position to first character of the path buffer.
-    char* next = path;
-    // Temp for string length.
-    size_t length;
-    // Get module string.
-    const char* module = location.get_attribute(ImageLocation::ATTRIBUTE_MODULE, strings);
-    // If module string is not empty string.
-    if (*module != '\0') {
-        // Get length of module name.
-        length = strlen(module);
-        // Make sure there is no buffer overflow.
-        assert(next - path + length + 2 < max && "buffer overflow");
-        // Append '/module/'.
-        *next++ = '/';
-        strncpy(next, module, length); next += length;
-        *next++ = '/';
-    }
-    // Get parent (package) string.
-    const char* parent = location.get_attribute(ImageLocation::ATTRIBUTE_PARENT, strings);
-    // If parent string is not empty string.
-    if (*parent != '\0') {
-        // Get length of module string.
-        length = strlen(parent);
-        // Make sure there is no buffer overflow.
-        assert(next - path + length + 1 < max && "buffer overflow");
-        // Append 'patent/' .
-        strncpy(next, parent, length); next += length;
-        *next++ = '/';
-    }
-    // Get base name string.
-    const char* base = location.get_attribute(ImageLocation::ATTRIBUTE_BASE, strings);
-    // Get length of base name.
-    length = strlen(base);
-    // Make sure there is no buffer overflow.
-    assert(next - path + length < max && "buffer overflow");
-    // Append base name.
-    strncpy(next, base, length); next += length;
-    // Get extension string.
-    const char* extension = location.get_attribute(ImageLocation::ATTRIBUTE_EXTENSION, strings);
-    // If extension string is not empty string.
-    if (*extension != '\0') {
-        // Get length of extension string.
-        length = strlen(extension);
-        // Make sure there is no buffer overflow.
-        assert(next - path + length + 1 < max && "buffer overflow");
-        // Append '.extension' .
-        *next++ = '.';
-        strncpy(next, extension, length); next += length;
-    }
-    // Make sure there is no buffer overflow.
-    assert((size_t)(next - path) < max && "buffer overflow");
-    // Terminate string.
-    *next = '\0';
 }
 
 // Verify that a found location matches the supplied path (without copying.)
@@ -627,5 +570,5 @@ void ImageFileReader::get_resource(ImageLocation& location, u1* uncompressed_dat
 
 // Return the ImageModuleData for this image
 ImageModuleData * ImageFileReader::get_image_module_data() {
-        return module_data;
+    return _module_data;
 }

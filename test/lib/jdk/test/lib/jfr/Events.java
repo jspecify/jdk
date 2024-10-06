@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -33,18 +31,25 @@ import static jdk.test.lib.Asserts.fail;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 import jdk.jfr.AnnotationElement;
 import jdk.jfr.EventType;
 import jdk.jfr.Recording;
 import jdk.jfr.SettingDescriptor;
+import jdk.jfr.Timespan;
+import jdk.jfr.Timestamp;
 import jdk.jfr.ValueDescriptor;
 import jdk.jfr.consumer.RecordingFile;
 import jdk.test.lib.Asserts;
 import jdk.jfr.consumer.RecordedClass;
 import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.consumer.RecordedFrame;
+import jdk.jfr.consumer.RecordedMethod;
 import jdk.jfr.consumer.RecordedObject;
+import jdk.jfr.consumer.RecordedStackTrace;
 import jdk.jfr.consumer.RecordedThread;
 import jdk.jfr.consumer.RecordedThreadGroup;
 
@@ -183,6 +188,49 @@ public class Events {
         assertThread(assertField(event, structName).notNull().getValue(), thread);
     }
 
+    public static void assertDuration(RecordedEvent event, String name, Duration duration) {
+        assertEquals(event.getDuration(name), duration);
+    }
+
+    public static void assertInstant(RecordedEvent event, String name, Instant instant) {
+        assertEquals(event.getInstant(name), instant);
+    }
+
+    public static void assertMissingValue(RecordedEvent event, String name) {
+       ValueDescriptor v =  event.getEventType().getField(name);
+       if (v.getAnnotation(Timespan.class) != null) {
+           Duration d = event.getDuration(name);
+           assertTrue(d.getSeconds() == Long.MIN_VALUE && d.getNano() == 0);
+           return;
+       }
+       if (v.getAnnotation(Timestamp.class) != null) {
+           Instant instant = event.getInstant(name);
+           assertTrue(instant.equals(Instant.MIN));
+           return;
+       }
+       if (v.getTypeName().equals("double")) {
+           double d = event.getDouble(name);
+           assertTrue(Double.isNaN(d) || d == Double.NEGATIVE_INFINITY);
+           return;
+       }
+       if (v.getTypeName().equals("float")) {
+           float f = event.getFloat(name);
+           assertTrue(Float.isNaN(f) || f == Float.NEGATIVE_INFINITY);
+           return;
+       }
+       if (v.getTypeName().equals("int")) {
+           int i = event.getInt(name);
+           assertTrue(i == Integer.MIN_VALUE);
+           return;
+       }
+       if (v.getTypeName().equals("long")) {
+           assertEquals(event.getLong(name), Long.MIN_VALUE);
+           return;
+       }
+       Object o = event.getValue(name);
+       Asserts.assertNull(o);
+    }
+
     private static void assertThread(RecordedThread eventThread, Thread thread) {
         assertNotNull(eventThread, "Thread in event was null");
         assertEquals(eventThread.getJavaThreadId(), thread.getId(), "Wrong thread id");
@@ -219,11 +267,16 @@ public class Events {
      * Creates a list of events from a recording.
      *
      * @param recording recording, not {@code null}
-     * @return an a list, not null
+     * @return a list, not null
      * @throws IOException if an event set could not be created due to I/O
      *         errors.
      */
+    private static long lastId = -1;
     public static List<RecordedEvent> fromRecording(Recording recording) throws IOException {
+        if (recording.getId() == lastId) {
+            throw new IOException("Recording with id " + lastId + " has already been dumped. Store the results in a List<RecordedEvent> instead of dumping the recording again");
+        }
+        lastId = recording.getId();
         return RecordingFile.readAllEvents(makeCopy(recording));
     }
 
@@ -312,6 +365,45 @@ public class Events {
         for (RecordedEvent event : events) {
             if (event.getEventType().getName().equals(name)) {
                 return true;
+            }
+        }
+        return false;
+    }
+
+    public static void assertTopFrame(RecordedEvent event, Class<?> expectedClass, String expectedMethodName) {
+        assertTopFrame(event, expectedClass.getName(), expectedMethodName);
+    }
+
+    public static void assertTopFrame(RecordedEvent event, String expectedClass, String expectedMethodName) {
+        RecordedStackTrace stackTrace = event.getStackTrace();
+        Asserts.assertNotNull(stackTrace, "Missing stack trace");
+        RecordedFrame topFrame =  stackTrace.getFrames().get(0);
+        if (isFrame(topFrame, expectedClass, expectedMethodName)) {
+            return;
+        }
+        String expected = expectedClass + "::" + expectedMethodName;
+        Asserts.fail("Expected top frame " + expected + ". Found " + topFrame);
+    }
+
+    public static void assertFrame(RecordedEvent event, Class<?> expectedClass, String expectedMethodName) {
+        RecordedStackTrace stackTrace = event.getStackTrace();
+        Asserts.assertNotNull(stackTrace, "Missing stack trace");
+        for (RecordedFrame frame : stackTrace.getFrames()) {
+            if (isFrame(frame, expectedClass.getName(), expectedMethodName)) {
+                return;
+            }
+        }
+        Asserts.fail("Expected " + expectedClass.getName() + "::"+ expectedMethodName + " in stack trace");
+    }
+
+    private static boolean isFrame(RecordedFrame frame, String expectedClass, String expectedMethodName) {
+        if (frame.isJavaFrame()) {
+            RecordedMethod method = frame.getMethod();
+            RecordedClass type = method.getType();
+            if (expectedClass.equals(type.getName())) {
+                if (expectedMethodName.equals(method.getName())) {
+                    return true;
+                }
             }
         }
         return false;

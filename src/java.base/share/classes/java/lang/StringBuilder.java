@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,13 @@ package java.lang;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import jdk.internal.HotSpotIntrinsicCandidate;
+import jdk.internal.vm.annotation.IntrinsicCandidate;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.io.StreamCorruptedException;
 
 /**
  * A mutable sequence of characters.  This class provides an API compatible
@@ -88,17 +94,18 @@ import jdk.internal.HotSpotIntrinsicCandidate;
 @NullMarked
 public final class StringBuilder
     extends AbstractStringBuilder
-    implements java.io.Serializable, Comparable<StringBuilder>, CharSequence
+    implements Appendable, java.io.Serializable, Comparable<StringBuilder>, CharSequence
 {
 
     /** use serialVersionUID for interoperability */
+    @Serial
     static final long serialVersionUID = 4383685877147921099L;
 
     /**
      * Constructs a string builder with no characters in it and an
      * initial capacity of 16 characters.
      */
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     public StringBuilder() {
         super(16);
     }
@@ -111,8 +118,8 @@ public final class StringBuilder
      * @throws     NegativeArraySizeException  if the {@code capacity}
      *               argument is less than {@code 0}.
      */
-    @HotSpotIntrinsicCandidate
-    public StringBuilder( int capacity) {
+    @IntrinsicCandidate
+    public StringBuilder(int capacity) {
         super(capacity);
     }
 
@@ -123,10 +130,9 @@ public final class StringBuilder
      *
      * @param   str   the initial contents of the buffer.
      */
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     public StringBuilder(String str) {
-        super(str.length() + 16);
-        append(str);
+        super(str);
     }
 
     /**
@@ -138,8 +144,7 @@ public final class StringBuilder
      * @param      seq   the sequence to copy.
      */
     public StringBuilder(CharSequence seq) {
-        this(seq.length() + 16);
-        append(seq);
+        super(seq);
     }
 
     /**
@@ -173,7 +178,7 @@ public final class StringBuilder
     }
 
     @Override
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     public StringBuilder append(@Nullable String str) {
         super.append(str);
         return this;
@@ -240,14 +245,14 @@ public final class StringBuilder
     }
 
     @Override
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     public StringBuilder append(char c) {
         super.append(c);
         return this;
     }
 
     @Override
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     public StringBuilder append(int i) {
         super.append(i);
         return this;
@@ -449,13 +454,36 @@ public final class StringBuilder
         return this;
     }
 
-    
+    /**
+     * @throws IllegalArgumentException {@inheritDoc}
+     *
+     * @since 21
+     */
     @Override
-    @HotSpotIntrinsicCandidate
+    public StringBuilder repeat(int codePoint, int count) {
+        super.repeat(codePoint, count);
+        return this;
+    }
+
+    /**
+     * @throws IllegalArgumentException {@inheritDoc}
+     *
+     * @since 21
+     */
+    @Override
+    public StringBuilder repeat(@Nullable CharSequence cs, int count) {
+        super.repeat(cs, count);
+        return this;
+    }
+
+    @Override
+    @IntrinsicCandidate
     public String toString() {
+        if (length() == 0) {
+            return "";
+        }
         // Create a copy, don't share the array
-        return isLatin1() ? StringLatin1.newString(value, 0, count)
-                          : StringUTF16.newString(value, 0, count);
+        return new String(this, null);
     }
 
     /**
@@ -468,9 +496,12 @@ public final class StringBuilder
      *             {@code char} array may be greater than the number of
      *             characters currently stored in the string builder, in which
      *             case extra characters are ignored.
+     *
+     * @param  s the {@code ObjectOutputStream} to which data is written
+     * @throws IOException if an I/O error occurs
      */
-    private void writeObject(java.io.ObjectOutputStream s)
-        throws java.io.IOException {
+    @Serial
+    private void writeObject(ObjectOutputStream s) throws IOException {
         s.defaultWriteObject();
         s.writeInt(count);
         char[] val = new char[capacity()];
@@ -483,15 +514,23 @@ public final class StringBuilder
     }
 
     /**
-     * readObject is called to restore the state of the StringBuffer from
+     * readObject is called to restore the state of the StringBuilder from
      * a stream.
+     *
+     * @param  s the {@code ObjectInputStream} from which data is read
+     * @throws IOException if an I/O error occurs
+     * @throws ClassNotFoundException if a serialized class cannot be loaded
      */
-    private void readObject(java.io.ObjectInputStream s)
-        throws java.io.IOException, ClassNotFoundException {
+    @Serial
+    private void readObject(ObjectInputStream s)
+            throws IOException, ClassNotFoundException {
         s.defaultReadObject();
-        count = s.readInt();
+        int c = s.readInt();
         char[] val = (char[]) s.readObject();
+        if (c < 0 || c > val.length) {
+            throw new StreamCorruptedException("count value invalid");
+        }
         initBytes(val, 0, val.length);
+        count = c;
     }
-
 }

@@ -34,16 +34,16 @@ struct bag *
 classTrack_processUnloads(JNIEnv *env);
 
 /*
- * Add a class to the prepared class hash table.
- */
-void
-classTrack_addPreparedClass(JNIEnv *env, jclass klass);
-
-/*
  * Initialize class tracking.
  */
 void
 classTrack_initialize(JNIEnv *env);
+
+/*
+ * Activates class tracking.
+ */
+void
+classTrack_activate(JNIEnv *env);
 
 /*
  * Reset class tracking.

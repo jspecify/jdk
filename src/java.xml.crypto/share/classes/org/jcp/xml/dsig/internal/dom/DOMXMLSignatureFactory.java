@@ -21,23 +21,40 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
- */
-/*
- * $Id: DOMXMLSignatureFactory.java 1788465 2017-03-24 15:10:51Z coheigea $
+ * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
  */
 package org.jcp.xml.dsig.internal.dom;
-
-import javax.xml.crypto.*;
-import javax.xml.crypto.dom.DOMCryptoContext;
-import javax.xml.crypto.dsig.*;
-import javax.xml.crypto.dsig.dom.DOMValidateContext;
-import javax.xml.crypto.dsig.keyinfo.*;
-import javax.xml.crypto.dsig.spec.*;
 
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
+
+import javax.xml.crypto.Data;
+import javax.xml.crypto.MarshalException;
+import javax.xml.crypto.URIDereferencer;
+import javax.xml.crypto.XMLCryptoContext;
+import javax.xml.crypto.XMLStructure;
+import javax.xml.crypto.dom.DOMCryptoContext;
+import javax.xml.crypto.dsig.CanonicalizationMethod;
+import javax.xml.crypto.dsig.DigestMethod;
+import javax.xml.crypto.dsig.Manifest;
+import javax.xml.crypto.dsig.Reference;
+import javax.xml.crypto.dsig.SignatureMethod;
+import javax.xml.crypto.dsig.SignatureProperties;
+import javax.xml.crypto.dsig.SignatureProperty;
+import javax.xml.crypto.dsig.SignedInfo;
+import javax.xml.crypto.dsig.Transform;
+import javax.xml.crypto.dsig.TransformService;
+import javax.xml.crypto.dsig.XMLObject;
+import javax.xml.crypto.dsig.XMLSignature;
+import javax.xml.crypto.dsig.XMLSignatureFactory;
+import javax.xml.crypto.dsig.XMLValidateContext;
+import javax.xml.crypto.dsig.dom.DOMValidateContext;
+import javax.xml.crypto.dsig.keyinfo.KeyInfo;
+import javax.xml.crypto.dsig.spec.C14NMethodParameterSpec;
+import javax.xml.crypto.dsig.spec.DigestMethodParameterSpec;
+import javax.xml.crypto.dsig.spec.SignatureMethodParameterSpec;
+import javax.xml.crypto.dsig.spec.TransformParameterSpec;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -206,9 +223,15 @@ public final class DOMXMLSignatureFactory extends XMLSignatureFactory {
                 "support DOM Level 2 and be namespace aware");
         }
         if ("Signature".equals(tag) && XMLSignature.XMLNS.equals(namespace)) {
-            return new DOMXMLSignature(element, context, getProvider());
+            try {
+                return new DOMXMLSignature(element, context, getProvider());
+            } catch (MarshalException me) {
+                throw me;
+            } catch (Exception e) {
+                throw new MarshalException(e);
+            }
         } else {
-            throw new MarshalException("invalid Signature tag: " + namespace + ":" + tag);
+            throw new MarshalException("Invalid Signature tag: " + namespace + ":" + tag);
         }
     }
 
@@ -272,8 +295,6 @@ public final class DOMXMLSignatureFactory extends XMLSignatureFactory {
             return new DOMSignatureMethod.SHA384withRSA(params);
         } else if (algorithm.equals(DOMSignatureMethod.RSA_SHA512)) {
             return new DOMSignatureMethod.SHA512withRSA(params);
-        } else if (algorithm.equals(DOMSignatureMethod.RSA_SHA512)) {
-            return new DOMSignatureMethod.SHA512withRSA(params);
         } else if (algorithm.equals(DOMSignatureMethod.RSA_RIPEMD160)) {
             return new DOMSignatureMethod.RIPEMD160withRSA(params);
         } else if (algorithm.equals(DOMSignatureMethod.RSA_SHA1_MGF1)) {
@@ -286,6 +307,16 @@ public final class DOMXMLSignatureFactory extends XMLSignatureFactory {
             return new DOMSignatureMethod.SHA384withRSAandMGF1(params);
         } else if (algorithm.equals(DOMSignatureMethod.RSA_SHA512_MGF1)) {
             return new DOMSignatureMethod.SHA512withRSAandMGF1(params);
+        } else if (algorithm.equals(DOMSignatureMethod.RSA_SHA3_224_MGF1)) {
+            return new DOMSignatureMethod.SHA3_224withRSAandMGF1(params);
+        } else if (algorithm.equals(DOMSignatureMethod.RSA_SHA3_256_MGF1)) {
+            return new DOMSignatureMethod.SHA3_256withRSAandMGF1(params);
+        } else if (algorithm.equals(DOMSignatureMethod.RSA_SHA3_384_MGF1)) {
+            return new DOMSignatureMethod.SHA3_384withRSAandMGF1(params);
+        } else if (algorithm.equals(DOMSignatureMethod.RSA_SHA3_512_MGF1)) {
+            return new DOMSignatureMethod.SHA3_512withRSAandMGF1(params);
+        } else if (algorithm.equals(DOMRSAPSSSignatureMethod.RSA_PSS)) {
+            return new DOMRSAPSSSignatureMethod.RSAPSS(params);
         } else if (algorithm.equals(DOMSignatureMethod.RSA_RIPEMD160_MGF1)) {
             return new DOMSignatureMethod.RIPEMD160withRSAandMGF1(params);
         } else if (algorithm.equals(SignatureMethod.DSA_SHA1)) {
@@ -316,6 +347,10 @@ public final class DOMXMLSignatureFactory extends XMLSignatureFactory {
             return new DOMSignatureMethod.SHA512withECDSA(params);
         } else if (algorithm.equals(DOMSignatureMethod.ECDSA_RIPEMD160)) {
             return new DOMSignatureMethod.RIPEMD160withECDSA(params);
+        } else if (algorithm.equals(DOMSignatureMethod.ED25519)) {
+            return new DOMSignatureMethod.EDDSA_ED25519(params);
+        } else if (algorithm.equals(DOMSignatureMethod.ED448)) {
+            return new DOMSignatureMethod.EDDSA_ED448(params);
         }else {
             throw new NoSuchAlgorithmException("unsupported algorithm");
         }

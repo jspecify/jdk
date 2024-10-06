@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -200,6 +200,12 @@ public class HashedPasswordFileTest {
         return cs.getAddress();
     }
 
+    private void stopServerSide() throws IOException {
+        if (cs != null) {
+            cs.stop();
+        }
+    }
+
     @Test
     public void testClearTextPasswordFile() throws IOException {
         Boolean[] bvals = new Boolean[]{true, false};
@@ -217,7 +223,7 @@ public class HashedPasswordFileTest {
                 }
                 Assert.assertEquals(isPasswordFileHashed(), bval);
             } finally {
-                cs.stop();
+                stopServerSide();
             }
         }
     }
@@ -241,7 +247,7 @@ public class HashedPasswordFileTest {
                 }
                 Assert.assertEquals(isPasswordFileHashed(), false);
             } finally {
-                cs.stop();
+                stopServerSide();
             }
         }
     }
@@ -263,7 +269,7 @@ public class HashedPasswordFileTest {
                     }
                 }
             } finally {
-                cs.stop();
+                stopServerSide();
             }
         }
     }
@@ -400,7 +406,7 @@ public class HashedPasswordFileTest {
                 }
             }
         } finally {
-            cs.stop();
+            stopServerSide();
         }
     }
 
@@ -433,7 +439,7 @@ public class HashedPasswordFileTest {
         pbArgs.add("jdk.management.agent/jdk.internal.agent=ALL-UNNAMED");
         pbArgs.add(TestApp.class.getSimpleName());
 
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(
                 pbArgs.toArray(new String[0]));
         Process process = ProcessTools.startProcess(
                 TestApp.class.getSimpleName(),
@@ -462,10 +468,6 @@ public class HashedPasswordFileTest {
         perms.add(PosixFilePermission.OWNER_READ);
         perms.add(PosixFilePermission.OWNER_WRITE);
         Files.setPosixFilePermissions(file.toPath(), perms);
-
-        pbArgs.add("-cp");
-        pbArgs.add(System.getProperty("test.class.path"));
-
         pbArgs.add("-Dcom.sun.management.jmxremote.port=0");
         pbArgs.add("-Dcom.sun.management.jmxremote.authenticate=true");
         pbArgs.add("-Dcom.sun.management.jmxremote.password.file=" + file.getAbsolutePath());
@@ -475,7 +477,7 @@ public class HashedPasswordFileTest {
         pbArgs.add("jdk.management.agent/jdk.internal.agent=ALL-UNNAMED");
         pbArgs.add(TestApp.class.getSimpleName());
 
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+        ProcessBuilder pb = ProcessTools.createTestJavaProcessBuilder(
                 pbArgs.toArray(new String[0]));
         Process process = ProcessTools.startProcess(
                 TestApp.class.getSimpleName(),

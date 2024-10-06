@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,22 +22,34 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package javax.swing;
 
-import java.awt.*;
-import java.awt.event.*;
-
-import java.beans.JavaBean;
+import java.awt.Component;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
 import java.beans.BeanProperty;
-
-import java.io.Serializable;
-import java.io.ObjectOutputStream;
-import java.io.ObjectInputStream;
+import java.beans.JavaBean;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.io.Serializable;
 
-import javax.swing.plaf.*;
-import javax.swing.event.*;
-import javax.accessibility.*;
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleRole;
+import javax.accessibility.AccessibleState;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import javax.swing.event.EventListenerList;
+import javax.swing.event.MenuDragMouseEvent;
+import javax.swing.event.MenuDragMouseListener;
+import javax.swing.event.MenuKeyEvent;
+import javax.swing.event.MenuKeyListener;
+import javax.swing.plaf.MenuItemUI;
 
 /**
  * An implementation of an item in a menu. A menu item is essentially a button
@@ -51,12 +63,12 @@ import javax.accessibility.*;
  * configuring a menu item.  Refer to <a href="Action.html#buttonActions">
  * Swing Components Supporting <code>Action</code></a> for more
  * details, and you can find more information in <a
- * href="http://docs.oracle.com/javase/tutorial/uiswing/misc/action.html">How
+ * href="https://docs.oracle.com/javase/tutorial/uiswing/misc/action.html">How
  * to Use Actions</a>, a section in <em>The Java Tutorial</em>.
  * <p>
  * For further documentation and for examples, see
  * <a
- href="http://docs.oracle.com/javase/tutorial/uiswing/components/menu.html">How to Use Menus</a>
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/menu.html">How to Use Menus</a>
  * in <em>The Java Tutorial.</em>
  * <p>
  * <strong>Warning:</strong> Swing is not thread safe. For more
@@ -69,7 +81,7 @@ import javax.accessibility.*;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -173,8 +185,8 @@ public class JMenuItem extends AbstractButton implements Accessible,MenuElement 
     }
 
     /**
-     * Inititalizes the focusability of the <code>JMenuItem</code>.
-     * <code>JMenuItem</code>'s are focusable, but subclasses may
+     * Initializes the focusability of the <code>JMenuItem</code>.
+     * <code>JMenuItem</code>'s are non-focusable, but subclasses may
      * want to be, this provides them the opportunity to override this
      * and invoke something else, or nothing at all. Refer to
      * {@link javax.swing.JMenu#initFocusability} for the motivation of
@@ -413,7 +425,7 @@ public class JMenuItem extends AbstractButton implements Accessible,MenuElement 
      * @param manager   the <code>MenuSelectionManager</code>
      */
     @SuppressWarnings("deprecation")
-    public void processMouseEvent(MouseEvent e,MenuElement path[],MenuSelectionManager manager) {
+    public void processMouseEvent(MouseEvent e,MenuElement[] path,MenuSelectionManager manager) {
         processMenuDragMouseEvent(
                  new MenuDragMouseEvent(e.getComponent(), e.getID(),
                                         e.getWhen(),
@@ -437,7 +449,7 @@ public class JMenuItem extends AbstractButton implements Accessible,MenuElement 
      * @param manager   the <code>MenuSelectionManager</code>
      */
     @SuppressWarnings("deprecation")
-    public void processKeyEvent(KeyEvent e,MenuElement path[],MenuSelectionManager manager) {
+    public void processKeyEvent(KeyEvent e,MenuElement[] path,MenuSelectionManager manager) {
         if (DEBUG) {
             System.out.println("in JMenuItem.processKeyEvent/3 for " + getText() +
                                    "  " + KeyStroke.getKeyStrokeForEvent(e));
@@ -751,6 +763,7 @@ public class JMenuItem extends AbstractButton implements Accessible,MenuElement 
      * See JComponent.readObject() for information about serialization
      * in Swing.
      */
+    @Serial
     private void readObject(ObjectInputStream s)
         throws IOException, ClassNotFoundException
     {
@@ -760,6 +773,7 @@ public class JMenuItem extends AbstractButton implements Accessible,MenuElement 
         }
     }
 
+    @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         s.defaultWriteObject();
         if (getUIClassID().equals(uiClassID)) {
@@ -794,7 +808,7 @@ public class JMenuItem extends AbstractButton implements Accessible,MenuElement 
      * <code>JMenuItem</code>. For <code>JMenuItem</code>s,
      * the <code>AccessibleContext</code> takes the form of an
      * <code>AccessibleJMenuItem</code>.
-     * A new AccessibleJMenuItme instance is created if necessary.
+     * A new <code>AccessibleJMenuItem</code> instance is created if necessary.
      *
      * @return an <code>AccessibleJMenuItem</code> that serves as the
      *         <code>AccessibleContext</code> of this <code>JMenuItem</code>
@@ -819,7 +833,7 @@ public class JMenuItem extends AbstractButton implements Accessible,MenuElement 
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */

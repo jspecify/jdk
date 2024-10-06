@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,35 @@
 // This class represents a constant value.
 
 // ------------------------------------------------------------------
+// ciConstant::is_null_or_zero
+bool ciConstant::is_null_or_zero() const {
+  if (!is_java_primitive(basic_type())) {
+    return as_object()->is_null_object();
+  } else if (type2size[basic_type()] == 1) {
+    // treat float bits as int, to avoid comparison with -0 and NaN
+    return (_value._int == 0);
+  } else if (type2size[basic_type()] == 2) {
+    // treat double bits as long, to avoid comparison with -0 and NaN
+    return (_value._long == 0);
+  } else {
+    return false;
+  }
+}
+
+// ------------------------------------------------------------------
+// ciConstant::is_loaded
+bool ciConstant::is_loaded() const {
+  if (is_valid()) {
+    if (is_reference_type(basic_type())) {
+      return as_object()->is_loaded();
+    } else {
+      return true;
+    }
+  }
+  return false;
+}
+
+// ------------------------------------------------------------------
 // ciConstant::print
 void ciConstant::print() {
   tty->print("<ciConstant type=%s value=",
@@ -56,12 +85,12 @@ void ciConstant::print() {
   case T_DOUBLE:
     tty->print("%lf", _value._double);
     break;
-  case T_OBJECT:
-  case T_ARRAY:
-    _value._object->print();
-    break;
   default:
-    tty->print("ILLEGAL");
+    if (is_reference_type(basic_type())) {
+      _value._object->print();
+    } else {
+      tty->print("ILLEGAL");
+    }
     break;
   }
   tty->print(">");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,33 +26,29 @@
 #define SHARE_GC_SHARED_OOPSTORAGEPARSTATE_HPP
 
 #include "gc/shared/oopStorage.hpp"
-#include "utilities/macros.hpp"
+#include "utilities/globalDefinitions.hpp"
+
+#include <type_traits>
 
 //////////////////////////////////////////////////////////////////////////////
 // Support for parallel and optionally concurrent state iteration.
-//
-// Parallel iteration is for the exclusive use of the GC.  Other iteration
-// clients must use serial iteration.
 //
 // Concurrent Iteration
 //
 // Iteration involves the _active_array (an ActiveArray), which contains all
 // of the blocks owned by a storage object.
 //
-// At most one concurrent ParState can exist at a time for a given storage
-// object.
-//
-// A concurrent ParState sets the associated storage's
-// _concurrent_iteration_active flag true when the state is constructed, and
-// sets it false when the state is destroyed.  These assignments are made with
+// A concurrent ParState increments the associated storage's
+// _concurrent_iteration_count when the state is constructed, and
+// decrements it when the state is destroyed.  These assignments are made with
 // _active_mutex locked.  Meanwhile, empty block deletion is not done while
-// _concurrent_iteration_active is true.  The flag check and the dependent
+// _concurrent_iteration_count is non-zero.  The counter check and the dependent
 // removal of a block from the _active_array is performed with _active_mutex
 // locked.  This prevents concurrent iteration and empty block deletion from
 // interfering with with each other.
 //
-// Both allocate() and delete_empty_blocks_concurrent() lock the
-// _allocate_mutex while performing their respective list and array
+// Both allocate() and delete_empty_blocks() lock the
+// _allocation_mutex while performing their respective list and array
 // manipulations, preventing them from interfering with each other.
 //
 // When allocate() creates a new block, it is added to the end of the
@@ -75,16 +71,11 @@
 // allocations and releases that occur after the iteration started will not be
 // seen by the iteration.  Further, some may overlap examination by the
 // iteration.  To help with this, allocate() and release() have an invariant
-// that an entry's value must be NULL when it is not in use.
-//
-// An in-progress delete_empty_blocks_concurrent() operation can contend with
-// the start of a concurrent iteration over the _active_mutex.  Since both are
-// under GC control, that potential contention can be eliminated by never
-// scheduling both operations to run at the same time.
+// that an entry's value must be null when it is not in use.
 //
 // ParState<concurrent, is_const>
-//   concurrent must be true if iteration is concurrent with the
-//   mutator, false if iteration is at a safepoint.
+//   concurrent must be true if iteration may be concurrent with the
+//   mutators.
 //
 //   is_const must be true if the iteration is over a constant storage
 //   object, false if the iteration may modify the storage object.
@@ -92,8 +83,7 @@
 // ParState([const] OopStorage* storage)
 //   Construct an object for managing an iteration over storage.  For a
 //   concurrent ParState, empty block deletion for the associated storage
-//   is inhibited for the life of the ParState.  There can be no more
-//   than one live concurrent ParState at a time for a given storage object.
+//   is inhibited for the life of the ParState.
 //
 // template<typename F> void iterate(F f)
 //   Repeatedly claims a block from the associated storage that has
@@ -134,7 +124,7 @@
 //   - is_alive->do_object_b(*p) must be a valid expression whose value
 //   is convertible to bool.
 //
-//   If *p == NULL then neither is_alive nor cl will be invoked for p.
+//   If *p == nullptr then neither is_alive nor cl will be invoked for p.
 //   If is_alive->do_object_b(*p) is false, then cl will not be
 //   invoked on p.
 
@@ -145,14 +135,13 @@ class OopStorage::BasicParState {
   volatile size_t _next_block;
   uint _estimated_thread_count;
   bool _concurrent;
+  volatile size_t _num_dead;
 
-  // Noncopyable.
-  BasicParState(const BasicParState&);
-  BasicParState& operator=(const BasicParState&);
+  NONCOPYABLE(BasicParState);
 
   struct IterationData;
 
-  void update_iteration_state(bool value);
+  void update_concurrent_iteration_count(int value);
   bool claim_next_segment(IterationData* data);
   bool finish_iteration(const IterationData* data) const;
 
@@ -165,18 +154,22 @@ public:
                 bool concurrent);
   ~BasicParState();
 
+  const OopStorage* storage() const { return _storage; }
+
   template<bool is_const, typename F> void iterate(F f);
 
   static uint default_estimated_thread_count(bool concurrent);
+
+  size_t num_dead() const;
+  void increment_num_dead(size_t num_dead);
+  void report_num_dead() const;
 };
 
 template<bool concurrent, bool is_const>
 class OopStorage::ParState {
   BasicParState _basic_state;
 
-  typedef typename Conditional<is_const,
-                               const OopStorage*,
-                               OopStorage*>::type StoragePtr;
+  using StoragePtr = std::conditional_t<is_const, const OopStorage*, OopStorage*>;
 
 public:
   ParState(StoragePtr storage,
@@ -184,8 +177,13 @@ public:
     _basic_state(storage, estimated_thread_count, concurrent)
   {}
 
+  const OopStorage* storage() const { return _basic_state.storage(); }
   template<typename F> void iterate(F f);
   template<typename Closure> void oops_do(Closure* cl);
+
+  size_t num_dead() const { return _basic_state.num_dead(); }
+  void increment_num_dead(size_t num_dead) { _basic_state.increment_num_dead(num_dead); }
+  void report_num_dead() const { _basic_state.report_num_dead(); }
 };
 
 template<>
@@ -198,11 +196,16 @@ public:
     _basic_state(storage, estimated_thread_count, false)
   {}
 
+  const OopStorage* storage() const { return _basic_state.storage(); }
   template<typename F> void iterate(F f);
   template<typename Closure> void oops_do(Closure* cl);
   template<typename Closure> void weak_oops_do(Closure* cl);
   template<typename IsAliveClosure, typename Closure>
   void weak_oops_do(IsAliveClosure* is_alive, Closure* cl);
+
+  size_t num_dead() const { return _basic_state.num_dead(); }
+  void increment_num_dead(size_t num_dead) { _basic_state.increment_num_dead(num_dead); }
+  void report_num_dead() const { _basic_state.report_num_dead(); }
 };
 
 #endif // SHARE_GC_SHARED_OOPSTORAGEPARSTATE_HPP

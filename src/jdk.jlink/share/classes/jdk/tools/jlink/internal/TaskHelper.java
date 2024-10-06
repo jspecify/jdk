@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,41 +24,38 @@
  */
 package jdk.tools.jlink.internal;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.module.Configuration;
-import java.lang.module.ModuleFinder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.Map;
 import java.util.HashMap;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.MissingResourceException;
-import java.util.ResourceBundle;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.stream.Stream;
+import java.util.Collections;
+import java.util.Locale;
+import java.util.ResourceBundle;
+import java.util.MissingResourceException;
+import java.util.Comparator;
 
-import jdk.tools.jlink.internal.plugins.ExcludeJmodSectionPlugin;
-import jdk.tools.jlink.plugin.Plugin;
-import jdk.tools.jlink.plugin.Plugin.Category;
+
 import jdk.tools.jlink.builder.DefaultImageBuilder;
 import jdk.tools.jlink.builder.ImageBuilder;
-import jdk.tools.jlink.plugin.PluginException;
 import jdk.tools.jlink.internal.Jlink.PluginsConfiguration;
-import jdk.tools.jlink.internal.plugins.PluginsResourceBundle;
 import jdk.tools.jlink.internal.plugins.DefaultCompressPlugin;
-import jdk.tools.jlink.internal.plugins.StripDebugPlugin;
-import jdk.internal.module.ModulePath;
+import jdk.tools.jlink.internal.plugins.DefaultStripDebugPlugin;
+import jdk.tools.jlink.internal.plugins.ExcludeJmodSectionPlugin;
+import jdk.tools.jlink.internal.plugins.PluginsResourceBundle;
+import jdk.tools.jlink.plugin.Plugin;
+import jdk.tools.jlink.plugin.Plugin.Category;
+import jdk.tools.jlink.plugin.PluginException;
 
 /**
  *
@@ -68,8 +65,6 @@ public final class TaskHelper {
 
     public static final String JLINK_BUNDLE = "jdk.tools.jlink.resources.jlink";
     public static final String JIMAGE_BUNDLE = "jdk.tools.jimage.resources.jimage";
-
-    private static final String DEFAULTS_PROPERTY = "jdk.jlink.defaults";
 
     public final class BadArgs extends Exception {
 
@@ -86,6 +81,7 @@ public final class TaskHelper {
             return this;
         }
         public final String key;
+        @SuppressWarnings("serial") // Array component type is not Serializable
         public final Object[] args;
         public boolean showUsage;
     }
@@ -134,7 +130,7 @@ public final class TaskHelper {
                       String shortname,
                       boolean isTerminal)
         {
-            this(hasArg, processing, false, name, shortname, "", isTerminal);
+            this(hasArg, processing, hidden, name, shortname, "", isTerminal);
         }
 
         public Option(boolean hasArg, Processing<T> processing, String name, String shortname, boolean isTerminal) {
@@ -210,16 +206,17 @@ public final class TaskHelper {
     }
 
     private static class PluginOption extends Option<PluginsHelper> {
-        public PluginOption(boolean hasArg,
-                Processing<PluginsHelper> processing, boolean hidden, String name, String shortname) {
+        public PluginOption(boolean hasArg, Processing<PluginsHelper> processing,
+                            boolean hidden, String name, String shortname) {
             super(hasArg, processing, hidden, name, shortname, false);
         }
 
-        public PluginOption(boolean hasArg,
-                Processing<PluginsHelper> processing, boolean hidden, String name) {
+        public PluginOption(boolean hasArg, Processing<PluginsHelper> processing,
+                            boolean hidden, String name) {
             super(hasArg, processing, hidden, name, "", false);
         }
 
+        @Override
         public String resourcePrefix() {
             return "plugin.opt.";
         }
@@ -227,11 +224,12 @@ public final class TaskHelper {
 
     private final class PluginsHelper {
 
+        // Duplicated here so as to avoid a direct dependency on platform specific plugin
+        private static final String STRIP_NATIVE_DEBUG_SYMBOLS_NAME = "strip-native-debug-symbols";
         private ModuleLayer pluginsLayer = ModuleLayer.boot();
         private final List<Plugin> plugins;
         private String lastSorter;
         private boolean listPlugins;
-        private Path existingImage;
 
         // plugin to args maps. Each plugin may be used more than once in command line.
         // Each such occurrence results in a Map of arguments. So, there could be multiple
@@ -240,17 +238,7 @@ public final class TaskHelper {
         private final List<PluginOption> pluginsOptions = new ArrayList<>();
         private final List<PluginOption> mainOptions = new ArrayList<>();
 
-        private PluginsHelper(String pp) throws BadArgs {
-
-            if (pp != null) {
-                String[] dirs = pp.split(File.pathSeparator);
-                List<Path> paths = new ArrayList<>(dirs.length);
-                for (String dir : dirs) {
-                    paths.add(Paths.get(dir));
-                }
-
-                pluginsLayer = createPluginsLayer(paths);
-            }
+        private PluginsHelper() throws BadArgs {
 
             plugins = PluginRepository.getPlugins(pluginsLayer);
 
@@ -270,13 +258,6 @@ public final class TaskHelper {
                     throw newBadArgs("err.no.such.plugin", arg);
                 },
                 false, "--disable-plugin"));
-            mainOptions.add(new PluginOption(true, (task, opt, arg) -> {
-                Path path = Paths.get(arg);
-                if (!Files.exists(path) || !Files.isDirectory(path)) {
-                    throw newBadArgs("err.image.must.exist", path);
-                }
-                existingImage = path.toAbsolutePath();
-            }, true, "--post-process-path"));
             mainOptions.add(new PluginOption(true,
                     (task, opt, arg) -> {
                         lastSorter = arg;
@@ -317,7 +298,7 @@ public final class TaskHelper {
 
             // make sure that more than one plugin does not use the same option!
             if (optionsSeen.contains(option)) {
-                throw new BadArgs("err.plugin.mutiple.options",
+                throw new BadArgs("err.plugin.multiple.options",
                         option);
             }
             optionsSeen.add(option);
@@ -337,7 +318,7 @@ public final class TaskHelper {
 
                                 Map<String, String> m = addArgumentMap(plugin);
                                 // handle one or more arguments
-                                if (arg.indexOf(':') == -1) {
+                                if (plugin.hasRawArgument() || arg.indexOf(':') == -1) {
                                     // single argument case
                                     m.put(option, arg);
                                 } else {
@@ -386,10 +367,10 @@ public final class TaskHelper {
                         = new PluginOption(false,
                             (task, opt, arg) -> {
                                 Map<String, String> m = addArgumentMap(plugin);
-                                m.put(DefaultCompressPlugin.NAME, DefaultCompressPlugin.LEVEL_2);
+                                m.put(plugin.getName(), DefaultCompressPlugin.LEVEL_2);
                             }, false, "--compress", "-c");
                     mainOptions.add(plugOption);
-                } else if (plugin instanceof StripDebugPlugin) {
+                } else if (plugin instanceof DefaultStripDebugPlugin) {
                     plugOption
                         = new PluginOption(false,
                             (task, opt, arg) -> {
@@ -399,14 +380,14 @@ public final class TaskHelper {
                 } else if (plugin instanceof ExcludeJmodSectionPlugin) {
                     plugOption = new PluginOption(false, (task, opt, arg) -> {
                             Map<String, String> m = addArgumentMap(plugin);
-                            m.put(ExcludeJmodSectionPlugin.NAME,
+                            m.put(plugin.getName(),
                                   ExcludeJmodSectionPlugin.MAN_PAGES);
                         }, false, "--no-man-pages");
                     mainOptions.add(plugOption);
 
                     plugOption = new PluginOption(false, (task, opt, arg) -> {
                         Map<String, String> m = addArgumentMap(plugin);
-                        m.put(ExcludeJmodSectionPlugin.NAME,
+                        m.put(plugin.getName(),
                               ExcludeJmodSectionPlugin.INCLUDE_HEADER_FILES);
                     }, false, "--no-header-files");
                     mainOptions.add(plugOption);
@@ -428,22 +409,24 @@ public final class TaskHelper {
             return null;
         }
 
-        private PluginsConfiguration getPluginsConfig(Path output, Map<String, String> launchers
-                    ) throws IOException, BadArgs {
+        private PluginsConfiguration getPluginsConfig(Path output, Map<String, String> launchers,
+                                                      Platform targetPlatform)
+                throws IOException, BadArgs {
             if (output != null) {
                 if (Files.exists(output)) {
-                    throw new PluginException(PluginsResourceBundle.
+                    throw new IllegalArgumentException(PluginsResourceBundle.
                             getMessage("err.dir.already.exits", output));
                 }
             }
 
             List<Plugin> pluginsList = new ArrayList<>();
+            Set<String> seenPlugins = new HashSet<>();
             for (Entry<Plugin, List<Map<String, String>>> entry : pluginToMaps.entrySet()) {
                 Plugin plugin = entry.getKey();
                 List<Map<String, String>> argsMaps = entry.getValue();
 
                 // same plugin option may be used multiple times in command line.
-                // we call configure once for each occurrence. It is upto the plugin
+                // we call configure once for each occurrence. It is up to the plugin
                 // to 'merge' and/or 'override' arguments.
                 for (Map<String, String> map : argsMaps) {
                     try {
@@ -458,14 +441,24 @@ public final class TaskHelper {
                 }
 
                 if (!Utils.isDisabled(plugin)) {
+                    // make sure that --strip-debug and --strip-native-debug-symbols
+                    // aren't being used at the same time. --strip-debug invokes --strip-native-debug-symbols on
+                    // platforms that support it, so it makes little sense to allow both at the same time.
+                    if ((plugin instanceof DefaultStripDebugPlugin && seenPlugins.contains(STRIP_NATIVE_DEBUG_SYMBOLS_NAME)) ||
+                        (STRIP_NATIVE_DEBUG_SYMBOLS_NAME.equals(plugin.getName()) && seenPlugins.contains(plugin.getName()))) {
+                        throw new BadArgs("err.plugin.conflicts", "--" + plugin.getName(),
+                                                                "-G",
+                                                                "--" + STRIP_NATIVE_DEBUG_SYMBOLS_NAME);
+                    }
                     pluginsList.add(plugin);
+                    seenPlugins.add(plugin.getName());
                 }
             }
 
             // recreate or postprocessing don't require an output directory.
             ImageBuilder builder = null;
             if (output != null) {
-                builder = new DefaultImageBuilder(output, launchers);
+                builder = new DefaultImageBuilder(output, launchers, targetPlatform);
             }
 
             return new Jlink.PluginsConfiguration(pluginsList,
@@ -511,24 +504,8 @@ public final class TaskHelper {
             this.options = options;
         }
 
-        private boolean hasArgument(String optionName) throws BadArgs {
-            Option<?> opt = getOption(optionName);
-            if (opt == null) {
-                opt = pluginOptions.getOption(optionName);
-                if (opt == null) {
-                    throw new BadArgs("err.unknown.option", optionName).
-                            showUsage(true);
-                }
-            }
-            return opt.hasArg;
-        }
-
         public boolean shouldListPlugins() {
             return pluginOptions.listPlugins;
-        }
-
-        private String getPluginsPath(String[] args) throws BadArgs {
-            return null;
         }
 
         /**
@@ -544,7 +521,7 @@ public final class TaskHelper {
             // Must extract it prior to do any option analysis.
             // Required to interpret custom plugin options.
             // Unit tests can call Task multiple time in same JVM.
-            pluginOptions = new PluginsHelper(null);
+            pluginOptions = new PluginsHelper();
 
             // process options
             for (int i = 0; i < args.length; i++) {
@@ -582,7 +559,7 @@ public final class TaskHelper {
                         if (option.isTerminal()) {
                             return ++i < args.length
                                         ? Stream.of(Arrays.copyOfRange(args, i, args.length))
-                                                .collect(Collectors.toList())
+                                                .toList()
                                         : Collections.emptyList();
 
                         }
@@ -592,7 +569,7 @@ public final class TaskHelper {
                     }
                 } else {
                     return Stream.of(Arrays.copyOfRange(args, i, args.length))
-                                 .collect(Collectors.toList());
+                                 .toList();
                 }
             }
             return Collections.emptyList();
@@ -624,42 +601,50 @@ public final class TaskHelper {
             List<Plugin> pluginList = PluginRepository.
                     getPlugins(pluginOptions.pluginsLayer);
 
-            for (Plugin plugin : Utils.getSortedPlugins(pluginList)) {
-                showPlugin(plugin, log);
-            }
+            pluginList.stream()
+                    .sorted(Comparator.comparing((Plugin plugin) -> plugin.getUsage().isEmpty(),
+                                                 (Boolean res1, Boolean res2) -> Boolean.compare(res2,res1))
+                                      .thenComparing(Plugin::getName)
+                    )
+                    .forEach((plugin) -> showPlugin(plugin, log));
 
             log.println("\n" + bundleHelper.getMessage("main.extended.help.footer"));
         }
 
         private void showPlugin(Plugin plugin, PrintWriter log) {
             if (showsPlugin(plugin)) {
-                log.println("\n" + bundleHelper.getMessage("main.plugin.name")
-                        + ": " + plugin.getName());
+                if(!plugin.getUsage().isEmpty()) {
+                    log.println(plugin.getUsage());
+                } else {
+                    log.println("\n" + bundleHelper.getMessage("main.plugin.name")
+                            + ": " + plugin.getName());
 
-                // print verbose details for non-builtin plugins
-                if (!Utils.isBuiltin(plugin)) {
-                    log.println(bundleHelper.getMessage("main.plugin.class")
-                         + ": " + plugin.getClass().getName());
-                    log.println(bundleHelper.getMessage("main.plugin.module")
-                         + ": " + plugin.getClass().getModule().getName());
-                    Category category = plugin.getType();
-                    log.println(bundleHelper.getMessage("main.plugin.category")
-                         + ": " + category.getName());
-                    log.println(bundleHelper.getMessage("main.plugin.state")
-                        + ": " + plugin.getStateDescription());
+                    // print verbose details for non-builtin plugins
+                    if (!Utils.isBuiltin(plugin)) {
+                        log.println(bundleHelper.getMessage("main.plugin.class")
+                                + ": " + plugin.getClass().getName());
+                        log.println(bundleHelper.getMessage("main.plugin.module")
+                                + ": " + plugin.getClass().getModule().getName());
+                        Category category = plugin.getType();
+                        log.println(bundleHelper.getMessage("main.plugin.category")
+                                + ": " + category.getName());
+                        log.println(bundleHelper.getMessage("main.plugin.state")
+                                + ": " + plugin.getStateDescription());
+                    }
+
+                    String option = plugin.getOption();
+                    if (option != null) {
+                        log.println(bundleHelper.getMessage("main.plugin.option")
+                                + ": --" + plugin.getOption()
+                                + (plugin.hasArguments()? ("=" + plugin.getArgumentsDescription()) : ""));
+                    }
+
+                    // description can be long spanning more than one line and so
+                    // print a newline after description label.
+                    log.println(bundleHelper.getMessage("main.plugin.description")
+                            + ": " + plugin.getDescription());
                 }
 
-                String option = plugin.getOption();
-                if (option != null) {
-                    log.println(bundleHelper.getMessage("main.plugin.option")
-                        + ": --" + plugin.getOption()
-                        + (plugin.hasArguments()? ("=" + plugin.getArgumentsDescription()) : ""));
-                }
-
-                // description can be long spanning more than one line and so
-                // print a newline after description label.
-                log.println(bundleHelper.getMessage("main.plugin.description")
-                        + ": " + plugin.getDescription());
             }
         }
 
@@ -724,13 +709,10 @@ public final class TaskHelper {
                 + bundleHelper.getMessage(key, args));
     }
 
-    public PluginsConfiguration getPluginsConfig(Path output, Map<String, String> launchers)
+    public PluginsConfiguration getPluginsConfig(Path output, Map<String, String> launchers,
+                                                 Platform targetPlatform)
             throws IOException, BadArgs {
-        return pluginOptions.getPluginsConfig(output, launchers);
-    }
-
-    public Path getExistingImage() {
-        return pluginOptions.existingImage;
+        return pluginOptions.getPluginsConfig(output, launchers, targetPlatform);
     }
 
     public void showVersion(boolean full) {
@@ -741,26 +723,8 @@ public final class TaskHelper {
         return System.getProperty("java.version");
     }
 
-    static ModuleLayer createPluginsLayer(List<Path> paths) {
-
-        Path[] dirs = paths.toArray(new Path[0]);
-        ModuleFinder finder = ModulePath.of(Runtime.version(), true, dirs);
-        Configuration bootConfiguration = ModuleLayer.boot().configuration();
-        try {
-            Configuration cf = bootConfiguration
-                .resolveAndBind(ModuleFinder.of(),
-                                finder,
-                                Collections.emptySet());
-            ClassLoader scl = ClassLoader.getSystemClassLoader();
-            return ModuleLayer.boot().defineModulesWithOneLoader(cf, scl);
-        } catch (Exception ex) {
-            // Malformed plugin modules (e.g.: same package in multiple modules).
-            throw new PluginException("Invalid modules in the plugins path: " + ex);
-        }
-    }
-
     // Display all plugins
     private static boolean showsPlugin(Plugin plugin) {
-        return (!Utils.isDisabled(plugin) && plugin.getOption() != null);
+        return (!Utils.isDisabled(plugin) && (plugin.getOption() != null) || !(plugin.getUsage().isEmpty()));
     }
 }

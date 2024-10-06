@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,22 +26,23 @@
  * @bug 4661481 8024096
  * @summary This test determines if the value of the -encoding option is
  * properly passed from Javadoc to the source file parser.
- * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestEncoding
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestEncoding extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestEncoding tester = new TestEncoding();
+        var tester = new TestEncoding();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "-encoding", "iso-8859-1",

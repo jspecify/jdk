@@ -69,6 +69,7 @@ import javax.tools.DiagnosticListener;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 
+import com.sun.source.tree.CaseTree.CaseKind;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.util.JavacTask;
 import com.sun.tools.javac.api.JavacTool;
@@ -76,7 +77,9 @@ import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.tree.EndPosTable;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCAnnotatedType;
+import com.sun.tools.javac.tree.JCTree.JCCase;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.TreeInfo;
@@ -418,6 +421,14 @@ public class TreePosTest {
         }
 
         @Override
+        public void visitMethodDef(JCMethodDecl tree) {
+            // ignore compact record constructors
+            if ((tree.mods.flags & Flags.COMPACT_RECORD_CONSTRUCTOR) == 0) {
+                super.visitMethodDef(tree);
+            }
+        }
+
+        @Override
         public void visitVarDef(JCVariableDecl tree) {
             // enum member declarations are desugared in the parser and have
             // ill-defined semantics for tree positions, so for now, we
@@ -438,6 +449,15 @@ public class TreePosTest {
                 }
             } else
                 super.visitVarDef(tree);
+        }
+
+        @Override
+        public void visitCase(JCCase tree) {
+            if (tree.getCaseKind() == CaseKind.RULE) {
+                scan(tree.getBody());
+            } else {
+                super.visitCase(tree);
+            }
         }
 
         boolean check(Info encl, Info self) {

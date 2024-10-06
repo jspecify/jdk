@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,14 @@
 
 package java.awt;
 
-import org.jspecify.annotations.Nullable;
-
-import java.util.Map;
-import java.util.Set;
+import java.lang.ref.WeakReference;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+
 import sun.awt.SunHints;
-import java.lang.ref.WeakReference;
 
 /**
  * The {@code RenderingHints} class defines and manages collections of
@@ -1066,7 +1064,7 @@ public class RenderingHints
      * {@code RenderingHints} is to be tested.
      * @return {@code true} if this {@code RenderingHints}
      *          contains a mapping for the specified key.
-     * @exception ClassCastException if the key can not
+     * @throws ClassCastException if the key can not
      *            be cast to {@code RenderingHints.Key}
      */
     public boolean containsKey(Object key) {
@@ -1101,7 +1099,7 @@ public class RenderingHints
      * @return  the value to which the key is mapped in this object or
      *          {@code null} if the key is not mapped to any value in
      *          this object.
-     * @exception ClassCastException if the key can not
+     * @throws ClassCastException if the key can not
      *            be cast to {@code RenderingHints.Key}
      * @see     #put(Object, Object)
      */
@@ -1119,11 +1117,11 @@ public class RenderingHints
      * @param      value   the rendering hint value.
      * @return     the previous value of the specified key in this object
      *             or {@code null} if it did not have one.
-     * @exception NullPointerException if the key is
+     * @throws NullPointerException if the key is
      *            {@code null}.
-     * @exception ClassCastException if the key can not
+     * @throws ClassCastException if the key can not
      *            be cast to {@code RenderingHints.Key}
-     * @exception IllegalArgumentException if the
+     * @throws IllegalArgumentException if the
      *            {@link Key#isCompatibleValue(java.lang.Object)
      *                   Key.isCompatibleValue()}
      *            method of the specified key returns false for the
@@ -1165,7 +1163,7 @@ public class RenderingHints
      * {@code RenderingHints} object. This method does nothing if the
      * key is not in this {@code RenderingHints} object.
      * @param   key   the rendering hints key that needs to be removed
-     * @exception ClassCastException if the key can not
+     * @throws ClassCastException if the key can not
      *            be cast to {@code RenderingHints.Key}
      * @return  the value to which the key had previously been mapped in this
      *          {@code RenderingHints} object, or {@code null}
@@ -1181,10 +1179,10 @@ public class RenderingHints
      * any mappings that this {@code RenderingHints} had for any
      * of the keys currently in the specified {@code Map}.
      * @param m the specified {@code Map}
-     * @exception ClassCastException class of a key or value
+     * @throws ClassCastException class of a key or value
      *          in the specified {@code Map} prevents it from being
      *          stored in this {@code RenderingHints}.
-     * @exception IllegalArgumentException some aspect
+     * @throws IllegalArgumentException some aspect
      *          of a key or value in the specified {@code Map}
      *           prevents it from being stored in
      *            this {@code RenderingHints}.
@@ -1257,8 +1255,7 @@ public class RenderingHints
      * returned {@code Set} is a {@code Map.Entry}.
      * The {@code Set} is backed by the {@code RenderingHints},
      * so changes to the {@code RenderingHints} are reflected
-     * in the {@code Set}, and vice-versa.  If the
-     * {@code RenderingHints} is modified while
+     * in the {@code Set}. If the {@code RenderingHints} is modified while
      * while an iteration over the {@code Set} is in progress,
      * the results of the iteration are undefined.
      * <p>
@@ -1292,9 +1289,7 @@ public class RenderingHints
      * @return {@code true} if the specified {@code Object}
      * is equal to this {@code RenderingHints}.
      */
-    
-    
-    public boolean equals(@Nullable Object o) {
+    public boolean equals(Object o) {
         if (o instanceof RenderingHints) {
             return hintmap.equals(((RenderingHints) o).hintmap);
         } else if (o instanceof Map) {

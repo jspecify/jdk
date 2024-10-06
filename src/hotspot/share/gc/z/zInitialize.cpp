@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,27 +25,40 @@
 #include "gc/z/zAddress.hpp"
 #include "gc/z/zBarrierSet.hpp"
 #include "gc/z/zCPU.hpp"
+#include "gc/z/zDriver.hpp"
+#include "gc/z/zGCIdPrinter.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zInitialize.hpp"
+#include "gc/z/zJNICritical.hpp"
 #include "gc/z/zLargePages.hpp"
+#include "gc/z/zMarkStackAllocator.hpp"
+#include "gc/z/zNMT.hpp"
 #include "gc/z/zNUMA.hpp"
 #include "gc/z/zStat.hpp"
+#include "gc/z/zThreadLocalAllocBuffer.hpp"
 #include "gc/z/zTracer.hpp"
 #include "logging/log.hpp"
 #include "runtime/vm_version.hpp"
 
 ZInitialize::ZInitialize(ZBarrierSet* barrier_set) {
-  log_info(gc, init)("Initializing %s", ZGCName);
+  log_info(gc, init)("Initializing %s", ZName);
   log_info(gc, init)("Version: %s (%s)",
-                     Abstract_VM_Version::vm_release(),
-                     Abstract_VM_Version::jdk_debug_level());
+                     VM_Version::vm_release(),
+                     VM_Version::jdk_debug_level());
 
   // Early initialization
-  ZAddressMasks::initialize();
+  ZNMT::initialize();
+  ZGlobalsPointers::initialize();
   ZNUMA::initialize();
   ZCPU::initialize();
   ZStatValue::initialize();
+  ZThreadLocalAllocBuffer::initialize();
   ZTracer::initialize();
   ZLargePages::initialize();
   ZBarrierSet::set_barrier_set(barrier_set);
+  ZJNICritical::initialize();
+  ZDriver::initialize();
+  ZGCIdPrinter::initialize();
+
+  pd_initialize();
 }

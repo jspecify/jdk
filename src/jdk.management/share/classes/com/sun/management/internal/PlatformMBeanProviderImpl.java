@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,11 +41,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.management.DynamicMBean;
+import jdk.management.VirtualThreadSchedulerMXBean;
 import sun.management.ManagementFactoryHelper;
 import sun.management.spi.PlatformMBeanProvider;
 
+@SuppressWarnings({"removal", "restricted"})
 public final class PlatformMBeanProviderImpl extends PlatformMBeanProvider {
-    final static String DIAGNOSTIC_COMMAND_MBEAN_NAME =
+    static final String DIAGNOSTIC_COMMAND_MBEAN_NAME =
         "com.sun.management:type=DiagnosticCommand";
 
     private final List<PlatformComponent<?>> mxbeanList;
@@ -163,6 +165,41 @@ public final class PlatformMBeanProviderImpl extends PlatformMBeanProvider {
         });
 
         /**
+         * VirtualThreadSchedulerMXBean.
+         */
+        initMBeanList.add(new PlatformComponent<VirtualThreadSchedulerMXBean>() {
+            private final Set<Class<? extends VirtualThreadSchedulerMXBean>> mbeanInterfaces =
+                    Set.of(VirtualThreadSchedulerMXBean.class);
+            private final Set<String> mbeanInterfaceNames =
+                    Set.of(VirtualThreadSchedulerMXBean.class.getName());
+            private VirtualThreadSchedulerMXBean impl;
+
+            @Override
+            public Set<Class<? extends VirtualThreadSchedulerMXBean>> mbeanInterfaces() {
+                return mbeanInterfaces;
+            }
+
+            @Override
+            public Set<String> mbeanInterfaceNames() {
+                return mbeanInterfaceNames;
+            }
+
+            @Override
+            public String getObjectNamePattern() {
+                return "jdk.management:type=VirtualThreadScheduler";
+            }
+
+            @Override
+            public Map<String, VirtualThreadSchedulerMXBean> nameToMBeanMap() {
+                VirtualThreadSchedulerMXBean impl = this.impl;
+                if (impl == null) {
+                    this.impl = impl = VirtualThreadSchedulerImpls.create();
+                }
+                return Map.of("jdk.management:type=VirtualThreadScheduler", impl);
+            }
+        });
+
+        /**
          * OperatingSystemMXBean
          */
         initMBeanList.add(new PlatformComponent<OperatingSystemMXBean>() {
@@ -204,8 +241,7 @@ public final class PlatformMBeanProviderImpl extends PlatformMBeanProvider {
          */
         initMBeanList.add(new PlatformComponent<com.sun.management.HotSpotDiagnosticMXBean>() {
             private final Set<String> hotSpotDiagnosticMXBeanInterfaceNames =
-                    Collections.unmodifiableSet(Collections.<String>singleton(
-                            "com.sun.management.HotSpotDiagnosticMXBean"));
+                    Collections.singleton("com.sun.management.HotSpotDiagnosticMXBean");
 
             @Override
             public Set<Class<? extends com.sun.management.HotSpotDiagnosticMXBean>> mbeanInterfaces() {
@@ -237,8 +273,7 @@ public final class PlatformMBeanProviderImpl extends PlatformMBeanProvider {
         if (diagMBean != null) {
             initMBeanList.add(new PlatformComponent<DynamicMBean>() {
                 final Set<String> dynamicMBeanInterfaceNames
-                        = Collections.unmodifiableSet(Collections.<String>singleton(
-                                "javax.management.DynamicMBean"));
+                        = Collections.singleton("javax.management.DynamicMBean");
 
                 @Override
                 public Set<String> mbeanInterfaceNames() {

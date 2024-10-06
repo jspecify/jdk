@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package javax.crypto.spec;
 
 import java.security.spec.KeySpec;
+import java.util.Arrays;
 
 /**
  * A user-chosen password that can be used with password-based encryption
@@ -172,11 +173,9 @@ public class PBEKeySpec implements KeySpec {
      * Clears the internal copy of the password.
      *
      */
-    public final void clearPassword() {
+    public final synchronized void clearPassword() {
         if (password != null) {
-            for (int i = 0; i < password.length; i++) {
-                password[i] = ' ';
-            }
+            Arrays.fill(password, ' ');
             password = null;
         }
     }
@@ -192,7 +191,7 @@ public class PBEKeySpec implements KeySpec {
      * calling <code>clearPassword</code> method.
      * @return the password.
      */
-    public final char[] getPassword() {
+    public final synchronized char[] getPassword() {
         if (password == null) {
             throw new IllegalStateException("password has been cleared");
         }

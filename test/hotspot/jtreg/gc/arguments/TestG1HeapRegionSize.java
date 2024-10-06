@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,16 +21,18 @@
  * questions.
  */
 
+package gc.arguments;
+
 /*
  * @test TestG1HeapRegionSize
- * @key gc
  * @bug 8021879
- * @requires vm.gc.G1
+ * @requires vm.gc.G1 & vm.opt.G1HeapRegionSize == null
  * @summary Verify that the flag G1HeapRegionSize is updated properly
  * @modules java.base/jdk.internal.misc
  * @modules java.management/sun.management
  * @library /test/lib
- * @run main TestG1HeapRegionSize
+ * @library /
+ * @run driver gc.arguments.TestG1HeapRegionSize
  */
 
 import java.util.regex.Matcher;
@@ -40,7 +42,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.Platform;
 
 public class TestG1HeapRegionSize {
 
@@ -51,8 +53,7 @@ public class TestG1HeapRegionSize {
     flagList.add("-XX:+PrintFlagsFinal");
     flagList.add("-version");
 
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(flagList.toArray(new String[0]));
-    OutputAnalyzer output = new OutputAnalyzer(pb.start());
+    OutputAnalyzer output = GCArguments.executeTestJava(flagList);
     output.shouldHaveExitValue(exitValue);
 
     if (exitValue == 0) {
@@ -78,8 +79,15 @@ public class TestG1HeapRegionSize {
 
     checkG1HeapRegionSize(new String[] { "-Xmx64m"   /* default is 1m */        },  1*M, 0);
     checkG1HeapRegionSize(new String[] { "-Xmx64m",  "-XX:G1HeapRegionSize=2m"  },  2*M, 0);
-    checkG1HeapRegionSize(new String[] { "-Xmx64m",  "-XX:G1HeapRegionSize=3m"  },  2*M, 0);
+    checkG1HeapRegionSize(new String[] { "-Xmx64m",  "-XX:G1HeapRegionSize=3m"  },  4*M, 0);
     checkG1HeapRegionSize(new String[] { "-Xmx256m", "-XX:G1HeapRegionSize=32m" }, 32*M, 0);
-    checkG1HeapRegionSize(new String[] { "-Xmx256m", "-XX:G1HeapRegionSize=64m" }, 32*M, 1);
+    if (Platform.is64bit()) {
+      checkG1HeapRegionSize(new String[] { "-Xmx4096m", "-XX:G1HeapRegionSize=64m" }, 64*M, 0);
+      checkG1HeapRegionSize(new String[] { "-Xmx4096m", "-XX:G1HeapRegionSize=512m" }, 512*M, 0);
+      checkG1HeapRegionSize(new String[] { "-Xmx4096m", "-XX:G1HeapRegionSize=1024m" }, 512*M, 1);
+      checkG1HeapRegionSize(new String[] { "-Xmx128g" }, 32*M, 0);
+    } else {
+      checkG1HeapRegionSize(new String[] { "-Xmx256m", "-XX:G1HeapRegionSize=64m" }, 64*M, 1);
+    }
   }
 }

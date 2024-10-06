@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  */
 
 /* Copyright  (c) 2002 Graz University of Technology. All rights reserved.
@@ -56,7 +56,9 @@ import java.security.PrivilegedAction;
 
 import sun.security.util.Debug;
 
+import sun.security.pkcs11.P11Util;
 import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
+import static sun.security.pkcs11.wrapper.PKCS11Exception.RV.*;
 
 /**
  * This is the default implementation of the PKCS11 interface. IT connects to
@@ -81,7 +83,8 @@ public class PKCS11 {
         // cannot use LoadLibraryAction because that would make the native
         // library available to the bootclassloader, but we run in the
         // extension classloader.
-        AccessController.doPrivileged(new PrivilegedAction<Object>() {
+        @SuppressWarnings({"removal", "restricted"})
+        var dummy = AccessController.doPrivileged(new PrivilegedAction<Object>() {
             public Object run() {
                 System.loadLibrary(PKCS11_WRAPPER);
                 return null;
@@ -102,7 +105,10 @@ public class PKCS11 {
      * e.g. pk2priv.dll.
      */
     private final String pkcs11ModulePath;
+    private final CK_VERSION version;
 
+    // Note: Please don't update this field other than the constructor.
+    // Otherwise, the native data is not able to be collected.
     private long pNativeData;
 
     /**
@@ -133,13 +139,33 @@ public class PKCS11 {
      * path, if the driver is not in the system's search path.
      *
      * @param pkcs11ModulePath the PKCS#11 library path
+     * @param functionList the method name for retrieving the PKCS#11
+     *         function list; may be null if not set in config file
      * @preconditions (pkcs11ModulePath <> null)
      * @postconditions
      */
-    PKCS11(String pkcs11ModulePath, String functionListName)
+    PKCS11(String pkcs11ModulePath, String functionList)
             throws IOException {
-        connect(pkcs11ModulePath, functionListName);
+        this.version = connect(pkcs11ModulePath, functionList);
         this.pkcs11ModulePath = pkcs11ModulePath;
+        // bug in native PKCS#11 lib; workaround it by calling C_GetInfo()
+        // and get cryptoki version from there
+        if (this.version.major != 2 && this.version.major != 3) {
+            try {
+                CK_INFO p11Info = C_GetInfo();
+                this.version.major = p11Info.cryptokiVersion.major;
+                this.version.minor = p11Info.cryptokiVersion.minor;
+            } catch (PKCS11Exception e) {
+                // give up; just use what is returned by connect()
+            }
+        }
+
+        // Calls disconnect() to cleanup the native part of the wrapper.
+        P11Util.cleaner.register(this, releaserFor(pNativeData));
+    }
+
+    public CK_VERSION getVersion() {
+        return version;
     }
 
     public static synchronized PKCS11 getInstance(String pkcs11ModulePath,
@@ -161,7 +187,7 @@ public class PKCS11 {
                 } catch (PKCS11Exception e) {
                     // ignore already-initialized error code
                     // rethrow all other errors
-                    if (e.getErrorCode() != CKR_CRYPTOKI_ALREADY_INITIALIZED) {
+                    if (!e.match(CKR_CRYPTOKI_ALREADY_INITIALIZED)) {
                         throw e;
                     }
                 }
@@ -171,31 +197,44 @@ public class PKCS11 {
         return pkcs11;
     }
 
+    private static Runnable releaserFor(long pNativeData) {
+        return () -> {
+            if (pNativeData != 0) {
+                PKCS11.disconnect(pNativeData);
+            }
+        };
+    }
+
     /**
      * Connects this object to the specified PKCS#11 library. This method is for
      * internal use only.
      * Declared private, because incorrect handling may result in errors in the
-     * native part.
+     * native part.  Please don't use this method other than the constructor.
      *
      * @param pkcs11ModulePath The PKCS#11 library path.
+     * @param functionList the method name for retrieving the PKCS#11
+     *         function list; may be null if not set in config file
+     * @return the actual PKCS11 interface version
      * @preconditions (pkcs11ModulePath <> null)
      * @postconditions
      */
-    private native void connect(String pkcs11ModulePath, String functionListName)
-            throws IOException;
+    private native CK_VERSION connect(String pkcs11ModulePath,
+            String functionList) throws IOException;
 
     /**
      * Disconnects the PKCS#11 library from this object. After calling this
      * method, this object is no longer connected to a native PKCS#11 module
      * and any subsequent calls to C_ methods will fail. This method is for
-     * internal use only.
+     * internal use only.  Please don't use this method other than finalization
+     * as implemented in the releaserFor() method.
+     *
      * Declared private, because incorrect handling may result in errors in the
      * native part.
      *
      * @preconditions
      * @postconditions
      */
-    private native void disconnect();
+    private static native void disconnect(long pNativeData);
 
 
     // Implementation of PKCS11 methods delegated to native pkcs11wrapper library
@@ -455,6 +494,20 @@ public class PKCS11 {
     public native CK_SESSION_INFO C_GetSessionInfo(long hSession)
             throws PKCS11Exception;
 
+    /**
+     * C_SessionCancel terminates active session based operations.
+     * (Session management) (New in PKCS#11 v3.0)
+     *
+     * @param hSession the session's handle
+     *         (PKCS#11 param: CK_SESSION_HANDLE hSession)
+     * @param flags indicates the operations to cancel.
+     *         (PKCS#11 param: CK_FLAGS flags)
+     * @exception PKCS11Exception If function returns other value than CKR_OK.
+     * @preconditions
+     * @postconditions
+     */
+    public native void C_SessionCancel(long hSession, long flags)
+            throws PKCS11Exception;
 
     /**
      * C_GetOperationState obtains the state of the cryptographic operation
@@ -513,6 +566,24 @@ public class PKCS11 {
     public native void C_Login(long hSession, long userType, char[] pPin)
             throws PKCS11Exception;
 
+    ///**
+    // * C_LoginUser logs a user into a token. (New in PKCS#11 v3.0)
+    // * (Session management)
+    // *
+    // * @param hSession the session's handle
+    // *         (PKCS#11 param: CK_SESSION_HANDLE hSession)
+    // * @param userType the user type
+    // *         (PKCS#11 param: CK_USER_TYPE userType)
+    // * @param pPin the user's PIN and the length of the PIN
+    // *         (PKCS#11 param: CK_CHAR_PTR pPin, CK_ULONG ulPinLen)
+    // * @param pUsername the user name and the length of the user name
+    // *         (PKCS#11 param: CK_CHAR_PTR pUsername, CK_ULONG ulUsernameLen)
+    // * @exception PKCS11Exception If function returns other value than CKR_OK.
+    // * @preconditions
+    // * @postconditions
+    // */
+    //public native void C_LoginUser(long hSession, long userType, char[] pPin,
+    //        String pUsername) throws PKCS11Exception;
 
     /**
      * C_Logout logs a user out from a token.
@@ -722,6 +793,24 @@ public class PKCS11 {
     public native void C_EncryptInit(long hSession, CK_MECHANISM pMechanism,
             long hKey) throws PKCS11Exception;
 
+    /**
+     * C_GCMEncryptInitWithRetry initializes a GCM encryption operation and retry
+     * with alternative param structure for max compatibility.
+     * (Encryption and decryption)
+     *
+     * @param hSession the session's handle
+     *         (PKCS#11 param: CK_SESSION_HANDLE hSession)
+     * @param pMechanism the encryption mechanism
+     *         (PKCS#11 param: CK_MECHANISM_PTR pMechanism)
+     * @param hKey the handle of the encryption key
+     *         (PKCS#11 param: CK_OBJECT_HANDLE hKey)
+     * @param useNormativeVerFirst whether to use normative version of GCM parameter first
+     * @exception PKCS11Exception If function returns other value than CKR_OK.
+     * @preconditions
+     * @postconditions
+     */
+    public native void C_GCMEncryptInitWithRetry(long hSession, CK_MECHANISM pMechanism,
+            long hKey, boolean useNormativeVerFirst) throws PKCS11Exception;
 
     /**
      * C_Encrypt encrypts single-part data.
@@ -729,17 +818,25 @@ public class PKCS11 {
      *
      * @param hSession the session's handle
      *         (PKCS#11 param: CK_SESSION_HANDLE hSession)
-     * @param pData the data to get encrypted and the data's length
+     * @param directIn the address of the to-be-encrypted data
+     * @param in buffer containing the to-be-encrypted data
+     * @param inOfs buffer offset of the to-be-encrypted data
+     * @param inLen length of the to-be-encrypted data
      *         (PKCS#11 param: CK_BYTE_PTR pData, CK_ULONG ulDataLen)
-     * @return the encrypted data and the encrypted data's length
+     * @param directOut the address for the encrypted data
+     * @param out buffer for the encrypted data
+     * @param outOfs buffer offset for the encrypted data
+     * @param outLen buffer size for the encrypted data
+     * @return the length of encrypted data
      *         (PKCS#11 param: CK_BYTE_PTR pEncryptedData,
      *                         CK_ULONG_PTR pulEncryptedDataLen)
      * @exception PKCS11Exception If function returns other value than CKR_OK.
-     * @preconditions (pData <> null)
-     * @postconditions (result <> null)
+     * @preconditions
+     * @postconditions
      */
-    public native int C_Encrypt(long hSession, byte[] in, int inOfs, int inLen,
-            byte[] out, int outOfs, int outLen) throws PKCS11Exception;
+    public native int C_Encrypt(long hSession, long directIn, byte[] in,
+            int inOfs, int inLen, long directOut, byte[] out, int outOfs,
+            int outLen) throws PKCS11Exception;
 
 
     /**
@@ -749,13 +846,20 @@ public class PKCS11 {
      *
      * @param hSession the session's handle
      *         (PKCS#11 param: CK_SESSION_HANDLE hSession)
-     * @param pPart the data part to get encrypted and the data part's length
+     * @param directIn the address of the to-be-encrypted data
+     * @param in buffer containing the to-be-encrypted data
+     * @param inOfs buffer offset of the to-be-encrypted data
+     * @param inLen length of the to-be-encrypted data
      *         (PKCS#11 param: CK_BYTE_PTR pPart, CK_ULONG ulPartLen)
-     * @return the encrypted data part and the encrypted data part's length
+     * @param directOut the address for the encrypted data
+     * @param out buffer for the encrypted data
+     * @param outOfs buffer offset for the encrypted data
+     * @param outLen buffer size for the encrypted data
+     * @return the length of encrypted data for this update
      *         (PKCS#11 param: CK_BYTE_PTR pEncryptedPart,
-                             CK_ULONG_PTR pulEncryptedPartLen)
+     *                         CK_ULONG_PTR pulEncryptedPartLen)
      * @exception PKCS11Exception If function returns other value than CKR_OK.
-     * @preconditions (pPart <> null)
+     * @preconditions
      * @postconditions
      */
     public native int C_EncryptUpdate(long hSession, long directIn, byte[] in,
@@ -770,16 +874,19 @@ public class PKCS11 {
      *
      * @param hSession the session's handle
      *         (PKCS#11 param: CK_SESSION_HANDLE hSession)
-     * @return the last encrypted data part and the last data part's length
+     * @param directOut the address for the encrypted data
+     * @param out buffer for the encrypted data
+     * @param outOfs buffer offset for the encrypted data
+     * @param outLen buffer size for the encrypted data
+     * @return the length of the last part of the encrypted data
      *         (PKCS#11 param: CK_BYTE_PTR pLastEncryptedPart,
-                             CK_ULONG_PTR pulLastEncryptedPartLen)
+     *                         CK_ULONG_PTR pulLastEncryptedPartLen)
      * @exception PKCS11Exception If function returns other value than CKR_OK.
      * @preconditions
-     * @postconditions (result <> null)
+     * @postconditions
      */
     public native int C_EncryptFinal(long hSession, long directOut, byte[] out,
             int outOfs, int outLen) throws PKCS11Exception;
-
 
     /**
      * C_DecryptInit initializes a decryption operation.
@@ -798,6 +905,24 @@ public class PKCS11 {
     public native void C_DecryptInit(long hSession, CK_MECHANISM pMechanism,
             long hKey) throws PKCS11Exception;
 
+    /**
+     * C_GCMDecryptInitWithRetry initializes a GCM decryption operation
+     * with alternative param structure for max compatibility.
+     * (Encryption and decryption)
+     *
+     * @param hSession the session's handle
+     *         (PKCS#11 param: CK_SESSION_HANDLE hSession)
+     * @param pMechanism the decryption mechanism
+     *         (PKCS#11 param: CK_MECHANISM_PTR pMechanism)
+     * @param hKey the handle of the decryption key
+     *         (PKCS#11 param: CK_OBJECT_HANDLE hKey)
+     * @param useNormativeVerFirst whether to use normative version of GCM parameter first
+     * @exception PKCS11Exception If function returns other value than CKR_OK.
+     * @preconditions
+     * @postconditions
+     */
+    public native void C_GCMDecryptInitWithRetry(long hSession, CK_MECHANISM pMechanism,
+            long hKey, boolean useNormativeVerFirst) throws PKCS11Exception;
 
     /**
      * C_Decrypt decrypts encrypted data in a single part.
@@ -805,18 +930,25 @@ public class PKCS11 {
      *
      * @param hSession the session's handle
      *         (PKCS#11 param: CK_SESSION_HANDLE hSession)
-     * @param pEncryptedData the encrypted data to get decrypted and the
-     *         encrypted data's length
-     *         (PKCS#11 param: CK_BYTE_PTR pEncryptedData,
-     *                         CK_ULONG ulEncryptedDataLen)
-     * @return the decrypted data and the data's length
+     * @param directIn the address of the to-be-decrypted data
+     * @param in buffer containing the to-be-decrypted data
+     * @param inOfs buffer offset of the to-be-decrypted data
+     * @param inLen length of the to-be-decrypted data
+     *         (PKCS#11 param: CK_BYTE_PTR pDecryptedData,
+     *                         CK_ULONG ulDecryptedDataLen)
+     * @param directOut the address for the decrypted data
+     * @param out buffer for the decrypted data
+     * @param outOfs buffer offset for the decrypted data
+     * @param outLen buffer size for the decrypted data
+     * @return the length of decrypted data
      *         (PKCS#11 param: CK_BYTE_PTR pData, CK_ULONG_PTR pulDataLen)
      * @exception PKCS11Exception If function returns other value than CKR_OK.
-     * @preconditions (pEncryptedPart <> null)
-     * @postconditions (result <> null)
+     * @preconditions
+     * @postconditions
      */
-    public native int C_Decrypt(long hSession, byte[] in, int inOfs, int inLen,
-            byte[] out, int outOfs, int outLen) throws PKCS11Exception;
+    public native int C_Decrypt(long hSession, long directIn, byte[] in,
+            int inOfs, int inLen, long directOut, byte[] out, int outOfs,
+            int outLen) throws PKCS11Exception;
 
 
     /**
@@ -826,14 +958,20 @@ public class PKCS11 {
      *
      * @param hSession the session's handle
      *         (PKCS#11 param: CK_SESSION_HANDLE hSession)
-     * @param pEncryptedPart the encrypted data part to get decrypted and the
-     *         encrypted data part's length
-     *         (PKCS#11 param: CK_BYTE_PTR pEncryptedPart,
-     *                         CK_ULONG ulEncryptedPartLen)
-     * @return the decrypted data part and the data part's length
+     * @param directIn the address of the to-be-decrypted data
+     * @param in buffer containing the to-be-decrypted data
+     * @param inOfs buffer offset of the to-be-decrypted data
+     * @param inLen length of the to-be-decrypted data
+     *         (PKCS#11 param: CK_BYTE_PTR pDecryptedPart,
+     *                         CK_ULONG ulDecryptedPartLen)
+     * @param directOut the address for the decrypted data
+     * @param out buffer for the decrypted data
+     * @param outOfs buffer offset for the decrypted data
+     * @param outLen buffer size for the decrypted data
+     * @return the length of decrypted data for this update
      *         (PKCS#11 param: CK_BYTE_PTR pPart, CK_ULONG_PTR pulPartLen)
      * @exception PKCS11Exception If function returns other value than CKR_OK.
-     * @preconditions (pEncryptedPart <> null)
+     * @preconditions
      * @postconditions
      */
     public native int C_DecryptUpdate(long hSession, long directIn, byte[] in,
@@ -848,17 +986,19 @@ public class PKCS11 {
      *
      * @param hSession the session's handle
      *         (PKCS#11 param: CK_SESSION_HANDLE hSession)
-     * @return the last decrypted data part and the last data part's length
+     * @param directOut the address for the decrypted data
+     * @param out buffer for the decrypted data
+     * @param outOfs buffer offset for the decrypted data
+     * @param outLen buffer size for the decrypted data
+     * @return the length of this last part of decrypted data
      *         (PKCS#11 param: CK_BYTE_PTR pLastPart,
      *                         CK_ULONG_PTR pulLastPartLen)
      * @exception PKCS11Exception If function returns other value than CKR_OK.
      * @preconditions
-     * @postconditions (result <> null)
+     * @postconditions
      */
     public native int C_DecryptFinal(long hSession, long directOut, byte[] out,
             int outOfs, int outLen) throws PKCS11Exception;
-
-
 
 /* *****************************************************************************
  * Message digesting
@@ -1027,6 +1167,7 @@ public class PKCS11 {
      *
      * @param hSession the session's handle
      *         (PKCS#11 param: CK_SESSION_HANDLE hSession)
+     * @param expectedLen expected signature length, can be 0 if unknown
      * @return the signature and the signature's length
      *         (PKCS#11 param: CK_BYTE_PTR pSignature,
      *                         CK_ULONG_PTR pulSignatureLen)
@@ -1285,10 +1426,49 @@ public class PKCS11 {
 //            byte[] pEncryptedPart) throws PKCS11Exception;
 
 
-
 /* *****************************************************************************
  * Key management
  ******************************************************************************/
+
+    /**
+     * getNativeKeyInfo gets the key object attributes and values as an opaque
+     * byte array to be used in createNativeKey method.
+     * (Key management)
+     *
+     * @param hSession the session's handle
+     * @param hKey key's handle
+     * @param hWrappingKey key handle for wrapping the extracted sensitive keys.
+     *        -1 if not used.
+     * @param pWrappingMech mechanism for wrapping the extracted sensitive keys
+     * @return an opaque byte array containing the key object attributes
+     *         and values
+     * @exception PKCS11Exception If an internal PKCS#11 function returns other
+     *            value than CKR_OK.
+     * @preconditions
+     * @postconditions
+     */
+    public native byte[] getNativeKeyInfo(long hSession, long hKey,
+            long hWrappingKey, CK_MECHANISM pWrappingMech) throws PKCS11Exception;
+
+    /**
+     * createNativeKey creates a key object with attributes and values
+     * specified by parameter as an opaque byte array.
+     * (Key management)
+     *
+     * @param hSession the session's handle
+     * @param keyInfo opaque byte array containing key object attributes
+     *        and values
+     * @param hWrappingKey key handle for unwrapping the extracted sensitive keys.
+     *        -1 if not used.
+     * @param pWrappingMech mechanism for unwrapping the extracted sensitive keys
+     * @return key object handle
+     * @exception PKCS11Exception If an internal PKCS#11 function returns other
+     *            value than CKR_OK.
+     * @preconditions
+     * @postconditions
+     */
+    public native long createNativeKey(long hSession, byte[] keyInfo,
+            long hWrappingKey, CK_MECHANISM pWrappingMech) throws PKCS11Exception;
 
     /**
      * C_GenerateKey generates a secret key, creating a new key
@@ -1524,25 +1704,13 @@ public class PKCS11 {
         return "Module name: " + pkcs11ModulePath;
     }
 
-    /**
-     * Calls disconnect() to cleanup the native part of the wrapper. Once this
-     * method is called, this object cannot be used any longer. Any subsequent
-     * call to a C_* method will result in a runtime exception.
-     *
-     * @exception Throwable If finalization fails.
-     */
-    @SuppressWarnings("deprecation")
-    protected void finalize() throws Throwable {
-        disconnect();
-    }
-
 // PKCS11 subclass that has all methods synchronized and delegating to the
 // parent. Used for tokens that only support single threaded access
 static class SynchronizedPKCS11 extends PKCS11 {
 
-    SynchronizedPKCS11(String pkcs11ModulePath, String functionListName)
+    SynchronizedPKCS11(String pkcs11ModulePath, String functionList)
             throws IOException {
-        super(pkcs11ModulePath, functionListName);
+        super(pkcs11ModulePath, functionList);
     }
 
     synchronized void C_Initialize(Object pInitArgs) throws PKCS11Exception {
@@ -1598,10 +1766,21 @@ static class SynchronizedPKCS11 extends PKCS11 {
         return super.C_GetSessionInfo(hSession);
     }
 
-    public synchronized void C_Login(long hSession, long userType, char[] pPin)
+    public synchronized void C_SessionCancel(long hSession, long flags)
             throws PKCS11Exception {
+        super.C_SessionCancel(hSession, flags);
+    }
+
+    public synchronized void C_Login(long hSession, long userType,
+            char[] pPin) throws PKCS11Exception {
         super.C_Login(hSession, userType, pPin);
     }
+
+    //public synchronized void C_LoginUser(long hSession, long userType,
+    //        char[] pPin, String pUsername)
+    //        throws PKCS11Exception {
+    //    super.C_LoginUser(hSession, userType, pPin, pUsername);
+    //}
 
     public synchronized void C_Logout(long hSession) throws PKCS11Exception {
         super.C_Logout(hSession);
@@ -1652,10 +1831,11 @@ static class SynchronizedPKCS11 extends PKCS11 {
         super.C_EncryptInit(hSession, pMechanism, hKey);
     }
 
-    public synchronized int C_Encrypt(long hSession, byte[] in, int inOfs,
-            int inLen, byte[] out, int outOfs, int outLen)
+    public synchronized int C_Encrypt(long hSession, long directIn, byte[] in,
+            int inOfs, int inLen, long directOut, byte[] out, int outOfs, int outLen)
             throws PKCS11Exception {
-        return super.C_Encrypt(hSession, in, inOfs, inLen, out, outOfs, outLen);
+        return super.C_Encrypt(hSession, directIn, in, inOfs, inLen,
+                directOut, out, outOfs, outLen);
     }
 
     public synchronized int C_EncryptUpdate(long hSession, long directIn,
@@ -1675,10 +1855,11 @@ static class SynchronizedPKCS11 extends PKCS11 {
         super.C_DecryptInit(hSession, pMechanism, hKey);
     }
 
-    public synchronized int C_Decrypt(long hSession, byte[] in, int inOfs,
-            int inLen, byte[] out, int outOfs, int outLen)
-            throws PKCS11Exception {
-        return super.C_Decrypt(hSession, in, inOfs, inLen, out, outOfs, outLen);
+    public synchronized int C_Decrypt(long hSession, long directIn,
+            byte[] in, int inOfs, int inLen, long directOut, byte[] out,
+            int outOfs, int outLen) throws PKCS11Exception {
+        return super.C_Decrypt(hSession, directIn, in, inOfs, inLen,
+                directOut, out, outOfs, outLen);
     }
 
     public synchronized int C_DecryptUpdate(long hSession, long directIn,

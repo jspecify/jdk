@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,11 @@
  * @bug 8042885
  * @summary Make sure there is no error using hexadecimal format in vm options
  * @author Yumin Qi
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
+ * @run driver TestHexArguments
  */
 
 import java.io.File;
@@ -37,16 +39,16 @@ import jdk.test.lib.process.OutputAnalyzer;
 
 public class TestHexArguments {
     public static void main(String args[]) throws Exception {
-      String[] javaArgs = {"-XX:SharedBaseAddress=0x1D000000", "-version"};
-      ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(javaArgs);
-
+      ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(
+          "-XX:SharedBaseAddress=0x1D000000", "-version");
       OutputAnalyzer output = new OutputAnalyzer(pb.start());
       output.shouldNotContain("Could not create the Java Virtual Machine");
       output.shouldHaveExitValue(0);
 
-      String[] javaArgs1 = {"-XX:SharedBaseAddress=1D000000", "-version"};
-      pb = ProcessTools.createJavaProcessBuilder(javaArgs1);
+      pb = ProcessTools.createLimitedTestJavaProcessBuilder(
+          "-XX:SharedBaseAddress=1D000000", "-version");
       output = new OutputAnalyzer(pb.start());
+      output.shouldNotHaveExitValue(0);
       output.shouldContain("Could not create the Java Virtual Machine");
   }
 }

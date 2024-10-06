@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,8 +64,6 @@ public final @UsesObjectEquals class SystemFlavorMap implements FlavorMap, Flavo
      * Constant prefix used to tag Java types converted to native platform type.
      */
     private static String JavaMIME = "JAVA_DATAFLAVOR:";
-
-    private static final Object FLAVOR_MAP_KEY = new Object();
 
     /**
      * The list of valid, decoded text flavor representation classes, in order
@@ -208,6 +206,7 @@ public final @UsesObjectEquals class SystemFlavorMap implements FlavorMap, Flavo
         }
         isMapInitialized = true;
 
+        @SuppressWarnings("removal")
         InputStream is = AccessController.doPrivileged(
             (PrivilegedAction<InputStream>) () -> {
                 return SystemFlavorMap.class.getResourceAsStream(

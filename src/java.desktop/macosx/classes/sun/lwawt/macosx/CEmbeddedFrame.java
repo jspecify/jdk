@@ -111,7 +111,7 @@ public class CEmbeddedFrame extends EmbeddedFrame {
         responder.handleInputEvent(text);
     }
 
-    // handleFocusEvent is called when the applet becames focused/unfocused.
+    // handleFocusEvent is called when the applet becomes focused/unfocused.
     // This method can be called from different threads.
     public void handleFocusEvent(boolean focused) {
         synchronized (classLock) {
@@ -123,7 +123,7 @@ public class CEmbeddedFrame extends EmbeddedFrame {
         if (globalFocusedWindow == this) {
             // see bug 8010925
             // we can't put this to handleWindowFocusEvent because
-            // it won't be invoced if focuse is moved to a html element
+            // it won't be invoked if focus is moved to an html element
             // on the same page.
             CClipboard clipboard = (CClipboard) Toolkit.getDefaultToolkit().getSystemClipboard();
             clipboard.checkPasteboardAndNotify();
@@ -165,8 +165,6 @@ public class CEmbeddedFrame extends EmbeddedFrame {
                         : this;
             }
         }
-        // ignore focus "lost" native request as it may mistakenly
-        // deactivate active window (see 8001161)
         if (globalFocusedWindow == this) {
             responder.handleWindowFocusEvent(parentWindowActive, null);
         }
@@ -177,8 +175,23 @@ public class CEmbeddedFrame extends EmbeddedFrame {
     }
 
     private boolean isParentWindowChanged() {
-        // If globalFocusedWindow is located at inactive parent window or null, we have swithed to
+        // If globalFocusedWindow is located at inactive parent window or null, we have switched to
         // another window.
         return globalFocusedWindow != null ? !globalFocusedWindow.isParentWindowActive() : true;
+    }
+
+    @Override
+    public void synthesizeWindowActivation(boolean doActivate) {
+        if (isParentWindowActive() != doActivate) {
+            handleWindowFocusEvent(doActivate);
+        }
+    }
+
+    public static void updateGlobalFocusedWindow(CEmbeddedFrame newGlobalFocusedWindow) {
+        synchronized (classLock) {
+            if (newGlobalFocusedWindow.isParentWindowActive()) {
+                globalFocusedWindow = newGlobalFocusedWindow;
+            }
+        }
     }
 }

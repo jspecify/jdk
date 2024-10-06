@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 /* @test
  * @bug 4429043 8002180
  * @summary Test file mapping with FileChannel
- * @run main/othervm MapTest
+ * @run main/othervm/timeout=240 MapTest
  * @key randomness
  */
 
@@ -36,6 +36,7 @@ import java.nio.file.Files;
 import static java.nio.file.StandardOpenOption.*;
 import static java.nio.charset.StandardCharsets.*;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -56,19 +57,42 @@ public class MapTest {
     public static void main(String[] args) throws Exception {
         blah = File.createTempFile("blah", null);
         blah.deleteOnExit();
+        long t0 = System.nanoTime();
         initTestFile(blah);
+        long t1 = System.nanoTime();
+        out.printf("Test file %s initialized in %d ns (%d ms) %n",
+                blah, t1 - t0, TimeUnit.NANOSECONDS.toMillis(t1 - t0));
+        t0 = t1;
         try {
-            out.println("Test file " + blah + " initialized");
             testZero();
-            out.println("Zero size: OK");
+            t1 = System.nanoTime();
+            out.printf("Zero size: done in %d ns (%d ms) %n",
+                    t1 - t0, TimeUnit.NANOSECONDS.toMillis(t1 - t0));
+            t0 = t1;
             testRead();
-            out.println("Read: OK");
+            t1 = System.nanoTime();
+            out.printf("Read: done in %d ns (%d ms) %n",
+                    t1 - t0, TimeUnit.NANOSECONDS.toMillis(t1 - t0));
+            t0 = t1;
             testWrite();
-            out.println("Write: OK");
+            t1 = System.nanoTime();
+            out.printf("Write: done in %d ns (%d ms) %n",
+                    t1 - t0, TimeUnit.NANOSECONDS.toMillis(t1 - t0));
+            t0 = t1;
             testHighOffset();
-            out.println("High offset: OK");
+            t1 = System.nanoTime();
+            out.printf("High offset: done in %d ns (%d ms) %n",
+                    t1 - t0, TimeUnit.NANOSECONDS.toMillis(t1 - t0));
+            t0 = t1;
+            testForce();
+            t1 = System.nanoTime();
+            out.printf("Force: done in %d ns (%d ms) %n",
+                    t1 - t0, TimeUnit.NANOSECONDS.toMillis(t1 - t0));
+            t0 = t1;
             testExceptions();
-            out.println("Exceptions: OK");
+            t1 = System.nanoTime();
+            out.printf("Exceptions: done in %d ns (%d ms) %n",
+                    t1 - t0, TimeUnit.NANOSECONDS.toMillis(t1 - t0));
         } finally {
             blah.delete();
         }
@@ -184,6 +208,51 @@ public class MapTest {
                 long offset = 66000;
                 MappedByteBuffer b = fc.map(MapMode.READ_WRITE,
                                             offset, 100);
+            }
+        }
+    }
+
+    /**
+     * Maps blah file, writes some data and forcing writeback of
+     * the data exercising various valid and invalid writeback ranges.
+     */
+    private static void testForce() throws Exception {
+        try (RandomAccessFile raf = new RandomAccessFile(blah, "rw")) {
+            FileChannel fc = raf.getChannel();
+            final int BLOCK_SIZE = 64;
+            final int BLOCK_COUNT = (4096 * 2)/ BLOCK_SIZE;
+            int offset = 0;
+            MappedByteBuffer b = fc.map(MapMode.READ_WRITE,
+                                        0, BLOCK_SIZE * (BLOCK_COUNT + 1));
+
+            for (int blocks = 0; blocks < BLOCK_COUNT; blocks++) {
+                for (int i = 0; i < BLOCK_SIZE; i++) {
+                    b.put(offset + i, (byte)('0' + i));
+                }
+                b.force(offset, BLOCK_SIZE);
+                offset += BLOCK_SIZE;
+            }
+
+            Exception exc = null;
+            try {
+                // start and end are out of range
+                b.force(offset + BLOCK_SIZE, BLOCK_SIZE);
+            } catch (IndexOutOfBoundsException e) {
+                exc = e;
+            }
+            if (exc == null) {
+                throw new RuntimeException("expected Exception for force beyond buffer extent");
+            }
+
+            exc = null;
+            try {
+                // start is in range but end is out of range
+                b.force(offset, 2 * BLOCK_SIZE);
+            } catch (IndexOutOfBoundsException e) {
+                exc = e;
+            }
+            if (exc == null) {
+                throw new RuntimeException("expected Exception for force beyond write limit");
             }
         }
     }

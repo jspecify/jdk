@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,6 +71,8 @@ import sun.reflect.misc.ReflectUtil;
  */
 public class ObjectView extends ComponentView  {
 
+    private boolean createComp = true; // default
+
     /**
      * Creates a new ObjectView object.
      *
@@ -80,6 +82,11 @@ public class ObjectView extends ComponentView  {
         super(elem);
     }
 
+    ObjectView(Element elem, boolean createComp) {
+        super(elem);
+        this.createComp = createComp;
+    }
+
     /**
      * Create the component.  The classid is used
      * as a specification of the classname, which
@@ -87,17 +94,22 @@ public class ObjectView extends ComponentView  {
      */
     @SuppressWarnings("deprecation")
     protected Component createComponent() {
+        if (!createComp) {
+            return getUnloadableRepresentation();
+        }
         AttributeSet attr = getElement().getAttributes();
         String classname = (String) attr.getAttribute(HTML.Attribute.CLASSID);
         try {
             ReflectUtil.checkPackageAccess(classname);
-            Class<?> c = Class.forName(classname, true,Thread.currentThread().
+            Class<?> c = Class.forName(classname, false,Thread.currentThread().
                                        getContextClassLoader());
-            Object o = c.newInstance();
-            if (o instanceof Component) {
-                Component comp = (Component) o;
-                setParameters(comp, attr);
-                return comp;
+            if (Component.class.isAssignableFrom(c)) {
+                Object o = c.newInstance();
+                if (o instanceof Component) {
+                    Component comp = (Component) o;
+                    setParameters(comp, attr);
+                    return comp;
+                }
             }
         } catch (Throwable e) {
             // couldn't create a component... fall through to the
@@ -133,7 +145,7 @@ public class ObjectView extends ComponentView  {
             System.err.println("introspector failed, ex: "+ex);
             return;             // quit for now
         }
-        PropertyDescriptor props[] = bi.getPropertyDescriptors();
+        PropertyDescriptor[] props = bi.getPropertyDescriptors();
         for (int i=0; i < props.length; i++) {
             //      System.err.println("checking on props[i]: "+props[i].getName());
             Object v = attr.getAttribute(props[i].getName());

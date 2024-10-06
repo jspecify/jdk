@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@ import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.math.BigInteger;
-import java.security.spec.AlgorithmParameterSpec;
 
 /**
  * This class specifies the set of parameters used to generate an RSA
@@ -45,9 +44,9 @@ import java.security.spec.AlgorithmParameterSpec;
 @AnnotatedFor({"interning"})
 public @UsesObjectEquals class RSAKeyGenParameterSpec implements AlgorithmParameterSpec {
 
-    private int keysize;
-    private BigInteger publicExponent;
-    private AlgorithmParameterSpec keyParams;
+    private final int keysize;
+    private final BigInteger publicExponent;
+    private final AlgorithmParameterSpec keyParams;
 
     /**
      * The public-exponent value F0 = 3.

@@ -22,22 +22,20 @@
  */
 package com.sun.org.apache.xml.internal.security.keys.content.x509;
 
-import org.jspecify.annotations.Nullable;
-
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
-import java.util.Base64;
 
 import com.sun.org.apache.xml.internal.security.exceptions.XMLSecurityException;
 import com.sun.org.apache.xml.internal.security.utils.Constants;
 import com.sun.org.apache.xml.internal.security.utils.SignatureElementProxy;
+import com.sun.org.apache.xml.internal.security.utils.XMLUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 /**
  * Handles SubjectKeyIdentifier (SKI) for X.509v3.
  *
- * @see <A HREF="http://docs.oracle.com/javase/1.5.0/docs/api/java/security/cert/X509Extension.html">
+ * @see <A HREF="http://docs.oracle.com/javase/8/docs/api/java/security/cert/X509Extension.html">
  * Interface X509Extension</A>
  */
 public class XMLX509SKI extends SignatureElementProxy implements XMLX509DataContent {
@@ -114,7 +112,7 @@ public class XMLX509SKI extends SignatureElementProxy implements XMLX509DataCont
         throws XMLSecurityException {
 
         if (cert.getVersion() < 3) {
-            Object exArgs[] = { cert.getVersion() };
+            Object[] exArgs = { cert.getVersion() };
             throw new XMLSecurityException("certificate.noSki.lowVersion", exArgs);
         }
 
@@ -135,21 +133,20 @@ public class XMLX509SKI extends SignatureElementProxy implements XMLX509DataCont
          * OCTET STRING, and the next two bytes are the tag and length of
          * the ski OCTET STRING.
          */
-        byte skidValue[] = new byte[extensionValue.length - 4];
+        byte[] skidValue = new byte[extensionValue.length - 4];
 
         System.arraycopy(extensionValue, 4, skidValue, 0, skidValue.length);
 
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Base64 of SKI is " + Base64.getMimeEncoder().encodeToString(skidValue));
+            LOG.debug("Base64 of SKI is " + XMLUtils.encodeToString(skidValue));
         }
 
         return skidValue;
     }
 
     /** {@inheritDoc} */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (!(obj instanceof XMLX509SKI)) {
             return false;
         }
@@ -163,12 +160,13 @@ public class XMLX509SKI extends SignatureElementProxy implements XMLX509DataCont
         }
     }
 
+    @Override
     public int hashCode() {
         int result = 17;
         try {
             byte[] bytes = getSKIBytes();
-            for (int i = 0; i < bytes.length; i++) {
-                result = 31 * result + bytes[i];
+            for (byte element : bytes) {
+                result = 31 * result + element;
             }
         } catch (XMLSecurityException e) {
             LOG.debug(e.getMessage(), e);
@@ -178,6 +176,7 @@ public class XMLX509SKI extends SignatureElementProxy implements XMLX509DataCont
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getBaseLocalName() {
         return Constants._TAG_X509SKI;
     }

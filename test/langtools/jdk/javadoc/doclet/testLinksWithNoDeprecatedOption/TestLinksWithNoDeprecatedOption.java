@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,12 @@
  * @test
  * @bug 8202627
  * @summary javadoc generates broken links to deprecated items when -nodeprecated is used
- * @library /tools/lib ../lib
+ * @library /tools/lib ../../lib
  * @modules
  *      jdk.javadoc/jdk.javadoc.internal.tool
  *      jdk.compiler/com.sun.tools.javac.api
  *      jdk.compiler/com.sun.tools.javac.main
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestLinksWithNoDeprecatedOption
  */
 
@@ -43,13 +43,15 @@ import builder.ClassBuilder.FieldBuilder;
 import builder.ClassBuilder.MethodBuilder;
 import toolbox.ToolBox;
 
+import javadoc.tester.JavadocTester;
+
 public class TestLinksWithNoDeprecatedOption extends JavadocTester {
 
     final ToolBox tb;
 
     public static void main(String... args) throws Exception {
-        TestLinksWithNoDeprecatedOption tester = new TestLinksWithNoDeprecatedOption();
-        tester.runTests(m -> new Object[]{Paths.get(m.getName())});
+        var tester = new TestLinksWithNoDeprecatedOption();
+        tester.runTests();
     }
 
     TestLinksWithNoDeprecatedOption() {
@@ -57,7 +59,7 @@ public class TestLinksWithNoDeprecatedOption extends JavadocTester {
     }
 
     @Test
-    void test(Path base) throws Exception {
+    public void test(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         createTestClass(base, srcDir);
 
@@ -71,21 +73,21 @@ public class TestLinksWithNoDeprecatedOption extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("pkg/class-use/A.html", true,
-                "<span class=\"memberNameLink\">"
-                + "<a href=\"../B.html#a2\">a2</a></span>");
+                """
+                    <a href="../B.html#a2" class="member-name-link">a2</a>""");
 
         //links for deprecated items will not be found
         checkOutput("pkg/class-use/A.html", false,
-                "<span class=\"memberNameLink\">"
-                + "<a href=\"../B.html#deprecatedField\">deprecatedField</a></span>");
+                """
+                    <a href="../B.html#deprecatedField" class="member-name-link">deprecatedField</a>""");
 
         checkOutput("pkg/class-use/A.html", false,
-                "<span class=\"memberNameLink\">"
-                + "<a href=\"../B.html#deprecatedMethod(pkg.A)\">deprecatedMethod</a></span>");
+                """
+                    <a href="../B.html#deprecatedMethod(pkg.A)" class="member-name-link">deprecatedMethod</a>""");
 
         checkOutput("pkg/class-use/A.html",false,
-                "<span class=\"memberNameLink\">"
-                + "<a href=\"../B.html#%3Cinit%3E(pkg.A)\">B</a></span>");
+                """
+                    <a href="../B.html#%3Cinit%3E(pkg.A)" class="member-name-link">B</a>""");
 
     }
 

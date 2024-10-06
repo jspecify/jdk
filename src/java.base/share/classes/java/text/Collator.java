@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,6 @@ import org.jspecify.annotations.Nullable;
 import java.lang.ref.SoftReference;
 import java.text.spi.CollatorProvider;
 import java.util.Locale;
-import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import sun.util.locale.provider.LocaleProviderAdapter;
@@ -51,74 +50,71 @@ import sun.util.locale.provider.LocaleServiceProviderPool;
 
 
 /**
- * The <code>Collator</code> class performs locale-sensitive
- * <code>String</code> comparison. You use this class to build
+ * The {@code Collator} class performs locale-sensitive
+ * {@code String} comparison. You use this class to build
  * searching and sorting routines for natural language text.
  *
  * <p>
- * <code>Collator</code> is an abstract base class. Subclasses
+ * {@code Collator} is an abstract base class. Subclasses
  * implement specific collation strategies. One subclass,
- * <code>RuleBasedCollator</code>, is currently provided with
+ * {@code RuleBasedCollator}, is currently provided with
  * the Java Platform and is applicable to a wide set of languages. Other
  * subclasses may be created to handle more specialized needs.
  *
  * <p>
  * Like other locale-sensitive classes, you can use the static
- * factory method, <code>getInstance</code>, to obtain the appropriate
- * <code>Collator</code> object for a given locale. You will only need
- * to look at the subclasses of <code>Collator</code> if you need
+ * factory method, {@code getInstance}, to obtain the appropriate
+ * {@code Collator} object for a given locale. You will only need
+ * to look at the subclasses of {@code Collator} if you need
  * to understand the details of a particular collation strategy or
  * if you need to modify that strategy.
  *
  * <p>
  * The following example shows how to compare two strings using
- * the <code>Collator</code> for the default locale.
- * <blockquote>
- * <pre>{@code
+ * the {@code Collator} for the default locale.
+ * {@snippet lang=java :
  * // Compare two strings in the default locale
  * Collator myCollator = Collator.getInstance();
- * if( myCollator.compare("abc", "ABC") < 0 )
+ * if (myCollator.compare("abc", "ABC") < 0) {
  *     System.out.println("abc is less than ABC");
- * else
+ * } else {
  *     System.out.println("abc is greater than or equal to ABC");
- * }</pre>
- * </blockquote>
+ * }
+ * }
  *
  * <p>
- * You can set a <code>Collator</code>'s <em>strength</em> property
+ * You can set a {@code Collator}'s <em>strength</em> property
  * to determine the level of difference considered significant in
- * comparisons. Four strengths are provided: <code>PRIMARY</code>,
- * <code>SECONDARY</code>, <code>TERTIARY</code>, and <code>IDENTICAL</code>.
+ * comparisons. Four strengths are provided: {@code PRIMARY},
+ * {@code SECONDARY}, {@code TERTIARY}, and {@code IDENTICAL}.
  * The exact assignment of strengths to language features is
  * locale dependent.  For example, in Czech, "e" and "f" are considered
  * primary differences, while "e" and "&#283;" are secondary differences,
  * "e" and "E" are tertiary differences and "e" and "e" are identical.
  * The following shows how both case and accents could be ignored for
  * US English.
- * <blockquote>
- * <pre>
- * //Get the Collator for US English and set its strength to PRIMARY
+ * {@snippet lang=java :
+ * // Get the Collator for US English and set its strength to PRIMARY
  * Collator usCollator = Collator.getInstance(Locale.US);
  * usCollator.setStrength(Collator.PRIMARY);
- * if( usCollator.compare("abc", "ABC") == 0 ) {
+ * if (usCollator.compare("abc", "ABC") == 0) {
  *     System.out.println("Strings are equivalent");
  * }
- * </pre>
- * </blockquote>
+ * }
  * <p>
- * For comparing <code>String</code>s exactly once, the <code>compare</code>
+ * For comparing {@code String}s exactly once, the {@code compare}
  * method provides the best performance. When sorting a list of
- * <code>String</code>s however, it is generally necessary to compare each
- * <code>String</code> multiple times. In this case, <code>CollationKey</code>s
- * provide better performance. The <code>CollationKey</code> class converts
- * a <code>String</code> to a series of bits that can be compared bitwise
- * against other <code>CollationKey</code>s. A <code>CollationKey</code> is
- * created by a <code>Collator</code> object for a given <code>String</code>.
+ * {@code String}s however, it is generally necessary to compare each
+ * {@code String} multiple times. In this case, {@code CollationKey}s
+ * provide better performance. The {@code CollationKey} class converts
+ * a {@code String} to a series of bits that can be compared bitwise
+ * against other {@code CollationKey}s. A {@code CollationKey} is
+ * created by a {@code Collator} object for a given {@code String}.
  * <br>
- * <strong>Note:</strong> <code>CollationKey</code>s from different
- * <code>Collator</code>s can not be compared. See the class description
+ * @apiNote {@code CollationKey}s from different
+ * {@code Collator}s can not be compared. See the class description
  * for {@link CollationKey}
- * for an example using <code>CollationKey</code>s.
+ * for an example using {@code CollationKey}s.
  *
  * @see         RuleBasedCollator
  * @see         CollationKey
@@ -176,7 +172,7 @@ public abstract class Collator
     /**
      * Decomposition mode value. With NO_DECOMPOSITION
      * set, accented characters will not be decomposed for collation. This
-     * is the default setting and provides the fastest collation but
+     * setting provides the fastest collation but
      * will only produce correct results for languages that do not use accents.
      * @see java.text.Collator#getDecomposition
      * @see java.text.Collator#setDecomposition
@@ -191,8 +187,10 @@ public abstract class Collator
      * <p>
      * CANONICAL_DECOMPOSITION corresponds to Normalization Form D as
      * described in
-     * <a href="http://www.unicode.org/unicode/reports/tr15/tr15-23.html">Unicode
-     * Technical Report #15</a>.
+     * <a href="http://www.unicode.org/reports/tr15/">Unicode
+     * Standard Annex #15: Unicode Normalization Forms</a>.
+     *
+     * @spec https://www.unicode.org/reports/tr15 Unicode Normalization Forms
      * @see java.text.Collator#getDecomposition
      * @see java.text.Collator#setDecomposition
      */
@@ -210,8 +208,10 @@ public abstract class Collator
      * <p>
      * FULL_DECOMPOSITION corresponds to Normalization Form KD as
      * described in
-     * <a href="http://www.unicode.org/unicode/reports/tr15/tr15-23.html">Unicode
-     * Technical Report #15</a>.
+     * <a href="http://www.unicode.org/reports/tr15/">Unicode
+     * Standard Annex #15: Unicode Normalization Forms</a>.
+     *
+     * @spec https://www.unicode.org/reports/tr15 Unicode Normalization Forms
      * @see java.text.Collator#getDecomposition
      * @see java.text.Collator#setDecomposition
      */
@@ -219,7 +219,7 @@ public abstract class Collator
 
     /**
      * Gets the Collator for the current default locale.
-     * The default locale is determined by java.util.Locale.getDefault.
+     * The default locale is determined by {@link Locale#getDefault()}.
      * @return the Collator for the default locale.(for example, en_US)
      * @see java.util.Locale#getDefault
      */
@@ -228,7 +228,57 @@ public abstract class Collator
     }
 
     /**
-     * Gets the Collator for the desired locale.
+     * Gets the Collator for the desired locale. If the desired locale
+     * has the "{@code ks}" and/or the "{@code kk}"
+     * <a href="https://www.unicode.org/reports/tr35/tr35-collation.html#Setting_Options">
+     * Unicode collation settings</a>, this method will call {@linkplain #setStrength(int)}
+     * and/or {@linkplain #setDecomposition(int)} on the created instance, if the specified
+     * Unicode collation settings are recognized based on the following mappings:
+     * <table class="striped">
+     * <caption style="display:none">Strength/Decomposition mappings</caption>
+     * <thead>
+     * <tr><th scope="col">BCP 47 values for strength (ks)</th>
+     *     <th scope="col">Collator constants for strength</th></tr>
+     * </thead>
+     * <tbody>
+     * <tr><th scope="row" style="text-align:left">level1</th>
+     *     <td>PRIMARY</td></tr>
+     * <tr><th scope="row" style="text-align:left">level2</th>
+     *     <td>SECONDARY</td></tr>
+     * <tr><th scope="row" style="text-align:left">level3</th>
+     *     <td>TERTIARY<sup>*</sup></td></tr>
+     * <tr><th scope="row" style="text-align:left">identic</th>
+     *     <td>IDENTICAL</td></tr>
+     * </tbody>
+     * <thead>
+     * <tr><th scope="col">BCP 47 values for normalization (kk)</th>
+     *     <th scope="col">Collator constants for decomposition</th></tr>
+     * </thead>
+     * <tbody>
+     * <tr><th scope="row" style="text-align:left">true</th>
+     *     <td>CANONICAL_DECOMPOSITION</td></tr>
+     * <tr><th scope="row" style="text-align:left">false</th>
+     *     <td>NO_DECOMPOSITION<sup>*</sup></td></tr>
+     * </tbody>
+     * </table>
+     * Asterisk (<sup>*</sup>) denotes the default value.
+     * If the specified setting value is not recognized, the strength and/or
+     * decomposition is not overridden, as if there were no BCP 47 collation
+     * options in the desired locale.
+     *
+     * @apiNote Implementations of {@code Collator} class may produce
+     * different instances based on the "{@code co}"
+     * <a href="https://www.unicode.org/reports/tr35/#UnicodeCollationIdentifier">
+     * Unicode collation identifier</a> in the {@code desiredLocale}.
+     * For example:
+     * {@snippet lang = java:
+     * Collator.getInstance(Locale.forLanguageTag("sv-u-co-trad"));
+     * }
+     * may return a {@code Collator} instance with the Swedish traditional sorting, which
+     * gives 'v' and 'w' the same sorting order, while the {@code Collator} instance
+     * for the Swedish locale without "co" identifier distinguishes 'v' and 'w'.
+     * @spec https://www.unicode.org/reports/tr35 Unicode Locale Data Markup Language
+     *     (LDML)
      * @param desiredLocale the desired locale.
      * @return the Collator for the desired locale.
      * @see java.util.Locale
@@ -247,6 +297,27 @@ public abstract class Collator
                 result = LocaleProviderAdapter.forJRE()
                              .getCollatorProvider().getInstance(desiredLocale);
             }
+
+            // Override strength and decomposition with `desiredLocale`, if any
+            var strength = desiredLocale.getUnicodeLocaleType("ks");
+            if (strength != null) {
+                strength = strength.toLowerCase(Locale.ROOT);
+                switch (strength) {
+                    case "level1" -> result.setStrength(PRIMARY);
+                    case "level2" -> result.setStrength(SECONDARY);
+                    case "level3" -> result.setStrength(TERTIARY);
+                    case "identic" -> result.setStrength(IDENTICAL);
+                }
+            }
+            var norm = desiredLocale.getUnicodeLocaleType("kk");
+            if (norm != null) {
+                norm = norm.toLowerCase(Locale.ROOT);
+                switch (norm) {
+                    case "true" -> result.setDecomposition(CANONICAL_DECOMPOSITION);
+                    case "false" -> result.setDecomposition(NO_DECOMPOSITION);
+                }
+            }
+
             while (true) {
                 if (ref != null) {
                     // Remove the empty SoftReference if any
@@ -293,12 +364,12 @@ public abstract class Collator
      * to, or greater than the second.
      * <p>
      * This implementation merely returns
-     *  <code> compare((String)o1, (String)o2) </code>.
+     *  {@code  compare((String)o1, (String)o2) }.
      *
      * @return a negative integer, zero, or a positive integer as the
      *         first argument is less than, equal to, or greater than the
      *         second.
-     * @exception ClassCastException the arguments cannot be cast to Strings.
+     * @throws    ClassCastException the arguments cannot be cast to Strings.
      * @see java.util.Comparator
      * @since   1.2
      */
@@ -360,7 +431,7 @@ public abstract class Collator
      * @see java.text.Collator#SECONDARY
      * @see java.text.Collator#TERTIARY
      * @see java.text.Collator#IDENTICAL
-     * @exception  IllegalArgumentException If the new strength value is not one of
+     * @throws     IllegalArgumentException If the new strength value is not one of
      * PRIMARY, SECONDARY, TERTIARY or IDENTICAL.
      */
     public synchronized void setStrength(int newStrength) {
@@ -404,7 +475,7 @@ public abstract class Collator
      * @see java.text.Collator#NO_DECOMPOSITION
      * @see java.text.Collator#CANONICAL_DECOMPOSITION
      * @see java.text.Collator#FULL_DECOMPOSITION
-     * @exception IllegalArgumentException If the given value is not a valid decomposition
+     * @throws    IllegalArgumentException If the given value is not a valid decomposition
      * mode.
      */
     public synchronized void setDecomposition(int decompositionMode) {
@@ -418,16 +489,17 @@ public abstract class Collator
 
     /**
      * Returns an array of all locales for which the
-     * <code>getInstance</code> methods of this class can return
+     * {@code getInstance} methods of this class can return
      * localized instances.
      * The returned array represents the union of locales supported
      * by the Java runtime and by installed
      * {@link java.text.spi.CollatorProvider CollatorProvider} implementations.
-     * It must contain at least a Locale instance equal to
-     * {@link java.util.Locale#US Locale.US}.
+     * At a minimum, the returned array must contain a {@code Locale} instance equal to
+     * {@link Locale#ROOT Locale.ROOT} and a {@code Locale} instance equal to
+     * {@link Locale#US Locale.US}.
      *
      * @return An array of locales for which localized
-     *         <code>Collator</code> instances are available.
+     *         {@code Collator} instances are available.
      */
     public static synchronized Locale[] getAvailableLocales() {
         LocaleServiceProviderPool pool =
@@ -462,10 +534,7 @@ public abstract class Collator
         if (this == that) {
             return true;
         }
-        if (that == null) {
-            return false;
-        }
-        if (getClass() != that.getClass()) {
+        if (that == null || getClass() != that.getClass()) {
             return false;
         }
         Collator other = (Collator) that;

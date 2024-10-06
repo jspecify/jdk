@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_SERVICES_PSMEMORYPOOL_HPP
-#define SHARE_VM_SERVICES_PSMEMORYPOOL_HPP
+#ifndef SHARE_GC_PARALLEL_PSMEMORYPOOL_HPP
+#define SHARE_GC_PARALLEL_PSMEMORYPOOL_HPP
 
 #include "gc/parallel/mutableSpace.hpp"
 #include "gc/parallel/psOldGen.hpp"
@@ -59,7 +59,9 @@ public:
   size_t used_in_bytes()                    { return space()->used_in_bytes(); }
   size_t max_size() const {
     // Eden's max_size = max_size of Young Gen - the current committed size of survivor spaces
-    return _young_gen->max_size() - _young_gen->from_space()->capacity_in_bytes() - _young_gen->to_space()->capacity_in_bytes();
+    return _young_gen->max_gen_size() -
+           _young_gen->from_space()->capacity_in_bytes() -
+           _young_gen->to_space()->capacity_in_bytes();
   }
 };
 
@@ -86,4 +88,4 @@ public:
   }
 };
 
-#endif // SHARE_VM_SERVICES_PSMEMORYPOOL_HPP
+#endif // SHARE_GC_PARALLEL_PSMEMORYPOOL_HPP

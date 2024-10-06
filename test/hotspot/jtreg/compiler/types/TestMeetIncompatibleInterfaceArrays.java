@@ -30,9 +30,8 @@
  *          java.base/jdk.internal.misc
  * @library /test/lib /
  *
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm
  *        -Xbootclasspath/a:.
  *        -XX:+UnlockDiagnosticVMOptions
@@ -85,7 +84,7 @@ package compiler.types;
 import compiler.whitebox.CompilerWhiteBoxTest;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 import java.io.FileOutputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -217,7 +216,7 @@ public class TestMeetIncompatibleInterfaceArrays extends ClassLoader {
      *       3: areturn
      *
      * The "test()" method calls the "getName()" function from I1 on the objects returned by "run()".
-     * This will epectedly fail with an "IncompatibleClassChangeError" because the objects returned
+     * This will expectedly fail with an "IncompatibleClassChangeError" because the objects returned
      * by "run()" (and by createI2Array()) are actually of type "I2C" and only implement "I2" but not "I1".
      *
      *
@@ -361,6 +360,12 @@ public class TestMeetIncompatibleInterfaceArrays extends ClassLoader {
                 for (int j = 0; j < 3; j++) {
                     System.out.println((j + 1) + ". invokation of " + baseClassName + i + "ASM.test() [::" +
                                        r.getName() + "() should be '" + tier[pass][j] + "' compiled]");
+
+                    // Skip Profiling compilation (C1) when Tiered is disabled.
+                    boolean profile = (level[pass][j] == CompilerWhiteBoxTest.COMP_LEVEL_FULL_PROFILE);
+                    if (profile && CompilerWhiteBoxTest.skipOnTieredCompilation(false)) {
+                        continue;
+                    }
 
                     WB.enqueueMethodForCompilation(r, level[pass][j]);
 

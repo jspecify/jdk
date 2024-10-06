@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,22 +26,23 @@
  * @bug      4933335
  * @summary  Make sure that all inherited methods from multiple extended
  *           interfaces are documented
- * @author   jamieh
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestMultiInheritance
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestMultiInheritance extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestMultiInheritance tester = new TestMultiInheritance();
+        var tester = new TestMultiInheritance();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "pkg3");
@@ -50,31 +51,25 @@ public class TestMultiInheritance extends JavadocTester {
         // Method foo() is inherited from BOTH I2 and I3
 
         checkOutput("pkg3/I1.html", true,
-                "Methods inherited from interface&nbsp;pkg3."
-                + "<a href=\"I2.html\" title=\"interface in pkg3\">"
-                + "I2</a>",
-                "Methods inherited from interface&nbsp;pkg3."
-                + "<a href=\"I3.html\" title=\"interface in pkg3\">"
-                + "I3</a>");
+                """
+                    Methods inherited from interface&nbsp;pkg3.<a href="I2.html" title="interface in pkg3">I2</a>""",
+                """
+                    Methods inherited from interface&nbsp;pkg3.<a href="I3.html" title="interface in pkg3">I3</a>""");
 
         checkOutput("pkg3/I0.html", true,
-                "Methods inherited from interface&nbsp;pkg3."
-                + "<a href=\"I2.html\" title=\"interface in pkg3\">"
-                + "I2</a>",
-                "Methods inherited from interface&nbsp;pkg3."
-                + "<a href=\"I3.html\" title=\"interface in pkg3\">"
-                + "I3</a>");
+                """
+                    Methods inherited from interface&nbsp;pkg3.<a href="I2.html" title="interface in pkg3">I2</a>""",
+                """
+                    Methods inherited from interface&nbsp;pkg3.<a href="I3.html" title="interface in pkg3">I3</a>""");
 
-        // Method foo() is NOT inherited from I4 because it is overriden by I3.
+        // Method foo() is NOT inherited from I4 because it is overridden by I3.
 
         checkOutput("pkg3/I1.html", false,
-                "Methods inherited from interface&nbsp;pkg3."
-                + "<a href=\"I4.html\" title=\"interface in pkg3\">"
-                + "I4</a>");
+                """
+                    Methods inherited from interface&nbsp;pkg3.<a href="I4.html" title="interface in pkg3">I4</a>""");
 
         checkOutput("pkg3/I0.html", false,
-                "Methods inherited from interface&nbsp;pkg3."
-                + "<a href=\"I4.html\" title=\"interface in pkg3\">"
-                + "I4</a>");
+                """
+                    Methods inherited from interface&nbsp;pkg3.<a href="I4.html" title="interface in pkg3">I4</a>""");
     }
 }

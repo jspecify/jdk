@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 import javax.swing.*;
-import javax.swing.event.*;
 import javax.swing.table.*;
 
 import sun.jvm.hotspot.debugger.*;
@@ -36,7 +35,7 @@ import sun.jvm.hotspot.debugger.*;
 public class ProcessListPanel extends JPanel {
   private Debugger           dbg;
   private AbstractTableModel dataModel;
-  private java.util.List     els;
+  private java.util.List<ProcessInfo> els;
   private boolean            sortByName   = true;
   private boolean            sortReversed = false;
   private javax.swing.Timer  timer;
@@ -67,13 +66,13 @@ public class ProcessListPanel extends JPanel {
         }
 
         public Object getValueAt(int row, int col) {
-          ProcessInfo info = (ProcessInfo) els.get(row);
+          ProcessInfo info = els.get(row);
 
           switch (col) {
           case 0:
             return info.getName();
           case 1:
-            return new Integer(info.getPid());
+            return info.getPid();
           default:
             throw new RuntimeException("Index (" + col + ", " + row + ") out of bounds");
           }
@@ -149,7 +148,7 @@ public class ProcessListPanel extends JPanel {
     if (!dbg.hasProcessList()) {
       throw new RuntimeException("ProcessListPanel requires that debugger supports getProcessList()");
     }
-    java.util.List newEls = dbg.getProcessList();
+    java.util.List<ProcessInfo> newEls = dbg.getProcessList();
     sort(newEls);
     if (table != null) {
       // Keep the current selection if possible
@@ -176,24 +175,24 @@ public class ProcessListPanel extends JPanel {
     if (i < 0) {
       return null;
     }
-    return (ProcessInfo) els.get(i);
+    return els.get(i);
   }
 
-  private synchronized void sort(java.util.List els) {
-    Comparator c;
+  private synchronized void sort(java.util.List<ProcessInfo> els) {
+    Comparator<ProcessInfo> c;
     if (sortByName) {
-      c = new Comparator() {
-          public int compare(Object o1, Object o2) {
+      c = new Comparator<>() {
+          public int compare(ProcessInfo o1, ProcessInfo o2) {
             int scale = (sortReversed ? -1 : 1);
-            return scale * ((ProcessInfo) o1).getName().compareToIgnoreCase(((ProcessInfo) o2).getName());
+            return scale * o1.getName().compareToIgnoreCase(o2.getName());
           }
         };
     } else {
-      c = new Comparator() {
-          public int compare(Object o1, Object o2) {
+      c = new Comparator<>() {
+          public int compare(ProcessInfo o1, ProcessInfo o2) {
             int scale = (sortReversed ? -1 : 1);
-            int pid1 = ((ProcessInfo) o1).getPid();
-            int pid2 = ((ProcessInfo) o2).getPid();
+            int pid1 = o1.getPid();
+            int pid2 = o2.getPid();
             int ret;
             if      (pid1 <  pid2) ret = -1;
             else if (pid1 == pid2) ret = 0;
@@ -202,7 +201,7 @@ public class ProcessListPanel extends JPanel {
           }
         };
     }
-    Collections.sort(els, c);
+    els.sort(c);
   }
 
   private javax.swing.Timer getTimer() {
@@ -216,13 +215,13 @@ public class ProcessListPanel extends JPanel {
     return timer;
   }
 
-  private synchronized int getPid(java.util.List els, int index) {
-    return ((ProcessInfo) els.get(index)).getPid();
+  private synchronized int getPid(java.util.List<ProcessInfo> els, int index) {
+    return els.get(index).getPid();
   }
 
-  private synchronized int findPid(java.util.List els, int pid) {
+  private synchronized int findPid(java.util.List<ProcessInfo> els, int pid) {
     for (int i = 0; i < els.size(); i++) {
-      ProcessInfo info = (ProcessInfo) els.get(i);
+      ProcessInfo info = els.get(i);
       if (info.getPid() == pid) {
         return i;
       }

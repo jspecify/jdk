@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@ import java.util.function.Function;
 import jdk.tools.jlink.internal.Jlink;
 import jdk.tools.jlink.internal.JlinkTask;
 import jdk.tools.jlink.builder.DefaultImageBuilder;
+import jdk.tools.jlink.internal.Platform;
 import jdk.tools.jlink.plugin.ResourcePool;
 import jdk.tools.jlink.plugin.ResourcePoolBuilder;
 import jdk.tools.jlink.plugin.Plugin;
@@ -49,7 +50,7 @@ import jdk.tools.jlink.internal.Jlink.JlinkConfiguration;
 import jdk.tools.jlink.internal.Jlink.PluginsConfiguration;
 import jdk.tools.jlink.internal.PostProcessor;
 import jdk.tools.jlink.internal.plugins.DefaultCompressPlugin;
-import jdk.tools.jlink.internal.plugins.StripDebugPlugin;
+import jdk.tools.jlink.internal.plugins.DefaultStripDebugPlugin;
 
 import tests.Helper;
 import tests.JImageGenerator;
@@ -59,8 +60,8 @@ import tests.JImageGenerator;
  * @summary Test integration API
  * @author Jean-Francois Denise
  * @library ../lib
+ * @enablePreview
  * @modules java.base/jdk.internal.jimage
- *          jdk.jdeps/com.sun.tools.classfile
  *          jdk.jlink/jdk.tools.jlink.builder
  *          jdk.jlink/jdk.tools.jlink.internal
  *          jdk.jlink/jdk.tools.jlink.internal.plugins
@@ -69,7 +70,7 @@ import tests.JImageGenerator;
  *          jdk.jlink/jdk.tools.jimage
  *          jdk.compiler
  * @build tests.*
- * @run main IntegrationTest
+ * @run main/othervm -Xmx1g IntegrationTest
  */
 public class IntegrationTest {
 
@@ -160,7 +161,7 @@ public class IntegrationTest {
         Set<String> limits = new HashSet<>();
         limits.add("java.management");
         JlinkConfiguration config = new Jlink.JlinkConfiguration(output,
-                mods, ByteOrder.nativeOrder(),
+                mods,
                 JlinkTask.newModuleFinder(modulePaths, limits, mods));
 
         List<Plugin> lst = new ArrayList<>();
@@ -168,16 +169,20 @@ public class IntegrationTest {
         //Strip debug
         {
             Map<String, String> config1 = new HashMap<>();
-            config1.put(StripDebugPlugin.NAME, "");
             Plugin strip = Jlink.newPlugin("strip-debug", config1, null);
+            config1.put(strip.getName(), "");
             lst.add(strip);
         }
         // compress
         {
             Map<String, String> config1 = new HashMap<>();
-            config1.put(DefaultCompressPlugin.NAME, "2");
+            String pluginName = "compress";
+            config1.put(pluginName, "2");
             Plugin compress
-                    = Jlink.newPlugin("compress", config1, null);
+                    = Jlink.newPlugin(pluginName, config1, null);
+            if(!pluginName.equals(compress.getName())) {
+                throw new AssertionError("compress plugin name doesn't match test constant");
+            }
             lst.add(compress);
         }
         // Post processor
@@ -185,7 +190,8 @@ public class IntegrationTest {
             lst.add(new MyPostProcessor());
         }
         // Image builder
-        DefaultImageBuilder builder = new DefaultImageBuilder(output, Collections.emptyMap());
+        DefaultImageBuilder builder = new DefaultImageBuilder(output, Collections.emptyMap(),
+                Platform.runtime());
         PluginsConfiguration plugins
                 = new Jlink.PluginsConfiguration(lst, builder, null);
 

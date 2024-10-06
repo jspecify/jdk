@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,7 @@
 
 package javax.print.attribute.standard;
 
-import org.jspecify.annotations.Nullable;
-
+import java.io.Serial;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -60,6 +59,7 @@ public final class DateTimeAtProcessing extends DateTimeSyntax
     /**
      * Use serialVersionUID from JDK 1.4 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = -3710068197278263244L;
 
     /**
@@ -89,9 +89,7 @@ public final class DateTimeAtProcessing extends DateTimeSyntax
      * @return {@code true} if {@code object} is equivalent to this date-time at
      *         processing attribute, {@code false} otherwise
      */
-    
-    
-    public boolean equals(@Nullable Object object) {
+    public boolean equals(Object object) {
         return(super.equals (object) &&
                object instanceof DateTimeAtProcessing);
     }

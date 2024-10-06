@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -223,7 +223,7 @@ public @UsesObjectEquals class PixelGrabber implements ImageConsumer {
      * delivered.
      * @return true if the pixels were successfully grabbed, false on
      * abort, error or timeout
-     * @exception InterruptedException
+     * @throws InterruptedException
      *            Another thread has interrupted this thread.
      */
     public boolean grabPixels() throws InterruptedException {
@@ -247,7 +247,7 @@ public @UsesObjectEquals class PixelGrabber implements ImageConsumer {
      * to arrive before timing out
      * @return true if the pixels were successfully grabbed, false on
      * abort, error or timeout
-     * @exception InterruptedException
+     * @throws InterruptedException
      *            Another thread has interrupted this thread.
      */
     public synchronized boolean grabPixels(long ms)
@@ -433,7 +433,7 @@ public @UsesObjectEquals class PixelGrabber implements ImageConsumer {
 
     private void convertToRGB() {
         int size = dstW * dstH;
-        int newpixels[] = new int[size];
+        int[] newpixels = new int[size];
         if (bytePixels != null) {
             for (int i = 0; i < size; i++) {
                 newpixels[i] = imageModel.getRGB(bytePixels[i] & 0xff);
@@ -474,7 +474,7 @@ public @UsesObjectEquals class PixelGrabber implements ImageConsumer {
      */
     public void setPixels(int srcX, int srcY, int srcW, int srcH,
                           ColorModel model,
-                          byte pixels[], int srcOff, int srcScan) {
+                          byte[] pixels, int srcOff, int srcScan) {
         if (srcY < dstY) {
             int diff = dstY - srcY;
             if (diff >= srcH) {
@@ -561,7 +561,7 @@ public @UsesObjectEquals class PixelGrabber implements ImageConsumer {
      */
     public void setPixels(int srcX, int srcY, int srcW, int srcH,
                           ColorModel model,
-                          int pixels[], int srcOff, int srcScan) {
+                          int[] pixels, int srcOff, int srcScan) {
         if (srcY < dstY) {
             int diff = dstY - srcY;
             if (diff >= srcH) {

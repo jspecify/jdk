@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,16 +20,36 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 /*
- *
+ * @test
+ * @bug 8000986 8062588 8210406 8174269
+ * @summary CalendarNameProvider tests
+ * @library providersrc/foobarutils
+ *          providersrc/barprovider
+ * @build com.foobar.Utils
+ *        com.bar.*
+ * @run main/othervm -Djava.locale.providers=CLDR,SPI CalendarNameProviderTest
  */
 
-import java.text.*;
-import java.util.*;
-import static java.util.Calendar.*;
-import sun.util.locale.provider.*;
-import sun.util.resources.*;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+
 import com.bar.CalendarNameProviderImpl;
+
+import static java.util.Calendar.ALL_STYLES;
+import static java.util.Calendar.DAY_OF_MONTH;
+import static java.util.Calendar.DAY_OF_WEEK;
+import static java.util.Calendar.DECEMBER;
+import static java.util.Calendar.HOUR_OF_DAY;
+import static java.util.Calendar.JANUARY;
+import static java.util.Calendar.LONG_STANDALONE;
+import static java.util.Calendar.MONTH;
+import static java.util.Calendar.SATURDAY;
+import static java.util.Calendar.SHORT_STANDALONE;
+import static java.util.Calendar.SUNDAY;
 
 /**
  * Test case for CalendarNameProvider.
@@ -51,7 +71,7 @@ public class CalendarNameProviderTest {
     }
 
     void test() {
-        Locale kids = new Locale("ja", "JP", "kids"); // test provider's supported locale
+        Locale kids = Locale.of("ja", "JP", "kids"); // test provider's supported locale
         Calendar kcal = Calendar.getInstance(kids);
         Calendar jcal = Calendar.getInstance(Locale.JAPAN);
 

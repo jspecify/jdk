@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,9 @@
 /*
  * @test
  * @bug 8060130
- * @library /lib/testlibrary
- * @build package2.Class2 GetSystemPackage jdk.testlibrary.*
+ * @requires vm.flagless
+ * @library /test/lib
+ * @build package2.Class2 GetSystemPackage
  * @summary Test if getSystemPackage() return consistent values for cases
  *          where a manifest is provided or not and ensure only jars on
  *          bootclasspath gets resolved via Package.getSystemPackage
@@ -41,7 +42,9 @@ import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
-import jdk.testlibrary.ProcessTools;
+
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
 
 public class GetSystemPackage {
 
@@ -118,8 +121,9 @@ public class GetSystemPackage {
     private static void runSubProcess(String messageOnError, String ... args)
             throws Exception
     {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(args);
-        int res = pb.directory(tmpFolder).inheritIO().start().waitFor();
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(args)
+                                        .directory(tmpFolder);
+        int res = ProcessTools.executeProcess(pb).getExitValue();
         if (res != 0) {
             throw new RuntimeException(messageOnError);
         }

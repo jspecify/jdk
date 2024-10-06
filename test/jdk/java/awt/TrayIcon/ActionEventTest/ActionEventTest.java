@@ -28,7 +28,7 @@
  * @summary Verify that ActionEvent is received with correct modifiers set.
  * @modules java.desktop/java.awt:open
  * @modules java.desktop/java.awt.peer
- * @library ../../../../lib/testlibrary ../
+ * @library /lib/client ../
  * @library /java/awt/patchlib
  * @build java.desktop/java.awt.Helper
  * @build ExtendedRobot SystemTrayIconHelper
@@ -79,7 +79,10 @@ public class ActionEventTest {
 
     public ActionEventTest() throws Exception {
         robot = new Robot();
+        robot.setAutoDelay(25);
         EventQueue.invokeAndWait(this::initializeGUI);
+        robot.waitForIdle();
+        robot.delay(500);
     }
 
     private void initializeGUI() {
@@ -117,10 +120,6 @@ public class ActionEventTest {
     }
 
     void doTest() throws Exception {
-        robot.keyPress(KeyEvent.VK_ALT);
-        robot.keyPress(KeyEvent.VK_SHIFT);
-        robot.keyPress(KeyEvent.VK_CONTROL);
-
         Point iconPosition = SystemTrayIconHelper.getTrayIconLocation(icon);
         if (iconPosition == null) {
             throw new RuntimeException("Unable to find the icon location!");
@@ -128,6 +127,10 @@ public class ActionEventTest {
 
         robot.mouseMove(iconPosition.x, iconPosition.y);
         robot.waitForIdle();
+
+        robot.keyPress(KeyEvent.VK_ALT);
+        robot.keyPress(KeyEvent.VK_SHIFT);
+        robot.keyPress(KeyEvent.VK_CONTROL);
 
         robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);

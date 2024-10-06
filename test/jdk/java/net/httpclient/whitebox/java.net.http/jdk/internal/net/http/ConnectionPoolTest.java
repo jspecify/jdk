@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,22 +25,30 @@ package jdk.internal.net.http;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.lang.ref.Reference;
 import java.net.Authenticator;
 import java.net.CookieHandler;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
+import java.net.Socket;
+import java.net.SocketAddress;
+import java.net.SocketOption;
+import java.net.http.HttpHeaders;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.spi.SelectorProvider;
 import java.time.Duration;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
-import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -48,13 +56,15 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import jdk.internal.net.http.common.FlowTube;
+import jdk.internal.net.http.common.TimeSource;
+import jdk.internal.net.http.common.TimeLine;
+import jdk.internal.net.http.common.Deadline;
 
 /**
  * @summary Verifies that the ConnectionPool correctly handle
  *          connection deadlines and purges the right connections
  *          from the cache.
- * @bug 8187044 8187111
- * @author danielfuchs
+ * @bug 8187044 8187111 8221395
  */
 public class ConnectionPoolTest {
 
@@ -78,19 +88,23 @@ public class ConnectionPoolTest {
             } else if ("testPoolSize".equals(arg)) {
                 assert args.length == 1 : "testPoolSize should be run in its own VM";
                 testPoolSize();
-            }
+            } else if ("testCloseOrReturnToPool".equals(arg)) {
+                assert args.length == 1 : "testCloseOrReturnToPool should be run in its own VM";
+                testCloseOrReturnToPool();
+            } else throw new RuntimeException("unknown test case: " + arg);
         }
     }
 
     public static void testCacheCleaners() throws Exception {
-        ConnectionPool pool = new ConnectionPool(666);
+        final TimeLine timeLine = TimeSource.source();
+        ConnectionPool pool = new ConnectionPool(666, timeLine);
         HttpClient client = new HttpClientStub(pool);
         InetSocketAddress proxy = InetSocketAddress.createUnresolved("bar", 80);
         System.out.println("Adding 20 connections to pool");
         Random random = new Random();
 
         final int count = 20;
-        Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        Deadline now = timeLine.instant().truncatedTo(ChronoUnit.SECONDS);
         int[] keepAlives = new int[count];
         HttpConnectionStub[] connections = new HttpConnectionStub[count];
         long purge = pool.purgeExpiredConnectionsAndReturnNextDeadline(now);
@@ -132,7 +146,7 @@ public class ConnectionPoolTest {
         }
         purge = mean * 1000;
         System.out.println("start purging at " + purge + " ms");
-        Instant next = now;
+        Deadline next = now;
         do {
            System.out.println("next purge is in " + purge + " ms");
            next = next.plus(purge, ChronoUnit.MILLIS);
@@ -169,7 +183,7 @@ public class ConnectionPoolTest {
         Random random = new Random();
 
         final int count = 20;
-        Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        Deadline now = TimeSource.now().truncatedTo(ChronoUnit.SECONDS);
         int[] keepAlives = new int[count];
         HttpConnectionStub[] connections = new HttpConnectionStub[count];
         long purge = pool.purgeExpiredConnectionsAndReturnNextDeadline(now);
@@ -226,6 +240,113 @@ public class ConnectionPoolTest {
         }
     }
 
+    public static void testCloseOrReturnToPool() throws Exception {
+        HttpClientFacade facade = (HttpClientFacade)HttpClient.newHttpClient();
+        HttpClientImpl client = facade.impl;
+        ConnectionPool pool = client.connectionPool();
+        InetSocketAddress proxy = InetSocketAddress.createUnresolved("bar", 80);
+
+        InetSocketAddress addr = InetSocketAddress.createUnresolved("foo1", 80);
+        HttpConnectionStub conn1 = new HttpConnectionStub(facade, client, addr, proxy, true);
+        HttpHeaders hdrs = HttpHeaders.of(new HashMap<>(), (s1,s2) -> true);
+        HttpConnection conn;
+
+        conn1.reopen();
+        if (!conn1.isOpen()) {
+            throw new RuntimeException("conn1 finished");
+        }
+
+        conn1.closeOrReturnToCache(hdrs);
+
+        // Check we can find conn1 in the pool
+        if (conn1 != (conn = pool.getConnection(true, addr, proxy))) {
+            throw new RuntimeException("conn1 not returned, got: " + conn);
+        }
+        System.out.println("Found connection in the pool: " + conn );
+
+        // Try to return it with no headers: the connection should
+        // be closed and not returned to the pool (EOF).
+        conn.closeOrReturnToCache(null);
+        if ((conn = pool.getConnection(true, addr, proxy)) != null) {
+            throw new RuntimeException(conn + " found in the pool!");
+        }
+        if (!conn1.closed) {
+            throw new RuntimeException("conn1 not closed!");
+        }
+        System.out.println("EOF connection successfully closed when returned to pool");
+
+        // reopen the connection
+        conn1.reopen();
+        if (!conn1.isOpen()) {
+            throw new RuntimeException("conn1 finished");
+        }
+
+        // Try to return it with empty headers: the connection should
+        // be returned to the pool.
+        conn1.closeOrReturnToCache(hdrs);
+        if (conn1 != (conn = pool.getConnection(true, addr, proxy))) {
+            throw new RuntimeException("conn1 not returned to pool, got: " + conn);
+        }
+        if (conn1.closed) {
+            throw new RuntimeException("conn1 closed");
+        }
+        if (!conn1.isOpen()) {
+            throw new RuntimeException("conn1 finished");
+        }
+
+        System.out.println("Keep alive connection successfully returned to pool");
+
+        // Try to return it with connection: close headers: the connection should
+        // not be returned to the pool, and should be closed.
+        HttpHeaders hdrs2 = HttpHeaders.of(Map.of("connection", List.of("close")), (s1, s2) -> true);
+        conn1.closeOrReturnToCache(hdrs2);
+        if ((conn = pool.getConnection(true, addr, proxy)) != null) {
+            throw new RuntimeException(conn + " found in the pool!");
+        }
+        if (!conn1.closed) {
+            throw new RuntimeException("conn1 not closed!");
+        }
+        System.out.println("Close connection successfully closed when returned to pool");
+
+        // reopen and finish the connection.
+        conn1.reopen();
+        conn1.finish(true);
+        if (conn1.closed) {
+            throw new RuntimeException("conn1 closed");
+        }
+        if (conn1.isOpen()) {
+            throw new RuntimeException("conn1 is opened!");
+        }
+        conn1.closeOrReturnToCache(hdrs2);
+        if ((conn = pool.getConnection(true, addr, proxy)) != null) {
+            throw new RuntimeException(conn + " found in the pool!");
+        }
+        if (!conn1.closed) {
+            throw new RuntimeException("conn1 not closed!");
+        }
+        System.out.println("Finished 'close' connection successfully closed when returned to pool");
+
+        // reopen and finish the connection.
+        conn1.reopen();
+        conn1.finish(true);
+        if (conn1.closed) {
+            throw new RuntimeException("conn1 closed");
+        }
+        if (conn1.isOpen()) {
+            throw new RuntimeException("conn1 is opened!");
+        }
+        conn1.closeOrReturnToCache(hdrs);
+        if ((conn = pool.getConnection(true, addr, proxy)) != null) {
+            throw new RuntimeException(conn + " found in the pool!");
+        }
+        if (!conn1.closed) {
+            throw new RuntimeException("conn1 not closed!");
+        }
+        System.out.println("Finished keep-alive connection successfully closed when returned to pool");
+
+        Reference.reachabilityFence(facade);
+    }
+
     static <T> T error() {
         throw new InternalError("Should not reach here: wrong test assumptions!");
     }
@@ -241,22 +362,110 @@ public class ConnectionPoolTest {
         @Override
         public void subscribe(Flow.Subscriber<? super List<ByteBuffer>> subscriber) {
         }
-        @Override public boolean isFinished() { return conn.closed; }
+        @Override public boolean isFinished() { return conn.finished; }
+    }
+
+    static class SocketChannelStub extends SocketChannel {
+
+        SocketChannelStub() { super(SelectorProvider.provider()); }
+
+        @Override
+        public SocketChannel bind(SocketAddress local) throws IOException {
+            return error();
+        }
+        @Override
+        public <T> SocketChannel setOption(SocketOption<T> name, T value) throws IOException {
+            return error();
+        }
+        @Override
+        public SocketChannel shutdownInput() throws IOException {
+            return error();
+        }
+        @Override
+        public SocketChannel shutdownOutput() throws IOException {
+            return error();
+        }
+        @Override
+        public Socket socket() { return error(); }
+        @Override
+        public boolean isConnected() { return true; }
+        @Override
+        public boolean isConnectionPending() { return false; }
+        @Override
+        public boolean connect(SocketAddress remote) throws IOException {
+            return error();
+        }
+        @Override
+        public boolean finishConnect() throws IOException {
+            return error();
+        }
+        @Override
+        public SocketAddress getRemoteAddress() throws IOException {
+            return error();
+        }
+        @Override
+        public int read(ByteBuffer dst) throws IOException {
+            return isConnected() ? 0 : -1;
+        }
+        @Override
+        public long read(ByteBuffer[] dsts, int offset, int length) throws IOException {
+            return error();
+        }
+        @Override
+        public int write(ByteBuffer src) throws IOException {
+            return error();
+        }
+        @Override
+        public long write(ByteBuffer[] srcs, int offset, int length) throws IOException {
+            return 0;
+        }
+        @Override
+        public SocketAddress getLocalAddress() throws IOException {
+            return error();
+        }
+        @Override
+        public <T> T getOption(SocketOption<T> name) throws IOException {
+            return error();
+        }
+        @Override
+        public Set<SocketOption<?>> supportedOptions() {
+            return error();
+        }
+        @Override
+        protected void implCloseSelectableChannel() throws IOException {
+            error();
+        }
+        @Override
+        protected void implConfigureBlocking(boolean block) throws IOException {
+            error();
+        }
     }
 
     // Emulates an HttpConnection that has a strong reference to its HttpClient.
     static class HttpConnectionStub extends HttpConnection {
 
-        public HttpConnectionStub(HttpClient client,
+        static final AtomicLong IDS = new AtomicLong();
+
+        public HttpConnectionStub(
+                HttpClient client,
                 InetSocketAddress address,
                 InetSocketAddress proxy,
                 boolean secured) {
-            super(address, null);
-            this.key = ConnectionPool.cacheKey(address, proxy);
+            this(client, null, address, proxy, secured);
+        }
+        public HttpConnectionStub(
+                HttpClient client,
+                HttpClientImpl impl,
+                InetSocketAddress address,
+                InetSocketAddress proxy,
+                boolean secured) {
+            super(address, impl);
+            this.key = ConnectionPool.cacheKey(secured, address, proxy);
             this.address = address;
             this.proxy = proxy;
             this.secured = secured;
             this.client = client;
+            this.channel = new SocketChannelStub();
             this.flow = new FlowTubeStub(this);
         }
 
@@ -266,16 +475,30 @@ public class ConnectionPoolTest {
         final ConnectionPool.CacheKey key;
         final HttpClient client;
         final FlowTubeStub flow;
-        volatile boolean closed;
+        final SocketChannel channel;
+        volatile boolean closed, finished;
+
+        // Called from within super constructor
+        @Override
+        long newConnectionId(HttpClientImpl client) {
+            return IDS.incrementAndGet();
+        }
+
+        // Used for testing closeOrReturnToPool.
+        void finish(boolean finished) { this.finished = finished; }
+        void reopen() { closed = finished = false;}
 
         // All these return something
         @Override boolean connected() {return !closed;}
         @Override boolean isSecure() {return secured;}
         @Override boolean isProxied() {return proxy!=null;}
+        @Override InetSocketAddress proxy() { return proxy; }
         @Override ConnectionPool.CacheKey cacheKey() {return key;}
+        @Override FlowTube getConnectionFlow() {return flow;}
+        @Override SocketChannel channel() {return channel;}
         @Override
         public void close() {
-            closed=true;
+            closed=finished=true;
             System.out.println("closed: " + this);
         }
         @Override
@@ -283,13 +506,11 @@ public class ConnectionPoolTest {
             return "HttpConnectionStub: " + address + " proxy: " + proxy;
         }
 
+
         // All these throw errors
         @Override public HttpPublisher publisher() {return error();}
         @Override public CompletableFuture<Void> connectAsync(Exchange<?> e) {return error();}
         @Override public CompletableFuture<Void> finishConnect() {return error();}
-        @Override SocketChannel channel() {return error();}
-        @Override
-        FlowTube getConnectionFlow() {return flow;}
     }
     // Emulates an HttpClient that has a strong reference to its connection pool.
     static class HttpClientStub extends HttpClient {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,9 +31,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * Thrown when an application tries to access a type using a string
  * representing the type's name, but no definition for the type with
- * the specified name can be found.   This exception differs from
- * {@link ClassNotFoundException} in that {@code ClassNotFoundException} is a
- * checked exception, whereas this exception is unchecked.
+ * the specified name can be found. This exception differs from
+ * {@link ClassNotFoundException} in that {@code ClassNotFoundException}
+ * is a checked exception, whereas this exception is unchecked.
  *
  * <p>Note that this exception may be used when undefined type variables
  * are accessed as well as when types (e.g., classes, interfaces or
@@ -48,15 +48,19 @@ import org.jspecify.annotations.Nullable;
  */
 @NullMarked
 public class TypeNotPresentException extends RuntimeException {
+    @java.io.Serial
     private static final long serialVersionUID = -5101214195716534496L;
 
-    private  String typeName;
+    /**
+     * The type name or the name of a type variable.
+     */
+    private String typeName;
 
     /**
-     * Constructs a {@code TypeNotPresentException} for the named type
-     * with the specified cause.
+     * Constructs a {@code TypeNotPresentException} for the named type or
+     * type variable with the specified cause.
      *
-     * @param typeName the fully qualified name of the unavailable type
+     * @param typeName the fully qualified name of the unavailable type or type variable
      * @param cause the exception that was thrown when the system attempted to
      *    load the named type, or {@code null} if unavailable or inapplicable
      */
@@ -67,9 +71,9 @@ public class TypeNotPresentException extends RuntimeException {
     }
 
     /**
-     * Returns the fully qualified name of the unavailable type.
+     * Returns the fully qualified name of the unavailable type or type variable name.
      *
-     * @return the fully qualified name of the unavailable type
+     * @return the fully qualified name of the unavailable type or type variable name
      */
     public  String typeName() { return typeName;}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ package java.security.cert;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.Serializable;
 
 /**
  * This interface represents an X.509 extension.
@@ -41,7 +40,7 @@ import java.io.Serializable;
  * <p>
  * Each extension contains an object identifier, a criticality setting
  * indicating whether it is a critical or a non-critical extension, and
- * and an ASN.1 DER-encoded value. Its ASN.1 definition is:
+ * an ASN.1 DER-encoded value. Its ASN.1 definition is:
  *
  * <pre>
  *
@@ -94,8 +93,8 @@ public interface Extension {
      * stream.
      *
      * @param out the output stream
-     * @exception IOException on encoding or output error.
-     * @exception NullPointerException if {@code out} is {@code null}.
+     * @throws    IOException on encoding or output error.
+     * @throws    NullPointerException if {@code out} is {@code null}.
      */
     void encode(OutputStream out) throws IOException;
 }

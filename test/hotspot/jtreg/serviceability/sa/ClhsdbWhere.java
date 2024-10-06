@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import jdk.test.lib.apps.LingeredApp;
-import jdk.test.lib.Platform;
+import jtreg.SkippedException;
 
 /**
  * @test
@@ -54,15 +54,16 @@ public class ClhsdbWhere {
             expStrMap.put("where -a", List.of(
                     "Java Stack Trace for Service Thread",
                     "Java Stack Trace for Common-Cleaner",
-                    "Java Stack Trace for Sweeper thread",
                     "CompilerThread",
                     "Java Stack Trace for Finalizer",
                     "Java Stack Trace for Signal Dispatcher",
                     "Java Stack Trace for Reference Handler",
-                    "Java Stack Trace for main",
-                    "public static void main"));
+                    "Java Stack Trace for SteadyStateThread",
+                    "private static void steadyState"));
 
             test.run(theApp.getPid(), cmds, expStrMap, null);
+        } catch (SkippedException se) {
+            throw se;
         } catch (Exception ex) {
             throw new RuntimeException("Test ERROR " + ex, ex);
         } finally {

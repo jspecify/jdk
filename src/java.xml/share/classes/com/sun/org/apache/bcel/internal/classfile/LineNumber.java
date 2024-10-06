@@ -25,21 +25,42 @@ import java.io.DataInput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+import com.sun.org.apache.bcel.internal.util.Args;
+
 /**
- * This class represents a (PC offset, line number) pair, i.e., a line number in
- * the source that corresponds to a relative address in the byte code. This
- * is used for debugging purposes.
+ * This class represents a (PC offset, line number) pair, i.e., a line number in the source that corresponds to a
+ * relative address in the byte code. This is used for debugging purposes.
  *
- * @version $Id: LineNumber.java 1749603 2016-06-21 20:50:19Z ggregory $
- * @see     LineNumberTable
+ * @see LineNumberTable
  */
 public final class LineNumber implements Cloneable, Node {
 
+    static final LineNumber[] EMPTY_ARRAY = {};
+
     /** Program Counter (PC) corresponds to line */
-    private short start_pc;
+    private int startPc;
 
     /** number in source file */
-    private short line_number;
+    private int lineNumber;
+
+    /**
+     * Construct object from file stream.
+     *
+     * @param file Input stream
+     * @throws IOException if an I/O Exception occurs in readUnsignedShort
+     */
+    LineNumber(final DataInput file) throws IOException {
+        this(file.readUnsignedShort(), file.readUnsignedShort());
+    }
+
+    /**
+     * @param startPc Program Counter (PC) corresponds to
+     * @param lineNumber line number in source file
+     */
+    public LineNumber(final int startPc, final int lineNumber) {
+        this.startPc = Args.requireU2(startPc, "startPc");
+        this.lineNumber = Args.requireU2(lineNumber, "lineNumber");
+    }
 
     /**
      * Initialize from another object.
@@ -50,93 +71,16 @@ public final class LineNumber implements Cloneable, Node {
         this(c.getStartPC(), c.getLineNumber());
     }
 
-
     /**
-     * Construct object from file stream.
-     *
-     * @param file Input stream
-     * @throws IOEXception if an I/O Exception occurs in readUnsignedShort
-     */
-    LineNumber(final DataInput file) throws IOException {
-        this(file.readUnsignedShort(), file.readUnsignedShort());
-    }
-
-
-    /**
-     * @param start_pc Program Counter (PC) corresponds to
-     * @param line_number line number in source file
-     */
-    public LineNumber(final int start_pc, final int line_number) {
-        this.start_pc = (short) start_pc;
-        this.line_number = (short)line_number;
-    }
-
-
-    /**
-     * Called by objects that are traversing the nodes of the tree implicitely
-     * defined by the contents of a Java class. I.e., the hierarchy of methods,
-     * fields, attributes, etc. spawns a tree of objects.
+     * Called by objects that are traversing the nodes of the tree implicitly defined by the contents of a Java class.
+     * I.e., the hierarchy of methods, fields, attributes, etc. spawns a tree of objects.
      *
      * @param v Visitor object
      */
     @Override
-    public void accept( final Visitor v ) {
+    public void accept(final Visitor v) {
         v.visitLineNumber(this);
     }
-
-
-    /**
-     * Dump line number/pc pair to file stream in binary format.
-     *
-     * @param file Output file stream
-     * @throws IOEXception if an I/O Exception occurs in writeShort
-     */
-    public final void dump( final DataOutputStream file ) throws IOException {
-        file.writeShort(start_pc);
-        file.writeShort(line_number);
-    }
-
-
-    /**
-     * @return Corresponding source line
-     */
-    public final int getLineNumber() {
-        return 0xffff & line_number;
-    }
-
-
-    /**
-     * @return PC in code
-     */
-    public final int getStartPC() {
-        return  0xffff & start_pc;
-    }
-
-
-    /**
-     * @param line_number the source line number
-     */
-    public final void setLineNumber( final int line_number ) {
-        this.line_number = (short) line_number;
-    }
-
-
-    /**
-     * @param start_pc the pc for this line number
-     */
-    public final void setStartPC( final int start_pc ) {
-        this.start_pc = (short) start_pc;
-    }
-
-
-    /**
-     * @return String representation
-     */
-    @Override
-    public final String toString() {
-        return "LineNumber(" + start_pc + ", " + line_number + ")";
-    }
-
 
     /**
      * @return deep copy of this object
@@ -148,5 +92,52 @@ public final class LineNumber implements Cloneable, Node {
             // TODO should this throw?
         }
         return null;
+    }
+
+    /**
+     * Dump line number/pc pair to file stream in binary format.
+     *
+     * @param file Output file stream
+     * @throws IOException if an I/O Exception occurs in writeShort
+     */
+    public void dump(final DataOutputStream file) throws IOException {
+        file.writeShort(startPc);
+        file.writeShort(lineNumber);
+    }
+
+    /**
+     * @return Corresponding source line
+     */
+    public int getLineNumber() {
+        return lineNumber & 0xffff;
+    }
+
+    /**
+     * @return PC in code
+     */
+    public int getStartPC() {
+        return startPc & 0xffff;
+    }
+
+    /**
+     * @param lineNumber the source line number
+     */
+    public void setLineNumber(final int lineNumber) {
+        this.lineNumber = (short) lineNumber;
+    }
+
+    /**
+     * @param startPc the pc for this line number
+     */
+    public void setStartPC(final int startPc) {
+        this.startPc = (short) startPc;
+    }
+
+    /**
+     * @return String representation
+     */
+    @Override
+    public String toString() {
+        return "LineNumber(" + getStartPC() + ", " + getLineNumber() + ")";
     }
 }

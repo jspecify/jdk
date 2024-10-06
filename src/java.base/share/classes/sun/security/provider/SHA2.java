@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,11 @@
 
 package sun.security.provider;
 
+import java.util.Arrays;
 import java.util.Objects;
 
-import jdk.internal.HotSpotIntrinsicCandidate;
+import jdk.internal.util.Preconditions;
+import jdk.internal.vm.annotation.IntrinsicCandidate;
 import static sun.security.provider.ByteArrayAccess.*;
 
 /**
@@ -46,6 +48,7 @@ import static sun.security.provider.ByteArrayAccess.*;
 abstract class SHA2 extends DigestBase {
 
     private static final int ITERATION = 64;
+    private static final int BLOCKSIZE = 64;
     // Constants for each round
     private static final int[] ROUND_CONSTS = {
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
@@ -79,17 +82,23 @@ abstract class SHA2 extends DigestBase {
      * Creates a new SHA object.
      */
     SHA2(String name, int digestLength, int[] initialHashes) {
-        super(name, digestLength, 64);
+        super(name, digestLength, BLOCKSIZE);
         this.initialHashes = initialHashes;
         state = new int[8];
-        W = new int[64];
-        implReset();
+        resetHashes();
     }
 
     /**
      * Resets the buffers and hash value to start a new hash.
      */
     void implReset() {
+        resetHashes();
+        if (W != null) {
+            Arrays.fill(W, 0);
+        }
+    }
+
+    private void resetHashes() {
         System.arraycopy(initialHashes, 0, state, 0, state.length);
     }
 
@@ -107,82 +116,15 @@ abstract class SHA2 extends DigestBase {
         i2bBig(state, 0, out, ofs, engineGetDigestLength());
     }
 
-    /**
-     * logical function ch(x,y,z) as defined in spec:
-     * @return (x and y) xor ((complement x) and z)
-     * @param x int
-     * @param y int
-     * @param z int
-     */
-    private static int lf_ch(int x, int y, int z) {
-        return (x & y) ^ ((~x) & z);
-    }
 
-    /**
-     * logical function maj(x,y,z) as defined in spec:
-     * @return (x and y) xor (x and z) xor (y and z)
-     * @param x int
-     * @param y int
-     * @param z int
-     */
-    private static int lf_maj(int x, int y, int z) {
-        return (x & y) ^ (x & z) ^ (y & z);
-    }
+    protected void implDigestFixedLengthPreprocessed(
+            byte[] input, int inLen, byte[] output, int outOffset, int outLen) {
+        implReset();
 
-    /**
-     * logical function R(x,s) - right shift
-     * @return x right shift for s times
-     * @param x int
-     * @param s int
-     */
-    private static int lf_R( int x, int s ) {
-        return (x >>> s);
-    }
-
-    /**
-     * logical function S(x,s) - right rotation
-     * @return x circular right shift for s times
-     * @param x int
-     * @param s int
-     */
-    private static int lf_S(int x, int s) {
-        return (x >>> s) | (x << (32 - s));
-    }
-
-    /**
-     * logical function sigma0(x) - xor of results of right rotations
-     * @return S(x,2) xor S(x,13) xor S(x,22)
-     * @param x int
-     */
-    private static int lf_sigma0(int x) {
-        return lf_S(x, 2) ^ lf_S(x, 13) ^ lf_S(x, 22);
-    }
-
-    /**
-     * logical function sigma1(x) - xor of results of right rotations
-     * @return S(x,6) xor S(x,11) xor S(x,25)
-     * @param x int
-     */
-    private static int lf_sigma1(int x) {
-        return lf_S( x, 6 ) ^ lf_S( x, 11 ) ^ lf_S( x, 25 );
-    }
-
-    /**
-     * logical function delta0(x) - xor of results of right shifts/rotations
-     * @return int
-     * @param x int
-     */
-    private static int lf_delta0(int x) {
-        return lf_S(x, 7) ^ lf_S(x, 18) ^ lf_R(x, 3);
-    }
-
-    /**
-     * logical function delta1(x) - xor of results of right shifts/rotations
-     * @return int
-     * @param x int
-     */
-    private static int lf_delta1(int x) {
-        return lf_S(x, 17) ^ lf_S(x, 19) ^ lf_R(x, 10);
+        for (int ofs = 0; ofs < inLen; ofs += BLOCKSIZE) {
+            implCompress0(input, ofs);
+        }
+        i2bBig(state, 0, output, outOffset, outLen);
     }
 
     /**
@@ -196,11 +138,10 @@ abstract class SHA2 extends DigestBase {
     private void implCompressCheck(byte[] buf, int ofs) {
         Objects.requireNonNull(buf);
 
-        // The checks performed by the method 'b2iBig64'
-        // are sufficient for the case when the method
-        // 'implCompressImpl' is replaced with a compiler
-        // intrinsic.
-        b2iBig64(buf, ofs, W);
+        // Checks similar to those performed by the method 'b2iBig64'
+        // are sufficient for the case when the method 'implCompress0' is
+        // replaced with a compiler intrinsic.
+        Preconditions.checkFromIndexSize(ofs, BLOCKSIZE, buf.length, Preconditions.AIOOBE_FORMATTER);
     }
 
     // The method 'implCompressImpl' seems not to use its parameters.
@@ -208,13 +149,36 @@ abstract class SHA2 extends DigestBase {
     // that operates directly on the array 'buf' (starting from
     // offset 'ofs') and not on array 'W', therefore 'buf' and 'ofs'
     // must be passed as parameter to the method.
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     private void implCompress0(byte[] buf, int ofs) {
+        if (W == null) {
+            W = new int[64];
+        }
+        b2iBig64(buf, ofs, W);
         // The first 16 ints are from the byte stream, compute the rest of
         // the W[]'s
         for (int t = 16; t < ITERATION; t++) {
-            W[t] = lf_delta1(W[t-2]) + W[t-7] + lf_delta0(W[t-15])
-                   + W[t-16];
+            int W_t2 = W[t - 2];
+            int W_t15 = W[t - 15];
+
+            // S(x,s) is right rotation of x by s positions:
+            //   S(x,s) = (x >>> s) | (x << (32 - s))
+            // R(x,s) is right shift of x by s positions:
+            //   R(x,s) = (x >>> s)
+
+            // delta0(x) = S(x, 7) ^ S(x, 18) ^ R(x, 3)
+            int delta0_W_t15 =
+                    Integer.rotateRight(W_t15, 7) ^
+                    Integer.rotateRight(W_t15, 18) ^
+                     (W_t15 >>>  3);
+
+            // delta1(x) = S(x, 17) ^ S(x, 19) ^ R(x, 10)
+            int delta1_W_t2 =
+                    Integer.rotateRight(W_t2, 17) ^
+                    Integer.rotateRight(W_t2, 19) ^
+                     (W_t2 >>> 10);
+
+            W[t] = delta0_W_t15 + delta1_W_t2 + W[t-7] + W[t-16];
         }
 
         int a = state[0];
@@ -227,8 +191,31 @@ abstract class SHA2 extends DigestBase {
         int h = state[7];
 
         for (int i = 0; i < ITERATION; i++) {
-            int T1 = h + lf_sigma1(e) + lf_ch(e,f,g) + ROUND_CONSTS[i] + W[i];
-            int T2 = lf_sigma0(a) + lf_maj(a,b,c);
+            // S(x,s) is right rotation of x by s positions:
+            //   S(x,s) = (x >>> s) | (x << (32 - s))
+
+            // sigma0(x) = S(x,2) xor S(x,13) xor S(x,22)
+            int sigma0_a =
+                    Integer.rotateRight(a, 2) ^
+                    Integer.rotateRight(a, 13) ^
+                    Integer.rotateRight(a, 22);
+
+            // sigma1(x) = S(x,6) xor S(x,11) xor S(x,25)
+            int sigma1_e =
+                    Integer.rotateRight(e, 6) ^
+                    Integer.rotateRight(e, 11) ^
+                    Integer.rotateRight(e, 25);
+
+            // ch(x,y,z) = (x and y) xor ((complement x) and z)
+            //           = z xor (x and (y xor z));
+            int ch_efg = g ^ (e & (f ^ g));
+
+            // maj(x,y,z) = (x and y) xor (x and z) xor (y and z)
+            //            = (x and y) xor ((x xor y) and z)
+            int maj_abc = (a & b) ^ ((a ^ b) & c);
+
+            int T1 = h + sigma1_e + ch_efg + ROUND_CONSTS[i] + W[i];
+            int T2 = sigma0_a + maj_abc;
             h = g;
             g = f;
             f = e;
@@ -238,6 +225,7 @@ abstract class SHA2 extends DigestBase {
             b = a;
             a = T1 + T2;
         }
+
         state[0] += a;
         state[1] += b;
         state[2] += c;
@@ -251,7 +239,7 @@ abstract class SHA2 extends DigestBase {
     public Object clone() throws CloneNotSupportedException {
         SHA2 copy = (SHA2) super.clone();
         copy.state = copy.state.clone();
-        copy.W = new int[64];
+        copy.W = null;
         return copy;
     }
 

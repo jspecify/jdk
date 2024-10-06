@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,6 @@
  * questions.
  */
 package java.beans;
-
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import com.sun.beans.decoder.DocumentHandler;
 
@@ -66,8 +63,8 @@ import org.xml.sax.helpers.DefaultHandler;
  *
  * @author Philip Milne
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class XMLDecoder implements AutoCloseable {
+public class XMLDecoder implements AutoCloseable {
+    @SuppressWarnings("removal")
     private final AccessControlContext acc = AccessController.getContext();
     private final DocumentHandler handler = new DocumentHandler();
     private final InputSource input;
@@ -192,6 +189,7 @@ public @UsesObjectEquals class XMLDecoder implements AutoCloseable {
         }
     }
 
+    @SuppressWarnings("removal")
     private boolean parsingComplete() {
         if (this.input == null) {
             return false;

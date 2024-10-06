@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.lang.module.ModuleDescriptor;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.Collator;
@@ -41,6 +42,7 @@ import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -81,6 +83,15 @@ import static com.sun.tools.javac.main.Option.OptionKind.*;
  * {@code handleOption} then calls {@link #process process} providing a suitable
  * {@link OptionHelper} to provide access the compiler state.
  *
+ * <p>A subset of options is relevant to the source launcher implementation
+ * located in {@link com.sun.tools.javac.launcher} package. When an option is
+ * added, changed, or removed, also update the {@code RelevantJavacOptions} class
+ * in the launcher package accordingly.
+ *
+ * <p>Maintenance note: when adding new annotation processing related
+ * options, the list of options regarded as requesting explicit
+ * annotation processing in JavaCompiler should be updated.
+ *
  * <p><b>This is NOT part of any supported API.
  * If you write code that depends on this, you do so at your own
  * risk.  This code and its internal interfaces are subject to change
@@ -101,36 +112,14 @@ public enum Option {
 
     XLINT("-Xlint", "opt.Xlint", EXTENDED, BASIC),
 
-    XLINT_CUSTOM("-Xlint:", "opt.arg.Xlint", "opt.Xlint.custom", EXTENDED, BASIC, ANYOF, getXLintChoices()) {
-        private final String LINT_KEY_FORMAT = LARGE_INDENT + "  %-" +
-                (DEFAULT_SYNOPSIS_WIDTH + SMALL_INDENT.length() - LARGE_INDENT.length() - 2) + "s %s";
-        @Override
-        protected void help(Log log) {
-            super.help(log);
-            log.printRawLines(WriterKind.STDOUT,
-                              String.format(LINT_KEY_FORMAT,
-                                            "all",
-                                            log.localize(PrefixKind.JAVAC, "opt.Xlint.all")));
-            for (LintCategory lc : LintCategory.values()) {
-                log.printRawLines(WriterKind.STDOUT,
-                                  String.format(LINT_KEY_FORMAT,
-                                                lc.option,
-                                                log.localize(PrefixKind.JAVAC,
-                                                             "opt.Xlint.desc." + lc.option)));
-            }
-            log.printRawLines(WriterKind.STDOUT,
-                              String.format(LINT_KEY_FORMAT,
-                                            "none",
-                                            log.localize(PrefixKind.JAVAC, "opt.Xlint.none")));
-        }
-    },
+    XLINT_CUSTOM("-Xlint:", "opt.arg.Xlint", "opt.Xlint.custom", EXTENDED, BASIC, ANYOF, getXLintChoices()),
 
     XDOCLINT("-Xdoclint", "opt.Xdoclint", EXTENDED, BASIC),
 
     XDOCLINT_CUSTOM("-Xdoclint:", "opt.Xdoclint.subopts", "opt.Xdoclint.custom", EXTENDED, BASIC) {
         @Override
         public boolean matches(String option) {
-            return DocLint.isValidOption(
+            return DocLint.newDocLint().isValidOption(
                     option.replace(XDOCLINT_CUSTOM.primaryName, DocLint.XMSGS_CUSTOM_PREFIX));
         }
 
@@ -145,7 +134,7 @@ public enum Option {
     XDOCLINT_PACKAGE("-Xdoclint/package:", "opt.Xdoclint.package.args", "opt.Xdoclint.package.desc", EXTENDED, BASIC) {
         @Override
         public boolean matches(String option) {
-            return DocLint.isValidOption(
+            return DocLint.newDocLint().isValidOption(
                     option.replace(XDOCLINT_PACKAGE.primaryName, DocLint.XCHECK_PACKAGE));
         }
 
@@ -156,8 +145,6 @@ public enum Option {
             helper.put(XDOCLINT_PACKAGE.primaryName, next);
         }
     },
-
-    DOCLINT_FORMAT("--doclint-format", "opt.doclint.format", EXTENDED, BASIC, ONEOF, "html4", "html5"),
 
     // -nowarn is retained for command-line backward compatibility
     NOWARN("-nowarn", "opt.nowarn", STANDARD, BASIC) {
@@ -181,7 +168,48 @@ public enum Option {
 
     SOURCE_PATH("--source-path -sourcepath", "opt.arg.path", "opt.sourcepath", STANDARD, FILEMANAGER),
 
-    MODULE_SOURCE_PATH("--module-source-path", "opt.arg.mspath", "opt.modulesourcepath", STANDARD, FILEMANAGER),
+    MODULE_SOURCE_PATH("--module-source-path", "opt.arg.mspath", "opt.modulesourcepath", STANDARD, FILEMANAGER) {
+        // The deferred file manager diagnostics mechanism assumes a single value per option,
+        // but --module-source-path-module can be used multiple times, once in the old form
+        // and once per module in the new form.  Therefore we compose an overall value for the
+        // option containing the individual values given on the command line, separated by NULL.
+        // The standard file manager code knows to split apart the NULL-separated components.
+        @Override
+        public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
+            if (arg.isEmpty()) {
+                throw helper.newInvalidValueException(Errors.NoValueForOption(option));
+            }
+            Pattern moduleSpecificForm = getPattern();
+            String prev = helper.get(MODULE_SOURCE_PATH);
+            if (prev == null) {
+                super.process(helper, option, arg);
+            } else  if (moduleSpecificForm.matcher(arg).matches()) {
+                String argModule = arg.substring(0, arg.indexOf('='));
+                boolean isRepeated = Arrays.stream(prev.split("\0"))
+                        .filter(s -> moduleSpecificForm.matcher(s).matches())
+                        .map(s -> s.substring(0, s.indexOf('=')))
+                        .anyMatch(s -> s.equals(argModule));
+                if (isRepeated) {
+                    throw helper.newInvalidValueException(Errors.RepeatedValueForModuleSourcePath(argModule));
+                } else {
+                    super.process(helper, option, prev + '\0' + arg);
+                }
+            } else {
+                boolean isPresent = Arrays.stream(prev.split("\0"))
+                        .anyMatch(s -> !moduleSpecificForm.matcher(s).matches());
+                if (isPresent) {
+                    throw helper.newInvalidValueException(Errors.MultipleValuesForModuleSourcePath);
+                } else {
+                    super.process(helper, option, prev + '\0' + arg);
+                }
+            }
+        }
+
+        @Override
+        public Pattern getPattern() {
+            return Pattern.compile("([\\p{Alnum}$_.]+)=(.*)");
+        }
+    },
 
     MODULE_PATH("--module-path -p", "opt.arg.path", "opt.modulepath", STANDARD, FILEMANAGER),
 
@@ -190,10 +218,10 @@ public enum Option {
     SYSTEM("--system", "opt.arg.jdk", "opt.system", STANDARD, FILEMANAGER),
 
     PATCH_MODULE("--patch-module", "opt.arg.patch", "opt.patch", EXTENDED, FILEMANAGER) {
-        // The deferred filemanager diagnostics mechanism assumes a single value per option,
+        // The deferred file manager diagnostics mechanism assumes a single value per option,
         // but --patch-module can be used multiple times, once per module. Therefore we compose
         // a value for the option containing the last value specified for each module, and separate
-        // the the module=path pairs by an invalid path character, NULL.
+        // the module=path pairs by an invalid path character, NULL.
         // The standard file manager code knows to split apart the NULL-separated components.
         @Override
         public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
@@ -266,7 +294,7 @@ public enum Option {
         }
     },
 
-    PROC("-proc:", "opt.proc.none.only", STANDARD, BASIC,  ONEOF, "none", "only"),
+    PROC("-proc:", "opt.proc.none.only", STANDARD, BASIC, ONEOF, "none", "only", "full"),
 
     PROCESSOR("-processor", "opt.arg.class.list", "opt.processor", STANDARD, BASIC),
 
@@ -286,7 +314,7 @@ public enum Option {
 
     ENCODING("-encoding", "opt.arg.encoding", "opt.encoding", STANDARD, FILEMANAGER),
 
-    SOURCE("-source", "opt.arg.release", "opt.source", STANDARD, BASIC) {
+    SOURCE("--source -source", "opt.arg.release", "opt.source", STANDARD, BASIC) {
         @Override
         public void process(OptionHelper helper, String option, String operand) throws InvalidValueException {
             Source source = Source.lookup(operand);
@@ -295,9 +323,19 @@ public enum Option {
             }
             super.process(helper, option, operand);
         }
+
+        @Override
+        protected void help(Log log) {
+            StringJoiner sj = new StringJoiner(", ");
+            for(Source source :  Source.values()) {
+                if (source.isSupported())
+                    sj.add(source.name);
+            }
+            super.help(log, log.localize(PrefixKind.JAVAC, descrKey, sj.toString()));
+        }
     },
 
-    TARGET("-target", "opt.arg.release", "opt.target", STANDARD, BASIC) {
+    TARGET("--target -target", "opt.arg.release", "opt.target", STANDARD, BASIC) {
         @Override
         public void process(OptionHelper helper, String option, String operand) throws InvalidValueException {
             Target target = Target.lookup(operand);
@@ -305,6 +343,16 @@ public enum Option {
                 throw helper.newInvalidValueException(Errors.InvalidTarget(operand));
             }
             super.process(helper, option, operand);
+        }
+
+        @Override
+        protected void help(Log log) {
+            StringJoiner sj = new StringJoiner(", ");
+            for(Target target :  Target.values()) {
+                if (target.isSupported())
+                    sj.add(target.name);
+            }
+            super.help(log, log.localize(PrefixKind.JAVAC, descrKey, sj.toString()));
         }
     },
 
@@ -332,6 +380,8 @@ public enum Option {
     },
 
     PREVIEW("--enable-preview", "opt.preview", STANDARD, BASIC),
+
+    DISABLE_LINE_DOC_COMMENTS("--disable-line-doc-comments", "opt.lineDocComments", EXTENDED, BASIC),
 
     PROFILE("-profile", "opt.arg.profile", "opt.profile", STANDARD, BASIC) {
         @Override
@@ -438,12 +488,43 @@ public enum Option {
         }
     },
 
+    HELP_LINT("--help-lint", "opt.help.lint", EXTENDED, INFO) {
+        private final String LINT_KEY_FORMAT = SMALL_INDENT + SMALL_INDENT + "%-" +
+                (DEFAULT_SYNOPSIS_WIDTH - LARGE_INDENT.length()) + "s %s";
+        @Override
+        public void process(OptionHelper helper, String option) throws InvalidValueException {
+            Log log = helper.getLog();
+            log.printRawLines(WriterKind.STDOUT, log.localize(PrefixKind.JAVAC, "opt.help.lint.header"));
+            log.printRawLines(WriterKind.STDOUT,
+                              String.format(LINT_KEY_FORMAT,
+                                            "all",
+                                            log.localize(PrefixKind.JAVAC, "opt.Xlint.all")));
+            for (LintCategory lc : LintCategory.values()) {
+                log.printRawLines(WriterKind.STDOUT,
+                                  String.format(LINT_KEY_FORMAT,
+                                                lc.option,
+                                                log.localize(PrefixKind.JAVAC,
+                                                             "opt.Xlint.desc." + lc.option)));
+            }
+            log.printRawLines(WriterKind.STDOUT,
+                              String.format(LINT_KEY_FORMAT,
+                                            "none",
+                                            log.localize(PrefixKind.JAVAC, "opt.Xlint.none")));
+            super.process(helper, option);
+        }
+    },
+
     // This option exists only for the purpose of documenting itself.
     // It's actually implemented by the launcher.
     J("-J", "opt.arg.flag", "opt.J", STANDARD, INFO, ArgKind.ADJACENT) {
         @Override
         public void process(OptionHelper helper, String option) {
             throw new AssertionError("the -J flag should be caught by the launcher.");
+        }
+
+        @Override
+        public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
+            throw helper.newInvalidValueException(Errors.InvalidFlag(option + arg));
         }
     },
 
@@ -690,14 +771,18 @@ public enum Option {
         @Override
         public void process(OptionHelper helper, String option) throws InvalidValueException {
             if (option.endsWith(".java") ) {
-                Path p = Paths.get(option);
-                if (!Files.exists(p)) {
-                    throw helper.newInvalidValueException(Errors.FileNotFound(p.toString()));
+                try {
+                    Path p = Paths.get(option);
+                    if (!Files.exists(p)) {
+                        throw helper.newInvalidValueException(Errors.FileNotFound(p.toString()));
+                    }
+                    if (!Files.isRegularFile(p)) {
+                        throw helper.newInvalidValueException(Errors.FileNotFile(p));
+                    }
+                    helper.addFile(p);
+                } catch (InvalidPathException ex) {
+                    throw helper.newInvalidValueException(Errors.InvalidPath(option));
                 }
-                if (!Files.isRegularFile(p)) {
-                    throw helper.newInvalidValueException(Errors.FileNotFile(p));
-                }
-                helper.addFile(p);
             } else {
                 helper.addClassName(option);
             }
@@ -1002,6 +1087,10 @@ public enum Option {
         return kind;
     }
 
+    public boolean isInBasicOptionGroup() {
+        return group == BASIC;
+    }
+
     public ArgKind getArgKind() {
         return argKind;
     }
@@ -1085,6 +1174,11 @@ public enum Option {
             }
             process(helper, option, operand);
         } else {
+            if ((this == HELP || this == X || this == HELP_LINT || this == VERSION || this == FULLVERSION)
+                    && (helper.get(this) != null)) {
+                // avoid processing the info options repeatedly
+                return;
+            }
             process(helper, arg);
         }
     }

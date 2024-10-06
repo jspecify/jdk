@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,12 +29,18 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.io.Writer;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.CodeSource;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -46,7 +52,6 @@ import com.sun.tools.javac.file.CacheFSInfo;
 import com.sun.tools.javac.file.BaseFileManager;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.jvm.Target;
-import com.sun.tools.javac.main.CommandLine.UnmatchedQuote;
 import com.sun.tools.javac.platform.PlatformDescription;
 import com.sun.tools.javac.processing.AnnotationProcessingError;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
@@ -54,6 +59,9 @@ import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticInfo;
 import com.sun.tools.javac.util.Log.PrefixKind;
 import com.sun.tools.javac.util.Log.WriterKind;
+
+import jdk.internal.opt.CommandLine;
+import jdk.internal.opt.CommandLine.UnmatchedQuote;
 
 /** This class provides a command line interface to the javac compiler.
  *
@@ -211,8 +219,9 @@ public class Main {
         }
 
         // prefix argv with contents of environment variable and expand @-files
+        Iterable<String> allArgs;
         try {
-            argv = CommandLine.parse(ENV_OPT_NAME, argv);
+            allArgs = CommandLine.parse(ENV_OPT_NAME, List.from(argv));
         } catch (UnmatchedQuote ex) {
             reportDiag(Errors.UnmatchedQuote(ex.variableName));
             return Result.CMDERR;
@@ -226,7 +235,7 @@ public class Main {
         }
 
         Arguments args = Arguments.instance(context);
-        args.init(ownName, argv);
+        args.init(ownName, allArgs);
 
         if (log.nerrors > 0)
             return Result.CMDERR;
@@ -251,11 +260,11 @@ public class Main {
 
         // init file manager
         fileManager = context.get(JavaFileManager.class);
-        JavaFileManager undel = fileManager instanceof DelegatingJavaFileManager ?
-                ((DelegatingJavaFileManager) fileManager).getBaseFileManager() : fileManager;
-        if (undel instanceof BaseFileManager) {
-            ((BaseFileManager) undel).setContext(context); // reinit with options
-            ok &= ((BaseFileManager) undel).handleOptions(args.getDeferredFileManagerOptions());
+        JavaFileManager undel = fileManager instanceof DelegatingJavaFileManager delegatingJavaFileManager ?
+                delegatingJavaFileManager.getBaseFileManager() : fileManager;
+        if (undel instanceof BaseFileManager baseFileManager) {
+            baseFileManager.setContext(context); // reinit with options
+            ok &= baseFileManager.handleOptions(args.getDeferredFileManagerOptions());
         }
 
         // handle this here so it works even if no other options given
@@ -278,12 +287,11 @@ public class Main {
             Dependencies.GraphDependencies.preRegister(context);
         }
 
+        BasicJavacTask t = (BasicJavacTask) BasicJavacTask.instance(context);
+
         // init plugins
         Set<List<String>> pluginOpts = args.getPluginOpts();
-        if (!pluginOpts.isEmpty() || context.get(PlatformDescription.class) != null) {
-            BasicJavacTask t = (BasicJavacTask) BasicJavacTask.instance(context);
-            t.initPlugins(pluginOpts);
-        }
+        t.initPlugins(pluginOpts);
 
         // init multi-release jar handling
         if (fileManager.isSupportedOption(Option.MULTIRELEASE.primaryName) == 1) {
@@ -298,7 +306,6 @@ public class Main {
         // init doclint
         List<String> docLintOpts = args.getDocLintOpts();
         if (!docLintOpts.isEmpty()) {
-            BasicJavacTask t = (BasicJavacTask) BasicJavacTask.instance(context);
             t.initDocLint(docLintOpts);
         }
 
@@ -307,6 +314,7 @@ public class Main {
             comp.closeables = comp.closeables.prepend(log.getWriter(WriterKind.NOTICE));
         }
 
+        boolean printArgsToFile = options.isSet("printArgsToFile");
         try {
             comp.compile(args.getFileObjects(), args.getClassNames(), null, List.nil());
 
@@ -338,6 +346,7 @@ public class Main {
             if (twoClassLoadersInUse(iae)) {
                 bugMessage(iae);
             }
+            printArgsToFile = true;
             return Result.ABNORMAL;
         } catch (Throwable ex) {
             // Nasty.  If we've already reported an error, compensate
@@ -345,8 +354,12 @@ public class Main {
             // exceptions.
             if (comp == null || comp.errorCount() == 0 || options.isSet("dev"))
                 bugMessage(ex);
+            printArgsToFile = true;
             return Result.ABNORMAL;
         } finally {
+            if (printArgsToFile) {
+                printArgumentsToFile(argv);
+            }
             if (comp != null) {
                 try {
                     comp.close();
@@ -354,6 +367,30 @@ public class Main {
                     throw new RuntimeException(ex.getCause());
                 }
             }
+        }
+    }
+
+    void printArgumentsToFile(String... params) {
+        Path tmpDir = Paths.get(System.getProperty("java.io.tmpdir"));
+        Path out = tmpDir.resolve(String.format("javac.%s.args",
+                new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime())));
+        String strOut = "# javac crashed, this report includes the parameters passed to it in the @-file format\n";
+        try {
+            try (Writer w = Files.newBufferedWriter(out)) {
+                for (String param : params) {
+                    param = param.replaceAll("\\\\", "\\\\\\\\");
+                    if (param.matches(".*\\s+.*")) {
+                        param = "\"" + param + "\"";
+                    }
+                    strOut += param + '\n';
+                }
+                w.write(strOut);
+            }
+            log.printLines(PrefixKind.JAVAC, "msg.parameters.output", out.toAbsolutePath());
+        } catch (IOException ioe) {
+            log.printLines(PrefixKind.JAVAC, "msg.parameters.output.error", out.toAbsolutePath());
+            System.err.println(strOut);
+            System.err.println();
         }
     }
 
@@ -442,7 +479,7 @@ public class Main {
         }
 
         try (InputStream in = getClass().getResourceAsStream('/' + className.replace('.', '/') + ".class")) {
-            final String algorithm = "MD5";
+            final String algorithm = "SHA-256";
             byte[] digest;
             MessageDigest md = MessageDigest.getInstance(algorithm);
             try (DigestInputStream din = new DigestInputStream(in, md)) {

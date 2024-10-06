@@ -21,22 +21,24 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
- */
-/*
- * $Id: DOMXMLObject.java 1788465 2017-03-24 15:10:51Z coheigea $
+ * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
  */
 package org.jcp.xml.dsig.internal.dom;
 
-import org.jspecify.annotations.Nullable;
-
-import javax.xml.crypto.*;
-import javax.xml.crypto.dsig.*;
-
 import java.security.Provider;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import javax.xml.crypto.MarshalException;
+import javax.xml.crypto.XMLCryptoContext;
+import javax.xml.crypto.XMLStructure;
+import javax.xml.crypto.dom.DOMCryptoContext;
+import javax.xml.crypto.dsig.XMLObject;
+import javax.xml.crypto.dsig.XMLSignature;
 
 import org.w3c.dom.Attr;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
@@ -45,12 +47,13 @@ import org.w3c.dom.Node;
  * DOM-based implementation of XMLObject.
  *
  */
-public final class DOMXMLObject extends BaseStructure implements XMLObject {
+public final class DOMXMLObject extends DOMStructure implements XMLObject {
 
     private final String id;
     private final String mimeType;
     private final String encoding;
     private final List<XMLStructure> content;
+    private Element objectElem;
 
     /**
      * Creates an {@code XMLObject} from the specified parameters.
@@ -144,6 +147,7 @@ public final class DOMXMLObject extends BaseStructure implements XMLObject {
         } else {
             this.content = Collections.unmodifiableList(newContent);
         }
+        this.objectElem = objElem;
     }
 
     @Override
@@ -166,33 +170,39 @@ public final class DOMXMLObject extends BaseStructure implements XMLObject {
         return encoding;
     }
 
-    public static void marshal(XmlWriter xwriter, XMLObject xmlObj, String dsPrefix, XMLCryptoContext context)
+    @Override
+    public void marshal(Node parent, String dsPrefix, DOMCryptoContext context)
         throws MarshalException {
-        xwriter.writeStartElement(dsPrefix, "Object", XMLSignature.XMLNS);
+        Document ownerDoc = DOMUtils.getOwnerDocument(parent);
 
-        // set attributes
-        xwriter.writeIdAttribute("", "", "Id", xmlObj.getId());
-        xwriter.writeAttribute("", "", "MimeType", xmlObj.getMimeType());
-        xwriter.writeAttribute("", "", "Encoding", xmlObj.getEncoding());
+        Element objElem = objectElem;
+        if (objElem == null) {
+            objElem = DOMUtils.createElement(ownerDoc, "Object",
+                                             XMLSignature.XMLNS, dsPrefix);
 
-        // create and append any elements and mixed content, if necessary
-        @SuppressWarnings("unchecked")
-        List<XMLStructure> content = xmlObj.getContent();
-        for (XMLStructure object : content) {
-            xwriter.marshalStructure(object, dsPrefix, context);
+            // set attributes
+            DOMUtils.setAttributeID(objElem, "Id", id);
+            DOMUtils.setAttribute(objElem, "MimeType", mimeType);
+            DOMUtils.setAttribute(objElem, "Encoding", encoding);
+
+            // create and append any elements and mixed content, if necessary
+            for (XMLStructure object : content) {
+                if (object instanceof DOMStructure) {
+                    ((DOMStructure)object).marshal(objElem, dsPrefix, context);
+                } else {
+                    javax.xml.crypto.dom.DOMStructure domObject =
+                        (javax.xml.crypto.dom.DOMStructure)object;
+                    DOMUtils.appendChild(objElem, domObject.getNode());
+                }
+            }
         }
-        xwriter.writeEndElement(); // "Object"
+
+        parent.appendChild(objElem);
     }
 
     @SuppressWarnings("unchecked")
-    public static List<XMLStructure> getXmlObjectContent(XMLObject xo) {
-        return xo.getContent();
-    }
-
     @Override
-    
-    
-    public boolean equals(@Nullable Object o) {
+    public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
@@ -212,7 +222,7 @@ public final class DOMXMLObject extends BaseStructure implements XMLObject {
                               : mimeType.equals(oxo.getMimeType());
 
         return idsEqual && encodingsEqual && mimeTypesEqual &&
-                equalsContent(getXmlObjectContent(oxo));
+                equalsContent(content, oxo.getContent());
     }
 
     @Override
@@ -232,29 +242,4 @@ public final class DOMXMLObject extends BaseStructure implements XMLObject {
         return result;
     }
 
-    private boolean equalsContent(List<XMLStructure> otherContent) {
-        if (content.size() != otherContent.size()) {
-            return false;
-        }
-        for (int i = 0, osize = otherContent.size(); i < osize; i++) {
-            XMLStructure oxs = otherContent.get(i);
-            XMLStructure xs = content.get(i);
-            if (oxs instanceof javax.xml.crypto.dom.DOMStructure) {
-                if (!(xs instanceof javax.xml.crypto.dom.DOMStructure)) {
-                    return false;
-                }
-                Node onode = ((javax.xml.crypto.dom.DOMStructure)oxs).getNode();
-                Node node = ((javax.xml.crypto.dom.DOMStructure)xs).getNode();
-                if (!DOMUtils.nodesEqual(node, onode)) {
-                    return false;
-                }
-            } else {
-                if (!(xs.equals(oxs))) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
 }

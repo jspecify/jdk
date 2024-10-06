@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,8 +85,8 @@ final class CertificateStatus {
     static final class CertificateStatusMessage extends HandshakeMessage {
 
         final CertStatusRequestType statusType;
-        int encodedResponsesLen = 0;
-        int messageLength = -1;
+        final int encodedResponsesLen;
+        final int messageLength;
         final List<byte[]> encodedResponses = new ArrayList<>();
 
         CertificateStatusMessage(HandshakeContext handshakeContext) {
@@ -114,6 +114,7 @@ final class CertificateStatus {
             // Walk the certificate list and add the correct encoded responses
             // to the encoded responses list
             statusType = stapleParams.statReqType;
+            int encodedLen = 0;
             if (statusType == CertStatusRequestType.OCSP) {
                 // Just worry about the first cert in the chain
                 byte[] resp = stapleParams.responseMap.get(certChain[0]);
@@ -124,7 +125,7 @@ final class CertificateStatus {
                     resp = new byte[0];
                 }
                 encodedResponses.add(resp);
-                encodedResponsesLen += resp.length + 3;
+                encodedLen += resp.length + 3;
             } else if (statusType == CertStatusRequestType.OCSP_MULTI) {
                 for (X509Certificate cert : certChain) {
                     byte[] resp = stapleParams.responseMap.get(cert);
@@ -132,14 +133,15 @@ final class CertificateStatus {
                         resp = new byte[0];
                     }
                     encodedResponses.add(resp);
-                    encodedResponsesLen += resp.length + 3;
+                    encodedLen += resp.length + 3;
                 }
             } else {
                 throw new IllegalArgumentException(
                         "Unsupported StatusResponseType: " + statusType);
             }
 
-            messageLength = messageLength();
+            encodedResponsesLen = encodedLen;
+            messageLength = messageLength(statusType, encodedResponsesLen);
         }
 
         CertificateStatusMessage(HandshakeContext handshakeContext,
@@ -149,19 +151,20 @@ final class CertificateStatus {
             statusType = CertStatusRequestType.valueOf((byte)Record.getInt8(m));
             if (statusType == CertStatusRequestType.OCSP) {
                 byte[] respDER = Record.getBytes24(m);
-                // Convert the incoming bytes to a OCSPResponse strucutre
+                // Convert the incoming bytes to a OCSPResponse structure
                 if (respDER.length > 0) {
                     encodedResponses.add(respDER);
                     encodedResponsesLen = 3 + respDER.length;
                 } else {
-                    handshakeContext.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    throw handshakeContext.conContext.fatal(
+                            Alert.HANDSHAKE_FAILURE,
                             "Zero-length OCSP Response");
                 }
             } else if (statusType == CertStatusRequestType.OCSP_MULTI) {
                 int respListLen = Record.getInt24(m);
                 encodedResponsesLen = respListLen;
 
-                // Add each OCSP reponse into the array list in the order
+                // Add each OCSP response into the array list in the order
                 // we receive them off the wire.  A zero-length array is
                 // allowed for ocsp_multi, and means that a response for
                 // a given certificate is not available.
@@ -172,14 +175,27 @@ final class CertificateStatus {
                 }
 
                 if (respListLen != 0) {
-                    handshakeContext.conContext.fatal(Alert.INTERNAL_ERROR,
+                    throw handshakeContext.conContext.fatal(
+                            Alert.INTERNAL_ERROR,
                             "Bad OCSP response list length");
                 }
             } else {
-                handshakeContext.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                throw handshakeContext.conContext.fatal(
+                        Alert.HANDSHAKE_FAILURE,
                         "Unsupported StatusResponseType: " + statusType);
             }
-            messageLength = messageLength();
+            messageLength = messageLength(statusType, encodedResponsesLen);
+        }
+
+        private static int messageLength(
+                CertStatusRequestType statusType, int encodedResponsesLen) {
+            if (statusType == CertStatusRequestType.OCSP) {
+                return 1 + encodedResponsesLen;
+            } else if (statusType == CertStatusRequestType.OCSP_MULTI) {
+                return 4 + encodedResponsesLen;
+            }
+
+            return -1;
         }
 
         @Override
@@ -189,17 +205,6 @@ final class CertificateStatus {
 
         @Override
         public int messageLength() {
-            int len = 1;
-
-            if (messageLength == -1) {
-                if (statusType == CertStatusRequestType.OCSP) {
-                    len += encodedResponsesLen;
-                } else if (statusType == CertStatusRequestType.OCSP_MULTI) {
-                    len += 3 + encodedResponsesLen;
-                }
-                messageLength = len;
-            }
-
             return messageLength;
         }
 
@@ -211,11 +216,7 @@ final class CertificateStatus {
             } else if (statusType == CertStatusRequestType.OCSP_MULTI) {
                 s.putInt24(encodedResponsesLen);
                 for (byte[] respBytes : encodedResponses) {
-                    if (respBytes != null) {
-                        s.putBytes24(respBytes);
-                    } else {
-                        s.putBytes24(null);
-                    }
+                    s.putBytes24(respBytes);
                 }
             } else {
                 // It is highly unlikely that we will fall into this section
@@ -245,10 +246,13 @@ final class CertificateStatus {
             }
 
             MessageFormat messageFormat = new MessageFormat(
-                "\"CertificateStatus\": '{'\n" +
-                "  \"type\"                : \"{0}\",\n" +
-                "  \"responses \"          : [\n" + "{1}\n" + "  ]\n" +
-                "'}'",
+                    """
+                            "CertificateStatus": '{'
+                              "type"                : "{0}",
+                              "responses "          : [
+                            {1}
+                              ]
+                            '}'""",
                 Locale.ENGLISH);
             Object[] messageFields = {
                 statusType.name,
@@ -284,12 +288,16 @@ final class CertificateStatus {
             }
 
             // Pin the received responses to the SSLSessionImpl.  It will
-            // be retrieved by the X509TrustManagerImpl during the certficicate
+            // be retrieved by the X509TrustManagerImpl during the certificate
             // checking phase.
             chc.handshakeSession.setStatusResponses(cst.encodedResponses);
 
             // Now perform the check
             T12CertificateConsumer.checkServerCerts(chc, chc.deferredCerts);
+
+            // Update the handshake consumers to remove this message, indicating
+            // that it has been processed.
+            chc.handshakeConsumers.remove(SSLHandshake.CERTIFICATE_STATUS.id);
         }
     }
 

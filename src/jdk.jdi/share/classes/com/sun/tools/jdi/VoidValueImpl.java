@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 package com.sun.tools.jdi;
 
-import org.jspecify.annotations.Nullable;
-
 import com.sun.jdi.InvalidTypeException;
 import com.sun.jdi.Type;
 import com.sun.jdi.VirtualMachine;
@@ -38,10 +36,8 @@ public class VoidValueImpl extends ValueImpl implements VoidValue {
         super(aVm);
     }
 
-    
-    
-    public boolean equals(@Nullable Object obj) {
-        return (obj != null) && (obj instanceof VoidValue) && super.equals(obj);
+    public boolean equals(Object obj) {
+        return (obj instanceof VoidValue) && super.equals(obj);
     }
 
     public int hashCode() {
@@ -58,7 +54,8 @@ public class VoidValueImpl extends ValueImpl implements VoidValue {
     ValueImpl prepareForAssignmentTo(ValueContainer destination)
         throws InvalidTypeException
     {
-        if ("void".equals(destination.typeName())) {
+        JNITypeParser sig = new JNITypeParser(destination.signature());
+        if (sig.isVoid()) {
             return this;
         }
         throw new InvalidTypeException();

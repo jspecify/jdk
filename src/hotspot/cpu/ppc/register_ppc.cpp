@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2017 SAP SE. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,13 +26,7 @@
 #include "precompiled.hpp"
 #include "register_ppc.hpp"
 
-const int ConcreteRegisterImpl::max_gpr = RegisterImpl::number_of_registers * 2;
-const int ConcreteRegisterImpl::max_fpr = ConcreteRegisterImpl::max_gpr +
-                                          FloatRegisterImpl::number_of_registers * 2;
-const int ConcreteRegisterImpl::max_cnd = ConcreteRegisterImpl::max_fpr +
-                                          ConditionRegisterImpl::number_of_registers;
-
-const char* RegisterImpl::name() const {
+const char* Register::name() const {
   const char* names[number_of_registers] = {
     "R0",  "R1",  "R2",  "R3",  "R4",  "R5",  "R6",  "R7",
     "R8",  "R9",  "R10", "R11", "R12", "R13", "R14", "R15",
@@ -42,14 +36,14 @@ const char* RegisterImpl::name() const {
   return is_valid() ? names[encoding()] : "noreg";
 }
 
-const char* ConditionRegisterImpl::name() const {
+const char* ConditionRegister::name() const {
   const char* names[number_of_registers] = {
     "CR0",  "CR1",  "CR2",  "CR3",  "CR4",  "CR5",  "CR6",  "CR7"
   };
   return is_valid() ? names[encoding()] : "cnoreg";
 }
 
-const char* FloatRegisterImpl::name() const {
+const char* FloatRegister::name() const {
   const char* names[number_of_registers] = {
     "F0",  "F1",  "F2",  "F3",  "F4",  "F5",  "F6",  "F7",
     "F8",  "F9",  "F10", "F11", "F12", "F13", "F14", "F15",
@@ -59,14 +53,14 @@ const char* FloatRegisterImpl::name() const {
   return is_valid() ? names[encoding()] : "fnoreg";
 }
 
-const char* SpecialRegisterImpl::name() const {
+const char* SpecialRegister::name() const {
   const char* names[number_of_registers] = {
     "SR_XER", "SR_LR", "SR_CTR", "SR_VRSAVE", "SR_SPEFSCR", "SR_PPR"
   };
   return is_valid() ? names[encoding()] : "snoreg";
 }
 
-const char* VectorRegisterImpl::name() const {
+const char* VectorRegister::name() const {
   const char* names[number_of_registers] = {
     "VR0",  "VR1",  "VR2",  "VR3",  "VR4",  "VR5",  "VR6",  "VR7",
     "VR8",  "VR9",  "VR10", "VR11", "VR12", "VR13", "VR14", "VR15",
@@ -76,7 +70,7 @@ const char* VectorRegisterImpl::name() const {
   return is_valid() ? names[encoding()] : "vnoreg";
 }
 
-const char* VectorSRegisterImpl::name() const {
+const char* VectorSRegister::name() const {
   const char* names[number_of_registers] = {
     "VSR0",  "VSR1",  "VSR2",  "VSR3",  "VSR4",  "VSR5",  "VSR6",  "VSR7",
     "VSR8",  "VSR9",  "VSR10", "VSR11", "VSR12", "VSR13", "VSR14", "VSR15",
@@ -90,8 +84,20 @@ const char* VectorSRegisterImpl::name() const {
   return is_valid() ? names[encoding()] : "vsnoreg";
 }
 
+// Method to convert a FloatRegister to a Vector-Scalar Register (VectorSRegister)
+VectorSRegister FloatRegister::to_vsr() const {
+  if (*this == fnoreg) { return vsnoreg; }
+  return as_VectorSRegister(encoding());
+}
+
 // Method to convert a VectorRegister to a Vector-Scalar Register (VectorSRegister)
-VectorSRegister VectorRegisterImpl::to_vsr() const {
-  if (this == vnoreg) { return vsnoregi; }
+VectorSRegister VectorRegister::to_vsr() const {
+  if (*this == vnoreg) { return vsnoreg; }
   return as_VectorSRegister(encoding() + 32);
+}
+
+// Method to convert a VectorSRegister to a Vector Register (VectorRegister)
+VectorRegister VectorSRegister::to_vr() const {
+  if (*this == vsnoreg) { return vnoreg; }
+  return as_VectorRegister(encoding() - 32);
 }

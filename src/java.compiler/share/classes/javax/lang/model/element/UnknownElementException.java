@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,9 +34,6 @@ import javax.lang.model.UnknownEntityException;
  * {@linkplain ElementVisitor element visitor} to indicate that the
  * visitor was created for a prior version of the language.
  *
- * @author Joseph D. Darcy
- * @author Scott Seligman
- * @author Peter von der Ah&eacute;
  * @see ElementVisitor#visitUnknown
  * @since 1.6
  */
@@ -58,7 +55,7 @@ public class UnknownElementException extends UnknownEntityException {
      * @param p an additional parameter, may be {@code null}
      */
     public UnknownElementException(Element e, Object p) {
-        super("Unknown element: " + e);
+        super("Unknown element: \"" + e + "\"");
         element = e;
         this.parameter = p;
     }

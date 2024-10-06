@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,28 +22,21 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/shared/collectedHeap.hpp"
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zUtils.inline.hpp"
-#include "utilities/debug.hpp"
+#include "gc/z/zUtils.hpp"
+#include "runtime/nonJavaThread.hpp"
 
-#include <stdlib.h>
+#include <algorithm>
 
-uintptr_t ZUtils::alloc_aligned(size_t alignment, size_t size) {
-  void* res = NULL;
-
-  if (posix_memalign(&res, alignment, size) != 0) {
-    fatal("posix_memalign() failed");
+const char* ZUtils::thread_name() {
+  const Thread* const thread = Thread::current();
+  if (thread->is_Named_thread()) {
+    const NamedThread* const named = (const NamedThread*)thread;
+    return named->name();
   }
 
-  memset(res, 0, size);
-
-  return (uintptr_t)res;
+  return thread->type_name();
 }
 
-void ZUtils::insert_filler_object(uintptr_t addr, size_t size) {
-  const size_t fill_size_in_words = bytes_to_words(size);
-  if (fill_size_in_words >= CollectedHeap::min_fill_size()) {
-    CollectedHeap::fill_with_objects((HeapWord*)ZAddress::good(addr), fill_size_in_words);
-  }
+void ZUtils::fill(uintptr_t* addr, size_t count, uintptr_t value) {
+  std::fill_n(addr, count, value);
 }

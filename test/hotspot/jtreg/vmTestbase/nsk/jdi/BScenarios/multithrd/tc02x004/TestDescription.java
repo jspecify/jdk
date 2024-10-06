@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@
  *     works as follow:
  *     When the test is starting debugee, debugger creates MethodEntryRequest.
  *     After MethodEntryEvent arrived, debugger checks line number of one's
- *     location. It should be 59th line, that is constructor of tc02x004aClass1
+ *     location. It should be 79th line, that is constructor of tc02x004aClass1
  *     class. Every thread must generate MethodEntryEvent.
  *     The test looks like tc002x001 except that synchronizing debugger and
  *     debugee is performed without IOPipe channel.
@@ -69,16 +69,15 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @build nsk.jdi.BScenarios.multithrd.tc02x004
  *        nsk.jdi.BScenarios.multithrd.tc02x004a
- * @run main/othervm PropertyResolvingWrapper
+ * @run driver
  *      nsk.jdi.BScenarios.multithrd.tc02x004
  *      -verbose
  *      -arch=${os.family}-${os.simpleArch}
  *      -waittime=5
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
- *      "-debugee.vmkeys=${test.vm.opts} ${test.java.opts}"
+ *      -debugee.vmkeys="${test.vm.opts} ${test.java.opts}"
  */
 

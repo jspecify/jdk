@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -243,7 +243,7 @@ public abstract class AtomicContext extends ComponentContext {
 
 
     protected boolean isEmpty(String name) {
-        return name == null || name.equals("");
+        return name == null || name.isEmpty();
     }
 
 // ------ implementations of c_  and c_*_nns methods using
@@ -256,7 +256,7 @@ public abstract class AtomicContext extends ComponentContext {
             Object ret = null;
             if (resolve_to_penultimate_context(name, cont)) {
                 ret = a_lookup(name.toString(), cont);
-                if (ret != null && ret instanceof LinkRef) {
+                if (ret instanceof LinkRef) {
                     cont.setContinue(ret, name, this);
                     ret = null;
                 }
@@ -348,7 +348,7 @@ public abstract class AtomicContext extends ComponentContext {
                 Object ret = null;
                 if (resolve_to_penultimate_context_nns(name, cont)) {
                     ret = a_resolveIntermediate_nns(name.toString(), cont);
-                    if (ret != null && ret instanceof LinkRef) {
+                    if (ret instanceof LinkRef) {
                         cont.setContinue(ret, name, this);
                         ret = null;
                     }
@@ -368,7 +368,7 @@ public abstract class AtomicContext extends ComponentContext {
                 Object ret = null;
                 if (resolve_to_penultimate_context_nns(name, cont)) {
                     ret = a_lookup_nns(name.toString(), cont);
-                    if (ret != null && ret instanceof LinkRef) {
+                    if (ret instanceof LinkRef) {
                         cont.setContinue(ret, name, this);
                         ret = null;
                     }
@@ -510,7 +510,7 @@ public abstract class AtomicContext extends ComponentContext {
       */
     protected void a_processJunction_nns(String name, Continuation cont)
         throws NamingException {
-            if (name.equals("")) {
+            if (name.isEmpty()) {
                 NameNotFoundException e = new NameNotFoundException();
                 cont.setErrorNNS(this, name);
                 throw cont.fillInException(e);

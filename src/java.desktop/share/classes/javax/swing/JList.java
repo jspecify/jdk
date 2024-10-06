@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,37 +22,65 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package javax.swing;
 
-import java.awt.*;
-import java.awt.event.*;
-
-import java.util.Vector;
-import java.util.Locale;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import java.beans.JavaBean;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.GraphicsEnvironment;
+import java.awt.HeadlessException;
+import java.awt.IllegalComponentStateException;
+import java.awt.Insets;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.FocusListener;
+import java.awt.event.MouseEvent;
 import java.beans.BeanProperty;
+import java.beans.JavaBean;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.beans.Transient;
-
-import javax.swing.event.*;
-import javax.accessibility.*;
-import javax.swing.plaf.*;
-import javax.swing.text.Position;
-
-import java.io.ObjectOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+import java.util.Vector;
+
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleAction;
+import javax.accessibility.AccessibleComponent;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleIcon;
+import javax.accessibility.AccessibleRole;
+import javax.accessibility.AccessibleSelection;
+import javax.accessibility.AccessibleState;
+import javax.accessibility.AccessibleStateSet;
+import javax.accessibility.AccessibleText;
+import javax.accessibility.AccessibleValue;
+import javax.swing.event.EventListenerList;
+import javax.swing.event.ListDataEvent;
+import javax.swing.event.ListDataListener;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+import javax.swing.plaf.ListUI;
+import javax.swing.text.Position;
 
 import sun.awt.AWTAccessor;
 import sun.awt.AWTAccessor.MouseEventAccessor;
 import sun.swing.SwingUtilities2;
 import sun.swing.SwingUtilities2.Section;
-import static sun.swing.SwingUtilities2.Section.*;
+
+import static sun.swing.SwingUtilities2.Section.LEADING;
+import static sun.swing.SwingUtilities2.Section.TRAILING;
 
 /**
  * A component that displays a list of objects and allows the user to select
@@ -254,12 +282,12 @@ import static sun.swing.SwingUtilities2.Section.*;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  * <p>
- * See <a href="http://docs.oracle.com/javase/tutorial/uiswing/components/list.html">How to Use Lists</a>
- * in <a href="http://docs.oracle.com/javase/tutorial/"><em>The Java Tutorial</em></a>
+ * See <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/list.html">How to Use Lists</a>
+ * in <a href="https://docs.oracle.com/javase/tutorial/"><em>The Java Tutorial</em></a>
  * for further documentation.
  *
  * @see ListModel
@@ -417,7 +445,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
      * allowing for tooltips to be provided by the cell renderers.
      *
      * @param dataModel the model for the list
-     * @exception IllegalArgumentException if the model is {@code null}
+     * @throws IllegalArgumentException if the model is {@code null}
      */
     public JList(ListModel<E> dataModel)
     {
@@ -435,7 +463,6 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
         this.dataModel = dataModel;
         selectionModel = createSelectionModel();
         setAutoscrolls(true);
-        setOpaque(true);
         updateUI();
     }
 
@@ -690,7 +717,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
      *
      * @param width the width to be used for all cells in the list
      * @see #setPrototypeCellValue
-     * @see #setFixedCellWidth
+     * @see #getFixedCellWidth
      * @see JComponent#addPropertyChangeListener
      */
     @BeanProperty(visualUpdate = true, description
@@ -944,8 +971,8 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
 
 
     /**
-     * Defines the way list cells are layed out. Consider a {@code JList}
-     * with five cells. Cells can be layed out in one of the following ways:
+     * Defines the way list cells are laid out. Consider a {@code JList}
+     * with five cells. Cells can be laid out in one of the following ways:
      *
      * <pre>
      * VERTICAL:          0
@@ -975,17 +1002,17 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
      * <tbody>
      *   <tr>
      *     <th scope="row">{@code VERTICAL}
-     *     <td>Cells are layed out vertically in a single column.
+     *     <td>Cells are laid out vertically in a single column.
      *   <tr>
      *     <th scope="row">{@code HORIZONTAL_WRAP}
-     *     <td>Cells are layed out horizontally, wrapping to a new row as
+     *     <td>Cells are laid out horizontally, wrapping to a new row as
      *     necessary. If the {@code visibleRowCount} property is less than or
      *     equal to zero, wrapping is determined by the width of the list;
      *     otherwise wrapping is done in such a way as to ensure
      *     {@code visibleRowCount} rows in the list.
      *   <tr>
      *     <th scope="row">{@code VERTICAL_WRAP}
-     *     <td>Cells are layed out vertically, wrapping to a new column as
+     *     <td>Cells are laid out vertically, wrapping to a new column as
      *     necessary. If the {@code visibleRowCount} property is less than or
      *     equal to zero, wrapping is determined by the height of the list;
      *     otherwise wrapping is done at {@code visibleRowCount} rows.
@@ -1008,7 +1035,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
             "JList.VERTICAL",
             "JList.HORIZONTAL_WRAP",
             "JList.VERTICAL_WRAP"}, description
-            = "Defines the way list cells are layed out.")
+            = "Defines the way list cells are laid out.")
     public void setLayoutOrientation(int layoutOrientation) {
         int oldValue = this.layoutOrientation;
         switch (layoutOrientation) {
@@ -1175,7 +1202,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
      * list's {@code TransferHandler}.
      *
      * @param b whether or not to enable automatic drag handling
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *            <code>b</code> is <code>true</code> and
      *            <code>GraphicsEnvironment.isHeadless()</code>
      *            returns <code>true</code>
@@ -1466,7 +1493,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
      * Position.Bias.Forward or Position.Bias.Backward.
      * @return the index of the next list element that
      * starts with the prefix; otherwise {@code -1}
-     * @exception IllegalArgumentException if prefix is {@code null}
+     * @throws IllegalArgumentException if prefix is {@code null}
      * or startIndex is out of bounds
      * @since 1.4
      */
@@ -1668,7 +1695,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
      *
      * @param model  the <code>ListModel</code> that provides the
      *                                          list of items for display
-     * @exception IllegalArgumentException  if <code>model</code> is
+     * @throws IllegalArgumentException  if <code>model</code> is
      *                                          <code>null</code>
      * @see #getModel
      * @see #clearSelection
@@ -1742,7 +1769,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
      * during construction to initialize the list's selection model
      * property.
      *
-     * @return a {@code DefaultListSelecitonModel}, used to initialize
+     * @return a {@code DefaultListSelectionModel}, used to initialize
      *         the list's selection model property during construction
      * @see #setSelectionModel
      * @see DefaultListSelectionModel
@@ -1883,7 +1910,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
      *
      * @param selectionModel  the <code>ListSelectionModel</code> that
      *                          implements the selections
-     * @exception IllegalArgumentException   if <code>selectionModel</code>
+     * @throws IllegalArgumentException   if <code>selectionModel</code>
      *                                          is <code>null</code>
      * @see #getSelectionModel
      */
@@ -2810,6 +2837,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
      * See {@code readObject} and {@code writeObject} in {@code JComponent}
      * for more information about serialization in Swing.
      */
+    @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         s.defaultWriteObject();
         if (getUIClassID().equals(uiClassID)) {
@@ -2883,7 +2911,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
@@ -2919,23 +2947,23 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
             Object newValue = e.getNewValue();
 
                 // re-set listData listeners
-            if (name.compareTo("model") == 0) {
+            if (name.equals("model")) {
 
-                if (oldValue != null && oldValue instanceof ListModel) {
-                    ((ListModel) oldValue).removeListDataListener(this);
+                if (oldValue instanceof ListModel<?> oldModel) {
+                    oldModel.removeListDataListener(this);
                 }
-                if (newValue != null && newValue instanceof ListModel) {
-                    ((ListModel) newValue).addListDataListener(this);
+                if (newValue instanceof ListModel<?> newModel) {
+                    newModel.addListDataListener(this);
                 }
 
                 // re-set listSelectionModel listeners
-            } else if (name.compareTo("selectionModel") == 0) {
+            } else if (name.equals("selectionModel")) {
 
-                if (oldValue != null && oldValue instanceof ListSelectionModel) {
-                    ((ListSelectionModel) oldValue).removeListSelectionListener(this);
+                if (oldValue instanceof ListSelectionModel oldModel) {
+                    oldModel.removeListSelectionListener(this);
                 }
-                if (newValue != null && newValue instanceof ListSelectionModel) {
-                    ((ListSelectionModel) newValue).addListSelectionListener(this);
+                if (newValue instanceof ListSelectionModel newModel) {
+                    newModel.addListSelectionListener(this);
                 }
 
                 firePropertyChange(
@@ -3606,7 +3634,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
                     try {
                         listLocation = parent.getLocationOnScreen();
                     } catch (IllegalComponentStateException e) {
-                        // This can happen if the component isn't visisble
+                        // This can happen if the component isn't visible
                         return null;
                     }
                     Point componentLocation = parent.indexToLocation(indexInParent);

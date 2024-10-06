@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package java.lang;
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 class VersionProps {
@@ -35,20 +36,26 @@ class VersionProps {
     private static final String launcher_name =
         "@@LAUNCHER_NAME@@";
 
+    // This field is read by HotSpot
     private static final String java_version =
         "@@VERSION_SHORT@@";
 
     private static final String java_version_date =
         "@@VERSION_DATE@@";
 
+    // This field is read by HotSpot
     private static final String java_runtime_name =
         "@@RUNTIME_NAME@@";
 
+    // This field is read by HotSpot
     private static final String java_runtime_version =
         "@@VERSION_STRING@@";
 
     private static final String VERSION_NUMBER =
         "@@VERSION_NUMBER@@";
+
+    private static final String VERSION_SPECIFICATION =
+        "@@VERSION_SPECIFICATION@@";
 
     private static final String VERSION_BUILD =
         "@@VERSION_BUILD@@";
@@ -62,24 +69,56 @@ class VersionProps {
     private static final boolean isLTS =
         "@@VERSION_OPT@@".startsWith("LTS");
 
-    private static final String VENDOR_VERSION_STRING =
+    private static final String CLASSFILE_MAJOR_MINOR =
+        "@@VERSION_CLASSFILE_MAJOR@@.@@VERSION_CLASSFILE_MINOR@@";
+
+    private static final String VENDOR =
+        "@@VENDOR@@";
+
+    private static final String VENDOR_URL =
+        "@@VENDOR_URL@@";
+
+    // The remaining VENDOR_* fields must not be final,
+    // so that they can be redefined by jlink plugins
+
+    // This field is read by HotSpot
+    private static String VENDOR_VERSION =
         "@@VENDOR_VERSION_STRING@@";
 
-    private static final String vendor_version =
-        (VENDOR_VERSION_STRING.length() > 0
-         ? " " + VENDOR_VERSION_STRING : "");
+    private static String VENDOR_URL_BUG =
+        "@@VENDOR_URL_BUG@@";
 
-    static {
-        init();
-    }
+    // This field is read by HotSpot
+    @SuppressWarnings("unused")
+    private static String VENDOR_URL_VM_BUG =
+        "@@VENDOR_URL_VM_BUG@@";
 
-    public static void init() {
-        System.setProperty("java.version", java_version);
-        System.setProperty("java.version.date", java_version_date);
-        System.setProperty("java.runtime.version", java_runtime_version);
-        System.setProperty("java.runtime.name", java_runtime_name);
-        if (VENDOR_VERSION_STRING.length() > 0)
-            System.setProperty("java.vendor.version", VENDOR_VERSION_STRING);
+    /**
+     * Initialize system properties using build provided values.
+     *
+     * @param props Map instance in which to insert the properties
+     */
+    public static void init(Map<String, String> props) {
+        props.put("java.version", java_version);
+        props.put("java.version.date", java_version_date);
+        props.put("java.runtime.version", java_runtime_version);
+        props.put("java.runtime.name", java_runtime_name);
+        if (!VENDOR_VERSION.isEmpty())
+            props.put("java.vendor.version", VENDOR_VERSION);
+
+        props.put("java.class.version", CLASSFILE_MAJOR_MINOR);
+
+        props.put("java.specification.version", VERSION_SPECIFICATION);
+
+        // Uncomment next props.put call after the first maintenance release for a
+        // platform specification is done and set the MR number, starting at "1".
+        // props.put("java.specification.maintenance.version", "1");
+        props.put("java.specification.name", "Java Platform API Specification");
+        props.put("java.specification.vendor", "Oracle Corporation");
+
+        props.put("java.vendor", VENDOR);
+        props.put("java.vendor.url", VENDOR_URL);
+        props.put("java.vendor.url.bug", VENDOR_URL_BUG);
     }
 
     private static int parseVersionNumber(String version, int prevIndex, int index) {
@@ -147,25 +186,13 @@ class VersionProps {
         }
     }
 
-    /**
-     * In case you were wondering this method is called by java -version.
-     */
-    public static void print(boolean err) {
-        print(err, false);
-    }
 
-    /**
-     * This is the same as print except that it adds an extra line-feed
-     * at the end, typically used by the -showversion in the launcher
-     */
-    public static void println(boolean err) {
-        print(err, true);
-    }
 
     /**
      * Print version info.
+     * In case you were wondering this method is called by java -version.
      */
-    private static void print(boolean err, boolean newln) {
+    private static void print(boolean err) {
         PrintStream ps = err ? System.err : System.out;
 
         /* First line: platform version. */
@@ -188,6 +215,9 @@ class VersionProps {
         } else {
             jdk_debug_level = jdk_debug_level + " ";
         }
+
+        String vendor_version = (VENDOR_VERSION.isEmpty()
+                                 ? "" : " " + VENDOR_VERSION);
 
         ps.println(java_runtime_name + vendor_version
                    + " (" + jdk_debug_level + "build " + java_runtime_version + ")");

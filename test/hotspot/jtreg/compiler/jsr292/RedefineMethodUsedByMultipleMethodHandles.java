@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,8 @@
  * @modules java.base/jdk.internal.org.objectweb.asm
  *          java.compiler
  *          java.instrument
- *          java.management
  *          jdk.attach
+ * @requires vm.jvmti
  *
  * @run main/othervm -Djdk.attach.allowAttachSelf compiler.jsr292.RedefineMethodUsedByMultipleMethodHandles
  */
@@ -52,7 +52,6 @@ import java.lang.instrument.Instrumentation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
-import java.lang.management.ManagementFactory;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -115,23 +114,19 @@ public class RedefineMethodUsedByMultipleMethodHandles {
         mainAttrs.putValue("Can-Redefine-Classes", "true");
         mainAttrs.putValue("Can-Retransform-Classes", "true");
 
-        Path jar = Files.createTempFile("myagent", ".jar");
-        try {
-            JarOutputStream jarStream = new JarOutputStream(new FileOutputStream(jar.toFile()), manifest);
-            add(jarStream, FooAgent.class);
-            add(jarStream, FooTransformer.class);
-            jarStream.close();
-            runAgent(jar);
-        } finally {
-            Files.deleteIfExists(jar);
-        }
+        // The jar file will be added to the system classloader search path.  It is not safe
+        // to delete it while the JVM is running, so make sure to create it in the test
+        // directory so it will be cleaned up by the test harness.
+        Path jar = Files.createTempFile(Path.of(""), "myagent", ".jar");
+        JarOutputStream jarStream = new JarOutputStream(new FileOutputStream(jar.toFile()), manifest);
+        add(jarStream, FooAgent.class);
+        add(jarStream, FooTransformer.class);
+        jarStream.close();
+        runAgent(jar);
     }
 
     public static void runAgent(Path agent) throws Exception {
-        String vmName = ManagementFactory.getRuntimeMXBean().getName();
-        int p = vmName.indexOf('@');
-        assert p != -1 : "VM name not in <pid>@<host> format: " + vmName;
-        String pid = vmName.substring(0, p);
+        String pid = Long.toString(ProcessHandle.current().pid());
         ClassLoader cl = ClassLoader.getSystemClassLoader();
         Class<?> c = Class.forName("com.sun.tools.attach.VirtualMachine", true, cl);
         Method attach = c.getDeclaredMethod("attach", String.class);

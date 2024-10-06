@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,37 +30,65 @@ package jdk.test.lib.containers.docker;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import jdk.test.lib.containers.docker.DockerRunOptions;
-import jdk.test.lib.containers.docker.DockerTestUtils;
+import java.nio.file.StandardCopyOption;
 import jdk.test.lib.Utils;
 import jdk.test.lib.process.OutputAnalyzer;
 
+import static jdk.test.lib.Asserts.assertNotNull;
+
 
 public class Common {
-    public static final String imageNameAndTag = "jdk-internal:test";
+    // Create a unique name for docker image.
+    public static String imageName() {
+        // jtreg guarantees that test.name is unique among all concurrently executing
+        // tests. For example, if you have two test roots:
+        //
+        //     $ find test -type f
+        //     test/foo/TEST.ROOT
+        //     test/foo/my/TestCase.java
+        //     test/bar/TEST.ROOT
+        //     test/bar/my/TestCase.java
+        //     $ jtreg -concur:2 test/foo test/bar
+        //
+        // jtreg will first run all the tests under test/foo. When they are all finished, then
+        // jtreg will run all the tests under test/bar. So you will never have two concurrent
+        // test cases whose test.name is "my/TestCase.java"
+        String testname = System.getProperty("test.name");
+        assertNotNull(testname, "must be set by jtreg");
+        testname = testname.replace(".java", "");
+        testname = testname.replace('/', '-');
+        testname = testname.replace('\\', '-');
 
-    public static String imageName(String suffix) {
-        return imageNameAndTag + "-" + suffix;
+        // Example: "jdk-internal:test-containers-docker-TestMemoryAwareness"
+        return "jdk-internal:test-" + testname;
     }
 
+    public static String imageName(String suffix) {
+        // Example: "jdk-internal:test-containers-docker-TestMemoryAwareness-memory"
+        return imageName() + '-' + suffix;
+    }
 
     public static void prepareWhiteBox() throws Exception {
         Files.copy(Paths.get(new File("whitebox.jar").getAbsolutePath()),
-                   Paths.get(Utils.TEST_CLASSES, "whitebox.jar"));
+                   Paths.get(Utils.TEST_CLASSES, "whitebox.jar"), StandardCopyOption.REPLACE_EXISTING);
     }
 
 
     // create simple commonly used options
-    public static DockerRunOptions newOpts(String imageNameAndTag) {
-        return new DockerRunOptions(imageNameAndTag, "/jdk/bin/java", "-version")
+    public static DockerRunOptions newOpts(String imageName) {
+        return new DockerRunOptions(imageName, "/jdk/bin/java", "-version")
             .addJavaOpts("-Xlog:os+container=trace");
+    }
+
+    public static DockerRunOptions newOptsShowSettings(String imageName) {
+        return new DockerRunOptions(imageName, "/jdk/bin/java", "-version", "-XshowSettings:system");
     }
 
 
     // create commonly used options with class to be launched inside container
-    public static DockerRunOptions newOpts(String imageNameAndTag, String testClass) {
+    public static DockerRunOptions newOpts(String imageName, String testClass) {
         DockerRunOptions opts =
-            new DockerRunOptions(imageNameAndTag, "/jdk/bin/java", testClass);
+            new DockerRunOptions(imageName, "/jdk/bin/java", testClass);
         opts.addDockerOpts("--volume", Utils.TEST_CLASSES + ":/test-classes/");
         opts.addJavaOpts("-Xlog:os+container=trace", "-cp", "/test-classes/");
         return opts;

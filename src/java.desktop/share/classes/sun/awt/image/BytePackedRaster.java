@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -143,7 +143,7 @@ public class BytePackedRaster extends SunWritableRaster {
      * @param origin          The Point that specifies the origin.
      * @param parent          The parent (if any) of this raster.
      *
-     * @exception RasterFormatException if the parameters do not conform
+     * @throws RasterFormatException if the parameters do not conform
      * to requirements of this Raster type.
      */
     public BytePackedRaster(SampleModel sampleModel,
@@ -244,7 +244,7 @@ public class BytePackedRaster extends SunWritableRaster {
             throw new ArrayIndexOutOfBoundsException
                 ("Coordinate out of bounds!");
         }
-        byte outData[];
+        byte[] outData;
         if (obj == null) {
             outData = new byte[numDataElements];
         } else {
@@ -318,7 +318,7 @@ public class BytePackedRaster extends SunWritableRaster {
             throw new ArrayIndexOutOfBoundsException
                 ("Coordinate out of bounds!");
         }
-        byte outData[];
+        byte[] outData;
         if (obj == null) {
             outData = new byte[numDataElements*w*h];
         } else {
@@ -328,7 +328,7 @@ public class BytePackedRaster extends SunWritableRaster {
         int scanbit = dataBitOffset + (x-minX) * pixbits;
         int index = (y-minY) * scanlineStride;
         int outindex = 0;
-        byte data[] = this.data;
+        byte[] data = this.data;
 
         for (int j = 0; j < h; j++) {
             int bitnum = scanbit;
@@ -399,7 +399,7 @@ public class BytePackedRaster extends SunWritableRaster {
         int scanbit = dataBitOffset + (x-minX) * pixbits;
         int index = (y-minY) * scanlineStride;
         int outindex = 0;
-        byte data[] = this.data;
+        byte[] data = this.data;
 
         for (int j = 0; j < h; j++) {
             int bitnum = scanbit;
@@ -506,7 +506,7 @@ public class BytePackedRaster extends SunWritableRaster {
             throw new ArrayIndexOutOfBoundsException
                 ("Coordinate out of bounds!");
         }
-        byte inData[] = (byte[])obj;
+        byte[] inData = (byte[])obj;
         int bitnum = dataBitOffset + (x-minX) * pixelBitStride;
         int index = (y-minY) * scanlineStride + (bitnum >> 3);
         int shift = shiftOffset - (bitnum & 7);
@@ -917,7 +917,7 @@ public class BytePackedRaster extends SunWritableRaster {
         int scanbit = dataBitOffset + (x - minX) * pixbits;
         int index = (y - minY) * scanlineStride;
         int outindex = 0;
-        byte data[] = this.data;
+        byte[] data = this.data;
         for (int j = 0; j < h; j++) {
             int bitnum = scanbit;
             int element;
@@ -1025,7 +1025,7 @@ public class BytePackedRaster extends SunWritableRaster {
      * @param iArray An optionally pre-allocated int array
      * @return the samples for the specified rectangle of pixels.
      */
-    public int[] getPixels(int x, int y, int w, int h, int iArray[]) {
+    public int[] getPixels(int x, int y, int w, int h, int[] iArray) {
         if ((x < this.minX) || (y < this.minY) ||
             (x + w > this.maxX) || (y + h > this.maxY)) {
             throw new ArrayIndexOutOfBoundsException
@@ -1038,7 +1038,7 @@ public class BytePackedRaster extends SunWritableRaster {
         int scanbit = dataBitOffset + (x-minX) * pixbits;
         int index = (y-minY) * scanlineStride;
         int outindex = 0;
-        byte data[] = this.data;
+        byte[] data = this.data;
 
         for (int j = 0; j < h; j++) {
             int bitnum = scanbit;
@@ -1138,7 +1138,7 @@ public class BytePackedRaster extends SunWritableRaster {
      * @param h        Height of the pixel rectangle.
      * @param iArray   The input int pixel array.
      */
-    public void setPixels(int x, int y, int w, int h, int iArray[]) {
+    public void setPixels(int x, int y, int w, int h, int[] iArray) {
         if ((x < this.minX) || (y < this.minY) ||
             (x + w > this.maxX) || (y + h > this.maxY)) {
             throw new ArrayIndexOutOfBoundsException
@@ -1148,7 +1148,7 @@ public class BytePackedRaster extends SunWritableRaster {
         int scanbit = dataBitOffset + (x - minX) * pixbits;
         int index = (y - minY) * scanlineStride;
         int outindex = 0;
-        byte data[] = this.data;
+        byte[] data = this.data;
         for (int j = 0; j < h; j++) {
             int bitnum = scanbit;
             int element;
@@ -1258,7 +1258,7 @@ public class BytePackedRaster extends SunWritableRaster {
      * @param x0              Translated X origin of the subraster.
      * @param y0              Translated Y origin of the subraster.
      * @param bandList        Array of band indices.
-     * @exception RasterFormatException
+     * @throws RasterFormatException
      *            if the specified bounding box is outside of the parent raster.
      */
     public Raster createChild(int x, int y,
@@ -1286,7 +1286,7 @@ public class BytePackedRaster extends SunWritableRaster {
      * @param x0              Translated X origin of the subraster.
      * @param y0              Translated Y origin of the subraster.
      * @param bandList        Array of band indices.
-     * @exception RasterFormatException
+     * @throws RasterFormatException
      *            if the specified bounding box is outside of the parent Raster.
      */
     public WritableRaster createWritableChild(int x, int y,
@@ -1425,9 +1425,10 @@ public class BytePackedRaster extends SunWritableRaster {
     }
 
     public String toString() {
-        return new String ("BytePackedRaster: width = "+width+" height = "+height
-                           +" #channels "+numBands
-                           +" xOff = "+sampleModelTranslateX
-                           +" yOff = "+sampleModelTranslateY);
+        return "BytePackedRaster: width = " + width
+                + " height = " + height
+                + " #channels " + numBands
+                + " xOff = " + sampleModelTranslateX
+                + " yOff = " + sampleModelTranslateY;
     }
 }

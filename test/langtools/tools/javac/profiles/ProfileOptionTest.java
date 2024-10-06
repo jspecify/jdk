@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ /*
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -147,24 +147,17 @@ public class ProfileOptionTest {
                         if (ise != null)
                             error("unexpected exception from compiler: " + ise);
                         break;
-                    case JDK1_9:
-                    case JDK1_10:
-                    case JDK1_11:
-                        if (p == Profile.DEFAULT)
-                            break;
-                        if (ise == null)
-                            error("IllegalStateException not thrown as expected");
-                        else if (!ise.getMessage().contains("option -profile " +
-                                "not allowed with target " + t.name)) {
-                            error("exception not thrown as expected: " + ise);
-                        }
-                        break;
                     default:
                         if (p == Profile.DEFAULT)
                             break;
                         if (ise == null)
                             error("IllegalStateException not thrown as expected");
-                        else if (!ise.getMessage().contains("profile " + p.name
+                        else if (t.compareTo(Target.JDK1_9) >= 0) {
+                            if (!ise.getMessage().contains("option -profile " +
+                                    "not allowed with target " + t.name)) {
+                                error("exception not thrown as expected: " + ise);
+                            }
+                        } else if (!ise.getMessage().contains("profile " + p.name
                                     + " is not valid for target release " + t.name)) {
                             error("exception not thrown as expected: " + ise);
                         }
@@ -183,7 +176,7 @@ public class ProfileOptionTest {
                             new DiagnosticCollector<JavaFileObject>();
                     List<String> opts = (p == Profile.DEFAULT)
                             ? Collections.<String>emptyList()
-                            : Arrays.asList("--release", "8", "-profile", p.name);
+                        : Arrays.asList("--release", "8", "-profile", p.name, "-Xlint:-options");
                     JavacTask task = (JavacTask) javac.getTask(null, fm, dl, opts, null,
                             Arrays.asList(fo));
                     task.analyze();

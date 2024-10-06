@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,22 +26,23 @@
  * @bug 4634891 8026567
  * @summary Determine if overridden methods are properly documented when
  * -protected (default) visibility flag is used.
- * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestOverriddenPrivateMethods
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestOverriddenPrivateMethods extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestOverriddenPrivateMethods tester = new TestOverriddenPrivateMethods();
+        var tester = new TestOverriddenPrivateMethods();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "pkg1", "pkg2");
@@ -49,29 +50,35 @@ public class TestOverriddenPrivateMethods extends JavadocTester {
 
         // The public method should be overridden
         checkOutput("pkg1/SubClass.html", true,
-                "<dt><span class=\"overrideSpecifyLabel\">Overrides:</span></dt>\n"
-                + "<dd><code><a href=\"BaseClass.html#publicMethod");
+                """
+                    <dt>Overrides:</dt>
+                    <dd><code><a href="BaseClass.html#publicMethod""");
 
         // The public method in different package should be overridden
         checkOutput("pkg2/SubClass.html", true,
-                "<dt><span class=\"overrideSpecifyLabel\">Overrides:</span></dt>\n"
-                + "<dd><code><a href=\"../pkg1/BaseClass.html#publicMethod");
+                """
+                    <dt>Overrides:</dt>
+                    <dd><code><a href="../pkg1/BaseClass.html#publicMethod""");
 
         checkOutput("pkg1/SubClass.html", false,
                 //The package private method should be overridden since the base and sub class are in the same
                 //package.  However, the link should not show up because the package private methods are not documented.
-                "<dt><span class=\"overrideSpecifyLabel\">Overrides:</span></dt>\n"
-                + "<dd><code><a href=\"../pkg1/BaseClass.html#packagePrivateMethod",
+                """
+                    <dt>Overrides:</dt>
+                    <dd><code><a href="../pkg1/BaseClass.html#packagePrivateMethod""",
                 //The private method in should not be overridden
-                "<dt><span class=\"overrideSpecifyLabel\">Overrides:</span></dt>\n"
-                + "<dd><code><a href=\"../pkg1/BaseClass.html#privateMethod");
+                """
+                    <dt>Overrides:</dt>
+                    <dd><code><a href="../pkg1/BaseClass.html#privateMethod""");
 
         checkOutput("pkg2/SubClass.html", false,
                 //The private method in different package should not be overridden
-                "<dt><span class=\"overrideSpecifyLabel\">Overrides:</span></dt>\n"
-                + "<dd><code><a href=\"../pkg1/BaseClass.html#privateMethod",
+                """
+                    <dt>Overrides:</dt>
+                    <dd><code><a href="../pkg1/BaseClass.html#privateMethod""",
                 //The package private method should not be overridden since the base and sub class are in
                 //different packages.
-                "Overrides:</span></dt><dd><code><a href=\"../pkg1/BaseClass.html#packagePrivateMethod");
+                """
+                    Overrides:</dt><dd><code><a href="../pkg1/BaseClass.html#packagePrivateMethod""");
     }
 }

@@ -23,8 +23,6 @@ package com.sun.org.apache.bcel.internal.generic;
 
 /**
  * NOP - Do nothing
- *
- * @version $Id: NOP.java 1747278 2016-06-07 17:28:43Z britter $
  */
 public class NOP extends Instruction {
 
@@ -32,17 +30,14 @@ public class NOP extends Instruction {
         super(com.sun.org.apache.bcel.internal.Const.NOP, (short) 1);
     }
 
-
     /**
-     * Call corresponding visitor method(s). The order is:
-     * Call visitor methods of implemented interfaces first, then
-     * call methods according to the class hierarchy in descending order,
-     * i.e., the most specific visitXXX() call comes last.
+     * Call corresponding visitor method(s). The order is: Call visitor methods of implemented interfaces first, then call
+     * methods according to the class hierarchy in descending order, i.e., the most specific visitXXX() call comes last.
      *
      * @param v Visitor object
      */
     @Override
-    public void accept( final Visitor v ) {
+    public void accept(final Visitor v) {
         v.visitNOP(this);
     }
 }

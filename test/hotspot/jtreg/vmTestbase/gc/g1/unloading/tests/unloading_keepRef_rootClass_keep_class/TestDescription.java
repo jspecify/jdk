@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @key stress gc
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/g1/unloading/tests/unloading_keepRef_rootClass_keep_class.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent, javac]
@@ -34,7 +34,6 @@
  * @library /vmTestbase
  *          /test/lib
  *
- * @run driver jdk.test.lib.FileInstaller . .
  *
  * @comment generate HumongousTemplateClass and compile it to test.classes
  * @run driver gc.g1.unloading.bytecode.GenClassesBuilder
@@ -42,9 +41,11 @@
  * @comment build classPool.jar
  * @run driver gc.g1.unloading.GenClassesBuilder
  *
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @requires vm.gc.G1
+ * @requires vm.opt.ClassUnloading != false
+ * @requires vm.opt.ClassUnloadingWithConcurrentMark != false
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm
  *      -Xbootclasspath/a:.
  *      -XX:+UnlockDiagnosticVMOptions
@@ -52,13 +53,6 @@
  *      -XX:+UseG1GC
  *      -XX:+ExplicitGCInvokesConcurrent
  *      -Xbootclasspath/a:classPool.jar
- *      -Xbootclasspath/a:.
- *      -XX:+UnlockDiagnosticVMOptions
- *      -XX:+WhiteBoxAPI
- *      -XX:+UseG1GC
- *      -XX:+ExplicitGCInvokesConcurrent
- *      -Xlog:gc:gc.log
- *      -XX:-UseGCOverheadLimit
  *      -Xlog:gc:gc.log
  *      -XX:-UseGCOverheadLimit
  *      gc.g1.unloading.UnloadingTest
@@ -67,4 +61,3 @@
  *      -numberOfChecksLimit 4
  *      -stressTime 180
  */
-

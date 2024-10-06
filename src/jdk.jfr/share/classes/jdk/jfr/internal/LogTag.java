@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,24 +63,44 @@ public enum LogTag {
      */
     JFR_SYSTEM_METADATA(6),
     /**
+     *  Covers streaming (for Hotspot developers)
+     */
+    JFR_SYSTEM_STREAMING(7),
+    /**
+     *  Covers throttling (for Hotspot developers)
+     */
+    JFR_SYSTEM_THROTTLE(8),
+    /**
+     *  Covers periodic task work (for Hotspot developer)
+     */
+    JFR_SYSTEM_PERIODIC(9),
+    /**
+     *  Covers periodic event work (for users of the JDK)
+     */
+    JFR_PERIODIC(10),
+    /**
      *  Covers metadata for Java user (for Hotspot developers)
      */
-    JFR_METADATA(7),
+    JFR_METADATA(11),
     /**
      * Covers events (for users of the JDK)
      */
-    JFR_EVENT(8),
+    JFR_EVENT(12),
     /**
      * Covers setting (for users of the JDK)
      */
-    JFR_SETTING(9),
+    JFR_SETTING(13),
     /**
      * Covers usage of jcmd with JFR
      */
-    JFR_DCMD(10);
+    JFR_DCMD(14),
+    /**
+     * -XX:StartFlightRecording
+     */
+    JFR_START(15);
 
     /* set from native side */
-    private volatile int tagSetLevel = 100; // prevent logging if JVM log system has not been initialized
+    volatile int tagSetLevel = 100; // prevent logging if JVM log system has not been initialized
 
     final int id;
 
@@ -88,11 +108,12 @@ public enum LogTag {
         id = tagId;
     }
 
-    public boolean shouldLog(int level) {
-        return level >= tagSetLevel;
+    public LogLevel level() {
+        for (LogLevel l : LogLevel.values()) {
+            if (l.level == tagSetLevel) {
+                return l;
+            }
+        }
+        return LogLevel.WARN; // default
     }
-
-    public boolean shouldLog(LogLevel logLevel) {
-        return shouldLog(logLevel.level);
-    }
-}
+ }

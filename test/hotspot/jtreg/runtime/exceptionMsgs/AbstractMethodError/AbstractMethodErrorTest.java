@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -25,10 +25,11 @@
 /**
  * @test
  * @summary Check that the verbose message of the AME is printed correctly.
- * @requires !(os.arch=="arm") & vm.flavor == "server" & !vm.emulatedClient & vm.compMode=="Xmixed" & (!vm.graal.enabled | vm.opt.TieredCompilation == true) & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel==4)
+ * @requires !(os.arch=="arm") & vm.flavor == "server" & !vm.emulatedClient & vm.compMode=="Xmixed" & !vm.graal.enabled & vm.opt.UseJVMCICompiler != true & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel==4)
+ * @requires vm.opt.DeoptimizeALot != true
  * @library /test/lib /
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @compile AbstractMethodErrorTest.java
  * @compile AME1_E.jasm AME2_C.jasm AME3_C.jasm AME4_E.jasm AME5_B.jasm AME6_B.jasm
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -37,7 +38,7 @@
  *                   AbstractMethodErrorTest
  */
 
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 import compiler.whitebox.CompilerWhiteBoxTest;
 import java.lang.reflect.Method;
 
@@ -99,11 +100,11 @@ public class AbstractMethodErrorTest {
     }
 
     private static String expectedErrorMessageAME1_1 =
-        "Missing implementation of resolved method abstract " +
-        "anAbstractMethod()Ljava/lang/String; of abstract class AME1_B.";
+        "Missing implementation of resolved method 'abstract " +
+        "java.lang.String anAbstractMethod()' of abstract class AME1_B.";
     private static String expectedErrorMessageAME1_2 =
         "Receiver class AME1_E does not define or inherit an implementation of the " +
-        "resolved method abstract aFunctionOfMyInterface()Ljava/lang/String; of " +
+        "resolved method 'abstract java.lang.String aFunctionOfMyInterface()' of " +
         "interface AME1_C.";
 
     public static void test_ame1() {
@@ -158,11 +159,11 @@ public class AbstractMethodErrorTest {
     }
 
     private static String expectedErrorMessageAME2_Interpreted =
-        "Missing implementation of resolved method abstract " +
-        "aFunctionOfMyInterface()V of interface AME2_A.";
+        "Missing implementation of resolved method 'abstract " +
+        "void aFunctionOfMyInterface()' of interface AME2_A.";
     private static String expectedErrorMessageAME2_Compiled =
         "Receiver class AME2_C does not define or inherit an implementation of the resolved method " +
-        "abstract aFunctionOfMyInterface()V of interface AME2_A.";
+        "'abstract void aFunctionOfMyInterface()' of interface AME2_A.";
 
     public AbstractMethodErrorTest() throws InstantiationException, IllegalAccessException {
         try {
@@ -228,7 +229,7 @@ public class AbstractMethodErrorTest {
 
     private static String expectedErrorMessageAME3_1 =
         "Receiver class AME3_C does not define or inherit an implementation of the resolved method " +
-        "ma()V of class AME3_A. Selected method is abstract AME3_B.ma()V.";
+        "'void ma()' of class AME3_A. Selected method is 'abstract void AME3_B.ma()'.";
 
     // Testing abstract class that extends a class that has an implementation.
     // Loop so that method gets eventually compiled/osred.
@@ -259,7 +260,7 @@ public class AbstractMethodErrorTest {
 
     private static String expectedErrorMessageAME3_2 =
         "Receiver class AME3_C does not define or inherit an implementation of " +
-        "the resolved method abstract ma()V of abstract class AME3_B.";
+        "the resolved method 'abstract void ma()' of abstract class AME3_B.";
 
     // Testing abstract class that extends a class that has an implementation.
     // Loop so that method gets eventually compiled/osred.
@@ -289,7 +290,7 @@ public class AbstractMethodErrorTest {
     }
 
     private static String expectedErrorMessageAME4 =
-        "Missing implementation of resolved method abstract ma()V of " +
+        "Missing implementation of resolved method 'abstract void ma()' of " +
         "abstract class AME4_B.";
 
     // Testing abstract class that extends a class that has an implementation.
@@ -336,7 +337,7 @@ public class AbstractMethodErrorTest {
     }
 
     private static String expectedErrorMessageAME5_VtableStub =
-        "Receiver class AME5_B does not define or inherit an implementation of the resolved method abstract mc()V " +
+        "Receiver class AME5_B does not define or inherit an implementation of the resolved method 'abstract void mc()' " +
         "of abstract class AME5_A.";
 
     // AbstractMethodErrors detected in vtable stubs.
@@ -409,7 +410,7 @@ public class AbstractMethodErrorTest {
 
     private static String expectedErrorMessageAME6_ItableStub =
         "Receiver class AME6_B does not define or inherit an implementation of the resolved" +
-        " method abstract mc()V of interface AME6_A.";
+        " method 'abstract void mc()' of interface AME6_A.";
 
     // -------------------------------------------------------------------------
     // AbstractMethodErrors detected in itable stubs.
@@ -502,7 +503,7 @@ public class AbstractMethodErrorTest {
 // -------------------------------------------------------------------------
 // This error should be detected interpreted.
 //
-// Class hierachy:
+// Class hierarchy:
 //
 //            C     // interface, defines aFunctionOfMyInterface()
 //            |
@@ -618,7 +619,7 @@ class AME1_E extends AME1_B implements AME1_C {
 // -------------------------------------------------------------------------
 // This error should be detected interpreted.
 //
-// Class hierachy:
+// Class hierarchy:
 //
 //      A   // an interface declaring aFunctionOfMyInterface()
 //      |
@@ -664,7 +665,7 @@ class AME2_C extends AME2_B {
 // -----------------------------------------------------------------------
 // Test AbstractMethod error shadowing existing implementation.
 //
-// Class hierachy:
+// Class hierarchy:
 //
 //           A           // a class implementing m()
 //           |
@@ -693,7 +694,7 @@ class AME3_C extends AME3_B {
 // Test AbstractMethod error shadowing existing implementation. In
 // this test there are several subclasses of the abstract class.
 //
-// Class hierachy:
+// Class hierarchy:
 //
 //           A           // A: a class implementing ma()
 //           |
@@ -733,7 +734,7 @@ class AME4_E extends AME4_B {
 // -------------------------------------------------------------------------
 // This error should be detected while processing the vtable stub.
 //
-// Class hierachy:
+// Class hierarchy:
 //
 //              A__     // abstract
 //             /|\ \
@@ -811,7 +812,7 @@ class AME5_E extends AME5_A {
 // Test AbstractMethod error detected while processing
 // the itable stub.
 //
-// Class hierachy:
+// Class hierarchy:
 //
 //           A__   (interface)
 //          /|\ \

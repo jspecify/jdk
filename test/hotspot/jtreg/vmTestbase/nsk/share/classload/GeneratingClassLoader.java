@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -119,8 +119,6 @@ public class GeneratingClassLoader extends ClassLoader {
                         return bytecode;
                 } catch (UnsupportedEncodingException e) {
                         throw new TestBug(e);
-                } catch (IOException e) {
-                        throw new TestBug(e);
                 }
         }
 
@@ -171,7 +169,7 @@ public class GeneratingClassLoader extends ClassLoader {
                                         }
                                         if (i == bytecode.length)
                                                 break;
-                                        offsets.add(new Integer(i));
+                                        offsets.add(Integer.valueOf(i));
                                         i++;
                                 }
                         } catch (UnsupportedEncodingException e) {

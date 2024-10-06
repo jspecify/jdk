@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,8 @@ import java.io.OutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+
 /**
  * This class encodes a buffer into the classic: "Hexadecimal Dump" format of
  * the past. It is useful for analyzing the contents of binary buffers.
@@ -53,7 +55,7 @@ public class HexDumpEncoder {
     private int offset;
     private int thisLineLength;
     private int currentByte;
-    private byte thisLine[] = new byte[16];
+    private final byte[] thisLine = new byte[16];
 
     static void hexDigit(PrintStream p, byte x) {
         char c;
@@ -85,7 +87,7 @@ public class HexDumpEncoder {
         pStream = new PrintStream(o);
     }
 
-    protected void encodeLinePrefix(OutputStream o, int len) throws IOException {
+    protected void encodeLinePrefix(OutputStream o, int len) {
         hexDigit(pStream, (byte)((offset >>> 8) & 0xff));
         hexDigit(pStream, (byte)(offset & 0xff));
         pStream.print(": ");
@@ -93,7 +95,8 @@ public class HexDumpEncoder {
         thisLineLength = len;
     }
 
-    protected void encodeAtom(OutputStream o, byte buf[], int off, int len) throws IOException {
+    protected void encodeAtom(OutputStream o, byte[] buf, int off, int len)
+            throws IOException {
         thisLine[currentByte] = buf[off];
         hexDigit(pStream, buf[off]);
         pStream.print(" ");
@@ -129,7 +132,7 @@ public class HexDumpEncoder {
      * This method works around the bizarre semantics of BufferedInputStream's
      * read method.
      */
-    protected int readFully(InputStream in, byte buffer[])
+    protected int readFully(InputStream in, byte[] buffer)
             throws java.io.IOException {
         for (int i = 0; i < buffer.length; i++) {
             int q = in.read();
@@ -151,7 +154,7 @@ public class HexDumpEncoder {
     {
         int     j;
         int     numBytes;
-        byte    tmpbuffer[] = new byte[bytesPerLine()];
+        byte[]  tmpbuffer = new byte[bytesPerLine()];
 
         encodeBufferPrefix(outStream);
 
@@ -181,19 +184,17 @@ public class HexDumpEncoder {
      * A 'streamless' version of encode that simply takes a buffer of
      * bytes and returns a string containing the encoded buffer.
      */
-    public String encode(byte aBuffer[]) {
+    public String encode(byte[] aBuffer) {
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-        ByteArrayInputStream    inStream = new ByteArrayInputStream(aBuffer);
-        String retVal = null;
+        ByteArrayInputStream inStream = new ByteArrayInputStream(aBuffer);
         try {
             encode(inStream, outStream);
             // explicit ascii->unicode conversion
-            retVal = outStream.toString("ISO-8859-1");
-        } catch (Exception IOException) {
+            return outStream.toString(ISO_8859_1);
+        } catch (IOException ignore) {
             // This should never happen.
             throw new Error("CharacterEncoder.encode internal error");
         }
-        return (retVal);
     }
 
     /**
@@ -264,7 +265,7 @@ public class HexDumpEncoder {
     {
         int     j;
         int     numBytes;
-        byte    tmpbuffer[] = new byte[bytesPerLine()];
+        byte[]  tmpbuffer = new byte[bytesPerLine()];
 
         encodeBufferPrefix(outStream);
 
@@ -292,7 +293,7 @@ public class HexDumpEncoder {
      * Encode the buffer in <i>aBuffer</i> and write the encoded
      * result to the OutputStream <i>aStream</i>.
      */
-    public void encodeBuffer(byte aBuffer[], OutputStream aStream)
+    public void encodeBuffer(byte[] aBuffer, OutputStream aStream)
         throws IOException
     {
         ByteArrayInputStream inStream = new ByteArrayInputStream(aBuffer);
@@ -303,7 +304,7 @@ public class HexDumpEncoder {
      * A 'streamless' version of encode that simply takes a buffer of
      * bytes and returns a string containing the encoded buffer.
      */
-    public String encodeBuffer(byte aBuffer[]) {
+    public String encodeBuffer(byte[] aBuffer) {
         ByteArrayOutputStream   outStream = new ByteArrayOutputStream();
         ByteArrayInputStream    inStream = new ByteArrayInputStream(aBuffer);
         try {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,8 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.rmi.Remote;
+import java.rmi.RemoteException;
 import java.rmi.UnexpectedException;
-import java.rmi.activation.Activatable;
 import java.util.Map;
 import java.util.WeakHashMap;
 import sun.rmi.server.Util;
@@ -44,8 +44,7 @@ import sun.rmi.server.WeakClassHashMap;
  *
  * <p>Applications are not expected to use this class directly.  A remote
  * object exported to use a dynamic proxy with {@link UnicastRemoteObject}
- * or {@link Activatable} has an instance of this class as that proxy's
- * invocation handler.
+ * has an instance of this class as that proxy's invocation handler.
  *
  * @author  Ann Wollrath
  * @since   1.5
@@ -206,6 +205,13 @@ public class RemoteObjectInvocationHandler
                 throw new IllegalArgumentException(
                     "proxy not Remote instance");
             }
+
+            // Verify that the method is declared on an interface that extends Remote
+            Class<?> decl = method.getDeclaringClass();
+            if (!Remote.class.isAssignableFrom(decl)) {
+                throw new RemoteException("Method is not Remote: " + decl + "::" + method);
+            }
+
             return ref.invoke((Remote) proxy, method, args,
                               getMethodHash(method));
         } catch (Exception e) {
@@ -215,8 +221,7 @@ public class RemoteObjectInvocationHandler
                     method = cl.getMethod(method.getName(),
                                           method.getParameterTypes());
                 } catch (NoSuchMethodException nsme) {
-                    throw (IllegalArgumentException)
-                        new IllegalArgumentException().initCause(nsme);
+                    throw new IllegalArgumentException(nsme);
                 }
                 Class<?> thrownType = e.getClass();
                 for (Class<?> declaredType : method.getExceptionTypes()) {

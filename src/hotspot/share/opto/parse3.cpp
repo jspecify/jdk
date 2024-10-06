@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,43 +40,6 @@
 //=============================================================================
 // Helper methods for _get* and _put* bytecodes
 //=============================================================================
-bool Parse::static_field_ok_in_clinit(ciField *field, ciMethod *method) {
-  // Could be the field_holder's <clinit> method, or <clinit> for a subklass.
-  // Better to check now than to Deoptimize as soon as we execute
-  assert( field->is_static(), "Only check if field is static");
-  // is_being_initialized() is too generous.  It allows access to statics
-  // by threads that are not running the <clinit> before the <clinit> finishes.
-  // return field->holder()->is_being_initialized();
-
-  // The following restriction is correct but conservative.
-  // It is also desirable to allow compilation of methods called from <clinit>
-  // but this generated code will need to be made safe for execution by
-  // other threads, or the transition from interpreted to compiled code would
-  // need to be guarded.
-  ciInstanceKlass *field_holder = field->holder();
-
-  bool access_OK = false;
-  if (method->holder()->is_subclass_of(field_holder)) {
-    if (method->is_static()) {
-      if (method->name() == ciSymbol::class_initializer_name()) {
-        // OK to access static fields inside initializer
-        access_OK = true;
-      }
-    } else {
-      if (method->name() == ciSymbol::object_initializer_name()) {
-        // It's also OK to access static fields inside a constructor,
-        // because any thread calling the constructor must first have
-        // synchronized on the class by executing a '_new' bytecode.
-        access_OK = true;
-      }
-    }
-  }
-
-  return access_OK;
-
-}
-
-
 void Parse::do_field_access(bool is_get, bool is_field) {
   bool will_link;
   ciField* field = iter().get_field(will_link);
@@ -92,21 +55,18 @@ void Parse::do_field_access(bool is_get, bool is_field) {
     return;
   }
 
-  if (!is_field && !field_holder->is_initialized()) {
-    if (!static_field_ok_in_clinit(field, method())) {
-      uncommon_trap(Deoptimization::Reason_uninitialized,
-                    Deoptimization::Action_reinterpret,
-                    NULL, "!static_field_ok_in_clinit");
-      return;
-    }
-  }
-
-  // Deoptimize on putfield writes to call site target field.
-  if (!is_get && field->is_call_site_target()) {
+  // Deoptimize on putfield writes to call site target field outside of CallSite ctor.
+  if (!is_get && field->is_call_site_target() &&
+      !(method()->holder() == field_holder && method()->is_object_initializer())) {
     uncommon_trap(Deoptimization::Reason_unhandled,
                   Deoptimization::Action_reinterpret,
-                  NULL, "put to call site target field");
+                  nullptr, "put to call site target field");
     return;
+  }
+
+  if (C->needs_clinit_barrier(field, method())) {
+    clinit_barrier(field_holder, method());
+    if (stopped())  return;
   }
 
   assert(field->will_link(method(), bc()), "getfield: typeflow responsibility");
@@ -158,7 +118,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
       (bt != T_OBJECT || field->type()->is_loaded())) {
     // final or stable field
     Node* con = make_constant_from_field(field, obj);
-    if (con != NULL) {
+    if (con != nullptr) {
       push_node(field->layout_type(), con);
       return;
     }
@@ -180,7 +140,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
   DecoratorSet decorators = IN_HEAP;
   decorators |= is_vol ? MO_SEQ_CST : MO_UNORDERED;
 
-  bool is_obj = bt == T_OBJECT || bt == T_ARRAY;
+  bool is_obj = is_reference_type(bt);
 
   if (is_obj) {
     if (!field->type()->is_loaded()) {
@@ -196,7 +156,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
       } else {
         type = TypeOopPtr::make_from_constant(con)->isa_oopptr();
       }
-      assert(type != NULL, "field singleton type must be consistent");
+      assert(type != nullptr, "field singleton type must be consistent");
     } else {
       type = TypeOopPtr::make_from_klass(field_klass->as_klass());
     }
@@ -226,7 +186,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
     if (PrintOpto && (Verbose || WizardMode)) {
       method()->print_name(); tty->print_cr(" asserting nullness of field at bci: %d", bci());
     }
-    if (C->log() != NULL) {
+    if (C->log() != nullptr) {
       C->log()->elem("assert_null reason='field' klass='%d'",
                      C->log()->identify(field->type()));
     }
@@ -251,7 +211,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   DecoratorSet decorators = IN_HEAP;
   decorators |= is_vol ? MO_SEQ_CST : MO_UNORDERED;
 
-  bool is_obj = bt == T_OBJECT || bt == T_ARRAY;
+  bool is_obj = is_reference_type(bt);
 
   // Store the value.
   const Type* field_type;
@@ -264,7 +224,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       field_type = Type::BOTTOM;
     }
   }
-  access_store_at(control(), obj, adr, adr_type, val, field_type, bt, decorators);
+  access_store_at(obj, adr, adr_type, val, field_type, bt, decorators);
 
   if (is_field) {
     // Remember we wrote a volatile field.
@@ -276,21 +236,24 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     set_wrote_fields(true);
 
     // If the field is final, the rules of Java say we are in <init> or <clinit>.
-    // Note the presence of writes to final non-static fields, so that we
+    // If the field is @Stable, we can be in any method, but we only care about
+    // constructors at this point.
+    //
+    // Note the presence of writes to final/@Stable non-static fields, so that we
     // can insert a memory barrier later on to keep the writes from floating
     // out of the constructor.
-    // Any method can write a @Stable field; insert memory barriers after those also.
-    if (field->is_final()) {
-      set_wrote_final(true);
-      if (AllocateNode::Ideal_allocation(obj, &_gvn) != NULL) {
+    if (field->is_final() || field->is_stable()) {
+      if (field->is_final()) {
+        set_wrote_final(true);
+      }
+      if (field->is_stable()) {
+        set_wrote_stable(true);
+      }
+      if (AllocateNode::Ideal_allocation(obj) != nullptr) {
         // Preserve allocation ptr to create precedent edge to it in membar
         // generated on exit from constructor.
-        // Can't bind stable with its allocation, only record allocation for final field.
-        set_alloc_with_final(obj);
+        set_alloc_with_final_or_stable(obj);
       }
-    }
-    if (field->is_stable()) {
-      set_wrote_stable(true);
     }
   }
 }
@@ -317,7 +280,7 @@ void Parse::do_anewarray() {
 
   kill_dead_locals();
 
-  const TypeKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass);
+  const TypeKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
   Node* count_val = pop();
   Node* obj = new_array(makecon(array_klass_type), count_val, 1);
   push(obj);
@@ -338,8 +301,8 @@ void Parse::do_newarray(BasicType elem_type) {
 // Also handle the degenerate 1-dimensional case of anewarray.
 Node* Parse::expand_multianewarray(ciArrayKlass* array_klass, Node* *lengths, int ndimensions, int nargs) {
   Node* length = lengths[0];
-  assert(length != NULL, "");
-  Node* array = new_array(makecon(TypeKlassPtr::make(array_klass)), length, nargs);
+  assert(length != nullptr, "");
+  Node* array = new_array(makecon(TypeKlassPtr::make(array_klass, Type::trust_interfaces)), length, nargs);
   if (ndimensions > 1) {
     jint length_con = find_int_con(length, -1);
     guarantee(length_con >= 0, "non-constant multianewarray");
@@ -351,7 +314,7 @@ Node* Parse::expand_multianewarray(ciArrayKlass* array_klass, Node* *lengths, in
       Node*    elem   = expand_multianewarray(array_klass_1, &lengths[1], ndimensions-1, nargs);
       intptr_t offset = header + ((intptr_t)i << LogBytesPerHeapOop);
       Node*    eaddr  = basic_plus_adr(array, offset);
-      access_store_at(control(), array, eaddr, adr_type, elem, elemtype, T_OBJECT, IN_HEAP | IS_ARRAY);
+      access_store_at(array, eaddr, adr_type, elem, elemtype, T_OBJECT, IN_HEAP | IS_ARRAY);
     }
   }
   return array;
@@ -371,7 +334,7 @@ void Parse::do_multianewarray() {
 
   // get the lengths from the stack (first dimension is on top)
   Node** length = NEW_RESOURCE_ARRAY(Node*, ndimensions + 1);
-  length[ndimensions] = NULL;  // terminating null for make_runtime_call
+  length[ndimensions] = nullptr;  // terminating null for make_runtime_call
   int j;
   for (j = ndimensions-1; j >= 0 ; j--) length[j] = pop();
 
@@ -379,10 +342,13 @@ void Parse::do_multianewarray() {
   // It is often the case that the lengths are small (except the last).
   // If that happens, use the fast 1-d creator a constant number of times.
   const int expand_limit = MIN2((int)MultiArrayExpandLimit, 100);
-  int expand_count = 1;        // count of allocations in the expansion
-  int expand_fanout = 1;       // running total fanout
+  int64_t expand_count = 1;        // count of allocations in the expansion
+  int64_t expand_fanout = 1;       // running total fanout
   for (j = 0; j < ndimensions-1; j++) {
     int dim_con = find_int_con(length[j], -1);
+    // To prevent overflow, we use 64-bit values.  Alternatively,
+    // we could clamp dim_con like so:
+    // dim_con = MIN2(dim_con, expand_limit);
     expand_fanout *= dim_con;
     expand_count  += expand_fanout; // count the level-J sub-arrays
     if (dim_con <= 0
@@ -396,7 +362,7 @@ void Parse::do_multianewarray() {
   // Can use multianewarray instead of [a]newarray if only one dimension,
   // or if all non-final dimensions are small constants.
   if (ndimensions == 1 || (1 <= expand_count && expand_count <= expand_limit)) {
-    Node* obj = NULL;
+    Node* obj = nullptr;
     // Set the original stack and the reexecute bit for the interpreter
     // to reexecute the multianewarray bytecode if deoptimization happens.
     // Do it unconditionally even for one dimension multianewarray.
@@ -411,7 +377,7 @@ void Parse::do_multianewarray() {
     return;
   }
 
-  address fun = NULL;
+  address fun = nullptr;
   switch (ndimensions) {
   case 1: ShouldNotReachHere(); break;
   case 2: fun = OptoRuntime::multianewarray2_Java(); break;
@@ -419,19 +385,19 @@ void Parse::do_multianewarray() {
   case 4: fun = OptoRuntime::multianewarray4_Java(); break;
   case 5: fun = OptoRuntime::multianewarray5_Java(); break;
   };
-  Node* c = NULL;
+  Node* c = nullptr;
 
-  if (fun != NULL) {
+  if (fun != nullptr) {
     c = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
                           OptoRuntime::multianewarray_Type(ndimensions),
-                          fun, NULL, TypeRawPtr::BOTTOM,
-                          makecon(TypeKlassPtr::make(array_klass)),
+                          fun, nullptr, TypeRawPtr::BOTTOM,
+                          makecon(TypeKlassPtr::make(array_klass, Type::trust_interfaces)),
                           length[0], length[1], length[2],
-                          (ndimensions > 2) ? length[3] : NULL,
-                          (ndimensions > 3) ? length[4] : NULL);
+                          (ndimensions > 2) ? length[3] : nullptr,
+                          (ndimensions > 3) ? length[4] : nullptr);
   } else {
     // Create a java array for dimension sizes
-    Node* dims = NULL;
+    Node* dims = nullptr;
     { PreserveReexecuteState preexecs(this);
       inc_sp(ndimensions);
       Node* dims_array_klass = makecon(TypeKlassPtr::make(ciArrayKlass::make(ciType::make(T_INT))));
@@ -446,22 +412,22 @@ void Parse::do_multianewarray() {
 
     c = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
                           OptoRuntime::multianewarrayN_Type(),
-                          OptoRuntime::multianewarrayN_Java(), NULL, TypeRawPtr::BOTTOM,
-                          makecon(TypeKlassPtr::make(array_klass)),
+                          OptoRuntime::multianewarrayN_Java(), nullptr, TypeRawPtr::BOTTOM,
+                          makecon(TypeKlassPtr::make(array_klass, Type::trust_interfaces)),
                           dims);
   }
   make_slow_call_ex(c, env()->Throwable_klass(), false);
 
   Node* res = _gvn.transform(new ProjNode(c, TypeFunc::Parms));
 
-  const Type* type = TypeOopPtr::make_from_klass_raw(array_klass);
+  const Type* type = TypeOopPtr::make_from_klass_raw(array_klass, Type::trust_interfaces);
 
   // Improve the type:  We know it's not null, exact, and of a given length.
   type = type->is_ptr()->cast_to_ptr_type(TypePtr::NotNull);
   type = type->is_aryptr()->cast_to_exactness(true);
 
   const TypeInt* ltype = _gvn.find_int_type(length[0]);
-  if (ltype != NULL)
+  if (ltype != nullptr)
     type = type->is_aryptr()->cast_to_size(ltype);
 
     // We cannot sharpen the nested sub-arrays, since the top level is mutable.

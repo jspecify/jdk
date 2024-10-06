@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package sun.awt.X11;
 
 import java.awt.*;
-import java.awt.peer.ComponentPeer;
 import java.awt.peer.TextAreaPeer;
 import java.awt.event.*;
 import javax.swing.event.DocumentListener;
@@ -526,7 +525,7 @@ final class XTextAreaPeer extends XComponentPeer implements TextAreaPeer {
         return jtext.getCaretPosition();
     }
 
-    final class AWTTextAreaUI extends MotifTextAreaUI {
+    static final class AWTTextAreaUI extends MotifTextAreaUI {
 
         private JTextArea jta;
 
@@ -633,7 +632,7 @@ final class XTextAreaPeer extends XComponentPeer implements TextAreaPeer {
     }
 
     @SuppressWarnings("serial") // JDK-implementation class
-    final class XAWTScrollBarButton extends BasicArrowButton {
+    static final class XAWTScrollBarButton extends BasicArrowButton {
 
         private UIDefaults uidefaults = XToolkit.getUIDefaults();
         private Color darkShadow = SystemColor.controlShadow;
@@ -804,7 +803,7 @@ final class XTextAreaPeer extends XComponentPeer implements TextAreaPeer {
         }
     }
 
-    final class XAWTScrollBarUI extends BasicScrollBarUI {
+    static final class XAWTScrollBarUI extends BasicScrollBarUI {
 
         @Override
         protected void installDefaults()
@@ -894,7 +893,7 @@ final class XTextAreaPeer extends XComponentPeer implements TextAreaPeer {
     }
 
     @SuppressWarnings("serial") // JDK-implementation class
-    final class AWTTextArea extends JTextArea implements DocumentListener {
+    static final class AWTTextArea extends JTextArea implements DocumentListener {
 
         private boolean isFocused = false;
         private final XTextAreaPeer peer;
@@ -971,22 +970,19 @@ final class XTextAreaPeer extends XComponentPeer implements TextAreaPeer {
             setUI(ui);
         }
 
-        // Fix for 4915454 - override the default implementation to avoid
-        // loading SystemFlavorMap and associated classes.
         @Override
-        public void setTransferHandler(TransferHandler newHandler) {
-            TransferHandler oldHandler = (TransferHandler)
-                getClientProperty(AWTAccessor.getClientPropertyKeyAccessor()
-                                      .getJComponent_TRANSFER_HANDLER());
-            putClientProperty(AWTAccessor.getClientPropertyKeyAccessor()
-                                  .getJComponent_TRANSFER_HANDLER(),
-                              newHandler);
-
+        public void setTransferHandler(final TransferHandler newHandler) {
+            // override the default implementation to avoid loading
+            // SystemFlavorMap and associated classes
+            Object key = AWTAccessor.getClientPropertyKeyAccessor()
+                                    .getJComponent_TRANSFER_HANDLER();
+            Object oldHandler = getClientProperty(key);
+            putClientProperty(key, newHandler);
             firePropertyChange("transferHandler", oldHandler, newHandler);
         }
     }
 
-    final class XAWTScrollPaneUI extends BasicScrollPaneUI {
+    static final class XAWTScrollPaneUI extends BasicScrollPaneUI {
 
         private final Border vsbMarginBorderR = new EmptyBorder(0, 2, 0, 0);
         private final Border vsbMarginBorderL = new EmptyBorder(0, 0, 0, 2);
@@ -1096,7 +1092,7 @@ final class XTextAreaPeer extends XComponentPeer implements TextAreaPeer {
     }
 
     @SuppressWarnings("serial") // JDK-implementation class
-    private class AWTTextPane extends JScrollPane implements FocusListener {
+    private static class AWTTextPane extends JScrollPane implements FocusListener {
 
         private final JTextArea jtext;
         private final XWindow xwin;
@@ -1248,7 +1244,7 @@ final class XTextAreaPeer extends XComponentPeer implements TextAreaPeer {
     // what is necessary/possible. E.g. no additional mouse-exited/entered
     // events are generated, when mouse exits scrollbar and enters viewport
     // with JTextArea inside. Actually, no events are ever generated here (for
-    // now). They are only dispatched as correctly as possible/neccessary.
+    // now). They are only dispatched as correctly as possible/necessary.
     //
     // In future, it would be better to replace fake-emulation of grab-detection
     // and event-dispatching here, by reusing some common implementation of this
@@ -1265,7 +1261,7 @@ final class XTextAreaPeer extends XComponentPeer implements TextAreaPeer {
         }
 
 
-        // 1. We can make grab-tracking emulation here more robust to variations in
+        // 1. We can make grab-tracking emulation here more robust to variations
         //    in mouse-events order and consistence. E.g. by using such code:
         //    if( grabbed && event.getID()==MouseEvent.MOUSE_MOVED ) grabbed = false;
         //    Or we can also use 'assert'ions.
@@ -1274,7 +1270,7 @@ final class XTextAreaPeer extends XComponentPeer implements TextAreaPeer {
         //    is set to a scrollbar or to a scroll-button, then references to their
         //    'Component'-instances are "remembered". And events are dispatched to
         //    these remembered components, without checking, if XTextAreaPeer has
-        //    replaced these instances with another ones. This also aplies to
+        //    replaced these instances with other ones. This also applies to
         //    mouse-drags-from-outside (see comment in 'grabbed_update' method).
 
         void handle( MouseEvent event ) {
@@ -1369,7 +1365,7 @@ final class XTextAreaPeer extends XComponentPeer implements TextAreaPeer {
 
 
         // Current way of grab-detection causes interesting (but harmless)
-        // side-effect. If mouse is draged from outside to inside of TextArea,
+        // side-effect. If mouse is dragged from outside to inside of TextArea,
         // we will then (in some cases) be asked to dispatch mouse-entered/exited
         // events. But, as at least one mouse-button is down, we will detect
         // grab-mode is on (though the grab isn't ours).

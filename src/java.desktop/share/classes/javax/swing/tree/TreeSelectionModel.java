@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@ import java.beans.PropertyChangeListener;
   * This interface represents the current state of the selection for
   * the tree component.
   * For information and examples of using tree selection models,
-  * see <a href="http://docs.oracle.com/javase/tutorial/uiswing/components/tree.html">How to Use Trees</a>
+  * see <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/tree.html">How to Use Trees</a>
   * in <em>The Java Tutorial.</em>
   *
   * <p>
@@ -209,7 +209,7 @@ public interface TreeSelectionModel
       * Returns true if the path, <code>path</code>, is in the current
       * selection.
       *
-      * @param  path    the path to be loked for
+      * @param  path    the path to be looked for
       * @return         whether the {@code path} is in the current selection
       */
     boolean isPathSelected(TreePath path);

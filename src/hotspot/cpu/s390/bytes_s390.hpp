@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2018 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,10 @@
  *
  */
 
-#ifndef CPU_S390_VM_BYTES_S390_HPP
-#define CPU_S390_VM_BYTES_S390_HPP
+#ifndef CPU_S390_BYTES_S390_HPP
+#define CPU_S390_BYTES_S390_HPP
 
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 
 class Bytes: AllStatic {
  public:
@@ -50,9 +50,6 @@ class Bytes: AllStatic {
   static inline void put_native_u4(address p, u4 x) { *(u4*)p = x; }
   static inline void put_native_u8(address p, u8 x) { *(u8*)p = x; }
 
-  // The following header contains the implementations of swap_u2, swap_u4, and swap_u8.
-#include OS_CPU_HEADER_INLINE(bytes)
-
   // Efficient reading and writing of unaligned unsigned data in Java byte ordering (i.e. big-endian ordering)
   static inline u2   get_Java_u2(address p) { return get_native_u2(p); }
   static inline u4   get_Java_u4(address p) { return get_native_u4(p); }
@@ -63,4 +60,4 @@ class Bytes: AllStatic {
   static inline void put_Java_u8(address p, u8 x) { put_native_u8(p, x); }
 };
 
-#endif // CPU_S390_VM_BYTES_S390_HPP
+#endif // CPU_S390_BYTES_S390_HPP

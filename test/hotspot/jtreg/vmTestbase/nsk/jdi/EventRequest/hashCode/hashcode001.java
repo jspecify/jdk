@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,7 +67,10 @@ public class hashcode001 {
     //------------------------------------------------------- immutable common methods
 
     public static void main(String argv[]) {
-        System.exit(Consts.JCK_STATUS_BASE + run(argv, System.out));
+        int result = run(argv,System.out);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     private static void display(String msg) {
@@ -115,7 +118,7 @@ public class hashcode001 {
             switch (i) {
 
                 case 0:
-                       ThreadReference thread = threadByName(methodName);
+                       ThreadReference thread = debuggee.threadByNameOrThrow(methodName);
 
                        display(".....setting up StepRequest");
                        eventRequest = eventRequestManager.createStepRequest
@@ -222,19 +225,6 @@ public class hashcode001 {
 
         Method method = (Method) methodList.get(0);
         return method;
-    }
-
-    static private ThreadReference threadByName(String name) {
-
-        List all = debuggee.VM().allThreads();
-        ListIterator li  = all.listIterator();
-
-        while (li.hasNext()) {
-            ThreadReference thread = (ThreadReference) li.next();
-            if (thread.name().equals(name))
-                return thread;
-        }
-        throw new Failure("Thread IS NOT found : " + name);
     }
 
 }

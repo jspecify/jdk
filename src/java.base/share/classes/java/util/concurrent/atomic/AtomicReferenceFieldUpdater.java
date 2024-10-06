@@ -46,7 +46,6 @@ import java.lang.reflect.Modifier;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.util.Objects;
 import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
 import jdk.internal.misc.Unsafe;
@@ -68,7 +67,7 @@ import java.lang.invoke.VarHandle;
  *
  *   private static final AtomicReferenceFieldUpdater<Node, Node> leftUpdater =
  *     AtomicReferenceFieldUpdater.newUpdater(Node.class, Node.class, "left");
- *   private static AtomicReferenceFieldUpdater<Node, Node> rightUpdater =
+ *   private static final AtomicReferenceFieldUpdater<Node, Node> rightUpdater =
  *     AtomicReferenceFieldUpdater.newUpdater(Node.class, Node.class, "right");
  *
  *   Node getLeft() { return left; }
@@ -151,9 +150,9 @@ public abstract @UsesObjectEquals class AtomicReferenceFieldUpdater<T,V extends 
      * other calls to {@code compareAndSet} and {@code set}, but not
      * necessarily with respect to other changes in the field.
      *
-     * <p><a href="package-summary.html#weakCompareAndSet">May fail
-     * spuriously and does not provide ordering guarantees</a>, so is
-     * only rarely an appropriate alternative to {@code compareAndSet}.
+     * <p>This operation may fail spuriously and does not provide
+     * ordering guarantees, so is only rarely an appropriate
+     * alternative to {@code compareAndSet}.
      *
      * @param obj An object whose field to conditionally set
      * @param expect the expected value
@@ -329,6 +328,7 @@ public abstract @UsesObjectEquals class AtomicReferenceFieldUpdater<T,V extends 
          * screenings fail.
          */
 
+        @SuppressWarnings("removal")
         AtomicReferenceFieldUpdaterImpl(final Class<T> tclass,
                                         final Class<V> vclass,
                                         final String fieldName,
@@ -405,7 +405,7 @@ public abstract @UsesObjectEquals class AtomicReferenceFieldUpdater<T,V extends 
          */
         private static boolean isSamePackage(Class<?> class1, Class<?> class2) {
             return class1.getClassLoader() == class2.getClassLoader()
-                   && Objects.equals(class1.getPackageName(), class2.getPackageName());
+                   && class1.getPackageName() == class2.getPackageName();
         }
 
         /**
@@ -447,39 +447,39 @@ public abstract @UsesObjectEquals class AtomicReferenceFieldUpdater<T,V extends 
         public final boolean compareAndSet(T obj, V expect, V update) {
             accessCheck(obj);
             valueCheck(update);
-            return U.compareAndSetObject(obj, offset, expect, update);
+            return U.compareAndSetReference(obj, offset, expect, update);
         }
 
         public final boolean weakCompareAndSet(T obj, V expect, V update) {
             // same implementation as strong form for now
             accessCheck(obj);
             valueCheck(update);
-            return U.compareAndSetObject(obj, offset, expect, update);
+            return U.compareAndSetReference(obj, offset, expect, update);
         }
 
         public final void set(T obj, V newValue) {
             accessCheck(obj);
             valueCheck(newValue);
-            U.putObjectVolatile(obj, offset, newValue);
+            U.putReferenceVolatile(obj, offset, newValue);
         }
 
         public final void lazySet(T obj, V newValue) {
             accessCheck(obj);
             valueCheck(newValue);
-            U.putObjectRelease(obj, offset, newValue);
+            U.putReferenceRelease(obj, offset, newValue);
         }
 
         @SuppressWarnings("unchecked")
         public final V get(T obj) {
             accessCheck(obj);
-            return (V)U.getObjectVolatile(obj, offset);
+            return (V)U.getReferenceVolatile(obj, offset);
         }
 
         @SuppressWarnings("unchecked")
         public final V getAndSet(T obj, V newValue) {
             accessCheck(obj);
             valueCheck(newValue);
-            return (V)U.getAndSetObject(obj, offset, newValue);
+            return (V)U.getAndSetReference(obj, offset, newValue);
         }
     }
 }

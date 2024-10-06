@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package sun.nio.ch;
 
 import java.io.IOException;
-import java.nio.channels.ClosedSelectorException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.spi.SelectorProvider;
@@ -36,6 +35,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import jdk.internal.misc.Blocker;
 
 import static sun.nio.ch.KQueue.EVFILT_READ;
 import static sun.nio.ch.KQueue.EVFILT_WRITE;
@@ -96,11 +96,6 @@ class KQueueSelectorImpl extends SelectorImpl {
         KQueue.register(kqfd, fd0, EVFILT_READ, EV_ADD);
     }
 
-    private void ensureOpen() {
-        if (!isOpen())
-            throw new ClosedSelectorException();
-    }
-
     @Override
     protected int doSelect(Consumer<SelectionKey> action, long timeout)
         throws IOException
@@ -119,11 +114,16 @@ class KQueueSelectorImpl extends SelectorImpl {
 
             do {
                 long startTime = timedPoll ? System.nanoTime() : 0;
-                numEntries = KQueue.poll(kqfd, pollArrayAddress, MAX_KEVENTS, to);
+                boolean attempted = Blocker.begin(blocking);
+                try {
+                    numEntries = KQueue.poll(kqfd, pollArrayAddress, MAX_KEVENTS, to);
+                } finally {
+                    Blocker.end(attempted);
+                }
                 if (numEntries == IOStatus.INTERRUPTED && timedPoll) {
                     // timed poll interrupted so need to adjust timeout
                     long adjust = System.nanoTime() - startTime;
-                    to -= TimeUnit.MILLISECONDS.convert(adjust, TimeUnit.NANOSECONDS);
+                    to -= TimeUnit.NANOSECONDS.toMillis(adjust);
                     if (to <= 0) {
                         // timeout expired so no retry
                         numEntries = 0;
@@ -156,6 +156,13 @@ class KQueueSelectorImpl extends SelectorImpl {
 
                     int newEvents = ski.translateInterestOps();
                     int registeredEvents = ski.registeredEvents();
+
+                    // DatagramChannelImpl::disconnect has reset socket
+                    if (ski.getAndClearReset() && registeredEvents != 0) {
+                        KQueue.register(kqfd, fd, EVFILT_READ, EV_DELETE);
+                        registeredEvents = 0;
+                    }
+
                     if (newEvents != registeredEvents) {
 
                         // add or delete interest in read events
@@ -272,7 +279,6 @@ class KQueueSelectorImpl extends SelectorImpl {
 
     @Override
     public void setEventOps(SelectionKeyImpl ski) {
-        ensureOpen();
         synchronized (updateLock) {
             updateKeys.addLast(ski);
         }

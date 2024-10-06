@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,7 +69,7 @@ public class EventSetDescriptor extends FeatureDescriptor {
      *          will get delivered to.
      * @param listenerMethodName  The method that will get called when the event gets
      *          delivered to its target listener interface.
-     * @exception IntrospectionException if an exception occurs during
+     * @throws IntrospectionException if an exception occurs during
      *              introspection.
      */
     public EventSetDescriptor(Class<?> sourceClass, String eventSetName,
@@ -114,13 +114,13 @@ public class EventSetDescriptor extends FeatureDescriptor {
      *          that can be used to register an event listener object.
      * @param removeListenerMethodName  The name of the method on the event source
      *          that can be used to de-register an event listener object.
-     * @exception IntrospectionException if an exception occurs during
+     * @throws IntrospectionException if an exception occurs during
      *              introspection.
      */
     public EventSetDescriptor(Class<?> sourceClass,
                 String eventSetName,
                 Class<?> listenerType,
-                String listenerMethodNames[],
+                String[] listenerMethodNames,
                 String addListenerMethodName,
                 String removeListenerMethodName)
                 throws IntrospectionException {
@@ -146,14 +146,14 @@ public class EventSetDescriptor extends FeatureDescriptor {
      *          that can be used to de-register an event listener object.
      * @param getListenerMethodName The method on the event source that
      *          can be used to access the array of event listener objects.
-     * @exception IntrospectionException if an exception occurs during
+     * @throws IntrospectionException if an exception occurs during
      *              introspection.
      * @since 1.4
      */
     public EventSetDescriptor(Class<?> sourceClass,
                 String eventSetName,
                 Class<?> listenerType,
-                String listenerMethodNames[],
+                String[] listenerMethodNames,
                 String addListenerMethodName,
                 String removeListenerMethodName,
                 String getListenerMethodName)
@@ -210,12 +210,12 @@ public class EventSetDescriptor extends FeatureDescriptor {
      *          that can be used to register an event listener object.
      * @param removeListenerMethod  The method on the event source
      *          that can be used to de-register an event listener object.
-     * @exception IntrospectionException if an exception occurs during
+     * @throws IntrospectionException if an exception occurs during
      *              introspection.
      */
     public EventSetDescriptor(String eventSetName,
                 Class<?> listenerType,
-                Method listenerMethods[],
+                Method[] listenerMethods,
                 Method addListenerMethod,
                 Method removeListenerMethod)
                 throws IntrospectionException {
@@ -237,13 +237,13 @@ public class EventSetDescriptor extends FeatureDescriptor {
      *          that can be used to de-register an event listener object.
      * @param getListenerMethod The method on the event source
      *          that can be used to access the array of event listener objects.
-     * @exception IntrospectionException if an exception occurs during
+     * @throws IntrospectionException if an exception occurs during
      *              introspection.
      * @since 1.4
      */
     public EventSetDescriptor(String eventSetName,
                 Class<?> listenerType,
-                Method listenerMethods[],
+                Method[] listenerMethods,
                 Method addListenerMethod,
                 Method removeListenerMethod,
                 Method getListenerMethod)
@@ -280,12 +280,12 @@ public class EventSetDescriptor extends FeatureDescriptor {
      *          that can be used to register an event listener object.
      * @param removeListenerMethod  The method on the event source
      *          that can be used to de-register an event listener object.
-     * @exception IntrospectionException if an exception occurs during
+     * @throws IntrospectionException if an exception occurs during
      *              introspection.
      */
     public EventSetDescriptor(String eventSetName,
                 Class<?> listenerType,
-                MethodDescriptor listenerMethodDescriptors[],
+                MethodDescriptor[] listenerMethodDescriptors,
                 Method addListenerMethod,
                 Method removeListenerMethod)
                 throws IntrospectionException {

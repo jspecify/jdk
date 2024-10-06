@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,6 +44,8 @@ import java.util.function.Consumer;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
+
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -79,7 +81,7 @@ public class StartOptionTest {
     protected int runShell(String... args) {
         try {
             return builder()
-                    .start(args);
+                    .start(Presets.addExecutionIfMissing(args));
         } catch (Exception ex) {
             fail("Repl tool died with exception", ex);
         }
@@ -90,6 +92,8 @@ public class StartOptionTest {
         byte[] bytes = str.toByteArray();
         str.reset();
         String out = new String(bytes, StandardCharsets.UTF_8);
+        out = stripAnsi(out);
+        out = out.replaceAll("[\r\n]+", "\n");
         if (checkOut != null) {
             checkOut.accept(out);
         } else {
@@ -118,6 +122,13 @@ public class StartOptionTest {
         check(cmdout, checkCmdOutput, "cmdout");
         check(cmderr, checkError, "cmderr");
         check(console, checkConsole, "console");
+        check(userout, checkUserOutput, "userout");
+        check(usererr, null, "usererr");
+    }
+
+    protected void startCheckUserOutput(Consumer<String> checkUserOutput,
+            String... args) {
+        runShell(args);
         check(userout, checkUserOutput, "userout");
         check(usererr, null, "usererr");
     }
@@ -354,6 +365,17 @@ public class StartOptionTest {
                 "--show-version");
     }
 
+    public void testPreviewEnabled() {
+        String fn = writeToFile("System.out.println(\"prefix\");\n" +
+                "System.out.println(MethodHandle.class.getName());\n" +
+                "System.out.println(\"suffix\");\n" +
+                "/exit\n");
+        startCheckUserOutput(s -> assertEquals(s, "prefix\nsuffix\n"),
+                             fn);
+        startCheckUserOutput(s -> assertEquals(s, "prefix\njava.lang.invoke.MethodHandle\nsuffix\n"),
+                             "--enable-preview", fn);
+    }
+
     @AfterMethod
     public void tearDown() {
         cmdout = null;
@@ -363,4 +385,11 @@ public class StartOptionTest {
         usererr = null;
         cmdInStream = null;
     }
+
+    private static String stripAnsi(String str) {
+        if (str == null) return "";
+        return ANSI_CODE_PATTERN.matcher(str).replaceAll("");
+    }
+
+    public static final Pattern ANSI_CODE_PATTERN = Pattern.compile("\033\\[[\060-\077]*[\040-\057]*[\100-\176]");
 }

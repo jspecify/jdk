@@ -29,68 +29,105 @@
  * However, the following notice accompanied the original version of this
  * file and, per its terms, should not be removed:
  *
- * libpng version 1.6.35, July 15, 2018
+ * libpng version 1.6.43
  *
+ * Copyright (c) 2018-2024 Cosmin Truta
  * Copyright (c) 1998-2002,2004,2006-2018 Glenn Randers-Pehrson
- * (Version 0.96 Copyright (c) 1996, 1997 Andreas Dilger)
- * (Version 0.88 Copyright (c) 1995, 1996 Guy Eric Schalnat, Group 42, Inc.)
+ * Copyright (c) 1996-1997 Andreas Dilger
+ * Copyright (c) 1995-1996 Guy Eric Schalnat, Group 42, Inc.
  *
- * This code is released under the libpng license (See LICENSE, below)
+ * This code is released under the libpng license. (See LICENSE, below.)
  *
  * Authors and maintainers:
  *   libpng versions 0.71, May 1995, through 0.88, January 1996: Guy Schalnat
  *   libpng versions 0.89, June 1996, through 0.96, May 1997: Andreas Dilger
- *   libpng versions 0.97, January 1998, through 1.6.35, July 15, 2018:
- *     Glenn Randers-Pehrson.
+ *   libpng versions 0.97, January 1998, through 1.6.35, July 2018:
+ *     Glenn Randers-Pehrson
+ *   libpng versions 1.6.36, December 2018, through 1.6.43, February 2024:
+ *     Cosmin Truta
  *   See also "Contributing Authors", below.
  */
 
 /*
- * COPYRIGHT NOTICE, DISCLAIMER, and LICENSE:
+ * COPYRIGHT NOTICE, DISCLAIMER, and LICENSE
+ * =========================================
  *
- * If you modify libpng you may insert additional notices immediately following
- * this sentence.
+ * PNG Reference Library License version 2
+ * ---------------------------------------
  *
- * This code is released under the libpng license.
+ *  * Copyright (c) 1995-2024 The PNG Reference Library Authors.
+ *  * Copyright (c) 2018-2024 Cosmin Truta.
+ *  * Copyright (c) 2000-2002, 2004, 2006-2018 Glenn Randers-Pehrson.
+ *  * Copyright (c) 1996-1997 Andreas Dilger.
+ *  * Copyright (c) 1995-1996 Guy Eric Schalnat, Group 42, Inc.
  *
- * libpng versions 1.0.7, July 1, 2000 through 1.6.35, July 15, 2018 are
+ * The software is supplied "as is", without warranty of any kind,
+ * express or implied, including, without limitation, the warranties
+ * of merchantability, fitness for a particular purpose, title, and
+ * non-infringement.  In no event shall the Copyright owners, or
+ * anyone distributing the software, be liable for any damages or
+ * other liability, whether in contract, tort or otherwise, arising
+ * from, out of, or in connection with the software, or the use or
+ * other dealings in the software, even if advised of the possibility
+ * of such damage.
+ *
+ * Permission is hereby granted to use, copy, modify, and distribute
+ * this software, or portions hereof, for any purpose, without fee,
+ * subject to the following restrictions:
+ *
+ *  1. The origin of this software must not be misrepresented; you
+ *     must not claim that you wrote the original software.  If you
+ *     use this software in a product, an acknowledgment in the product
+ *     documentation would be appreciated, but is not required.
+ *
+ *  2. Altered source versions must be plainly marked as such, and must
+ *     not be misrepresented as being the original software.
+ *
+ *  3. This Copyright notice may not be removed or altered from any
+ *     source or altered source distribution.
+ *
+ *
+ * PNG Reference Library License version 1 (for libpng 0.5 through 1.6.35)
+ * -----------------------------------------------------------------------
+ *
+ * libpng versions 1.0.7, July 1, 2000, through 1.6.35, July 15, 2018 are
  * Copyright (c) 2000-2002, 2004, 2006-2018 Glenn Randers-Pehrson, are
  * derived from libpng-1.0.6, and are distributed according to the same
  * disclaimer and license as libpng-1.0.6 with the following individuals
  * added to the list of Contributing Authors:
  *
- *    Simon-Pierre Cadieux
- *    Eric S. Raymond
- *    Mans Rullgard
- *    Cosmin Truta
- *    Gilles Vollant
- *    James Yu
- *    Mandar Sahastrabuddhe
- *    Google Inc.
- *    Vadim Barkov
+ *     Simon-Pierre Cadieux
+ *     Eric S. Raymond
+ *     Mans Rullgard
+ *     Cosmin Truta
+ *     Gilles Vollant
+ *     James Yu
+ *     Mandar Sahastrabuddhe
+ *     Google Inc.
+ *     Vadim Barkov
  *
  * and with the following additions to the disclaimer:
  *
- *    There is no warranty against interference with your enjoyment of the
- *    library or against infringement.  There is no warranty that our
- *    efforts or the library will fulfill any of your particular purposes
- *    or needs.  This library is provided with all faults, and the entire
- *    risk of satisfactory quality, performance, accuracy, and effort is with
- *    the user.
+ *     There is no warranty against interference with your enjoyment of
+ *     the library or against infringement.  There is no warranty that our
+ *     efforts or the library will fulfill any of your particular purposes
+ *     or needs.  This library is provided with all faults, and the entire
+ *     risk of satisfactory quality, performance, accuracy, and effort is
+ *     with the user.
  *
  * Some files in the "contrib" directory and some configure-generated
- * files that are distributed with libpng have other copyright owners and
+ * files that are distributed with libpng have other copyright owners, and
  * are released under other open source licenses.
  *
  * libpng versions 0.97, January 1998, through 1.0.6, March 20, 2000, are
  * Copyright (c) 1998-2000 Glenn Randers-Pehrson, are derived from
  * libpng-0.96, and are distributed according to the same disclaimer and
- * license as libpng-0.96, with the following individuals added to the list
- * of Contributing Authors:
+ * license as libpng-0.96, with the following individuals added to the
+ * list of Contributing Authors:
  *
- *    Tom Lane
- *    Glenn Randers-Pehrson
- *    Willem van Schaik
+ *     Tom Lane
+ *     Glenn Randers-Pehrson
+ *     Willem van Schaik
  *
  * libpng versions 0.89, June 1996, through 0.96, May 1997, are
  * Copyright (c) 1996-1997 Andreas Dilger, are derived from libpng-0.88,
@@ -98,14 +135,14 @@
  * libpng-0.88, with the following individuals added to the list of
  * Contributing Authors:
  *
- *    John Bowler
- *    Kevin Bracey
- *    Sam Bushell
- *    Magnus Holmgren
- *    Greg Roelofs
- *    Tom Tanner
+ *     John Bowler
+ *     Kevin Bracey
+ *     Sam Bushell
+ *     Magnus Holmgren
+ *     Greg Roelofs
+ *     Tom Tanner
  *
- * Some files in the "scripts" directory have other copyright owners
+ * Some files in the "scripts" directory have other copyright owners,
  * but are released under this license.
  *
  * libpng versions 0.5, May 1995, through 0.88, January 1996, are
@@ -114,62 +151,49 @@
  * For the purposes of this copyright and license, "Contributing Authors"
  * is defined as the following set of individuals:
  *
- *    Andreas Dilger
- *    Dave Martindale
- *    Guy Eric Schalnat
- *    Paul Schmidt
- *    Tim Wegner
+ *     Andreas Dilger
+ *     Dave Martindale
+ *     Guy Eric Schalnat
+ *     Paul Schmidt
+ *     Tim Wegner
  *
- * The PNG Reference Library is supplied "AS IS".  The Contributing Authors
- * and Group 42, Inc. disclaim all warranties, expressed or implied,
- * including, without limitation, the warranties of merchantability and of
- * fitness for any purpose.  The Contributing Authors and Group 42, Inc.
- * assume no liability for direct, indirect, incidental, special, exemplary,
- * or consequential damages, which may result from the use of the PNG
- * Reference Library, even if advised of the possibility of such damage.
+ * The PNG Reference Library is supplied "AS IS".  The Contributing
+ * Authors and Group 42, Inc. disclaim all warranties, expressed or
+ * implied, including, without limitation, the warranties of
+ * merchantability and of fitness for any purpose.  The Contributing
+ * Authors and Group 42, Inc. assume no liability for direct, indirect,
+ * incidental, special, exemplary, or consequential damages, which may
+ * result from the use of the PNG Reference Library, even if advised of
+ * the possibility of such damage.
  *
  * Permission is hereby granted to use, copy, modify, and distribute this
  * source code, or portions hereof, for any purpose, without fee, subject
  * to the following restrictions:
  *
- *   1. The origin of this source code must not be misrepresented.
+ *  1. The origin of this source code must not be misrepresented.
  *
- *   2. Altered versions must be plainly marked as such and must not
- *      be misrepresented as being the original source.
+ *  2. Altered versions must be plainly marked as such and must not
+ *     be misrepresented as being the original source.
  *
- *   3. This Copyright notice may not be removed or altered from any
- *      source or altered source distribution.
+ *  3. This Copyright notice may not be removed or altered from any
+ *     source or altered source distribution.
  *
- * The Contributing Authors and Group 42, Inc. specifically permit, without
- * fee, and encourage the use of this source code as a component to
- * supporting the PNG file format in commercial products.  If you use this
- * source code in a product, acknowledgment is not required but would be
- * appreciated.
+ * The Contributing Authors and Group 42, Inc. specifically permit,
+ * without fee, and encourage the use of this source code as a component
+ * to supporting the PNG file format in commercial products.  If you use
+ * this source code in a product, acknowledgment is not required but would
+ * be appreciated.
  *
  * END OF COPYRIGHT NOTICE, DISCLAIMER, and LICENSE.
  *
- * TRADEMARK:
+ * TRADEMARK
+ * =========
  *
- * The name "libpng" has not been registered by the Copyright owner
+ * The name "libpng" has not been registered by the Copyright owners
  * as a trademark in any jurisdiction.  However, because libpng has
  * been distributed and maintained world-wide, continually since 1995,
- * the Copyright owner claims "common-law trademark protection" in any
+ * the Copyright owners claim "common-law trademark protection" in any
  * jurisdiction where common-law trademark is recognized.
- *
- * OSI CERTIFICATION:
- *
- * Libpng is OSI Certified Open Source Software.  OSI Certified Open Source is
- * a certification mark of the Open Source Initiative. OSI has not addressed
- * the additional disclaimers inserted at version 1.0.7.
- *
- * EXPORT CONTROL:
- *
- * The Copyright owner believes that the Export Control Classification
- * Number (ECCN) for libpng is EAR99, which means not subject to export
- * controls or International Traffic in Arms Regulations (ITAR) because
- * it is open source, publicly available software, that does not contain
- * any encryption software.  See the EAR, paragraphs 734.3(b)(3) and
- * 734.7(b).
  */
 
 /*
@@ -235,91 +259,33 @@
  *    1.0.7rc1-2               1    10007  2.1.0.7rc1-2 (binary compatible)
  *    1.0.7                    1    10007  (still compatible)
  *    ...
- *    1.0.19                  10    10019  10.so.0.19[.0]
+ *    1.0.69                  10    10069  10.so.0.69[.0]
  *    ...
- *    1.2.59                  13    10257  12.so.0.59[.0]
+ *    1.2.59                  13    10259  12.so.0.59[.0]
  *    ...
- *    1.5.30                  15    10527  15.so.15.30[.0]
+ *    1.4.20                  14    10420  14.so.0.20[.0]
  *    ...
- *    1.6.35                  16    10635  16.so.16.35[.0]
+ *    1.5.30                  15    10530  15.so.15.30[.0]
+ *    ...
+ *    1.6.43                  16    10643  16.so.16.43[.0]
  *
- *    Henceforth the source version will match the shared-library major
- *    and minor numbers; the shared-library major version number will be
- *    used for changes in backward compatibility, as it is intended.  The
- *    PNG_LIBPNG_VER macro, which is not used within libpng but is available
- *    for applications, is an unsigned integer of the form xyyzz corresponding
- *    to the source version x.y.z (leading zeros in y and z).  Beta versions
- *    were given the previous public release number plus a letter, until
- *    version 1.0.6j; from then on they were given the upcoming public
- *    release number plus "betaNN" or "rcNN".
+ *    Henceforth the source version will match the shared-library major and
+ *    minor numbers; the shared-library major version number will be used for
+ *    changes in backward compatibility, as it is intended.
+ *    The PNG_LIBPNG_VER macro, which is not used within libpng but is
+ *    available for applications, is an unsigned integer of the form XYYZZ
+ *    corresponding to the source version X.Y.Z (leading zeros in Y and Z).
+ *    Beta versions were given the previous public release number plus a
+ *    letter, until version 1.0.6j; from then on they were given the upcoming
+ *    public release number plus "betaNN" or "rcNN".
  *
  *    Binary incompatibility exists only when applications make direct access
  *    to the info_ptr or png_ptr members through png.h, and the compiled
  *    application is loaded with a different version of the library.
  *
- *    DLLNUM will change each time there are forward or backward changes
- *    in binary compatibility (e.g., when a new feature is added).
- *
  * See libpng.txt or libpng.3 for more information.  The PNG specification
- * is available as a W3C Recommendation and as an ISO Specification,
- * <https://www.w3.org/TR/2003/REC-PNG-20031110/
- */
-
-/*
- * Y2K compliance in libpng:
- * =========================
- *
- *    July 15, 2018
- *
- *    Since the PNG Development group is an ad-hoc body, we can't make
- *    an official declaration.
- *
- *    This is your unofficial assurance that libpng from version 0.71 and
- *    upward through 1.6.35 are Y2K compliant.  It is my belief that
- *    earlier versions were also Y2K compliant.
- *
- *    Libpng only has two year fields.  One is a 2-byte unsigned integer
- *    that will hold years up to 65535.  The other, which is deprecated,
- *    holds the date in text format, and will hold years up to 9999.
- *
- *    The integer is
- *        "png_uint_16 year" in png_time_struct.
- *
- *    The string is
- *        "char time_buffer[29]" in png_struct.  This is no longer used
- *    in libpng-1.6.x and will be removed from libpng-1.7.0.
- *
- *    There are seven time-related functions:
- *        png.c: png_convert_to_rfc_1123_buffer() in png.c
- *          (formerly png_convert_to_rfc_1123() prior to libpng-1.5.x and
- *          png_convert_to_rfc_1152() in error prior to libpng-0.98)
- *        png_convert_from_struct_tm() in pngwrite.c, called in pngwrite.c
- *        png_convert_from_time_t() in pngwrite.c
- *        png_get_tIME() in pngget.c
- *        png_handle_tIME() in pngrutil.c, called in pngread.c
- *        png_set_tIME() in pngset.c
- *        png_write_tIME() in pngwutil.c, called in pngwrite.c
- *
- *    All handle dates properly in a Y2K environment.  The
- *    png_convert_from_time_t() function calls gmtime() to convert from system
- *    clock time, which returns (year - 1900), which we properly convert to
- *    the full 4-digit year.  There is a possibility that libpng applications
- *    are not passing 4-digit years into the png_convert_to_rfc_1123_buffer()
- *    function, or that they are incorrectly passing only a 2-digit year
- *    instead of "year - 1900" into the png_convert_from_struct_tm() function,
- *    but this is not under our control.  The libpng documentation has always
- *    stated that it works with 4-digit years, and the APIs have been
- *    documented as such.
- *
- *    The tIME chunk itself is also Y2K compliant.  It uses a 2-byte unsigned
- *    integer to hold the year, and can hold years as large as 65535.
- *
- *    zlib, upon which libpng depends, is also Y2K compliant.  It contains
- *    no date-related code.
- *
- *       Glenn Randers-Pehrson
- *       libpng maintainer
- *       PNG Development Group
+ * is available as a W3C Recommendation and as an ISO/IEC Standard; see
+ * <https://www.w3.org/TR/2003/REC-PNG-20031110/>
  */
 
 #ifndef PNG_H
@@ -337,22 +303,23 @@
  */
 
 /* Version information for png.h - this should match the version in png.c */
-#define PNG_LIBPNG_VER_STRING "1.6.35"
-#define PNG_HEADER_VERSION_STRING " libpng version 1.6.35 - July 15, 2018\n"
+#define PNG_LIBPNG_VER_STRING "1.6.43"
+#define PNG_HEADER_VERSION_STRING " libpng version " PNG_LIBPNG_VER_STRING "\n"
 
-#define PNG_LIBPNG_VER_SONUM   16
-#define PNG_LIBPNG_VER_DLLNUM  16
+/* The versions of shared library builds should stay in sync, going forward */
+#define PNG_LIBPNG_VER_SHAREDLIB 16
+#define PNG_LIBPNG_VER_SONUM     PNG_LIBPNG_VER_SHAREDLIB /* [Deprecated] */
+#define PNG_LIBPNG_VER_DLLNUM    PNG_LIBPNG_VER_SHAREDLIB /* [Deprecated] */
 
 /* These should match the first 3 components of PNG_LIBPNG_VER_STRING: */
 #define PNG_LIBPNG_VER_MAJOR   1
 #define PNG_LIBPNG_VER_MINOR   6
-#define PNG_LIBPNG_VER_RELEASE 35
+#define PNG_LIBPNG_VER_RELEASE 43
 
-/* This should match the numeric part of the final component of
- * PNG_LIBPNG_VER_STRING, omitting any leading zero:
+/* This should be zero for a public release, or non-zero for a
+ * development version.
  */
-
-#define PNG_LIBPNG_VER_BUILD  02
+#define PNG_LIBPNG_VER_BUILD  0
 
 /* Release Status */
 #define PNG_LIBPNG_BUILD_ALPHA    1
@@ -369,15 +336,16 @@
 #define PNG_LIBPNG_BUILD_SPECIAL 32 /* Cannot be OR'ed with
                                        PNG_LIBPNG_BUILD_PRIVATE */
 
-#define PNG_LIBPNG_BUILD_BASE_TYPE PNG_LIBPNG_BUILD_BETA
+#define PNG_LIBPNG_BUILD_BASE_TYPE PNG_LIBPNG_BUILD_STABLE
 
-/* Careful here.  At one time, Guy wanted to use 082, but that would be octal.
- * We must not include leading zeros.
- * Versions 0.7 through 1.0.0 were in the range 0 to 100 here (only
- * version 1.0.0 was mis-numbered 100 instead of 10000).  From
- * version 1.0.1 it's    xxyyzz, where x=major, y=minor, z=release
+/* Careful here.  At one time, Guy wanted to use 082, but that
+ * would be octal.  We must not include leading zeros.
+ * Versions 0.7 through 1.0.0 were in the range 0 to 100 here
+ * (only version 1.0.0 was mis-numbered 100 instead of 10000).
+ * From version 1.0.1 it is:
+ * XXYYZZ, where XX=major, YY=minor, ZZ=release
  */
-#define PNG_LIBPNG_VER 10635 /* 1.6.35 */
+#define PNG_LIBPNG_VER 10643 /* 1.6.43 */
 
 /* Library configuration: these options cannot be changed after
  * the library has been built.
@@ -487,7 +455,7 @@ extern "C" {
 /* This triggers a compiler error in png.c, if png.c and png.h
  * do not agree upon the version number.
  */
-typedef char* png_libpng_version_1_6_35;
+typedef char* png_libpng_version_1_6_43;
 
 /* Basic control structions.  Read libpng-manual.txt or libpng.3 for more info.
  *
@@ -908,7 +876,7 @@ PNG_FUNCTION(void, (PNGCAPI *png_longjmp_ptr), PNGARG((jmp_buf, int)), typedef);
 #define PNG_TRANSFORM_GRAY_TO_RGB   0x2000      /* read only */
 /* Added to libpng-1.5.4 */
 #define PNG_TRANSFORM_EXPAND_16     0x4000      /* read only */
-#if INT_MAX >= 0x8000 /* else this might break */
+#if ~0U > 0xffffU /* or else this might break on a 16-bit machine */
 #define PNG_TRANSFORM_SCALE_16      0x8000      /* read only */
 #endif
 
@@ -967,15 +935,15 @@ PNG_EXPORT(2, void, png_set_sig_bytes, (png_structrp png_ptr, int num_bytes));
 /* Check sig[start] through sig[start + num_to_check - 1] to see if it's a
  * PNG file.  Returns zero if the supplied bytes match the 8-byte PNG
  * signature, and non-zero otherwise.  Having num_to_check == 0 or
- * start > 7 will always fail (ie return non-zero).
+ * start > 7 will always fail (i.e. return non-zero).
  */
 PNG_EXPORT(3, int, png_sig_cmp, (png_const_bytep sig, size_t start,
     size_t num_to_check));
 
 /* Simple signature checking function.  This is the same as calling
- * png_check_sig(sig, n) := !png_sig_cmp(sig, 0, n).
+ * png_check_sig(sig, n) := (png_sig_cmp(sig, 0, n) == 0).
  */
-#define png_check_sig(sig, n) !png_sig_cmp((sig), 0, (n))
+#define png_check_sig(sig, n) (png_sig_cmp((sig), 0, (n)) == 0) /* DEPRECATED */
 
 /* Allocate and initialize png_ptr struct for reading, and any other memory. */
 PNG_EXPORTA(4, png_structp, png_create_read_struct,
@@ -1505,7 +1473,7 @@ PNG_EXPORT(66, void, png_set_crc_action, (png_structrp png_ptr, int crit_action,
  * mainly useful for testing, as the defaults should work with most users.
  * Those users who are tight on memory or want faster performance at the
  * expense of compression can modify them.  See the compression library
- * header file (zlib.h) for an explination of the compression functions.
+ * header file (zlib.h) for an explanation of the compression functions.
  */
 
 /* Set the filtering method(s) used by libpng.  Currently, the only valid
@@ -1560,7 +1528,7 @@ PNG_FIXED_EXPORT(209, void, png_set_filter_heuristics_fixed,
  * 0 - 9, corresponding directly to the zlib compression levels 0 - 9
  * (0 - no compression, 9 - "maximal" compression).  Note that tests have
  * shown that zlib compression levels 3-6 usually perform as well as level 9
- * for PNG images, and do considerably fewer caclulations.  In the future,
+ * for PNG images, and do considerably fewer calculations.  In the future,
  * these values may not correspond directly to the zlib compression levels.
  */
 #ifdef PNG_WRITE_CUSTOMIZE_COMPRESSION_SUPPORTED
@@ -1789,12 +1757,9 @@ PNG_EXPORT(97, void, png_free, (png_const_structrp png_ptr, png_voidp ptr));
 PNG_EXPORT(98, void, png_free_data, (png_const_structrp png_ptr,
     png_inforp info_ptr, png_uint_32 free_me, int num));
 
-/* Reassign responsibility for freeing existing data, whether allocated
+/* Reassign the responsibility for freeing existing data, whether allocated
  * by libpng or by the application; this works on the png_info structure passed
- * in, it does not change the state for other png_info structures.
- *
- * It is unlikely that this function works correctly as of 1.6.0 and using it
- * may result either in memory leaks or double free of allocated data.
+ * in, without changing the state for other png_info structures.
  */
 PNG_EXPORT(99, void, png_data_freer, (png_const_structrp png_ptr,
     png_inforp info_ptr, int freer, png_uint_32 mask));
@@ -2041,12 +2006,12 @@ PNG_FIXED_EXPORT(233, void, png_set_cHRM_XYZ_fixed, (png_const_structrp png_ptr,
 PNG_EXPORT(246, png_uint_32, png_get_eXIf, (png_const_structrp png_ptr,
     png_inforp info_ptr, png_bytep *exif));
 PNG_EXPORT(247, void, png_set_eXIf, (png_const_structrp png_ptr,
-    png_inforp info_ptr, const png_bytep exif));
+    png_inforp info_ptr, png_bytep exif));
 
 PNG_EXPORT(248, png_uint_32, png_get_eXIf_1, (png_const_structrp png_ptr,
     png_const_inforp info_ptr, png_uint_32 *num_exif, png_bytep *exif));
 PNG_EXPORT(249, void, png_set_eXIf_1, (png_const_structrp png_ptr,
-    png_inforp info_ptr, const png_uint_32 num_exif, const png_bytep exif));
+    png_inforp info_ptr, png_uint_32 num_exif, png_bytep exif));
 #endif
 
 #ifdef PNG_gAMA_SUPPORTED
@@ -2792,7 +2757,7 @@ typedef struct
  *
  * When the simplified API needs to convert between sRGB and linear colorspaces,
  * the actual sRGB transfer curve defined in the sRGB specification (see the
- * article at https://en.wikipedia.org/wiki/SRGB) is used, not the gamma=1/2.2
+ * article at <https://en.wikipedia.org/wiki/SRGB>) is used, not the gamma=1/2.2
  * approximation used elsewhere in libpng.
  *
  * When an alpha channel is present it is expected to denote pixel coverage
@@ -2995,7 +2960,7 @@ typedef struct
  * 'flags' field of png_image.
  */
 #define PNG_IMAGE_FLAG_COLORSPACE_NOT_sRGB 0x01
-   /* This indicates the the RGB values of the in-memory bitmap do not
+   /* This indicates that the RGB values of the in-memory bitmap do not
     * correspond to the red, green and blue end-points defined by sRGB.
     */
 
@@ -3266,11 +3231,18 @@ PNG_EXPORT(245, int, png_image_write_to_memory, (png_imagep image, void *memory,
 #ifdef PNG_MIPS_MSA_API_SUPPORTED
 #  define PNG_MIPS_MSA   6 /* HARDWARE: MIPS Msa SIMD instructions supported */
 #endif
-#define PNG_IGNORE_ADLER32 8
-#ifdef PNG_POWERPC_VSX_API_SUPPORTED
-#  define PNG_POWERPC_VSX   10 /* HARDWARE: PowerPC VSX SIMD instructions supported */
+#ifdef PNG_DISABLE_ADLER32_CHECK_SUPPORTED
+#  define PNG_IGNORE_ADLER32 8 /* SOFTWARE: disable Adler32 check on IDAT */
 #endif
-#define PNG_OPTION_NEXT  12 /* Next option - numbers must be even */
+#ifdef PNG_POWERPC_VSX_API_SUPPORTED
+#  define PNG_POWERPC_VSX   10 /* HARDWARE: PowerPC VSX SIMD instructions
+                                * supported */
+#endif
+#ifdef PNG_MIPS_MMI_API_SUPPORTED
+#  define PNG_MIPS_MMI   12 /* HARDWARE: MIPS MMI SIMD instructions supported */
+#endif
+
+#define PNG_OPTION_NEXT  14 /* Next option - numbers must be even */
 
 /* Return values: NOTE: there are four values and 'off' is *not* zero */
 #define PNG_OPTION_UNSET   0 /* Unset - defaults to off */

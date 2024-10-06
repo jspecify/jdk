@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,13 @@
 
 package jdk.jfr.internal.jfc;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -39,6 +42,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import jdk.jfr.Configuration;
+import jdk.jfr.internal.jfc.model.JFCModelException;
 import jdk.jfr.internal.LogLevel;
 import jdk.jfr.internal.LogTag;
 import jdk.jfr.internal.Logger;
@@ -62,9 +66,11 @@ public final class JFC {
         private final String content;
         private final String filename;
         private final String name;
+        private final SafePath path;
         private Configuration configuration;
 
         public KnownConfiguration(SafePath knownPath) throws IOException {
+            this.path = knownPath;
             this.content = readContent(knownPath);
             this.name = nameFromPath(knownPath.toPath());
             this.filename = nullSafeFileName(knownPath.toPath());
@@ -109,13 +115,43 @@ public final class JFC {
      * @throws IOException if the file can't be read
      *
      * @throws SecurityException if a security manager exists and its
-     *         <code>checkRead</code> method denies read access to the file.
+     *         {@code checkRead} method denies read access to the file
      * @see java.io.File#getPath()
      * @see java.lang.SecurityManager#checkRead(java.lang.String)
      */
     public static Configuration create(String name, Reader reader) throws IOException, ParseException {
-        return JFCParser.createConfiguration(name, reader);
+        try {
+            return JFCParser.createConfiguration(name, reader);
+        } catch (ParseException pe) {
+            throw new ParseException("Error reading JFC file. " + pe.getMessage(), -1);
+        }
     }
+
+    /**
+     * Create a path to a .jfc file.
+     * <p>
+     * If the name is predefined name,
+     * i.e. "default" or "profile.jfc", it will return the path for
+     * the predefined path in the JDK.
+     *
+     * @param path textual representation of the path
+     *
+     * @return a safe path, not null
+     */
+    public static SafePath createSafePath(String path) {
+        for (SafePath predefined : SecuritySupport.getPredefinedJFCFiles()) {
+            try {
+                String name = JFC.nameFromPath(predefined.toPath());
+                if (name.equals(path) || (name + ".jfc").equals(path)) {
+                    return predefined;
+                }
+            } catch (IOException e) {
+                throw new InternalError("Error in predefined .jfc file", e);
+            }
+        }
+        return new SafePath(path);
+    }
+
 
     private static String nullSafeFileName(Path file) throws IOException {
         Path filename = file.getFileName();
@@ -127,7 +163,11 @@ public final class JFC {
 
     public static String nameFromPath(Path file) throws IOException {
         String f = nullSafeFileName(file);
-        return f.substring(0, f.length() - JFCParser.FILE_EXTENSION.length());
+        if (f.endsWith(JFCParser.FILE_EXTENSION)) {
+            return f.substring(0, f.length() - JFCParser.FILE_EXTENSION.length());
+        } else  {
+            return f;
+        }
     }
 
     // Invoked by DCmdStart
@@ -239,5 +279,37 @@ public final class JFC {
             }
         }
         throw new NoSuchFileException("Could not locate configuration with name " + name);
+    }
+
+    public static Reader newReader(SafePath sf) throws IOException {
+        for (KnownConfiguration c : getKnownConfigurations()) {
+            if (c.path.equals(sf)) {
+                return new StringReader(c.content);
+            }
+        }
+        return Files.newBufferedReader(sf.toFile().toPath(), StandardCharsets.UTF_8);
+    }
+
+    public static String formatException(String prefix, Exception e, String input) {
+        String message = prefix + " " + JFC.exceptionToVerb(e) + " file '" + input + "'";
+        String details = e.getMessage();
+        if (e instanceof JFCModelException) {
+            return message +  ". " + details;
+        }
+        if (e instanceof ParseException && !details.isEmpty()) {
+            return message +  ". " + details;
+        }
+        return message;
+    }
+
+    private static String exceptionToVerb(Exception e) {
+        return switch (e) {
+            case FileNotFoundException f -> "find";
+            case NoSuchFileException n -> "find";
+            case ParseException p -> "parse";
+            case JFCModelException j -> "use";
+            case AccessDeniedException a -> "access";
+            default -> "open"; // InvalidPath, IOException
+        };
     }
 }

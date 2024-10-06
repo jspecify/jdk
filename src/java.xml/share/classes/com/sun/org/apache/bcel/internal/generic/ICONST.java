@@ -22,49 +22,34 @@ package com.sun.org.apache.bcel.internal.generic;
 /**
  * ICONST - Push value between -1, ..., 5, other values cause an exception
  *
- * <PRE>Stack: ... -&gt; ..., </PRE>
+ * <PRE>
+ * Stack: ... -&gt; ...,
+ * </PRE>
  *
- * @version $Id: ICONST.java 1747278 2016-06-07 17:28:43Z britter $
  */
 public class ICONST extends Instruction implements ConstantPushInstruction {
 
-    private int value;
+    private final int value;
 
     /**
-     * Empty constructor needed for the Class.newInstance() statement in
-     * Instruction.readInstruction(). Not to be used otherwise.
+     * Empty constructor needed for Instruction.readInstruction. Not to be used otherwise.
      */
     ICONST() {
+        this(0);
     }
 
     public ICONST(final int i) {
         super(com.sun.org.apache.bcel.internal.Const.ICONST_0, (short) 1);
-        if ((i >= -1) && (i <= 5)) {
-            super.setOpcode((short) (com.sun.org.apache.bcel.internal.Const.ICONST_0 + i)); // Even works for i == -1
-        } else {
+        if (i < -1 || i > 5) {
             throw new ClassGenException("ICONST can be used only for value between -1 and 5: " + i);
         }
+        super.setOpcode((short) (com.sun.org.apache.bcel.internal.Const.ICONST_0 + i)); // Even works for i == -1
         value = i;
     }
 
-    @Override
-    public Number getValue() {
-        return Integer.valueOf(value);
-    }
-
     /**
-     * @return Type.INT
-     */
-    @Override
-    public Type getType(final ConstantPoolGen cp) {
-        return Type.INT;
-    }
-
-    /**
-     * Call corresponding visitor method(s). The order is: Call visitor methods
-     * of implemented interfaces first, then call methods according to the class
-     * hierarchy in descending order, i.e., the most specific visitXXX() call
-     * comes last.
+     * Call corresponding visitor method(s). The order is: Call visitor methods of implemented interfaces first, then call
+     * methods according to the class hierarchy in descending order, i.e., the most specific visitXXX() call comes last.
      *
      * @param v Visitor object
      */
@@ -75,5 +60,18 @@ public class ICONST extends Instruction implements ConstantPushInstruction {
         v.visitTypedInstruction(this);
         v.visitConstantPushInstruction(this);
         v.visitICONST(this);
+    }
+
+    /**
+     * @return Type.INT
+     */
+    @Override
+    public Type getType(final ConstantPoolGen cp) {
+        return Type.INT;
+    }
+
+    @Override
+    public Number getValue() {
+        return Integer.valueOf(value);
     }
 }

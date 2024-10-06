@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,12 @@
  * questions.
  */
 
+package gc.stress.gcold;
+
 import java.text.*;
 import java.util.Random;
+
+import jdk.test.lib.Utils;
 
 class TreeNode {
     public TreeNode left, right;
@@ -84,7 +88,7 @@ public class TestGCOld {
 
   private static TreeNode[] trees;
   private static int where = 0;               // roving index into trees
-  private static Random rnd = new Random();
+  private static Random rnd = Utils.getRandomInstance();
 
   // Returns the height of the given tree.
 
@@ -365,14 +369,14 @@ public class TestGCOld {
 
     System.err.println("Initialization complete...");
 
-    long start = System.currentTimeMillis();
+    long startNanos = System.nanoTime();
 
     for (int step = 0; step < steps; step++) {
       doStep(MEG);
     }
 
-    long end = System.currentTimeMillis();
-    float secs = ((float)(end-start))/1000.0F;
+    long endNanos = System.nanoTime();
+    float secs = (endNanos - startNanos) / 1_000_000_000F;
 
 //  checkTrees();
 

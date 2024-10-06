@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,7 @@ import javax.naming.directory.Attributes;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.BasicAttributes;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * <code>LdapName</code> implements compound names for LDAP v3 as
@@ -129,7 +130,7 @@ public final class LdapName implements Name {
             return unparsed;
         }
 
-        StringBuffer buf = new StringBuffer();
+        StringBuilder buf = new StringBuilder();
         for (int i = rdns.size() - 1; i >= 0; i--) {
             if (i < rdns.size() - 1) {
                 buf.append(',');
@@ -621,7 +622,7 @@ public final class LdapName implements Name {
         }
 
         public String toString() {
-            StringBuffer buf = new StringBuffer();
+            StringBuilder buf = new StringBuilder();
             for (int i = 0; i < tvs.size(); i++) {
                 if (i > 0) {
                     buf.append('+');
@@ -801,7 +802,7 @@ public final class LdapName implements Name {
 
             final String escapees = ",=+<>#;\"\\";
             char[] chars = val.toCharArray();
-            StringBuffer buf = new StringBuffer(2 * val.length());
+            StringBuilder buf = new StringBuilder(2 * val.length());
 
             // Find leading and trailing whitespace.
             int lead;   // index of first char that is not leading whitespace
@@ -833,7 +834,7 @@ public final class LdapName implements Name {
          */
         private static String escapeBinaryValue(byte[] val) {
 
-            StringBuffer buf = new StringBuffer(1 + 2 * val.length);
+            StringBuilder buf = new StringBuilder(1 + 2 * val.length);
             buf.append("#");
 
             for (int i = 0; i < val.length; i++) {
@@ -890,7 +891,7 @@ public final class LdapName implements Name {
                 --end;
             }
 
-            StringBuffer buf = new StringBuffer(end - beg);
+            StringBuilder buf = new StringBuilder(end - beg);
             int esc = -1; // index of the last escaped character
 
             for (int i = beg; i < end; i++) {
@@ -904,11 +905,7 @@ public final class LdapName implements Name {
                         // Convert hex-encoded UTF-8 to 16-bit chars.
                         byte[] utf8 = getUtf8Octets(chars, i, end);
                         if (utf8.length > 0) {
-                            try {
-                                buf.append(new String(utf8, "UTF8"));
-                            } catch (java.io.UnsupportedEncodingException e) {
-                                // shouldn't happen
-                            }
+                            buf.append(new String(utf8, UTF_8));
                             i += utf8.length * 3 - 1;
                         } else {
                             throw new IllegalArgumentException(

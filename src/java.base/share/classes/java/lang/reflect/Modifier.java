@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,21 +25,25 @@
 
 package java.lang.reflect;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.security.AccessController;
 import java.util.StringJoiner;
-import jdk.internal.reflect.LangReflectAccess;
-import jdk.internal.reflect.ReflectionFactory;
 
 /**
  * The Modifier class provides {@code static} methods and
  * constants to decode class and member access modifiers.  The sets of
  * modifiers are represented as integers with distinct bit positions
  * representing different modifiers.  The values for the constants
- * representing the modifiers are taken from the tables in sections 4.1, 4.4, 4.5, and 4.7 of
- * <cite>The Java&trade; Virtual Machine Specification</cite>.
+ * representing the modifiers are taken from the tables in sections
+ * {@jvms 4.1}, {@jvms 4.4}, {@jvms 4.5}, and {@jvms 4.7} of
+ * <cite>The Java Virtual Machine Specification</cite>.
+ *
+ * @apiNote
+ * Not all modifiers that are syntactic Java language modifiers are
+ * represented in this class, only those modifiers that <em>also</em>
+ * have a corresponding JVM {@linkplain AccessFlag access flag} are
+ * included. In particular the {@code default} method modifier (JLS
+ * {@jls 9.4.3}) and the {@code sealed} and {@code non-sealed} class
+ * (JLS {@jls 8.1.1.2}) and interface (JLS {@jls 9.1.1.4}) modifiers
+ * are <em>not</em> represented in this class.
  *
  * @see Class#getModifiers()
  * @see Member#getModifiers()
@@ -48,18 +52,12 @@ import jdk.internal.reflect.ReflectionFactory;
  * @author Kenneth Russell
  * @since 1.1
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class Modifier {
-
-    /*
-     * Bootstrapping protocol between java.lang and java.lang.reflect
-     *  packages
+public class Modifier {
+    /**
+     * Do not call.
      */
-    static {
-        ReflectionFactory factory = AccessController.doPrivileged(
-                new ReflectionFactory.GetReflectionFactoryAction());
-        factory.setLangReflectAccess(new java.lang.reflect.ReflectAccess());
-    }
+    private Modifier() {throw new AssertionError();}
+
 
     /**
      * Return {@code true} if the integer argument includes the
@@ -213,12 +211,13 @@ public @UsesObjectEquals class Modifier {
      * </pre></blockquote>
      * The modifier names are returned in an order consistent with the
      * suggested modifier orderings given in sections 8.1.1, 8.3.1, 8.4.3, 8.8.3, and 9.1.1 of
-     * <cite>The Java&trade; Language Specification</cite>.
+     * <cite>The Java Language Specification</cite>.
      * The full modifier ordering used by this method is:
      * <blockquote> {@code
      * public protected private abstract static final transient
      * volatile synchronized native strictfp
      * interface } </blockquote>
+     *
      * The {@code interface} modifier discussed in this class is
      * not a true modifier in the Java language and it appears after
      * all other modifiers listed by this method.  This method may
@@ -231,6 +230,22 @@ public @UsesObjectEquals class Modifier {
      * such as a constructor or method, first AND the argument of
      * {@code toString} with the appropriate mask from a method like
      * {@link #constructorModifiers} or {@link #methodModifiers}.
+     *
+     * @apiNote
+     * To make a high-fidelity representation of the Java source
+     * modifiers of a class or member, source-level modifiers that do
+     * <em>not</em> have a constant in this class should be included
+     * and appear in an order consistent with the full recommended
+     * ordering for that kind of declaration as given in <cite>The
+     * Java Language Specification</cite>. For example, for a
+     * {@linkplain Method#toGenericString() method} the "{@link
+     * Method#isDefault() default}" modifier is ordered immediately
+     * before "{@code static}" (JLS {@jls 9.4}). For a {@linkplain
+     * Class#toGenericString() class object}, the "{@link
+     * Class#isSealed() sealed}" or {@code "non-sealed"} modifier is
+     * ordered immediately after "{@code final}" for a class (JLS
+     * {@jls 8.1.1}) and immediately after "{@code static}" for an
+     * interface (JLS {@jls 9.1.1}).
      *
      * @param   mod a set of modifiers
      * @return  a string representation of the set of modifiers
@@ -259,78 +274,90 @@ public @UsesObjectEquals class Modifier {
 
     /*
      * Access modifier flag constants from tables 4.1, 4.4, 4.5, and 4.7 of
-     * <cite>The Java&trade; Virtual Machine Specification</cite>
+     * <cite>The Java Virtual Machine Specification</cite>
      */
 
     /**
      * The {@code int} value representing the {@code public}
      * modifier.
+     * @see AccessFlag#PUBLIC
      */
     public static final int PUBLIC           = 0x00000001;
 
     /**
      * The {@code int} value representing the {@code private}
      * modifier.
+     * @see AccessFlag#PRIVATE
      */
     public static final int PRIVATE          = 0x00000002;
 
     /**
      * The {@code int} value representing the {@code protected}
      * modifier.
+     * @see AccessFlag#PROTECTED
      */
     public static final int PROTECTED        = 0x00000004;
 
     /**
      * The {@code int} value representing the {@code static}
      * modifier.
+     * @see AccessFlag#STATIC
      */
     public static final int STATIC           = 0x00000008;
 
     /**
      * The {@code int} value representing the {@code final}
      * modifier.
+     * @see AccessFlag#FINAL
      */
     public static final int FINAL            = 0x00000010;
 
     /**
      * The {@code int} value representing the {@code synchronized}
      * modifier.
+     * @see AccessFlag#SYNCHRONIZED
      */
     public static final int SYNCHRONIZED     = 0x00000020;
 
     /**
      * The {@code int} value representing the {@code volatile}
      * modifier.
+     * @see AccessFlag#VOLATILE
      */
     public static final int VOLATILE         = 0x00000040;
 
     /**
      * The {@code int} value representing the {@code transient}
      * modifier.
+     * @see AccessFlag#TRANSIENT
      */
     public static final int TRANSIENT        = 0x00000080;
 
     /**
      * The {@code int} value representing the {@code native}
      * modifier.
+     * @see AccessFlag#NATIVE
      */
     public static final int NATIVE           = 0x00000100;
 
     /**
      * The {@code int} value representing the {@code interface}
      * modifier.
+     * @see AccessFlag#INTERFACE
      */
     public static final int INTERFACE        = 0x00000200;
 
     /**
      * The {@code int} value representing the {@code abstract}
      * modifier.
+     * @see AccessFlag#ABSTRACT
      */
     public static final int ABSTRACT         = 0x00000400;
 
     /**
      * The {@code int} value representing the {@code strictfp}
      * modifier.
+     * @see AccessFlag#STRICT
      */
     public static final int STRICT           = 0x00000800;
 
@@ -389,7 +416,7 @@ public @UsesObjectEquals class Modifier {
 
     /**
      * The Java source modifiers that can be applied to a method.
-     * @jls8.4.3  Method Modifiers
+     * @jls 8.4.3  Method Modifiers
      */
     private static final int METHOD_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
@@ -398,7 +425,7 @@ public @UsesObjectEquals class Modifier {
 
     /**
      * The Java source modifiers that can be applied to a field.
-     * @jls 8.3.1  Field Modifiers
+     * @jls 8.3.1 Field Modifiers
      */
     private static final int FIELD_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
@@ -412,9 +439,6 @@ public @UsesObjectEquals class Modifier {
     private static final int PARAMETER_MODIFIERS =
         Modifier.FINAL;
 
-    /**
-     *
-     */
     static final int ACCESS_MODIFIERS =
         Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE;
 

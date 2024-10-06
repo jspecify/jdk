@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,7 +104,10 @@ public class getvaluesii001 {
     private final static String classToCheckName = prefix + "getvaluesii001aClassToCheck";
 
     public static void main(String argv[]) {
-        System.exit(95 + run(argv, System.out));
+        int result = run(argv,System.out);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run(String argv[], PrintStream out) {
@@ -316,8 +319,8 @@ public class getvaluesii001 {
 
                     // Check element's value
                     if (element != CHAR[j + i]) {
-                        Character c = new Character('c');
-                         Integer  n = new Integer(0);
+                        Character c = Character.valueOf('c');
+                         Integer  n = Integer.valueOf(0);
                         String sReal = n.toHexString(
                                            c.getNumericValue(CHAR[j + i])
                                        );
@@ -347,12 +350,12 @@ public class getvaluesii001 {
                         testFailed = true;
                         continue;
                     }
-                    element = new Double(doubleValue.value());
+                    element = Double.valueOf(doubleValue.value());
                     log.display("debuger> " + i + " field has " + j
                               + " element " + element);
 
                     // Check element's value
-                    if (!element.equals(new Double(DOUB[j + i]))) {
+                    if (!element.equals(Double.valueOf(DOUB[j + i]))) {
                         log.complain("debuger FAILURE D2> " + j + " element "
                                    + "of array " + name + " was expected "
                                    + DOUB[j + i] + ", but returned " + element);
@@ -375,12 +378,12 @@ public class getvaluesii001 {
                         testFailed = true;
                         continue;
                     }
-                    element = new Float(floatValue.value());
+                    element = Float.valueOf(floatValue.value());
                     log.display("debuger> " + i + " field has " + j
                               + " element " + element);
 
                     // Check element's value
-                    if (!element.equals(new Float(FLOAT[j + i]))) {
+                    if (!element.equals(Float.valueOf(FLOAT[j + i]))) {
                         log.complain("debuger FAILURE F2> " + j + " element "
                                    + "of array " + name + " was expected "
                                    + FLOAT[j + i] + ", but returned "

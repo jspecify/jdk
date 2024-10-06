@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,8 +57,6 @@ import java.io.PrintWriter;
 import java.util.Hashtable;
 import java.util.Locale;
 
-import static java.lang.Math.abs;
-
 import org.netbeans.jemmy.CharBindingMap;
 import org.netbeans.jemmy.ComponentChooser;
 import org.netbeans.jemmy.ComponentSearcher;
@@ -77,6 +75,8 @@ import org.netbeans.jemmy.drivers.DriverManager;
 import org.netbeans.jemmy.drivers.FocusDriver;
 import org.netbeans.jemmy.drivers.KeyDriver;
 import org.netbeans.jemmy.drivers.MouseDriver;
+
+import javax.accessibility.AccessibleContext;
 
 /**
  * Root class for all component operators.
@@ -121,6 +121,20 @@ public class ComponentOperator extends Operator
      * @see #getDump
      */
     public static final String NAME_DPROP = "Name:";
+
+    /**
+     * Identifier for a name property.
+     *
+     * @see #getDump
+     */
+    public static final String ACCESSIBLE_NAME_DPROP = "Accessible name:";
+
+    /**
+     * Identifier for a name property.
+     *
+     * @see #getDump
+     */
+    public static final String ACCESSIBLE_DESCRIPTION_DPROP = "Accessible description:";
 
     /**
      * Identifier for a visible property.
@@ -236,7 +250,7 @@ public class ComponentOperator extends Operator
 
     /**
      * Constructor. Waits for a component in a container to show. The component
-     * is is the first {@code java.awt.Component} that shows and that lies
+     * is the first {@code java.awt.Component} that shows and that lies
      * below the container in the display containment hierarchy. Uses cont's
      * timeout and output for waiting and to init operator.
      *
@@ -1220,6 +1234,48 @@ public class ComponentOperator extends Operator
     }
 
     /**
+     * Wait till the component reaches exact location on screen.
+     *
+     * @param exactlocation exact expected screen location.
+     */
+    public void waitComponentLocationOnScreen(Point exactlocation) {
+        waitComponentLocationOnScreen(exactlocation, exactlocation);
+    }
+
+    /**
+     * Wait till the component location on screen reaches between minLocation
+     * and maxLocation
+     *
+     * @param minLocation minimum expected location on screen.
+     * @param maxLocation maximum expected location on screen.
+     */
+    public void waitComponentLocationOnScreen(
+            final Point minLocation, final Point maxLocation) {
+        waitState(new ComponentChooser() {
+            @Override
+            public boolean checkComponent(Component comp) {
+                Point location = comp.getLocationOnScreen();
+                return location.x >= minLocation.x
+                        && location.x <= maxLocation.x
+                        && location.y >= minLocation.y
+                        && location.y <= maxLocation.y;
+            }
+
+            @Override
+            public String getDescription() {
+                return "Component location on screen reaches between :"
+                        + minLocation + "and " + maxLocation;
+            }
+
+            @Override
+            public String toString() {
+                return "ComponentOperator.waitComponentLocationOnScreen"
+                        + ".Waitable{description = " + getDescription() + '}';
+            }
+        });
+    }
+
+    /**
      * Returns information about component.
      */
     @Override
@@ -1227,6 +1283,15 @@ public class ComponentOperator extends Operator
         Hashtable<String, Object> result = super.getDump();
         if (getSource().getName() != null) {
             result.put(NAME_DPROP, getSource().getName());
+        }
+        AccessibleContext context = source.getAccessibleContext();
+        if(context != null) {
+            if(context.getAccessibleName() != null) {
+                result.put(ACCESSIBLE_NAME_DPROP, context.getAccessibleName());
+            }
+            if(context.getAccessibleDescription() != null) {
+                result.put(ACCESSIBLE_DESCRIPTION_DPROP, context.getAccessibleDescription());
+            }
         }
         result.put(IS_VISIBLE_DPROP, getSource().isVisible() ? "true" : "false");
         result.put(IS_SHOWING_DPROP, getSource().isShowing() ? "true" : "false");

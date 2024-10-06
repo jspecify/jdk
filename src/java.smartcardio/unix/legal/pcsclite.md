@@ -1,11 +1,35 @@
-## PC/SC Lite for Suse Linux v1.1.1
+## PC/SC Lite v1.9.9
+
+### PC/SC Lite Notice
+```
+MUSCLE SmartCard Development ( https://pcsclite.apdu.fr/ )
+
+Only 3 header files are included in this distribution: winscard.h, wintypes.h, pcsclite.h
+
+Copyright for winscard.h:
+ * Copyright (C) 1999-2003
+ *  David Corcoran <corcoran@musclecard.com>
+ * Copyright (C) 2002-2009
+ *  Ludovic Rousseau <ludovic.rousseau@free.fr>
+
+Copyright for wintypes.h:
+ * Copyright (C) 1999
+ *  David Corcoran <corcoran@musclecard.com>
+ * Copyright (C) 2002-2011
+ *  Ludovic Rousseau <ludovic.rousseau@free.fr>
+
+Copyright for pcsclite.h:
+ * Copyright (C) 1999-2004
+ *  David Corcoran <corcoran@musclecard.com>
+ * Copyright (C) 2002-2011
+ *  Ludovic Rousseau <ludovic.rousseau@free.fr>
+ * Copyright (C) 2005
+ *  Martin Paljak <martin@paljak.pri.ee>
+
+```
 
 ### PC/SC Lite License
-<pre>
-
-Copyright (c) 1999-2004 David Corcoran <corcoran@linuxnet.com>
-Copyright (c) 1999-2004 Ludovic Rousseau <ludovic.rousseau (at) free.fr>
-All rights reserved.
+```
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions
@@ -16,16 +40,8 @@ are met:
 2. Redistributions in binary form must reproduce the above copyright
    notice, this list of conditions and the following disclaimer in the
    documentation and/or other materials provided with the distribution.
-3. All advertising materials mentioning features or use of this software
-   must display the following acknowledgement:
-     This product includes software developed by:
-      David Corcoran <corcoran@linuxnet.com>
-      http://www.linuxnet.com (MUSCLE)
-4. The name of the author may not be used to endorse or promote products
+3. The name of the author may not be used to endorse or promote products
    derived from this software without specific prior written permission.
-
-Changes to this license can be made only by the copyright author with
-explicit written consent.
 
 THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
 IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -38,4 +54,4 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-</pre>
+```

@@ -40,6 +40,12 @@ import javax.swing.plaf.ComponentUI;
 public class SynthPasswordFieldUI extends SynthTextFieldUI {
 
     /**
+     *
+     * Constructs a {@code SynthPasswordFieldUI}.
+     */
+    public SynthPasswordFieldUI() {}
+
+    /**
      * Creates a UI for a JPasswordField.
      *
      * @param c the JPasswordField
@@ -59,6 +65,19 @@ public class SynthPasswordFieldUI extends SynthTextFieldUI {
     @Override
     protected String getPropertyPrefix() {
         return "PasswordField";
+    }
+
+    /**
+     * Installs the necessary properties on the JPasswordField.
+     */
+    @Override
+    protected void installDefaults() {
+        super.installDefaults();
+        String prefix = getPropertyPrefix();
+        Character echoChar = (Character)UIManager.getDefaults().get(prefix + ".echoChar");
+        if (echoChar != null) {
+            LookAndFeel.installProperty(getComponent(), "echoChar", echoChar);
+        }
     }
 
     /**

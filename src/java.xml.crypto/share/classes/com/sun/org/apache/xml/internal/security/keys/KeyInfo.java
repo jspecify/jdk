@@ -50,7 +50,6 @@ import com.sun.org.apache.xml.internal.security.keys.storage.StorageResolver;
 import com.sun.org.apache.xml.internal.security.transforms.Transforms;
 import com.sun.org.apache.xml.internal.security.utils.Constants;
 import com.sun.org.apache.xml.internal.security.utils.ElementProxy;
-import com.sun.org.apache.xml.internal.security.utils.EncryptionConstants;
 import com.sun.org.apache.xml.internal.security.utils.SignatureElementProxy;
 import com.sun.org.apache.xml.internal.security.utils.XMLUtils;
 import org.w3c.dom.Attr;
@@ -811,7 +810,6 @@ public class KeyInfo extends SignatureElementProxy {
         Iterator<KeyResolverSpi> it = KeyResolver.iterator();
         while (it.hasNext()) {
             KeyResolverSpi keyResolver = it.next();
-            keyResolver.setSecureValidation(secureValidation);
             Node currentChild = getFirstChild();
             String uri = this.getBaseURI();
             while (currentChild != null) {
@@ -819,7 +817,7 @@ public class KeyInfo extends SignatureElementProxy {
                     for (StorageResolver storage : storageResolvers) {
                         PublicKey pk =
                             keyResolver.engineLookupAndResolvePublicKey(
-                                (Element) currentChild, uri, storage
+                                (Element) currentChild, uri, storage, secureValidation
                             );
 
                         if (pk != null) {
@@ -842,7 +840,6 @@ public class KeyInfo extends SignatureElementProxy {
     PublicKey getPublicKeyFromInternalResolvers() throws KeyResolverException {
         for (KeyResolverSpi keyResolver : internalKeyResolvers) {
             LOG.debug("Try {}", keyResolver.getClass().getName());
-            keyResolver.setSecureValidation(secureValidation);
             Node currentChild = getFirstChild();
             String uri = this.getBaseURI();
             while (currentChild != null)      {
@@ -850,7 +847,7 @@ public class KeyInfo extends SignatureElementProxy {
                     for (StorageResolver storage : storageResolvers) {
                         PublicKey pk =
                             keyResolver.engineLookupAndResolvePublicKey(
-                                (Element) currentChild, uri, storage
+                                (Element) currentChild, uri, storage, secureValidation
                             );
 
                         if (pk != null) {
@@ -912,7 +909,6 @@ public class KeyInfo extends SignatureElementProxy {
         Iterator<KeyResolverSpi> it = KeyResolver.iterator();
         while (it.hasNext()) {
             KeyResolverSpi keyResolver = it.next();
-            keyResolver.setSecureValidation(secureValidation);
             X509Certificate cert = applyCurrentResolver(uri, keyResolver);
             if (cert != null) {
                 return cert;
@@ -930,7 +926,7 @@ public class KeyInfo extends SignatureElementProxy {
                 for (StorageResolver storage : storageResolvers) {
                     X509Certificate cert =
                         keyResolver.engineLookupResolveX509Certificate(
-                            (Element) currentChild, uri, storage
+                            (Element) currentChild, uri, storage, secureValidation
                         );
 
                     if (cert != null) {
@@ -958,7 +954,6 @@ public class KeyInfo extends SignatureElementProxy {
         String uri = this.getBaseURI();
         for (KeyResolverSpi keyResolver : internalKeyResolvers) {
             LOG.debug("Try {}", keyResolver.getClass().getName());
-            keyResolver.setSecureValidation(secureValidation);
             X509Certificate cert = applyCurrentResolver(uri, keyResolver);
             if (cert != null) {
                 return cert;
@@ -1005,7 +1000,6 @@ public class KeyInfo extends SignatureElementProxy {
         Iterator<KeyResolverSpi> it = KeyResolver.iterator();
         while (it.hasNext()) {
             KeyResolverSpi keyResolver = it.next();
-            keyResolver.setSecureValidation(secureValidation);
 
             Node currentChild = getFirstChild();
             String uri = this.getBaseURI();
@@ -1014,7 +1008,7 @@ public class KeyInfo extends SignatureElementProxy {
                     for (StorageResolver storage : storageResolvers) {
                         SecretKey sk =
                             keyResolver.engineLookupAndResolveSecretKey(
-                                (Element) currentChild, uri, storage
+                                (Element) currentChild, uri, storage, secureValidation
                             );
 
                         if (sk != null) {
@@ -1038,7 +1032,6 @@ public class KeyInfo extends SignatureElementProxy {
     SecretKey getSecretKeyFromInternalResolvers() throws KeyResolverException {
         for (KeyResolverSpi keyResolver : internalKeyResolvers) {
             LOG.debug("Try {}", keyResolver.getClass().getName());
-            keyResolver.setSecureValidation(secureValidation);
             Node currentChild = getFirstChild();
             String uri = this.getBaseURI();
             while (currentChild != null)      {
@@ -1046,7 +1039,7 @@ public class KeyInfo extends SignatureElementProxy {
                     for (StorageResolver storage : storageResolvers) {
                         SecretKey sk =
                             keyResolver.engineLookupAndResolveSecretKey(
-                                (Element) currentChild, uri, storage
+                                (Element) currentChild, uri, storage, secureValidation
                             );
 
                         if (sk != null) {
@@ -1095,7 +1088,6 @@ public class KeyInfo extends SignatureElementProxy {
         Iterator<KeyResolverSpi> it = KeyResolver.iterator();
         while (it.hasNext()) {
             KeyResolverSpi keyResolver = it.next();
-            keyResolver.setSecureValidation(secureValidation);
 
             Node currentChild = getFirstChild();
             String uri = this.getBaseURI();
@@ -1105,7 +1097,7 @@ public class KeyInfo extends SignatureElementProxy {
                     // since they cannot return private keys
                     PrivateKey pk =
                         keyResolver.engineLookupAndResolvePrivateKey(
-                            (Element) currentChild, uri, null
+                            (Element) currentChild, uri, null, secureValidation
                         );
 
                     if (pk != null) {
@@ -1127,7 +1119,6 @@ public class KeyInfo extends SignatureElementProxy {
     PrivateKey getPrivateKeyFromInternalResolvers() throws KeyResolverException {
         for (KeyResolverSpi keyResolver : internalKeyResolvers) {
             LOG.debug("Try {}", keyResolver.getClass().getName());
-            keyResolver.setSecureValidation(secureValidation);
             Node currentChild = getFirstChild();
             String uri = this.getBaseURI();
             while (currentChild != null) {
@@ -1136,7 +1127,7 @@ public class KeyInfo extends SignatureElementProxy {
                     // since they cannot return private keys
                     PrivateKey pk =
                         keyResolver.engineLookupAndResolvePrivateKey(
-                            (Element) currentChild, uri, null
+                            (Element) currentChild, uri, null, secureValidation
                         );
 
                     if (pk != null) {
@@ -1193,6 +1184,7 @@ public class KeyInfo extends SignatureElementProxy {
 
 
     /** {@inheritDoc} */
+    @Override
     public String getBaseLocalName() {
         return Constants._TAG_KEYINFO;
     }

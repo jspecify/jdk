@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -187,7 +187,7 @@ public class BasicToolTipUI extends ToolTipUI
                                            insets.top+insets.bottom);
         String text = ((JToolTip)c).getTipText();
 
-        if ((text == null) || text.equals("")) {
+        if (text == null) {
             text = "";
         }
         else {
@@ -222,7 +222,7 @@ public class BasicToolTipUI extends ToolTipUI
     }
 
     /**
-     * Invoked when the <code>JCompoment</code> associated with the
+     * Invoked when the <code>JComponent</code> associated with the
      * <code>JToolTip</code> has changed, or at initialization time. This
      * should update any state dependent upon the <code>JComponent</code>.
      *

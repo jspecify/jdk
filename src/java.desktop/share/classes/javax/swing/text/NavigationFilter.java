@@ -50,6 +50,11 @@ import java.awt.Shape;
  */
 public class NavigationFilter {
     /**
+     * Constructs a {@code NavigationFilter}.
+     */
+    public NavigationFilter() {}
+
+    /**
      * Invoked prior to the Caret setting the dot. The default implementation
      * calls directly into the <code>FilterBypass</code> with the passed
      * in arguments. Subclasses may wish to conditionally
@@ -100,8 +105,8 @@ public class NavigationFilter {
      * @param biasRet Used to return resulting Bias of next position
      * @return the location within the model that best represents the next
      *  location visual position
-     * @exception BadLocationException for a bad location within a document model
-     * @exception IllegalArgumentException if <code>direction</code>
+     * @throws BadLocationException for a bad location within a document model
+     * @throws IllegalArgumentException if <code>direction</code>
      *          doesn't have one of the legal values above
      */
     public int getNextVisualPositionFrom(JTextComponent text, int pos,
@@ -121,6 +126,11 @@ public class NavigationFilter {
      * @since 1.4
      */
     public abstract static class FilterBypass {
+        /**
+         * Constructor for subclasses to call.
+         */
+        protected FilterBypass() {}
+
         /**
          * Returns the Caret that is changing.
          *

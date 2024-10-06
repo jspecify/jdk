@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_ADLC_FORMSSEL_HPP
-#define SHARE_VM_ADLC_FORMSSEL_HPP
+#ifndef SHARE_ADLC_FORMSSEL_HPP
+#define SHARE_ADLC_FORMSSEL_HPP
 
 // FORMSSEL.HPP - ADL Parser Instruction Selection Forms Classes
 
@@ -45,6 +45,7 @@ class MatchRule;
 class Attribute;
 class Effect;
 class ExpandRule;
+class Flag;
 class RewriteRule;
 class ConstructRule;
 class FormatRule;
@@ -108,6 +109,7 @@ public:
   FormatRule    *_format;              // Format for assembly generation
   Peephole      *_peephole;            // List of peephole rules for instruction
   const char    *_ins_pipe;            // Instruction Scheduling description class
+  Flag          *_flag;               // List of Flags that should be set by default for this node
 
   uint          *_uniq_idx;            // Indexes of unique operands
   uint           _uniq_idx_length;     // Length of _uniq_idx array
@@ -139,7 +141,7 @@ public:
   virtual bool        expands() const ;
   // This instruction has a late expand rule?
   virtual bool        postalloc_expands() const;
-  // Return this instruction's first peephole rule, or NULL
+  // Return this instruction's first peephole rule, or null
   virtual Peephole   *peepholes() const;
   // Add a peephole rule to this instruction
   virtual void        append_peephole(Peephole *peep);
@@ -191,7 +193,6 @@ public:
   // loads from memory, so must check for anti-dependence
   virtual bool        needs_anti_dependence_check(FormDict &globals) const;
   virtual int         memory_operand(FormDict &globals) const;
-          bool        is_wide_memory_kill(FormDict &globals) const;
 
   enum memory_operand_type {
     NO_MEMORY_OPERAND = -1,
@@ -239,7 +240,7 @@ public:
   const char         *opnd_ident(int idx);  // Name of operand #idx.
   const char         *reduce_result();
   // Return the name of the operand on the right hand side of the binary match
-  // Return NULL if there is no right hand side
+  // Return null if there is no right hand side
   const char         *reduce_right(FormDict &globals)  const;
   const char         *reduce_left(FormDict &globals)   const;
 
@@ -256,7 +257,7 @@ public:
   void                set_cisc_reg_mask_name(const char *rm_name) { _cisc_reg_mask_name = rm_name; }
   // Output cisc-method prototypes and method bodies
   void                declare_cisc_version(ArchDesc &AD, FILE *fp_cpp);
-  bool                define_cisc_version (ArchDesc &AD, FILE *fp_cpp);
+  void                define_cisc_version(ArchDesc& AD, FILE* fp_cpp);
 
   bool                check_branch_variant(ArchDesc &AD, InstructForm *short_branch);
 
@@ -269,19 +270,19 @@ public:
   void                set_needs_constant_base(bool x) {        _needs_constant_base = x; }
 
   InstructForm       *short_branch_form() { return _short_branch_form; }
-  bool                has_short_branch_form() { return _short_branch_form != NULL; }
+  bool                has_short_branch_form() { return _short_branch_form != nullptr; }
   // Output short branch prototypes and method bodies
   void                declare_short_branch_methods(FILE *fp_cpp);
-  bool                define_short_branch_methods(ArchDesc &AD, FILE *fp_cpp);
+  void                define_short_branch_methods(ArchDesc& AD, FILE* fp_cpp);
 
   uint                alignment() { return _alignment; }
   void                set_alignment(uint val) { _alignment = val; }
 
-  // Seach through operands to determine operands unique positions.
+  // Search through operands to determine operands unique positions.
   void                set_unique_opnds();
   uint                num_unique_opnds() { return _num_uniq; }
   uint                unique_opnds_idx(int idx) {
-    if (_uniq_idx != NULL && idx > 0) {
+    if (_uniq_idx != nullptr && idx > 0) {
       assert((uint)idx < _uniq_idx_length, "out of bounds");
       return _uniq_idx[idx];
     } else {
@@ -309,6 +310,7 @@ public:
 
   virtual void dump();             // Debug printer
   virtual void output(FILE *fp);   // Write to output files
+  virtual void forms_do(FormClosure *f);
 };
 
 //------------------------------EncodeForm-------------------------------------
@@ -332,6 +334,7 @@ public:
 
   void dump();                     // Debug printer
   void output(FILE *fp);           // Write info to output files
+  virtual void forms_do(FormClosure *f);
 };
 
 //------------------------------EncClass---------------------------------------
@@ -342,7 +345,7 @@ public:
   NameList       _parameter_name;
 
   // Breakdown the encoding into strings separated by $replacement_variables
-  // There is an entry in _strings, perhaps NULL, that precedes each _rep_vars
+  // There is an entry in _strings, perhaps null, that precedes each _rep_vars
   NameList       _code;            // Strings passed through to tty->print
   NameList       _rep_vars;        // replacement variables
 
@@ -376,6 +379,7 @@ public:
   bool verify();
   void dump();
   void output(FILE *fp);
+  virtual void forms_do(FormClosure* f);
 };
 
 //------------------------------MachNode---------------------------------------
@@ -435,7 +439,7 @@ private:
   // blank, RegReg, RegMem, MemReg, ...
   NameList    _encoding;
   // NameList    _parameter;
-  // The parameters for each encoding are preceeded by a NameList::_signal
+  // The parameters for each encoding are preceded by a NameList::_signal
   // and follow the parameters for the previous encoding.
 
   // char *_encode;                  // Type of instruction encoding
@@ -467,6 +471,7 @@ public:
 
   void dump();
   void output(FILE *fp);
+  virtual void forms_do(FormClosure *f);
 };
 
 //------------------------------Effect-----------------------------------------
@@ -514,6 +519,27 @@ public:
 
   void dump();                    // Debug printer
   void output(FILE *fp);          // Write info to output files
+  virtual void forms_do(FormClosure *f);
+};
+
+//---------------------------------Flag----------------------------------------
+class Flag : public Form {
+private:
+    Flag* _next;
+public:
+  const char *_name; // Name of the flag (See Node::<flag_name> or Node::Pd::<flag_name>
+
+  // Public Methods
+  Flag(const char *name);      // Constructor
+  ~Flag();                     // Destructor
+
+  // Append a flag rule for the same instruction
+  void append_flag(Flag *next_flag);
+
+  Flag* next();
+
+  void dump();                   // Debug printer
+  void output(FILE *fp);         // Write info to output files
 };
 
 //------------------------------RewriteRule------------------------------------
@@ -533,6 +559,7 @@ public:
   ~RewriteRule();                  // Destructor
   void dump();                     // Debug printer
   void output(FILE *fp);           // Write info to output files
+  virtual void forms_do(FormClosure* f);
 };
 
 
@@ -563,6 +590,7 @@ public:
   virtual bool ideal_only() const;
   virtual void dump();             // Debug printer
   virtual void output(FILE *fp);   // Write to output files
+  virtual void forms_do(FormClosure* f);
 };
 
 //------------------------------OperandForm------------------------------------
@@ -624,7 +652,7 @@ public:
   virtual Form::DataType is_user_name_for_sReg() const;
 
   // Return ideal type, if there is a single ideal type for this operand
-  virtual const char *ideal_type(FormDict &globals, RegisterForm *registers = NULL) const;
+  virtual const char *ideal_type(FormDict &globals, RegisterForm *registers = nullptr) const;
   // If there is a single ideal type for this interface field, return it.
   virtual const char *interface_ideal_type(FormDict   &globals,
                                            const char *field_name) const;
@@ -632,7 +660,7 @@ public:
   // Return true if this operand represents a bound register class
   bool is_bound_register() const;
 
-  // Return the Register class for this operand.  Returns NULL if
+  // Return the Register class for this operand.  Returns null if
   // operand isn't a register form.
   RegClass* get_RegClass() const;
 
@@ -661,7 +689,7 @@ public:
   // Return zero-based position in component list; -1 if not in list.
   virtual int         constant_position(FormDict &globals, const Component *comp);
   virtual int         constant_position(FormDict &globals, const char *local_name);
-  // Return the operand form corresponding to the given index, else NULL.
+  // Return the operand form corresponding to the given index, else null.
   virtual OperandForm *constant_operand(FormDict &globals, uint const_index);
 
   // Return zero-based position in component list; -1 if not in list.
@@ -669,7 +697,7 @@ public:
 
   const char         *reduce_result() const;
   // Return the name of the operand on the right hand side of the binary match
-  // Return NULL if there is no right hand side
+  // Return null if there is no right hand side
   const char         *reduce_right(FormDict &globals)  const;
   const char         *reduce_left(FormDict &globals)   const;
 
@@ -690,6 +718,7 @@ public:
 
   virtual void dump();             // Debug printer
   virtual void output(FILE *fp);   // Write to output files
+  virtual void forms_do(FormClosure* f);
 };
 
 //------------------------------Constraint-------------------------------------
@@ -708,6 +737,7 @@ public:
 
   void dump();                     // Debug printer
   void output(FILE *fp);           // Write info to output files
+  virtual void forms_do(FormClosure* f);
 };
 
 //------------------------------Predicate--------------------------------------
@@ -944,8 +974,8 @@ public:
 
   // Public Methods
   MatchNode(ArchDesc &ad, const char *result = 0, const char *expr = 0,
-            const char *opType=0, MatchNode *lChild=NULL,
-            MatchNode *rChild=NULL);
+            const char *opType=0, MatchNode *lChild=nullptr,
+            MatchNode *rChild=nullptr);
   MatchNode(ArchDesc &ad, MatchNode& mNode); // Shallow copy constructor;
   MatchNode(ArchDesc &ad, MatchNode& mNode, int clone); // Construct clone
   ~MatchNode();
@@ -970,12 +1000,12 @@ public:
 
   // Help build instruction predicates.  Search for operand names.
   void count_instr_names( Dict &names );
-  int build_instr_pred( char *buf, const char *name, int cnt );
+  int build_instr_pred( char *buf, const char *name, int cnt, int path_bitmask, int level);
   void build_internalop( );
 
   // Return the name of the operands associated with reducing to this operand:
   // The result type, plus the left and right sides of the binary match
-  // Return NULL if there is no left or right hand side
+  // Return null if there is no left or right hand side
   bool       sets_result()   const;    // rule "Set"s result of match
   const char *reduce_right(FormDict &globals)  const;
   const char *reduce_left (FormDict &globals)  const;
@@ -993,6 +1023,7 @@ public:
 
   void dump();
   void output(FILE *fp);
+  virtual void forms_do(FormClosure* f);
 };
 
 //------------------------------MatchRule--------------------------------------
@@ -1054,6 +1085,7 @@ public:
   void dump();
   void output_short(FILE *fp);
   void output(FILE *fp);
+  virtual void forms_do(FormClosure* f);
 };
 
 //------------------------------Attribute--------------------------------------
@@ -1081,7 +1113,7 @@ private:
 
 public:
   // Public Data
-  // There is an entry in _strings, perhaps NULL, that precedes each _rep_vars
+  // There is an entry in _strings, perhaps null, that precedes each _rep_vars
   NameList  _strings;              // Strings passed through to tty->print
   NameList  _rep_vars;             // replacement variables
   char     *_temp;                 // String representing the assembly code
@@ -1094,4 +1126,4 @@ public:
   void output(FILE *fp);
 };
 
-#endif // SHARE_VM_ADLC_FORMSSEL_HPP
+#endif // SHARE_ADLC_FORMSSEL_HPP

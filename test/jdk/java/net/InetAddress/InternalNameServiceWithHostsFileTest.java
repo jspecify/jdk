@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,22 +28,20 @@
  *          a file name that contains address host mappings, similar to those in
  *          /etc/hosts file. TestHosts-III file  exist, with a set of ipv4 and ipv6
  *          mappings
- * @run main/othervm -Dsun.net.inetaddr.ttl=0  InternalNameServiceWithHostsFileTest
+ * @library /test/lib
+ * @build jdk.test.lib.net.IPSupport
+ * @run main/othervm -Djdk.net.hosts.file=${test.src}/TestHosts-III -Dsun.net.inetaddr.ttl=0
+ *      InternalNameServiceWithHostsFileTest
  */
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 
+import jdk.test.lib.net.IPSupport;
+
 public class InternalNameServiceWithHostsFileTest {
     public static void main(String args[]) throws Exception {
-
-        // System.getProperty("test.src", ".");
-        String hostsFileName = System.getProperty("test.src", ".")
-                + "/TestHosts-III";
-        System.setProperty("jdk.net.hosts.file", hostsFileName);
-        System.setProperty("sun.net.inetaddr.ttl", "0");
-
         // fe80::1
         byte[] expectedIpv6Address = { (byte) 0xfe, (byte) 0x80, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 1 };
@@ -56,18 +54,32 @@ public class InternalNameServiceWithHostsFileTest {
         byte[] expectedIpv6LocalhostAddress = { 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 1 };
 
-        try {
-            // 10.2.3.4  testHost.testDomain
-            testHostsMapping(expectedIpv4Address, "testHost.testDomain");
+        // 10.2.3.4  testHost.testDomain
+        testHostsMapping(expectedIpv4Address, "testHost.testDomain");
+
+        if (IPSupport.hasIPv6()) {
             // ::1     ip6-localhost ip6-loopback
             testHostsMapping(expectedIpv6LocalhostAddress, "ip6-localhost");
             // fe00::0 ip6-localnet
             testHostsMapping(expectedIpv6LocalAddress, "ip6-localnet");
             // fe80::1 link-local-host
             testHostsMapping(expectedIpv6Address, "link-local-host");
+        }
 
-        } catch (UnknownHostException uhEx) {
-            System.out.println("UHE unexpected caught == " + uhEx.getMessage());
+        testReverseLookup("10.2.3.4", "testHost.testDomain");
+
+        if (IPSupport.hasIPv6()) {
+            testReverseLookup("::1", "ip6-localhost");
+            testReverseLookup("0:0:0:0:0:0:0:1", "ip6-localhost");
+            testReverseLookup("0000:0000:0000:0000:0000:0000:0000:0001", "ip6-localhost");
+
+            testReverseLookup("fe00::0", "ip6-localnet");
+            testReverseLookup("fe00:0:0:0:0:0:0:0", "ip6-localnet");
+            testReverseLookup("fe00:0000:0000:0000:0000:0000:0000:0000", "ip6-localnet");
+
+            testReverseLookup("fe80::1", "link-local-host");
+            testReverseLookup("fe80:000:0:00:0:000:00:1", "link-local-host");
+            testReverseLookup("fe80:0000:0000:0000:0000:0000:0000:0001", "link-local-host");
         }
     }
 
@@ -93,5 +105,16 @@ public class InternalNameServiceWithHostsFileTest {
                 + Arrays.toString(rawIpAddress)
                 + " equal to expected address == "
                 + Arrays.toString(expectedIpAddress));
+    }
+
+    private static void testReverseLookup(String numericHost, String expectedName)
+            throws UnknownHostException {
+        String lookupResult = InetAddress.getByName(numericHost).getHostName();
+        if (!expectedName.equals(lookupResult)) {
+            throw new RuntimeException(
+                String.format(
+                    "reverse lookup of \"%s\" is \"%s\", should be \"%s\"\n",
+                    numericHost, lookupResult, expectedName));
+        }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,15 +21,17 @@
  * questions.
  */
 
+package gc.arguments;
+
 /*
  * @test TestAggressiveHeap
- * @key gc
  * @bug 8179084
  * @requires vm.gc.Parallel
  * @summary Test argument processing for -XX:+AggressiveHeap.
  * @library /test/lib
- * @modules java.base java.management
- * @run driver TestAggressiveHeap
+ * @library /
+ * @modules java.management
+ * @run driver gc.arguments.TestAggressiveHeap
  */
 
 import java.lang.management.ManagementFactory;
@@ -37,7 +39,7 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
 import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.process.ProcessTools;
+import jtreg.SkippedException;
 
 public class TestAggressiveHeap {
 
@@ -63,10 +65,8 @@ public class TestAggressiveHeap {
         " *bool +UseParallelGC *= *true +\\{product\\} *\\{command line\\}";
 
     private static void testFlag() throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+        OutputAnalyzer output = GCArguments.executeTestJava(
             option, heapSizeOption, "-XX:+PrintFlagsFinal", "-version");
-
-        OutputAnalyzer output = new OutputAnalyzer(pb.start());
 
         output.shouldHaveExitValue(0);
 
@@ -88,11 +88,8 @@ public class TestAggressiveHeap {
 
     private static boolean canUseAggressiveHeapOption() throws Exception {
         if (!haveRequiredMemory()) {
-            System.out.println(
-                "Skipping test of " + option + " : insufficient memory");
-            return false;
+            throw new SkippedException("Skipping test of " + option + " : insufficient memory");
         }
         return true;
     }
 }
-

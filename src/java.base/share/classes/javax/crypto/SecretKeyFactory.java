@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ import sun.security.jca.GetInstance.Instance;
  * versa.
  * Secret key factories operate only on secret (symmetric) keys.
  *
- * <P> Key factories are bi-directional, i.e., they allow to build an opaque
+ * <P> Key factories are bidirectional, i.e., they allow to build an opaque
  * key object from a given key specification (key material), or to retrieve
  * the underlying key material of a key object in a suitable format.
  *
@@ -52,16 +52,13 @@ import sun.security.jca.GetInstance.Instance;
  * {@link #generateSecret(java.security.spec.KeySpec) generateSecret} and
  * {@link #getKeySpec(javax.crypto.SecretKey, java.lang.Class) getKeySpec}
  * methods.
- * For example, the DES secret-key factory supplied by the "SunJCE" provider
- * supports {@code DESKeySpec} as a transparent representation of DES
- * keys, and that provider's secret-key factory for Triple DES keys supports
- * {@code DESedeKeySpec} as a transparent representation of Triple DES
- * keys.
+ * For example, the DESede (Triple DES) secret-key factory supplied by the
+ * "SunJCE" provider supports {@code DESedeKeySpec} as a transparent
+ * representation of Triple DES keys.
  *
  * <p> Every implementation of the Java platform is required to support the
  * following standard {@code SecretKeyFactory} algorithms:
  * <ul>
- * <li>{@code DES}</li>
  * <li>{@code DESede}</li>
  * </ul>
  * These algorithms are described in the <a href=
@@ -74,7 +71,6 @@ import sun.security.jca.GetInstance.Instance;
  * @author Jan Luehe
  *
  * @see SecretKey
- * @see javax.crypto.spec.DESKeySpec
  * @see javax.crypto.spec.DESedeKeySpec
  * @see javax.crypto.spec.PBEKeySpec
  * @since 1.4
@@ -99,7 +95,7 @@ public class SecretKeyFactory {
     private Iterator<Service> serviceIterator;
 
     /**
-     * Creates a SecretKeyFactory object.
+     * Creates a {@code SecretKeyFactory} object.
      *
      * @param keyFacSpi the delegate
      * @param provider the provider
@@ -114,9 +110,7 @@ public class SecretKeyFactory {
 
     private SecretKeyFactory(String algorithm) throws NoSuchAlgorithmException {
         this.algorithm = algorithm;
-        List<Service> list =
-                GetInstance.getServices("SecretKeyFactory", algorithm);
-        serviceIterator = list.iterator();
+        serviceIterator = GetInstance.getServices("SecretKeyFactory", algorithm);
         // fetch and instantiate initial spi
         if (nextSpi(null) == null) {
             throw new NoSuchAlgorithmException
@@ -128,11 +122,11 @@ public class SecretKeyFactory {
      * Returns a {@code SecretKeyFactory} object that converts
      * secret keys of the specified algorithm.
      *
-     * <p> This method traverses the list of registered security Providers,
-     * starting with the most preferred Provider.
-     * A new SecretKeyFactory object encapsulating the
-     * SecretKeyFactorySpi implementation from the first
-     * Provider that supports the specified algorithm is returned.
+     * <p> This method traverses the list of registered security providers,
+     * starting with the most preferred provider.
+     * A new {@code SecretKeyFactory} object encapsulating the
+     * {@code SecretKeyFactorySpi} implementation from the first
+     * provider that supports the specified algorithm is returned.
      *
      * <p> Note that the list of registered providers may be retrieved via
      * the {@link Security#getProviders() Security.getProviders()} method.
@@ -142,7 +136,7 @@ public class SecretKeyFactory {
      * {@code jdk.security.provider.preferred}
      * {@link Security#getProperty(String) Security} property to determine
      * the preferred provider order for the specified algorithm. This
-     * may be different than the order of providers returned by
+     * may be different from the order of providers returned by
      * {@link Security#getProviders() Security.getProviders()}.
      *
      * @param algorithm the standard name of the requested secret-key
@@ -172,8 +166,8 @@ public class SecretKeyFactory {
      * Returns a {@code SecretKeyFactory} object that converts
      * secret keys of the specified algorithm.
      *
-     * <p> A new SecretKeyFactory object encapsulating the
-     * SecretKeyFactorySpi implementation from the specified provider
+     * <p> A new {@code SecretKeyFactory} object encapsulating the
+     * {@code SecretKeyFactorySpi} implementation from the specified provider
      * is returned.  The specified provider must be registered
      * in the security provider list.
      *
@@ -219,9 +213,9 @@ public class SecretKeyFactory {
      * Returns a {@code SecretKeyFactory} object that converts
      * secret keys of the specified algorithm.
      *
-     * <p> A new SecretKeyFactory object encapsulating the
-     * SecretKeyFactorySpi implementation from the specified Provider
-     * object is returned.  Note that the specified Provider object
+     * <p> A new {@code SecretKeyFactory} object encapsulating the
+     * {@code SecretKeyFactorySpi} implementation from the specified provider
+     * object is returned.  Note that the specified provider object
      * does not have to be registered in the provider list.
      *
      * @param algorithm the standard name of the requested secret-key
@@ -284,9 +278,9 @@ public class SecretKeyFactory {
 
     /**
      * Update the active spi of this class and return the next
-     * implementation for failover. If no more implemenations are
-     * available, this method returns null. However, the active spi of
-     * this class is never set to null.
+     * implementation for failover. If no more implementations are
+     * available, this method returns {@code null}. However, the active spi of
+     * this class is never set to {@code null}.
      */
     private SecretKeyFactorySpi nextSpi(SecretKeyFactorySpi oldSpi) {
         synchronized (lock) {
@@ -300,15 +294,14 @@ public class SecretKeyFactory {
             }
             while (serviceIterator.hasNext()) {
                 Service s = serviceIterator.next();
-                if (JceSecurity.canUseProvider(s.getProvider()) == false) {
+                if (!JceSecurity.canUseProvider(s.getProvider())) {
                     continue;
                 }
                 try {
                     Object obj = s.newInstance(null);
-                    if (obj instanceof SecretKeyFactorySpi == false) {
+                    if (!(obj instanceof SecretKeyFactorySpi spi)) {
                         continue;
                     }
-                    SecretKeyFactorySpi spi = (SecretKeyFactorySpi)obj;
                     provider = s.getProvider();
                     this.spi = spi;
                     return spi;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,43 +23,50 @@
 
 /*
  * @test
- * @bug      4515705 4804296 4702454 4697036 8025633 8182765
+ * @bug      4515705 4804296 4702454 4697036 8025633 8182765 8247235
  * @summary  Make sure that first sentence warning only appears once.
  *           Make sure that only warnings/errors are printed when quiet is used.
  *           Make sure that links to private/unincluded methods do not cause
  *           a "link unresolved" warning.
  *           Make sure error message starts with "error -".
- * @author   jamieh
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestWarnings
  */
 
+import javadoc.tester.JavadocTester;
+
 public class TestWarnings extends JavadocTester {
     public static void main(String... args) throws Exception  {
-        TestWarnings tester = new TestWarnings();
+        var tester = new TestWarnings();
         tester.runTests();
     }
 
     @Test
-    void testDefault() {
+    public void testDefault() {
         javadoc("-d", "out-default",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.ERROR);
 
-        checkOutput(Output.OUT, true,
+        checkOutput(Output.OUT, false,
                 "X.java:23: error: self-closing element not allowed");
 
-        checkOutput(Output.OUT, true,
+        checkOutput(Output.OUT, false,
                 "X.java:24: error: self-closing element not allowed");
 
-        checkOutput(Output.OUT, true,
+        checkOutput(Output.OUT, false,
                 "X.java:25: error: self-closing element not allowed");
 
-        checkOutput(Output.OUT, true,
+        checkOutput(Output.OUT, false,
                 "X.java:26: error: self-closing element not allowed");
+
+        checkOutput(Output.OUT, true,
+                "X.java:28: error: self-closing element not allowed");
+
+        checkOutput(Output.OUT, true,
+                "X.java:28: warning: empty <p> tag");
 
         checkOutput("pkg/X.html", false,
                 "can't find m()");
@@ -70,7 +77,7 @@ public class TestWarnings extends JavadocTester {
     }
 
     @Test
-    void testPrivate() {
+    public void testPrivate() {
         javadoc("-d", "out-private",
                 "-private",
                 "-sourcepath", testSrc,
@@ -78,22 +85,11 @@ public class TestWarnings extends JavadocTester {
         checkExit(Exit.ERROR);
 
         checkOutput("pkg/X.html", true,
-            "<a href=\"#m()\"><code>m()</code></a><br/>",
-            "<a href=\"#%3Cinit%3E()\"><code>X()</code></a><br/>",
-            "<a href=\"#f\"><code>f</code></a><br/>");
+            """
+                <a href="#m()"><code>m()</code></a><br/>""",
+            """
+                <a href="#%3Cinit%3E()"><code>X()</code></a><br/>""",
+            """
+                <a href="#f"><code>f</code></a><br/>""");
     }
-
-    @Test
-    void testPrivate_html4() {
-        javadoc("-d", "out-private-html4",
-                "-html4",
-                "-private",
-                "-sourcepath", testSrc,
-                "pkg");
-        checkExit(Exit.ERROR);
-
-        checkOutput("pkg/X.html", true,
-            "<a href=\"#m--\"><code>m()</code></a><br/>",
-            "<a href=\"#X--\"><code>X()</code></a><br/>");
-}
 }

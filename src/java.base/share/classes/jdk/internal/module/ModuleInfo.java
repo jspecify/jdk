@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,6 @@ import java.lang.module.ModuleDescriptor.Opens;
 import java.nio.ByteBuffer;
 import java.nio.BufferUnderflowException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -48,8 +47,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import jdk.internal.misc.JavaLangModuleAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaLangModuleAccess;
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.VM;
 
 import static jdk.internal.module.ClassFileConstants.*;
 
@@ -62,9 +62,6 @@ import static jdk.internal.module.ClassFileConstants.*;
  */
 
 public final class ModuleInfo {
-
-    private final int JAVA_MIN_SUPPORTED_VERSION = 53;
-    private final int JAVA_MAX_SUPPORTED_VERSION = 55;
 
     private static final JavaLangModuleAccess JLMA
         = SharedSecrets.getJavaLangModuleAccess();
@@ -183,7 +180,8 @@ public final class ModuleInfo {
      *         because an identifier is not a legal Java identifier, duplicate
      *         exports, and many other reasons
      */
-    private Attributes doRead(DataInput in) throws IOException {
+    private Attributes doRead(DataInput input) throws IOException {
+        var in = new CountingDataInput(input);
 
         int magic = in.readInt();
         if (magic != 0xCAFEBABE)
@@ -191,8 +189,7 @@ public final class ModuleInfo {
 
         int minor_version = in.readUnsignedShort();
         int major_version = in.readUnsignedShort();
-        if (major_version < JAVA_MIN_SUPPORTED_VERSION ||
-                major_version > JAVA_MAX_SUPPORTED_VERSION) {
+        if (!VM.isSupportedModuleDescriptorVersion(major_version, minor_version)) {
             throw invalidModuleDescriptor("Unsupported major.minor version "
                                           + major_version + "." + minor_version);
         }
@@ -233,7 +230,7 @@ public final class ModuleInfo {
         Set<String> allPackages = null;
         String mainClass = null;
         ModuleTarget moduleTarget = null;
-        ModuleHashes moduelHashes = null;
+        ModuleHashes moduleHashes = null;
         ModuleResolution moduleResolution = null;
 
         for (int i = 0; i < attributes_count ; i++) {
@@ -247,8 +244,9 @@ public final class ModuleInfo {
                                               + attribute_name + " attribute");
             }
 
-            switch (attribute_name) {
+            long initialPosition = in.count();
 
+            switch (attribute_name) {
                 case MODULE :
                     builder = readModuleAttribute(in, cpool, major_version);
                     break;
@@ -267,7 +265,7 @@ public final class ModuleInfo {
 
                 case MODULE_HASHES :
                     if (parseHashes) {
-                        moduelHashes = readModuleHashesAttribute(in, cpool);
+                        moduleHashes = readModuleHashesAttribute(in, cpool);
                     } else {
                         in.skipBytes(length);
                     }
@@ -284,8 +282,15 @@ public final class ModuleInfo {
                     } else {
                         in.skipBytes(length);
                     }
-
             }
+
+            long newPosition = in.count();
+            if ((newPosition - initialPosition) != length) {
+                // attribute length does not match actual attribute size
+                throw invalidModuleDescriptor("Attribute " + attribute_name
+                        + " does not match its expected length");
+            }
+
         }
 
         // the Module attribute is required
@@ -331,7 +336,7 @@ public final class ModuleInfo {
         ModuleDescriptor descriptor = builder.build();
         return new Attributes(descriptor,
                               moduleTarget,
-                              moduelHashes,
+                              moduleHashes,
                               moduleResolution);
     }
 
@@ -374,7 +379,7 @@ public final class ModuleInfo {
             int requires_flags = in.readUnsignedShort();
             Set<Requires.Modifier> mods;
             if (requires_flags == 0) {
-                mods = Collections.emptySet();
+                mods = Set.of();
             } else {
                 mods = new HashSet<>();
                 if ((requires_flags & ACC_TRANSITIVE) != 0)
@@ -396,6 +401,10 @@ public final class ModuleInfo {
             }
 
             if (dn.equals("java.base")) {
+                if (mods.contains(Requires.Modifier.SYNTHETIC)) {
+                    throw invalidModuleDescriptor("The requires entry for java.base"
+                                                  + " has ACC_SYNTHETIC set");
+                }
                 if (major >= 54
                     && (mods.contains(Requires.Modifier.TRANSITIVE)
                         || mods.contains(Requires.Modifier.STATIC))) {
@@ -430,7 +439,7 @@ public final class ModuleInfo {
                 Set<Exports.Modifier> mods;
                 int exports_flags = in.readUnsignedShort();
                 if (exports_flags == 0) {
-                    mods = Collections.emptySet();
+                    mods = Set.of();
                 } else {
                     mods = new HashSet<>();
                     if ((exports_flags & ACC_SYNTHETIC) != 0)
@@ -441,7 +450,7 @@ public final class ModuleInfo {
 
                 int exports_to_count = in.readUnsignedShort();
                 if (exports_to_count > 0) {
-                    Set<String> targets = new HashSet<>(exports_to_count);
+                    Set<String> targets = HashSet.newHashSet(exports_to_count);
                     for (int j=0; j<exports_to_count; j++) {
                         int exports_to_index = in.readUnsignedShort();
                         String target = cpool.getModuleName(exports_to_index);
@@ -470,7 +479,7 @@ public final class ModuleInfo {
                 Set<Opens.Modifier> mods;
                 int opens_flags = in.readUnsignedShort();
                 if (opens_flags == 0) {
-                    mods = Collections.emptySet();
+                    mods = Set.of();
                 } else {
                     mods = new HashSet<>();
                     if ((opens_flags & ACC_SYNTHETIC) != 0)
@@ -481,7 +490,7 @@ public final class ModuleInfo {
 
                 int open_to_count = in.readUnsignedShort();
                 if (open_to_count > 0) {
-                    Set<String> targets = new HashSet<>(open_to_count);
+                    Set<String> targets = HashSet.newHashSet(open_to_count);
                     for (int j=0; j<open_to_count; j++) {
                         int opens_to_index = in.readUnsignedShort();
                         String target = cpool.getModuleName(opens_to_index);
@@ -535,7 +544,7 @@ public final class ModuleInfo {
         throws IOException
     {
         int package_count = in.readUnsignedShort();
-        Set<String> packages = new HashSet<>(package_count);
+        Set<String> packages = HashSet.newHashSet(package_count);
         for (int i=0; i<package_count; i++) {
             int index = in.readUnsignedShort();
             String pn = cpool.getPackageName(index);
@@ -583,7 +592,7 @@ public final class ModuleInfo {
         String algorithm = cpool.getUtf8(algorithm_index);
 
         int hash_count = in.readUnsignedShort();
-        Map<String, byte[]> map = new HashMap<>(hash_count);
+        Map<String, byte[]> map = HashMap.newHashMap(hash_count);
         for (int i=0; i<hash_count; i++) {
             int module_name_index = in.readUnsignedShort();
             String mn = cpool.getModuleName(module_name_index);
@@ -1084,11 +1093,126 @@ public final class ModuleInfo {
     }
 
     /**
+     * A DataInput implementation that reads from another DataInput and counts
+     * the number of bytes read.
+     */
+    private static class CountingDataInput implements DataInput {
+        private final DataInput delegate;
+        private long count;
+
+        CountingDataInput(DataInput delegate) {
+            this.delegate = delegate;
+        }
+
+        long count() {
+            return count;
+        }
+
+        @Override
+        public void readFully(byte b[]) throws IOException {
+            delegate.readFully(b, 0, b.length);
+            count += b.length;
+        }
+
+        @Override
+        public void readFully(byte b[], int off, int len) throws IOException {
+            delegate.readFully(b, off, len);
+            count += len;
+        }
+
+        @Override
+        public int skipBytes(int n) throws IOException {
+            int skip = delegate.skipBytes(n);
+            count += skip;
+            return skip;
+        }
+
+        @Override
+        public boolean readBoolean() throws IOException {
+            boolean b = delegate.readBoolean();
+            count++;
+            return b;
+        }
+
+        @Override
+        public byte readByte() throws IOException {
+            byte b = delegate.readByte();
+            count++;
+            return b;
+        }
+
+        @Override
+        public int readUnsignedByte() throws IOException {
+            int i = delegate.readUnsignedByte();
+            count++;
+            return i;
+        }
+
+        @Override
+        public short readShort() throws IOException {
+            short s = delegate.readShort();
+            count += 2;
+            return s;
+        }
+
+        @Override
+        public int readUnsignedShort() throws IOException {
+            int s = delegate.readUnsignedShort();
+            count += 2;
+            return s;
+        }
+
+        @Override
+        public char readChar() throws IOException {
+            char c = delegate.readChar();
+            count += 2;
+            return c;
+        }
+
+        @Override
+        public int readInt() throws IOException {
+            int i = delegate.readInt();
+            count += 4;
+            return i;
+        }
+
+        @Override
+        public long readLong() throws IOException {
+            long l = delegate.readLong();
+            count += 8;
+            return l;
+        }
+
+        @Override
+        public float readFloat() throws IOException {
+            float f = delegate.readFloat();
+            count += 4;
+            return f;
+        }
+
+        @Override
+        public double readDouble() throws IOException {
+            double d = delegate.readDouble();
+            count += 8;
+            return d;
+        }
+
+        @Override
+        public String readLine() {
+            throw new RuntimeException("not implemented");
+        }
+
+        @Override
+        public String readUTF() throws IOException {
+            return DataInputStream.readUTF(this);
+        }
+    }
+
+    /**
      * Returns an InvalidModuleDescriptorException with the given detail
      * message
      */
-    private static InvalidModuleDescriptorException
-    invalidModuleDescriptor(String msg) {
+    private static InvalidModuleDescriptorException invalidModuleDescriptor(String msg) {
         return new InvalidModuleDescriptorException(msg);
     }
 

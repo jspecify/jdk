@@ -1,5 +1,5 @@
-SRC#
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+# Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -23,23 +23,33 @@ SRC#
 # questions.
 #
 
-###############################################################################
+################################################################################
 #
 # Includes and boilerplate
 #
-###############################################################################
+################################################################################
 
 
 AC_PREREQ([2.69])
-AC_INIT(OpenJDK, openjdk, build-dev@openjdk.java.net,,http://openjdk.java.net)
+AC_INIT(OpenJDK, openjdk, build-dev@openjdk.org,,https://openjdk.org)
 
 AC_CONFIG_AUX_DIR([$TOPDIR/make/autoconf/build-aux])
 m4_include([build-aux/pkg.m4])
 
+AC_DEFUN_ONCE([CUSTOM_EARLY_HOOK])
+AC_DEFUN_ONCE([CUSTOM_LATE_HOOK])
+AC_DEFUN_ONCE([CUSTOM_CONFIG_OUTPUT_GENERATED_HOOK])
+AC_DEFUN_ONCE([CUSTOM_SUMMARY_AND_WARNINGS_HOOK])
+
+# This line needs to be here, verbatim, after the dummy hook definitions but
+# before all includes. It is replaced with custom functionality when building
+# custom sources.
+#CUSTOM_AUTOCONF_INCLUDE
+
 # Include these first...
-m4_include([basics.m4])
-m4_include([basics_windows.m4])
+m4_include([util.m4])
 # ... then the rest
+m4_include([basic.m4])
 m4_include([boot-jdk.m4])
 m4_include([build-performance.m4])
 m4_include([flags.m4])
@@ -47,30 +57,20 @@ m4_include([help.m4])
 m4_include([hotspot.m4])
 m4_include([jdk-options.m4])
 m4_include([jdk-version.m4])
+m4_include([jvm-features.m4])
 m4_include([libraries.m4])
 m4_include([platform.m4])
 m4_include([source-dirs.m4])
 m4_include([toolchain.m4])
-m4_include([toolchain_windows.m4])
 
-AC_DEFUN_ONCE([CUSTOM_EARLY_HOOK])
-AC_DEFUN_ONCE([CUSTOM_LATE_HOOK])
-AC_DEFUN_ONCE([CUSTOM_CONFIG_OUTPUT_GENERATED_HOOK])
-AC_DEFUN_ONCE([CUSTOM_SUMMARY_AND_WARNINGS_HOOK])
-
-# This line needs to be here, verbatim, after all includes and the dummy hook
-# definitions. It is replaced with custom functionality when building
-# custom sources.
-#CUSTOM_AUTOCONF_INCLUDE
-
-###############################################################################
+################################################################################
 #
 # Initialization / Boot-strapping
 #
 # The bootstrapping process needs to solve the "chicken or the egg" problem,
 # thus it jumps back and forth, each time gaining something needed later on.
 #
-###############################################################################
+################################################################################
 
 # If we are requested to print additional help, do that and then exit.
 # This must be the very first call.
@@ -86,17 +86,21 @@ PLATFORM_SETUP_OPENJDK_BUILD_AND_TARGET
 
 # Continue setting up basic stuff. Most remaining code require fundamental tools.
 BASIC_SETUP_PATHS
+BASIC_SETUP_TOOLS
+BASIC_SETUP_BUILD_ENV
 
 # Check if it's a pure open build or if custom sources are to be used.
 JDKOPT_SETUP_OPEN_OR_CUSTOM
 
 # These are needed to be able to create a configuration name (and thus the output directory)
-JDKOPT_SETUP_JDK_VARIANT
 JDKOPT_SETUP_DEBUG_LEVEL
 HOTSPOT_SETUP_JVM_VARIANTS
 
 # With basic setup done, call the custom early hook.
 CUSTOM_EARLY_HOOK
+
+# This only needs debug level to be setup
+JDKOPT_ALLOW_ABSOLUTE_PATHS_IN_OUTPUT
 
 # Check if we have devkits, extra paths or sysroot set.
 BASIC_SETUP_DEVKIT
@@ -104,6 +108,8 @@ BASIC_SETUP_DEVKIT
 # To properly create a configuration name, we need to have the OpenJDK target
 # and options (variants and debug level) parsed.
 BASIC_SETUP_OUTPUT_DIR
+# After we have the output dir we can finalize the fixpath wrapper
+BASIC_WINDOWS_FINALIZE_FIXPATH
 
 # Must be done before we can call HELP_MSG_MISSING_DEPENDENCY.
 HELP_SETUP_DEPENDENCY_HELP
@@ -122,41 +128,51 @@ PLATFORM_SETUP_OPENJDK_BUILD_OS_VERSION
 BASIC_SETUP_DEFAULT_MAKE_TARGET
 BASIC_SETUP_DEFAULT_LOG
 
-###############################################################################
+################################################################################
 #
-# Determine OpenJDK variants, options and version numbers.
+# Determine OpenJDK variants and version numbers.
 #
-###############################################################################
+################################################################################
 
 # We need build & target for this.
-JDKOPT_SETUP_JDK_OPTIONS
+JDKOPT_SETUP_JMOD_OPTIONS
 JDKOPT_SETUP_JLINK_OPTIONS
 JDKVER_SETUP_JDK_VERSION_NUMBERS
 
-###############################################################################
+################################################################################
 #
 # Setup BootJDK, used to bootstrap the build.
 #
-###############################################################################
+################################################################################
 
 BOOTJDK_SETUP_BOOT_JDK
 BOOTJDK_SETUP_BUILD_JDK
+BOOTJDK_SETUP_DOCS_REFERENCE_JDK
 
-###############################################################################
+################################################################################
+#
+# Determine JDK specific build time options.
+#
+################################################################################
+
+JDKOPT_SETUP_REPRODUCIBLE_BUILD
+JDKOPT_SETUP_JDK_OPTIONS
+
+################################################################################
 #
 # Configure the sources to use. We can add or override individual directories.
 #
-###############################################################################
+################################################################################
 
 SRCDIRS_SETUP_DIRS
 SRCDIRS_SETUP_IMPORT_MODULES
 
-###############################################################################
+################################################################################
 #
 # Setup the toolchain (compilers etc), i.e. tools used to compile and process
 # native code.
 #
-###############################################################################
+################################################################################
 
 # See if we are doing a complete static build or not
 JDKOPT_SETUP_STATIC_BUILD
@@ -178,20 +194,20 @@ TOOLCHAIN_POST_DETECTION
 TOOLCHAIN_SETUP_BUILD_COMPILERS
 TOOLCHAIN_MISC_CHECKS
 
-# Setup the JTReg Regression Test Harness.
-TOOLCHAIN_SETUP_JTREG
-
-# Setup Jib dependency tool
-TOOLCHAIN_SETUP_JIB
-
 # After toolchain setup, we need to process some flags to be able to continue.
 FLAGS_POST_TOOLCHAIN
+
+# Setup the tools needed to test the JDK (JTReg Regression Test Harness,
+# Java Microbenchmark Harness (JMH) and the Jib dependency tool).
+LIB_TESTS_SETUP_JTREG
+LIB_TESTS_SETUP_JMH
+LIB_TESTS_SETUP_JIB
 
 # Now we can test some aspects on the target using configure macros.
 PLATFORM_SETUP_OPENJDK_TARGET_BITS
 PLATFORM_SETUP_OPENJDK_TARGET_ENDIANNESS
 
-# Configure flags for the tools
+# Configure flags for the tools. Need to know if we should build reproducible.
 FLAGS_SETUP_FLAGS
 
 # Setup debug symbols (need objcopy from the toolchain for that)
@@ -201,57 +217,67 @@ JDKOPT_SETUP_CODE_COVERAGE
 # AddressSanitizer
 JDKOPT_SETUP_ADDRESS_SANITIZER
 
-# Need toolchain to setup dtrace
-HOTSPOT_SETUP_DTRACE
-HOTSPOT_ENABLE_DISABLE_AOT
-HOTSPOT_ENABLE_DISABLE_CDS
-HOTSPOT_ENABLE_DISABLE_GTEST
+# UndefinedBehaviorSanitizer
+JDKOPT_SETUP_UNDEFINED_BEHAVIOR_SANITIZER
 
-###############################################################################
+# LeakSanitizer
+JDKOPT_SETUP_LEAK_SANITIZER
+
+# Fallback linker
+# This needs to go before 'LIB_DETERMINE_DEPENDENCIES'
+JDKOPT_SETUP_FALLBACK_LINKER
+
+################################################################################
 #
 # Check dependencies for external and internal libraries.
 #
-###############################################################################
-
-# After we have toolchain, we can compile fixpath. It's needed by the lib checks.
-BASIC_COMPILE_FIXPATH
+################################################################################
 
 LIB_DETERMINE_DEPENDENCIES
 LIB_SETUP_LIBRARIES
 
-# Hotspot setup depends on lib checks.
+################################################################################
+#
+# Setup hotspot and JVM features (needs toolchain).
+#
+################################################################################
 
-HOTSPOT_SETUP_JVM_FEATURES
+JVM_FEATURES_PARSE_OPTIONS
+JVM_FEATURES_SETUP
 
-###############################################################################
+HOTSPOT_SETUP_MISC
+
+################################################################################
 #
 # We need to do some final tweaking, when everything else is done.
 #
-###############################################################################
+################################################################################
 
-JDKOPT_DETECT_INTREE_EC
-JDKOPT_ENABLE_DISABLE_FAILURE_HANDLER
+LIB_TESTS_ENABLE_DISABLE_FAILURE_HANDLER
+LIB_TESTS_ENABLE_DISABLE_JTREG_TEST_THREAD_FACTORY
+
 JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST
 JDKOPT_EXCLUDE_TRANSLATIONS
 JDKOPT_ENABLE_DISABLE_MANPAGES
+JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE
+JDKOPT_ENABLE_DISABLE_COMPATIBLE_CDS_ALIGNMENT
+JDKOPT_SETUP_MACOSX_SIGNING
 
-###############################################################################
+################################################################################
 #
 # Configure parts of the build that only affect the build performance,
 # not the result.
 #
-###############################################################################
+################################################################################
 
 BPERF_SETUP_BUILD_CORES
 BPERF_SETUP_BUILD_MEMORY
 BPERF_SETUP_BUILD_JOBS
 BPERF_SETUP_TEST_JOBS
+BPERF_SETUP_JAVAC_SERVER
 
 # Setup arguments for the boot jdk (after cores and memory have been setup)
 BOOTJDK_SETUP_BOOT_JDK_ARGUMENTS
-
-# Setup smart javac (after cores and memory have been setup)
-BPERF_SETUP_SMART_JAVAC
 
 # Setup use of icecc if requested
 BPERF_SETUP_ICECC
@@ -262,20 +288,17 @@ BPERF_SETUP_PRECOMPILED_HEADERS
 # Setup use of ccache, if available
 BPERF_SETUP_CCACHE
 
-###############################################################################
+################################################################################
 #
 # And now the finish...
 #
-###############################################################################
+################################################################################
 
 # Check for some common pitfalls
 BASIC_TEST_USABILITY_ISSUES
 
 # At the end, call the custom hook. (Dummy macro if no custom sources available)
 CUSTOM_LATE_HOOK
-
-# This needs to be done after CUSTOM_LATE_HOOK since we can setup custom features.
-HOTSPOT_FINALIZE_JVM_FEATURES
 
 # Did user specify any unknown variables?
 BASIC_CHECK_LEFTOVER_OVERRIDDEN
@@ -285,13 +308,16 @@ BASIC_CHECK_LEFTOVER_OVERRIDDEN
 CONFIG_STATUS="$CONFIGURESUPPORT_OUTPUTDIR/config.status"
 
 # Create the actual output files. Now the main work of configure is done.
+BASIC_WINDOWS_FINALIZE
 AC_OUTPUT
 
 # After AC_OUTPUT, we need to do final work
 CUSTOM_CONFIG_OUTPUT_GENERATED_HOOK
-BASIC_POST_CONFIG_OUTPUT
 
 # Finally output some useful information to the user
 HELP_PRINT_SUMMARY_AND_WARNINGS
 CUSTOM_SUMMARY_AND_WARNINGS_HOOK
 HELP_REPEAT_WARNINGS
+
+# All output is done. Do the post-config output management.
+BASIC_POST_CONFIG_OUTPUT

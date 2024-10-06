@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,21 +23,49 @@
  */
 
 #include "precompiled.hpp"
+#include "cds/archiveBuilder.hpp"
+#include "cds/archiveUtils.hpp"
+#include "cds/cdsConfig.hpp"
+#include "classfile/classLoaderData.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/packageEntry.hpp"
+#include "classfile/vmSymbols.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/array.hpp"
 #include "oops/symbol.hpp"
+#include "runtime/java.hpp"
 #include "runtime/handles.inline.hpp"
 #include "utilities/events.hpp"
 #include "utilities/growableArray.hpp"
-#include "utilities/hashtable.inline.hpp"
 #include "utilities/ostream.hpp"
+#include "utilities/quickSort.hpp"
+#include "utilities/resourceHash.hpp"
+
+PackageEntry::PackageEntry(Symbol* name, ModuleEntry* module) :
+  _name(name),
+  _module(module),
+  _export_flags(0),
+  _classpath_index(-1),
+  _must_walk_exports(false),
+  _qualified_exports(nullptr),
+  _defined_by_cds_in_class_path(0)
+{
+  // name can't be null
+  _name->increment_refcount();
+
+  JFR_ONLY(INIT_ID(this);)
+}
+
+PackageEntry::~PackageEntry() {
+  delete_qualified_exports();
+  _name->decrement_refcount();
+}
 
 // Returns true if this package specifies m as a qualified export, including through an unnamed export
 bool PackageEntry::is_qexported_to(ModuleEntry* m) const {
   assert(Module_lock->owned_by_self(), "should have the Module_lock");
-  assert(m != NULL, "No module to lookup in this package's qualified exports list");
+  assert(m != nullptr, "No module to lookup in this package's qualified exports list");
   if (is_exported_allUnnamed() && !m->is_named()) {
     return true;
   } else if (!has_qual_exports_list()) {
@@ -53,7 +81,7 @@ void PackageEntry::add_qexport(ModuleEntry* m) {
   if (!has_qual_exports_list()) {
     // Lazily create a package's qualified exports list.
     // Initial size is small, do not anticipate export lists to be large.
-    _qualified_exports = new (ResourceObj::C_HEAP, mtModule) GrowableArray<ModuleEntry*>(QUAL_EXP_SIZE, true);
+    _qualified_exports = new (mtModule) GrowableArray<ModuleEntry*>(QUAL_EXP_SIZE, mtModule);
   }
 
   // Determine, based on this newly established export to module m,
@@ -73,15 +101,15 @@ void PackageEntry::set_export_walk_required(ClassLoaderData* m_loader_data) {
   assert_locked_or_safepoint(Module_lock);
   ModuleEntry* this_pkg_mod = module();
   if (!_must_walk_exports &&
-      (this_pkg_mod == NULL || this_pkg_mod->loader_data() != m_loader_data) &&
+      (this_pkg_mod == nullptr || this_pkg_mod->loader_data() != m_loader_data) &&
       !m_loader_data->is_builtin_class_loader_data()) {
     _must_walk_exports = true;
     if (log_is_enabled(Trace, module)) {
       ResourceMark rm;
-      assert(name() != NULL, "PackageEntry without a valid name");
+      assert(name() != nullptr, "PackageEntry without a valid name");
       log_trace(module)("PackageEntry::set_export_walk_required(): package %s defined in module %s, exports list must be walked",
                         name()->as_C_string(),
-                        (this_pkg_mod == NULL || this_pkg_mod->name() == NULL) ?
+                        (this_pkg_mod == nullptr || this_pkg_mod->name() == nullptr) ?
                           UNNAMED_MODULE : this_pkg_mod->name()->as_C_string());
     }
   }
@@ -89,15 +117,15 @@ void PackageEntry::set_export_walk_required(ClassLoaderData* m_loader_data) {
 
 // Set the package's exported states based on the value of the ModuleEntry.
 void PackageEntry::set_exported(ModuleEntry* m) {
-  MutexLocker m1(Module_lock);
+  assert(Module_lock->owned_by_self(), "should have the Module_lock");
   if (is_unqual_exported()) {
     // An exception could be thrown, but choose to simply ignore.
     // Illegal to convert an unqualified exported package to be qualifiedly exported
     return;
   }
 
-  if (m == NULL) {
-    // NULL indicates the package is being unqualifiedly exported.  Clean up
+  if (m == nullptr) {
+    // null indicates the package is being unqualifiedly exported.  Clean up
     // the qualified list at the next safepoint.
     set_unqual_exported();
   } else {
@@ -109,12 +137,8 @@ void PackageEntry::set_exported(ModuleEntry* m) {
 // Set the package as exported to all unnamed modules unless the package is
 // already unqualifiedly exported.
 void PackageEntry::set_is_exported_allUnnamed() {
-  if (module()->is_open()) {
-    // No-op for open modules since all packages are unqualifiedly exported
-    return;
-  }
-
-  MutexLocker m1(Module_lock);
+  assert(!module()->is_open(), "should have been checked already");
+  assert(Module_lock->owned_by_self(), "should have the Module_lock");
   if (!is_unqual_exported()) {
    _export_flags = PKG_EXP_ALLUNNAMED;
   }
@@ -125,11 +149,10 @@ void PackageEntry::set_is_exported_allUnnamed() {
 // get deleted.  This prevents the package from illegally transitioning from
 // exported to non-exported.
 void PackageEntry::purge_qualified_exports() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  assert_locked_or_safepoint(Module_lock);
   if (_must_walk_exports &&
-      _qualified_exports != NULL &&
+      _qualified_exports != nullptr &&
       !_qualified_exports->is_empty()) {
-    ModuleEntry* pkg_module = module();
 
     // This package's _must_walk_exports flag will be reset based
     // on the remaining live modules on the exports list.
@@ -137,11 +160,11 @@ void PackageEntry::purge_qualified_exports() {
 
     if (log_is_enabled(Trace, module)) {
       ResourceMark rm;
-      assert(name() != NULL, "PackageEntry without a valid name");
+      assert(name() != nullptr, "PackageEntry without a valid name");
       ModuleEntry* pkg_mod = module();
       log_trace(module)("PackageEntry::purge_qualified_exports(): package %s defined in module %s, exports list being walked",
                         name()->as_C_string(),
-                        (pkg_mod == NULL || pkg_mod->name() == NULL) ? UNNAMED_MODULE : pkg_mod->name()->as_C_string());
+                        (pkg_mod == nullptr || pkg_mod->name() == nullptr) ? UNNAMED_MODULE : pkg_mod->name()->as_C_string());
     }
 
     // Go backwards because this removes entries that are dead.
@@ -160,131 +183,217 @@ void PackageEntry::purge_qualified_exports() {
 }
 
 void PackageEntry::delete_qualified_exports() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
-  if (_qualified_exports != NULL) {
+  if (_qualified_exports != nullptr) {
     delete _qualified_exports;
   }
-  _qualified_exports = NULL;
+  _qualified_exports = nullptr;
 }
 
-PackageEntryTable::PackageEntryTable(int table_size)
-  : Hashtable<Symbol*, mtModule>(table_size, sizeof(PackageEntry))
-{
-}
+PackageEntryTable::PackageEntryTable() { }
 
 PackageEntryTable::~PackageEntryTable() {
-  // Walk through all buckets and all entries in each bucket,
-  // freeing each entry.
-  for (int i = 0; i < table_size(); ++i) {
-    for (PackageEntry* p = bucket(i); p != NULL;) {
-      PackageEntry* to_remove = p;
-      // read next before freeing.
-      p = p->next();
-
-      // Clean out the C heap allocated qualified exports list first before freeing the entry
-      to_remove->delete_qualified_exports();
-      to_remove->name()->decrement_refcount();
-
-      // Unlink from the Hashtable prior to freeing
-      unlink_entry(to_remove);
-      FREE_C_HEAP_ARRAY(char, to_remove);
+  class PackageEntryTableDeleter : public StackObj {
+   public:
+    bool do_entry(const SymbolHandle& name, PackageEntry*& entry) {
+      if (log_is_enabled(Info, module, unload) || log_is_enabled(Debug, module)) {
+        ResourceMark rm;
+        const char* str = name->as_C_string();
+        log_info(module, unload)("unloading package %s", str);
+        log_debug(module)("PackageEntry: deleting package: %s", str);
+      }
+      delete entry;
+      return true;
     }
+  };
+
+  PackageEntryTableDeleter deleter;
+  _table.unlink(&deleter);
+  assert(_table.number_of_entries() == 0, "should have removed all entries");
+}
+
+#if INCLUDE_CDS_JAVA_HEAP
+typedef ResourceHashtable<
+  const PackageEntry*,
+  PackageEntry*,
+  557, // prime number
+  AnyObj::C_HEAP> ArchivedPackageEntries;
+static ArchivedPackageEntries* _archived_packages_entries = nullptr;
+
+PackageEntry* PackageEntry::allocate_archived_entry() const {
+  assert(!in_unnamed_module(), "unnamed packages/modules are not archived");
+  PackageEntry* archived_entry = (PackageEntry*)ArchiveBuilder::rw_region_alloc(sizeof(PackageEntry));
+  memcpy((void*)archived_entry, (void*)this, sizeof(PackageEntry));
+
+  if (_archived_packages_entries == nullptr) {
+    _archived_packages_entries = new (mtClass)ArchivedPackageEntries();
   }
-  assert(number_of_entries() == 0, "should have removed all entries");
-  assert(new_entry_free_list() == NULL, "entry present on PackageEntryTable's free list");
-  free_buckets();
+  assert(_archived_packages_entries->get(this) == nullptr, "Each PackageEntry must not be shared across PackageEntryTables");
+  _archived_packages_entries->put(this, archived_entry);
+
+  return archived_entry;
 }
 
-PackageEntry* PackageEntryTable::new_entry(unsigned int hash, Symbol* name, ModuleEntry* module) {
-  assert(Module_lock->owned_by_self(), "should have the Module_lock");
-  PackageEntry* entry = (PackageEntry*)Hashtable<Symbol*, mtModule>::allocate_new_entry(hash, name);
-
-  JFR_ONLY(INIT_ID(entry);)
-
-  // Initialize fields specific to a PackageEntry
-  entry->init();
-  entry->name()->increment_refcount();
-  entry->set_module(module);
-  return entry;
-}
-
-void PackageEntryTable::add_entry(int index, PackageEntry* new_entry) {
-  assert(Module_lock->owned_by_self(), "should have the Module_lock");
-  Hashtable<Symbol*, mtModule>::add_entry(index, (HashtableEntry<Symbol*, mtModule>*)new_entry);
-}
-
-// Create package in loader's package entry table and return the entry.
-// If entry already exists, return null.  Assume Module lock was taken by caller.
-PackageEntry* PackageEntryTable::locked_create_entry_or_null(Symbol* name, ModuleEntry* module) {
-  assert(Module_lock->owned_by_self(), "should have the Module_lock");
-  // Check if package already exists.  Return NULL if it does.
-  if (lookup_only(name) != NULL) {
-    return NULL;
+PackageEntry* PackageEntry::get_archived_entry(PackageEntry* orig_entry) {
+  PackageEntry** ptr = _archived_packages_entries->get(orig_entry);
+  if (ptr != nullptr) {
+    return *ptr;
   } else {
-    PackageEntry* entry = new_entry(compute_hash(name), name, module);
-    add_entry(index_for(name), entry);
+    return nullptr;
+  }
+}
+
+void PackageEntry::iterate_symbols(MetaspaceClosure* closure) {
+  closure->push(&_name);
+}
+
+void PackageEntry::init_as_archived_entry() {
+  Array<ModuleEntry*>* archived_qualified_exports = ModuleEntry::write_growable_array(_qualified_exports);
+
+  _name = ArchiveBuilder::get_buffered_symbol(_name);
+  _module = ModuleEntry::get_archived_entry(_module);
+  _qualified_exports = (GrowableArray<ModuleEntry*>*)archived_qualified_exports;
+  _defined_by_cds_in_class_path = 0;
+  JFR_ONLY(set_trace_id(0);) // re-init at runtime
+
+  ArchivePtrMarker::mark_pointer((address*)&_name);
+  ArchivePtrMarker::mark_pointer((address*)&_module);
+  ArchivePtrMarker::mark_pointer((address*)&_qualified_exports);
+}
+
+void PackageEntry::load_from_archive() {
+  _qualified_exports = ModuleEntry::restore_growable_array((Array<ModuleEntry*>*)_qualified_exports);
+  JFR_ONLY(INIT_ID(this);)
+}
+
+static int compare_package_by_name(PackageEntry* a, PackageEntry* b) {
+  assert(a == b || a->name() != b->name(), "no duplicated names");
+  return a->name()->fast_compare(b->name());
+}
+
+void PackageEntryTable::iterate_symbols(MetaspaceClosure* closure) {
+  auto syms = [&] (const SymbolHandle& key, PackageEntry*& p) {
+      p->iterate_symbols(closure);
+  };
+  _table.iterate_all(syms);
+}
+
+Array<PackageEntry*>* PackageEntryTable::allocate_archived_entries() {
+  // First count the packages in named modules
+  int n = 0;
+  auto count = [&] (const SymbolHandle& key, PackageEntry*& p) {
+    if (p->module()->is_named()) {
+      n++;
+    }
+  };
+  _table.iterate_all(count);
+
+  Array<PackageEntry*>* archived_packages = ArchiveBuilder::new_rw_array<PackageEntry*>(n);
+  // reset n
+  n = 0;
+  auto grab = [&] (const SymbolHandle& key, PackageEntry*& p) {
+    if (p->module()->is_named()) {
+      // We don't archive unnamed modules, or packages in unnamed modules. They will be
+      // created on-demand at runtime as classes in such packages are loaded.
+      archived_packages->at_put(n++, p);
+    }
+  };
+  _table.iterate_all(grab);
+
+  if (n > 1) {
+    // Always allocate in the same order to produce deterministic archive.
+    QuickSort::sort(archived_packages->data(), n, compare_package_by_name);
+  }
+  for (int i = 0; i < n; i++) {
+    archived_packages->at_put(i, archived_packages->at(i)->allocate_archived_entry());
+    ArchivePtrMarker::mark_pointer((address*)archived_packages->adr_at(i));
+  }
+  return archived_packages;
+}
+
+void PackageEntryTable::init_archived_entries(Array<PackageEntry*>* archived_packages) {
+  for (int i = 0; i < archived_packages->length(); i++) {
+    PackageEntry* archived_entry = archived_packages->at(i);
+    archived_entry->init_as_archived_entry();
+  }
+}
+
+void PackageEntryTable::load_archived_entries(Array<PackageEntry*>* archived_packages) {
+  assert(CDSConfig::is_using_archive(), "runtime only");
+
+  for (int i = 0; i < archived_packages->length(); i++) {
+    PackageEntry* archived_entry = archived_packages->at(i);
+    archived_entry->load_from_archive();
+    _table.put(archived_entry->name(), archived_entry);
+  }
+}
+
+#endif // INCLUDE_CDS_JAVA_HEAP
+
+// Create package entry in loader's package entry table.  Assume Module lock
+// was taken by caller.
+void PackageEntryTable::locked_create_entry(Symbol* name, ModuleEntry* module) {
+  assert(Module_lock->owned_by_self(), "should have the Module_lock");
+  assert(locked_lookup_only(name) == nullptr, "Package entry already exists");
+  PackageEntry* entry = new PackageEntry(name, module);
+  bool created = _table.put(name, entry);
+  assert(created, "must be");
+}
+
+// Create package entry in loader's package entry table if it does not already
+// exist.  Assume Module lock was taken by caller.
+PackageEntry* PackageEntryTable::locked_create_entry_if_absent(Symbol* name, ModuleEntry* module) {
+  assert(Module_lock->owned_by_self(), "should have the Module_lock");
+  // Check if package entry already exists.  If not, create it.
+  bool created;
+  PackageEntry* entry = new PackageEntry(name, module);
+  PackageEntry** old_entry = _table.put_if_absent(name, entry, &created);
+  if (created) {
     return entry;
+  } else {
+    delete entry;
+    return *old_entry;
   }
 }
 
-PackageEntry* PackageEntryTable::lookup(Symbol* name, ModuleEntry* module) {
-  PackageEntry* p = lookup_only(name);
-  if (p != NULL) {
-    return p;
-  } else {
-    // If not found, add to table. Grab the PackageEntryTable lock first.
-    MutexLocker ml(Module_lock);
-
-    // Since look-up was done lock-free, we need to check if another thread beat
-    // us in the race to insert the package.
-    PackageEntry* test = lookup_only(name);
-    if (test != NULL) {
-      // A race occurred and another thread introduced the package.
-      return test;
-    } else {
-      assert(module != NULL, "module should never be null");
-      PackageEntry* entry = new_entry(compute_hash(name), name, module);
-      add_entry(index_for(name), entry);
-      return entry;
-    }
-  }
+PackageEntry* PackageEntryTable::create_entry_if_absent(Symbol* name, ModuleEntry* module) {
+  MutexLocker ml(Module_lock);
+  return locked_create_entry_if_absent(name, module);
 }
 
 PackageEntry* PackageEntryTable::lookup_only(Symbol* name) {
-  int index = index_for(name);
-  for (PackageEntry* p = bucket(index); p != NULL; p = p->next()) {
-    if (p->name()->fast_compare(name) == 0) {
-      return p;
-    }
-  }
-  return NULL;
+  assert(!Module_lock->owned_by_self(), "should not have the Module_lock - use locked_lookup_only");
+  MutexLocker ml(Module_lock);
+  return locked_lookup_only(name);
+}
+
+PackageEntry* PackageEntryTable::locked_lookup_only(Symbol* name) {
+  assert(Module_lock->owned_by_self(), "should have the Module_lock");
+  PackageEntry** entry = _table.get(name);
+  return entry == nullptr ? nullptr : *entry;
 }
 
 // Called when a define module for java.base is being processed.
 // Verify the packages loaded thus far are in java.base's package list.
 void PackageEntryTable::verify_javabase_packages(GrowableArray<Symbol*> *pkg_list) {
   assert_lock_strong(Module_lock);
-  for (int i = 0; i < table_size(); i++) {
-    for (PackageEntry* entry = bucket(i);
-                       entry != NULL;
-                       entry = entry->next()) {
-      ModuleEntry* m = entry->module();
-      Symbol* module_name = (m == NULL ? NULL : m->name());
-      if (module_name != NULL &&
-          (module_name->fast_compare(vmSymbols::java_base()) == 0) &&
-          !pkg_list->contains(entry->name())) {
-        ResourceMark rm;
-        vm_exit_during_initialization("A non-" JAVA_BASE_NAME " package was loaded prior to module system initialization", entry->name()->as_C_string());
-      }
+  auto verifier = [&] (const SymbolHandle& name, PackageEntry*& entry) {
+    ModuleEntry* m = entry->module();
+    Symbol* module_name = (m == nullptr ? nullptr : m->name());
+    if (module_name != nullptr &&
+      (module_name->fast_compare(vmSymbols::java_base()) == 0) &&
+        !pkg_list->contains(entry->name())) {
+      ResourceMark rm;
+      vm_exit_during_initialization("A non-" JAVA_BASE_NAME " package was loaded prior to module system initialization",
+                                    entry->name()->as_C_string());
     }
-  }
-
+  };
+  _table.iterate_all(verifier);
 }
 
 // iteration of qualified exports
 void PackageEntry::package_exports_do(ModuleClosure* f) {
   assert_locked_or_safepoint(Module_lock);
-  assert(f != NULL, "invariant");
+  assert(f != nullptr, "invariant");
 
   if (has_qual_exports_list()) {
     int qe_len = _qualified_exports->length();
@@ -296,38 +405,55 @@ void PackageEntry::package_exports_do(ModuleClosure* f) {
 }
 
 bool PackageEntry::exported_pending_delete() const {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
-  return (is_unqual_exported() && _qualified_exports != NULL);
+  assert_locked_or_safepoint(Module_lock);
+  return (is_unqual_exported() && _qualified_exports != nullptr);
 }
 
 // Remove dead entries from all packages' exported list
 void PackageEntryTable::purge_all_package_exports() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
-  for (int i = 0; i < table_size(); i++) {
-    for (PackageEntry* entry = bucket(i);
-                       entry != NULL;
-                       entry = entry->next()) {
-      if (entry->exported_pending_delete()) {
-        // exported list is pending deletion due to a transition
-        // from qualified to unqualified
-        entry->delete_qualified_exports();
-      } else if (entry->is_qual_exported()) {
-        entry->purge_qualified_exports();
-      }
+  assert_locked_or_safepoint(Module_lock);
+  auto purge = [&] (const SymbolHandle& name, PackageEntry*& entry) {
+    if (entry->exported_pending_delete()) {
+      // exported list is pending deletion due to a transition
+      // from qualified to unqualified
+      entry->delete_qualified_exports();
+    } else if (entry->is_qual_exported()) {
+      entry->purge_qualified_exports();
     }
-  }
+  };
+  _table.iterate_all(purge);
+}
+
+void PackageEntryTable::packages_do(void f(PackageEntry*)) {
+  auto doit = [&] (const SymbolHandle&name, PackageEntry*& entry) {
+    f(entry);
+  };
+  assert_locked_or_safepoint(Module_lock);
+  _table.iterate_all(doit);
+}
+
+
+GrowableArray<PackageEntry*>*  PackageEntryTable::get_system_packages() {
+  GrowableArray<PackageEntry*>* loaded_class_pkgs = new GrowableArray<PackageEntry*>(50);
+  auto grab = [&] (const SymbolHandle& name, PackageEntry*& entry) {
+    if (entry->has_loaded_class()) {
+      loaded_class_pkgs->append(entry);
+    }
+  };
+
+  MutexLocker ml(Module_lock);
+  _table.iterate_all(grab);
+  // Returns a resource allocated object so caller must have ResourceMark
+  return loaded_class_pkgs;
 }
 
 void PackageEntryTable::print(outputStream* st) {
+  auto printer = [&] (const SymbolHandle& name, PackageEntry*& entry) {
+    entry->print(st);
+  };
   st->print_cr("Package Entry Table (table_size=%d, entries=%d)",
-               table_size(), number_of_entries());
-  for (int i = 0; i < table_size(); i++) {
-    for (PackageEntry* probe = bucket(i);
-                       probe != NULL;
-                       probe = probe->next()) {
-      probe->print(st);
-    }
-  }
+               _table.table_size(), _table.number_of_entries());
+  _table.iterate_all(printer);
 }
 
 // This function may be called from debuggers so access private fields directly
@@ -336,17 +462,9 @@ void PackageEntryTable::print(outputStream* st) {
 void PackageEntry::print(outputStream* st) {
   ResourceMark rm;
   st->print_cr("package entry " PTR_FORMAT " name %s module %s classpath_index "
-               INT32_FORMAT " is_exported_unqualified %d is_exported_allUnnamed %d " "next " PTR_FORMAT,
+               INT32_FORMAT " is_exported_unqualified %d is_exported_allUnnamed %d ",
                p2i(this), name()->as_C_string(),
                (module()->is_named() ? module()->name()->as_C_string() : UNNAMED_MODULE),
                _classpath_index, _export_flags == PKG_EXP_UNQUALIFIED,
-               _export_flags == PKG_EXP_ALLUNNAMED, p2i(next()));
-}
-
-void PackageEntryTable::verify() {
-  verify_table<PackageEntry>("Package Entry Table");
-}
-
-void PackageEntry::verify() {
-  guarantee(name() != NULL, "A package entry must have a corresponding symbol name.");
+               _export_flags == PKG_EXP_ALLUNNAMED);
 }

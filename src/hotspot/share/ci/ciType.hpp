@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CITYPE_HPP
-#define SHARE_VM_CI_CITYPE_HPP
+#ifndef SHARE_CI_CITYPE_HPP
+#define SHARE_CI_CITYPE_HPP
 
 #include "ci/ciMetadata.hpp"
 
 // ciType
 //
-// This class represents either a class (T_OBJECT), array (T_ARRAY),
-// or one of the primitive types such as T_INT.
+// This class represents a Java reference or primitive type.
+
 class ciType : public ciMetadata {
   CI_PACKAGE_ACCESS
   friend class ciKlass;
@@ -60,14 +60,8 @@ public:
   // There are mirrors for instance, array, and primitive types (incl. void).
   virtual ciInstance*    java_mirror();
 
-  // Get the class which "boxes" (or "wraps") values of this type.
-  // Example:  short is boxed by java.lang.Short, etc.
-  // Returns self if it is a reference type.
-  // Returns NULL for void, since null is used in such cases.
-  ciKlass*  box_klass();
-
   // Returns true if this is not a klass or array (i.e., not a reference type).
-  bool is_primitive_type() const            { return basic_type() != T_OBJECT && basic_type() != T_ARRAY; }
+  bool is_primitive_type() const            { return !is_reference_type(basic_type()); }
   int size() const                          { return type2size[basic_type()]; }
   bool is_void() const                      { return basic_type() == T_VOID; }
   bool is_one_word() const                  { return size() == 1; }
@@ -112,4 +106,4 @@ public:
   static ciReturnAddress* make(int bci);
 };
 
-#endif // SHARE_VM_CI_CITYPE_HPP
+#endif // SHARE_CI_CITYPE_HPP

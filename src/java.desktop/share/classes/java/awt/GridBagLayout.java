@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,12 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.util.Hashtable;
+import java.io.Serial;
 import java.util.Arrays;
+import java.util.Hashtable;
 
 /**
  * The {@code GridBagLayout} class is a flexible layout
@@ -87,7 +86,7 @@ import java.util.Arrays;
  *
  * Use {@code GridBagConstraints.RELATIVE} to specify
  * that the component's display area will be from {@code gridx}
- * to the next to the last cell in its row (for {@code gridwidth}
+ * to the next to the last cell in its row (for {@code gridwidth})
  * or from {@code gridy} to the next to the last cell in its
  * column (for {@code gridheight}).
  *
@@ -119,64 +118,49 @@ import java.util.Arrays;
  * <dt>{@link GridBagConstraints#anchor}
  * <dd>Specifies where the component should be positioned in its display area.
  * There are three kinds of possible values: absolute, orientation-relative,
- * and baseline-relative
+ * and baseline-relative.
  * Orientation relative values are interpreted relative to the container's
  * {@code ComponentOrientation} property while absolute values
  * are not.  Baseline relative values are calculated relative to the
  * baseline.  Valid values are:
  *
- * <table class="striped" style="margin: 0px auto">
- * <caption>Absolute, relative and baseline values as described above</caption>
- * <thead>
- * <tr>
- * <th><p style="text-align:center">Absolute Values</th>
- * <th><p style="text-align:center">Orientation Relative Values</th>
- * <th><p style="text-align:center">Baseline Relative Values</th>
- * </tr>
- * </thead>
- * <tbody>
- * <tr>
- * <td>
- * <ul style="list-style-type:none">
- * <li>{@code GridBagConstraints.NORTH}</li>
- * <li>{@code GridBagConstraints.SOUTH}</li>
- * <li>{@code GridBagConstraints.WEST}</li>
- * <li>{@code GridBagConstraints.EAST}</li>
- * <li>{@code GridBagConstraints.NORTHWEST}</li>
- * <li>{@code GridBagConstraints.NORTHEAST}</li>
- * <li>{@code GridBagConstraints.SOUTHWEST}</li>
- * <li>{@code GridBagConstraints.SOUTHEAST}</li>
- * <li>{@code GridBagConstraints.CENTER} (the default)</li>
+ * <ul>
+ *   <li>Absolute Values:
+ *     <ul>
+ *       <li>{@code GridBagConstraints.NORTH}
+ *       <li>{@code GridBagConstraints.SOUTH}
+ *       <li>{@code GridBagConstraints.WEST}
+ *       <li>{@code GridBagConstraints.EAST}
+ *       <li>{@code GridBagConstraints.NORTHWEST}
+ *       <li>{@code GridBagConstraints.NORTHEAST}
+ *       <li>{@code GridBagConstraints.SOUTHWEST}
+ *       <li>{@code GridBagConstraints.SOUTHEAST}
+ *       <li>{@code GridBagConstraints.CENTER} (the default)
+ *     </ul>
+ *   <li>Orientation Relative Values:
+ *     <ul >
+ *       <li>{@code GridBagConstraints.PAGE_START}
+ *       <li>{@code GridBagConstraints.PAGE_END}
+ *       <li>{@code GridBagConstraints.LINE_START}
+ *       <li>{@code GridBagConstraints.LINE_END}
+ *       <li>{@code GridBagConstraints.FIRST_LINE_START}
+ *       <li>{@code GridBagConstraints.FIRST_LINE_END}
+ *       <li>{@code GridBagConstraints.LAST_LINE_START}
+ *       <li>{@code GridBagConstraints.LAST_LINE_END}
+ *     </ul>
+ *   <li>Baseline Relative Values:
+ *     <ul>
+ *       <li>{@code GridBagConstraints.BASELINE}
+ *       <li>{@code GridBagConstraints.BASELINE_LEADING}
+ *       <li>{@code GridBagConstraints.BASELINE_TRAILING}
+ *       <li>{@code GridBagConstraints.ABOVE_BASELINE}
+ *       <li>{@code GridBagConstraints.ABOVE_BASELINE_LEADING}
+ *       <li>{@code GridBagConstraints.ABOVE_BASELINE_TRAILING}
+ *       <li>{@code GridBagConstraints.BELOW_BASELINE}
+ *       <li>{@code GridBagConstraints.BELOW_BASELINE_LEADING}
+ *       <li>{@code GridBagConstraints.BELOW_BASELINE_TRAILING}
+ *     </ul>
  * </ul>
- * </td>
- * <td>
- * <ul style="list-style-type:none">
- * <li>{@code GridBagConstraints.PAGE_START}</li>
- * <li>{@code GridBagConstraints.PAGE_END}</li>
- * <li>{@code GridBagConstraints.LINE_START}</li>
- * <li>{@code GridBagConstraints.LINE_END}</li>
- * <li>{@code GridBagConstraints.FIRST_LINE_START}</li>
- * <li>{@code GridBagConstraints.FIRST_LINE_END}</li>
- * <li>{@code GridBagConstraints.LAST_LINE_START}</li>
- * <li>{@code GridBagConstraints.LAST_LINE_END}</li>
- * </ul>
- * </td>
- * <td>
- * <ul style="list-style-type:none">
- * <li>{@code GridBagConstraints.BASELINE}</li>
- * <li>{@code GridBagConstraints.BASELINE_LEADING}</li>
- * <li>{@code GridBagConstraints.BASELINE_TRAILING}</li>
- * <li>{@code GridBagConstraints.ABOVE_BASELINE}</li>
- * <li>{@code GridBagConstraints.ABOVE_BASELINE_LEADING}</li>
- * <li>{@code GridBagConstraints.ABOVE_BASELINE_TRAILING}</li>
- * <li>{@code GridBagConstraints.BELOW_BASELINE}</li>
- * <li>{@code GridBagConstraints.BELOW_BASELINE_LEADING}</li>
- * <li>{@code GridBagConstraints.BELOW_BASELINE_TRAILING}</li>
- * </ul>
- * </td>
- * </tr>
- * </tbody>
- * </table>
  * <dt>{@link GridBagConstraints#weightx},
  * {@link GridBagConstraints#weighty}
  * <dd>Used to determine how to distribute space, which is
@@ -204,14 +188,10 @@ import java.util.Arrays;
  * <p>
  * The following figure shows a baseline layout and includes a
  * component that spans rows:
- * <table class="borderless" style="margin: 0px auto">
- * <caption>Baseline Layout</caption>
- * <tr style="text-align:center">
- * <td>
- * <img src="doc-files/GridBagLayout-baseline.png"
- *  alt="The following text describes this graphic (Figure 1)." style="float:center">
- * </td>
- * </table>
+ * <p style="text-align: center">
+ *   <img src="doc-files/GridBagLayout-baseline.png"
+ *   alt="The following text describes this graphic (Figure 1).">
+ * </p>
  * This layout consists of three components:
  * <ul><li>A panel that starts in row 0 and ends in row 1.  The panel
  *   has a baseline-resize behavior of {@code CONSTANT_DESCENT} and has
@@ -260,20 +240,21 @@ import java.util.Arrays;
  * left-to-right container and Figure 3 shows the layout for a horizontal,
  * right-to-left container.
  *
- * <table class="borderless" style="margin: 0px auto">
- * <caption style="width:600;display:none">Figures</caption>
- * <tr style="text-align:center">
- * <td>
- * <img src="doc-files/GridBagLayout-1.gif" alt="The preceding text describes this graphic (Figure 1)." style="float:center; margin: 7px 10px;">
- * </td>
- * <td>
- * <img src="doc-files/GridBagLayout-2.gif" alt="The preceding text describes this graphic (Figure 2)." style="float:center; margin: 7px 10px;">
- * </td>
- * <tr style="text-align:center">
- * <td>Figure 2: Horizontal, Left-to-Right</td>
- * <td>Figure 3: Horizontal, Right-to-Left</td>
- * </tr>
- * </table>
+ * <div style="margin:0 auto;width:680px;text-align:center;font-weight:bold">
+ *   <div style="float:left">
+ *     <p><img src="doc-files/GridBagLayout-1.gif"
+ *        alt="The preceding text describes this graphic (Figure 2)."
+ *        style="margin: 7px 10px;">
+ *     <p>Figure 2: Horizontal, Left-to-Right
+ *   </div>
+ *   <div style="float:right">
+ *     <p><img src="doc-files/GridBagLayout-2.gif"
+ *        alt="The preceding text describes this graphic (Figure 3)."
+ *        style="margin: 7px 10px;">
+ *     <p>Figure 3: Horizontal, Right-to-Left
+ *   </div>
+ *   <br style="clear:both;">
+ * </div>
  * <p>
  * Each of the ten components has the {@code fill} field
  * of its associated {@code GridBagConstraints} object
@@ -364,14 +345,13 @@ import java.util.Arrays;
  * </pre></blockquote><hr>
  *
  * @author Doug Stein
- * @author Bill Spitzak (orignial NeWS &amp; OLIT implementation)
+ * @author Bill Spitzak (original NeWS &amp; OLIT implementation)
  * @see       java.awt.GridBagConstraints
  * @see       java.awt.GridBagLayoutInfo
  * @see       java.awt.ComponentOrientation
  * @since 1.0
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class GridBagLayout implements LayoutManager2,
+public class GridBagLayout implements LayoutManager2,
 java.io.Serializable {
 
     static final int EMPIRICMULTIPLIER = 2;
@@ -446,7 +426,7 @@ java.io.Serializable {
      * @serial
      * @see #getLayoutDimensions()
      */
-    public int columnWidths[];
+    public int[] columnWidths;
 
     /**
      * This field holds the overrides to the row minimum
@@ -460,7 +440,7 @@ java.io.Serializable {
      * @serial
      * @see #getLayoutDimensions()
      */
-    public int rowHeights[];
+    public int[] rowHeights;
 
     /**
      * This field holds the overrides to the column weights.
@@ -475,7 +455,7 @@ java.io.Serializable {
      *
      * @serial
      */
-    public double columnWeights[];
+    public double[] columnWeights;
 
     /**
      * This field holds the overrides to the row weights.
@@ -490,7 +470,7 @@ java.io.Serializable {
      *
      * @serial
      */
-    public double rowWeights[];
+    public double[] rowWeights;
 
     /**
      * The component being positioned.  This is set before calling into
@@ -596,7 +576,7 @@ java.io.Serializable {
         if (layoutInfo == null)
             return new int[2][0];
 
-        int dim[][] = new int [2][];
+        int[][] dim = new int [2][];
         dim[0] = new int[layoutInfo.width];
         dim[1] = new int[layoutInfo.height];
 
@@ -622,7 +602,7 @@ java.io.Serializable {
         if (layoutInfo == null)
             return new double[2][0];
 
-        double weights[][] = new double [2][];
+        double[][] weights = new double [2][];
         weights[0] = new double[layoutInfo.width];
         weights[1] = new double[layoutInfo.height];
 
@@ -708,7 +688,7 @@ java.io.Serializable {
      * @param      comp         the component to be added
      * @param      constraints  an object that determines how
      *                          the component is added to the layout
-     * @exception IllegalArgumentException if {@code constraints}
+     * @throws IllegalArgumentException if {@code constraints}
      *            is not a {@code GridBagConstraint}
      */
     public void addLayoutComponent(Component comp, Object constraints) {
@@ -933,7 +913,7 @@ java.io.Serializable {
      */
 
     private long[]  preInitMaximumArraySizes(Container parent){
-        Component components[] = parent.getComponents();
+        Component[] components = parent.getComponents();
         Component comp;
         GridBagConstraints constraints;
         int curX, curY;
@@ -1007,7 +987,7 @@ java.io.Serializable {
             Component comp;
             GridBagConstraints constraints;
             Dimension d;
-            Component components[] = parent.getComponents();
+            Component[] components = parent.getComponents();
             // Code below will address index curX+curWidth in the case of yMaxArray, weightY
             // ( respectively curY+curHeight for xMaxArray, weightX ) where
             //  curX in 0 to preInitMaximumArraySizes.y
@@ -1126,7 +1106,7 @@ java.io.Serializable {
                 }
 
 
-                /* Cache the current slave's size. */
+                /* Cache the current child's size. */
                 if (sizeflag == PREFERREDSIZE)
                     d = comp.getPreferredSize();
                 else
@@ -1267,7 +1247,7 @@ java.io.Serializable {
                 else if (constraints.gridwidth == 0 && curCol < 0)
                     curRow = curY + curHeight;
 
-                /* Assign the new values to the gridbag slave */
+                /* Assign the new values to the gridbag child */
                 constraints.tempX = curX;
                 constraints.tempY = curY;
                 constraints.tempWidth = curWidth;
@@ -1386,7 +1366,7 @@ java.io.Serializable {
                         px = constraints.tempX + constraints.tempWidth; /* right column */
 
                         /*
-                         * Figure out if we should use this slave\'s weight.  If the weight
+                         * Figure out if we should use this child's weight.  If the weight
                          * is less than the total weight spanned by the width of the cell,
                          * then discard the weight.  Otherwise split the difference
                          * according to the existing weights.
@@ -1412,7 +1392,7 @@ java.io.Serializable {
 
                         /*
                          * Calculate the minWidth array values.
-                         * First, figure out how wide the current slave needs to be.
+                         * First, figure out how wide the current child needs to be.
                          * Then, see if it will fit within the current minWidth values.
                          * If it will not fit, add the difference according to the
                          * weightX array.
@@ -1447,7 +1427,7 @@ java.io.Serializable {
                         py = constraints.tempY + constraints.tempHeight; /* bottom row */
 
                         /*
-                         * Figure out if we should use this slave's weight.  If the weight
+                         * Figure out if we should use this child's weight.  If the weight
                          * is less than the total weight spanned by the height of the cell,
                          * then discard the weight.  Otherwise split it the difference
                          * according to the existing weights.
@@ -1473,7 +1453,7 @@ java.io.Serializable {
 
                         /*
                          * Calculate the minHeight array values.
-                         * First, figure out how tall the current slave needs to be.
+                         * First, figure out how tall the current child needs to be.
                          * Then, see if it will fit within the current minHeight values.
                          * If it will not fit, add the difference according to the
                          * weightY array.
@@ -1997,7 +1977,7 @@ java.io.Serializable {
 
     /**
      * Figures out the minimum size of the
-     * master based on the information from {@code getLayoutInfo}.
+     * parent based on the information from {@code getLayoutInfo}.
      * This method should only be used internally by
      * {@code GridBagLayout}.
      *
@@ -2067,7 +2047,7 @@ java.io.Serializable {
         int compindex;
         GridBagConstraints constraints;
         Insets insets = parent.getInsets();
-        Component components[] = parent.getComponents();
+        Component[] components = parent.getComponents();
         Dimension d;
         Rectangle r = new Rectangle();
         int i, diffw, diffh;
@@ -2077,7 +2057,7 @@ java.io.Serializable {
         rightToLeft = !parent.getComponentOrientation().isLeftToRight();
 
         /*
-         * If the parent has no slaves anymore, then don't do anything
+         * If the parent has no children anymore, then don't do anything
          * at all:  just leave the parent's size as-is.
          */
         if (components.length == 0 &&
@@ -2087,7 +2067,7 @@ java.io.Serializable {
         }
 
         /*
-         * Pass #1: scan all the slaves to figure out the total amount
+         * Pass #1: scan all the children to figure out the total amount
          * of space needed.
          */
 
@@ -2177,7 +2157,7 @@ java.io.Serializable {
          */
 
         /*
-         * Now do the actual layout of the slaves using the layout information
+         * Now do the actual layout of the children using the layout information
          * that has been collected.
          */
 
@@ -2252,6 +2232,9 @@ java.io.Serializable {
         }
     }
 
-    // Added for serial backwards compatibility (4348425)
-    static final long serialVersionUID = 8838754796412211005L;
+    /**
+     * Use serialVersionUID from JDK 1.4 for interoperability.
+     */
+    @Serial
+    private static final long serialVersionUID = 8838754796412211005L;
 }

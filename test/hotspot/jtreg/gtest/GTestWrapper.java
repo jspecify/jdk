@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,28 +25,29 @@
  * @summary a jtreg wrapper for gtest tests
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
+ *          java.xml
+ * @requires vm.flagless
  * @run main/native GTestWrapper
  */
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
-import java.util.stream.Collectors;
-
-import java.nio.file.Paths;
-import java.nio.file.Path;
 
 import jdk.test.lib.Platform;
 import jdk.test.lib.Utils;
 import jdk.test.lib.process.ProcessTools;
-import jdk.test.lib.process.OutputAnalyzer;
+
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 public class GTestWrapper {
     public static void main(String[] args) throws Throwable {
         // gtestLauncher is located in <test_image>/hotspot/gtest/<vm_variant>/
         // nativePath points either to <test_image>/hotspot/jtreg/native or to <test_image>/hotspot/gtest
-        Path nativePath = Paths.get(System.getProperty("test.nativepath"));
+        Path nativePath = Paths.get(Utils.TEST_NATIVE_PATH);
         String jvmVariantDir = getJVMVariantSubDir();
         // let's assume it's <test_image>/hotspot/gtest
         Path path = nativePath.resolve(jvmVariantDir);
@@ -58,7 +59,7 @@ public class GTestWrapper {
                              .resolve(jvmVariantDir);
         }
         if (!path.toFile().exists()) {
-            throw new Error("TESTBUG: the library has not been found in " + nativePath);
+            throw new Error("TESTBUG: the library has not been found in " + nativePath + ". Did you forget to use --with-gtest to configure?");
         }
 
         Path execPath = path.resolve("gtestLauncher" + (Platform.isWindows() ? ".exe" : ""));
@@ -69,22 +70,47 @@ public class GTestWrapper {
         // may have set LD_LIBRARY_PATH or LIBPATH to point to the jdk libjvm. In
         // that case, prepend the path with the location of the gtest library."
 
-        String ldLibraryPath = System.getenv("LD_LIBRARY_PATH");
+        String pathVar = Platform.sharedLibraryPathVariableName();
+        String ldLibraryPath = System.getenv(pathVar);
         if (ldLibraryPath != null) {
-            env.put("LD_LIBRARY_PATH", path + ":" + ldLibraryPath);
+            env.put(pathVar, path + File.pathSeparator + ldLibraryPath);
         }
 
-        String libPath = System.getenv("LIBPATH");
-        if (libPath != null) {
-            env.put("LIBPATH", path + ":" + libPath);
+        Path resultFile = Paths.get("test_result.xml");
+
+        ArrayList<String> command = new ArrayList<>();
+        command.add(execPath.toAbsolutePath().toString());
+        command.add("-jdk");
+        command.add(Utils.TEST_JDK);
+        command.add("--gtest_output=xml:" + resultFile);
+        command.add("--gtest_catch_exceptions=0");
+        for (String a : args) {
+            command.add(a);
+        }
+        pb.command(command);
+        int exitCode = ProcessTools.executeCommand(pb).getExitValue();
+        if (exitCode != 0) {
+            List<String> failedTests = failedTests(resultFile);
+            String message = "gtest execution failed; exit code = " + exitCode + ".";
+            if (!failedTests.isEmpty()) {
+                message += " the failed tests: " + failedTests;
+            }
+            throw new AssertionError(message);
+        }
+    }
+
+    private static List<String> failedTests(Path xml) {
+        if (!Files.exists(xml)) {
+            System.err.println("WARNING: test result file (" + xml + ") hasn't been found");
         }
 
-        pb.command(new String[] {
-            execPath.toString(),
-            "-jdk",
-            System.getProperty("test.jdk")
-        });
-        ProcessTools.executeCommand(pb).shouldHaveExitValue(0);
+        try {
+            return new GTestResultParser(xml).failedTests();
+        } catch (Throwable t) {
+            System.err.println("WARNING: failed to parse result file (" + xml + ") " + t);
+            t.printStackTrace();
+        }
+        return Collections.emptyList();
     }
 
     private static String getJVMVariantSubDir() {
@@ -94,8 +120,10 @@ public class GTestWrapper {
             return "client";
         } else if (Platform.isMinimal()) {
             return "minimal";
+        } else if (Platform.isZero()) {
+            return "zero";
         } else {
-            throw new Error("TESTBUG: unsuppported vm variant");
+            throw new Error("TESTBUG: unsupported vm variant");
         }
     }
 }

@@ -39,7 +39,7 @@ import javax.swing.text.Element;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -175,7 +175,7 @@ public class HyperlinkEvent extends EventObject {
     /**
      * Returns the {@code InputEvent} that triggered the hyperlink event.
      * This will typically be a {@code MouseEvent}.  If a constructor is used
-     * that does not specify an {@code InputEvent}, or @{code null}
+     * that does not specify an {@code InputEvent}, or {@code null}
      * was specified as the {@code InputEvent}, this returns {@code null}.
      *
      * @return  InputEvent that triggered the hyperlink event, or null

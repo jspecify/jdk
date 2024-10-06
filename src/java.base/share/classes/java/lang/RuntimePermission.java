@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -174,29 +174,16 @@ import java.lang.module.ModuleFinder;
  * <tr>
  *   <th scope="row">modifyThread</th>
  *   <td>Modification of threads, e.g., via calls to Thread
- * {@code interrupt, stop, suspend, resume, setDaemon, setPriority,
- * setName} and {@code setUncaughtExceptionHandler}
- * methods</td>
+ * {@code interrupt, setDaemon, setPriority, setName} and
+ * {@code setUncaughtExceptionHandler} methods</td>
  * <td>This allows an attacker to modify the behaviour of
  * any thread in the system.</td>
  * </tr>
  *
  * <tr>
- *   <th scope="row">stopThread</th>
- *   <td>Stopping of threads via calls to the Thread <code>stop</code>
- * method</td>
- *   <td>This allows code to stop any thread in the system provided that it is
- * already granted permission to access that thread.
- * This poses as a threat, because that code may corrupt the system by
- * killing existing threads.</td>
- * </tr>
- *
- * <tr>
  *   <th scope="row">modifyThreadGroup</th>
  *   <td>modification of thread groups, e.g., via calls to ThreadGroup
- * <code>destroy</code>, <code>getParent</code>, <code>resume</code>,
- * <code>setDaemon</code>, <code>setMaxPriority</code>, <code>stop</code>,
- * and <code>suspend</code> methods</td>
+ * {@code getParent}, {@code setDaemon}, and {@code setMaxPriority} methods</td>
  *   <td>This allows an attacker to create thread groups and
  * set their run priority.</td>
  * </tr>
@@ -249,8 +236,8 @@ import java.lang.module.ModuleFinder;
  * <tr>
  *   <th scope="row">accessClassInPackage.{package name}</th>
  *   <td>Access to the specified package via a class loader's
- * <code>loadClass</code> method when that class loader calls
- * the SecurityManager <code>checkPackageAccess</code> method</td>
+ * {@code loadClass} method when that class loader calls
+ * the SecurityManager {@code checkPackageAccess} method</td>
  *   <td>This gives code access to classes in packages
  * to which it normally does not have access. Malicious code
  * may use these classes to help in its attempt to compromise
@@ -260,12 +247,12 @@ import java.lang.module.ModuleFinder;
  * <tr>
  *   <th scope="row">defineClassInPackage.{package name}</th>
  *   <td>Definition of classes in the specified package, via a class
- * loader's <code>defineClass</code> method when that class loader calls
- * the SecurityManager <code>checkPackageDefinition</code> method.</td>
+ * loader's {@code defineClass} method when that class loader calls
+ * the SecurityManager {@code checkPackageDefinition} method.</td>
  *   <td>This grants code permission to define a class
  * in a particular package. This is dangerous because malicious
  * code with this permission may define rogue classes in
- * trusted packages like <code>java.security</code> or <code>java.lang</code>,
+ * trusted packages like {@code java.security} or {@code java.lang},
  * for example.</td>
  * </tr>
  *
@@ -294,8 +281,7 @@ import java.lang.module.ModuleFinder;
  * the code would normally not be able to invoke those methods and/or
  * access the fields  because
  * it can't cast the object to the class/interface with those methods
- * and fields.
-</td>
+ * and fields.</td>
  * </tr>
  * <tr>
  *   <th scope="row">queuePrintJob</th>
@@ -382,6 +368,16 @@ import java.lang.module.ModuleFinder;
  *   {@linkplain ModuleFinder#ofSystem system modules} in the runtime image.</td>
  * </tr>
  *
+ * <tr>
+ *   <th scope="row">inetAddressResolverProvider</th>
+ *   <td>This {@code RuntimePermission} is required to be granted to
+ *   classes which subclass and implement {@code java.net.spi.InetAddressResolverProvider}.
+ *   The permission is checked during invocation of the abstract base class constructor.
+ *   This permission ensures trust in classes which provide resolvers used by
+ *   {@link java.net.InetAddress} hostname and address resolution methods.</td>
+ *   <td>See {@link java.net.spi.InetAddressResolverProvider} for more information.</td>
+ * </tr>
+ *
  * </tbody>
  * </table>
  *
@@ -404,6 +400,7 @@ import java.lang.module.ModuleFinder;
 @NullMarked
 public final class RuntimePermission extends BasicPermission {
 
+    @java.io.Serial
     private static final long serialVersionUID = 7399184964622342223L;
 
     /**
@@ -415,8 +412,8 @@ public final class RuntimePermission extends BasicPermission {
      *
      * @param name the name of the RuntimePermission.
      *
-     * @throws NullPointerException if <code>name</code> is <code>null</code>.
-     * @throws IllegalArgumentException if <code>name</code> is empty.
+     * @throws NullPointerException if {@code name} is {@code null}.
+     * @throws IllegalArgumentException if {@code name} is empty.
      */
 
     public RuntimePermission(String name)
@@ -432,8 +429,8 @@ public final class RuntimePermission extends BasicPermission {
      * @param name the name of the RuntimePermission.
      * @param actions should be null.
      *
-     * @throws NullPointerException if <code>name</code> is <code>null</code>.
-     * @throws IllegalArgumentException if <code>name</code> is empty.
+     * @throws NullPointerException if {@code name} is {@code null}.
+     * @throws IllegalArgumentException if {@code name} is empty.
      */
 
     public RuntimePermission(String name, @Nullable String actions)

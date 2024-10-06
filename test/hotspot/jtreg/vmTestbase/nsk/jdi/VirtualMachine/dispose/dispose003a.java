@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
 
 package nsk.jdi.VirtualMachine.dispose;
 
-import nsk.share.*;
 import nsk.share.jpda.*;
 import nsk.share.jdi.*;
 
@@ -95,8 +94,8 @@ public class dispose003a {
     //------------------------------------------------------  section tested
 
                 case 0:
-                         Threaddispose003a test_thread =
-                             new Threaddispose003a("testedThread");
+                         Thread test_thread =
+                                 JDIThreadFactory.newThread(new Threaddispose003a("testedThread"));
                          log1("       thread2 is created");
 
                          label:
@@ -126,17 +125,28 @@ public class dispose003a {
                          }
                          log1("mainThread is out of: synchronized (lockingObject)");
 
-                         instruction = pipe.readln();
-                         if (!instruction.equals("check_alive")) {
-                             logErr("ERROR: unexpected instruction: " + instruction);
-                             exitCode = FAILED;
-                         } else {
-                             log1("checking on: thread2.isAlive");
-                             if (test_thread.isAlive()) {
-                                 test_thread.resume();
-                                 pipe.println("alive");
+                         while (true) {
+                             instruction = pipe.readln();
+                             if (instruction.equals("check_done")) {
+                                 if (test_thread.isAlive()) {
+                                     logErr("ERROR: thread2 thread is still alive");
+                                     exitCode = FAILED;
+                                 }
+                                 break;
+                             } else if (instruction.equals("check_alive")) {
+                                 log1("checking on: thread2.isAlive");
+                                 if (!JDIUtils.waitForCompletion(test_thread)) {
+                                     pipe.println("alive");
+                                     logErr("ERROR thread is alive after vm.dispose()");
+                                     exitCode = FAILED;
+                                     break;
+                                 } else {
+                                     pipe.println("not_alive");
+                                 }
                              } else {
-                                 pipe.println("not_alive");
+                                 logErr("ERROR: unexpected instruction: " + instruction);
+                                 exitCode = FAILED;
+                                 break;
                              }
                          }
 
@@ -161,7 +171,7 @@ public class dispose003a {
 }
 
 
-class Threaddispose003a extends Thread {
+class Threaddispose003a extends NamedTask {
 
     public Threaddispose003a(String threadName) {
         super(threadName);

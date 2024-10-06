@@ -123,10 +123,14 @@ public class RecursiveActionTest extends JSR166TestCase {
         assertNull(a.join());
         assertFalse(a.cancel(false));
         assertFalse(a.cancel(true));
+
+        Object v1 = null, v2 = null;
         try {
-            assertNull(a.get());
-            assertNull(a.get(randomTimeout(), randomTimeUnit()));
+            v1 = a.get();
+            v2 = a.get(randomTimeout(), randomTimeUnit());
         } catch (Throwable fail) { threadUnexpectedException(fail); }
+        assertNull(v1);
+        assertNull(v2);
     }
 
     void checkCancelled(RecursiveAction a) {
@@ -158,10 +162,10 @@ public class RecursiveActionTest extends JSR166TestCase {
 
     void checkCompletedAbnormally(RecursiveAction a, Throwable t) {
         assertTrue(a.isDone());
-        assertFalse(a.isCancelled());
         assertFalse(a.isCompletedNormally());
         assertTrue(a.isCompletedAbnormally());
-        assertSame(t.getClass(), a.getException().getClass());
+        if (!a.isCancelled())
+            assertSame(t.getClass(), a.getException().getClass());
         assertNull(a.getRawResult());
         assertFalse(a.cancel(false));
         assertFalse(a.cancel(true));
@@ -218,14 +222,17 @@ public class RecursiveActionTest extends JSR166TestCase {
         FailingFibAction(int n) { number = n; }
         public void compute() {
             int n = number;
-            if (n <= 1)
-                throw new FJException();
-            else {
-                FailingFibAction f1 = new FailingFibAction(n - 1);
-                FailingFibAction f2 = new FailingFibAction(n - 2);
-                invokeAll(f1, f2);
-                result = f1.result + f2.result;
+            if (n > 1) {
+                try {
+                    FailingFibAction f1 = new FailingFibAction(n - 1);
+                    FailingFibAction f2 = new FailingFibAction(n - 2);
+                    invokeAll(f1, f2);
+                    result = f1.result + f2.result;
+                    return;
+                } catch (CancellationException fallthrough) {
+                }
             }
+            throw new FJException();
         }
     }
 
@@ -484,7 +491,9 @@ public class RecursiveActionTest extends JSR166TestCase {
                 try {
                     f.get(randomTimeout(), null);
                     shouldThrow();
-                } catch (NullPointerException success) {}
+                } catch (NullPointerException success) {
+                    f.join();
+                }
             }};
         testInvokeOnPool(mainPool(), a);
     }
@@ -943,7 +952,7 @@ public class RecursiveActionTest extends JSR166TestCase {
                 FibAction f = new FibAction(8);
                 FibAction g = new FibAction(9);
                 FibAction h = new FibAction(7);
-                HashSet set = new HashSet();
+                HashSet<ForkJoinTask<?>> set = new HashSet<>();
                 set.add(f);
                 set.add(g);
                 set.add(h);
@@ -1041,7 +1050,7 @@ public class RecursiveActionTest extends JSR166TestCase {
                 FailingFibAction f = new FailingFibAction(8);
                 FibAction g = new FibAction(9);
                 FibAction h = new FibAction(7);
-                HashSet set = new HashSet();
+                HashSet<ForkJoinTask<?>> set = new HashSet<>();
                 set.add(f);
                 set.add(g);
                 set.add(h);

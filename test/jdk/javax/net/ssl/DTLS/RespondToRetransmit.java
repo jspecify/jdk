@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,11 @@
 
 /*
  * @test
- * @bug 8161086
+ * @bug 8161086 8258914
+ * @key intermittent
  * @summary DTLS handshaking fails if some messages were lost
  * @modules java.base/sun.security.util
+ * @library /test/lib
  * @build DTLSOverDatagram
  *
  * @run main/othervm RespondToRetransmit client 0 hello_request
@@ -83,7 +85,7 @@ public class RespondToRetransmit extends DTLSOverDatagram {
 
     public static void main(String[] args) throws Exception {
         isClient = args[0].equals("client");
-        handshakeType = Byte.valueOf(args[1]);
+        handshakeType = Byte.parseByte(args[1]);
 
         RespondToRetransmit testCase = new RespondToRetransmit();
         testCase.runTest(testCase);
@@ -96,7 +98,7 @@ public class RespondToRetransmit extends DTLSOverDatagram {
         boolean finished = super.produceHandshakePackets(
                 engine, socketAddr, side, packets);
 
-        if (needPacketDuplicate && (!(isClient ^ engine.getUseClientMode()))) {
+        if (needPacketDuplicate && (isClient == engine.getUseClientMode())) {
             DatagramPacket packet = getPacket(packets, handshakeType);
             if (packet != null) {
                 needPacketDuplicate = false;

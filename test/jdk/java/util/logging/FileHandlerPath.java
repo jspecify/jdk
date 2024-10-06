@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,7 +54,7 @@ import java.util.logging.LoggingPermission;
  * @summary tests that using a simple (non composite) pattern does not lead
  *        to NPE when the lock file already exists.
  * @run main/othervm FileHandlerPath UNSECURE
- * @run main/othervm FileHandlerPath SECURE
+ * @run main/othervm -Djava.security.manager=allow FileHandlerPath SECURE
  * @author danielfuchs
  * @key randomness
  */
@@ -270,6 +270,8 @@ public class FileHandlerPath {
 
     public static class SimplePolicy extends Policy {
 
+        static final Policy DEFAULT_POLICY = Policy.getPolicy();
+
         final Permissions permissions;
         final Permissions allPermissions;
         final AtomicBoolean allowAll;
@@ -297,7 +299,7 @@ public class FileHandlerPath {
         @Override
         public boolean implies(ProtectionDomain domain, Permission permission) {
             if (allowAll.get()) return allPermissions.implies(permission);
-            return permissions.implies(permission);
+            return permissions.implies(permission) || DEFAULT_POLICY.implies(domain, permission);
         }
 
         @Override

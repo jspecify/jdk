@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,24 +21,27 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_JFR_CHECKPOINT_TYPES_JFRTYPEMANAGER_HPP
-#define SHARE_VM_JFR_CHECKPOINT_TYPES_JFRTYPEMANAGER_HPP
+#ifndef SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPEMANAGER_HPP
+#define SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPEMANAGER_HPP
 
 #include "jfr/utilities/jfrAllocation.hpp"
+#include "jfr/utilities/jfrBlob.hpp"
+#include "jfr/utilities/jfrTypes.hpp"
+#include "oops/oopsHierarchy.hpp"
 
 class JavaThread;
 class JfrCheckpointWriter;
+class Thread;
 
 class JfrTypeManager : public AllStatic {
  public:
   static bool initialize();
-  static void clear();
-  static void write_types(JfrCheckpointWriter& writer);
-  static void write_safepoint_types(JfrCheckpointWriter& writer);
-  static void write_type_set();
-  static void write_type_set_for_unloaded_classes();
-  static void create_thread_checkpoint(JavaThread* jt);
-  static void write_thread_checkpoint(JavaThread* jt);
+  static void destroy();
+  static void on_rotation();
+  static void write_threads(JfrCheckpointWriter& writer);
+  static JfrBlobHandle create_thread_blob(JavaThread* jt, traceid tid = 0, oop vthread = nullptr);
+  static void write_checkpoint(Thread* t, traceid tid = 0, oop vthread = nullptr);
+  static void write_static_types(JfrCheckpointWriter& writer);
 };
 
-#endif // SHARE_VM_JFR_CHECKPOINT_TYPES_JFRTYPEMANAGER_HPP
+#endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPEMANAGER_HPP

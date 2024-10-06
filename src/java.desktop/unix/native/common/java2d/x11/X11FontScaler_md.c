@@ -43,8 +43,6 @@
 
 static GC pixmapGC = 0;
 static Pixmap pixmap = 0;
-static Atom psAtom = 0;
-static Atom fullNameAtom = 0;
 static int pixmapWidth = 0;
 static int pixmapHeight = 0;
 
@@ -127,9 +125,9 @@ JNIEXPORT int JNICALL AWTCountFonts(char* xlfd) {
 }
 
 JNIEXPORT void JNICALL AWTLoadFont(char* name, AWTFont *pReturn) {
-    JNIEnv *env;
     *pReturn = NULL;
 #ifndef HEADLESS
+    JNIEnv *env;
     FONT_AWT_LOCK();
     *pReturn = (AWTFont)XLoadQueryFont(awt_display, name);
     AWT_UNLOCK();
@@ -268,10 +266,11 @@ JNIEXPORT jlong JNICALL AWTFontGenerateImage(AWTFont pFont, AWTChar2b* xChar) {
     XCharStruct xcs;
     XImage *ximage;
     int h, i, j, nbytes;
-    unsigned char *srcRow, *dstRow, *dstByte;
+    unsigned char *srcRow, *dstRow;
     int wholeByteCount, remainingBitsCount;
     unsigned int imageSize;
     JNIEnv *env;
+
 
     FONT_AWT_LOCK();
 /*     XTextExtents16(xFont, xChar, 1, &direction, &ascent, &descent, &xcs); */
@@ -280,8 +279,11 @@ JNIEXPORT jlong JNICALL AWTFontGenerateImage(AWTFont pFont, AWTChar2b* xChar) {
     width = xcs.rbearing - xcs.lbearing;
     height = xcs.ascent+xcs.descent;
     imageSize = width*height;
-
     glyphInfo = (GlyphInfo*)malloc(sizeof(GlyphInfo)+imageSize);
+    if (glyphInfo == NULL) {
+        AWT_UNLOCK();
+        return (jlong)(uintptr_t)NULL;
+    }
     glyphInfo->cellInfo = NULL;
     glyphInfo->width = width;
     glyphInfo->height = height;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,13 +68,12 @@ public final class StandardMidiFileWriter extends MidiFileWriter {
     private static final int MIDI_TYPE_0 = 0;
     private static final int MIDI_TYPE_1 = 1;
 
-    private static final int bufferSize = 16384;  // buffersize for write
     private DataOutputStream tddos;               // data output stream for track writing
 
     /**
      * MIDI parser types.
      */
-    private static final int types[] = {
+    private static final int[] types = {
         MIDI_TYPE_0,
         MIDI_TYPE_1
     };
@@ -96,8 +95,8 @@ public final class StandardMidiFileWriter extends MidiFileWriter {
      */
     @Override
     public int[] getMidiFileTypes(Sequence sequence){
-        int typesArray[];
-        Track tracks[] = sequence.getTracks();
+        int[] typesArray;
+        Track[] tracks = sequence.getTracks();
 
         if( tracks.length==1 ) {
             typesArray = new int[2];
@@ -117,22 +116,12 @@ public final class StandardMidiFileWriter extends MidiFileWriter {
         if (!isFileTypeSupported(type, in)) {
             throw new IllegalArgumentException("Could not write MIDI file");
         }
-        byte [] buffer = null;
-
-        int bytesRead = 0;
-        long bytesWritten = 0;
-
         // First get the fileStream from this sequence
         InputStream fileStream = getFileStream(type,in);
         if (fileStream == null) {
             throw new IllegalArgumentException("Could not write MIDI file");
         }
-        buffer = new byte[bufferSize];
-
-        while( (bytesRead = fileStream.read( buffer )) >= 0 ) {
-            out.write( buffer, 0, bytesRead );
-            bytesWritten += bytesRead;
-        }
+        long bytesWritten = fileStream.transferTo(out);
         // Done....return bytesWritten
         return (int) bytesWritten;
     }
@@ -140,16 +129,16 @@ public final class StandardMidiFileWriter extends MidiFileWriter {
     @Override
     public int write(Sequence in, int type, File out) throws IOException {
         Objects.requireNonNull(in);
-        FileOutputStream fos = new FileOutputStream(out); // throws IOException
-        int bytesWritten = write( in, type, fos );
-        fos.close();
-        return bytesWritten;
+        try (FileOutputStream fos = new FileOutputStream(out)) { // throws IOException
+            int bytesWritten = write(in, type, fos);
+            return bytesWritten;
+        }
     }
 
     //=================================================================================
 
     private InputStream getFileStream(int type, Sequence sequence) throws IOException {
-        Track tracks[] = sequence.getTracks();
+        Track[] tracks = sequence.getTracks();
         int bytesBuilt = 0;
         int headerLength = 14;
         int length = 0;
@@ -160,7 +149,7 @@ public final class StandardMidiFileWriter extends MidiFileWriter {
         DataOutputStream    hdos = null;
         PipedInputStream    headerStream = null;
 
-        InputStream         trackStreams [] = null;
+        InputStream[]         trackStreams  = null;
         InputStream         trackStream = null;
         InputStream fStream = null;
 
@@ -199,7 +188,7 @@ public final class StandardMidiFileWriter extends MidiFileWriter {
             //bytesBuilt += trackStreams[i].getLength();
         }
 
-        // Now seqence the track streams
+        // Now sequence the track streams
         if( trackCount == 1 ) {
             trackStream = trackStreams[0];
         } else if( trackCount > 1 ){
@@ -344,7 +333,7 @@ public final class StandardMidiFileWriter extends MidiFileWriter {
             int metatype;
             int data1, data2;
             int length;
-            byte data[] = null;
+            byte[] data = null;
             ShortMessage shortMessage = null;
             MetaMessage  metaMessage  = null;
             SysexMessage sysexMessage = null;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,6 @@
  */
 
 package java.net;
-
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import sun.net.www.protocol.http.AuthenticatorKeys;
 
 /**
  * The class Authenticator represents an object that knows how to obtain
@@ -61,9 +56,8 @@ import sun.net.www.protocol.http.AuthenticatorKeys;
 
 // There are no abstract methods, but to be useful the user must
 // subclass.
-@AnnotatedFor({"interning"})
 public abstract
-@UsesObjectEquals class Authenticator {
+class Authenticator {
 
     // The system-wide authenticator object.  See setDefault().
     private static volatile Authenticator theAuthenticator;
@@ -76,7 +70,11 @@ public abstract
     private String requestingScheme;
     private URL requestingURL;
     private RequestorType requestingAuthType;
-    private final String key = AuthenticatorKeys.computeKey(this);
+
+    /**
+     * Constructor for subclasses to call.
+     */
+    public Authenticator() {}
 
     /**
      * The type of the entity requesting authentication.
@@ -127,6 +125,7 @@ public abstract
      * @see java.net.NetPermission
      */
     public static synchronized void setDefault(Authenticator a) {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             NetPermission setDefaultPermission
@@ -157,6 +156,7 @@ public abstract
      * @see java.net.NetPermission
      */
     public static Authenticator getDefault() {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             NetPermission requestPermission
@@ -200,6 +200,7 @@ public abstract
                                             String prompt,
                                             String scheme) {
 
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             NetPermission requestPermission
@@ -262,6 +263,7 @@ public abstract
                                             String prompt,
                                             String scheme) {
 
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             NetPermission requestPermission
@@ -329,6 +331,7 @@ public abstract
                                     URL url,
                                     RequestorType reqType) {
 
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             NetPermission requestPermission
@@ -402,6 +405,7 @@ public abstract
                                     URL url,
                                     RequestorType reqType) {
 
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             NetPermission requestPermission
@@ -568,12 +572,5 @@ public abstract
      */
     protected RequestorType getRequestorType () {
         return requestingAuthType;
-    }
-
-    static String getKey(Authenticator a) {
-        return a.key;
-    }
-    static {
-        AuthenticatorKeys.setAuthenticatorKeyAccess(Authenticator::getKey);
     }
 }

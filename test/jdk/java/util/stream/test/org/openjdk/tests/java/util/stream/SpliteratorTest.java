@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,11 @@
  */
 package org.openjdk.tests.java.util.stream;
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SequenceLayout;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 import java.util.function.Supplier;
 import java.util.Spliterator;
 import java.util.SpliteratorTestHelper;
@@ -61,5 +61,15 @@ public class SpliteratorTest {
     @Test(dataProvider = "DoubleSpliterator", dataProviderClass = DoubleStreamTestDataProvider.class )
     public void testDoubleSpliterator(String name, Supplier<Spliterator.OfDouble> supplier) {
         SpliteratorTestHelper.testDoubleSpliterator(supplier);
+    }
+
+    @Test(dataProvider = "SegmentSpliterator", dataProviderClass = SegmentTestDataProvider.class )
+    public void testSegmentSpliterator(String name, SequenceLayout layout, SpliteratorTestHelper.ContentAsserter<MemorySegment> contentAsserter) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment segment = arena.allocate(layout);
+            SegmentTestDataProvider.initSegment(segment);
+            SpliteratorTestHelper.testSpliterator(() -> segment.spliterator(layout),
+                    SegmentTestDataProvider::segmentCopier, contentAsserter);
+        }
     }
 }

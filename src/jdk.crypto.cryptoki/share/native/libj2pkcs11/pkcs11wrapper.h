@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  */
 
 /* Copyright  (c) 2002 Graz University of Technology. All rights reserved.
@@ -67,13 +67,21 @@
 
 /* extra PKCS#11 constants not in the standard include files */
 
+/* CKA_NETSCAPE_BASE is now known as CKM_NSS (CKM_VENDOR_DEFINED | NSSCK_VENDOR_NSS) */
 #define CKA_NETSCAPE_BASE                       (0x80000000 + 0x4E534350)
 #define CKA_NETSCAPE_TRUST_BASE                 (CKA_NETSCAPE_BASE + 0x2000)
-
 #define CKA_NETSCAPE_TRUST_SERVER_AUTH          (CKA_NETSCAPE_TRUST_BASE + 8)
 #define CKA_NETSCAPE_TRUST_CLIENT_AUTH          (CKA_NETSCAPE_TRUST_BASE + 9)
-#define CKA_NETSCAPE_TRUST_CODE_SIGNING (CKA_NETSCAPE_TRUST_BASE + 10)
+#define CKA_NETSCAPE_TRUST_CODE_SIGNING         (CKA_NETSCAPE_TRUST_BASE + 10)
 #define CKA_NETSCAPE_TRUST_EMAIL_PROTECTION     (CKA_NETSCAPE_TRUST_BASE + 11)
+#define CKA_NETSCAPE_DB                         0xD5A0DB00
+#define CKM_NSS_TLS_PRF_GENERAL                 0x80000373
+
+/* additional PKCS #12 PBE key derivation algorithms defined in NSS v3.29 */
+#define CKM_NSS_PKCS12_PBE_SHA224_HMAC_KEY_GEN  (CKA_NETSCAPE_BASE + 29)
+#define CKM_NSS_PKCS12_PBE_SHA256_HMAC_KEY_GEN  (CKA_NETSCAPE_BASE + 30)
+#define CKM_NSS_PKCS12_PBE_SHA384_HMAC_KEY_GEN  (CKA_NETSCAPE_BASE + 31)
+#define CKM_NSS_PKCS12_PBE_SHA512_HMAC_KEY_GEN  (CKA_NETSCAPE_BASE + 32)
 
 /*
 
@@ -99,9 +107,11 @@
 #define P11_ENABLE_C_CLOSESESSION
 #undef  P11_ENABLE_C_CLOSEALLSESSIONS
 #define P11_ENABLE_C_GETSESSIONINFO
+#define P11_ENABLE_C_SESSIONCANCEL
 #define P11_ENABLE_C_GETOPERATIONSTATE
 #define P11_ENABLE_C_SETOPERATIONSTATE
 #define P11_ENABLE_C_LOGIN
+//#define P11_ENABLE_C_LOGINUSER
 #define P11_ENABLE_C_LOGOUT
 #define P11_ENABLE_C_CREATEOBJECT
 #define P11_ENABLE_C_COPYOBJECT
@@ -151,12 +161,13 @@
 #undef  P11_ENABLE_C_GETFUNCTIONSTATUS
 #undef  P11_ENABLE_C_CANCELFUNCTION
 #undef  P11_ENABLE_C_WAITFORSLOTEVENT
+#define P11_ENABLE_GETNATIVEKEYINFO
+#define P11_ENABLE_CREATENATIVEKEY
+
 
 /* include the platform dependent part of the header */
 #include "p11_md.h"
 
-#include "pkcs11.h"
-#include "pkcs-11v2-20a3.h"
 #include <jni.h>
 #include <jni_util.h>
 #include <stdarg.h>
@@ -204,25 +215,35 @@
 #define ckULongToJSize(x)       ((jsize) x)
 #define unsignedIntToCKULong(x) ((CK_ULONG) x)
 
+//#define TRACE0d(s) { printf(s); fflush(stdout); }
+//#define TRACE1d(s, p1) { printf(s, p1); fflush(stdout); }
+//#define TRACE2d(s, p1, p2) { printf(s, p1, p2); fflush(stdout); }
+//#define TRACE3d(s, p1, p2, p3) { printf(s, p1, p2, p3); fflush(stdout); }
+//#define TRACE4d(s, p1, p2, p3, p4) { printf(s, p1, p2, p3, p4); fflush(stdout); }
+
 #ifdef P11_DEBUG
 #define TRACE0(s) { printf(s); fflush(stdout); }
 #define TRACE1(s, p1) { printf(s, p1); fflush(stdout); }
 #define TRACE2(s, p1, p2) { printf(s, p1, p2); fflush(stdout); }
 #define TRACE3(s, p1, p2, p3) { printf(s, p1, p2, p3); fflush(stdout); }
+#define TRACE4(s, p1, p2, p3, p4) { printf(s, p1, p2, p3, p4); fflush(stdout); }
 #else
 #define TRACE0(s)
 #define TRACE1(s, p1)
 #define TRACE2(s, p1, p2)
 #define TRACE3(s, p1, p2, p3)
+#define TRACE4(s, p1, p2, p3, p4)
 #define TRACE_INTEND
 #define TRACE_UNINTEND
 #endif
 
 /* debug output */
-extern jboolean debug;
+extern jboolean debug_j2pkcs11;
 void printDebug(const char *format, ...);
 
 #define CK_ASSERT_OK 0L
+
+#define CLASS_P11PSSSIGNATURE "sun/security/pkcs11/P11PSSSignature"
 
 #define CLASS_INFO "sun/security/pkcs11/wrapper/CK_INFO"
 #define CLASS_VERSION "sun/security/pkcs11/wrapper/CK_VERSION"
@@ -245,15 +266,21 @@ void printDebug(const char *format, ...);
 
 
 /* mechanism parameter classes */
-
+#define CLASS_AES_CTR_PARAMS "sun/security/pkcs11/wrapper/CK_AES_CTR_PARAMS"
+#define CLASS_GCM_PARAMS "sun/security/pkcs11/wrapper/CK_GCM_PARAMS"
+#define CLASS_CCM_PARAMS "sun/security/pkcs11/wrapper/CK_CCM_PARAMS"
+#define CLASS_SALSA20_CHACHA20_POLY1305_PARAMS \
+        "sun/security/pkcs11/wrapper/CK_SALSA20_CHACHA20_POLY1305_PARAMS"
+#define CLASS_RSA_PKCS_PSS_PARAMS "sun/security/pkcs11/wrapper/CK_RSA_PKCS_PSS_PARAMS"
 #define CLASS_RSA_PKCS_OAEP_PARAMS "sun/security/pkcs11/wrapper/CK_RSA_PKCS_OAEP_PARAMS"
+
 #define CLASS_MAC_GENERAL_PARAMS "sun/security/pkcs11/wrapper/CK_MAC_GENERAL_PARAMS"
 #define CLASS_PBE_PARAMS "sun/security/pkcs11/wrapper/CK_PBE_PARAMS"
 #define PBE_INIT_VECTOR_SIZE 8
 #define CLASS_PKCS5_PBKD2_PARAMS "sun/security/pkcs11/wrapper/CK_PKCS5_PBKD2_PARAMS"
+#define CLASS_PKCS5_PBKD2_PARAMS2 "sun/security/pkcs11/wrapper/CK_PKCS5_PBKD2_PARAMS2"
 #define CLASS_EXTRACT_PARAMS "sun/security/pkcs11/wrapper/CK_EXTRACT_PARAMS"
 
-#define CLASS_RSA_PKCS_PSS_PARAMS "sun/security/pkcs11/wrapper/CK_RSA_PKCS_PSS_PARAMS"
 #define CLASS_ECDH1_DERIVE_PARAMS "sun/security/pkcs11/wrapper/CK_ECDH1_DERIVE_PARAMS"
 #define CLASS_ECDH2_DERIVE_PARAMS "sun/security/pkcs11/wrapper/CK_ECDH2_DERIVE_PARAMS"
 #define CLASS_X9_42_DH1_DERIVE_PARAMS "sun/security/pkcs11/wrapper/CK_X9_42_DH1_DERIVE_PARAMS"
@@ -276,28 +303,36 @@ void printDebug(const char *format, ...);
 #define CLASS_SSL3_RANDOM_DATA "sun/security/pkcs11/wrapper/CK_SSL3_RANDOM_DATA"
 // CLASS_SSL3_RANDOM_DATA is used by CLASS_SSL3_MASTER_KEY_DERIVE_PARAMS
 #define CLASS_SSL3_KEY_MAT_OUT "sun/security/pkcs11/wrapper/CK_SSL3_KEY_MAT_OUT"
-// CLASS_SSL3_KEY_MAT_OUT is used by CLASS_SSL3_KEY_MAT_PARAMS
+// CLASS_SSL3_KEY_MAT_OUT is used by CLASS_SSL3_KEY_MAT_PARAMS and CK_TLS12_KEY_MAT_PARAMS
 #define CLASS_SSL3_MASTER_KEY_DERIVE_PARAMS "sun/security/pkcs11/wrapper/CK_SSL3_MASTER_KEY_DERIVE_PARAMS"
+#define CLASS_TLS12_MASTER_KEY_DERIVE_PARAMS "sun/security/pkcs11/wrapper/CK_TLS12_MASTER_KEY_DERIVE_PARAMS"
 #define CLASS_SSL3_KEY_MAT_PARAMS "sun/security/pkcs11/wrapper/CK_SSL3_KEY_MAT_PARAMS"
+#define CLASS_TLS12_KEY_MAT_PARAMS "sun/security/pkcs11/wrapper/CK_TLS12_KEY_MAT_PARAMS"
 #define CLASS_TLS_PRF_PARAMS "sun/security/pkcs11/wrapper/CK_TLS_PRF_PARAMS"
-#define CLASS_AES_CTR_PARAMS "sun/security/pkcs11/wrapper/CK_AES_CTR_PARAMS"
+#define CLASS_TLS_MAC_PARAMS "sun/security/pkcs11/wrapper/CK_TLS_MAC_PARAMS"
+
+/* function to update the CK_NSS_GCM_PARAMS in mechanism pointer with
+ * CK_GCM_PARAMS
+ */
+CK_MECHANISM_PTR updateGCMParams(JNIEnv *env, CK_MECHANISM_PTR mechPtr);
 
 /* function to convert a PKCS#11 return value other than CK_OK into a Java Exception
  * or to throw a PKCS11RuntimeException
  */
 
 jlong ckAssertReturnValueOK(JNIEnv *env, CK_RV returnValue);
-void throwOutOfMemoryError(JNIEnv *env, const char *message);
-void throwNullPointerException(JNIEnv *env, const char *message);
-void throwIOException(JNIEnv *env, const char *message);
-void throwPKCS11RuntimeException(JNIEnv *env, const char *message);
-void throwDisconnectedRuntimeException(JNIEnv *env);
+jlong ckAssertReturnValueOK2(JNIEnv *env, CK_RV returnValue, const char *msg);
+void p11ThrowOutOfMemoryError(JNIEnv *env, const char *message);
+void p11ThrowNullPointerException(JNIEnv *env, const char *message);
+void p11ThrowIOException(JNIEnv *env, const char *message);
+void p11ThrowPKCS11RuntimeException(JNIEnv *env, const char *message);
 
-/* function to free CK_ATTRIBUTE array
+/* functions to free CK structures and pointers
  */
 void freeCKAttributeArray(CK_ATTRIBUTE_PTR attrPtr, int len);
+void freeCKMechanismPtr(CK_MECHANISM_PTR mechPtr);
 
-/* funktions to convert Java arrays to a CK-type array and the array length */
+/* functions to convert Java arrays to a CK-type array and the array length */
 
 void jBooleanArrayToCKBBoolArray(JNIEnv *env, const jbooleanArray jArray, CK_BBOOL **ckpArray, CK_ULONG_PTR ckLength);
 void jByteArrayToCKByteArray(JNIEnv *env, const jbyteArray jArray, CK_BYTE_PTR *ckpArray, CK_ULONG_PTR ckLength);
@@ -309,7 +344,7 @@ void jAttributeArrayToCKAttributeArray(JNIEnv *env, jobjectArray jAArray, CK_ATT
 /*void jObjectArrayToCKVoidPtrArray(JNIEnv *env, const jobjectArray jArray, CK_VOID_PTR_PTR ckpArray, CK_ULONG_PTR ckpLength); */
 
 
-/* funktions to convert a CK-type array and the array length to a Java array */
+/* functions to convert a CK-type array and the array length to a Java array */
 
 jbyteArray ckByteArrayToJByteArray(JNIEnv *env, const CK_BYTE_PTR ckpArray, CK_ULONG ckLength);
 jlongArray ckULongArrayToJLongArray(JNIEnv *env, const CK_ULONG_PTR ckpArray, CK_ULONG ckLength);
@@ -317,7 +352,7 @@ jcharArray ckCharArrayToJCharArray(JNIEnv *env, const CK_CHAR_PTR ckpArray, CK_U
 jcharArray ckUTF8CharArrayToJCharArray(JNIEnv *env, const CK_UTF8CHAR_PTR ckpArray, CK_ULONG ckLength);
 
 
-/* funktions to convert a CK-type structure or a pointer to a CK-value to a Java object */
+/* functions to convert a CK-type structure or a pointer to a CK-value to a Java object */
 
 jobject ckBBoolPtrToJBooleanObject(JNIEnv *env, const CK_BBOOL* ckpValue);
 jobject ckULongPtrToJLongObject(JNIEnv *env, const CK_ULONG_PTR ckpValue);
@@ -327,12 +362,12 @@ jobject ckSessionInfoPtrToJSessionInfo(JNIEnv *env, const CK_SESSION_INFO_PTR ck
 jobject ckAttributePtrToJAttribute(JNIEnv *env, const CK_ATTRIBUTE_PTR ckpAttribute);
 
 
-/* funktion to convert the CK-value used by the CK_ATTRIBUTE structure to a Java object */
+/* function to convert the CK-value used by the CK_ATTRIBUTE structure to a Java object */
 
 jobject ckAttributeValueToJObject(JNIEnv *env, const CK_ATTRIBUTE_PTR ckpAttribute);
 
 
-/* funktions to convert a Java object to a CK-type structure or a pointer to a CK-value */
+/* functions to convert a Java object to a CK-type structure or a pointer to a CK-value */
 
 CK_BBOOL* jBooleanObjectToCKBBoolPtr(JNIEnv *env, jobject jObject);
 CK_BYTE_PTR jByteObjectToCKBytePtr(JNIEnv *env, jobject jObject);
@@ -340,44 +375,75 @@ CK_ULONG* jIntegerObjectToCKULongPtr(JNIEnv *env, jobject jObject);
 CK_ULONG* jLongObjectToCKULongPtr(JNIEnv *env, jobject jObject);
 CK_CHAR_PTR jCharObjectToCKCharPtr(JNIEnv *env, jobject jObject);
 CK_VERSION_PTR jVersionToCKVersionPtr(JNIEnv *env, jobject jVersion);
-CK_DATE * jDateObjectPtrToCKDatePtr(JNIEnv *env, jobject jDate);
+CK_DATE * jDateObjectToCKDatePtr(JNIEnv *env, jobject jDate);
 CK_ATTRIBUTE jAttributeToCKAttribute(JNIEnv *env, jobject jAttribute);
-/*CK_MECHANISM jMechanismToCKMechanism(JNIEnv *env, jobject jMechanism);*/
-void jMechanismToCKMechanism(JNIEnv *env, jobject jMechanism, CK_MECHANISM_PTR ckMechanismPtr);
+CK_MECHANISM_PTR jMechanismToCKMechanismPtr(JNIEnv *env, jobject jMechanism);
 
 
-/* funktions to convert Java objects used by the Mechanism and Attribute class to a CK-type structure */
+/* functions to convert Java objects used by the Mechanism and Attribute class to a CK-type structure */
+CK_VOID_PTR jObjectToPrimitiveCKObjectPtr(JNIEnv *env, jobject jObject, CK_ULONG *ckpLength);
+CK_VOID_PTR jMechParamToCKMechParamPtr(JNIEnv *env, jobject jParam, CK_MECHANISM_TYPE, CK_ULONG
+*ckpLength);
 
-void jObjectToPrimitiveCKObjectPtrPtr(JNIEnv *env, jobject jObject, CK_VOID_PTR *ckpObjectPtr, CK_ULONG *pLength);
-void jMechanismParameterToCKMechanismParameter(JNIEnv *env, jobject jParam, CK_VOID_PTR *ckpParamPtr, CK_ULONG *ckpLength);
 
+/* functions to convert a specific Java mechanism parameter object to a CK-mechanism parameter pointer */
 
-/* functions to convert a specific Java mechanism parameter object to a CK-mechanism parameter structure */
-
-CK_RSA_PKCS_OAEP_PARAMS jRsaPkcsOaepParamToCKRsaPkcsOaepParam(JNIEnv *env, jobject jParam);
-CK_KEA_DERIVE_PARAMS jKeaDeriveParamToCKKeaDeriveParam(JNIEnv *env, jobject jParam);
-CK_RC2_CBC_PARAMS jRc2CbcParamToCKRc2CbcParam(JNIEnv *env, jobject jParam);
-CK_RC2_MAC_GENERAL_PARAMS jRc2MacGeneralParamToCKRc2MacGeneralParam(JNIEnv *env, jobject jParam);
-CK_RC5_PARAMS jRc5ParamToCKRc5Param(JNIEnv *env, jobject jParam);
-CK_RC5_CBC_PARAMS jRc5CbcParamToCKRc5CbcParam(JNIEnv *env, jobject jParam);
-CK_RC5_MAC_GENERAL_PARAMS jRc5MacGeneralParamToCKRc5MacGeneralParam(JNIEnv *env, jobject jParam);
-CK_SKIPJACK_PRIVATE_WRAP_PARAMS jSkipjackPrivateWrapParamToCKSkipjackPrivateWrapParam(JNIEnv *env, jobject jParam);
-CK_SKIPJACK_RELAYX_PARAMS jSkipjackRelayxParamToCKSkipjackRelayxParam(JNIEnv *env, jobject jParam);
-CK_PBE_PARAMS jPbeParamToCKPbeParam(JNIEnv *env, jobject jParam);
-void copyBackPBEInitializationVector(JNIEnv *env, CK_MECHANISM *ckMechanism, jobject jMechanism);
-CK_PKCS5_PBKD2_PARAMS jPkcs5Pbkd2ParamToCKPkcs5Pbkd2Param(JNIEnv *env, jobject jParam);
-CK_KEY_WRAP_SET_OAEP_PARAMS jKeyWrapSetOaepParamToCKKeyWrapSetOaepParam(JNIEnv *env, jobject jParam);
-void copyBackSetUnwrappedKey(JNIEnv *env, CK_MECHANISM *ckMechanism, jobject jMechanism);
-CK_SSL3_MASTER_KEY_DERIVE_PARAMS jSsl3MasterKeyDeriveParamToCKSsl3MasterKeyDeriveParam(JNIEnv *env, jobject jParam);
-void copyBackClientVersion(JNIEnv *env, CK_MECHANISM *ckMechanism, jobject jMechanism);
-CK_SSL3_KEY_MAT_PARAMS jSsl3KeyMatParamToCKSsl3KeyMatParam(JNIEnv *env, jobject jParam);
-void copyBackSSLKeyMatParams(JNIEnv *env, CK_MECHANISM *ckMechanism, jobject jMechanism);
+CK_RSA_PKCS_OAEP_PARAMS_PTR jRsaPkcsOaepParamToCKRsaPkcsOaepParamPtr(JNIEnv *env,
+    jobject jParam, CK_ULONG* pLength);
+CK_PBE_PARAMS_PTR jPbeParamToCKPbeParamPtr(JNIEnv *env, jobject jParam, CK_ULONG* pLength);
+CK_VOID_PTR jPkcs5Pbkd2ParamToCKPkcs5Pbkd2ParamPtr(JNIEnv *env, jobject jParam, CK_ULONG* pLength);
+CK_SSL3_MASTER_KEY_DERIVE_PARAMS_PTR jSsl3MasterKeyDeriveParamToCKSsl3MasterKeyDeriveParamPtr(JNIEnv *env, jobject jParam, CK_ULONG* pLength);
+CK_SSL3_KEY_MAT_PARAMS_PTR jSsl3KeyMatParamToCKSsl3KeyMatParamPtr(JNIEnv *env, jobject jParam, CK_ULONG* pLength);
 CK_KEY_DERIVATION_STRING_DATA jKeyDerivationStringDataToCKKeyDerivationStringData(JNIEnv *env, jobject jParam);
-CK_RSA_PKCS_PSS_PARAMS jRsaPkcsPssParamToCKRsaPkcsPssParam(JNIEnv *env, jobject jParam);
-CK_ECDH1_DERIVE_PARAMS jEcdh1DeriveParamToCKEcdh1DeriveParam(JNIEnv *env, jobject jParam);
-CK_ECDH2_DERIVE_PARAMS jEcdh2DeriveParamToCKEcdh2DeriveParam(JNIEnv *env, jobject jParam);
-CK_X9_42_DH1_DERIVE_PARAMS jX942Dh1DeriveParamToCKX942Dh1DeriveParam(JNIEnv *env, jobject jParam);
-CK_X9_42_DH2_DERIVE_PARAMS jX942Dh2DeriveParamToCKX942Dh2DeriveParam(JNIEnv *env, jobject jParam);
+CK_RSA_PKCS_PSS_PARAMS_PTR jRsaPkcsPssParamToCKRsaPkcsPssParamPtr(JNIEnv *env, jobject jParam, CK_ULONG* pLength);
+CK_ECDH1_DERIVE_PARAMS_PTR jEcdh1DeriveParamToCKEcdh1DeriveParamPtr(JNIEnv *env, jobject jParam, CK_ULONG* pLength);
+CK_ECDH2_DERIVE_PARAMS_PTR jEcdh2DeriveParamToCKEcdh2DeriveParamPtr(JNIEnv *env, jobject jParam, CK_ULONG* pLength);
+CK_X9_42_DH1_DERIVE_PARAMS_PTR jX942Dh1DeriveParamToCKX942Dh1DeriveParamPtr(JNIEnv *env, jobject jParam, CK_ULONG* pLength);
+CK_X9_42_DH2_DERIVE_PARAMS_PTR jX942Dh2DeriveParamToCKX942Dh2DeriveParamPtr(JNIEnv *env, jobject jParam, CK_ULONG* pLength);
+
+/* handling of CK_PKCS5_PBKD2_PARAMS and CK_PKCS5_PBKD2_PARAMS2 */
+typedef enum {PARAMS=0, PARAMS2} ParamVersion;
+
+typedef struct {
+    union {
+        CK_PKCS5_PBKD2_PARAMS v1;
+        CK_PKCS5_PBKD2_PARAMS2 v2;
+    } params;
+    ParamVersion version;
+} VersionedPbkd2Params, *VersionedPbkd2ParamsPtr;
+
+#define FREE_VERSIONED_PBKD2_MEMBERS(verParamsPtr)                   \
+    do {                                                             \
+        if ((verParamsPtr)->version == PARAMS) {                     \
+            free((verParamsPtr)->params.v1.pSaltSourceData);         \
+            free((verParamsPtr)->params.v1.pPrfData);                \
+            if ((verParamsPtr)->params.v1.pPassword != NULL &&       \
+                    (verParamsPtr)->params.v1.ulPasswordLen          \
+                            != NULL) {                               \
+                memset((verParamsPtr)->params.v1.pPassword, 0,       \
+                        *((verParamsPtr)->params.v1.ulPasswordLen)); \
+            }                                                        \
+            free((verParamsPtr)->params.v1.pPassword);               \
+            free((verParamsPtr)->params.v1.ulPasswordLen);           \
+        } else {                                                     \
+            free((verParamsPtr)->params.v2.pSaltSourceData);         \
+            free((verParamsPtr)->params.v2.pPrfData);                \
+            if ((verParamsPtr)->params.v2.pPassword != NULL) {       \
+                memset((verParamsPtr)->params.v2.pPassword, 0,       \
+                        (verParamsPtr)->params.v2.ulPasswordLen);    \
+            }                                                        \
+            free((verParamsPtr)->params.v2.pPassword);               \
+        }                                                            \
+    } while(0)
+
+/* functions to copy the returned values inside CK-mechanism back to Java object */
+
+void copyBackPBEInitializationVector(JNIEnv *env, CK_MECHANISM *ckMechanism, jobject jMechanism);
+void copyBackSetUnwrappedKey(JNIEnv *env, CK_MECHANISM *ckMechanism, jobject jMechanism);
+void ssl3CopyBackClientVersion(JNIEnv *env, CK_MECHANISM *ckMechanism, jobject jMechanism);
+void tls12CopyBackClientVersion(JNIEnv *env, CK_MECHANISM *ckMechanism, jobject jMechanism);
+void ssl3CopyBackKeyMatParams(JNIEnv *env, CK_MECHANISM *ckMechanism, jobject jMechanism);
+void tls12CopyBackKeyMatParams(JNIEnv *env, CK_MECHANISM *ckMechanism, jobject jMechanism);
 
 
 /* functions to convert the InitArgs object for calling the right Java mutex functions */
@@ -392,8 +458,9 @@ CK_RV callJUnlockMutex(CK_VOID_PTR pMutex);
 #endif /* NO_CALLBACKS */
 
 void putModuleEntry(JNIEnv *env, jobject pkcs11Implementation, ModuleData *moduleData);
-ModuleData * removeModuleEntry(JNIEnv *env, jobject pkcs11Implementation);
 CK_FUNCTION_LIST_PTR getFunctionList(JNIEnv *env, jobject pkcs11Implementation);
+CK_FUNCTION_LIST_3_0_PTR getFunctionList30(JNIEnv *env, jobject
+        pkcs11Implementation);
 
 /* A structure to encapsulate the required data for a Notify callback */
 struct NotifyEncapsulation {
@@ -456,17 +523,14 @@ extern CK_C_INITIALIZE_ARGS_PTR ckpGlobalInitArgs;
 #ifdef P11_MEMORYDEBUG
 #include <stdlib.h>
 
-/* Simple malloc/free dumper */
+/* Simple malloc/calloc/free dumper */
 void *p11malloc(size_t c, char *file, int line);
+void *p11calloc(size_t c, size_t s, char *file, int line);
 void p11free(void *p, char *file, int line);
 
-/* Use THIS_FILE when it is available. */
-#ifndef THIS_FILE
-    #define THIS_FILE __FILE__
-#endif
-
-#define malloc(c)       (p11malloc((c), THIS_FILE, __LINE__))
-#define free(c)         (p11free((c), THIS_FILE, __LINE__))
+#define malloc(c)       (p11malloc((c), __FILE__, __LINE__))
+#define calloc(c, s)    (p11calloc((c), (s), __FILE__, __LINE__))
+#define free(c)         (p11free((c), __FILE__, __LINE__))
 
 #endif
 

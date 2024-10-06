@@ -35,7 +35,7 @@
  * @test
  * @bug 4486658
  * @summary multiple threads using a single lock
- * @library /lib/testlibrary/
+ * @library /test/lib
  */
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -45,7 +45,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.ThreadLocalRandom;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.Utils;
 
 public final class SimpleReentrantLockLoops {
     static final long LONG_DELAY_MS = Utils.adjustTimeout(10_000);
@@ -95,7 +95,7 @@ public final class SimpleReentrantLockLoops {
                 long time = timer.getTime();
                 long tpi = time / ((long)iters * nthreads);
                 System.out.print("\t" + LoopHelpers.rightJustify(tpi) + " ns per lock");
-                double secs = (double)(time) / 1000000000.0;
+                double secs = (double)time / 1000000000.0;
                 System.out.println("\t " + secs + "s run time");
             }
 

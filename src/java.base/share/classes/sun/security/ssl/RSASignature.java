@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,20 +53,20 @@ public final class RSASignature extends SignatureSpi {
 
     public RSASignature() throws NoSuchAlgorithmException {
         super();
-        rawRsa = JsseJce.getSignature(JsseJce.SIGNATURE_RAWRSA);
-        this.mdMD5 = JsseJce.getMessageDigest("MD5");
-        this.mdSHA = JsseJce.getMessageDigest("SHA");
+        rawRsa = Signature.getInstance(JsseJce.SIGNATURE_RAWRSA);
+        this.mdMD5 = MessageDigest.getInstance("MD5");
+        this.mdSHA = MessageDigest.getInstance("SHA");
     }
 
     /**
      * Get an implementation for the RSA signature.
      *
-     * Follows the standard JCA getInstance() model, so it return the
+     * Follows the standard JCA getInstance() model, so it returns the
      * implementation from the  provider with the highest precedence,
      * which may be this class.
      */
     static Signature getInstance() throws NoSuchAlgorithmException {
-        return JsseJce.getSignature(JsseJce.SIGNATURE_SSLRSA);
+        return Signature.getInstance(JsseJce.SIGNATURE_SSLRSA);
     }
 
     @Override

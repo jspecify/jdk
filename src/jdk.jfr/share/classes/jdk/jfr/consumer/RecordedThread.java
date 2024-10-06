@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,7 @@
 
 package jdk.jfr.consumer;
 
-import java.util.List;
-
-import jdk.jfr.ValueDescriptor;
-import jdk.jfr.internal.Type;
+import jdk.jfr.internal.consumer.ObjectContext;
 
 /**
  * A recorded thread.
@@ -36,20 +33,11 @@ import jdk.jfr.internal.Type;
  * @since 9
  */
 public final class RecordedThread extends RecordedObject {
-
-    static ObjectFactory<RecordedThread> createFactory(Type type, TimeConverter timeConverter) {
-        return new ObjectFactory<RecordedThread>(type) {
-            @Override
-            RecordedThread createTyped(List<ValueDescriptor> desc, long id, Object[] object) {
-                return new RecordedThread(desc, id, object, timeConverter);
-            }
-        };
-    }
-
     private final long uniqueId;
 
-    private RecordedThread(List<ValueDescriptor> descriptors, long id, Object[] values,  TimeConverter timeConverter) {
-        super(descriptors, values, timeConverter);
+    // package private
+    RecordedThread(ObjectContext objectContext, long id, Object[] values) {
+        super(objectContext, values);
         this.uniqueId = id;
     }
 
@@ -65,10 +53,13 @@ public final class RecordedThread extends RecordedObject {
     /**
      * Returns the thread ID used by the operating system.
      *
-     * @return The Java thread ID, or {@code -1} if doesn't exist
+     * @return the OS thread ID, or {@code -1} if doesn't exist
      */
     public long getOSThreadId() {
-        Long l = getTyped("osThreadId", Long.class, -1L);
+        if (isVirtual()) {
+            return -1L;
+        }
+        Long l = getTyped("osThreadId", Long.class, LONG_MINUS_ONE);
         return l.longValue();
     }
 
@@ -82,7 +73,7 @@ public final class RecordedThread extends RecordedObject {
     }
 
     /**
-     * Returns the Java thread name, or {@code null} if if doesn't exist.
+     * Returns the Java thread name, or {@code null} if doesn't exist.
      * <p>
      * Returns {@code java.lang.Thread.getName()} if the thread has a Java
      * representation. {@code null} otherwise.
@@ -97,10 +88,13 @@ public final class RecordedThread extends RecordedObject {
      * Returns the Java thread ID, or {@code -1} if it's not a Java thread.
      *
      * @return the Java thread ID, or {@code -1} if it's not a Java thread
+     *
+     * @see java.lang.Thread#threadId()
      */
     public long getJavaThreadId() {
-        Long l = getTyped("javaThreadId", Long.class, -1L);
-        return l.longValue();
+        Long l = getTyped("javaThreadId", Long.class, LONG_MINUS_ONE);
+        long id = l.longValue();
+        return id == 0 ? -1L : id;
     }
 
     /**
@@ -108,11 +102,24 @@ public final class RecordedThread extends RecordedObject {
      * reused within the lifespan of the JVM.
      * <p>
      * See {@link #getJavaThreadId()} for the ID that is returned by
-     * {@code java.lang.Thread.getId()}
+     * {@code java.lang.Thread.threadId()}.
+     * <p>
+     * See {@link #getOSThreadId()} for the ID that is returned by
+     * the operating system.
      *
      * @return a unique ID for the thread
      */
     public long getId() {
         return uniqueId;
     }
+
+    /**
+     * {@return {@code true} if this is a virtual Thread, {@code false} otherwise}
+     *
+     * @since 21
+     */
+    public boolean isVirtual() {
+        return getTyped("virtual", Boolean.class, Boolean.FALSE);
+    }
+
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,8 +35,8 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.function.Predicate;
 import java.util.regex.*;
-import java.util.stream.Collectors;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -45,7 +45,6 @@ import javax.lang.model.util.*;
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.JavaFileObject.Kind;
-import javax.tools.StandardJavaFileManager;
 
 import static javax.tools.StandardLocation.*;
 
@@ -83,6 +82,7 @@ import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.Iterators;
 import com.sun.tools.javac.util.JCDiagnostic;
+import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JavacMessages;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Log;
@@ -186,6 +186,11 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
     private final Context context;
 
+    /**
+     * Support for preview language features.
+     */
+    private final Preview preview;
+
     /** Get the JavacProcessingEnvironment instance for this context. */
     public static JavacProcessingEnvironment instance(Context context) {
         JavacProcessingEnvironment instance = context.get(JavacProcessingEnvironment.class);
@@ -234,6 +239,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         enter = Enter.instance(context);
         initialCompleter = ClassFinder.instance(context).getCompleter();
         chk = Check.instance(context);
+        preview = Preview.instance(context);
         initProcessorLoader();
     }
 
@@ -243,15 +249,22 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     }
 
     private Set<String> initPlatformAnnotations() {
-        Set<String> platformAnnotations = new HashSet<>();
-        platformAnnotations.add("java.lang.Deprecated");
-        platformAnnotations.add("java.lang.Override");
-        platformAnnotations.add("java.lang.SuppressWarnings");
-        platformAnnotations.add("java.lang.annotation.Documented");
-        platformAnnotations.add("java.lang.annotation.Inherited");
-        platformAnnotations.add("java.lang.annotation.Retention");
-        platformAnnotations.add("java.lang.annotation.Target");
-        return Collections.unmodifiableSet(platformAnnotations);
+        final String module_prefix =
+            Feature.MODULES.allowedInSource(source) ? "java.base/" : "";
+        return Set.of(module_prefix + "java.lang.Deprecated",
+                      module_prefix + "java.lang.FunctionalInterface",
+                      module_prefix + "java.lang.Override",
+                      module_prefix + "java.lang.SafeVarargs",
+                      module_prefix + "java.lang.SuppressWarnings",
+
+                      module_prefix + "java.lang.annotation.Documented",
+                      module_prefix + "java.lang.annotation.Inherited",
+                      module_prefix + "java.lang.annotation.Native",
+                      module_prefix + "java.lang.annotation.Repeatable",
+                      module_prefix + "java.lang.annotation.Retention",
+                      module_prefix + "java.lang.annotation.Target",
+
+                      module_prefix + "java.io.Serial");
     }
 
     private void initProcessorLoader() {
@@ -271,8 +284,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 if (options.isSet("accessInternalAPI"))
                     ModuleHelper.addExports(getClass().getModule(), processorClassLoader.getUnnamedModule());
 
-                if (processorClassLoader != null && processorClassLoader instanceof Closeable) {
-                    compiler.closeables = compiler.closeables.prepend((Closeable) processorClassLoader);
+                if (processorClassLoader != null && processorClassLoader instanceof Closeable closeable) {
+                    compiler.closeables = compiler.closeables.prepend(closeable);
                 }
             }
         } catch (SecurityException e) {
@@ -287,10 +300,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             try {
                 processorIterator = List.of(new PrintingProcessor()).iterator();
             } catch (Throwable t) {
-                AssertionError assertError =
-                    new AssertionError("Problem instantiating PrintingProcessor.");
-                assertError.initCause(t);
-                throw assertError;
+                throw new AssertionError("Problem instantiating PrintingProcessor.", t);
             }
         } else if (processors != null) {
             processorIterator = processors.iterator();
@@ -300,6 +310,10 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                  * If the "-processor" option is used, search the appropriate
                  * path for the named class.  Otherwise, use a service
                  * provider mechanism to create the processor iterator.
+                 *
+                 * Note: if an explicit processor path is not set,
+                 * only the class path and _not_ the module path are
+                 * searched for processors.
                  */
                 String processorNames = options.get(Option.PROCESSOR);
                 if (fileManager.hasLocation(ANNOTATION_PROCESSOR_MODULE_PATH)) {
@@ -328,7 +342,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             platformProcessors = platformProvider.getAnnotationProcessors()
                                                  .stream()
                                                  .map(PluginInfo::getPlugin)
-                                                 .collect(Collectors.toList());
+                                                 .toList();
         }
         List<Iterator<? extends Processor>> iterators = List.of(processorIterator,
                                                                 platformProcessors.iterator());
@@ -361,8 +375,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
      * @param e   If non-null, pass this exception to Abort
      */
     private Iterator<Processor> handleServiceLoaderUnavailability(String key, Exception e) {
-        if (fileManager instanceof JavacFileManager) {
-            StandardJavaFileManager standardFileManager = (JavacFileManager) fileManager;
+        if (fileManager instanceof JavacFileManager standardFileManager) {
             Iterable<? extends Path> workingPath = fileManager.hasLocation(ANNOTATION_PROCESSOR_PATH)
                 ? standardFileManager.getLocationAsPaths(ANNOTATION_PROCESSOR_PATH)
                 : standardFileManager.getLocationAsPaths(CLASS_PATH);
@@ -374,8 +387,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             handleException(key, e);
         }
 
-        java.util.List<Processor> pl = Collections.emptyList();
-        return pl.iterator();
+        return Collections.emptyIterator();
     }
 
     /**
@@ -431,7 +443,14 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             } catch(ServiceConfigurationError sce) {
                 log.error(Errors.ProcBadConfigFile(sce.getLocalizedMessage()));
                 throw new Abort(sce);
+            } catch (UnsupportedClassVersionError ucve) {
+                log.error(Errors.ProcCantLoadClass(ucve.getLocalizedMessage()));
+                throw new Abort(ucve);
+            } catch (ClassFormatError cfe) {
+                log.error(Errors.ProcCantLoadClass(cfe.getLocalizedMessage()));
+                throw new Abort(cfe);
             } catch (Throwable t) {
+                log.error(Errors.ProcBadConfigFile(t.getLocalizedMessage()));
                 throw new Abort(t);
             }
         }
@@ -448,6 +467,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 log.error(Errors.ProcBadConfigFile(sce.getLocalizedMessage()));
                 throw new Abort(sce);
             } catch (Throwable t) {
+                log.error(Errors.ProcBadConfigFile(t.getLocalizedMessage()));
                 throw new Abort(t);
             }
         }
@@ -473,7 +493,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     }
 
     private class NameServiceIterator extends ServiceIterator {
-        private Map<String, Processor> namedProcessorsMap = new HashMap<>();;
+        private Map<String, Processor> namedProcessorsMap = new HashMap<>();
         private Iterator<String> processorNames = null;
         private Processor nextProc = null;
 
@@ -665,11 +685,12 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     static class ProcessorState {
         public Processor processor;
         public boolean   contributed;
-        private ArrayList<Pattern> supportedAnnotationPatterns;
-        private ArrayList<String>  supportedOptionNames;
+        private Set<String> supportedAnnotationStrings; // Used for warning generation
+        private Set<Pattern> supportedAnnotationPatterns;
+        private Set<String> supportedOptionNames;
 
         ProcessorState(Processor p, Log log, Source source, DeferredCompletionFailureHandler dcfh,
-                       boolean allowModules, ProcessingEnvironment env) {
+                       boolean allowModules, ProcessingEnvironment env, boolean lint) {
             processor = p;
             contributed = false;
 
@@ -679,18 +700,46 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
                 checkSourceVersionCompatibility(source, log);
 
-                supportedAnnotationPatterns = new ArrayList<>();
-                for (String importString : processor.getSupportedAnnotationTypes()) {
-                    supportedAnnotationPatterns.add(importStringToPattern(allowModules,
-                                                                          importString,
-                                                                          processor,
-                                                                          log));
+
+                // Check for direct duplicates in the strings of
+                // supported annotation types. Do not check for
+                // duplicates that would result after stripping of
+                // module prefixes.
+                supportedAnnotationStrings = new LinkedHashSet<>();
+                supportedAnnotationPatterns = new LinkedHashSet<>();
+                for (String annotationPattern : processor.getSupportedAnnotationTypes()) {
+                    boolean patternAdded = supportedAnnotationStrings.add(annotationPattern);
+
+                    supportedAnnotationPatterns.
+                        add(importStringToPattern(allowModules, annotationPattern,
+                                                  processor, log, lint));
+                    if (lint && !patternAdded) {
+                        log.warning(Warnings.ProcDuplicateSupportedAnnotation(annotationPattern,
+                                                                              p.getClass().getName()));
+                    }
                 }
 
-                supportedOptionNames = new ArrayList<>();
+                // If a processor supports "*", that matches
+                // everything and other entries are redundant. With
+                // more work, it could be checked that the supported
+                // annotation types were otherwise non-overlapping
+                // with each other in other cases, for example "foo.*"
+                // and "foo.bar.*".
+                if (lint &&
+                    supportedAnnotationPatterns.contains(MatchingUtils.validImportStringToPattern("*")) &&
+                    supportedAnnotationPatterns.size() > 1) {
+                    log.warning(Warnings.ProcRedundantTypesWithWildcard(p.getClass().getName()));
+                }
+
+                supportedOptionNames = new LinkedHashSet<>();
                 for (String optionName : processor.getSupportedOptions() ) {
-                    if (checkOptionName(optionName, log))
-                        supportedOptionNames.add(optionName);
+                    if (checkOptionName(optionName, log)) {
+                        boolean optionAdded = supportedOptionNames.add(optionName);
+                        if (lint && !optionAdded) {
+                            log.warning(Warnings.ProcDuplicateOptionName(optionName,
+                                                                         p.getClass().getName()));
+                        }
+                    }
                 }
 
             } catch (ClientCodeException e) {
@@ -710,7 +759,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
          */
         private void checkSourceVersionCompatibility(Source source, Log log) {
             SourceVersion procSourceVersion = processor.getSupportedSourceVersion();
-
             if (procSourceVersion.compareTo(Source.toSourceVersion(source)) < 0 )  {
                 log.warning(Warnings.ProcProcessorIncompatibleSourceVersion(procSourceVersion,
                                                                             processor.getClass().getName(),
@@ -756,27 +804,28 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         class ProcessorStateIterator implements Iterator<ProcessorState> {
             DiscoveredProcessors psi;
             Iterator<ProcessorState> innerIter;
-            boolean onProcInterator;
+            boolean onProcIterator;
 
             ProcessorStateIterator(DiscoveredProcessors psi) {
                 this.psi = psi;
                 this.innerIter = psi.procStateList.iterator();
-                this.onProcInterator = false;
+                this.onProcIterator = false;
             }
 
             public ProcessorState next() {
-                if (!onProcInterator) {
+                if (!onProcIterator) {
                     if (innerIter.hasNext())
                         return innerIter.next();
                     else
-                        onProcInterator = true;
+                        onProcIterator = true;
                 }
 
                 if (psi.processorIterator.hasNext()) {
                     ProcessorState ps = new ProcessorState(psi.processorIterator.next(),
                                                            log, source, dcfh,
                                                            Feature.MODULES.allowedInSource(source),
-                                                           JavacProcessingEnvironment.this);
+                                                           JavacProcessingEnvironment.this,
+                                                           lint);
                     psi.procStateList.add(ps);
                     return ps;
                 } else
@@ -784,7 +833,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             }
 
             public boolean hasNext() {
-                if (onProcInterator)
+                if (onProcIterator)
                     return  psi.processorIterator.hasNext();
                 else
                     return innerIter.hasNext() || psi.processorIterator.hasNext();
@@ -800,7 +849,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
              * annotations.
              */
             public void runContributingProcs(RoundEnvironment re) {
-                if (!onProcInterator) {
+                if (!onProcIterator) {
                     Set<TypeElement> emptyTypeElements = Collections.emptySet();
                     while(innerIter.hasNext()) {
                         ProcessorState ps = innerIter.next();
@@ -828,8 +877,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
          */
         public void close() {
             if (processorIterator != null &&
-                processorIterator instanceof ServiceIterator) {
-                ((ServiceIterator) processorIterator).close();
+                processorIterator instanceof ServiceIterator serviceIterator) {
+                serviceIterator.close();
             }
         }
     }
@@ -921,7 +970,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
      * Leave class public for external testing purposes.
      */
     public static class ComputeAnnotationSet extends
-        ElementScanner9<Set<TypeElement>, Set<TypeElement>> {
+        ElementScanner14<Set<TypeElement>, Set<TypeElement>> {
         final Elements elements;
 
         public ComputeAnnotationSet(Elements elements) {
@@ -1061,7 +1110,9 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             prev.newRound();
             this.genClassFiles = prev.genClassFiles;
 
-            List<JCCompilationUnit> parsedFiles = compiler.parseFiles(newSourceFiles);
+            //parse the generated files even despite errors reported so far, to eliminate
+            //recoverable errors related to the type declared in the generated files:
+            List<JCCompilationUnit> parsedFiles = compiler.parseFiles(newSourceFiles, true);
             roots = prev.roots.appendList(parsedFiles);
 
             // Check for errors after parsing
@@ -1106,7 +1157,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
 
         /** Return the number of errors found so far in this round.
-         * This may include uncoverable errors, such as parse errors,
+         * This may include unrecoverable errors, such as parse errors,
          * and transient errors, such as missing symbols. */
         int errorCount() {
             return compiler.errorCount();
@@ -1217,9 +1268,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 // we're specifically expecting Abort here, but if any Throwable
                 // comes by, we should flush all deferred diagnostics, rather than
                 // drop them on the ground.
-                deferredDiagnosticHandler.reportDeferredDiagnostics();
-                log.popDiagnosticHandler(deferredDiagnosticHandler);
-                compiler.setDeferredDiagnosticHandler(null);
+                compiler.reportDeferredDiagnosticAndClearHandler();
                 throw t;
             } finally {
                 if (!taskListener.isEmpty())
@@ -1228,15 +1277,17 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
 
         void showDiagnostics(boolean showAll) {
-            Set<JCDiagnostic.Kind> kinds = EnumSet.allOf(JCDiagnostic.Kind.class);
-            if (!showAll) {
-                // suppress errors, which are all presumed to be transient resolve errors
-                kinds.remove(JCDiagnostic.Kind.ERROR);
-            }
-            deferredDiagnosticHandler.reportDeferredDiagnostics(kinds);
+            deferredDiagnosticHandler.reportDeferredDiagnostics(showAll ? ACCEPT_ALL
+                                                                        : ACCEPT_NON_RECOVERABLE);
             log.popDiagnosticHandler(deferredDiagnosticHandler);
             compiler.setDeferredDiagnosticHandler(null);
         }
+        //where:
+            private final Predicate<JCDiagnostic> ACCEPT_NON_RECOVERABLE =
+                    d -> d.getKind() != JCDiagnostic.Kind.ERROR ||
+                         !d.isFlagSet(DiagnosticFlag.RECOVERABLE) ||
+                         d.isFlagSet(DiagnosticFlag.API);
+            private final Predicate<JCDiagnostic> ACCEPT_ALL = d -> true;
 
         /** Print info about this round. */
         private void printRoundInfo(boolean lastRound) {
@@ -1284,8 +1335,9 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             if (foundError) {
                 for (ClassSymbol cs : symtab.getAllClasses()) {
                     if (cs.classfile != null || cs.kind == ERR) {
+                        Kinds.Kind symKind = cs.kind;
                         cs.reset();
-                        if (cs.kind == ERR) {
+                        if (symKind == ERR) {
                             cs.type = new ClassType(cs.type.getEnclosingType(), null, cs);
                         }
                         if (cs.isCompleted()) {
@@ -1330,7 +1382,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             errorStatus = round.unrecoverableError();
             moreToDo = moreToDo();
 
-            round.showDiagnostics(errorStatus || showResolveErrors);
+            round.showDiagnostics(showResolveErrors);
 
             // Set up next round.
             // Copy mutable collections returned from filer.
@@ -1372,21 +1424,25 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
         errorStatus = errorStatus || (compiler.errorCount() > 0);
 
-        round.finalCompiler();
 
         if (newSourceFiles.size() > 0)
             roots = roots.appendList(compiler.parseFiles(newSourceFiles));
 
         errorStatus = errorStatus || (compiler.errorCount() > 0);
 
-        // Free resources
-        this.close();
-
         if (errorStatus && compiler.errorCount() == 0) {
             compiler.log.nerrors++;
         }
 
-        compiler.enterTreesIfNeeded(roots);
+        if (compiler.continueAfterProcessAnnotations()) {
+            round.finalCompiler();
+            compiler.enterTrees(compiler.initModules(roots));
+        } else {
+            compiler.todo.clear();
+        }
+
+        // Free resources
+        this.close();
 
         if (!taskListener.isEmpty())
             taskListener.finished(new TaskEvent(TaskEvent.Kind.ANNOTATION_PROCESSING));
@@ -1457,10 +1513,19 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     private List<ModuleSymbol> getModuleInfoFiles(List<? extends JCCompilationUnit> units) {
         List<ModuleSymbol> modules = List.nil();
         for (JCCompilationUnit unit : units) {
-            if (isModuleInfo(unit.sourcefile, JavaFileObject.Kind.SOURCE) &&
-                unit.defs.nonEmpty() &&
-                unit.defs.head.hasTag(Tag.MODULEDEF)) {
-                modules = modules.prepend(unit.modle);
+            if (isModuleInfo(unit.sourcefile, JavaFileObject.Kind.SOURCE) && unit.defs.nonEmpty()) {
+                for (JCTree tree : unit.defs) {
+                    if (tree.hasTag(Tag.IMPORT)) {
+                        continue;
+                    }
+                    else if (tree.hasTag(Tag.MODULEDEF)) {
+                        modules = modules.prepend(unit.modle);
+                        break;
+                    }
+                    else {
+                        break;
+                    }
+                }
             }
         }
         return modules.reverse();
@@ -1531,13 +1596,12 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             JCCompilationUnit topLevel;
             public void visitTopLevel(JCCompilationUnit node) {
                 if (node.packge != null) {
-                    if (node.packge.package_info != null) {
+                    if (isPkgInfo(node.sourcefile, Kind.SOURCE)) {
                         node.packge.package_info.reset();
                     }
                     node.packge.reset();
                 }
-                boolean isModuleInfo = node.sourcefile.isNameCompatible("module-info", Kind.SOURCE);
-                if (isModuleInfo) {
+                if (isModuleInfo(node.sourcefile, Kind.SOURCE)) {
                     node.modle.reset();
                     node.modle.completer = sym -> modules.enter(List.of(node), node.modle.module_info);
                     node.modle.module_info.reset();
@@ -1571,13 +1635,20 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 }
                 if (node.sym != null) {
                     node.sym.completer = new ImplicitCompleter(topLevel);
+                    List<? extends RecordComponent> recordComponents = node.sym.getRecordComponents();
+                    for (RecordComponent rc : recordComponents) {
+                        List<JCAnnotation> originalAnnos = rc.getOriginalAnnos();
+                        originalAnnos.forEach(a -> visitAnnotation(a));
+                    }
+                    // we should empty the list of permitted subclasses for next round
+                    node.sym.clearPermittedSubclasses();
                 }
                 node.sym = null;
             }
             public void visitMethodDef(JCMethodDecl node) {
                 // remove super constructor call that may have been added during attribution:
                 if (TreeInfo.isConstructor(node) && node.sym != null && node.sym.owner.isEnum() &&
-                    node.body.stats.nonEmpty() && TreeInfo.isSuperCall(node.body.stats.head) &&
+                    node.body != null && node.body.stats.nonEmpty() && TreeInfo.isSuperCall(node.body.stats.head) &&
                     node.body.stats.head.pos == node.body.pos) {
                     node.body.stats = node.body.stats.tail;
                 }
@@ -1665,6 +1736,11 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         return messages.getCurrentLocale();
     }
 
+    @DefinedBy(Api.ANNOTATION_PROCESSING)
+    public boolean isPreviewEnabled() {
+        return preview.isEnabled();
+    }
+
     public Set<Symbol.PackageSymbol> getSpecifiedPackages() {
         return specifiedPackages;
     }
@@ -1676,7 +1752,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
      * regex matching that string.  If the string is not a valid
      * import-style string, return a regex that won't match anything.
      */
-    private static Pattern importStringToPattern(boolean allowModules, String s, Processor p, Log log) {
+    private static Pattern importStringToPattern(boolean allowModules, String s, Processor p, Log log, boolean lint) {
         String module;
         String pkg;
         int slash = s.indexOf('/');
@@ -1687,15 +1763,26 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             module = allowModules ? ".*/" : "";
             pkg = s;
         } else {
-            module = Pattern.quote(s.substring(0, slash + 1));
+            String moduleName = s.substring(0, slash);
+            if (!SourceVersion.isName(moduleName)) {
+                return warnAndNoMatches(s, p, log, lint);
+            }
+            module = Pattern.quote(moduleName + "/");
+            // And warn if module is specified if modules aren't supported, conditional on -Xlint:proc?
             pkg = s.substring(slash + 1);
         }
         if (MatchingUtils.isValidImportString(pkg)) {
             return Pattern.compile(module + MatchingUtils.validImportStringToPatternString(pkg));
         } else {
-            log.warning(Warnings.ProcMalformedSupportedString(s, p.getClass().getName()));
-            return noMatches; // won't match any valid identifier
+            return warnAndNoMatches(s, p, log, lint);
         }
+    }
+
+    private static Pattern warnAndNoMatches(String s, Processor p, Log log, boolean lint) {
+        if (lint) {
+            log.warning(Warnings.ProcMalformedSupportedString(s, p.getClass().getName()));
+        }
+        return noMatches; // won't match any valid identifier
     }
 
     /**

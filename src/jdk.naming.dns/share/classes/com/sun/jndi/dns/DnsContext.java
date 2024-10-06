@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -537,8 +537,8 @@ public class DnsContext extends ComponentDirContext {
         int prefixLast = prefixC.size() - 1;
 
         // Let toolkit do the work at namespace boundaries.
-        if (nameC.isEmpty() || nameC.get(0).equals("") ||
-                prefixC.isEmpty() || prefixC.get(prefixLast).equals("")) {
+        if (nameC.isEmpty() || nameC.get(0).isEmpty() ||
+                prefixC.isEmpty() || prefixC.get(prefixLast).isEmpty()) {
             return super.composeName(nameC, prefixC);
         }
 
@@ -687,7 +687,7 @@ public class DnsContext extends ComponentDirContext {
     private static CT fromAttrId(String attrId)
             throws InvalidAttributeIdentifierException {
 
-        if (attrId.equals("")) {
+        if (attrId.isEmpty()) {
             throw new InvalidAttributeIdentifierException(
                     "Attribute ID cannot be empty");
         }
@@ -989,7 +989,7 @@ abstract class BaseNameClassPairEnumeration<T> implements NamingEnumeration<T> {
         return hasMore();
     }
 
-    abstract public T next() throws NamingException;
+    public abstract T next() throws NamingException;
 
     public final T nextElement() {
         try {
@@ -1049,11 +1049,6 @@ final class BindingEnumeration extends BaseNameClassPairEnumeration<Binding>
     BindingEnumeration(DnsContext ctx, Hashtable<String,NameNode> nodes) {
         super(ctx, nodes);
     }
-
-    // Finalizer not needed since it's safe to leave ctx unclosed.
-//  protected void finalize() {
-//      close();
-//  }
 
     @Override
     public Binding next() throws NamingException {

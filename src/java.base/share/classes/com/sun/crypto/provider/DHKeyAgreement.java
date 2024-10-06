@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,23 +25,15 @@
 
 package com.sun.crypto.provider;
 
-import java.util.*;
-import java.lang.*;
 import java.math.BigInteger;
-import java.security.AccessController;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.Key;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.security.PrivilegedAction;
-import java.security.ProviderException;
+import java.security.*;
 import java.security.spec.AlgorithmParameterSpec;
-import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
 import javax.crypto.KeyAgreementSpi;
-import javax.crypto.ShortBufferException;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.*;
+import javax.crypto.ShortBufferException;
+import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 import sun.security.util.KeyUtil;
 
@@ -66,6 +58,7 @@ extends KeyAgreementSpi {
 
         private static final boolean VALUE = getValue();
 
+        @SuppressWarnings("removal")
         private static boolean getValue() {
             return AccessController.doPrivileged(
                 (PrivilegedAction<Boolean>)
@@ -179,7 +172,7 @@ extends KeyAgreementSpi {
      * @param key the key for this phase. For example, in the case of
      * Diffie-Hellman between 2 parties, this would be the other party's
      * Diffie-Hellman public key.
-     * @param lastPhase flag which indicates whether or not this is the last
+     * @param lastPhase flag which indicates if this is the last
      * phase of this key agreement.
      *
      * @return the (intermediate) key resulting from this phase, or null if
@@ -226,7 +219,7 @@ extends KeyAgreementSpi {
         // intermediate secret, in which case we wrap it into a
         // Diffie-Hellman public key object and return it.
         generateSecret = true;
-        if (lastPhase == false) {
+        if (!lastPhase) {
             byte[] intermediate = engineGenerateSecret();
             return new DHPublicKey(new BigInteger(1, intermediate),
                                    init_p, init_g);
@@ -292,7 +285,7 @@ extends KeyAgreementSpi {
     protected int engineGenerateSecret(byte[] sharedSecret, int offset)
         throws IllegalStateException, ShortBufferException
     {
-        if (generateSecret == false) {
+        if (!generateSecret) {
             throw new IllegalStateException
                 ("Key agreement has not been completed yet");
         }
@@ -313,6 +306,15 @@ extends KeyAgreementSpi {
         // above, so user can recover w/o losing internal state
         generateSecret = false;
 
+        // No further process if z <= 1 or z == (p - 1) (See section 5.7.1,
+        // NIST SP 800-56A Rev 3).
+        BigInteger z = this.y.modPow(this.x, modulus);
+        if ((z.compareTo(BigInteger.ONE) <= 0) ||
+                z.equals(modulus.subtract(BigInteger.ONE))) {
+            throw new ProviderException(
+                    "Generated secret is out-of-range of (1, p -1)");
+        }
+
         /*
          * NOTE: BigInteger.toByteArray() returns a byte array containing
          * the two's-complement representation of this BigInteger with
@@ -327,13 +329,15 @@ extends KeyAgreementSpi {
          * exactly expectedLen bytes of magnitude, we strip any extra
          * leading 0's, or pad with 0's in case of a "short" secret.
          */
-        byte[] secret = this.y.modPow(this.x, modulus).toByteArray();
+        byte[] secret = z.toByteArray();
         if (secret.length == expectedLen) {
             System.arraycopy(secret, 0, sharedSecret, offset,
                              secret.length);
         } else {
             // Array too short, pad it w/ leading 0s
             if (secret.length < expectedLen) {
+                Arrays.fill(sharedSecret, offset,
+                        offset + (expectedLen - secret.length), (byte)0);
                 System.arraycopy(secret, 0, sharedSecret,
                     offset + (expectedLen - secret.length),
                     secret.length);
@@ -401,9 +405,7 @@ extends KeyAgreementSpi {
             int keysize = secret.length;
             if (keysize >= BlowfishConstants.BLOWFISH_MAX_KEYSIZE)
                 keysize = BlowfishConstants.BLOWFISH_MAX_KEYSIZE;
-            SecretKeySpec skey = new SecretKeySpec(secret, 0, keysize,
-                                                   "Blowfish");
-            return skey;
+            return new SecretKeySpec(secret, 0, keysize, "Blowfish");
         } else if (algorithm.equalsIgnoreCase("AES")) {
             // AES
             int keysize = secret.length;

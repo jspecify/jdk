@@ -22,9 +22,6 @@
  */
 package com.sun.org.apache.xml.internal.security.utils;
 
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.IOException;
 import java.io.OutputStream;
 
@@ -32,7 +29,6 @@ import java.io.OutputStream;
  * A simple Unsynced ByteArrayOutputStream
  *
  */
-@AnnotatedFor({"signedness"})
 public class UnsyncByteArrayOutputStream extends OutputStream  {
 
     // Maximum array size. Using same value as ArrayList in OpenJDK.
@@ -48,9 +44,10 @@ public class UnsyncByteArrayOutputStream extends OutputStream  {
         buf = new byte[INITIAL_SIZE];
     }
 
-    public void write(@PolySigned byte[] arg0) {
+    @Override
+    public void write(byte[] arg0) {
         if ((VM_ARRAY_INDEX_MAX_VALUE - pos) < arg0.length) {
-            throw new OutOfMemoryError();
+            throw new OutOfMemoryError("Required length exceeds implementation limit");
         }
         int newPos = pos + arg0.length;
         if (newPos > size) {
@@ -60,9 +57,10 @@ public class UnsyncByteArrayOutputStream extends OutputStream  {
         pos = newPos;
     }
 
-    public void write(@PolySigned byte[] arg0, int arg1, int arg2) {
+    @Override
+    public void write(byte[] arg0, int arg1, int arg2) {
         if ((VM_ARRAY_INDEX_MAX_VALUE - pos) < arg2) {
-            throw new OutOfMemoryError();
+            throw new OutOfMemoryError("Required length exceeds implementation limit");
         }
         int newPos = pos + arg2;
         if (newPos > size) {
@@ -72,9 +70,10 @@ public class UnsyncByteArrayOutputStream extends OutputStream  {
         pos = newPos;
     }
 
+    @Override
     public void write(int arg0) {
         if (VM_ARRAY_INDEX_MAX_VALUE - pos == 0) {
-            throw new OutOfMemoryError();
+            throw new OutOfMemoryError("Required length exceeds implementation limit");
         }
         int newPos = pos + 1;
         if (newPos > size) {
@@ -84,7 +83,7 @@ public class UnsyncByteArrayOutputStream extends OutputStream  {
     }
 
     public byte[] toByteArray() {
-        byte result[] = new byte[pos];
+        byte[] result = new byte[pos];
         System.arraycopy(buf, 0, result, 0, pos);
         return result;
     }
@@ -115,7 +114,7 @@ public class UnsyncByteArrayOutputStream extends OutputStream  {
                 newSize = VM_ARRAY_INDEX_MAX_VALUE;
             }
         }
-        byte newBuf[] = new byte[newSize];
+        byte[] newBuf = new byte[newSize];
         System.arraycopy(buf, 0, newBuf, 0, pos);
         buf = newBuf;
         size = newSize;

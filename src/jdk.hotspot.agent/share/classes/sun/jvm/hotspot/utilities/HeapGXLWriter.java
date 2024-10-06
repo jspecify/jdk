@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,7 +57,7 @@ import sun.jvm.hotspot.runtime.*;
  * <ul>
  * <li>Java byte, int, short, long - GXL int attribute
  * <li>Java float, double - GXL float attribute
- * <li>Java boolean - GXL bool atttribute
+ * <li>Java boolean - GXL bool attribute
  * <li>Java char - GXL string attribute
  * </ul>
  *
@@ -101,7 +101,7 @@ public class HeapGXLWriter extends AbstractHeapGraphWriter {
     }
 
     protected void writeObjectHeader(Oop oop) throws IOException  {
-        refFields = new ArrayList();
+        refFields = new ArrayList<>();
         isArray = oop.isArray();
 
         // generate an edge for instanceof relation
@@ -275,6 +275,11 @@ public class HeapGXLWriter extends AbstractHeapGraphWriter {
         out.println("</gxl>");
     }
 
+    @Override
+    protected int calculateOopDumpRecordSize(Oop oop) throws IOException {
+        return 0;
+    }
+
     //-- Internals only below this point
 
     // Java identifier to XML NMTOKEN type string
@@ -286,7 +291,7 @@ public class HeapGXLWriter extends AbstractHeapGraphWriter {
     // escapes XML meta-characters and illegal characters
     private static String escapeXMLChars(String s) {
         // FIXME: is there a better way or API?
-        StringBuffer result = null;
+        StringBuilder result = null;
         for(int i = 0, max = s.length(), delta = 0; i < max; i++) {
             char c = s.charAt(i);
             String replacement = null;
@@ -311,7 +316,7 @@ public class HeapGXLWriter extends AbstractHeapGraphWriter {
 
             if (replacement != null) {
                 if (result == null) {
-                    result = new StringBuffer(s);
+                    result = new StringBuilder(s);
                 }
                 result.replace(i + delta, i + delta + 1, replacement);
                 delta += (replacement.length() - 1);
@@ -403,7 +408,7 @@ public class HeapGXLWriter extends AbstractHeapGraphWriter {
     private static final String ENCODING = "UTF-8";
 
     // reference fields of currently visited object
-    private List/*<OopField>*/ refFields;
+    private List<OopField> refFields;
     // are we writing an array now?
     private boolean isArray;
     private PrintWriter out;

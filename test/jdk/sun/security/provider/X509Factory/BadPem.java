@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,14 +23,14 @@
 
 /*
  * @test
- * @bug 8074935
- * @summary jdk8 keytool doesn't validate pem files for RFC 1421 correctness, as jdk7 did
+ * @bug 8074935 8208602
+ * @summary X.509 cert PEM format read
  * @modules java.base/sun.security.provider
  */
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.File;
 import java.io.PrintStream;
 import java.security.KeyStore;
 import java.security.cert.CertificateException;
@@ -39,7 +39,6 @@ import java.util.Base64;
 
 import sun.security.provider.X509Factory;
 import java.security.cert.CertificateFactory;
-import java.io.ByteArrayInputStream;
 
 public class BadPem {
 
@@ -49,10 +48,12 @@ public class BadPem {
         String pass = "passphrase";
         String alias = "dummy";
 
-        KeyStore keyStore = KeyStore.getInstance("JKS");
-        keyStore.load(new FileInputStream(ks), pass.toCharArray());
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        KeyStore keyStore = KeyStore.getInstance(new File(ks),
+                pass.toCharArray());
         byte[] cert = keyStore.getCertificate(alias).getEncoded();
 
+        // 8074935
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
         PrintStream pout = new PrintStream(bout);
         byte[] CRLF = new byte[] {'\r', '\n'};
@@ -64,14 +65,20 @@ public class BadPem {
         }
         pout.println(X509Factory.END_CERT);
 
-        CertificateFactory cf = CertificateFactory.getInstance("X.509");
-
         try {
             cf.generateCertificate(new ByteArrayInputStream(bout.toByteArray()));
             throw new Exception("Should fail");
         } catch (CertificateException e) {
             // Good
         }
+
+        // 8208602
+        bout.reset();
+        pout.println(X509Factory.BEGIN_CERT + "  ");
+        pout.println(Base64.getMimeEncoder().encodeToString(cert));
+        pout.println(X509Factory.END_CERT + "    ");
+
+        cf.generateCertificate(new ByteArrayInputStream(bout.toByteArray()));
     }
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,13 @@
 
 /**
  * @test
- * @library /lib/testlibrary /test/lib
+ * @library /test/lib
  * @modules jdk.compiler
  *          jdk.jartool
  *          jdk.jlink
- * @build BasicTest jdk.test.lib.compiler.CompilerUtils jdk.testlibrary.*
+ * @build BasicTest jdk.test.lib.compiler.CompilerUtils
  * @run testng BasicTest
+ * @bug 8234076
  * @summary Basic test of starting an application as a module
  */
 
@@ -39,7 +40,9 @@ import java.nio.file.Paths;
 import java.util.spi.ToolProvider;
 
 import jdk.test.lib.compiler.CompilerUtils;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.Utils;
 
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
@@ -70,6 +73,8 @@ public class BasicTest {
     // the module main class
     private static final String MAIN_CLASS = "jdk.test.Main";
 
+    // for Windows specific launcher tests
+    static final boolean IS_WINDOWS = System.getProperty("os.name", "unknown").startsWith("Windows");
 
     @BeforeTest
     public void compileTestModule() throws Exception {
@@ -259,4 +264,87 @@ public class BasicTest {
         assertTrue(exitValue != 0);
     }
 
+
+    /**
+     * Helper method that creates a ProcessBuilder with command line arguments
+     * while setting the _JAVA_LAUNCHER_DEBUG environment variable.
+     */
+    private ProcessBuilder createProcessWithLauncherDebugging(String... cmds) {
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(Utils.addTestJavaOpts(cmds));
+        pb.environment().put("_JAVA_LAUNCHER_DEBUG", "true");
+
+        return pb;
+    }
+
+     /**
+     * Test the ability for the Windows launcher to do proper application argument
+     * detection and expansion, when using the long form module option and all passed in
+     * command line arguments are prefixed with a dash.
+     *
+     * These tests are not expected to work on *nixes, and are ignored.
+     */
+    public void testWindowsWithLongFormModuleOption() throws Exception {
+        if (!IS_WINDOWS) {
+            return;
+        }
+
+        String dir = MODS_DIR.toString();
+        String mid = TEST_MODULE + "/" + MAIN_CLASS;
+
+        // java --module-path=mods --module=$TESTMODULE/$MAINCLASS --help
+        // We should be able to find the argument --help as an application argument
+        ProcessTools.executeProcess(
+            createProcessWithLauncherDebugging(
+                "--module-path=" + dir,
+                "--module=" + mid,
+                "--help"))
+            .outputTo(System.out)
+            .errorTo(System.out)
+            .shouldContain("F--help");
+
+        // java --module-path=mods --module=$TESTMODULE/$MAINCLASS <...src/test>/*.java --help
+        // We should be able to see argument expansion happen
+        ProcessTools.executeProcess(
+            createProcessWithLauncherDebugging(
+                "--module-path=" + dir,
+                "--module=" + mid,
+                SRC_DIR.resolve(TEST_MODULE).toString() + "\\*.java",
+                "--help"))
+            .outputTo(System.out)
+            .errorTo(System.out)
+            .shouldContain("F--help")
+            .shouldContain("module-info.java");
+    }
+
+
+    /**
+     * Test that --module= is terminating for VM argument processing just like --module
+     */
+    public void testLongFormModuleOptionTermination() throws Exception {
+        String dir = MODS_DIR.toString();
+        String mid = TEST_MODULE + "/" + MAIN_CLASS;
+
+        // java --module-path=mods --module=$TESTMODULE/$MAINCLASS --module-path=mods --module=$TESTMODULE/$MAINCLASS
+        // The first --module= will terminate the VM arguments processing. The second pair of module-path and module will be
+        // deemed as application arguments
+        OutputAnalyzer output = ProcessTools.executeProcess(
+            createProcessWithLauncherDebugging(
+                "--module-path=" + dir,
+                "--module=" + mid,
+                "--module-path=" + dir,
+                "--module=" + mid))
+            .outputTo(System.out)
+            .errorTo(System.out)
+            .shouldContain("argv[ 0] = '--module-path=" + dir)
+            .shouldContain("argv[ 1] = '--module=" + mid);
+
+        if (IS_WINDOWS) {
+            output.shouldContain("F--module-path=" + dir).shouldContain("F--module=" + mid);
+        }
+
+        // java --module=$TESTMODULE/$MAINCLASS --module-path=mods
+        // This command line will not work as --module= is terminating and the module will be not found
+        int exitValue = exec("--module=" + mid, "--module-path" + dir);
+        assertTrue(exitValue != 0);
+    }
 }

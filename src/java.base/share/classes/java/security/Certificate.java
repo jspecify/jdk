@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,13 +44,13 @@ import java.util.Date;
  * public key, the principal whose key it is, and the guarantor
  * guaranteeing that the public key is that of the specified
  * principal. So an implementation of X.509 certificates and an
- * implementation of PGP certificates can both utilize the Certificate
+ * implementation of PGP certificates can both utilize the {@code Certificate}
  * interface, even though their formats and additional types and
  * amounts of information stored are different.
  *
  * <p><b>Important</b>: This interface is useful for cataloging and
  * grouping objects sharing certain common uses. It does not have any
- * semantics of its own. In particular, a Certificate object does not
+ * semantics of its own. In particular, a {@code Certificate} object does not
  * make any statement as to the <i>validity</i> of the binding. It is
  * the duty of the application implementing this interface to verify
  * the certificate and satisfy itself of its validity.
@@ -101,10 +101,10 @@ public interface Certificate {
      * @param stream the output stream to which to encode the
      * certificate.
      *
-     * @exception KeyException if the certificate is not
+     * @throws    KeyException if the certificate is not
      * properly initialized, or data is missing, etc.
      *
-     * @exception IOException if a stream exception occurs while
+     * @throws    IOException if a stream exception occurs while
      * trying to output the encoded certificate to the output stream.
      *
      * @see #decode
@@ -121,10 +121,10 @@ public interface Certificate {
      * @param stream the input stream from which to fetch the data
      * being decoded.
      *
-     * @exception KeyException if the certificate is not properly initialized,
+     * @throws    KeyException if the certificate is not properly initialized,
      * or data is missing, etc.
      *
-     * @exception IOException if an exception occurs while trying to input
+     * @throws    IOException if an exception occurs while trying to input
      * the encoded certificate from the input stream.
      *
      * @see #encode

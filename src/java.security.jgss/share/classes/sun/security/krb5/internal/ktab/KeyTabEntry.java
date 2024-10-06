@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +33,9 @@ package sun.security.krb5.internal.ktab;
 
 import sun.security.krb5.*;
 import sun.security.krb5.internal.*;
-import java.io.UnsupportedEncodingException;
+
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static sun.security.krb5.internal.Krb5.DEBUG;
 
 /**
  * This class represents a Key Table entry. Each entry contains the service principal of
@@ -47,7 +50,6 @@ public class KeyTabEntry implements KeyTabConstants {
     int keyVersion;
     int keyType;
     byte[] keyblock = null;
-    boolean DEBUG = Krb5.DEBUG;
 
     public KeyTabEntry (PrincipalName new_service, Realm new_realm, KerberosTime new_time,
                         int new_keyVersion, int new_keyType, byte[] new_keyblock) {
@@ -83,25 +85,18 @@ public class KeyTabEntry implements KeyTabConstants {
         int totalPrincipalLength = 0;
         String[] names = service.getNameStrings();
         for (int i = 0; i < names.length; i++) {
-            try {
-                totalPrincipalLength += principalSize + names[i].getBytes("8859_1").length;
-            } catch (UnsupportedEncodingException exc) {
-            }
+            totalPrincipalLength += principalSize + names[i].getBytes(ISO_8859_1).length;
         }
 
-        int realmLen = 0;
-        try {
-            realmLen = realm.toString().getBytes("8859_1").length;
-        } catch (UnsupportedEncodingException exc) {
-        }
+        int realmLen = realm.toString().getBytes(ISO_8859_1).length;
 
         int size = principalComponentSize +  realmSize + realmLen
             + totalPrincipalLength + principalTypeSize
             + timestampSize + keyVersionSize
             + keyTypeSize + keySize + keyblock.length;
 
-        if (DEBUG) {
-            System.out.println(">>> KeyTabEntry: key tab entry size is " + size);
+        if (DEBUG != null) {
+            DEBUG.println(">>> KeyTabEntry: key tab entry size is " + size);
         }
         return size;
     }

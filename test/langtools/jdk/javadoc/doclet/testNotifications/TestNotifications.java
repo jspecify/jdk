@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,29 +27,31 @@
  * @summary  Make sure a notification is printed when an output directory must
  *           be created.
  *           Make sure classname is not include in javadoc usage message.
- * @author   jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestNotifications
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestNotifications extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestNotifications tester = new TestNotifications();
+        var tester = new TestNotifications();
         tester.runTests();
     }
 
     @Test
-    void test1() {
+    public void test1() {
         String outDir = "out";
 
         // Notify that the destination directory must be created.
         javadoc("-d", outDir, "-sourcepath", testSrc, "pkg");
         checkExit(Exit.OK);
         checkOutput(Output.OUT, true,
-                "Creating destination directory: \"" + outDir);
+                """
+                    Creating destination directory: \"""" + outDir);
 
         // No need to notify that the destination must be created because
         // it already exists.
@@ -57,11 +59,12 @@ public class TestNotifications extends JavadocTester {
         javadoc("-d", outDir, "-sourcepath", testSrc, "pkg");
         checkExit(Exit.OK);
         checkOutput(Output.OUT, false,
-                "Creating destination directory: \"" + outDir);
+                """
+                    Creating destination directory: \"""" + outDir);
     }
 
     @Test
-    void test() {
+    public void test() {
         //Make sure classname is not include in javadoc usage message.
         setOutputDirectoryCheck(DirectoryCheck.NO_HTML_FILES);
         javadoc("-help");

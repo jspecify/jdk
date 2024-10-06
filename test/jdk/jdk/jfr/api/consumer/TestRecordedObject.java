@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -28,6 +26,7 @@ package jdk.jfr.api.consumer;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -93,6 +92,12 @@ public class TestRecordedObject {
 
         @Timespan(Timespan.SECONDS)
         long durationSeconds = DURATION_VALUE.toSeconds();
+
+        @Timespan(Timespan.SECONDS)
+        long foreverMillis = Long.MAX_VALUE;
+
+        @Timespan(Timespan.NANOSECONDS)
+        long foreverNanoseconds = Long.MAX_VALUE;
 
         @Timestamp(Timestamp.MILLISECONDS_SINCE_EPOCH)
         long instantMillis = 1000;
@@ -181,6 +186,9 @@ public class TestRecordedObject {
         Asserts.assertEquals(event.getDuration("durationMicros"), DURATION_VALUE);
         Asserts.assertEquals(event.getDuration("durationMillis"), DURATION_VALUE);
         Asserts.assertEquals(event.getDuration("durationSeconds"), DURATION_VALUE);
+        Asserts.assertEquals(event.getDuration("foreverMillis"), ChronoUnit.FOREVER.getDuration());
+        Asserts.assertEquals(event.getDuration("foreverNanoseconds"), ChronoUnit.FOREVER.getDuration());
+
         Asserts.assertEquals(event.getInstant("instantMillis").toEpochMilli(), 1000L);
         if (!event.getInstant("instantTicks").isBefore(INSTANT_VALUE)) {
             throw new AssertionError("Expected start time of JVM to before call to Instant.now()");
@@ -377,14 +385,15 @@ public class TestRecordedObject {
     }
 
     private static RecordedObject makeRecordedObject() throws IOException {
-        Recording r = new Recording();
-        r.start();
-        EventWithValues t = new EventWithValues();
-        t.commit();
-        r.stop();
-        List<RecordedEvent> events = Events.fromRecording(r);
-        Events.hasEvents(events);
-        return events.get(0);
+        try (Recording r = new Recording()) {
+            r.start();
+            EventWithValues t = new EventWithValues();
+            t.commit();
+            r.stop();
+            List<RecordedEvent> events = Events.fromRecording(r);
+            Events.hasEvents(events);
+            return events.getFirst();
+        }
     }
 
     private static Set<String> createAll() {

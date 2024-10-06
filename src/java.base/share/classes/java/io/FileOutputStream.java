@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,38 +29,33 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.channels.FileChannel;
-import jdk.internal.misc.SharedSecrets;
-import jdk.internal.misc.JavaIOFileDescriptorAccess;
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.access.JavaIOFileDescriptorAccess;
+import jdk.internal.event.FileWriteEvent;
 import sun.nio.ch.FileChannelImpl;
 
 
 /**
  * A file output stream is an output stream for writing data to a
- * <code>File</code> or to a <code>FileDescriptor</code>. Whether or not
+ * {@code File} or to a {@code FileDescriptor}. Whether or not
  * a file is available or may be created depends upon the underlying
  * platform.  Some platforms, in particular, allow a file to be opened
  * for writing by only one {@code FileOutputStream} (or other
  * file-writing object) at a time.  In such situations the constructors in
  * this class will fail if the file involved is already open.
  *
- * <p><code>FileOutputStream</code> is meant for writing streams of raw bytes
+ * <p>{@code FileOutputStream} is meant for writing streams of raw bytes
  * such as image data. For writing streams of characters, consider using
- * <code>FileWriter</code>.
+ * {@code FileWriter}.
  *
  * @apiNote
- * To release resources used by this stream {@link #close} should be called
- * directly or by try-with-resources. Subclasses are responsible for the cleanup
- * of resources acquired by the subclass.
- * Subclasses that override {@link #finalize} in order to perform cleanup
- * should be modified to use alternative cleanup mechanisms such as
- * {@link java.lang.ref.Cleaner} and remove the overriding {@code finalize} method.
+ * The {@link #close} method should be called to release resources used by this
+ * stream, either directly, or with the {@code try}-with-resources statement.
  *
  * @implSpec
- * If this FileOutputStream has been subclassed and the {@link #close}
- * method has been overridden, the {@link #close} method will be
- * called when the FileInputStream is unreachable.
- * Otherwise, it is implementation specific how the resource cleanup described in
- * {@link #close} is performed.
+ * Subclasses are responsible for the cleanup of resources acquired by the subclass.
+ * Subclasses requiring that resource cleanup take place after a stream becomes
+ * unreachable should use {@link java.lang.ref.Cleaner} or some other mechanism.
  *
  * @author  Arthur van Hoff
  * @see     java.io.File
@@ -70,14 +65,19 @@ import sun.nio.ch.FileChannelImpl;
  * @since   1.0
  */
 @NullMarked
-public
-class FileOutputStream extends OutputStream
+public class FileOutputStream extends OutputStream
 {
     /**
      * Access to FileDescriptor internals.
      */
-    private static final JavaIOFileDescriptorAccess fdAccess =
+    private static final JavaIOFileDescriptorAccess FD_ACCESS =
         SharedSecrets.getJavaIOFileDescriptorAccess();
+
+    /**
+     * Flag set by jdk.internal.event.JFRTracing to indicate if
+     * file writes should be traced by JFR.
+     */
+    private static boolean jfrTracing;
 
     /**
      * The system dependent file descriptor.
@@ -99,30 +99,31 @@ class FileOutputStream extends OutputStream
 
     private volatile boolean closed;
 
-    private final Object altFinalizer;
-
     /**
      * Creates a file output stream to write to the file with the
-     * specified name. A new <code>FileDescriptor</code> object is
+     * specified name. If the file exists, it is truncated, otherwise a
+     * new file is created. {@linkplain java.nio.file##links Symbolic links}
+     * are automatically redirected to the <i>target</i> of the link.
+     * A new {@code FileDescriptor} object is
      * created to represent this file connection.
      * <p>
-     * First, if there is a security manager, its <code>checkWrite</code>
-     * method is called with <code>name</code> as its argument.
+     * First, if there is a security manager, its {@code checkWrite}
+     * method is called with {@code name} as its argument.
      * <p>
      * If the file exists but is a directory rather than a regular file, does
      * not exist but cannot be created, or cannot be opened for any other
-     * reason then a <code>FileNotFoundException</code> is thrown.
+     * reason then a {@code FileNotFoundException} is thrown.
      *
      * @implSpec Invoking this constructor with the parameter {@code name} is
      * equivalent to invoking {@link #FileOutputStream(String,boolean)
      * new FileOutputStream(name, false)}.
      *
      * @param      name   the system-dependent filename
-     * @exception  FileNotFoundException  if the file exists but is a directory
+     * @throws     FileNotFoundException  if the file exists but is a directory
      *                   rather than a regular file, does not exist but cannot
      *                   be created, or cannot be opened for any other reason
-     * @exception  SecurityException  if a security manager exists and its
-     *               <code>checkWrite</code> method denies write access
+     * @throws     SecurityException  if a security manager exists and its
+     *               {@code checkWrite} method denies write access
      *               to the file.
      * @see        java.lang.SecurityManager#checkWrite(java.lang.String)
      */
@@ -132,26 +133,29 @@ class FileOutputStream extends OutputStream
 
     /**
      * Creates a file output stream to write to the file with the specified
-     * name.  If the second argument is <code>true</code>, then
-     * bytes will be written to the end of the file rather than the beginning.
-     * A new <code>FileDescriptor</code> object is created to represent this
+     * name. If the file exists, it is truncated unless the second
+     * argument is {@code true}, in which case bytes will be written to the
+     * end of the file rather than the beginning. If the file does not exist,
+     * it is created. {@linkplain java.nio.file##links Symbolic links}
+     * are automatically redirected to the <i>target</i> of the link.
+     * A new {@code FileDescriptor} object is created to represent this
      * file connection.
      * <p>
-     * First, if there is a security manager, its <code>checkWrite</code>
-     * method is called with <code>name</code> as its argument.
+     * First, if there is a security manager, its {@code checkWrite}
+     * method is called with {@code name} as its argument.
      * <p>
      * If the file exists but is a directory rather than a regular file, does
      * not exist but cannot be created, or cannot be opened for any other
-     * reason then a <code>FileNotFoundException</code> is thrown.
+     * reason then a {@code FileNotFoundException} is thrown.
      *
      * @param     name        the system-dependent file name
-     * @param     append      if <code>true</code>, then bytes will be written
+     * @param     append      if {@code true}, then bytes will be written
      *                   to the end of the file rather than the beginning
-     * @exception  FileNotFoundException  if the file exists but is a directory
+     * @throws     FileNotFoundException  if the file exists but is a directory
      *                   rather than a regular file, does not exist but cannot
      *                   be created, or cannot be opened for any other reason.
-     * @exception  SecurityException  if a security manager exists and its
-     *               <code>checkWrite</code> method denies write access
+     * @throws     SecurityException  if a security manager exists and its
+     *               {@code checkWrite} method denies write access
      *               to the file.
      * @see        java.lang.SecurityManager#checkWrite(java.lang.String)
      * @since     1.1
@@ -164,24 +168,27 @@ class FileOutputStream extends OutputStream
 
     /**
      * Creates a file output stream to write to the file represented by
-     * the specified <code>File</code> object. A new
-     * <code>FileDescriptor</code> object is created to represent this
-     * file connection.
+     * the specified {@code File} object.
+     * If the file exists, it is truncated, otherwise a
+     * new file is created. {@linkplain java.nio.file##links Symbolic links}
+     * are automatically redirected to the <i>target</i> of the link.
+     * A new {@code FileDescriptor} object is
+     * created to represent this file connection.
      * <p>
-     * First, if there is a security manager, its <code>checkWrite</code>
-     * method is called with the path represented by the <code>file</code>
+     * First, if there is a security manager, its {@code checkWrite}
+     * method is called with the path represented by the {@code file}
      * argument as its argument.
      * <p>
      * If the file exists but is a directory rather than a regular file, does
      * not exist but cannot be created, or cannot be opened for any other
-     * reason then a <code>FileNotFoundException</code> is thrown.
+     * reason then a {@code FileNotFoundException} is thrown.
      *
      * @param      file               the file to be opened for writing.
-     * @exception  FileNotFoundException  if the file exists but is a directory
+     * @throws     FileNotFoundException  if the file exists but is a directory
      *                   rather than a regular file, does not exist but cannot
      *                   be created, or cannot be opened for any other reason
-     * @exception  SecurityException  if a security manager exists and its
-     *               <code>checkWrite</code> method denies write access
+     * @throws     SecurityException  if a security manager exists and its
+     *               {@code checkWrite} method denies write access
      *               to the file.
      * @see        java.io.File#getPath()
      * @see        java.lang.SecurityException
@@ -193,37 +200,43 @@ class FileOutputStream extends OutputStream
 
     /**
      * Creates a file output stream to write to the file represented by
-     * the specified <code>File</code> object. If the second argument is
-     * <code>true</code>, then bytes will be written to the end of the file
-     * rather than the beginning. A new <code>FileDescriptor</code> object is
-     * created to represent this file connection.
+     * the specified {@code File} object.
+     * If the file exists, it is truncated unless the second
+     * argument is {@code true}, in which case bytes will be written to the
+     * end of the file rather than the beginning. If the file does not exist,
+     * it is created. {@linkplain java.nio.file##links Symbolic links}
+     * are automatically redirected to the <i>target</i> of the link.
+     * A new {@code FileDescriptor} object is created to represent this
+     * file connection.
      * <p>
-     * First, if there is a security manager, its <code>checkWrite</code>
-     * method is called with the path represented by the <code>file</code>
+     * First, if there is a security manager, its {@code checkWrite}
+     * method is called with the path represented by the {@code file}
      * argument as its argument.
      * <p>
      * If the file exists but is a directory rather than a regular file, does
      * not exist but cannot be created, or cannot be opened for any other
-     * reason then a <code>FileNotFoundException</code> is thrown.
+     * reason then a {@code FileNotFoundException} is thrown.
      *
      * @param      file               the file to be opened for writing.
-     * @param     append      if <code>true</code>, then bytes will be written
+     * @param     append      if {@code true}, then bytes will be written
      *                   to the end of the file rather than the beginning
-     * @exception  FileNotFoundException  if the file exists but is a directory
+     * @throws     FileNotFoundException  if the file exists but is a directory
      *                   rather than a regular file, does not exist but cannot
      *                   be created, or cannot be opened for any other reason
-     * @exception  SecurityException  if a security manager exists and its
-     *               <code>checkWrite</code> method denies write access
+     * @throws     SecurityException  if a security manager exists and its
+     *               {@code checkWrite} method denies write access
      *               to the file.
      * @see        java.io.File#getPath()
      * @see        java.lang.SecurityException
      * @see        java.lang.SecurityManager#checkWrite(java.lang.String)
      * @since 1.4
      */
+    @SuppressWarnings("this-escape")
     public FileOutputStream(File file, boolean append)
         throws FileNotFoundException
     {
         String name = (file != null ? file.getPath() : null);
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkWrite(name);
@@ -239,10 +252,7 @@ class FileOutputStream extends OutputStream
         this.path = name;
 
         open(name, append);
-        altFinalizer = getFinalizer(this);
-        if (altFinalizer == null) {
-            FileCleanable.register(fd);   // open sets the fd, register the cleanup
-        }
+        FileCleanable.register(fd);   // open sets the fd, register the cleanup
     }
 
     /**
@@ -250,25 +260,27 @@ class FileOutputStream extends OutputStream
      * descriptor, which represents an existing connection to an actual
      * file in the file system.
      * <p>
-     * First, if there is a security manager, its <code>checkWrite</code>
-     * method is called with the file descriptor <code>fdObj</code>
+     * First, if there is a security manager, its {@code checkWrite}
+     * method is called with the file descriptor {@code fdObj}
      * argument as its argument.
      * <p>
-     * If <code>fdObj</code> is null then a <code>NullPointerException</code>
+     * If {@code fdObj} is null then a {@code NullPointerException}
      * is thrown.
      * <p>
-     * This constructor does not throw an exception if <code>fdObj</code>
+     * This constructor does not throw an exception if {@code fdObj}
      * is {@link java.io.FileDescriptor#valid() invalid}.
      * However, if the methods are invoked on the resulting stream to attempt
-     * I/O on the stream, an <code>IOException</code> is thrown.
+     * I/O on the stream, an {@code IOException} is thrown.
      *
      * @param      fdObj   the file descriptor to be opened for writing
-     * @exception  SecurityException  if a security manager exists and its
-     *               <code>checkWrite</code> method denies
+     * @throws     SecurityException  if a security manager exists and its
+     *               {@code checkWrite} method denies
      *               write access to the file descriptor
      * @see        java.lang.SecurityManager#checkWrite(java.io.FileDescriptor)
      */
+    @SuppressWarnings("this-escape")
     public FileOutputStream(FileDescriptor fdObj) {
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (fdObj == null) {
             throw new NullPointerException();
@@ -278,7 +290,6 @@ class FileOutputStream extends OutputStream
         }
         this.fd = fdObj;
         this.path = null;
-        this.altFinalizer = null;
 
         fd.attach(this);
     }
@@ -297,8 +308,7 @@ class FileOutputStream extends OutputStream
      * @param name name of file to be opened
      * @param append whether the file is to be opened in append mode
      */
-    private void open(String name, boolean append)
-        throws FileNotFoundException {
+    private void open(String name, boolean append) throws FileNotFoundException {
         open0(name, append);
     }
 
@@ -311,15 +321,36 @@ class FileOutputStream extends OutputStream
      */
     private native void write(int b, boolean append) throws IOException;
 
+    private void traceWrite(int b, boolean append) throws IOException {
+        long bytesWritten = 0;
+        long start = 0;
+        try {
+            start = FileWriteEvent.timestamp();
+            write(b, append);
+            bytesWritten = 1;
+        } finally {
+            long duration = FileWriteEvent.timestamp() - start;
+            if (FileWriteEvent.shouldCommit(duration)) {
+                FileWriteEvent.commit(start, duration, path, bytesWritten);
+            }
+        }
+    }
+
     /**
      * Writes the specified byte to this file output stream. Implements
-     * the <code>write</code> method of <code>OutputStream</code>.
+     * the {@code write} method of {@code OutputStream}.
      *
      * @param      b   the byte to be written.
-     * @exception  IOException  if an I/O error occurs.
+     * @throws     IOException  if an I/O error occurs.
      */
-    public void write( int b) throws IOException {
-        write(b, fdAccess.getAppend(fd));
+    @Override
+    public void write(int b) throws IOException {
+        boolean append = FD_ACCESS.getAppend(fd);
+        if (jfrTracing && FileWriteEvent.enabled()) {
+            traceWrite(b, append);
+            return;
+        }
+        write(b, append);
     }
 
     /**
@@ -329,33 +360,61 @@ class FileOutputStream extends OutputStream
      * @param len the number of bytes that are written
      * @param append {@code true} to first advance the position to the
      *     end of file
-     * @exception IOException If an I/O error has occurred.
+     * @throws    IOException If an I/O error has occurred.
      */
-    private native void writeBytes( byte b[], int off, int len, boolean append)
+    private native void writeBytes(byte[] b, int off, int len, boolean append)
         throws IOException;
 
-    /**
-     * Writes <code>b.length</code> bytes from the specified byte array
-     * to this file output stream.
-     *
-     * @param      b   the data.
-     * @exception  IOException  if an I/O error occurs.
-     */
-    public void write( byte b[]) throws IOException {
-        writeBytes(b, 0, b.length, fdAccess.getAppend(fd));
+    private void traceWriteBytes(byte b[], int off, int len, boolean append) throws IOException {
+        long bytesWritten = 0;
+        long start = 0;
+        try {
+            start = FileWriteEvent.timestamp();
+            writeBytes(b, off, len, append);
+            bytesWritten = len;
+        } finally {
+            long duration = FileWriteEvent.timestamp() - start;
+            if (FileWriteEvent.shouldCommit(duration)) {
+                FileWriteEvent.commit(start, duration, path, bytesWritten);
+            }
+        }
     }
 
     /**
-     * Writes <code>len</code> bytes from the specified byte array
-     * starting at offset <code>off</code> to this file output stream.
+     * Writes {@code b.length} bytes from the specified byte array
+     * to this file output stream.
      *
-     * @param      b     the data.
-     * @param      off   the start offset in the data.
-     * @param      len   the number of bytes to write.
-     * @exception  IOException  if an I/O error occurs.
+     * @param      b   {@inheritDoc}
+     * @throws     IOException  {@inheritDoc}
      */
-    public void write( byte b[],  int off,   int len) throws IOException {
-        writeBytes(b, off, len, fdAccess.getAppend(fd));
+    @Override
+    public void write(byte[] b) throws IOException {
+        boolean append = FD_ACCESS.getAppend(fd);
+        if (jfrTracing && FileWriteEvent.enabled()) {
+            traceWriteBytes(b, 0, b.length, append);
+            return;
+        }
+        writeBytes(b, 0, b.length, append);
+    }
+
+    /**
+     * Writes {@code len} bytes from the specified byte array
+     * starting at offset {@code off} to this file output stream.
+     *
+     * @param      b     {@inheritDoc}
+     * @param      off   {@inheritDoc}
+     * @param      len   {@inheritDoc}
+     * @throws     IOException  if an I/O error occurs.
+     * @throws     IndexOutOfBoundsException {@inheritDoc}
+     */
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+        boolean append = FD_ACCESS.getAppend(fd);
+        if (jfrTracing && FileWriteEvent.enabled()) {
+            traceWriteBytes(b, off, len, append);
+            return;
+        }
+        writeBytes(b, off, len, append);
     }
 
     /**
@@ -369,16 +428,19 @@ class FileOutputStream extends OutputStream
      * @apiNote
      * Overriding {@link #close} to perform cleanup actions is reliable
      * only when called directly or when called by try-with-resources.
-     * Do not depend on finalization to invoke {@code close};
-     * finalization is not reliable and is deprecated.
-     * If cleanup of native resources is needed, other mechanisms such as
-     * {@linkplain java.lang.ref.Cleaner} should be used.
      *
-     * @exception  IOException  if an I/O error occurs.
+     * @implSpec
+     * Subclasses requiring that resource cleanup take place after a stream becomes
+     * unreachable should use the {@link java.lang.ref.Cleaner} mechanism.
      *
-     * @revised 1.4
-     * @spec JSR-51
+     * <p>
+     * If this stream has an associated channel then this method will close the
+     * channel, which in turn will close this stream. Subclasses that override
+     * this method should be prepared to handle possible reentrant invocation.
+     *
+     * @throws     IOException  if an I/O error occurs.
      */
+    @Override
     public void close() throws IOException {
         if (closed) {
             return;
@@ -407,11 +469,11 @@ class FileOutputStream extends OutputStream
     /**
      * Returns the file descriptor associated with this stream.
      *
-     * @return  the <code>FileDescriptor</code> object that represents
+     * @return  the {@code FileDescriptor} object that represents
      *          the connection to the file in the file system being used
-     *          by this <code>FileOutputStream</code> object.
+     *          by this {@code FileOutputStream} object.
      *
-     * @exception  IOException  if an I/O error occurs.
+     * @throws     IOException  if an I/O error occurs.
      * @see        java.io.FileDescriptor
      */
      public final FileDescriptor getFD()  throws IOException {
@@ -436,7 +498,6 @@ class FileOutputStream extends OutputStream
      * @return  the file channel associated with this file output stream
      *
      * @since 1.4
-     * @spec JSR-51
      */
     public FileChannel getChannel() {
         FileChannel fc = this.channel;
@@ -444,8 +505,8 @@ class FileOutputStream extends OutputStream
             synchronized (this) {
                 fc = this.channel;
                 if (fc == null) {
-                    this.channel = fc = FileChannelImpl.open(fd, path, false,
-                        true, false, this);
+                    fc = FileChannelImpl.open(fd, path, false, true, false, false, this);
+                    this.channel = fc;
                     if (closed) {
                         try {
                             // possible race with close(), benign since
@@ -461,98 +522,9 @@ class FileOutputStream extends OutputStream
         return fc;
     }
 
-    /**
-     * Cleans up the connection to the file, and ensures that the
-     * {@link #close} method of this file output stream is
-     * called when there are no more references to this stream.
-     * The {@link #finalize} method does not call {@link #close} directly.
-     *
-     * @apiNote
-     * To release resources used by this stream {@link #close} should be called
-     * directly or by try-with-resources.
-     *
-     * @implSpec
-     * If this FileOutputStream has been subclassed and the {@link #close}
-     * method has been overridden, the {@link #close} method will be
-     * called when the FileOutputStream is unreachable.
-     * Otherwise, it is implementation specific how the resource cleanup described in
-     * {@link #close} is performed.
-     *
-     * @deprecated The {@code finalize} method has been deprecated and will be removed.
-     *     Subclasses that override {@code finalize} in order to perform cleanup
-     *     should be modified to use alternative cleanup mechanisms and
-     *     to remove the overriding {@code finalize} method.
-     *     When overriding the {@code finalize} method, its implementation must explicitly
-     *     ensure that {@code super.finalize()} is invoked as described in {@link Object#finalize}.
-     *     See the specification for {@link Object#finalize()} for further
-     *     information about migration options.
-     *
-     * @exception  IOException  if an I/O error occurs.
-     * @see        java.io.FileInputStream#close()
-     */
-    @Deprecated(since="9", forRemoval = true)
-    protected void finalize() throws IOException {
-    }
-
     private static native void initIDs();
 
     static {
         initIDs();
     }
-
-    /*
-     * Returns a finalizer object if the FOS needs a finalizer; otherwise null.
-     * If the FOS has a close method; it needs an AltFinalizer.
-     */
-    private static Object getFinalizer(FileOutputStream fos) {
-        Class<?> clazz = fos.getClass();
-        while (clazz != FileOutputStream.class) {
-            try {
-                clazz.getDeclaredMethod("close");
-                return new AltFinalizer(fos);
-            } catch (NoSuchMethodException nsme) {
-                // ignore
-            }
-            clazz = clazz.getSuperclass();
-        }
-        return null;
-    }
-
-    /**
-     * Class to call {@code FileOutputStream.close} when finalized.
-     * If finalization of the stream is needed, an instance is created
-     * in its constructor(s).  When the set of instances
-     * related to the stream is unreachable, the AltFinalizer performs
-     * the needed call to the stream's {@code close} method.
-     */
-    static class AltFinalizer {
-        private final FileOutputStream fos;
-
-        AltFinalizer(FileOutputStream fos) {
-            this.fos = fos;
-        }
-
-        @Override
-        @SuppressWarnings("deprecation")
-        protected final void finalize() {
-            try {
-                if (fos.fd != null) {
-                    if (fos.fd == FileDescriptor.out || fos.fd == FileDescriptor.err) {
-                        // Subclass may override flush; otherwise it is no-op
-                        fos.flush();
-                    } else {
-                        /* if fd is shared, the references in FileDescriptor
-                         * will ensure that finalizer is only called when
-                         * safe to do so. All references using the fd have
-                         * become unreachable. We can call close()
-                         */
-                        fos.close();
-                    }
-                }
-            } catch (IOException ioe) {
-                // ignore
-            }
-        }
-    }
-
 }

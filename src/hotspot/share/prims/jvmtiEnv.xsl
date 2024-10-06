@@ -1,6 +1,6 @@
 <?xml version="1.0"?> 
 <!--
- Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -75,7 +75,7 @@ JvmtiEnv::</xsl:text>
     return JVMTI_ERROR_MUST_POSSESS_CAPABILITY;
   }
   Klass* k_oop = java_lang_Class::as_Klass(k_mirror);
-  if (k_oop == NULL) {
+  if (k_oop == nullptr) {
     return JVMTI_ERROR_INVALID_CLASS;
   }</xsl:text>
     </xsl:if>
@@ -110,15 +110,13 @@ JvmtiEnv::</xsl:text>
   <xsl:choose>
     <xsl:when test="count(@impl)=0 or not(contains(@impl,'noconvert'))">
       <xsl:text>
-// Threads_lock NOT held, java_thread not protected by lock
-// java_thread - pre-checked</xsl:text>
+// java_thread - protected by ThreadsListHandle and pre-checked</xsl:text>
     </xsl:when>
     <xsl:otherwise>
       <xsl:text>
-// Threads_lock NOT held
 // </xsl:text>
       <xsl:value-of select="$name"/>
-      <xsl:text> - NOT pre-checked</xsl:text>
+      <xsl:text> - NOT protected by ThreadsListHandle and NOT pre-checked</xsl:text>
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>
@@ -132,14 +130,13 @@ JvmtiEnv::</xsl:text>
 <xsl:template match="jframeID" mode="advice">
   <xsl:param name="name"/>
   <xsl:text>
-// java_thread - unchecked 
 // depth - pre-checked as non-negative</xsl:text>
 </xsl:template>
 
 <xsl:template match="jmethodID" mode="advice">
   <xsl:param name="name"/>
   <xsl:text>
-// method_oop - pre-checked for validity, but may be NULL meaning obsolete method</xsl:text>
+// method - pre-checked for validity, but may be null meaning obsolete method</xsl:text>
 </xsl:template>
 
 <xsl:template match="jfieldID" mode="advice">
@@ -169,13 +166,13 @@ JvmtiEnv::</xsl:text>
       <xsl:text>
 // </xsl:text>
       <xsl:value-of select="$name"/>
-      <xsl:text> - pre-checked for NULL</xsl:text>
+      <xsl:text> - pre-checked for null</xsl:text>
     </xsl:when>
     <xsl:otherwise>
       <xsl:text>
 // </xsl:text>
       <xsl:value-of select="$name"/>
-      <xsl:text> - NULL is a valid value, must be checked</xsl:text>
+      <xsl:text> - null is a valid value, must be checked</xsl:text>
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>

@@ -1,6 +1,5 @@
-
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +26,21 @@ import java.awt.Component;
 import java.awt.event.KeyEvent;
 import java.util.function.Predicate;
 
+import javax.swing.UIManager;
+
 import static org.testng.AssertJUnit.*;
+
+import org.netbeans.jemmy.drivers.DriverManager;
+import org.netbeans.jemmy.drivers.scrolling.KeyboardJSliderScrollDriver;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.netbeans.jemmy.ClassReference;
 import org.netbeans.jemmy.ComponentChooser;
 import org.netbeans.jemmy.operators.JFrameOperator;
 import org.netbeans.jemmy.operators.JSliderOperator;
 import org.netbeans.jemmy.accessibility.AccessibleNameChooser;
+import org.netbeans.jemmy.util.LookAndFeel;
+
 import static com.sun.swingset3.demos.slider.SliderDemo.*;
 import org.testng.annotations.Listeners;
 
@@ -52,7 +59,7 @@ import org.testng.annotations.Listeners;
  *          java.logging
  * @build org.jemmy2ext.JemmyExt
  * @build com.sun.swingset3.demos.slider.SliderDemo
- * @run testng SliderDemoTest
+ * @run testng/timeout=600 SliderDemoTest
  */
 @Listeners(GuiTestListener.class)
 public class SliderDemoTest {
@@ -64,8 +71,14 @@ public class SliderDemoTest {
     private static final int VERTICAL_MINOR_TICKS_SLIDER_MINIMUM = 0;
     private static final int VERTICAL_MINOR_TICKS_SLIDER_MAXIMUM = 100;
 
-    @Test
-    public void test() throws Exception {
+    @BeforeClass
+    public void useKeyboardSliderDriver() {
+        DriverManager.setScrollDriver(new KeyboardJSliderScrollDriver());
+    }
+
+    @Test(dataProvider = "availableLookAndFeels", dataProviderClass = TestHelpers.class)
+    public void test(String lookAndFeel) throws Exception {
+        UIManager.setLookAndFeel(lookAndFeel);
         new ClassReference(SliderDemo.class.getCanonicalName()).startApplication();
         JFrameOperator frame = new JFrameOperator(DEMO_TITLE);
         plain(frame, HORIZONTAL_PLAIN_SLIDER);
@@ -134,69 +147,81 @@ public class SliderDemoTest {
 
     private void checkMaximum(JSliderOperator jso, int maxValue) {
         jso.scrollToMaximum();
-        waitSliderValue(jso, jSlider -> jSlider.getValue() == maxValue);
+        waitSliderValue(jso, jSlider -> jSlider.getValue() == maxValue,
+                "value == " + maxValue);
     }
 
     private void checkMinimum(JSliderOperator jso, int minValue) {
         jso.scrollToMinimum();
-        waitSliderValue(jso, jSlider -> jSlider.getValue() == minValue);
+        waitSliderValue(jso, jSlider -> jSlider.getValue() == minValue,
+                "value == " + minValue);
     }
 
     private void checkKeyboard(JSliderOperator jso) {
+        boolean isMotif = LookAndFeel.isMotif();
         checkKeyPress(jso, KeyEvent.VK_HOME,
-                jSlider -> jSlider.getValue() == jso.getMinimum());
+                jSlider -> jSlider.getValue() == jso.getMinimum(),
+                "value == " + jso.getMinimum());
 
         {
             int expectedValue = jso.getValue() + 1;
             checkKeyPress(jso, KeyEvent.VK_UP,
-                    jSlider -> jSlider.getValue() >= expectedValue);
+                    jSlider -> jSlider.getValue() >= expectedValue,
+                    "value >= " + expectedValue);
         }
         {
             int expectedValue = jso.getValue() + 1;
             checkKeyPress(jso, KeyEvent.VK_RIGHT,
-                    jSlider -> jSlider.getValue() >= expectedValue);
+                    jSlider -> jSlider.getValue() >= expectedValue,
+                    "value >= " + expectedValue);
         }
-        {
+        if (!isMotif) {
             int expectedValue = jso.getValue() + 11;
             checkKeyPress(jso, KeyEvent.VK_PAGE_UP,
-                    jSlider -> jSlider.getValue() >= expectedValue);
+                    jSlider -> jSlider.getValue() >= expectedValue,
+                    "value >= " + expectedValue);
         }
 
         checkKeyPress(jso, KeyEvent.VK_END,
-                jSlider -> jSlider.getValue() == jso.getMaximum());
+                jSlider -> jSlider.getValue() == jso.getMaximum(),
+                "value == " + jso.getMaximum());
 
         {
             int expectedValue = jso.getValue() - 1;
             checkKeyPress(jso, KeyEvent.VK_DOWN,
-                    jSlider -> jSlider.getValue() <= expectedValue);
+                    jSlider -> jSlider.getValue() <= expectedValue,
+                    "value <= " + expectedValue);
         }
         {
             int expectedValue = jso.getValue() - 1;
             checkKeyPress(jso, KeyEvent.VK_LEFT,
-                    jSlider -> jSlider.getValue() <= expectedValue);
+                    jSlider -> jSlider.getValue() <= expectedValue,
+                    "value <= " + expectedValue);
         }
-        {
+        if (!isMotif) {
             int expectedValue = jso.getValue() - 11;
             checkKeyPress(jso, KeyEvent.VK_PAGE_DOWN,
-                    jSlider -> jSlider.getValue() <= expectedValue);
+                    jSlider -> jSlider.getValue() <= expectedValue,
+                    "value <= " + expectedValue);
         }
     }
 
     private void checkKeyPress(JSliderOperator jso, int keyCode,
-            Predicate<JSliderOperator> predicate) {
+            Predicate<JSliderOperator> predicate,
+                               String description) {
         jso.pushKey(keyCode);
-        waitSliderValue(jso, predicate);
+        waitSliderValue(jso, predicate, description);
     }
 
     private void waitSliderValue(JSliderOperator jso,
-            Predicate<JSliderOperator> predicate) {
+            Predicate<JSliderOperator> predicate, String description) {
         jso.waitState(new ComponentChooser() {
             public boolean checkComponent(Component comp) {
                 return predicate.test(jso);
             }
 
             public String getDescription() {
-                return "Wait till Slider attains the specified state.";
+                return description;
             }
         });
     }
@@ -205,14 +230,16 @@ public class SliderDemoTest {
         jso.setValue(jso.getMinimum());
         int finalValue = jso.getValue() + value;
         jso.scrollToValue(finalValue);
-        waitSliderValue(jso, jSlider -> jSlider.getValue() == finalValue);
+        waitSliderValue(jso, jSlider -> jSlider.getValue() == finalValue,
+                "value == " + finalValue);
     }
 
     private void checkSnapToTick(JSliderOperator jso, int expectedLower,
             int expectedHigher) {
         jso.pressMouse(jso.getCenterXForClick(), jso.getCenterYForClick());
         waitSliderValue(jso, jSlider -> jSlider.getValue() == expectedLower
-                || jSlider.getValue() == expectedHigher);
+                || jSlider.getValue() == expectedHigher,
+                "value is either" + expectedLower + " or " + expectedHigher);
         jso.releaseMouse();
     }
 
@@ -224,13 +251,15 @@ public class SliderDemoTest {
         jso.setValue((jso.getMaximum() + jso.getMinimum()) / 2);
         jso.pressMouse(jso.getCenterXForClick(), jso.getCenterYForClick());
         jso.dragMouse(jso.getWidth() + 10, jso.getHeight());
-        waitSliderValue(jso, jSlider -> jSlider.getValue() == jSlider.getMaximum());
+        waitSliderValue(jso, jSlider -> jSlider.getValue() == jSlider.getMaximum(),
+                "value == " + jso.getMaximum());
         jso.releaseMouse();
 
         // Check mouse click by clicking on the center of the track 2 times
         // and waiting till the slider value has changed from its previous
         // value as a result of the clicks.
         jso.clickMouse(jso.getCenterXForClick(), jso.getCenterYForClick(), 2);
-        waitSliderValue(jso, jSlider -> jSlider.getValue() != jSlider.getMaximum());
+        waitSliderValue(jso, jSlider -> jSlider.getValue() != jSlider.getMaximum(),
+                "value != " + jso.getMaximum());
     }
 }

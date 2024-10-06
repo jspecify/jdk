@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,10 @@
 #include "memory/resourceArea.hpp"
 #include "prims/jniFastGetField.hpp"
 #include "prims/jvm_misc.hpp"
+#include "prims/jvmtiExport.hpp"
+#include "runtime/os.inline.hpp"
 #include "runtime/safepoint.hpp"
+#include "runtime/stubRoutines.hpp"
 
 #define __ masm->
 
@@ -48,7 +51,7 @@ GetDoubleField_t  JNI_FastGetField::jni_fast_GetDoubleField_fp;
 // between loads, which is much more efficient than lfence.
 
 address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
-  const char *name = NULL;
+  const char *name = nullptr;
   switch (type) {
     case T_BOOLEAN: name = "jni_fast_GetBooleanField"; break;
     case T_BYTE:    name = "jni_fast_GetByteField";    break;
@@ -75,18 +78,22 @@ address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
   __ mov32 (rcx, counter);
   __ testb (rcx, 1);
   __ jcc (Assembler::notZero, slow);
-  if (os::is_MP()) {
-    __ mov(rax, rcx);
-    __ andptr(rax, 1);                         // rax, must end up 0
-    __ movptr(rdx, Address(rsp, rax, Address::times_1, 2*wordSize));
-                                              // obj, notice rax, is 0.
-                                              // rdx is data dependent on rcx.
-  } else {
-    __ movptr (rdx, Address(rsp, 2*wordSize));  // obj
+
+  if (JvmtiExport::can_post_field_access()) {
+    // Check to see if a field access watch has been set before we
+    // take the fast path.
+    __ cmp32(ExternalAddress((address) JvmtiExport::get_field_access_count_addr()), 0);
+    __ jcc(Assembler::notZero, slow);
   }
+
+  __ mov(rax, rcx);
+  __ andptr(rax, 1);                         // rax, must end up 0
+  __ movptr(rdx, Address(rsp, rax, Address::times_1, 2*wordSize));
+                                            // obj, notice rax, is 0.
+                                            // rdx is data dependent on rcx.
   __ movptr(rax, Address(rsp, 3*wordSize));  // jfieldID
 
-  __ clear_jweak_tag(rdx);
+  __ clear_jobject_tag(rdx);
 
   __ movptr(rdx, Address(rdx, 0));           // *obj
   __ shrptr (rax, 2);                         // offset
@@ -103,17 +110,13 @@ address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
   }
 
   Address ca1;
-  if (os::is_MP()) {
-    __ lea(rdx, counter);
-    __ xorptr(rdx, rax);
-    __ xorptr(rdx, rax);
-    __ cmp32(rcx, Address(rdx, 0));
-    // ca1 is the same as ca because
-    // rax, ^ counter_addr ^ rax, = address
-    // ca1 is data dependent on rax,.
-  } else {
-    __ cmp32(rcx, counter);
-  }
+  __ lea(rdx, counter);
+  __ xorptr(rdx, rax);
+  __ xorptr(rdx, rax);
+  __ cmp32(rcx, Address(rdx, 0));
+  // ca1 is the same as ca because
+  // rax, ^ counter_addr ^ rax, = address
+  // ca1 is data dependent on rax,.
   __ jcc (Assembler::notEqual, slow);
 
 #ifndef _WINDOWS
@@ -125,16 +128,17 @@ address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
 
   slowcase_entry_pclist[count++] = __ pc();
   __ bind (slow);
-  address slow_case_addr = NULL;
+  address slow_case_addr = nullptr;
   switch (type) {
     case T_BOOLEAN: slow_case_addr = jni_GetBooleanField_addr(); break;
     case T_BYTE:    slow_case_addr = jni_GetByteField_addr();    break;
     case T_CHAR:    slow_case_addr = jni_GetCharField_addr();    break;
     case T_SHORT:   slow_case_addr = jni_GetShortField_addr();   break;
-    case T_INT:     slow_case_addr = jni_GetIntField_addr();
+    case T_INT:     slow_case_addr = jni_GetIntField_addr();     break;
+    default:        ShouldNotReachHere();
   }
   // tail call
-  __ jump (ExternalAddress(slow_case_addr));
+  __ jump (RuntimeAddress(slow_case_addr));
 
   __ flush ();
 
@@ -195,18 +199,22 @@ address JNI_FastGetField::generate_fast_get_long_field() {
   __ mov32 (rcx, counter);
   __ testb (rcx, 1);
   __ jcc (Assembler::notZero, slow);
-  if (os::is_MP()) {
-    __ mov(rax, rcx);
-    __ andptr(rax, 1);                         // rax, must end up 0
-    __ movptr(rdx, Address(rsp, rax, Address::times_1, 3*wordSize));
-                                              // obj, notice rax, is 0.
-                                              // rdx is data dependent on rcx.
-  } else {
-    __ movptr(rdx, Address(rsp, 3*wordSize));  // obj
+
+  if (JvmtiExport::can_post_field_access()) {
+    // Check to see if a field access watch has been set before we
+    // take the fast path.
+    __ cmp32(ExternalAddress((address) JvmtiExport::get_field_access_count_addr()), 0);
+    __ jcc(Assembler::notZero, slow);
   }
+
+  __ mov(rax, rcx);
+  __ andptr(rax, 1);                         // rax, must end up 0
+  __ movptr(rdx, Address(rsp, rax, Address::times_1, 3*wordSize));
+                                            // obj, notice rax, is 0.
+                                            // rdx is data dependent on rcx.
   __ movptr(rsi, Address(rsp, 4*wordSize));  // jfieldID
 
-  __ clear_jweak_tag(rdx);
+  __ clear_jobject_tag(rdx);
 
   __ movptr(rdx, Address(rdx, 0));           // *obj
   __ shrptr(rsi, 2);                         // offset
@@ -214,24 +222,18 @@ address JNI_FastGetField::generate_fast_get_long_field() {
   assert(count < LIST_CAPACITY-1, "LIST_CAPACITY too small");
   speculative_load_pclist[count++] = __ pc();
   __ movptr(rax, Address(rdx, rsi, Address::times_1));
-#ifndef _LP64
   speculative_load_pclist[count] = __ pc();
   __ movl(rdx, Address(rdx, rsi, Address::times_1, 4));
-#endif // _LP64
 
-  if (os::is_MP()) {
-    __ lea(rsi, counter);
-    __ xorptr(rsi, rdx);
-    __ xorptr(rsi, rax);
-    __ xorptr(rsi, rdx);
-    __ xorptr(rsi, rax);
-    __ cmp32(rcx, Address(rsi, 0));
-    // ca1 is the same as ca because
-    // rax, ^ rdx ^ counter_addr ^ rax, ^ rdx = address
-    // ca1 is data dependent on both rax, and rdx.
-  } else {
-    __ cmp32(rcx, counter);
-  }
+  __ lea(rsi, counter);
+  __ xorptr(rsi, rdx);
+  __ xorptr(rsi, rax);
+  __ xorptr(rsi, rdx);
+  __ xorptr(rsi, rax);
+  __ cmp32(rcx, Address(rsi, 0));
+  // ca1 is the same as ca because
+  // rax, ^ rdx ^ counter_addr ^ rax, ^ rdx = address
+  // ca1 is data dependent on both rax, and rdx.
   __ jcc (Assembler::notEqual, slow);
 
   __ pop (rsi);
@@ -249,7 +251,7 @@ address JNI_FastGetField::generate_fast_get_long_field() {
   __ pop  (rsi);
   address slow_case_addr = jni_GetLongField_addr();;
   // tail call
-  __ jump (ExternalAddress(slow_case_addr));
+  __ jump (RuntimeAddress(slow_case_addr));
 
   __ flush ();
 
@@ -262,7 +264,7 @@ address JNI_FastGetField::generate_fast_get_long_field() {
 }
 
 address JNI_FastGetField::generate_fast_get_float_field0(BasicType type) {
-  const char *name = NULL;
+  const char *name = nullptr;
   switch (type) {
     case T_FLOAT:  name = "jni_fast_GetFloatField";  break;
     case T_DOUBLE: name = "jni_fast_GetDoubleField"; break;
@@ -287,18 +289,22 @@ address JNI_FastGetField::generate_fast_get_float_field0(BasicType type) {
   __ mov32 (rcx, counter);
   __ testb (rcx, 1);
   __ jcc (Assembler::notZero, slow);
-  if (os::is_MP()) {
-    __ mov(rax, rcx);
-    __ andptr(rax, 1);                         // rax, must end up 0
-    __ movptr(rdx, Address(rsp, rax, Address::times_1, 2*wordSize));
-                                              // obj, notice rax, is 0.
-                                              // rdx is data dependent on rcx.
-  } else {
-    __ movptr(rdx, Address(rsp, 2*wordSize)); // obj
+
+  if (JvmtiExport::can_post_field_access()) {
+    // Check to see if a field access watch has been set before we
+    // take the fast path.
+    __ cmp32(ExternalAddress((address) JvmtiExport::get_field_access_count_addr()), 0);
+    __ jcc(Assembler::notZero, slow);
   }
+
+  __ mov(rax, rcx);
+  __ andptr(rax, 1);                         // rax, must end up 0
+  __ movptr(rdx, Address(rsp, rax, Address::times_1, 2*wordSize));
+                                            // obj, notice rax, is 0.
+                                            // rdx is data dependent on rcx.
   __ movptr(rax, Address(rsp, 3*wordSize));  // jfieldID
 
-  __ clear_jweak_tag(rdx);
+  __ clear_jobject_tag(rdx);
 
   __ movptr(rdx, Address(rdx, 0));           // *obj
   __ shrptr(rax, 2);                         // offset
@@ -306,31 +312,22 @@ address JNI_FastGetField::generate_fast_get_float_field0(BasicType type) {
   assert(count < LIST_CAPACITY, "LIST_CAPACITY too small");
   speculative_load_pclist[count] = __ pc();
   switch (type) {
-#ifndef _LP64
     case T_FLOAT:  __ fld_s (Address(rdx, rax, Address::times_1)); break;
     case T_DOUBLE: __ fld_d (Address(rdx, rax, Address::times_1)); break;
-#else
-    case T_FLOAT:  __ movflt (xmm0, Address(robj, roffset, Address::times_1)); break;
-    case T_DOUBLE: __ movdbl (xmm0, Address(robj, roffset, Address::times_1)); break;
-#endif // _LP64
     default:       ShouldNotReachHere();
   }
 
   Address ca1;
-  if (os::is_MP()) {
-    __ fst_s (Address(rsp, -4));
-    __ lea(rdx, counter);
-    __ movl (rax, Address(rsp, -4));
-    // garbage hi-order bits on 64bit are harmless.
-    __ xorptr(rdx, rax);
-    __ xorptr(rdx, rax);
-    __ cmp32(rcx, Address(rdx, 0));
-                                          // rax, ^ counter_addr ^ rax, = address
-                                          // ca1 is data dependent on the field
-                                          // access.
-  } else {
-    __ cmp32(rcx, counter);
-  }
+  __ fst_s (Address(rsp, -4));
+  __ lea(rdx, counter);
+  __ movl (rax, Address(rsp, -4));
+  // garbage hi-order bits on 64bit are harmless.
+  __ xorptr(rdx, rax);
+  __ xorptr(rdx, rax);
+  __ cmp32(rcx, Address(rdx, 0));
+  // rax, ^ counter_addr ^ rax, = address
+  // ca1 is data dependent on the field
+  // access.
   __ jcc (Assembler::notEqual, slow_with_pop);
 
 #ifndef _WINDOWS
@@ -346,14 +343,14 @@ address JNI_FastGetField::generate_fast_get_float_field0(BasicType type) {
 
   slowcase_entry_pclist[count++] = __ pc();
   __ bind (slow);
-  address slow_case_addr = NULL;
+  address slow_case_addr = nullptr;
   switch (type) {
     case T_FLOAT:  slow_case_addr = jni_GetFloatField_addr();  break;
     case T_DOUBLE: slow_case_addr = jni_GetDoubleField_addr(); break;
     default:       ShouldNotReachHere();
   }
   // tail call
-  __ jump (ExternalAddress(slow_case_addr));
+  __ jump (RuntimeAddress(slow_case_addr));
 
   __ flush ();
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1YOUNGGENSIZER_HPP
-#define SHARE_VM_GC_G1_G1YOUNGGENSIZER_HPP
+#ifndef SHARE_GC_G1_G1YOUNGGENSIZER_HPP
+#define SHARE_GC_G1_G1YOUNGGENSIZER_HPP
 
 #include "utilities/globalDefinitions.hpp"
 
@@ -36,7 +36,7 @@
 // internally work with a number of regions instead. So, some rounding
 // will occur.
 //
-// If nothing related to the the young gen size is set on the command
+// If nothing related to the young gen size is set on the command
 // line we should allow the young gen to be between G1NewSizePercent
 // and G1MaxNewSizePercent of the heap size. This means that every time
 // the heap size changes, the limits for the young gen size will be
@@ -73,12 +73,13 @@ private:
     SizerNewRatio
   };
   SizerKind _sizer_kind;
-  uint _min_desired_young_length;
-  uint _max_desired_young_length;
 
   // False when using a fixed young generation size due to command-line options,
   // true otherwise.
-  bool _adaptive_size;
+  bool _use_adaptive_sizing;
+
+  uint _min_desired_young_length;
+  uint _max_desired_young_length;
 
   uint calculate_default_min_length(uint new_number_of_heap_regions);
   uint calculate_default_max_length(uint new_number_of_heap_regions);
@@ -91,9 +92,9 @@ public:
   G1YoungGenSizer();
   // Calculate the maximum length of the young gen given the number of regions
   // depending on the sizing algorithm.
-  void adjust_max_new_size(uint number_of_heap_regions);
+  virtual void adjust_max_new_size(uint number_of_heap_regions);
 
-  void heap_size_changed(uint new_number_of_heap_regions);
+  virtual void heap_size_changed(uint new_number_of_heap_regions);
   uint min_desired_young_length() const {
     return _min_desired_young_length;
   }
@@ -101,9 +102,9 @@ public:
     return _max_desired_young_length;
   }
 
-  bool adaptive_young_list_length() const {
-    return _adaptive_size;
+  bool use_adaptive_young_list_length() const {
+    return _use_adaptive_sizing;
   }
 };
 
-#endif // SHARE_VM_GC_G1_G1YOUNGGENSIZER_HPP
+#endif // SHARE_GC_G1_G1YOUNGGENSIZER_HPP

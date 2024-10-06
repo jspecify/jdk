@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,10 @@
 
 package javax.security.auth.callback;
 
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+
 /**
  * <p> Underlying security services instantiate and pass a
  * {@code ChoiceCallback} to the {@code handle}
@@ -36,13 +40,14 @@ package javax.security.auth.callback;
  */
 public class ChoiceCallback implements Callback, java.io.Serializable {
 
+    @java.io.Serial
     private static final long serialVersionUID = -3975664071579892167L;
 
     /**
      * @serial
      * @since 1.4
      */
-    private String prompt;
+    private final String prompt;
     /**
      * @serial the list of choices
      * @since 1.4
@@ -52,13 +57,13 @@ public class ChoiceCallback implements Callback, java.io.Serializable {
      * @serial the choice to be used as the default choice
      * @since 1.4
      */
-    private int defaultChoice;
+    private final int defaultChoice;
     /**
      * @serial whether multiple selections are allowed from the list of
      * choices
      * @since 1.4
      */
-    private boolean multipleSelectionsAllowed;
+    private final boolean multipleSelectionsAllowed;
     /**
      * @serial the selected choices, represented as indexes into the
      *          {@code choices} list.
@@ -69,21 +74,20 @@ public class ChoiceCallback implements Callback, java.io.Serializable {
     /**
      * Construct a {@code ChoiceCallback} with a prompt,
      * a list of choices, a default choice, and a boolean specifying
-     * whether or not multiple selections from the list of choices are allowed.
-     *
+     * whether multiple selections from the list of choices are allowed.
      *
      * @param prompt the prompt used to describe the list of choices.
      *
-     * @param choices the list of choices.
+     * @param choices the list of choices. The array is cloned to protect
+     *                  against subsequent modification.
      *
      * @param defaultChoice the choice to be used as the default choice
      *                  when the list of choices are displayed.  This value
      *                  is represented as an index into the
      *                  {@code choices} array.
      *
-     * @param multipleSelectionsAllowed boolean specifying whether or
-     *                  not multiple selections can be made from the
-     *                  list of choices.
+     * @param multipleSelectionsAllowed boolean specifying whether multiple
+     *                  selections can be made from the list of choices.
      *
      * @exception IllegalArgumentException if {@code prompt} is null,
      *                  if {@code prompt} has a length of 0,
@@ -98,20 +102,20 @@ public class ChoiceCallback implements Callback, java.io.Serializable {
     public ChoiceCallback(String prompt, String[] choices,
                 int defaultChoice, boolean multipleSelectionsAllowed) {
 
-        if (prompt == null || prompt.length() == 0 ||
+        if (prompt == null || prompt.isEmpty() ||
             choices == null || choices.length == 0 ||
             defaultChoice < 0 || defaultChoice >= choices.length)
             throw new IllegalArgumentException();
 
-        for (int i = 0; i < choices.length; i++) {
-            if (choices[i] == null || choices[i].length() == 0)
-                throw new IllegalArgumentException();
-        }
-
         this.prompt = prompt;
-        this.choices = choices;
         this.defaultChoice = defaultChoice;
         this.multipleSelectionsAllowed = multipleSelectionsAllowed;
+
+        this.choices = choices.clone();
+        for (int i = 0; i < choices.length; i++) {
+            if (choices[i] == null || choices[i].isEmpty())
+                throw new IllegalArgumentException();
+        }
     }
 
     /**
@@ -126,10 +130,10 @@ public class ChoiceCallback implements Callback, java.io.Serializable {
     /**
      * Get the list of choices.
      *
-     * @return the list of choices.
+     * @return a copy of the list of choices.
      */
     public String[] getChoices() {
-        return choices;
+        return choices.clone();
     }
 
     /**
@@ -169,7 +173,8 @@ public class ChoiceCallback implements Callback, java.io.Serializable {
      * Set the selected choices.
      *
      * @param selections the selections represented as indexes into the
-     *          {@code choices} list.
+     *          {@code choices} list. The array is cloned to protect
+     *          against subsequent modification.
      *
      * @exception UnsupportedOperationException if multiple selections are
      *          not allowed, as determined by
@@ -180,18 +185,52 @@ public class ChoiceCallback implements Callback, java.io.Serializable {
     public void setSelectedIndexes(int[] selections) {
         if (!multipleSelectionsAllowed)
             throw new UnsupportedOperationException();
-        this.selections = selections;
+        this.selections = selections == null ? null : selections.clone();
     }
 
     /**
      * Get the selected choices.
      *
-     * @return the selected choices, represented as indexes into the
+     * @return a copy of the selected choices, represented as indexes into the
      *          {@code choices} list.
      *
      * @see #setSelectedIndexes
      */
     public int[] getSelectedIndexes() {
-        return selections;
+        return selections == null ? null : selections.clone();
+    }
+
+    /**
+     * Restores the state of this object from the stream.
+     *
+     * @param  stream the {@code ObjectInputStream} from which data is read
+     * @throws IOException if an I/O error occurs
+     * @throws ClassNotFoundException if a serialized class cannot be loaded
+     */
+    @java.io.Serial
+    private void readObject(ObjectInputStream stream)
+            throws IOException, ClassNotFoundException {
+        stream.defaultReadObject();
+
+        if ((prompt == null) || prompt.isEmpty() ||
+                (choices == null) || (choices.length == 0) ||
+                (defaultChoice < 0) || (defaultChoice >= choices.length)) {
+            throw new InvalidObjectException(
+                    "Missing/invalid prompt/choices");
+        }
+
+        choices = choices.clone();
+        for (int i = 0; i < choices.length; i++) {
+            if ((choices[i] == null) || choices[i].isEmpty())
+                throw new InvalidObjectException("Null/empty choices");
+        }
+
+        if (selections != null) {
+            selections = selections.clone();
+            if (!multipleSelectionsAllowed && (selections.length != 1)) {
+                throw new InvalidObjectException(
+                        "Multiple selections not allowed");
+            }
+        }
     }
 }

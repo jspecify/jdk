@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.ServiceLoader;
 import java.util.Set;
 
 import javax.lang.model.element.Modifier;
@@ -72,11 +73,11 @@ import com.sun.tools.javac.util.JCDiagnostic;
  *
  *  For each method, exceptions are handled as follows:
  *  <ul>
- *  <li>Checked exceptions are left alone and propogate upwards in the
+ *  <li>Checked exceptions are left alone to propagate upwards in the
  *      obvious way, since they are an expected aspect of the method's
  *      specification.
  *  <li>Unchecked exceptions which have already been caught and wrapped in
- *      ClientCodeException are left alone to continue propogating upwards.
+ *      ClientCodeException are left alone to continue propagating upwards.
  *  <li>All other unchecked exceptions (i.e. subtypes of RuntimeException
  *      and Error) and caught, and rethrown as a ClientCodeException with
  *      its cause set to the original exception.
@@ -118,9 +119,9 @@ public class ClientCodeWrapper {
     public JavaFileManager wrap(JavaFileManager fm) {
         if (isTrusted(fm))
             return fm;
-        if (fm instanceof StandardJavaFileManager)
-            return new WrappedStandardJavaFileManager((StandardJavaFileManager) fm);
-        return new WrappedJavaFileManager(fm);
+        return (fm instanceof StandardJavaFileManager standardJavaFileManager) ?
+                new WrappedStandardJavaFileManager(standardJavaFileManager) :
+                new WrappedJavaFileManager(fm);
     }
 
     public FileObject wrap(FileObject fo) {
@@ -130,10 +131,8 @@ public class ClientCodeWrapper {
     }
 
     FileObject unwrap(FileObject fo) {
-        if (fo instanceof WrappedFileObject)
-            return ((WrappedFileObject) fo).clientFileObject;
-        else
-            return fo;
+        return (fo instanceof WrappedFileObject wrappedFileObject) ?
+                wrappedFileObject.clientFileObject : fo;
     }
 
     public JavaFileObject wrap(JavaFileObject fo) {
@@ -150,13 +149,11 @@ public class ClientCodeWrapper {
     }
 
     JavaFileObject unwrap(JavaFileObject fo) {
-        if (fo instanceof WrappedJavaFileObject)
-            return ((JavaFileObject) ((WrappedJavaFileObject) fo).clientFileObject);
-        else
-            return fo;
+        return (fo instanceof WrappedJavaFileObject wrappedJavaFileObject) ?
+                ((JavaFileObject) wrappedJavaFileObject.clientFileObject) : fo;
     }
 
-    public <T /*super JavaFileOject*/> DiagnosticListener<T> wrap(DiagnosticListener<T> dl) {
+    public <T /*super JavaFileObject*/> DiagnosticListener<T> wrap(DiagnosticListener<T> dl) {
         if (isTrusted(dl))
             return dl;
         return new WrappedDiagnosticListener<>(dl);
@@ -169,10 +166,8 @@ public class ClientCodeWrapper {
     }
 
     TaskListener unwrap(TaskListener l) {
-        if (l instanceof WrappedTaskListener)
-            return ((WrappedTaskListener) l).clientTaskListener;
-        else
-            return l;
+        return (l instanceof WrappedTaskListener wrappedTaskListener) ?
+                wrappedTaskListener.clientTaskListener : l;
     }
 
     Collection<TaskListener> unwrap(Collection<? extends TaskListener> listeners) {
@@ -184,12 +179,8 @@ public class ClientCodeWrapper {
 
     @SuppressWarnings("unchecked")
     private <T> Diagnostic<T> unwrap(final Diagnostic<T> diagnostic) {
-        if (diagnostic instanceof JCDiagnostic) {
-            JCDiagnostic d = (JCDiagnostic) diagnostic;
-            return (Diagnostic<T>) new DiagnosticSourceUnwrapper(d);
-        } else {
-            return diagnostic;
-        }
+        return (diagnostic instanceof JCDiagnostic jcDiagnostic) ?
+                (Diagnostic<T>) new DiagnosticSourceUnwrapper(jcDiagnostic) : diagnostic;
     }
 
     protected boolean isTrusted(Object o) {
@@ -315,9 +306,31 @@ public class ClientCodeWrapper {
         }
 
         @Override @DefinedBy(Api.COMPILER)
+        public JavaFileObject getJavaFileForOutputForOriginatingFiles(Location location, String className, Kind kind, FileObject... originatingFiles) throws IOException {
+            try {
+                return wrap(clientJavaFileManager.getJavaFileForOutputForOriginatingFiles(location, className, kind, originatingFiles));
+            } catch (ClientCodeException e) {
+                throw e;
+            } catch (RuntimeException | Error e) {
+                throw new ClientCodeException(e);
+            }
+        }
+
+        @Override @DefinedBy(Api.COMPILER)
         public FileObject getFileForOutput(Location location, String packageName, String relativeName, FileObject sibling) throws IOException {
             try {
                 return wrap(clientJavaFileManager.getFileForOutput(location, packageName, relativeName, unwrap(sibling)));
+            } catch (ClientCodeException e) {
+                throw e;
+            } catch (RuntimeException | Error e) {
+                throw new ClientCodeException(e);
+            }
+        }
+
+        @Override @DefinedBy(Api.COMPILER)
+        public FileObject getFileForOutputForOriginatingFiles(Location location, String packageName, String relativeName, FileObject... originatingFiles) throws IOException {
+            try {
+                return wrap(clientJavaFileManager.getFileForOutputForOriginatingFiles(location, packageName, relativeName, originatingFiles));
             } catch (ClientCodeException e) {
                 throw e;
             } catch (RuntimeException | Error e) {
@@ -417,6 +430,17 @@ public class ClientCodeWrapper {
         public String toString() {
             return wrappedToString(getClass(), clientJavaFileManager);
         }
+
+        @Override @DefinedBy(Api.COMPILER)
+        public <S> ServiceLoader<S> getServiceLoader(Location location, Class<S> service) throws IOException {
+            try {
+                return clientJavaFileManager.getServiceLoader(location, service);
+            } catch (ClientCodeException e) {
+                throw e;
+            } catch (RuntimeException | Error e) {
+                throw new ClientCodeException(e);
+            }
+        }
     }
 
     protected class WrappedStandardJavaFileManager extends WrappedJavaFileManager
@@ -436,6 +460,18 @@ public class ClientCodeWrapper {
             }
         }
 
+        @Override @DefinedBy(Api.COMPILER)
+        public Iterable<? extends JavaFileObject> getJavaFileObjectsFromPaths(Collection<? extends Path> paths) {
+            try {
+                return ((StandardJavaFileManager)clientJavaFileManager).getJavaFileObjectsFromPaths(paths);
+            } catch (ClientCodeException e) {
+                throw e;
+            } catch (RuntimeException | Error e) {
+                throw new ClientCodeException(e);
+            }
+        }
+
+        @Deprecated(since = "13")
         @Override @DefinedBy(Api.COMPILER)
         public Iterable<? extends JavaFileObject> getJavaFileObjectsFromPaths(Iterable<? extends Path> paths) {
             try {
@@ -550,6 +586,18 @@ public class ClientCodeWrapper {
         public void setPathFactory(PathFactory f) {
             try {
                 ((StandardJavaFileManager)clientJavaFileManager).setPathFactory(f);
+            } catch (ClientCodeException e) {
+                throw e;
+            } catch (RuntimeException | Error e) {
+                throw new ClientCodeException(e);
+            }
+        }
+
+        @Override @DefinedBy(Api.COMPILER)
+        public void setLocationForModule(Location location, String moduleName, Collection<? extends Path> paths) throws IOException {
+            try {
+                System.out.println("invoking wrapped setLocationForModule");
+                ((StandardJavaFileManager)clientJavaFileManager).setLocationForModule(location, moduleName, paths);
             } catch (ClientCodeException e) {
                 throw e;
             } catch (RuntimeException | Error e) {

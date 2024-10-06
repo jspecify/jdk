@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,24 @@
 
 package com.sun.beans.editors;
 
-import java.awt.*;
-import java.beans.*;
+import java.awt.Canvas;
+import java.awt.Choice;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Event;
+import java.awt.Panel;
+import java.awt.TextField;
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
+import java.beans.PropertyEditor;
+import java.io.Serial;
 
 public class ColorEditor extends Panel implements PropertyEditor {
+
+    /**
+     * Use serialVersionUID from JDK 1.7 for interoperability.
+     */
+    @Serial
     private static final long serialVersionUID = 1781257185164716054L;
 
     @SuppressWarnings("deprecation")
@@ -53,13 +67,13 @@ public class ColorEditor extends Panel implements PropertyEditor {
         text.reshape(ourWidth,0,100,30);
         ourWidth += 100 + hPad;
 
-        choser = new Choice();
+        chooser = new Choice();
         int active = 0;
         for (int i = 0; i < colorNames.length; i++) {
-            choser.addItem(colorNames[i]);
+            chooser.addItem(colorNames[i]);
         }
-        add(choser);
-        choser.reshape(ourWidth,0,100,30);
+        add(chooser);
+        chooser.reshape(ourWidth,0,100,30);
         ourWidth += 100 + hPad;
 
         resize(ourWidth,40);
@@ -112,8 +126,8 @@ public class ColorEditor extends Panel implements PropertyEditor {
 
     @SuppressWarnings("deprecation")
     public boolean action(Event e, Object arg) {
-        if (e.target == choser) {
-            changeColor(colors[choser.getSelectedIndex()]);
+        if (e.target == chooser) {
+            changeColor(colors[chooser.getSelectedIndex()]);
         }
         return false;
     }
@@ -143,7 +157,7 @@ public class ColorEditor extends Panel implements PropertyEditor {
                 active = i;
             }
         }
-        choser.select(active);
+        chooser.select(active);
 
         sample.setBackground(color);
         sample.repaint();
@@ -195,11 +209,11 @@ public class ColorEditor extends Panel implements PropertyEditor {
     }
 
 
-    private String colorNames[] = { " ", "white", "lightGray", "gray", "darkGray",
+    private String[] colorNames = { " ", "white", "lightGray", "gray", "darkGray",
                         "black", "red", "pink", "orange",
                         "yellow", "green", "magenta", "cyan",
                         "blue"};
-    private Color colors[] = { null, Color.white, Color.lightGray, Color.gray, Color.darkGray,
+    private Color[] colors = { null, Color.white, Color.lightGray, Color.gray, Color.darkGray,
                         Color.black, Color.red, Color.pink, Color.orange,
                         Color.yellow, Color.green, Color.magenta, Color.cyan,
                         Color.blue};
@@ -212,7 +226,7 @@ public class ColorEditor extends Panel implements PropertyEditor {
 
     private Color color;
     private TextField text;
-    private Choice choser;
+    private Choice chooser;
 
     private PropertyChangeSupport support = new PropertyChangeSupport(this);
 }

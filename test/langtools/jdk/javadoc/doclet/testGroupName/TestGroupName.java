@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,11 @@
 
 /*
  * @test
- * @bug 8190003 8196201 8196202
+ * @bug 8190003 8196201 8196202 8184205
  * @summary Special characters in group names should be escaped
- * @library /tools/lib ../lib
+ * @library /tools/lib ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build toolbox.ToolBox JavadocTester
+ * @build toolbox.ToolBox javadoc.tester.*
  * @run main TestGroupName
  */
 
@@ -35,14 +35,15 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import toolbox.*;
+import javadoc.tester.JavadocTester;
+import toolbox.ToolBox;
 
 public class TestGroupName extends JavadocTester {
 
     public final ToolBox tb;
     public static void main(String... args) throws Exception {
-        TestGroupName tester = new TestGroupName();
-        tester.runTests(m -> new Object[] { Paths.get(m.getName()) });
+        var tester = new TestGroupName();
+        tester.runTests();
     }
 
     public TestGroupName() {
@@ -58,15 +59,17 @@ public class TestGroupName extends JavadocTester {
                 "package p3; public class C3 { }");
 
         javadoc("-d", base.resolve("out").toString(),
-                "--frames",
                 "-sourcepath", src.toString(),
                 "-group", "abc < & > def", "p1",
                 "p1", "p2", "p3");
         checkExit(Exit.OK);
 
-        checkOutput("overview-summary.html", true,
-                "<span><a href=\"javascript:show(1);\">abc &lt; &amp; &gt; def</a></span>",
-                ",\"abc < & > def\"],");
+        checkOutput("index.html", true,
+                """
+                    <button id="all-packages-table-tab1" role="tab" aria-selected="false" aria-contr\
+                    ols="all-packages-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onc\
+                    lick="show('all-packages-table', 'all-packages-table-tab1', 2)" class="table-tab\
+                    ">abc &lt; &amp; &gt; def</button>""");
     }
 
     @Test
@@ -91,16 +94,18 @@ public class TestGroupName extends JavadocTester {
                 "package pc3; public class CC3 { }");
 
         javadoc("-d", base.resolve("out").toString(),
-                "--frames",
                 "--module-source-path", src.toString(),
                 "-group", "abc < & > def", "ma",
                 "--module", "ma,mb,mc");
 
         checkExit(Exit.OK);
 
-        checkOutput("overview-summary.html", true,
-                "<span><a href=\"javascript:show(1);\">abc &lt; &amp; &gt; def</a></span>",
-                ",\"abc < & > def\"],");
+        checkOutput("index.html", true,
+                """
+                    <button id="all-modules-table-tab2" role="tab" aria-selected="false" aria-contro\
+                    ls="all-modules-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" oncli\
+                    ck="show('all-modules-table', 'all-modules-table-tab2', 2)" class="table-tab">Ot\
+                    her Modules</button>""");
     }
 }
 

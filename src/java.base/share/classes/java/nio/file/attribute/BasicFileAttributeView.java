@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import org.jspecify.annotations.Nullable;
  * attributes common to many file systems. The basic set of file attributes
  * consist of <em>mandatory</em> and <em>optional</em> file attributes as
  * defined by the {@link BasicFileAttributes} interface.
-
+ *
  * <p> The file attributes are retrieved from the file system as a <em>bulk
  * operation</em> by invoking the {@link #readAttributes() readAttributes} method.
  * This class also defines the {@link #setTimes setTimes} method to update the
@@ -136,7 +136,7 @@ public interface BasicFileAttributeView
      *
      * <p> This method updates the file's timestamp attributes. The values are
      * converted to the epoch and precision supported by the file system.
-     * Converting from finer to coarser granularities result in precision loss.
+     * Converting from finer to coarser granularities results in precision loss.
      * The behavior of this method when attempting to set a timestamp that is
      * not supported or to a value that is outside the range supported by the
      * underlying file store is not defined. It may or not fail by throwing an
@@ -155,11 +155,11 @@ public interface BasicFileAttributeView
      *
      * <p> <b>Usage Example:</b>
      * Suppose we want to change a file's last access time.
-     * <pre>
-     *    Path path = ...
-     *    FileTime time = ...
-     *    Files.getFileAttributeView(path, BasicFileAttributeView.class).setTimes(null, time, null);
-     * </pre>
+     * {@snippet lang=java :
+     *     Path path = ...
+     *     FileTime time = ...
+     *     Files.getFileAttributeView(path, BasicFileAttributeView.class).setTimes(null, time, null);
+     * }
      *
      * @param   lastModifiedTime
      *          the new last modified time, or {@code null} to not change the

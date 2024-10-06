@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -78,11 +78,11 @@ import java.io.IOException;
  * Additional (implementation specific) options may also be supported.
  *
  * <p> <b>Usage Example:</b>
- * <pre>
+ * {@snippet lang=java :
  *  final AsynchronousServerSocketChannel listener =
  *      AsynchronousServerSocketChannel.open().bind(new InetSocketAddress(5000));
  *
- *  listener.accept(null, new CompletionHandler&lt;AsynchronousSocketChannel,Void&gt;() {
+ *  listener.accept(null, new CompletionHandler<AsynchronousSocketChannel,Void>() {
  *      public void completed(AsynchronousSocketChannel ch, Void att) {
  *          // accept the next connection
  *          listener.accept(null, this);
@@ -94,7 +94,7 @@ import java.io.IOException;
  *          ...
  *      }
  *  });
- * </pre>
+ * }
  *
  * @since 1.7
  */
@@ -160,9 +160,9 @@ public abstract @UsesObjectEquals class AsynchronousServerSocketChannel
      * <p> This method returns an asynchronous server socket channel that is
      * bound to the <em>default group</em>. This method is equivalent to evaluating
      * the expression:
-     * <blockquote><pre>
-     * open((AsynchronousChannelGroup)null);
-     * </pre></blockquote>
+     * {@snippet lang=java :
+     *     open((AsynchronousChannelGroup)null);
+     * }
      *
      * @return  A new asynchronous server socket channel
      *
@@ -180,9 +180,9 @@ public abstract @UsesObjectEquals class AsynchronousServerSocketChannel
      * listen for connections.
      *
      * <p> An invocation of this method is equivalent to the following:
-     * <blockquote><pre>
-     * bind(local, 0);
-     * </pre></blockquote>
+     * {@snippet lang=java :
+     *     bind(local, 0);
+     * }
      *
      * @param   local
      *          The local address to bind the socket, or {@code null} to bind

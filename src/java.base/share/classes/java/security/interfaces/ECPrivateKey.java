@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.math.BigInteger;
 import java.security.PrivateKey;
+import java.security.spec.ECParameterSpec;
 
 /**
  * The interface to an elliptic curve (EC) private key.
@@ -46,12 +47,31 @@ public @UsesObjectEquals interface ECPrivateKey extends PrivateKey, ECKey {
    /**
     * The class fingerprint that is set to indicate
     * serialization compatibility.
+    *
+    * @deprecated A {@code serialVersionUID} field in an interface is
+    * ineffectual. Do not use; no replacement.
     */
-    static final long serialVersionUID = -7896394956925609184L;
+    @Deprecated
+    @SuppressWarnings("serial")
+    @java.io.Serial
+   long serialVersionUID = -7896394956925609184L;
 
     /**
      * Returns the private value S.
      * @return the private value S.
      */
     BigInteger getS();
+
+    /**
+     * {@inheritDoc java.security.AsymmetricKey}
+     *
+     * @implSpec
+     * The default implementation returns {@code null}.
+     *
+     * @return {@inheritDoc java.security.AsymmetricKey}
+     */
+    @Override
+    default ECParameterSpec getParams() {
+        return null;
+    }
 }

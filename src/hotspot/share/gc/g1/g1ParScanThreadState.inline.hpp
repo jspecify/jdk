@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,167 +22,44 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1PARSCANTHREADSTATE_INLINE_HPP
-#define SHARE_VM_GC_G1_G1PARSCANTHREADSTATE_INLINE_HPP
+#ifndef SHARE_GC_G1_G1PARSCANTHREADSTATE_INLINE_HPP
+#define SHARE_GC_G1_G1PARSCANTHREADSTATE_INLINE_HPP
 
 #include "gc/g1/g1ParScanThreadState.hpp"
+
+#include "gc/g1/g1CardTable.hpp"
+#include "gc/g1/g1CollectedHeap.inline.hpp"
+#include "gc/g1/g1OopStarChunkedList.inline.hpp"
 #include "gc/g1/g1RemSet.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 
-template <class T> void G1ParScanThreadState::do_oop_evac(T* p) {
-  // Reference should not be NULL here as such are never pushed to the task queue.
-  oop obj = RawAccess<IS_NOT_NULL>::oop_load(p);
-
-  // Although we never intentionally push references outside of the collection
-  // set, due to (benign) races in the claim mechanism during RSet scanning more
-  // than one thread might claim the same card. So the same card may be
-  // processed multiple times, and so we might get references into old gen here.
-  // So we need to redo this check.
-  const InCSetState in_cset_state = _g1h->in_cset_state(obj);
-  if (in_cset_state.is_in_cset()) {
-    markOop m = obj->mark_raw();
-    if (m->is_marked()) {
-      obj = (oop) m->decode_pointer();
-    } else {
-      obj = copy_to_survivor_space(in_cset_state, obj, m);
-    }
-    RawAccess<IS_NOT_NULL>::oop_store(p, obj);
-  } else if (in_cset_state.is_humongous()) {
-    _g1h->set_humongous_is_live(obj);
-  } else {
-    assert(in_cset_state.is_default(),
-           "In_cset_state must be NotInCSet here, but is " CSETSTATE_FORMAT, in_cset_state.value());
-  }
-
-  assert(obj != NULL, "Must be");
-  if (!HeapRegion::is_in_same_region(p, obj)) {
-    HeapRegion* from = _g1h->heap_region_containing(p);
-    update_rs(from, p, obj);
-  }
+inline void G1ParScanThreadState::push_on_queue(ScannerTask task) {
+  verify_task(task);
+  _task_queue->push(task);
 }
 
-template <class T> inline void G1ParScanThreadState::push_on_queue(T* ref) {
-  assert(verify_ref(ref), "sanity");
-  _refs->push(ref);
+bool G1ParScanThreadState::needs_partial_trimming() const {
+  return !_task_queue->overflow_empty() ||
+         (_task_queue->size() > _stack_trim_upper_threshold);
 }
 
-inline void G1ParScanThreadState::do_oop_partial_array(oop* p) {
-  assert(has_partial_array_mask(p), "invariant");
-  oop from_obj = clear_partial_array_mask(p);
-
-  assert(_g1h->is_in_reserved(from_obj), "must be in heap.");
-  assert(from_obj->is_objArray(), "must be obj array");
-  objArrayOop from_obj_array = objArrayOop(from_obj);
-  // The from-space object contains the real length.
-  int length                 = from_obj_array->length();
-
-  assert(from_obj->is_forwarded(), "must be forwarded");
-  oop to_obj                 = from_obj->forwardee();
-  assert(from_obj != to_obj, "should not be chunking self-forwarded objects");
-  objArrayOop to_obj_array   = objArrayOop(to_obj);
-  // We keep track of the next start index in the length field of the
-  // to-space object.
-  int next_index             = to_obj_array->length();
-  assert(0 <= next_index && next_index < length,
-         "invariant, next index: %d, length: %d", next_index, length);
-
-  int start                  = next_index;
-  int end                    = length;
-  int remainder              = end - start;
-  // We'll try not to push a range that's smaller than ParGCArrayScanChunk.
-  if (remainder > 2 * ParGCArrayScanChunk) {
-    end = start + ParGCArrayScanChunk;
-    to_obj_array->set_length(end);
-    // Push the remainder before we process the range in case another
-    // worker has run out of things to do and can steal it.
-    oop* from_obj_p = set_partial_array_mask(from_obj);
-    push_on_queue(from_obj_p);
-  } else {
-    assert(length == end, "sanity");
-    // We'll process the final range for this object. Restore the length
-    // so that the heap remains parsable in case of evacuation failure.
-    to_obj_array->set_length(end);
-  }
-  _scanner.set_region(_g1h->heap_region_containing(to_obj));
-  // Process indexes [start,end). It will also process the header
-  // along with the first chunk (i.e., the chunk with start == 0).
-  // Note that at this point the length field of to_obj_array is not
-  // correct given that we are using it to keep track of the next
-  // start index. oop_iterate_range() (thankfully!) ignores the length
-  // field and only relies on the start / end parameters.  It does
-  // however return the size of the object which will be incorrect. So
-  // we have to ignore it even if we wanted to use it.
-  to_obj_array->oop_iterate_range(&_scanner, start, end);
-}
-
-inline void G1ParScanThreadState::deal_with_reference(oop* ref_to_scan) {
-  if (!has_partial_array_mask(ref_to_scan)) {
-    do_oop_evac(ref_to_scan);
-  } else {
-    do_oop_partial_array(ref_to_scan);
-  }
-}
-
-inline void G1ParScanThreadState::deal_with_reference(narrowOop* ref_to_scan) {
-  assert(!has_partial_array_mask(ref_to_scan), "NarrowOop* elements should never be partial arrays.");
-  do_oop_evac(ref_to_scan);
-}
-
-inline void G1ParScanThreadState::dispatch_reference(StarTask ref) {
-  assert(verify_task(ref), "sanity");
-  if (ref.is_narrow()) {
-    deal_with_reference((narrowOop*)ref);
-  } else {
-    deal_with_reference((oop*)ref);
-  }
-}
-
-void G1ParScanThreadState::steal_and_trim_queue(RefToScanQueueSet *task_queues) {
-  StarTask stolen_task;
-  while (task_queues->steal(_worker_id, &_hash_seed, stolen_task)) {
-    assert(verify_task(stolen_task), "sanity");
-    dispatch_reference(stolen_task);
-
-    // We've just processed a reference and we might have made
-    // available new entries on the queues. So we have to make sure
-    // we drain the queues as necessary.
-    trim_queue();
-  }
-}
-
-inline bool G1ParScanThreadState::needs_partial_trimming() const {
-  return !_refs->overflow_empty() || _refs->size() > _stack_trim_upper_threshold;
-}
-
-inline bool G1ParScanThreadState::is_partially_trimmed() const {
-  return _refs->overflow_empty() && _refs->size() <= _stack_trim_lower_threshold;
-}
-
-inline void G1ParScanThreadState::trim_queue_to_threshold(uint threshold) {
-  StarTask ref;
-  // Drain the overflow stack first, so other threads can potentially steal.
-  while (_refs->pop_overflow(ref)) {
-    if (!_refs->try_push_to_taskqueue(ref)) {
-      dispatch_reference(ref);
-    }
-  }
-
-  while (_refs->pop_local(ref, threshold)) {
-    dispatch_reference(ref);
-  }
-}
-
-inline void G1ParScanThreadState::trim_queue_partially() {
+void G1ParScanThreadState::trim_queue_partially() {
   if (!needs_partial_trimming()) {
     return;
   }
 
   const Ticks start = Ticks::now();
-  do {
-    trim_queue_to_threshold(_stack_trim_lower_threshold);
-  } while (!is_partially_trimmed());
+  trim_queue_to_threshold(_stack_trim_lower_threshold);
+  assert(_task_queue->overflow_empty(), "invariant");
+  assert(_task_queue->size() <= _stack_trim_lower_threshold, "invariant");
   _trim_ticks += Ticks::now() - start;
+}
+
+void G1ParScanThreadState::trim_queue() {
+  trim_queue_to_threshold(0);
+  assert(_task_queue->overflow_empty(), "invariant");
+  assert(_task_queue->taskqueue_empty(), "invariant");
 }
 
 inline Tickspan G1ParScanThreadState::trim_ticks() const {
@@ -193,4 +70,98 @@ inline void G1ParScanThreadState::reset_trim_ticks() {
   _trim_ticks = Tickspan();
 }
 
-#endif // SHARE_VM_GC_G1_G1PARSCANTHREADSTATE_INLINE_HPP
+template <typename T>
+inline void G1ParScanThreadState::remember_root_into_optional_region(T* p) {
+  oop o = RawAccess<IS_NOT_NULL>::oop_load(p);
+  uint index = _g1h->heap_region_containing(o)->index_in_opt_cset();
+  assert(index < _max_num_optional_regions,
+         "Trying to access optional region idx %u beyond " SIZE_FORMAT, index, _max_num_optional_regions);
+  _oops_into_optional_regions[index].push_root(p);
+}
+
+template <typename T>
+inline void G1ParScanThreadState::remember_reference_into_optional_region(T* p) {
+  oop o = RawAccess<IS_NOT_NULL>::oop_load(p);
+  uint index = _g1h->heap_region_containing(o)->index_in_opt_cset();
+  assert(index < _max_num_optional_regions,
+         "Trying to access optional region idx %u beyond " SIZE_FORMAT, index, _max_num_optional_regions);
+  _oops_into_optional_regions[index].push_oop(p);
+  verify_task(p);
+}
+
+G1OopStarChunkedList* G1ParScanThreadState::oops_into_optional_region(const G1HeapRegion* hr) {
+  assert(hr->index_in_opt_cset() < _max_num_optional_regions,
+         "Trying to access optional region idx %u beyond " SIZE_FORMAT " " HR_FORMAT,
+         hr->index_in_opt_cset(), _max_num_optional_regions, HR_FORMAT_PARAMS(hr));
+  return &_oops_into_optional_regions[hr->index_in_opt_cset()];
+}
+
+template <class T> bool G1ParScanThreadState::enqueue_if_new(T* p) {
+  size_t card_index = ct()->index_for(p);
+  // If the card hasn't been added to the buffer, do it.
+  if (_last_enqueued_card != card_index) {
+    _rdc_local_qset.enqueue(ct()->byte_for_index(card_index));
+    _last_enqueued_card = card_index;
+    return true;
+  } else {
+    return false;
+  }
+}
+
+template <class T> void G1ParScanThreadState::enqueue_card_into_evac_fail_region(T* p, oop obj) {
+  assert(!G1HeapRegion::is_in_same_region(p, obj), "Should have filtered out cross-region references already.");
+  assert(!_g1h->heap_region_containing(p)->is_survivor(), "Should have filtered out from-newly allocated survivor references already.");
+  assert(_g1h->heap_region_containing(obj)->in_collection_set(), "Only for enqeueing reference into collection set region");
+
+  if (enqueue_if_new(p)) {
+    _evac_failure_enqueued_cards++;
+  }
+}
+
+template <class T> void G1ParScanThreadState::write_ref_field_post(T* p, oop obj) {
+  assert(obj != nullptr, "Must be");
+  if (G1HeapRegion::is_in_same_region(p, obj)) {
+    return;
+  }
+  G1HeapRegionAttr from_attr = _g1h->region_attr(p);
+  // If this is a reference from (current) survivor regions, we do not need
+  // to track references from it.
+  if (from_attr.is_new_survivor()) {
+    return;
+  }
+  G1HeapRegionAttr dest_attr = _g1h->region_attr(obj);
+  // References to the current collection set are references to objects that failed
+  // evacuation. Proactively collect remembered sets (cards) for them as likely they
+  // are sparsely populated (and have few references). We will decide later to keep
+  // or drop the region.
+  if (dest_attr.is_in_cset()) {
+    assert(obj->is_forwarded(), "evac-failed but not forwarded: " PTR_FORMAT, p2i(obj));
+    assert(obj->forwardee() == obj, "evac-failed but not self-forwarded: " PTR_FORMAT, p2i(obj));
+    enqueue_card_into_evac_fail_region(p, obj);
+    return;
+  }
+  enqueue_card_if_tracked(dest_attr, p, obj);
+}
+
+template <class T> void G1ParScanThreadState::enqueue_card_if_tracked(G1HeapRegionAttr region_attr, T* p, oop o) {
+  assert(!G1HeapRegion::is_in_same_region(p, o), "Should have filtered out cross-region references already.");
+  assert(!_g1h->heap_region_containing(p)->is_survivor(), "Should have filtered out from-newly allocated survivor references already.");
+  // We relabel all regions that failed evacuation as old gen without remembered,
+  // and so pre-filter them out in the caller.
+  assert(!_g1h->heap_region_containing(o)->in_collection_set(), "Should not try to enqueue reference into collection set region");
+
+#ifdef ASSERT
+  G1HeapRegion* const hr_obj = _g1h->heap_region_containing(o);
+  assert(region_attr.remset_is_tracked() == hr_obj->rem_set()->is_tracked(),
+         "State flag indicating remset tracking disagrees (%s) with actual remembered set (%s) for region %u",
+         BOOL_TO_STR(region_attr.remset_is_tracked()),
+         BOOL_TO_STR(hr_obj->rem_set()->is_tracked()),
+         hr_obj->hrm_index());
+#endif
+  if (!region_attr.remset_is_tracked()) {
+    return;
+  }
+  enqueue_if_new(p);
+}
+
+#endif // SHARE_GC_G1_G1PARSCANTHREADSTATE_INLINE_HPP

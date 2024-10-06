@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,20 +23,23 @@
 
 /*
  * @test
- * @key stress gc
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/gctests/SoftReference/soft003.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent]
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
- * @run main/othervm -XX:-UseGCOverheadLimit gc.gctests.SoftReference.soft003.soft003 -t 1
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI gc.gctests.SoftReference.soft003.soft003 -t 1
  */
 
 package gc.gctests.SoftReference.soft003;
 
 import java.lang.ref.Reference;
+
+import jdk.test.whitebox.WhiteBox;
 import nsk.share.test.*;
 import nsk.share.gc.*;
 import nsk.share.TestFailure;
@@ -46,7 +49,7 @@ import java.lang.ref.SoftReference;
  * Test that GC clears soft references before throwing OOM.
  *
  * This test creates a number of soft references, then provokes
- * GC with Algorithms.eatMemory() and checks that all references
+ * GC with WB.fullGC() and checks that all references
  * have been cleared.
  */
 public class soft003 extends ThreadedGCTest {
@@ -61,7 +64,7 @@ public class soft003 extends ThreadedGCTest {
             for (int i = 0; i < arrayLength; ++i) {
                 references[i] = new SoftReference<MemoryObject>(new MemoryObject(LocalRandom.nextInt(objectSize)));
             }
-            Algorithms.eatMemory(getExecutionController());
+            WhiteBox.getWhiteBox().fullGC();
             if (!getExecutionController().continueExecution()) {
                 return;
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@ import java.net.http.HttpResponse;
 import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.Utils;
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Implements chunked/fixed transfer encodings of HTTP/1.1 responses.
@@ -46,7 +47,7 @@ import static java.lang.String.format;
 class ResponseContent {
 
     final HttpResponse.BodySubscriber<?> pusher;
-    final int contentLength;
+    final long contentLength;
     final HttpHeaders headers;
     // this needs to run before we complete the body
     // so that connection can be returned to pool
@@ -54,7 +55,7 @@ class ResponseContent {
     private final String dbgTag;
 
     ResponseContent(HttpConnection connection,
-                    int contentLength,
+                    long contentLength,
                     HttpHeaders h,
                     HttpResponse.BodySubscriber<?> userSubscriber,
                     Runnable onFinished)
@@ -84,7 +85,7 @@ class ResponseContent {
         if (contentLength == -1) {
             String tc = headers.firstValue("Transfer-Encoding")
                                .orElse("");
-            if (!tc.equals("")) {
+            if (!tc.isEmpty()) {
                 if (tc.equalsIgnoreCase("chunked")) {
                     chunkedContent = true;
                 } else {
@@ -103,6 +104,7 @@ class ResponseContent {
         // A current-state message suitable for inclusion in an exception
         // detail message.
         String currentStateMessage();
+        void onError(Throwable t);
     }
 
     // Returns a parser that will take care of parsing the received byte
@@ -125,6 +127,7 @@ class ResponseContent {
 
 
     static enum ChunkState {READING_LENGTH, READING_DATA, DONE}
+    static final int MAX_CHUNK_HEADER_SIZE = 2050;
     class ChunkedBodyParser implements BodyParser {
         final ByteBuffer READMORE = Utils.EMPTY_BYTEBUFFER;
         final Consumer<Throwable> onComplete;
@@ -136,6 +139,8 @@ class ResponseContent {
         volatile int chunklen = -1;  // number of bytes in chunk
         volatile int bytesremaining;  // number of bytes in chunk left to be read incl CRLF
         volatile boolean cr = false;  // tryReadChunkLength has found CR
+        volatile int chunkext = 0;    // number of bytes already read in the chunk extension
+        volatile int digits = 0;      // number of chunkLength bytes already read
         volatile int bytesToConsume;  // number of bytes that still need to be consumed before proceeding
         volatile ChunkState state = ChunkState.READING_LENGTH; // current state
         volatile AbstractSubscription sub;
@@ -147,6 +152,26 @@ class ResponseContent {
             return dbgTag;
         }
 
+        // best effort - we're assuming UTF-8 text and breaks at character boundaries
+        // for this debug output. Not called.
+        private void debugBuffer(ByteBuffer b) {
+            if (!debug.on()) return;
+            ByteBuffer printable = b.asReadOnlyBuffer();
+            byte[] bytes = new byte[printable.limit() - printable.position()];
+            printable.get(bytes, 0, bytes.length);
+            String msg = "============== accepted ==================\n";
+            try {
+                var str = new String(bytes, UTF_8);
+                msg += str;
+            } catch (Exception x) {
+                msg += x;
+                x.printStackTrace();
+            }
+            msg += "\n==========================================\n";
+            debug.log(msg);
+
+        }
+
         @Override
         public void onSubscribe(AbstractSubscription sub) {
             if (debug.on())
@@ -155,10 +180,15 @@ class ResponseContent {
         }
 
         @Override
+        public void onError(Throwable t) {
+            closedExceptionally = t;
+            onComplete.accept(t);
+        }
+
+        @Override
         public String currentStateMessage() {
             return format("chunked transfer encoding, state: %s", state);
         }
-
         @Override
         public void accept(ByteBuffer b) {
             if (closedExceptionally != null) {
@@ -166,6 +196,7 @@ class ResponseContent {
                     debug.log("already closed: " + closedExceptionally);
                 return;
             }
+            // debugBuffer(b);
             boolean completed = false;
             try {
                 List<ByteBuffer> out = new ArrayList<>();
@@ -221,6 +252,9 @@ class ResponseContent {
         private int tryReadChunkLen(ByteBuffer chunkbuf) throws IOException {
             assert state == ChunkState.READING_LENGTH;
             while (chunkbuf.hasRemaining()) {
+                if (chunkext + digits >= MAX_CHUNK_HEADER_SIZE) {
+                    throw new IOException("Chunk header size too long: " + (chunkext + digits));
+                }
                 int c = chunkbuf.get();
                 if (cr) {
                     if (c == LF) {
@@ -231,9 +265,34 @@ class ResponseContent {
                 }
                 if (c == CR) {
                     cr = true;
+                    if (digits == 0 && debug.on()) {
+                        debug.log("tryReadChunkLen: invalid chunk header? No digits in chunkLen?");
+                    }
+                } else if (cr == false && chunkext > 0) {
+                    // we have seen a non digit character after the chunk length.
+                    // skip anything until CR is found.
+                    chunkext++;
+                    if (debug.on()) {
+                        debug.log("tryReadChunkLen: More extraneous character after chunk length: " + c);
+                    }
                 } else {
                     int digit = toDigit(c);
-                    partialChunklen = partialChunklen * 16 + digit;
+                    if (digit < 0) {
+                        if (digits > 0) {
+                            // first non-digit character after chunk length.
+                            // skip anything until CR is found.
+                            chunkext++;
+                            if (debug.on()) {
+                                debug.log("tryReadChunkLen: Extraneous character after chunk length: " + c);
+                            }
+                        } else {
+                            // there should be at list one digit in chunk length
+                            throw new IOException("Illegal character in chunk size: " + c);
+                        }
+                    } else {
+                        digits++;
+                        partialChunklen = partialChunklen * 16 + digit;
+                    }
                 }
             }
             return -1;
@@ -286,6 +345,7 @@ class ResponseContent {
                         + " (remaining in buffer:"+chunk.remaining()+")");
                 int clen = chunklen = tryReadChunkLen(chunk);
                 if (clen == -1) return READMORE;
+                digits = chunkext = 0;
                 if (debug.on()) debug.log("Got chunk len %d", clen);
                 cr = false; partialChunklen = 0;
                 unfulfilled = bytesremaining =  clen;
@@ -354,6 +414,7 @@ class ResponseContent {
                     chunklen = -1;
                     partialChunklen = 0;
                     cr = false;
+                    digits = chunkext = 0;
                     state = ChunkState.READING_LENGTH;
                     if (debug.on()) debug.log("Ready to read next chunk");
                 }
@@ -395,7 +456,7 @@ class ResponseContent {
             if (b >= 0x61 && b <= 0x66) {
                 return b - 0x61 + 10;
             }
-            throw new IOException("Invalid chunk header byte " + b);
+            return -1;
         }
 
     }
@@ -424,6 +485,12 @@ class ResponseContent {
         }
 
         @Override
+        public void onError(Throwable t) {
+            closedExceptionally = t;
+            onComplete.accept(t);
+        }
+
+        @Override
         public String currentStateMessage() {
             return format("http1_0 content, bytes received: %d", breceived);
         }
@@ -435,7 +502,6 @@ class ResponseContent {
                     debug.log("already closed: " + closedExceptionally);
                 return;
             }
-            boolean completed = false;
             try {
                 if (debug.on())
                     debug.log("Parser got %d bytes ", b.remaining());
@@ -452,9 +518,7 @@ class ResponseContent {
             } catch (Throwable t) {
                 if (debug.on()) debug.log("Unexpected exception", t);
                 closedExceptionally = t;
-                if (!completed) {
-                    onComplete.accept(t);
-                }
+                onComplete.accept(t);
             }
         }
 
@@ -474,14 +538,14 @@ class ResponseContent {
     }
 
     class FixedLengthBodyParser implements BodyParser {
-        final int contentLength;
+        final long contentLength;
         final Consumer<Throwable> onComplete;
         final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
         final String dbgTag = ResponseContent.this.dbgTag + "/FixedLengthBodyParser";
-        volatile int remaining;
+        volatile long remaining;
         volatile Throwable closedExceptionally;
         volatile AbstractSubscription sub;
-        FixedLengthBodyParser(int contentLength, Consumer<Throwable> onComplete) {
+        FixedLengthBodyParser(long contentLength, Consumer<Throwable> onComplete) {
             this.contentLength = this.remaining = contentLength;
             this.onComplete = onComplete;
         }
@@ -513,6 +577,16 @@ class ResponseContent {
         }
 
         @Override
+        public void onError(Throwable t) {
+            if (contentLength != 0) {
+                closedExceptionally = t;
+                onComplete.accept(t);
+            } else {
+                onComplete.accept(null);
+            }
+        }
+
+        @Override
         public String currentStateMessage() {
             return format("fixed content-length: %d, bytes received: %d",
                           contentLength, contentLength - remaining);
@@ -527,7 +601,7 @@ class ResponseContent {
             }
             boolean completed = false;
             try {
-                int unfulfilled = remaining;
+                long unfulfilled = remaining;
                 if (debug.on())
                     debug.log("Parser got %d bytes (%d remaining / %d)",
                               b.remaining(), unfulfilled, contentLength);
@@ -541,7 +615,7 @@ class ResponseContent {
                     // demand.
                     boolean hasDemand = sub.demand().tryDecrement();
                     assert hasDemand;
-                    int amount = Math.min(b.remaining(), unfulfilled);
+                    int amount = (int)Math.min(b.remaining(), unfulfilled); // safe cast
                     unfulfilled = remaining -= amount;
                     ByteBuffer buffer = Utils.sliceWithLimitedCapacity(b, amount);
                     pusher.onNext(List.of(buffer.asReadOnlyBuffer()));

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,10 +41,19 @@ import java.io.IOException;
 public class FileSystemException
     extends IOException
 {
+    @java.io.Serial
     static final long serialVersionUID = -3055425747967319812L;
 
-    private final @Nullable String file;
-    private final @Nullable String other;
+    /**
+     *  String identifying the file or {@code null} if not known.
+     */
+    private final String file;
+
+    /**
+     *  String identifying the other file or {@code null} if there isn't
+     *  another file or if not known.
+     */
+    private final String other;
 
     /**
      * Constructs an instance of this class. This constructor should be used

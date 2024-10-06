@@ -48,7 +48,7 @@ import java.io.Serializable;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -154,6 +154,10 @@ public class ScrollPaneLayout
      */
     protected int hsbPolicy = HORIZONTAL_SCROLLBAR_AS_NEEDED;
 
+    /**
+     * Constructs a {@code ScrollPaneLayout}.
+     */
+    public ScrollPaneLayout() {}
 
     /**
      * This method is invoked after the ScrollPaneLayout is set as the
@@ -226,7 +230,7 @@ public class ScrollPaneLayout
      *
      * @param s the component identifier
      * @param c the component to be added
-     * @exception IllegalArgumentException if <code>s</code> is an invalid key
+     * @throws IllegalArgumentException if <code>s</code> is an invalid key
      */
     public void addLayoutComponent(String s, Component c)
     {
@@ -324,7 +328,7 @@ public class ScrollPaneLayout
      * with the Swing 1.0.2 (and earlier) versions of this class.
      *
      * @param x an integer giving the display policy
-     * @exception IllegalArgumentException if <code>x</code> is an invalid
+     * @throws IllegalArgumentException if <code>x</code> is an invalid
      *          vertical scroll bar policy, as listed above
      */
     public void setVerticalScrollBarPolicy(int x) {
@@ -362,7 +366,7 @@ public class ScrollPaneLayout
      * with the Swing 1.0.2 (and earlier) versions of this class.
      *
      * @param x an int giving the display policy
-     * @exception IllegalArgumentException if <code>x</code> is not a valid
+     * @throws IllegalArgumentException if <code>x</code> is not a valid
      *          horizontal scrollbar policy, as listed above
      */
     public void setHorizontalScrollBarPolicy(int x) {
@@ -1116,5 +1120,10 @@ public class ScrollPaneLayout
     /**
      * The UI resource version of <code>ScrollPaneLayout</code>.
      */
-    public static class UIResource extends ScrollPaneLayout implements javax.swing.plaf.UIResource {}
+    public static class UIResource extends ScrollPaneLayout implements javax.swing.plaf.UIResource {
+        /**
+         * Constructs a {@code UIResource}.
+         */
+        public UIResource() {}
+    }
 }

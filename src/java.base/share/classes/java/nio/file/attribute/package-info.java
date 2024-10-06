@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,7 +93,7 @@
  * <p> The {@link java.nio.file.attribute.DosFileAttributeView}
  * class extends {@code BasicFileAttributeView} by defining methods to
  * access the legacy "DOS" file attributes supported on file systems such as File
- * Allocation Tabl (FAT), commonly used in consumer devices.
+ * Allocation Table (FAT), commonly used in consumer devices.
  *
  * <p> The {@link java.nio.file.attribute.AclFileAttributeView}
  * class defines methods to read and write the Access Control List (ACL)
@@ -124,6 +124,8 @@
  * or method in any class or interface in this package will cause a {@link
  * java.lang.NullPointerException NullPointerException} to be thrown.
  *
+ * @spec https://www.rfc-editor.org/info/rfc3530
+ *      RFC 3530: Network File System (NFS) version 4 Protocol
  * @since 1.7
  */
 

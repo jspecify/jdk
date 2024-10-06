@@ -30,7 +30,7 @@
 //---------------------------------------------------------------------------------
 //
 //  Little Color Management System
-//  Copyright (c) 1998-2017 Marti Maria Saguer
+//  Copyright (c) 1998-2023 Marti Maria Saguer
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the "Software"),
@@ -426,37 +426,31 @@ cmsStage*  CMSEXPORT cmsStageAllocMatrix(cmsContext ContextID, cmsUInt32Number R
 
 
     NewElem = (_cmsStageMatrixData*) _cmsMallocZero(ContextID, sizeof(_cmsStageMatrixData));
-    if (NewElem == NULL) return NULL;
-
+    if (NewElem == NULL) goto Error;
+    NewMPE->Data = (void*)NewElem;
 
     NewElem ->Double = (cmsFloat64Number*) _cmsCalloc(ContextID, n, sizeof(cmsFloat64Number));
-
-    if (NewElem->Double == NULL) {
-        MatrixElemTypeFree(NewMPE);
-        return NULL;
-    }
+    if (NewElem->Double == NULL) goto Error;
 
     for (i=0; i < n; i++) {
         NewElem ->Double[i] = Matrix[i];
     }
 
-
     if (Offset != NULL) {
 
         NewElem ->Offset = (cmsFloat64Number*) _cmsCalloc(ContextID, Rows, sizeof(cmsFloat64Number));
-        if (NewElem->Offset == NULL) {
-           MatrixElemTypeFree(NewMPE);
-           return NULL;
-        }
+        if (NewElem->Offset == NULL) goto Error;
 
         for (i=0; i < Rows; i++) {
                 NewElem ->Offset[i] = Offset[i];
         }
-
     }
 
-    NewMPE ->Data  = (void*) NewElem;
     return NewMPE;
+
+Error:
+    cmsStageFree(NewMPE);
+    return NULL;
 }
 
 
@@ -502,13 +496,16 @@ cmsUInt32Number CubeSize(const cmsUInt32Number Dims[], cmsUInt32Number b)
     for (rv = 1; b > 0; b--) {
 
         dim = Dims[b-1];
-        if (dim == 0) return 0;  // Error
+        if (dim <= 1) return 0;  // Error
 
         rv *= dim;
 
         // Check for overflow
         if (rv > UINT_MAX / dim) return 0;
     }
+
+    // Again, prevent overflow
+    if (rv > UINT_MAX / 15) return 0;
 
     return rv;
 }
@@ -729,7 +726,7 @@ cmsStage* CMSEXPORT cmsStageAllocCLutFloatGranular(cmsContext ContextID, const c
 
 
 static
-int IdentitySampler(register const cmsUInt16Number In[], register cmsUInt16Number Out[], register void * Cargo)
+int IdentitySampler(CMSREGISTER const cmsUInt16Number In[], CMSREGISTER cmsUInt16Number Out[], CMSREGISTER void * Cargo)
 {
     int nChan = *(int*) Cargo;
     int i;
@@ -849,7 +846,13 @@ cmsBool CMSEXPORT cmsStageSampleCLutFloat(cmsStage* mpe, cmsSAMPLERFLOAT Sampler
     cmsUInt32Number nInputs, nOutputs;
     cmsUInt32Number* nSamples;
     cmsFloat32Number In[MAX_INPUT_DIMENSIONS+1], Out[MAX_STAGE_CHANNELS];
-    _cmsStageCLutData* clut = (_cmsStageCLutData*) mpe->Data;
+    _cmsStageCLutData* clut;
+
+    if (mpe == NULL) return FALSE;
+
+    clut = (_cmsStageCLutData*)mpe->Data;
+
+    if (clut == NULL) return FALSE;
 
     nSamples = clut->Params ->nSamples;
     nInputs  = clut->Params ->nInputs;
@@ -1261,6 +1264,11 @@ void* CMSEXPORT cmsStageData(const cmsStage* mpe)
     return mpe -> Data;
 }
 
+cmsContext CMSEXPORT cmsGetStageContextID(const cmsStage* mpe)
+{
+    return mpe -> ContextID;
+}
+
 cmsStage*  CMSEXPORT cmsStageNext(const cmsStage* mpe)
 {
     return mpe -> Next;
@@ -1346,7 +1354,7 @@ cmsBool BlessLUT(cmsPipeline* lut)
 
 // Default to evaluate the LUT on 16 bit-basis. Precision is retained.
 static
-void _LUTeval16(register const cmsUInt16Number In[], register cmsUInt16Number Out[],  register const void* D)
+void _LUTeval16(CMSREGISTER const cmsUInt16Number In[], CMSREGISTER cmsUInt16Number Out[],  CMSREGISTER const void* D)
 {
     cmsPipeline* lut = (cmsPipeline*) D;
     cmsStage *mpe;
@@ -1372,7 +1380,7 @@ void _LUTeval16(register const cmsUInt16Number In[], register cmsUInt16Number Ou
 
 // Does evaluate the LUT on cmsFloat32Number-basis.
 static
-void _LUTevalFloat(register const cmsFloat32Number In[], register cmsFloat32Number Out[], const void* D)
+void _LUTevalFloat(const cmsFloat32Number In[], cmsFloat32Number Out[], const void* D)
 {
     cmsPipeline* lut = (cmsPipeline*) D;
     cmsStage *mpe;
@@ -1693,7 +1701,7 @@ cmsUInt32Number CMSEXPORT cmsPipelineStageCount(const cmsPipeline* lut)
 // This function may be used to set the optional evaluator and a block of private data. If private data is being used, an optional
 // duplicator and free functions should also be specified in order to duplicate the LUT construct. Use NULL to inhibit such functionality.
 void CMSEXPORT _cmsPipelineSetOptimizationParameters(cmsPipeline* Lut,
-                                        _cmsOPTeval16Fn Eval16,
+                                        _cmsPipelineEval16Fn Eval16,
                                         void* PrivateData,
                                         _cmsFreeUserDataFn FreePrivateDataFn,
                                         _cmsDupUserDataFn  DupPrivateDataFn)

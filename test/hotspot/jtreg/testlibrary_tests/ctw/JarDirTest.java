@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,15 +25,15 @@
  * @test
  * @bug 8012447
  * @library /test/lib /testlibrary/ctw/src
- * @modules java.base/jdk.internal.jimage
+ * @modules java.base/jdk.internal.access
+ *          java.base/jdk.internal.jimage
  *          java.base/jdk.internal.misc
  *          java.base/jdk.internal.reflect
  *          java.compiler
  *          java.management
  *          jdk.internal.jvmstat/sun.jvmstat.monitor
- * @build sun.hotspot.WhiteBox Foo Bar
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox Foo Bar
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build jdk.test.whitebox.WhiteBox Foo Bar
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox Foo Bar
  * @run driver JarDirTest prepare
  * @run driver JarDirTest compile jars/*
  * @run driver JarDirTest check

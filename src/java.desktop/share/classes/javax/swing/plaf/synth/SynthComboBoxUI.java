@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,38 @@
 
 package javax.swing.plaf.synth;
 
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
-import javax.swing.plaf.*;
-import javax.swing.event.*;
-import javax.swing.plaf.basic.*;
-import java.beans.PropertyChangeListener;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Insets;
+import java.awt.Rectangle;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+
+import javax.swing.ComboBoxEditor;
+import javax.swing.DefaultButtonModel;
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.Icon;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.ListCellRenderer;
+import javax.swing.SwingConstants;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
+import javax.swing.plaf.ComponentUI;
+import javax.swing.plaf.UIResource;
+import javax.swing.plaf.basic.BasicComboBoxEditor;
+import javax.swing.plaf.basic.BasicComboBoxUI;
+import javax.swing.plaf.basic.ComboPopup;
 
 /**
  * Provides the Synth L&amp;F UI delegate for
@@ -85,12 +109,20 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
      */
     private EditorFocusHandler editorFocusHandler;
 
+    private DlcrEnabledHandler dlcrEnabledHandler;
+
     /**
      * If true, then the cell renderer will be forced to be non-opaque when
      * used for rendering the selected item in the combo box (not in the list),
      * and forced to opaque after rendering the selected value.
      */
     private boolean forceOpaque = false;
+
+    /**
+     *
+     * Constructs a {@code SynthComboBoxUI}.
+     */
+    public SynthComboBoxUI() {}
 
     /**
      * Creates a new UI object for the given component.
@@ -158,6 +190,7 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
         comboBox.addPropertyChangeListener(this);
         comboBox.addMouseListener(buttonHandler);
         editorFocusHandler = new EditorFocusHandler(comboBox);
+        dlcrEnabledHandler = new DlcrEnabledHandler(comboBox);
         super.installListeners();
     }
 
@@ -190,6 +223,7 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
     @Override
     protected void uninstallListeners() {
         editorFocusHandler.unregister();
+        dlcrEnabledHandler.unregister();
         comboBox.removePropertyChangeListener(this);
         comboBox.removeMouseListener(buttonHandler);
         buttonHandler.pressed = false;
@@ -324,6 +358,34 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
     }
 
     /**
+     * The minimum size is the size of the display area plus insets plus the button.
+     */
+    @Override
+    public Dimension getMinimumSize( JComponent c ) {
+        if ( !isMinimumSizeDirty ) {
+            return new Dimension(cachedMinimumSize);
+        }
+        Dimension size = getDisplaySize();
+        Insets insets = getInsets();
+        Insets arrowInsets = arrowButton.getInsets();
+        //calculate the width and height of the button
+        int buttonHeight = size.height;
+        int buttonWidth = squareButton ?
+                            buttonHeight :
+                            arrowButton.getPreferredSize().width;
+        //adjust the size based on the button width
+        size.height += insets.top + insets.bottom + arrowInsets.top
+                        + arrowInsets.bottom;
+        size.width  += insets.left + insets.right + arrowInsets.left
+                        + arrowInsets.right + buttonWidth;
+
+        cachedMinimumSize.setSize( size.width, size.height );
+        isMinimumSizeDirty = false;
+
+        return new Dimension(size);
+    }
+
+    /**
      * Paints the specified component according to the Look and Feel.
      * <p>This method is not used by Synth Look and Feel.
      * Painting is handled by the {@link #paint(SynthContext,Graphics)} method.
@@ -352,6 +414,8 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
             Rectangle r = rectangleForCurrentValue();
             paintCurrentValue(g,r,hasFocus);
         }
+        // Empty out the renderer pane, allowing renderers to be gc'ed.
+        currentValuePane.removeAll();
     }
 
     /**
@@ -586,7 +650,7 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
         //------------------------------------------------------------------
 
         /**
-         * @inheritDoc
+         * {@inheritDoc}
          *
          * Ensures that isPressed() will return true if the combo is pressed,
          * or the arrowButton is pressed, <em>or</em> if the combo popup is
@@ -600,7 +664,7 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
         }
 
         /**
-         * @inheritDoc
+         * {@inheritDoc}
          *
          * Ensures that the armed state is in sync with the pressed state
          * if shouldActLikeButton is true. Without this method, the arrow
@@ -615,7 +679,7 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
         }
 
         /**
-         * @inheritDoc
+         * {@inheritDoc}
          *
          * Ensures that isRollover() will return true if the combo is
          * rolled over, or the arrowButton is rolled over.
@@ -626,7 +690,7 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
         }
 
         /**
-         * @inheritDoc
+         * {@inheritDoc}
          *
          * Forwards pressed states to the internal "pressed" field
          */
@@ -637,7 +701,7 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
         }
 
         /**
-         * @inheritDoc
+         * {@inheritDoc}
          *
          * Forwards rollover states to the internal "over" field
          */
@@ -679,7 +743,7 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
         //------------------------------------------------------------------
 
         /**
-         * @inheritDoc
+         * {@inheritDoc}
          *
          * Ensures that the combo box is repainted when the popup is closed.
          * This avoids a bug where clicking off the combo wasn't causing a repaint,
@@ -722,9 +786,9 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
             comboBox.addPropertyChangeListener("editor",this);
         }
 
-        public void unregister(){
-            comboBox.removePropertyChangeListener(this);
-            if (editorComponent!=null){
+        public void unregister() {
+            comboBox.removePropertyChangeListener("editor", this);
+            if (editorComponent != null) {
                 editorComponent.removeFocusListener(this);
             }
         }
@@ -759,6 +823,38 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
                     if (editorComponent != null){
                         editorComponent.addFocusListener(this);
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * Handler for updating combobox enabled status when renderer enabled
+     * status changes
+     */
+    private static class DlcrEnabledHandler implements PropertyChangeListener {
+        private JComboBox<?> comboBox;
+
+        private DlcrEnabledHandler(JComboBox<?> comboBox) {
+            this.comboBox = comboBox;
+            comboBox.addPropertyChangeListener("enabled",this);
+        }
+
+        public void unregister() {
+            comboBox.removePropertyChangeListener("enabled", this);
+        }
+
+        /**
+         * Called when the combos enabled status changes
+         *
+         * @param evt A PropertyChangeEvent object describing the event source
+         *            and the property that has changed.
+         */
+        public void propertyChange(PropertyChangeEvent evt) {
+            if (evt.getPropertyName().equals("enabled")) {
+                if (comboBox.getRenderer() instanceof DefaultListCellRenderer) {
+                    ((DefaultListCellRenderer) comboBox.getRenderer())
+                            .setEnabled((boolean) evt.getNewValue());
                 }
             }
         }

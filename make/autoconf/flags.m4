@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ m4_include([flags-other.m4])
 AC_DEFUN([FLAGS_SETUP_ABI_PROFILE],
 [
   AC_ARG_WITH(abi-profile, [AS_HELP_STRING([--with-abi-profile],
-      [specify ABI profile for ARM builds (arm-vfp-sflt,arm-vfp-hflt,arm-sflt, armv5-vfp-sflt,armv6-vfp-hflt,arm64,aarch64) @<:@toolchain dependent@:>@ ])])
+      [specify ABI profile for ARM builds (arm-vfp-sflt,arm-vfp-hflt,arm-sflt, armv5-vfp-sflt,armv6-vfp-hflt,aarch64) @<:@toolchain dependent@:>@ ])])
 
   if test "x$with_abi_profile" != x; then
     if test "x$OPENJDK_TARGET_CPU" != xarm && \
@@ -46,45 +46,59 @@ AC_DEFUN([FLAGS_SETUP_ABI_PROFILE],
     AC_MSG_CHECKING([for ABI profle])
     AC_MSG_RESULT([$OPENJDK_TARGET_ABI_PROFILE])
 
+    # --- Arm-sflt CFLAGS and ASFLAGS ---
+    # Armv5te is required for assembler, because pld insn used in arm32 hotspot is only in v5E and above.
+    # However, there is also a GCC bug which generates unaligned strd/ldrd instructions on armv5te:
+    # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82445, and it was fixed in gcc 7.1.
+    # The resulting compromise is to enable v5TE for assembler and let GCC generate code for v5T.
     if test "x$OPENJDK_TARGET_ABI_PROFILE" = xarm-vfp-sflt; then
       ARM_FLOAT_TYPE=vfp-sflt
       ARM_ARCH_TYPE_FLAGS='-march=armv7-a -mthumb'
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv7-a -mthumb'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarm-vfp-hflt; then
       ARM_FLOAT_TYPE=vfp-hflt
       ARM_ARCH_TYPE_FLAGS='-march=armv7-a -mthumb'
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv7-a -mthumb'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarm-sflt; then
       ARM_FLOAT_TYPE=sflt
       ARM_ARCH_TYPE_FLAGS='-march=armv5t -marm'
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv5te'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarmv5-vfp-sflt; then
       ARM_FLOAT_TYPE=vfp-sflt
       ARM_ARCH_TYPE_FLAGS='-march=armv5t -marm'
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv5te'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarmv6-vfp-hflt; then
       ARM_FLOAT_TYPE=vfp-hflt
       ARM_ARCH_TYPE_FLAGS='-march=armv6 -marm'
-    elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarm64; then
-      # No special flags, just need to trigger setting JDK_ARCH_ABI_PROP_NAME
-      ARM_FLOAT_TYPE=
-      ARM_ARCH_TYPE_FLAGS=
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv6'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xaarch64; then
       # No special flags, just need to trigger setting JDK_ARCH_ABI_PROP_NAME
       ARM_FLOAT_TYPE=
       ARM_ARCH_TYPE_FLAGS=
+      ARM_ARCH_TYPE_ASFLAGS=
     else
       AC_MSG_ERROR([Invalid ABI profile: "$OPENJDK_TARGET_ABI_PROFILE"])
     fi
 
     if test "x$ARM_FLOAT_TYPE" = xvfp-sflt; then
       ARM_FLOAT_TYPE_FLAGS='-mfloat-abi=softfp -mfpu=vfp -DFLOAT_ARCH=-vfp-sflt'
+      ARM_FLOAT_TYPE_ASFLAGS="-mfloat-abi=softfp -mfpu=vfp"
     elif test "x$ARM_FLOAT_TYPE" = xvfp-hflt; then
       ARM_FLOAT_TYPE_FLAGS='-mfloat-abi=hard -mfpu=vfp -DFLOAT_ARCH=-vfp-hflt'
+      ARM_FLOAT_TYPE_ASFLAGS="-mfloat-abi=hard -mfpu=vfp"
     elif test "x$ARM_FLOAT_TYPE" = xsflt; then
       ARM_FLOAT_TYPE_FLAGS='-msoft-float -mfpu=vfp'
+      ARM_FLOAT_TYPE_ASFLAGS="-mfloat-abi=soft -mfpu=vfp"
     fi
     AC_MSG_CHECKING([for $ARM_FLOAT_TYPE floating point flags])
     AC_MSG_RESULT([$ARM_FLOAT_TYPE_FLAGS])
+    AC_MSG_CHECKING([for $ARM_FLOAT_TYPE floating point flags for assembler])
+    AC_MSG_RESULT([$ARM_FLOAT_TYPE_ASFLAGS])
 
     AC_MSG_CHECKING([for arch type flags])
     AC_MSG_RESULT([$ARM_ARCH_TYPE_FLAGS])
+    AC_MSG_CHECKING([for arch type flags for assembler])
+    AC_MSG_RESULT([$ARM_ARCH_TYPE_ASFLAGS])
 
     # Now set JDK_ARCH_ABI_PROP_NAME. This is equivalent to the last part of the
     # autoconf target triplet.
@@ -111,19 +125,21 @@ AC_DEFUN([FLAGS_SETUP_MACOSX_VERSION],
 [
   # Additional macosx handling
   if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-    # MACOSX_VERSION_MIN specifies the lowest version of Macosx that the built
+    # The expected format for <version> is either nn.n.n or nn.nn.nn. See
+    # /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/AvailabilityVersions.h
+
+    # MACOSX_VERSION_MIN specifies the lowest version of macOS that the built
     # binaries should be compatible with, even if compiled on a newer version
     # of the OS. It currently has a hard coded value. Setting this also limits
     # exposure to API changes in header files. Bumping this is likely to
     # require code changes to build.
-    MACOSX_VERSION_MIN=10.9.0
+    MACOSX_VERSION_MIN=11.00.00
     MACOSX_VERSION_MIN_NODOTS=${MACOSX_VERSION_MIN//\./}
 
     AC_SUBST(MACOSX_VERSION_MIN)
 
     # Setting --with-macosx-version-max=<version> makes it an error to build or
-    # link to macosx APIs that are newer than the given OS version. The expected
-    # format for <version> is either nn.n.n or nn.nn.nn. See /usr/include/AvailabilityMacros.h.
+    # link to macosx APIs that are newer than the given OS version.
     AC_ARG_WITH([macosx-version-max], [AS_HELP_STRING([--with-macosx-version-max],
         [error on use of newer functionality. @<:@macosx@:>@])],
         [
@@ -162,6 +178,10 @@ AC_DEFUN_ONCE([FLAGS_SETUP_USER_SUPPLIED_FLAGS],
     AC_MSG_WARN([Ignoring LDFLAGS($LDFLAGS) found in environment. Use --with-extra-ldflags])
   fi
 
+  if test "x$ASFLAGS" != "x"; then
+    AC_MSG_WARN([Ignoring ASFLAGS($ASFLAGS) found in environment. Use --with-extra-asflags])
+  fi
+
   AC_ARG_WITH(extra-cflags, [AS_HELP_STRING([--with-extra-cflags],
       [extra flags to be used when compiling jdk c-files])])
 
@@ -171,9 +191,13 @@ AC_DEFUN_ONCE([FLAGS_SETUP_USER_SUPPLIED_FLAGS],
   AC_ARG_WITH(extra-ldflags, [AS_HELP_STRING([--with-extra-ldflags],
       [extra flags to be used when linking jdk])])
 
+  AC_ARG_WITH(extra-asflags, [AS_HELP_STRING([--with-extra-asflags],
+      [extra flags to be passed to the assembler])])
+
   USER_CFLAGS="$with_extra_cflags"
   USER_CXXFLAGS="$with_extra_cxxflags"
   USER_LDFLAGS="$with_extra_ldflags"
+  USER_ASFLAGS="$with_extra_asflags"
 ])
 
 # Setup the sysroot flags and add them to global CFLAGS and LDFLAGS so
@@ -183,32 +207,25 @@ AC_DEFUN_ONCE([FLAGS_SETUP_USER_SUPPLIED_FLAGS],
 AC_DEFUN([FLAGS_SETUP_SYSROOT_FLAGS],
 [
   if test "x[$]$1SYSROOT" != "x"; then
-    if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-      if test "x$OPENJDK_TARGET_OS" = xsolaris; then
-        # Solaris Studio does not have a concept of sysroot. Instead we must
-        # make sure the default include and lib dirs are appended to each
-        # compile and link command line. Must also add -I-xbuiltin to enable
-        # inlining of system functions and intrinsics.
-        $1SYSROOT_CFLAGS="-I-xbuiltin -I[$]$1SYSROOT/usr/include"
-        $1SYSROOT_LDFLAGS="-L[$]$1SYSROOT/usr/lib$OPENJDK_TARGET_CPU_ISADIR \
-            -L[$]$1SYSROOT/lib$OPENJDK_TARGET_CPU_ISADIR"
-        # If the devkit contains the ld linker, make sure we use it.
-        AC_PATH_PROG(SOLARIS_LD, ld, , $DEVKIT_TOOLCHAIN_PATH:$DEVKIT_EXTRA_PATH)
-        # Make sure this ld is runnable.
-        if test -f "$SOLARIS_LD"; then
-          if "$SOLARIS_LD" -V > /dev/null 2> /dev/null; then
-            $1SYSROOT_LDFLAGS="[$]$1SYSROOT_LDFLAGS -Yl,$(dirname $SOLARIS_LD)"
-          else
-            AC_MSG_WARN([Could not run $SOLARIS_LD found in devkit, reverting to system ld])
-          fi
-        fi
-      fi
-    elif test "x$TOOLCHAIN_TYPE" = xgcc; then
+    if test "x$TOOLCHAIN_TYPE" = xgcc; then
       $1SYSROOT_CFLAGS="--sysroot=[$]$1SYSROOT"
       $1SYSROOT_LDFLAGS="--sysroot=[$]$1SYSROOT"
     elif test "x$TOOLCHAIN_TYPE" = xclang; then
-      $1SYSROOT_CFLAGS="-isysroot [$]$1SYSROOT"
-      $1SYSROOT_LDFLAGS="-isysroot [$]$1SYSROOT"
+      if test "x$OPENJDK_TARGET_OS" = "xlinux"; then
+        # -isysroot has no effect on linux
+        # https://bugs.llvm.org/show_bug.cgi?id=11503
+        $1SYSROOT_CFLAGS="--sysroot=[$]$1SYSROOT"
+        $1SYSROOT_LDFLAGS="--sysroot=[$]$1SYSROOT"
+        if test -d "$DEVKIT_TOOLCHAIN_PATH"; then
+          # In devkits, gcc is not located in the sysroot.
+          # use --gcc-toolchain to let clang find the gcc installation.
+          $1SYSROOT_CFLAGS="[$]$1SYSROOT_CFLAGS --gcc-toolchain=$DEVKIT_TOOLCHAIN_PATH/.."
+          $1SYSROOT_LDFLAGS="[$]$1SYSROOT_LDFLAGS --gcc-toolchain=$DEVKIT_TOOLCHAIN_PATH/.."
+        fi
+      else
+        $1SYSROOT_CFLAGS="-isysroot [$]$1SYSROOT"
+        $1SYSROOT_LDFLAGS="-isysroot [$]$1SYSROOT"
+      fi
     fi
   fi
 
@@ -216,10 +233,20 @@ AC_DEFUN([FLAGS_SETUP_SYSROOT_FLAGS],
     # We also need -iframework<path>/System/Library/Frameworks
     $1SYSROOT_CFLAGS="[$]$1SYSROOT_CFLAGS -iframework [$]$1SYSROOT/System/Library/Frameworks"
     $1SYSROOT_LDFLAGS="[$]$1SYSROOT_LDFLAGS -iframework [$]$1SYSROOT/System/Library/Frameworks"
-    # These always need to be set, or we can't find the frameworks embedded in JavaVM.framework
-    # set this here so it doesn't have to be peppered throughout the forest
-    $1SYSROOT_CFLAGS="[$]$1SYSROOT_CFLAGS -F [$]$1SYSROOT/System/Library/Frameworks/JavaVM.framework/Frameworks"
-    $1SYSROOT_LDFLAGS="[$]$1SYSROOT_LDFLAGS -F [$]$1SYSROOT/System/Library/Frameworks/JavaVM.framework/Frameworks"
+    if test -d "[$]$1SYSROOT/System/Library/Frameworks/JavaVM.framework/Frameworks" ; then
+      # These always need to be set on macOS 10.X, or we can't find the frameworks embedded in JavaVM.framework
+      # set this here so it doesn't have to be peppered throughout the forest
+      $1SYSROOT_CFLAGS="[$]$1SYSROOT_CFLAGS -F [$]$1SYSROOT/System/Library/Frameworks/JavaVM.framework/Frameworks"
+      $1SYSROOT_LDFLAGS="[$]$1SYSROOT_LDFLAGS -F [$]$1SYSROOT/System/Library/Frameworks/JavaVM.framework/Frameworks"
+    fi
+  fi
+
+  # For the microsoft toolchain, we need to get the SYSROOT flags from the
+  # Visual Studio environment. Currently we cannot handle this as a separate
+  # build toolchain.
+  if test "x$1" = x && test "x$OPENJDK_BUILD_OS" = "xwindows" \
+      && test "x$TOOLCHAIN_TYPE" = "xmicrosoft"; then
+    TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV
   fi
 
   AC_SUBST($1SYSROOT_CFLAGS)
@@ -230,21 +257,25 @@ AC_DEFUN_ONCE([FLAGS_PRE_TOOLCHAIN],
 [
   # We should always include user supplied flags
   FLAGS_SETUP_USER_SUPPLIED_FLAGS
+
   # The sysroot flags are needed for configure to be able to run the compilers
   FLAGS_SETUP_SYSROOT_FLAGS
 
-  # For solstudio and xlc, the word size flag is required for correct behavior.
   # For clang/gcc, the flag is only strictly required for reduced builds, but
-  # set it always where possible (x86, sparc and ppc).
-  if test "x$TOOLCHAIN_TYPE" = xxlc; then
-    MACHINE_FLAG="-q${OPENJDK_TARGET_CPU_BITS}"
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    MACHINE_FLAG="-m${OPENJDK_TARGET_CPU_BITS}"
-  elif test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
-    if test "x$OPENJDK_TARGET_CPU_ARCH" = xx86 ||
-        test "x$OPENJDK_TARGET_CPU_ARCH" = xsparc ||
+  # set it always where possible (x86 and ppc).
+  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
+    if test "x$OPENJDK_TARGET_CPU_ARCH" = xx86 &&
+        test "x$OPENJDK_TARGET_CPU" != xx32 ||
         test "x$OPENJDK_TARGET_CPU_ARCH" = xppc; then
       MACHINE_FLAG="-m${OPENJDK_TARGET_CPU_BITS}"
+    fi
+  fi
+
+  if test "x$OPENJDK_TARGET_OS" = xmacosx; then
+    if test "x$OPENJDK_TARGET_CPU" = xaarch64; then
+      MACHINE_FLAG="$MACHINE_FLAG -arch arm64"
+    elif test "x$OPENJDK_TARGET_CPU" = xx86_64; then
+      MACHINE_FLAG="$MACHINE_FLAG -arch x86_64"
     fi
   fi
 
@@ -256,19 +287,18 @@ AC_DEFUN_ONCE([FLAGS_PRE_TOOLCHAIN],
   GLOBAL_LDFLAGS="$MACHINE_FLAG $SYSROOT_LDFLAGS $USER_LDFLAGS"
   # FIXME: Don't really know how to do with this, but this was the old behavior
   GLOBAL_CPPFLAGS="$SYSROOT_CFLAGS"
-  AC_SUBST(GLOBAL_CFLAGS)
-  AC_SUBST(GLOBAL_CXXFLAGS)
-  AC_SUBST(GLOBAL_LDFLAGS)
-  AC_SUBST(GLOBAL_CPPFLAGS)
 
-  # FIXME: For compatilibity, export this as EXTRA_CFLAGS for now.
+  # FIXME: For compatibility, export this as EXTRA_CFLAGS for now.
   EXTRA_CFLAGS="$MACHINE_FLAG $USER_CFLAGS"
   EXTRA_CXXFLAGS="$MACHINE_FLAG $USER_CXXFLAGS"
   EXTRA_LDFLAGS="$MACHINE_FLAG $USER_LDFLAGS"
+  EXTRA_ASFLAGS="$USER_ASFLAGS"
 
+  AC_SUBST(MACHINE_FLAG)
   AC_SUBST(EXTRA_CFLAGS)
   AC_SUBST(EXTRA_CXXFLAGS)
   AC_SUBST(EXTRA_LDFLAGS)
+  AC_SUBST(EXTRA_ASFLAGS)
 
   # For autoconf testing to work, the global flags must also be stored in the
   # "unnamed" CFLAGS etc.
@@ -276,85 +306,34 @@ AC_DEFUN_ONCE([FLAGS_PRE_TOOLCHAIN],
   CXXFLAGS="$GLOBAL_CXXFLAGS"
   LDFLAGS="$GLOBAL_LDFLAGS"
   CPPFLAGS="$GLOBAL_CPPFLAGS"
+
+  if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+    # When autoconf sends both compiler and linker flags to cl.exe at the same
+    # time, linker flags must be last at the command line. Achieve this by
+    # moving them to LIBS.
+    LIBS="$LIBS -link $LDFLAGS"
+    LDFLAGS=""
+  fi
 ])
 
 AC_DEFUN([FLAGS_SETUP_TOOLCHAIN_CONTROL],
 [
-  # COMPILER_TARGET_BITS_FLAG  : option for selecting 32- or 64-bit output
-  # COMPILER_COMMAND_FILE_FLAG : option for passing a command file to the compiler
-  # COMPILER_BINDCMD_FILE_FLAG : option for specifying a file which saves the binder
-  #                              commands produced by the link step (currently AIX only)
-  if test "x$TOOLCHAIN_TYPE" = xxlc; then
-    COMPILER_TARGET_BITS_FLAG="-q"
-    COMPILER_COMMAND_FILE_FLAG="-f"
-    COMPILER_BINDCMD_FILE_FLAG="-bloadmap:"
-  else
-    COMPILER_TARGET_BITS_FLAG="-m"
-    COMPILER_COMMAND_FILE_FLAG="@"
-    COMPILER_BINDCMD_FILE_FLAG=""
-
-    # The solstudio linker does not support @-files.
-    if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-      COMPILER_COMMAND_FILE_FLAG=
-    fi
-
-    # Check if @file is supported by gcc
-    if test "x$TOOLCHAIN_TYPE" = xgcc; then
-      AC_MSG_CHECKING([if @file is supported by gcc])
-      # Extra emtpy "" to prevent ECHO from interpreting '--version' as argument
-      $ECHO "" "--version" > command.file
-      if $CXX @command.file 2>&AS_MESSAGE_LOG_FD >&AS_MESSAGE_LOG_FD; then
-        AC_MSG_RESULT(yes)
-        COMPILER_COMMAND_FILE_FLAG="@"
-      else
-        AC_MSG_RESULT(no)
-        COMPILER_COMMAND_FILE_FLAG=
-      fi
-      $RM command.file
-    fi
-  fi
-
-  AC_SUBST(COMPILER_TARGET_BITS_FLAG)
-  AC_SUBST(COMPILER_COMMAND_FILE_FLAG)
-  AC_SUBST(COMPILER_BINDCMD_FILE_FLAG)
-
-  # Check that the compiler supports -mX (or -qX on AIX) flags
-  # Set COMPILER_SUPPORTS_TARGET_BITS_FLAG to 'true' if it does
-  FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [${COMPILER_TARGET_BITS_FLAG}${OPENJDK_TARGET_CPU_BITS}],
-      IF_TRUE: [COMPILER_SUPPORTS_TARGET_BITS_FLAG=true],
-      IF_FALSE: [COMPILER_SUPPORTS_TARGET_BITS_FLAG=false])
-  AC_SUBST(COMPILER_SUPPORTS_TARGET_BITS_FLAG)
-
   if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     CC_OUT_OPTION=-Fo
-    LD_OUT_OPTION=-out:
-    AR_OUT_OPTION=-out:
   else
     # The option used to specify the target .o,.a or .so file.
     # When compiling, how to specify the to be created object file.
     CC_OUT_OPTION='-o$(SPACE)'
-    # When linking, how to specify the output
-    LD_OUT_OPTION='-o$(SPACE)'
-    # When archiving, how to specify the to be create static archive for object files.
-    AR_OUT_OPTION='rcs$(SPACE)'
   fi
   AC_SUBST(CC_OUT_OPTION)
-  AC_SUBST(LD_OUT_OPTION)
-  AC_SUBST(AR_OUT_OPTION)
 
   # Generate make dependency files
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    C_FLAG_DEPS="-MMD -MF"
+    GENDEPS_FLAGS="-MMD -MF"
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
-    C_FLAG_DEPS="-MMD -MF"
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    C_FLAG_DEPS="-xMMD -xMF"
-  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    C_FLAG_DEPS="-qmakedep=gcc -MF"
+    GENDEPS_FLAGS="-MMD -MF"
   fi
-  CXX_FLAG_DEPS="$C_FLAG_DEPS"
-  AC_SUBST(C_FLAG_DEPS)
-  AC_SUBST(CXX_FLAG_DEPS)
+  AC_SUBST(GENDEPS_FLAGS)
 ])
 
 AC_DEFUN_ONCE([FLAGS_POST_TOOLCHAIN],
@@ -369,9 +348,6 @@ AC_DEFUN_ONCE([FLAGS_POST_TOOLCHAIN],
       BUILD_SYSROOT_LDFLAGS="$SYSROOT_LDFLAGS"
     fi
   fi
-  AC_SUBST(BUILD_SYSROOT_CFLAGS)
-  AC_SUBST(BUILD_SYSROOT_LDFLAGS)
-
 ])
 
 AC_DEFUN([FLAGS_SETUP_FLAGS],
@@ -389,8 +365,10 @@ AC_DEFUN([FLAGS_SETUP_FLAGS],
   FLAGS_SETUP_LDFLAGS
 
   FLAGS_SETUP_ARFLAGS
+  FLAGS_SETUP_LIBFLAGS
   FLAGS_SETUP_STRIPFLAGS
   FLAGS_SETUP_RCFLAGS
+  FLAGS_SETUP_NMFLAGS
 
   FLAGS_SETUP_ASFLAGS
   FLAGS_SETUP_ASFLAGS_CPU_DEP([TARGET])
@@ -401,18 +379,21 @@ AC_DEFUN([FLAGS_SETUP_FLAGS],
 #                                  IF_FALSE: [RUN-IF-FALSE])
 # ------------------------------------------------------------
 # Check that the C compiler supports an argument
-BASIC_DEFUN_NAMED([FLAGS_C_COMPILER_CHECK_ARGUMENTS],
-    [*ARGUMENT IF_TRUE IF_FALSE], [$@],
+UTIL_DEFUN_NAMED([FLAGS_C_COMPILER_CHECK_ARGUMENTS],
+    [*ARGUMENT IF_TRUE IF_FALSE PREFIX], [$@],
 [
-  AC_MSG_CHECKING([if the C compiler supports "ARG_ARGUMENT"])
+  AC_MSG_CHECKING([if ARG_PREFIX[CC] supports "ARG_ARGUMENT"])
   supports=yes
 
   saved_cflags="$CFLAGS"
-  CFLAGS="$CFLAGS ARG_ARGUMENT"
+  saved_cc="$CC"
+  CFLAGS="$CFLAGS $CFLAGS_WARNINGS_ARE_ERRORS ARG_ARGUMENT"
+  CC="$ARG_PREFIX[CC]"
   AC_LANG_PUSH([C])
   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[int i;]])], [],
       [supports=no])
   AC_LANG_POP([C])
+  CC="$saved_cc"
   CFLAGS="$saved_cflags"
 
   AC_MSG_RESULT([$supports])
@@ -429,18 +410,21 @@ BASIC_DEFUN_NAMED([FLAGS_C_COMPILER_CHECK_ARGUMENTS],
 #                                    IF_FALSE: [RUN-IF-FALSE])
 # ------------------------------------------------------------
 # Check that the C++ compiler supports an argument
-BASIC_DEFUN_NAMED([FLAGS_CXX_COMPILER_CHECK_ARGUMENTS],
-    [*ARGUMENT IF_TRUE IF_FALSE], [$@],
+UTIL_DEFUN_NAMED([FLAGS_CXX_COMPILER_CHECK_ARGUMENTS],
+    [*ARGUMENT IF_TRUE IF_FALSE PREFIX], [$@],
 [
-  AC_MSG_CHECKING([if the C++ compiler supports "ARG_ARGUMENT"])
+  AC_MSG_CHECKING([if ARG_PREFIX[CXX] supports "ARG_ARGUMENT"])
   supports=yes
 
   saved_cxxflags="$CXXFLAGS"
-  CXXFLAGS="$CXXFLAG ARG_ARGUMENT"
+  saved_cxx="$CXX"
+  CXXFLAGS="$CXXFLAG $CFLAGS_WARNINGS_ARE_ERRORS ARG_ARGUMENT"
+  CXX="$ARG_PREFIX[CXX]"
   AC_LANG_PUSH([C++])
   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[int i;]])], [],
       [supports=no])
   AC_LANG_POP([C++])
+  CXX="$saved_cxx"
   CXXFLAGS="$saved_cxxflags"
 
   AC_MSG_RESULT([$supports])
@@ -457,19 +441,23 @@ BASIC_DEFUN_NAMED([FLAGS_CXX_COMPILER_CHECK_ARGUMENTS],
 #                                IF_FALSE: [RUN-IF-FALSE])
 # ------------------------------------------------------------
 # Check that the C and C++ compilers support an argument
-BASIC_DEFUN_NAMED([FLAGS_COMPILER_CHECK_ARGUMENTS],
-    [*ARGUMENT IF_TRUE IF_FALSE], [$@],
+UTIL_DEFUN_NAMED([FLAGS_COMPILER_CHECK_ARGUMENTS],
+    [*ARGUMENT IF_TRUE IF_FALSE PREFIX], [$@],
 [
-  FLAGS_C_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [ARG_ARGUMENT],
-  					     IF_TRUE: [C_COMP_SUPPORTS="yes"],
-					     IF_FALSE: [C_COMP_SUPPORTS="no"])
-  FLAGS_CXX_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [ARG_ARGUMENT],
-  					       IF_TRUE: [CXX_COMP_SUPPORTS="yes"],
-					       IF_FALSE: [CXX_COMP_SUPPORTS="no"])
+  FLAGS_C_COMPILER_CHECK_ARGUMENTS(ARGUMENT: ARG_ARGUMENT,
+      IF_TRUE: [C_COMP_SUPPORTS="yes"],
+      IF_FALSE: [C_COMP_SUPPORTS="no"],
+      PREFIX: ARG_PREFIX)
+  FLAGS_CXX_COMPILER_CHECK_ARGUMENTS(ARGUMENT: ARG_ARGUMENT,
+      IF_TRUE: [CXX_COMP_SUPPORTS="yes"],
+      IF_FALSE: [CXX_COMP_SUPPORTS="no"],
+      PREFIX: ARG_PREFIX)
 
-  AC_MSG_CHECKING([if both compilers support "ARG_ARGUMENT"])
+  AC_MSG_CHECKING([if both ARG_PREFIX[CC] and ARG_PREFIX[CXX] support "ARG_ARGUMENT"])
   supports=no
-  if test "x$C_COMP_SUPPORTS" = "xyes" -a "x$CXX_COMP_SUPPORTS" = "xyes"; then supports=yes; fi
+  if test "x$C_COMP_SUPPORTS" = "xyes" -a "x$CXX_COMP_SUPPORTS" = "xyes"; then
+    supports=yes;
+  fi
 
   AC_MSG_RESULT([$supports])
   if test "x$supports" = "xyes" ; then
@@ -485,7 +473,7 @@ BASIC_DEFUN_NAMED([FLAGS_COMPILER_CHECK_ARGUMENTS],
 #                                   IF_FALSE: [RUN-IF-FALSE])
 # ------------------------------------------------------------
 # Check that the linker support an argument
-BASIC_DEFUN_NAMED([FLAGS_LINKER_CHECK_ARGUMENTS],
+UTIL_DEFUN_NAMED([FLAGS_LINKER_CHECK_ARGUMENTS],
     [*ARGUMENT IF_TRUE IF_FALSE], [$@],
 [
   AC_MSG_CHECKING([if linker supports "ARG_ARGUMENT"])

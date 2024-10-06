@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@ import static java.net.http.HttpRequest.BodyPublishers.noBody;
 
 /**
  * @test
- * @bug 8170064
+ * @bug 8170064 8276559
  * @summary  HttpRequest[.Builder] API and behaviour checks
  */
 public class HttpRequestBuilderTest {
@@ -156,6 +156,7 @@ public class HttpRequestBuilderTest {
                         IllegalArgumentException.class);
 
         test0("DELETE", () -> HttpRequest.newBuilder(TEST_URI).DELETE().build(), null);
+        test0("HEAD", () -> HttpRequest.newBuilder(TEST_URI).HEAD().build(), null);
 
         builder = test1("POST", builder, builder::POST,
                         noBody(), null);
@@ -254,8 +255,20 @@ public class HttpRequestBuilderTest {
                () -> HttpRequest.newBuilder(TEST_URI).GET().DELETE(),
                "DELETE");
 
+        method("newBuilder(TEST_URI).HEAD().build().method() == HEAD",
+                () -> HttpRequest.newBuilder(TEST_URI).HEAD(),
+                "HEAD");
 
-
+        // verify that the default HEAD() method implementation in HttpRequest.Builder
+        // interface works as expected
+        HttpRequest defaultHeadReq = new NotOverriddenHEADImpl().HEAD().uri(TEST_URI).build();
+        String actualMethod = defaultHeadReq.method();
+        if (!actualMethod.equals("HEAD")) {
+            throw new AssertionError("failed: expected HEAD method but got method: " + actualMethod);
+        }
+        if (defaultHeadReq.bodyPublisher().isEmpty()) {
+            throw new AssertionError("failed: missing bodyPublisher on HEAD request");
+        }
     }
 
     private static boolean shouldFail(Class<? extends Exception> ...exceptions) {
@@ -362,6 +375,81 @@ public class HttpRequestBuilderTest {
                         + arg2 + ") - Got expected exception: " + x);
                 return receiver;
             }
+        }
+    }
+
+    // doesn't override the default HEAD() method
+    private static final class NotOverriddenHEADImpl implements HttpRequest.Builder {
+        private final HttpRequest.Builder underlying = HttpRequest.newBuilder();
+
+        @Override
+        public HttpRequest.Builder uri(URI uri) {
+            return this.underlying.uri(uri);
+        }
+
+        @Override
+        public HttpRequest.Builder expectContinue(boolean enable) {
+            return this.underlying.expectContinue(enable);
+        }
+
+        @Override
+        public HttpRequest.Builder version(HttpClient.Version version) {
+            return this.underlying.version(version);
+        }
+
+        @Override
+        public HttpRequest.Builder header(String name, String value) {
+            return this.underlying.header(name, value);
+        }
+
+        @Override
+        public HttpRequest.Builder headers(String... headers) {
+            return this.underlying.headers(headers);
+        }
+
+        @Override
+        public HttpRequest.Builder timeout(Duration duration) {
+            return this.underlying.timeout(duration);
+        }
+
+        @Override
+        public HttpRequest.Builder setHeader(String name, String value) {
+            return this.underlying.setHeader(name, value);
+        }
+
+        @Override
+        public HttpRequest.Builder GET() {
+            return this.underlying.GET();
+        }
+
+        @Override
+        public HttpRequest.Builder POST(HttpRequest.BodyPublisher bodyPublisher) {
+            return this.underlying.POST(bodyPublisher);
+        }
+
+        @Override
+        public HttpRequest.Builder PUT(HttpRequest.BodyPublisher bodyPublisher) {
+            return this.underlying.PUT(bodyPublisher);
+        }
+
+        @Override
+        public HttpRequest.Builder DELETE() {
+            return this.underlying.DELETE();
+        }
+
+        @Override
+        public HttpRequest.Builder method(String method, HttpRequest.BodyPublisher bodyPublisher) {
+            return this.underlying.method(method, bodyPublisher);
+        }
+
+        @Override
+        public HttpRequest build() {
+            return this.underlying.build();
+        }
+
+        @Override
+        public HttpRequest.Builder copy() {
+            return this.underlying.copy();
         }
     }
 }

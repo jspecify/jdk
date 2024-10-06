@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,8 @@ import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 // A Symbol is a canonicalized string.
 // All Symbols reside in global symbolTable.
@@ -45,16 +47,10 @@ public class Symbol extends VMObject {
 
   private static synchronized void initialize(TypeDataBase db) throws WrongTypeException {
     Type type  = db.lookupType("Symbol");
-    length     = type.getCIntegerField("_length");
+    lengthField = type.getCIntegerField("_length");
     baseOffset = type.getField("_body").getOffset();
-    idHash = type.getCIntegerField("_identity_hash");
+    idHashAndRefcount = type.getCIntegerField("_hash_and_refcount");
   }
-
-  // Format:
-  //   [header]
-  //   [klass ]
-  //   [length] byte size of uft8 string
-  //   ..body..
 
   public static Symbol create(Address addr) {
     if (addr == null) {
@@ -72,26 +68,17 @@ public class Symbol extends VMObject {
   private static long baseOffset; // tells where the array part starts
 
   // Fields
-  private static CIntegerField length;
+  private static CIntegerField lengthField;
+  // idHash is a short packed into the high bits of a 32-bit integer with refcount
+  private static CIntegerField idHashAndRefcount;
 
   // Accessors for declared fields
-  public long   getLength() { return          length.getValue(this.addr); }
+  public long getLength() {
+    return lengthField.getValue(this.addr);
+  }
 
   public byte getByteAt(long index) {
     return addr.getJByteAt(baseOffset + index);
-  }
-  // _identity_hash is a short
-  private static CIntegerField idHash;
-
-  public int identityHash() {
-    long addr_value = getAddress().asLongValue();
-    int  addr_bits = (int)(addr_value >> (VM.getVM().getLogMinObjAlignmentInBytes() + 3));
-    int  length = (int)getLength();
-    int  byte0 = getByteAt(0);
-    int  byte1 = getByteAt(1);
-    int  id_hash = (int)(0xffff & idHash.getValue(this.addr));
-    return id_hash |
-           ((addr_bits ^ (length << 8) ^ ((byte0 << 8) | byte1)) << 16);
   }
 
   public boolean equals(byte[] modUTF8Chars) {
@@ -104,6 +91,10 @@ public class Symbol extends VMObject {
       Assert.that(l == -1, "we should be at the beginning");
     }
     return true;
+  }
+
+  public boolean equals(String string) {
+    return asString().equals(string);
   }
 
   public byte[] asByteArray() {

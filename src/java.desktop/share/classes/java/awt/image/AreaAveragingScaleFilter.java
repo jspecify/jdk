@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,7 +63,7 @@ public class AreaAveragingScaleFilter extends ReplicateScaleFilter {
                                             | COMPLETESCANLINES);
 
     private boolean passthrough;
-    private float reds[], greens[], blues[], alphas[];
+    private float[] reds, greens, blues, alphas;
     private int savedy;
     private int savedyrem;
 
@@ -72,6 +72,8 @@ public class AreaAveragingScaleFilter extends ReplicateScaleFilter {
      * its source Image as specified by the width and height parameters.
      * @param width the target width to scale the image
      * @param height the target height to scale the image
+     * @throws IllegalArgumentException if {@code width} equals
+     *         zero or {@code height} equals zero
      */
     public AreaAveragingScaleFilter(int width, int height) {
         super(width, height);
@@ -103,7 +105,7 @@ public class AreaAveragingScaleFilter extends ReplicateScaleFilter {
 
     private int[] calcRow() {
         float origmult = ((float) srcWidth) * srcHeight;
-        if (outpixbuf == null || !(outpixbuf instanceof int[])) {
+        if (!(outpixbuf instanceof int[])) {
             outpixbuf = new int[destWidth];
         }
         int[] outpix = (int[]) outpixbuf;
@@ -208,7 +210,7 @@ public class AreaAveragingScaleFilter extends ReplicateScaleFilter {
                 }
             }
             if ((dyrem -= amty) == 0) {
-                int outpix[] = calcRow();
+                int[] outpix = calcRow();
                 do {
                     consumer.setPixels(0, dy, destWidth, 1,
                                        rgbmodel, outpix, 0, destWidth);
@@ -244,7 +246,7 @@ public class AreaAveragingScaleFilter extends ReplicateScaleFilter {
      * @see ReplicateScaleFilter
      */
     public void setPixels(int x, int y, int w, int h,
-                          ColorModel model, byte pixels[], int off,
+                          ColorModel model, byte[] pixels, int off,
                           int scansize) {
         if (passthrough) {
             super.setPixels(x, y, w, h, model, pixels, off, scansize);
@@ -270,7 +272,7 @@ public class AreaAveragingScaleFilter extends ReplicateScaleFilter {
      * @see ReplicateScaleFilter
      */
     public void setPixels(int x, int y, int w, int h,
-                          ColorModel model, int pixels[], int off,
+                          ColorModel model, int[] pixels, int off,
                           int scansize) {
         if (passthrough) {
             super.setPixels(x, y, w, h, model, pixels, off, scansize);

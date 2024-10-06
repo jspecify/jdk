@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -100,12 +98,12 @@ public class TestGetAnnotationElements {
 
         EventFactory f = EventFactory.create(eventAnnotations, fields);
         EventType type = f.getEventType();
-        List<AnnotationElement> aes = type.getAnnotationElements().get(0).getAnnotationElements();
+        List<AnnotationElement> aes = type.getAnnotationElements().getFirst().getAnnotationElements();
         Asserts.assertEquals(0, aes.size());
 
         EventType et = EventType.getEventType(MyEvent.class);
         ValueDescriptor field = et.getField("transactionRate");
-        aes = field.getAnnotationElements().get(0).getAnnotationElements();
+        aes = field.getAnnotationElements().getFirst().getAnnotationElements();
         Asserts.assertEquals(3, aes.size());
         assertContainsAnnotation(aes, Description.class);
         assertContainsAnnotation(aes, Label.class);

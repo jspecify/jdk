@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,25 +23,30 @@
 
 package jdk.test.lib.artifacts;
 
-import java.io.FileNotFoundException;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
 public class ArtifactResolver {
-    public static Map<String, Path> resolve(Class<?> klass) throws ArtifactResolverException {
-        ArtifactManager manager = new DefaultArtifactManager();
+    private static ArtifactManager getManager() throws ArtifactResolverException {
+        ArtifactManager manager;
         try {
             String managerName = System.getProperty("jdk.test.lib.artifacts.artifactmanager");
             if (managerName != null) {
                 manager = (ArtifactManager) Class.forName(managerName).newInstance();
-            } else {
+            } else if (System.getenv().containsKey(JibArtifactManager.JIB_HOME_ENV_NAME)) {
                 manager = JibArtifactManager.newInstance();
+            } else {
+                manager = new DefaultArtifactManager();
             }
         } catch (Exception e) {
-            // If we end up here, we'll use the DefaultArtifactManager
+            throw new ArtifactResolverException("Failed to load ArtifactManager", e);
         }
+        return manager;
+    }
 
+    public static Map<String, Path> resolve(Class<?> klass) throws ArtifactResolverException {
+        ArtifactManager manager = getManager();
         ArtifactContainer artifactContainer = klass.getAnnotation(ArtifactContainer.class);
         HashMap<String, Path> locations = new HashMap<>();
         Artifact[] artifacts;
@@ -56,6 +61,11 @@ public class ArtifactResolver {
         }
 
         return locations;
+    }
+
+    public static Path resolve(String name, Map<String, Object> artifactDescription, boolean unpack) throws ArtifactResolverException {
+        ArtifactManager manager = getManager();
+        return  manager.resolve(name, artifactDescription, unpack);
     }
 
     private static String artifactName(Artifact artifact) {

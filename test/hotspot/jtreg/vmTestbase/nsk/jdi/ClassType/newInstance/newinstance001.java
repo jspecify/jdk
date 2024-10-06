@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,7 +51,7 @@ import com.sun.jdi.request.*;
  * The test works as follows.                                   <BR>
  * A debugger launchs a debuggee which creates new thread, thread2. <BR>
  * The tested class TestClass is specified outside of the class <BR>
- *      Threadnewinstance002a extends Thread                    <BR>
+ *      Threadnewinstance002a extends JDITask                   <BR>
  * After getting thread2 running but locked at a monitor        <BR>
  * the debugger informs the debugger of the thread2 creation    <BR>
  * and waits for an instruction from it.                        <BR>
@@ -85,7 +85,9 @@ public class newinstance001 {
 
     public static void main (String argv[]) {
         int result = run(argv, System.out);
-        System.exit(result + PASS_BASE);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run (String argv[], PrintStream out) {
@@ -170,7 +172,7 @@ public class newinstance001 {
         IOPipe pipe     = new IOPipe(debuggee);
 
         debuggee.redirectStderr(out);
-        log2("issuspended002a debuggee launched");
+        log2(debuggeeName + " debuggee launched");
         debuggee.resume();
 
         String line = pipe.readln();

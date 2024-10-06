@@ -22,8 +22,6 @@
  */
 package com.sun.org.apache.xml.internal.security.keys.content.x509;
 
-import org.jspecify.annotations.Nullable;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -102,18 +100,11 @@ public class XMLX509Certificate extends SignatureElementProxy implements XMLX509
      * @throws XMLSecurityException
      */
     public X509Certificate getX509Certificate() throws XMLSecurityException {
-        byte certbytes[] = this.getCertificateBytes();
+        byte[] certbytes = this.getCertificateBytes();
         try (InputStream is = new ByteArrayInputStream(certbytes)) {
             CertificateFactory certFact =
                 CertificateFactory.getInstance(XMLX509Certificate.JCA_CERT_ID);
-            X509Certificate cert =
-                (X509Certificate) certFact.generateCertificate(is);
-
-            if (cert != null) {
-                return cert;
-            }
-
-            return null;
+            return (X509Certificate) certFact.generateCertificate(is);
         } catch (CertificateException | IOException ex) {
             throw new XMLSecurityException(ex);
         }
@@ -136,9 +127,8 @@ public class XMLX509Certificate extends SignatureElementProxy implements XMLX509
     }
 
     /** {@inheritDoc} */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (!(obj instanceof XMLX509Certificate)) {
             return false;
         }
@@ -150,12 +140,13 @@ public class XMLX509Certificate extends SignatureElementProxy implements XMLX509
         }
     }
 
+    @Override
     public int hashCode() {
         int result = 17;
         try {
             byte[] bytes = getCertificateBytes();
-            for (int i = 0; i < bytes.length; i++) {
-                result = 31 * result + bytes[i];
+            for (byte element : bytes) {
+                result = 31 * result + element;
             }
         } catch (XMLSecurityException e) {
             LOG.debug(e.getMessage(), e);
@@ -164,6 +155,7 @@ public class XMLX509Certificate extends SignatureElementProxy implements XMLX509
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getBaseLocalName() {
         return Constants._TAG_X509CERTIFICATE;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,7 +69,10 @@ public class crstepreq004 {
     //------------------------------------------------------ immutable common methods
 
     public static void main (String argv[]) {
-        System.exit(run(argv, System.out) + PASS_BASE);
+        int result = run(argv,System.out);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     //------------------------------------------------------ test specific fields
@@ -155,7 +158,7 @@ public class crstepreq004 {
     //--------------------------------------------------------- mutable common methods
 
     private void execTest() {
-        ThreadReference mainThread = threadByName("main");
+        ThreadReference mainThread = debuggee.threadByNameOrThrow("main");
 
         BreakpointRequest bpRequest = setBreakpoint( mainThread,
                                                      debuggeeClass,
@@ -247,7 +250,7 @@ public class crstepreq004 {
             exitCode = FAILED;
         }
 
-        ThreadReference thread = threadByName(threadName);
+        ThreadReference thread = debuggee.threadByNameOrThrow(threadName);
         StepRequest stepRequest = setStepRequest( thread,
                                                   StepRequest.STEP_LINE,
                                                   stepDepth,
@@ -416,19 +419,6 @@ public class crstepreq004 {
         } catch (Exception e) {
             throw new Failure("getEventSet(): Unexpected exception while waiting for an event: " + e);
         }
-    }
-
-
-    private ThreadReference threadByName(String name) throws Failure{
-        List all = vm.allThreads();
-        ListIterator li = all.listIterator();
-
-        while (li.hasNext()) {
-            ThreadReference thread = (ThreadReference) li.next();
-            if (thread.name().equals(name))
-                return thread;
-        }
-        throw new Failure("Thread with searching for name is not found: " + name);
     }
 
     private ReferenceType waitForDebuggeeClassPrepared () {

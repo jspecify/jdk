@@ -40,8 +40,7 @@ import org.jspecify.annotations.Nullable;
 import java.io.Serializable;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import java.util.function.UnaryOperator;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.SharedSecrets;
 
 /**
  * Resizable-array implementation of the {@link Deque} interface.  Array
@@ -78,9 +77,8 @@ import jdk.internal.misc.SharedSecrets;
  * exception for its correctness: <i>the fail-fast behavior of iterators
  * should be used only to detect bugs.</i>
  *
- * <p>This class and its iterator implement all of the
- * <em>optional</em> methods of the {@link Collection} and {@link
- * Iterator} interfaces.
+ * <p>This class and its iterator implement all of the <em>optional</em> methods of the
+ * {@link Collection}, {@link SequencedCollection}, and {@link Iterator} interfaces.
  *
  * <p>This class is a member of the
  * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">
@@ -184,7 +182,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      * sufficient to hold 16 elements.
      */
     public ArrayDeque() {
-        elements = new Object[16];
+        elements = new Object[16 + 1];
     }
 
     /**
@@ -210,6 +208,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      * @param c the collection whose elements are to be placed into the deque
      * @throws NullPointerException if the specified collection is null
      */
+    @SuppressWarnings("this-escape")
     public ArrayDeque(Collection<? extends E> c) {
         this(c.size());
         copyElements(c);
@@ -1050,7 +1049,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
     }
 
     /**
-     * Nulls out slots starting at array index i, upto index end.
+     * Nulls out slots starting at array index i, up to index end.
      * Condition i == end means "empty" - nothing to do.
      */
     private static void circularClear(Object[] es, int i, int end) {
@@ -1170,6 +1169,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
         }
     }
 
+    @java.io.Serial
     private static final long serialVersionUID = 2340985798034038923L;
 
     /**
@@ -1181,6 +1181,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      * followed by all of its elements (each an object reference) in
      * first-to-last order.
      */
+    @java.io.Serial
     private void writeObject(java.io.ObjectOutputStream s)
             throws java.io.IOException {
         s.defaultWriteObject();
@@ -1205,6 +1206,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      *         could not be found
      * @throws java.io.IOException if an I/O error occurs
      */
+    @java.io.Serial
     private void readObject(java.io.ObjectInputStream s)
             throws java.io.IOException, ClassNotFoundException {
         s.defaultReadObject();

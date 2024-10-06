@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,7 +88,7 @@ static void StatusDrawCallback(XIC, XPointer,
  * values above.
  */
 static XIMProc callback_funcs[NCALLBACKS] = {
-    (XIMProc)PreeditStartCallback,
+    (XIMProc)(void *)&PreeditStartCallback,
     (XIMProc)PreeditDoneCallback,
     (XIMProc)PreeditDrawCallback,
     (XIMProc)PreeditCaretCallback,
@@ -183,7 +183,6 @@ static int  get_next_attr(int len, unsigned long *attr);
 static void draw_preedit(StatusWindow *statusWindow);
 static void align_status(StatusWindow *statusWindow);
 static void shrink_status(StatusWindow *statusWindow);
-static GC create_gc(Window win, Bool isReverse);
 static XFontSet create_fontset(void);
 static Bool is_text_available(XIMText * text);
 static Bool isNativeIm();
@@ -494,9 +493,6 @@ static StatusWindow *createStatusWindow(Window parent) {
     XWindowAttributes xwa;
     XWindowAttributes xxwa;
     /* Variable for XCreateFontSet()*/
-    char **mclr;
-    int  mccr = 0;
-    char *dsr;
     unsigned long bg, fg, light, dim;
     int x, y, off_x, off_y, xx, yy;
     unsigned int w, h, bw, depth;
@@ -649,10 +645,12 @@ static StatusWindow *createStatusWindow(Window parent) {
     XSetForeground(dpy, statusWindow->lightGC, light);
     statusWindow->dimGC = XCreateGC(dpy, status, valuemask, &values);
     XSetForeground(dpy, statusWindow->dimGC, dim);
-    statusWindow->fgGC = create_gc(status, FALSE);
+    statusWindow->fgGC = XCreateGC(dpy, status, valuemask, &values);
     XSetForeground(dpy, statusWindow->fgGC, fg);
-    statusWindow->bgGC = create_gc(status, TRUE);
+    XSetBackground(dpy, statusWindow->fgGC, bg);
+    statusWindow->bgGC = XCreateGC(dpy, status, valuemask, &values);
     XSetForeground(dpy, statusWindow->bgGC, bg);
+    XSetBackground(dpy, statusWindow->bgGC, fg);
     statusWindow->status_ready = False;
     wcscpy(statusWindow->status, L"");
     return statusWindow;
@@ -991,7 +989,7 @@ createXIC(JNIEnv * env, X11InputMethodData *pX11IMData, Window w)
         pX11IMData->ic_passive = pX11IMData->ic_active;
     }
 
-    // The code set the IC mode that the preedit state is not initialied
+    // The code set the IC mode that the preedit state is not initialized
     // at XmbResetIC.  This attribute can be set at XCreateIC.  I separately
     // set the attribute to avoid the failure of XCreateIC at some platform
     // which does not support the attribute.
@@ -1148,6 +1146,7 @@ PreeditDrawCallback(XIC ic, XPointer client_data,
                         tmpstyle[cnt] = text->feedback[cnt];
                 (*env)->SetIntArrayRegion(env, style, 0,
                                           text->length, (jint *)tmpstyle);
+                free(tmpstyle);
             }
         }
     }
@@ -1654,25 +1653,6 @@ static void shrink_status(StatusWindow *statusWindow)
       xwc.x = statusWindow->rootW - xwc.width;
     }
     XConfigureWindow(dpy, statusWindow->w, value_make, &xwc);
-}
-
-static GC create_gc(Window win, Bool isReverse)
-{
-    XGCValues xgcv;
-    unsigned long mask;
-    AwtScreenDataPtr defaultScreen;
-
-    defaultScreen = getScreenData(DefaultScreen(dpy));
-
-    mask = (GCForeground | GCBackground );
-    if (isReverse) {
-        xgcv.foreground = defaultScreen->whitepixel;
-        xgcv.background = defaultScreen->blackpixel;
-    } else {
-        xgcv.foreground = defaultScreen->blackpixel;
-        xgcv.background = defaultScreen->whitepixel;
-    }
-    return XCreateGC(dpy, win, mask, &xgcv);
 }
 
 static Bool isNativeIm()

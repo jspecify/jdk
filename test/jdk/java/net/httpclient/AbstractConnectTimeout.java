@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.nio.channels.UnresolvedAddressException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -53,19 +54,13 @@ public abstract class AbstractConnectTimeout {
 
     static List<List<Duration>> TIMEOUTS = List.of(
                     // connectTimeout   HttpRequest timeout
-            Arrays.asList( NO_DURATION,   ofSeconds(1)  ),
             Arrays.asList( NO_DURATION,   ofMillis(100) ),
-            Arrays.asList( NO_DURATION,   ofNanos(99)   ),
             Arrays.asList( NO_DURATION,   ofNanos(1)    ),
 
-            Arrays.asList( ofSeconds(1),  NO_DURATION   ),
             Arrays.asList( ofMillis(100), NO_DURATION   ),
-            Arrays.asList( ofNanos(99),   NO_DURATION   ),
             Arrays.asList( ofNanos(1),    NO_DURATION   ),
 
-            Arrays.asList( ofSeconds(1),  ofMinutes(1)  ),
             Arrays.asList( ofMillis(100), ofMinutes(1)  ),
-            Arrays.asList( ofNanos(99),   ofMinutes(1)  ),
             Arrays.asList( ofNanos(1),    ofMinutes(1)  )
     );
 
@@ -142,11 +137,11 @@ public abstract class AbstractConnectTimeout {
                 long elapsedTime = NANOSECONDS.toMillis(System.nanoTime() - startTime);
                 out.printf("Client: received in %d millis%n", elapsedTime);
                 Throwable t = e.getCause().getCause();  // blocking thread-specific exception
-                if (!(t instanceof NoRouteToHostException)) { // tolerate only NRTHE
+                if (!isAcceptableCause(t)) { // tolerate only NRTHE or UAE
                     e.printStackTrace(out);
                     fail("Unexpected exception:" + e);
                 } else {
-                    out.printf("Caught ConnectException with NoRouteToHostException"
+                    out.printf("Caught ConnectException with "
                             + " cause: %s - skipping%n", t.getCause());
                 }
             }
@@ -194,15 +189,21 @@ public abstract class AbstractConnectTimeout {
                 long elapsedTime = NANOSECONDS.toMillis(System.nanoTime() - startTime);
                 out.printf("Client: received in %d millis%n", elapsedTime);
                 Throwable t = e.getCause();
-                if (t instanceof ConnectException &&
-                        t.getCause() instanceof NoRouteToHostException) { // tolerate only NRTHE
-                    out.printf("Caught ConnectException with NoRouteToHostException"
-                            + " cause: %s - skipping%n", t.getCause());
+                if (t instanceof ConnectException && isAcceptableCause(t.getCause())) {
+                    // tolerate only NRTHE and UAE
+                    out.printf("Caught ConnectException with "
+                            + "cause: %s - skipping%n", t.getCause());
                 } else {
                     assertExceptionTypeAndCause(t);
                 }
             }
         }
+    }
+
+    static boolean isAcceptableCause(Throwable cause) {
+        if (cause instanceof NoRouteToHostException) return true;
+        if (cause instanceof UnresolvedAddressException) return true;
+        return false;
     }
 
     static HttpClient newClient(Duration connectTimeout, ProxySelector proxy) {

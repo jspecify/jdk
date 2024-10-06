@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1STRINGDEDUP_HPP
-#define SHARE_VM_GC_G1_G1STRINGDEDUP_HPP
+#ifndef SHARE_GC_G1_G1STRINGDEDUP_HPP
+#define SHARE_GC_G1_G1STRINGDEDUP_HPP
 
 //
 // G1 string deduplication candidate selection
@@ -48,65 +48,32 @@
 // This approach avoids making the same object a candidate more than once.
 //
 
+#include "gc/g1/g1HeapRegionAttr.hpp"
 #include "gc/shared/stringdedup/stringDedup.hpp"
-#include "memory/allocation.hpp"
-#include "oops/oop.hpp"
+#include "memory/allStatic.hpp"
+#include "oops/oopsHierarchy.hpp"
 
-class OopClosure;
-class BoolObjectClosure;
-class G1GCPhaseTimes;
-class G1StringDedupUnlinkOrOopsDoClosure;
-
-//
-// G1 interface for interacting with string deduplication.
-//
-class G1StringDedup : public StringDedup {
-private:
-
-  // Candidate selection policies, returns true if the given object is
-  // candidate for string deduplication.
-  static bool is_candidate_from_mark(oop obj);
-  static bool is_candidate_from_evacuation(bool from_young, bool to_young, oop obj);
-
+class G1StringDedup : AllStatic {
 public:
-  // Initialize string deduplication.
-  static void initialize();
+  // Candidate selection policy for full GC, returning true if the given
+  // String is a candidate for string deduplication.
+  // precondition: StringDedup::is_enabled()
+  // precondition: java_string is a Java String
+  static bool is_candidate_from_mark(oop java_string);
 
-  // Enqueues a deduplication candidate for later processing by the deduplication
-  // thread. Before enqueuing, these functions apply the appropriate candidate
-  // selection policy to filters out non-candidates.
-  static void enqueue_from_mark(oop java_string, uint worker_id);
-  static void enqueue_from_evacuation(bool from_young, bool to_young,
-                                      unsigned int queue, oop java_string);
-
-  static void oops_do(OopClosure* keep_alive);
-  static void parallel_unlink(G1StringDedupUnlinkOrOopsDoClosure* unlink, uint worker_id);
-  static void unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* keep_alive,
-                                bool allow_resize_and_rehash, G1GCPhaseTimes* phase_times = NULL);
-};
-
-//
-// This closure encapsulates the state and the closures needed when scanning
-// the deduplication queue and table during the unlink_or_oops_do() operation.
-// A single instance of this closure is created and then shared by all worker
-// threads participating in the scan.
-//
-class G1StringDedupUnlinkOrOopsDoClosure : public StringDedupUnlinkOrOopsDoClosure {
-public:
-  G1StringDedupUnlinkOrOopsDoClosure(BoolObjectClosure* is_alive,
-                                     OopClosure* keep_alive,
-                                     bool allow_resize_and_rehash) :
-    StringDedupUnlinkOrOopsDoClosure(is_alive, keep_alive) {
-      if (G1StringDedup::is_enabled()) {
-        G1StringDedup::gc_prologue(allow_resize_and_rehash);
-      }
-    }
-
-  ~G1StringDedupUnlinkOrOopsDoClosure() {
-    if (G1StringDedup::is_enabled()) {
-      G1StringDedup::gc_epilogue();
-    }
+  // Candidate selection policy for young/mixed GC.
+  // If to is young then age should be the new (survivor's) age.
+  // if to is old then age should be the age of the copied from object.
+  static bool is_candidate_from_evacuation(const Klass* klass,
+                                           G1HeapRegionAttr from,
+                                           G1HeapRegionAttr to,
+                                           uint age) {
+    return StringDedup::is_enabled_string(klass) &&
+           from.is_young() &&
+           (to.is_young() ?
+            StringDedup::is_threshold_age(age) :
+            StringDedup::is_below_threshold_age(age));
   }
 };
 
-#endif // SHARE_VM_GC_G1_G1STRINGDEDUP_HPP
+#endif // SHARE_GC_G1_G1STRINGDEDUP_HPP

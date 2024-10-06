@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -103,9 +103,9 @@ public @UsesObjectEquals class CertStore {
      * </pre>
      */
     private static final String CERTSTORE_TYPE = "certstore.type";
-    private CertStoreSpi storeSpi;
-    private Provider provider;
-    private String type;
+    private final CertStoreSpi storeSpi;
+    private final Provider provider;
+    private final String type;
     private CertStoreParameters params;
 
     /**
@@ -211,7 +211,7 @@ public @UsesObjectEquals class CertStore {
      * {@code jdk.security.provider.preferred}
      * {@link Security#getProperty(String) Security} property to determine
      * the preferred provider order for the specified algorithm. This
-     * may be different than the order of providers returned by
+     * may be different from the order of providers returned by
      * {@link Security#getProviders() Security.getProviders()}.
      *
      * @param type the name of the requested {@code CertStore} type.
@@ -430,13 +430,11 @@ public @UsesObjectEquals class CertStore {
      * {@code certstore.type} security property, or the string
      * {@literal "LDAP"} if no such property exists.
      */
+    @SuppressWarnings("removal")
     public static final String getDefaultType() {
         String cstype;
-        cstype = AccessController.doPrivileged(new PrivilegedAction<>() {
-            public String run() {
-                return Security.getProperty(CERTSTORE_TYPE);
-            }
-        });
+        cstype = AccessController.doPrivileged((PrivilegedAction<String>) () ->
+                Security.getProperty(CERTSTORE_TYPE));
         if (cstype == null) {
             cstype = "LDAP";
         }

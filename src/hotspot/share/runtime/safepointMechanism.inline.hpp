@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,77 +22,89 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP
-#define SHARE_VM_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP
+#ifndef SHARE_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP
+#define SHARE_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP
 
 #include "runtime/safepointMechanism.hpp"
+
+#include "runtime/atomic.hpp"
+#include "runtime/handshake.hpp"
 #include "runtime/safepoint.hpp"
-#include "runtime/thread.inline.hpp"
+#include "runtime/stackWatermarkSet.hpp"
+
+// Caller is responsible for using a memory barrier if needed.
+inline void SafepointMechanism::ThreadData::set_polling_page(uintptr_t poll_value) {
+  Atomic::store(&_polling_page, poll_value);
+}
+
+// Caller is responsible for using a memory barrier if needed.
+inline void SafepointMechanism::ThreadData::set_polling_word(uintptr_t poll_value) {
+  Atomic::store(&_polling_word, poll_value);
+}
+
+// The acquire makes sure reading of polling page is done before
+// the reading the handshake operation or the global state
+inline uintptr_t SafepointMechanism::ThreadData::get_polling_word() {
+  return Atomic::load_acquire(&_polling_word);
+}
 
 bool SafepointMechanism::local_poll_armed(JavaThread* thread) {
-  const intptr_t poll_word = reinterpret_cast<intptr_t>(thread->get_polling_page());
-  return mask_bits_are_true(poll_word, poll_bit());
+  return thread->poll_data()->get_polling_word() & poll_bit();
 }
 
 bool SafepointMechanism::global_poll() {
-  return SafepointSynchronize::do_call_back();
+  return (SafepointSynchronize::_state != SafepointSynchronize::_not_synchronized);
 }
 
-bool SafepointMechanism::local_poll(Thread* thread) {
-  if (thread->is_Java_thread()) {
-    return local_poll_armed((JavaThread*)thread);
-  } else {
-    // If the poll is on a non-java thread we can only check the global state.
-    return global_poll();
+bool SafepointMechanism::should_process(JavaThread* thread, bool allow_suspend) {
+  if (!local_poll_armed(thread)) {
+    return false;
+  }
+
+  if (global_poll() || // Safepoint
+      thread->handshake_state()->has_operation(allow_suspend, false /* check_async_exception */) || // Handshake
+      !StackWatermarkSet::processing_started(thread)) { // StackWatermark processing is not started
+    return true;
+  }
+
+  // It has boiled down to two possibilities:
+  // 1: We have nothing to process, this just a disarm poll.
+  // 2: We have a suspend or async exception handshake, which cannot be processed.
+  // We update the poll value in case of a disarm, to reduce false positives.
+  update_poll_values(thread);
+  return false;
+}
+
+void SafepointMechanism::process_if_requested(JavaThread* thread, bool allow_suspend, bool check_async_exception) {
+  // Check NoSafepointVerifier. This also clears unhandled oops if CheckUnhandledOops is used.
+  thread->check_possible_safepoint();
+
+  if (local_poll_armed(thread)) {
+    process(thread, allow_suspend, check_async_exception);
   }
 }
 
-bool SafepointMechanism::poll(Thread* thread) {
-  if (uses_thread_local_poll()) {
-    return local_poll(thread);
-  } else {
-    return global_poll();
-  }
-}
-
-void SafepointMechanism::block_if_requested_local_poll(JavaThread *thread) {
-  bool armed = local_poll_armed(thread); // load acquire, polling page -> op / global state
-  if(armed) {
-    // We could be armed for either a handshake operation or a safepoint
-    if (global_poll()) {
-      SafepointSynchronize::block(thread);
-    }
-    if (thread->has_handshake()) {
-      thread->handshake_process_by_self();
-    }
-  }
-}
-
-void SafepointMechanism::block_if_requested(JavaThread *thread) {
-  if (uses_thread_local_poll()) {
-    block_if_requested_local_poll(thread);
-  } else {
-    // If we don't have per thread poll this could a handshake or a safepoint
-    if (global_poll()) {
-      SafepointSynchronize::block(thread);
-    }
+void SafepointMechanism::process_if_requested_with_exit_check(JavaThread* thread, bool check_async_exception) {
+  process_if_requested(thread, true /* allow_suspend */, check_async_exception);
+  if (thread->has_special_runtime_exit_condition()) {
+    thread->handle_special_runtime_exit_condition();
   }
 }
 
 void SafepointMechanism::arm_local_poll(JavaThread* thread) {
-  thread->set_polling_page(poll_armed_value());
+  thread->poll_data()->set_polling_word(_poll_word_armed_value);
+  thread->poll_data()->set_polling_page(_poll_page_armed_value);
 }
 
 void SafepointMechanism::disarm_local_poll(JavaThread* thread) {
-  thread->set_polling_page(poll_disarmed_value());
+  thread->poll_data()->set_polling_word(_poll_word_disarmed_value);
+  thread->poll_data()->set_polling_page(_poll_page_disarmed_value);
 }
 
 void SafepointMechanism::arm_local_poll_release(JavaThread* thread) {
-  thread->set_polling_page_release(poll_armed_value());
+  OrderAccess::release();
+  thread->poll_data()->set_polling_word(_poll_word_armed_value);
+  thread->poll_data()->set_polling_page(_poll_page_armed_value);
 }
 
-void SafepointMechanism::disarm_local_poll_release(JavaThread* thread) {
-  thread->set_polling_page_release(poll_disarmed_value());
-}
-
-#endif // SHARE_VM_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP
+#endif // SHARE_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP

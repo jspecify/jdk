@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@
  *      --expand-properties --classpath ${test.classes}
  *      --java test.java.lang.invoke.MethodHandleConstants --check-output
  * @run main/othervm
+ *      -Djava.security.manager=allow
  *      indify.Indify
  *      --expand-properties --classpath ${test.classes}
  *      --java test.java.lang.invoke.MethodHandleConstants --security-manager
@@ -169,6 +170,8 @@ public class MethodHandleConstants {
     }
 
     static class TestPolicy extends Policy {
+        static final Policy DEFAULT_POLICY = Policy.getPolicy();
+
         final PermissionCollection permissions = new Permissions();
         TestPolicy() {
             permissions.add(new java.io.FilePermission("<<ALL FILES>>", "read"));
@@ -182,7 +185,7 @@ public class MethodHandleConstants {
         }
 
         public boolean implies(ProtectionDomain domain, Permission perm) {
-            return permissions.implies(perm);
+            return permissions.implies(perm) || DEFAULT_POLICY.implies(domain, perm);
         }
     }
 }

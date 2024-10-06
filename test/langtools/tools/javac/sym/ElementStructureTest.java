@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,13 @@
  * @bug 8072480 8203814
  * @summary Check the platform classpath contains the correct elements.
  * @library /tools/lib
+ * @enablePreview
  * @modules jdk.compiler/com.sun.tools.javac.code
  *          jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.compiler/com.sun.tools.javac.platform
  *          jdk.compiler/com.sun.tools.javac.util
- *          jdk.jdeps/com.sun.tools.classfile
+ *          java.base/jdk.internal.classfile.impl
  *          jdk.jdeps/com.sun.tools.javap
  * @build toolbox.ToolBox ElementStructureTest
  * @run main ElementStructureTest
@@ -93,8 +94,7 @@ import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
 import com.sun.source.util.JavacTask;
-import com.sun.tools.classfile.ClassFile;
-import com.sun.tools.classfile.ConstantPoolException;
+import java.lang.classfile.ClassFile;
 import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.tools.javac.code.Symbol.CompletionFailure;
 import com.sun.tools.javac.platform.PlatformProvider;
@@ -104,7 +104,7 @@ import toolbox.ToolBox;
 
 /**To generate the hash values for version N, invoke this class like:
  *
- *     java ElementStructureTest generate-hashes $LANGTOOLS_DIR/make/data/symbols/include.list (<classes-for-N> N)+
+ *     java ElementStructureTest generate-hashes $LANGTOOLS_DIR/src/jdk.compiler/share/data/symbols/include.list (<classes-for-N> N)+
  *
  * Where <classes-for-N> is the file produced by make/src/classes/build/tools/symbolgenerator/Probe.java.
  * So, to produce hashes for 6, 7 and 8, this command can be used:
@@ -113,11 +113,11 @@ import toolbox.ToolBox;
  *
  * To inspect differences between the actual and expected output for version N, invoke this class like:
  *
- *     java ElementStructureTest generate-output $LANGTOOLS_DIR/make/data/symbols/include.list (<classes-for-N> N <actual-output-file> <expected-output-file>)+
+ *     java ElementStructureTest generate-output $LANGTOOLS_DIR/src/jdk.compiler/share/data/symbols/include.list (<classes-for-N> N <actual-output-file> <expected-output-file>)+
  *
  * For example, to get the actual and expected output for 6 in /tmp/actual and /tmp/expected, respectively:
  *
- *     java ElementStructureTest generate-output $LANGTOOLS_DIR/make/data/symbols/include.list classes-6 6 /tmp/actual /tmp/expected
+ *     java ElementStructureTest generate-output $LANGTOOLS_DIR/src/jdk.compiler/share/data/symbols/include.list classes-6 6 /tmp/actual /tmp/expected
  */
 public class ElementStructureTest {
 
@@ -128,16 +128,16 @@ public class ElementStructureTest {
         (byte) 0xB7, (byte) 0x52, (byte) 0x0F, (byte) 0x68
     };
     static final byte[] hash7 = new byte[] {
-        (byte) 0x6B, (byte) 0xA2, (byte) 0xE9, (byte) 0x8E,
-        (byte) 0xE1, (byte) 0x8E, (byte) 0x60, (byte) 0xBE,
-        (byte) 0x54, (byte) 0xC4, (byte) 0x33, (byte) 0x3E,
-        (byte) 0x0C, (byte) 0x2D, (byte) 0x3A, (byte) 0x7C
+        (byte) 0x2C, (byte) 0x01, (byte) 0xC0, (byte) 0xFB,
+        (byte) 0xD5, (byte) 0x66, (byte) 0x0D, (byte) 0x9C,
+        (byte) 0x09, (byte) 0x17, (byte) 0x2F, (byte) 0x5A,
+        (byte) 0x3D, (byte) 0xC1, (byte) 0xFE, (byte) 0xCB
     };
     static final byte[] hash8 = new byte[] {
-        (byte) 0x44, (byte) 0x77, (byte) 0x6E, (byte) 0x52,
-        (byte) 0x2B, (byte) 0x16, (byte) 0xD3, (byte) 0x3C,
-        (byte) 0x78, (byte) 0x75, (byte) 0xF5, (byte) 0x0A,
-        (byte) 0x01, (byte) 0x24, (byte) 0xBD, (byte) 0x2A
+        (byte) 0x10, (byte) 0xE6, (byte) 0xE8, (byte) 0x11,
+        (byte) 0xC8, (byte) 0x02, (byte) 0x63, (byte) 0x9B,
+        (byte) 0xAB, (byte) 0x11, (byte) 0x9E, (byte) 0x4F,
+        (byte) 0xFA, (byte) 0x00, (byte) 0x6D, (byte) 0x81
     };
 
     final static Map<String, byte[]> version2Hash = new HashMap<>();
@@ -213,14 +213,11 @@ public class ElementStructureTest {
                         return;
                     StringBuilder targetPattern;
                     switch (line.charAt(0)) {
-                        case '+':
-                            targetPattern = acceptPattern;
-                            break;
-                        case '-':
-                            targetPattern = rejectPattern;
-                            break;
-                        default:
-                            return ;
+                        case '+' -> targetPattern = acceptPattern;
+                        case '-' -> targetPattern = rejectPattern;
+                        default -> {
+                            return;
+                        }
                     }
                     line = line.substring(1);
                     if (line.endsWith("/")) {
@@ -256,7 +253,7 @@ public class ElementStructureTest {
 
     void run(Writer output, String version) throws Exception {
         List<String> options = Arrays.asList("--release", version, "-classpath", "");
-        List<ToolBox.JavaSource> files = Arrays.asList(new ToolBox.JavaSource("Test", ""));
+        List<ToolBox.JavaSource> files = List.of(new ToolBox.JavaSource("Test", ""));
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         JavacTaskImpl task = (JavacTaskImpl) compiler.getTask(null, null, null, options, null, files);
 
@@ -288,10 +285,10 @@ public class ElementStructureTest {
                 }
                 JavaFileObject file = new ByteArrayJavaFileObject(data.toByteArray());
                 try (InputStream in = new ByteArrayInputStream(data.toByteArray())) {
-                    String name = ClassFile.read(in).getName().replace("/", ".");
+                    String name = ClassFile.of().parse(in.readAllBytes()).thisClass().name().stringValue();
                     className2File.put(name, file);
                     file2ClassName.put(file, name);
-                } catch (IOException | ConstantPoolException ex) {
+                } catch (IOException ex) {
                     throw new IllegalStateException(ex);
                 }
             }
@@ -409,7 +406,7 @@ public class ElementStructureTest {
                 for (VariableElement param : e.getParameters()) {
                     visit(param, p);
                 }
-                out.write(String.valueOf(e.getReceiverType()));
+                out.write(String.valueOf(typeMirrorTranslate(e.getReceiverType())));
                 write(e.getReturnType());
                 out.write(e.getSimpleName().toString());
                 writeTypes(e.getThrownTypes());
@@ -423,6 +420,18 @@ public class ElementStructureTest {
                 ex.printStackTrace();
             }
             return null;
+        }
+
+        /**
+         * Original implementation of getReceiverType returned null
+         * for many cases where TypeKind.NONE was specified; translate
+         * back to null to compare against old hashes.
+         */
+        private TypeMirror typeMirrorTranslate(TypeMirror type) {
+            if (type.getKind() == javax.lang.model.type.TypeKind.NONE)
+                return null;
+            else
+                return type;
         }
 
         @Override
@@ -472,7 +481,7 @@ public class ElementStructureTest {
                 return null;
             try {
                 analyzeElement(e);
-                out.write(String.valueOf(e.getConstantValue()));
+                writeConstant(e.getConstantValue());
                 out.write("\n");
             } catch (IOException ex) {
                 ex.printStackTrace();
@@ -500,6 +509,16 @@ public class ElementStructureTest {
         @Override
         public Void visitUnknown(Element e, Void p) {
             throw new IllegalStateException("Should not get here.");
+        }
+
+        private void writeConstant(Object value) throws IOException {
+            if (value instanceof Double) {
+                out.write(Double.toHexString((Double) value));
+            } else if (value instanceof Float) {
+                out.write(Float.toHexString((Float) value));
+            } else {
+                out.write(String.valueOf(value));
+            }
         }
 
     }

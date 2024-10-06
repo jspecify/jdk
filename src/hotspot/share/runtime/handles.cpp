@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,26 @@
 #include "precompiled.hpp"
 #include "memory/allocation.inline.hpp"
 #include "oops/constantPool.hpp"
+#include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/thread.inline.hpp"
+#include "runtime/javaThread.hpp"
 
 #ifdef ASSERT
+#define assert_handle_mark_nesting()                                                     \
+  assert(_handle_mark_nesting > 1, "memory leak: allocating handle outside HandleMark"); \
+  assert(_no_handle_mark_nesting == 0, "allocating handle inside NoHandleMark");         \
+
+
 oop* HandleArea::allocate_handle(oop obj) {
-  assert(_handle_mark_nesting > 1, "memory leak: allocating handle outside HandleMark");
-  assert(_no_handle_mark_nesting == 0, "allocating handle inside NoHandleMark");
+  assert_handle_mark_nesting();
   assert(oopDesc::is_oop(obj), "not an oop: " INTPTR_FORMAT, p2i(obj));
   return real_allocate_handle(obj);
+}
+
+oop* HandleArea::allocate_null_handle() {
+  assert_handle_mark_nesting();
+  return real_allocate_handle(nullptr);
 }
 #endif
 
@@ -44,40 +53,40 @@ oop* HandleArea::allocate_handle(oop obj) {
 #define DEF_METADATA_HANDLE_FN_NOINLINE(name, type) \
 name##Handle::name##Handle(const name##Handle &h) {                    \
   _value = h._value;                                                   \
-  if (_value != NULL) {                                                \
+  if (_value != nullptr) {                                             \
     assert(_value->is_valid(), "obj is valid");                        \
-    if (h._thread != NULL) {                                           \
+    if (h._thread != nullptr) {                                        \
       assert(h._thread == Thread::current(), "thread must be current");\
       _thread = h._thread;                                             \
     } else {                                                           \
       _thread = Thread::current();                                     \
     }                                                                  \
-    assert (_thread->is_in_stack((address)this), "not on stack?");     \
+    assert(_thread->is_in_live_stack((address)this), "not on stack?"); \
     _thread->metadata_handles()->push((Metadata*)_value);              \
   } else {                                                             \
-    _thread = NULL;                                                    \
+    _thread = nullptr;                                                 \
   }                                                                    \
 }                                                                      \
 name##Handle& name##Handle::operator=(const name##Handle &s) {         \
   remove();                                                            \
   _value = s._value;                                                   \
-  if (_value != NULL) {                                                \
+  if (_value != nullptr) {                                             \
     assert(_value->is_valid(), "obj is valid");                        \
-    if (s._thread != NULL) {                                           \
+    if (s._thread != nullptr) {                                        \
       assert(s._thread == Thread::current(), "thread must be current");\
       _thread = s._thread;                                             \
     } else {                                                           \
       _thread = Thread::current();                                     \
     }                                                                  \
-    assert (_thread->is_in_stack((address)this), "not on stack?");     \
+    assert(_thread->is_in_live_stack((address)this), "not on stack?"); \
     _thread->metadata_handles()->push((Metadata*)_value);              \
   } else {                                                             \
-    _thread = NULL;                                                    \
+    _thread = nullptr;                                                 \
   }                                                                    \
   return *this;                                                        \
 }                                                                      \
 inline void name##Handle::remove() {                                   \
-  if (_value != NULL) {                                                \
+  if (_value != nullptr) {                                             \
     int i = _thread->metadata_handles()->find_from_end((Metadata*)_value); \
     assert(i!=-1, "not in metadata_handles list");                     \
     _thread->metadata_handles()->remove_at(i);                         \
@@ -102,9 +111,6 @@ static uintx chunk_oops_do(OopClosure* f, Chunk* chunk, char* chunk_top) {
   return handles_visited;
 }
 
-// Used for debugging handle allocation.
-NOT_PRODUCT(jint _nof_handlemarks  = 0;)
-
 void HandleArea::oops_do(OopClosure* f) {
   uintx handles_visited = 0;
   // First handle the current chunk. It is filled to the high water mark.
@@ -116,11 +122,11 @@ void HandleArea::oops_do(OopClosure* f) {
     k = k->next();
   }
 
-  if (_prev != NULL) _prev->oops_do(f);
+  if (_prev != nullptr) _prev->oops_do(f);
 }
 
 void HandleMark::initialize(Thread* thread) {
-  _thread = thread;
+  _thread = thread;  // Not the current thread during thread creation.
   // Save area
   _area  = thread->handle_area();
   // Save current top
@@ -130,44 +136,33 @@ void HandleMark::initialize(Thread* thread) {
   _size_in_bytes = _area->_size_in_bytes;
   debug_only(_area->_handle_mark_nesting++);
   assert(_area->_handle_mark_nesting > 0, "must stack allocate HandleMarks");
-  debug_only(Atomic::inc(&_nof_handlemarks);)
 
   // Link this in the thread
   set_previous_handle_mark(thread->last_handle_mark());
   thread->set_last_handle_mark(this);
 }
 
-
 HandleMark::~HandleMark() {
-  HandleArea* area = _area;   // help compilers with poor alias analysis
-  assert(area == _thread->handle_area(), "sanity check");
-  assert(area->_handle_mark_nesting > 0, "must stack allocate HandleMarks" );
-  debug_only(area->_handle_mark_nesting--);
+  assert(_area == _thread->handle_area(), "sanity check");
+  assert(_area->_handle_mark_nesting > 0, "must stack allocate HandleMarks" );
 
-  // Delete later chunks
-  if( _chunk->next() ) {
-    // reset arena size before delete chunks. Otherwise, the total
-    // arena size could exceed total chunk size
-    assert(area->size_in_bytes() > size_in_bytes(), "Sanity check");
-    area->set_size_in_bytes(size_in_bytes());
-    _chunk->next_chop();
-  } else {
-    assert(area->size_in_bytes() == size_in_bytes(), "Sanity check");
-  }
-  // Roll back arena to saved top markers
-  area->_chunk = _chunk;
-  area->_hwm = _hwm;
-  area->_max = _max;
+  pop_and_restore();
 #ifdef ASSERT
   // clear out first chunk (to detect allocation bugs)
   if (ZapVMHandleArea) {
     memset(_hwm, badHandleValue, _max - _hwm);
   }
-  Atomic::dec(&_nof_handlemarks);
 #endif
 
   // Unlink this from the thread
   _thread->set_last_handle_mark(previous_handle_mark());
+}
+
+void HandleMark::chop_later_chunks() {
+  // reset arena size before delete chunks. Otherwise, the total
+  // arena size could exceed total chunk size
+  _area->set_size_in_bytes(size_in_bytes());
+  Chunk::next_chop(_chunk);
 }
 
 void* HandleMark::operator new(size_t size) throw() {

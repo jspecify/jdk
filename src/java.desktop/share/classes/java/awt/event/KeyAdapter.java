@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,6 @@
 
 package java.awt.event;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * An abstract adapter class for receiving keyboard events.
  * The methods in this class are empty. This class exists as
@@ -49,12 +46,17 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *
  * @see KeyEvent
  * @see KeyListener
- * @see <a href="http://docs.oracle.com/javase/tutorial/uiswing/events/keylistener.html">Tutorial: Writing a Key Listener</a>
+ * @see <a href="https://docs.oracle.com/javase/tutorial/uiswing/events/keylistener.html">Tutorial: Writing a Key Listener</a>
  *
  * @since 1.1
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class KeyAdapter implements KeyListener {
+public abstract class KeyAdapter implements KeyListener {
+
+    /**
+     * Constructs a {@code KeyAdapter}.
+     */
+    protected KeyAdapter() {}
+
     /**
      * Invoked when a key has been typed.
      * This event occurs when a key press is followed by a key release.

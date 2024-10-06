@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,7 @@ import java.util.Objects;
 import jdk.jfr.internal.PlatformRecorder;
 import jdk.jfr.internal.PlatformRecording;
 import jdk.jfr.internal.Type;
-import jdk.jfr.internal.Utils;
+import jdk.jfr.internal.util.Utils;
 import jdk.jfr.internal.WriteableUserPath;
 
 /**
@@ -46,17 +46,7 @@ import jdk.jfr.internal.WriteableUserPath;
  * <p>
  * The following example shows how configure, start, stop and dump recording data to disk.
  *
- * <pre>
- * <code>
- *   Configuration c = Configuration.getConfiguration("default");
- *   Recording r = new Recording(c);
- *   r.start();
- *   System.gc();
- *   Thread.sleep(5000);
- *   r.stop();
- *   r.copyTo(Files.createTempFile("my-recording", ".jfr"));
- * </code>
- * </pre>
+ * {@snippet class="Snippets" region="RecordingOverview"}
  *
  * @since 9
  */
@@ -80,7 +70,8 @@ public final class Recording implements Closeable {
 
         @Override
         public EventSettings with(String name, String value) {
-            Objects.requireNonNull(value);
+            Objects.requireNonNull(name, "name");
+            Objects.requireNonNull(value, "value");
             recording.setSetting(identifier + "#" + name, value);
             return this;
         }
@@ -93,10 +84,29 @@ public final class Recording implements Closeable {
 
     private final PlatformRecording internal;
 
+    /**
+     * Creates a recording with settings from a map of name-value pairs.
+     * <p>
+     * A newly created recording is in the {@link RecordingState#NEW} state. To start
+     * the recording, invoke the {@link Recording#start()} method.
+     *
+     * @param settings settings as a map of name-value pairs, not {@code null}
+     *
+     * @throws IllegalStateException if Flight Recorder can't be created (for
+     *         example, if the Java Virtual Machine (JVM) lacks Flight Recorder
+     *         support, or if the file repository can't be created or accessed)
+     *
+     * @throws SecurityException If a security manager is used and
+     *         FlightRecorderPermission "accessFlightRecorder" is not set.
+     *
+     * @see jdk.jfr
+     */
     public Recording(Map<String, String> settings) {
+        Objects.requireNonNull(settings, "settings");
+        Map<String, String> sanitized = Utils.sanitizeNullFreeStringMap(settings);
         PlatformRecorder r = FlightRecorder.getFlightRecorder().getInternal();
         synchronized (r) {
-            this.internal = r.newRecording(settings);
+            this.internal = r.newRecording(sanitized);
             this.internal.setRecording(this);
             if (internal.getRecording() != this) {
                 throw new InternalError("Internal recording not properly setup");
@@ -118,7 +128,7 @@ public final class Recording implements Closeable {
      *         FlightRecorderPermission "accessFlightRecorder" is not set.
      */
     public Recording() {
-        this(new HashMap<String, String>());
+        this(Map.of());
      }
 
     /**
@@ -126,11 +136,9 @@ public final class Recording implements Closeable {
      * <p>
      * The following example shows how create a recording that uses a predefined configuration.
      *
-     * <pre>
-     * <code>
+     * {@snippet :
      * Recording r = new Recording(Configuration.getConfiguration("default"));
-     * </code>
-     * </pre>
+     * }
      *
      * The newly created recording is in the {@link RecordingState#NEW} state. To
      * start the recording, invoke the {@link Recording#start()} method.
@@ -148,7 +156,7 @@ public final class Recording implements Closeable {
      * @see Configuration
      */
     public Recording(Configuration configuration) {
-        this(configuration.getSettings());
+        this(Objects.requireNonNull(configuration, "configuration").getSettings());
     }
 
     /**
@@ -180,7 +188,7 @@ public final class Recording implements Closeable {
      * @throws IllegalStateException if the recording is not it the {@code NEW} state
      */
     public void scheduleStart(Duration delay) {
-        Objects.requireNonNull(delay);
+        Objects.requireNonNull(delay, "delay");
         internal.scheduleStart(delay);
     }
 
@@ -250,7 +258,7 @@ public final class Recording implements Closeable {
     /**
      * Returns the time when this recording was started.
      *
-     * @return the the time, or {@code null} if this recording is not started
+     * @return the time, or {@code null} if this recording is not started
      */
     public Instant getStartTime() {
         return internal.getStartTime();
@@ -292,30 +300,26 @@ public final class Recording implements Closeable {
      * <p>
      * The following example shows how to set event settings for a recording.
      *
-     * <pre>
-     * <code>
-     *     Map{@literal <}String, String{@literal >} settings = new HashMap{@literal <}{@literal >}();
+     * {@snippet :
+     *     Map<String, String> settings = new HashMap<>();
      *     settings.putAll(EventSettings.enabled("jdk.CPUSample").withPeriod(Duration.ofSeconds(2)).toMap());
      *     settings.putAll(EventSettings.enabled(MyEvent.class).withThreshold(Duration.ofSeconds(2)).withoutStackTrace().toMap());
      *     settings.put("jdk.ExecutionSample#period", "10 ms");
      *     recording.setSettings(settings);
-     * </code>
-     * </pre>
+     * }
      *
      * The following example shows how to merge settings.
      *
-     * <pre>
-     *     {@code
+     * {@snippet :
      *     Map<String, String> settings = recording.getSettings();
      *     settings.putAll(additionalSettings);
      *     recording.setSettings(settings);
      * }
-     * </pre>
      *
      * @param settings the settings to set, not {@code null}
      */
     public void setSettings(Map<String, String> settings) {
-        Objects.requireNonNull(settings);
+        Objects.requireNonNull(settings, "settings");
         Map<String, String> sanitized = Utils.sanitizeNullFreeStringMap(settings);
         internal.setSettings(sanitized);
     }
@@ -344,7 +348,7 @@ public final class Recording implements Closeable {
 
     /**
      * Returns a clone of this recording, with a new recording ID and name.
-     *
+     * <p>
      * Clones are useful for dumping data without stopping the recording. After
      * a clone is created, the amount of data to copy is constrained
      * with the {@link #setMaxAge(Duration)} method and the {@link #setMaxSize(long)}method.
@@ -360,21 +364,26 @@ public final class Recording implements Closeable {
     /**
      * Writes recording data to a file.
      * <p>
-     * Recording must be started, but not necessarily stopped.
+     * For a dump to succeed, the recording must either be 1) running, or 2) stopped
+     * and to disk. If the recording is in any other state, an
+     * {@link IOException} is thrown.
      *
      * @param destination the location where recording data is written, not
      *        {@code null}
      *
-     * @throws IOException if the recording can't be copied to the specified
-     *         location
+     * @throws IOException if recording data can't be copied to the specified
+     *         location, for example, if the recording is closed or the
+     *         destination path is not writable
      *
      * @throws SecurityException if a security manager exists and the caller doesn't
      *         have {@code FilePermission} to write to the destination path
+     *
+     * @see #getState()
+     * @see #isToDisk()
      */
     public void dump(Path destination) throws IOException {
-        Objects.requireNonNull(destination);
+        Objects.requireNonNull(destination, "destination");
         internal.dump(new WriteableUserPath(destination));
-
     }
 
     /**
@@ -402,7 +411,7 @@ public final class Recording implements Closeable {
      *
      * @param maxSize the amount of data to retain, {@code 0} if infinite
      *
-     * @throws IllegalArgumentException if <code>maxSize</code> is negative
+     * @throws IllegalArgumentException if {@code maxSize} is negative
      *
      * @throws IllegalStateException if the recording is in {@code CLOSED} state
      */
@@ -411,6 +420,17 @@ public final class Recording implements Closeable {
             throw new IllegalArgumentException("Max size of recording can't be negative");
         }
         internal.setMaxSize(maxSize);
+    }
+
+    /**
+     * Returns how often events are made available for streaming purposes.
+     *
+     * @return the flush interval, or {@code null} if no interval has been set
+     *
+     * @since 14
+     */
+    /*package private*/ Duration getFlushInterval() {
+        return internal.getFlushInterval();
     }
 
     /**
@@ -425,7 +445,7 @@ public final class Recording implements Closeable {
      *
      * @param maxAge the length of time that data is kept, or {@code null} if infinite
      *
-     * @throws IllegalArgumentException if <code>maxAge</code> is negative
+     * @throws IllegalArgumentException if {@code maxAge} is negative
      *
      * @throws IllegalStateException if the recording is in the {@code CLOSED} state
      */
@@ -495,7 +515,7 @@ public final class Recording implements Closeable {
      * @throws IllegalStateException if the recording is in {@code CLOSED} state
      */
     public void setName(String name) {
-        Objects.requireNonNull(name);
+        Objects.requireNonNull(name, "name");
         internal.setName(name);
     }
 
@@ -536,20 +556,25 @@ public final class Recording implements Closeable {
      * Creates a data stream for a specified interval.
      * <p>
      * The stream may contain some data outside the specified range.
+     * <p>
+     * If the recording is not to disk, a stream can't be created
+     * and {@code null} is returned.
      *
-     * @param the start start time for the stream, or {@code null} to get data from
+     * @param start the start time for the stream, or {@code null} to get data from
      *        start time of the recording
      *
-     * @param the end end time for the stream, or {@code null} to get data until the
+     * @param end the end time for the stream, or {@code null} to get data until the
      *        present time.
      *
      * @return an input stream, or {@code null} if no data is available in the
-     *         interval.
+     *         interval, or the recording was not recorded to disk
      *
      * @throws IllegalArgumentException if {@code end} happens before
      *         {@code start}
      *
      * @throws IOException if a stream can't be opened
+     *
+     * @see #setToDisk(boolean)
      */
     public InputStream getStream(Instant start, Instant end) throws IOException {
         if (start != null && end != null && end.isBefore(start)) {
@@ -600,7 +625,7 @@ public final class Recording implements Closeable {
      * @see EventType
      */
     public EventSettings enable(String name) {
-        Objects.requireNonNull(name);
+        Objects.requireNonNull(name, "name");
         RecordingSettings rs = new RecordingSettings(this, name);
         rs.with("enabled", "true");
         return rs;
@@ -621,7 +646,7 @@ public final class Recording implements Closeable {
      *
      */
     public EventSettings disable(String name) {
-        Objects.requireNonNull(name);
+        Objects.requireNonNull(name, "name");
         RecordingSettings rs = new RecordingSettings(this, name);
         rs.with("enabled", "false");
         return rs;
@@ -638,7 +663,7 @@ public final class Recording implements Closeable {
      * @return an event setting for further configuration, not {@code null}
      */
     public EventSettings enable(Class<? extends Event> eventClass) {
-        Objects.requireNonNull(eventClass);
+        Objects.requireNonNull(eventClass, "eventClass");
         RecordingSettings rs = new RecordingSettings(this, eventClass);
         rs.with("enabled", "true");
         return rs;
@@ -656,7 +681,7 @@ public final class Recording implements Closeable {
      *
      */
     public EventSettings disable(Class<? extends Event> eventClass) {
-        Objects.requireNonNull(eventClass);
+        Objects.requireNonNull(eventClass, "eventClass");
         RecordingSettings rs = new RecordingSettings(this, eventClass);
         rs.with("enabled", "false");
         return rs;
@@ -668,8 +693,8 @@ public final class Recording implements Closeable {
     }
 
     private void setSetting(String id, String value) {
-        Objects.requireNonNull(id);
-        Objects.requireNonNull(value);
+        Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(value, "value");
         internal.setSetting(id, value);
     }
 

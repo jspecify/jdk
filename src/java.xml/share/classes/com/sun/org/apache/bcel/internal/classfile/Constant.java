@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -22,16 +22,17 @@ package com.sun.org.apache.bcel.internal.classfile;
 import java.io.DataInput;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Objects;
 
 import com.sun.org.apache.bcel.internal.Const;
 import com.sun.org.apache.bcel.internal.util.BCELComparator;
 
 /**
- * Abstract superclass for classes to represent the different constant types in
- * the constant pool of a class file. The classes keep closely to the JVM
- * specification.
+ * Abstract superclass for classes to represent the different constant types
+ * in the constant pool of a class file. The classes keep closely to
+ * the JVM specification.
  *
- * @version $Id: Constant.java 1749603 2016-06-21 20:50:19Z ggregory $
+ * @LastModified: May 2021
  */
 public abstract class Constant implements Cloneable, Node {
 
@@ -41,7 +42,7 @@ public abstract class Constant implements Cloneable, Node {
         public boolean equals(final Object o1, final Object o2) {
             final Constant THIS = (Constant) o1;
             final Constant THAT = (Constant) o2;
-            return THIS.toString().equals(THAT.toString());
+            return Objects.equals(THIS.toString(), THAT.toString());
         }
 
         @Override
@@ -51,46 +52,104 @@ public abstract class Constant implements Cloneable, Node {
         }
     };
 
-    /* In fact this tag is redundant since we can distinguish different
-     * `Constant' objects by their type, i.e., via `instanceof'. In some
-     * places we will use the tag for switch()es anyway.
-     *
-     * First, we want match the specification as closely as possible. Second we
-     * need the tag as an index to select the corresponding class name from the
-     * `CONSTANT_NAMES' array.
+    /**
+     * @return Comparison strategy object
      */
-    private byte tag;
+    public static BCELComparator getComparator() {
+        return bcelComparator;
+    }
+
+    /**
+     * Reads one constant from the given input, the type depends on a tag byte.
+     *
+     * @param dataInput Input stream
+     * @return Constant object
+     * @throws IOException if an I/O error occurs reading from the given {@code dataInput}.
+     * @throws ClassFormatException if the next byte is not recognized
+     * @since 6.0 made public
+     */
+    public static Constant readConstant(final DataInput dataInput) throws IOException, ClassFormatException {
+        final byte b = dataInput.readByte(); // Read tag byte
+        switch (b) {
+        case Const.CONSTANT_Class:
+            return new ConstantClass(dataInput);
+        case Const.CONSTANT_Fieldref:
+            return new ConstantFieldref(dataInput);
+        case Const.CONSTANT_Methodref:
+            return new ConstantMethodref(dataInput);
+        case Const.CONSTANT_InterfaceMethodref:
+            return new ConstantInterfaceMethodref(dataInput);
+        case Const.CONSTANT_String:
+            return new ConstantString(dataInput);
+        case Const.CONSTANT_Integer:
+            return new ConstantInteger(dataInput);
+        case Const.CONSTANT_Float:
+            return new ConstantFloat(dataInput);
+        case Const.CONSTANT_Long:
+            return new ConstantLong(dataInput);
+        case Const.CONSTANT_Double:
+            return new ConstantDouble(dataInput);
+        case Const.CONSTANT_NameAndType:
+            return new ConstantNameAndType(dataInput);
+        case Const.CONSTANT_Utf8:
+            return ConstantUtf8.getInstance(dataInput);
+        case Const.CONSTANT_MethodHandle:
+            return new ConstantMethodHandle(dataInput);
+        case Const.CONSTANT_MethodType:
+            return new ConstantMethodType(dataInput);
+        case Const.CONSTANT_Dynamic:
+            return new ConstantDynamic(dataInput);
+        case Const.CONSTANT_InvokeDynamic:
+            return new ConstantInvokeDynamic(dataInput);
+        case Const.CONSTANT_Module:
+            return new ConstantModule(dataInput);
+        case Const.CONSTANT_Package:
+            return new ConstantPackage(dataInput);
+        default:
+            throw new ClassFormatException("Invalid byte tag in constant pool: " + b);
+        }
+    }
+
+    /**
+     * @param comparator Comparison strategy object
+     */
+    public static void setComparator(final BCELComparator comparator) {
+        bcelComparator = comparator;
+    }
+
+    /*
+     * In fact this tag is redundant since we can distinguish different 'Constant' objects by their type, i.e., via
+     * 'instanceof'. In some places we will use the tag for switch()es anyway.
+     *
+     * First, we want match the specification as closely as possible. Second we need the tag as an index to select the
+     * corresponding class name from the 'CONSTANT_NAMES' array.
+     */
+    /**
+     * @deprecated (since 6.0) will be made private; do not access directly, use getter/setter
+     */
+    @java.lang.Deprecated
+    protected byte tag; // TODO should be private & final
 
     Constant(final byte tag) {
         this.tag = tag;
     }
 
     /**
-     * Called by objects that are traversing the nodes of the tree implicitely
-     * defined by the contents of a Java class. I.e., the hierarchy of methods,
-     * fields, attributes, etc. spawns a tree of objects.
+     * Called by objects that are traversing the nodes of the tree implicitly defined by the contents of a Java class.
+     * I.e., the hierarchy of methods, fields, attributes, etc. spawns a tree of objects.
      *
      * @param v Visitor object
      */
     @Override
     public abstract void accept(Visitor v);
 
-    public abstract void dump(DataOutputStream file) throws IOException;
-
-    /**
-     * @return Tag of constant, i.e., its type. No setTag() method to avoid
-     * confusion.
-     */
-    public final byte getTag() {
-        return tag;
-    }
-
-    /**
-     * @return String representation.
-     */
     @Override
-    public String toString() {
-        return Const.getConstantName(tag) + "[" + tag + "]";
+    public Object clone() {
+        try {
+            return super.clone();
+        } catch (final CloneNotSupportedException e) {
+            throw new Error("Clone Not Supported"); // never happens
+        }
     }
 
     /**
@@ -105,79 +164,13 @@ public abstract class Constant implements Cloneable, Node {
         return null;
     }
 
-    @Override
-    public Object clone() {
-        try {
-            return super.clone();
-        } catch (final CloneNotSupportedException e) {
-            throw new Error("Clone Not Supported"); // never happens
-        }
-    }
+    public abstract void dump(DataOutputStream file) throws IOException;
 
     /**
-     * Read one constant from the given input, the type depends on a tag byte.
+     * Returns value as defined by given BCELComparator strategy. By default two Constant objects are said to be equal when
+     * the result of toString() is equal.
      *
-     * @param input Input stream
-     * @return Constant object
-     * @since 6.0 made public
-     */
-    public static Constant readConstant(final DataInput input) throws IOException,
-            ClassFormatException {
-        final byte b = input.readByte(); // Read tag byte
-        switch (b) {
-            case Const.CONSTANT_Class:
-                return new ConstantClass(input);
-            case Const.CONSTANT_Fieldref:
-                return new ConstantFieldref(input);
-            case Const.CONSTANT_Methodref:
-                return new ConstantMethodref(input);
-            case Const.CONSTANT_InterfaceMethodref:
-                return new ConstantInterfaceMethodref(input);
-            case Const.CONSTANT_String:
-                return new ConstantString(input);
-            case Const.CONSTANT_Integer:
-                return new ConstantInteger(input);
-            case Const.CONSTANT_Float:
-                return new ConstantFloat(input);
-            case Const.CONSTANT_Long:
-                return new ConstantLong(input);
-            case Const.CONSTANT_Double:
-                return new ConstantDouble(input);
-            case Const.CONSTANT_NameAndType:
-                return new ConstantNameAndType(input);
-            case Const.CONSTANT_Utf8:
-                return ConstantUtf8.getInstance(input);
-            case Const.CONSTANT_MethodHandle:
-                return new ConstantMethodHandle(input);
-            case Const.CONSTANT_MethodType:
-                return new ConstantMethodType(input);
-            case Const.CONSTANT_InvokeDynamic:
-                return new ConstantInvokeDynamic(input);
-            default:
-                throw new ClassFormatException("Invalid byte tag in constant pool: " + b);
-        }
-    }
-
-    /**
-     * @return Comparison strategy object
-     */
-    public static BCELComparator getComparator() {
-        return bcelComparator;
-    }
-
-    /**
-     * @param comparator Comparison strategy object
-     */
-    public static void setComparator(final BCELComparator comparator) {
-        bcelComparator = comparator;
-    }
-
-    /**
-     * Return value as defined by given BCELComparator strategy. By default two
-     * Constant objects are said to be equal when the result of toString() is
-     * equal.
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
+     * @see Object#equals(Object)
      */
     @Override
     public boolean equals(final Object obj) {
@@ -185,13 +178,28 @@ public abstract class Constant implements Cloneable, Node {
     }
 
     /**
-     * Return value as defined by given BCELComparator strategy. By default
-     * return the hashcode of the result of toString().
+     * @return Tag of constant, i.e., its type. No setTag() method to avoid confusion.
+     */
+    public final byte getTag() {
+        return tag;
+    }
+
+    /**
+     * Returns value as defined by given BCELComparator strategy. By default return the hashcode of the result of
+     * toString().
      *
-     * @see java.lang.Object#hashCode()
+     * @see Object#hashCode()
      */
     @Override
     public int hashCode() {
         return bcelComparator.hashCode(this);
+    }
+
+    /**
+     * @return String representation.
+     */
+    @Override
+    public String toString() {
+        return Const.getConstantName(tag) + "[" + tag + "]";
     }
 }

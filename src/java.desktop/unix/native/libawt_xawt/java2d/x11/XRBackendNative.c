@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,10 @@
  * questions.
  */
 
+#ifdef HEADLESS
+    #error This file should not be included in headless library
+#endif
+
 #include "X11SurfaceData.h"
 #include <jni.h>
 #include <math.h>
@@ -33,21 +37,6 @@
 
 #ifdef __linux__
     #include <sys/utsname.h>
-#endif
-
-/* On Solaris 10 updates 8, 9, the render.h file defines these
- * protocol values but does not define the structs in Xrender.h.
- * Thus in order to get these always defined on Solaris 10
- * we will undefine the symbols if we have determined via the
- * makefiles that Xrender.h is lacking the structs. This will
- * trigger providing our own definitions as on earlier updates.
- * We could assume that *all* Solaris 10 update versions will lack the updated
- * Xrender.h and do this based solely on O/S being any 5.10 version, but this
- * could still change and we'd be broken again as we'd be re-defining them.
- */
-#ifdef SOLARIS10_NO_XRENDER_STRUCTS
-#undef X_RenderCreateLinearGradient
-#undef X_RenderCreateRadialGradient
 #endif
 
 #ifndef X_RenderCreateLinearGradient
@@ -72,29 +61,6 @@ typedef struct _XRadialGradient {
 
 #include <dlfcn.h>
 
-#if defined(__solaris__)
-/* Solaris 10 will not have these symbols at compile time */
-
-typedef Picture (*XRenderCreateLinearGradientFuncType)
-                                     (Display *dpy,
-                                     const XLinearGradient *gradient,
-                                     const XFixed *stops,
-                                     const XRenderColor *colors,
-                                     int nstops);
-
-typedef Picture (*XRenderCreateRadialGradientFuncType)
-                                     (Display *dpy,
-                                     const XRadialGradient *gradient,
-                                     const XFixed *stops,
-                                     const XRenderColor *colors,
-                                     int nstops);
-
-static
-XRenderCreateLinearGradientFuncType XRenderCreateLinearGradientFunc = NULL;
-static
- XRenderCreateRadialGradientFuncType XRenderCreateRadialGradientFunc = NULL;
-#endif
-
 #define BUILD_TRANSFORM_MATRIX(TRANSFORM, M00, M01, M02, M10, M11, M12)                        \
     {                                                                                          \
       TRANSFORM.matrix[0][0] = M00;                                                            \
@@ -108,7 +74,7 @@ static
       TRANSFORM.matrix[2][2] = 1<<16;                                                          \
     }
 
-/* The xrender pipleine requires libXrender.so version 0.9.3 or later. */
+/* The xrender pipeline requires libXrender.so version 0.9.3 or later. */
 #define REQUIRED_XRENDER_VER1 0
 #define REQUIRED_XRENDER_VER2 9
 #define REQUIRED_XRENDER_VER3 3
@@ -162,27 +128,6 @@ static jboolean IsXRenderAvailable(jboolean verbose, jboolean ignoreLinuxVersion
     } else {
       available = JNI_FALSE;
     }
-#elif defined(__solaris__)
-    xrenderlib = dlopen("libXrender.so",RTLD_GLOBAL|RTLD_LAZY);
-    if (xrenderlib != NULL) {
-
-      XRenderCreateLinearGradientFunc =
-        (XRenderCreateLinearGradientFuncType)
-        dlsym(xrenderlib, "XRenderCreateLinearGradient");
-
-      XRenderCreateRadialGradientFunc =
-        (XRenderCreateRadialGradientFuncType)
-        dlsym(xrenderlib, "XRenderCreateRadialGradient");
-
-      if (XRenderCreateLinearGradientFunc == NULL ||
-          XRenderCreateRadialGradientFunc == NULL)
-      {
-        available = JNI_FALSE;
-      }
-      dlclose(xrenderlib);
-    } else {
-      available = JNI_FALSE;
-    }
 #else
     Dl_info info;
     jboolean versionInfoIsFound = JNI_FALSE;
@@ -232,7 +177,7 @@ static jboolean IsXRenderAvailable(jboolean verbose, jboolean ignoreLinuxVersion
                 numProcessed = sscanf(version, "%d.%d.%d", &v1, &v2, &v3);
 
                 if (numProcessed == numNeeded) {
-                  // we successfuly read the library version
+                  // we successfully read the library version
                   versionInfoIsFound = JNI_TRUE;
 
                   if (REQUIRED_XRENDER_VER1 == v1 &&
@@ -308,7 +253,6 @@ JNIEXPORT jboolean JNICALL
 Java_sun_awt_X11GraphicsEnvironment_initXRender
 (JNIEnv *env, jclass x11ge, jboolean verbose, jboolean ignoreLinuxVersion)
 {
-#ifndef HEADLESS
     static jboolean xrenderAvailable = JNI_FALSE;
     static jboolean firstTime = JNI_TRUE;
 
@@ -326,9 +270,6 @@ Java_sun_awt_X11GraphicsEnvironment_initXRender
         firstTime = JNI_FALSE;
     }
     return xrenderAvailable;
-#else
-    return JNI_FALSE;
-#endif /* !HEADLESS */
 }
 
 
@@ -593,13 +534,7 @@ Java_sun_java2d_xr_XRBackendNative_XRCreateLinearGradientPaintNative
       colors[i].green = pixels[i*4 + 2];
       colors[i].blue = pixels[i*4 + 3];
     }
-#ifdef __solaris__
-    if (XRenderCreateLinearGradientFunc!=NULL) {
-      gradient = (*XRenderCreateLinearGradientFunc)(awt_display, &grad, stops, colors, numStops);
-    }
-#else
     gradient = XRenderCreateLinearGradient(awt_display, &grad, stops, colors, numStops);
-#endif
     free(colors);
     free(stops);
 
@@ -677,13 +612,7 @@ Java_sun_java2d_xr_XRBackendNative_XRCreateRadialGradientPaintNative
       colors[i].green = pixels[i*4 + 2];
       colors[i].blue = pixels[i*4 + 3];
     }
-#ifdef __solaris__
-    if (XRenderCreateRadialGradientFunc != NULL) {
-        gradient = (jint) (*XRenderCreateRadialGradientFunc)(awt_display, &grad, stops, colors, numStops);
-    }
-#else
     gradient = (jint) XRenderCreateRadialGradient(awt_display, &grad, stops, colors, numStops);
-#endif
     free(colors);
     free(stops);
 
@@ -771,7 +700,7 @@ Java_sun_java2d_xr_XRBackendNative_putMaskNative
     if (ea != 1.0f) {
         for (line=0; line < height; line++) {
             for (pix=0; pix < width; pix++) {
-                int index = maskScan*line + pix + maskOff;
+                size_t index = (size_t) maskScan * line + pix + maskOff;
                 mask[index] = (((unsigned char) mask[index])*ea);
             }
         }
@@ -796,8 +725,8 @@ Java_sun_java2d_xr_XRBackendNative_putMaskNative
         if (imageFits) {
             for (line=0; line < height; line++) {
                 for (pix=0; pix < width; pix++) {
-                    img->data[line*img->bytes_per_line + pix] =
-                        (unsigned char) (mask[maskScan*line + pix + maskOff]);
+                    img->data[(size_t) line * img->bytes_per_line + pix] =
+                        (unsigned char) (mask[(size_t) maskScan * line + pix + maskOff]);
                 }
             }
         } else {

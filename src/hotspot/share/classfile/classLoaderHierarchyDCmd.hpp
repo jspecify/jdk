@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef HOTSPOT_SHARE_CLASSFILE_CLASSLOADERHIERARCHYDCMD_HPP_
-#define HOTSPOT_SHARE_CLASSFILE_CLASSLOADERHIERARCHYDCMD_HPP_
+#ifndef SHARE_CLASSFILE_CLASSLOADERHIERARCHYDCMD_HPP
+#define SHARE_CLASSFILE_CLASSLOADERHIERARCHYDCMD_HPP
 
 #include "services/diagnosticCommand.hpp"
 
@@ -48,12 +48,12 @@ public:
   }
   static const JavaPermission permission() {
     JavaPermission p = {"java.lang.management.ManagementPermission",
-                        "monitor", NULL};
+                        "monitor", nullptr};
     return p;
   }
-  static int num_arguments();
+  static int num_arguments() { return 3; }
   virtual void execute(DCmdSource source, TRAPS);
 
 };
 
-#endif /* HOTSPOT_SHARE_CLASSFILE_CLASSLOADERHIERARCHYDCMD_HPP_ */
+#endif // SHARE_CLASSFILE_CLASSLOADERHIERARCHYDCMD_HPP

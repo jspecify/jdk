@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,8 @@ import java.io.*;
 import javax.naming.directory.Attribute;
 import java.util.*;
 
+import jtreg.SkippedException;
+
 /**
  * Test for the control of
  *
@@ -49,17 +51,16 @@ import java.util.*;
  *                      value and then checks that new value remains previously
  *                      after connection establishing with debugee VM and
  *                      after debugee VM finishing.
- *
- *      Warning:        Temporarily the test is prepared only for
- *                      Sparc.Solaris.dt_socket-transport of RawCommandLineLaunch
- *                      connector
  */
 
 public class value004 {
     private static Log log;
 
     public static void main( String argv[] ) {
-        System.exit(run(argv, System.out)+95); // JCK-compatible exit status
+        int result = run(argv,System.out);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run(String argv[],PrintStream out) {
@@ -78,28 +79,15 @@ public class value004 {
             return 2;
         }
 
+        boolean skipped = true;
         Iterator lci = lcl.iterator();
-        for (int i = 1; lci.hasNext(); i++) {
+        while (lci.hasNext()) {
             Connector c = (Connector) lci.next();
-            if (c.name().compareTo("com.sun.jdi.RawCommandLineLaunch") != 0) {
+            if (!"com.sun.jdi.RawCommandLineLaunch".equals(c.name())) {
+                log.display("skipping " + c);
                 continue;
             }
             log.display("Connector's transport is: " + c.transport().name());
-            if (c.transport().name().compareTo("dt_socket") != 0) {
-                log.display("WARNING: Temporarily the test is prepared only "
-                          + "for dt_socket-transport of "
-                          + "RawCommandLineLaunch connector!");
-                return 0;
-            }
-            if (System.getProperties().getProperty("os.arch")
-                .compareTo("sparc") != 0 ||
-                System.getProperties().getProperty("os.name")
-                .compareTo("SunOS") != 0) {
-                log.display("WARNING: Temporarily the test is prepared "
-                          + "only for Sparc.Solaris-transport of "
-                          + "RawCommandLineLaunch connector!");
-                return 0;
-            }
             Map<java.lang.String,? extends com.sun.jdi.connect.Connector.Argument> cdfltArgmnts = c.defaultArguments();
             int ksz = cdfltArgmnts.size();
             String av[] = new String[ksz + 1];
@@ -137,8 +125,7 @@ public class value004 {
                 }
                 flg = true;
                 ovl = argHandler.getLaunchExecPath() + " "
-                     + "-Xdebug -Xnoagent -Djava.compiler=NONE "
-                     + "-Xrunjdwp:transport=dt_socket,suspend=y,"
+                     +"-agentlib:jdwp=transport=" + c.transport().name() +",server=n,suspend=y,"
                      + "address=" + address + " nsk.jdi.Argument.value.value004a";
                 if (argval.isValid(ovl)) {
                     argval.setValue(ovl);
@@ -213,7 +200,11 @@ public class value004 {
                     }
                 }
             }
-        };
+            skipped = false;
+        }
+        if (skipped) {
+            throw new SkippedException("no suitable connectors");
+        }
         log.display("Test PASSED!");
         return 0;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,9 +36,18 @@ package java.nio.file;
 public class InvalidPathException
     extends IllegalArgumentException
 {
+    @java.io.Serial
     static final long serialVersionUID = 4355821422286746137L;
 
+    /**
+     * The input string.
+     */
     private String input;
+
+    /**
+     * The index of the input string at which the error occurred or
+     * {@code -1} if not known.
+     */
     private int index;
 
     /**

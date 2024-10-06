@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,22 +25,37 @@
  * @test
  * @bug 4701299
  * @summary Keep-Alive-Timer thread management in KeepAliveCache causes memory leak
+ * @library /test/lib
+ * @run main KeepAliveTimerThread
+ * @run main/othervm -Djava.net.preferIPv6Addresses=true KeepAliveTimerThread
  */
-import java.net.*;
-import java.io.*;
+
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
+import java.net.URL;
+
+import jdk.test.lib.net.URIBuilder;
+
+import static java.net.Proxy.NO_PROXY;
 
 public class KeepAliveTimerThread {
     static class Fetcher implements Runnable {
-        String url;
+        URL url;
 
-        Fetcher(String url) {
+        Fetcher(URL url) {
             this.url = url;
         }
 
         public void run() {
             try {
-                InputStream in =
-                    (new URL(url)).openConnection().getInputStream();
+                InputStream in = url.openConnection(NO_PROXY).getInputStream();
                 byte b[] = new byte[128];
                 int n;
                 do {
@@ -101,11 +116,18 @@ public class KeepAliveTimerThread {
 
 
     public static void main(String args[]) throws Exception {
-        ServerSocket ss = new ServerSocket(0);
-        Server s = new Server (ss);
+        InetAddress loopback = InetAddress.getLoopbackAddress();
+        ServerSocket ss = new ServerSocket();
+        ss.bind(new InetSocketAddress(loopback, 0));
+        Server s = new Server(ss);
         s.start();
 
-        String url = "http://127.0.0.1:"+ss.getLocalPort();
+        URL url = URIBuilder.newBuilder()
+            .scheme("http")
+            .loopback()
+            .port(ss.getLocalPort())
+            .toURL();
+        System.out.println("URL: " + url);
 
         // start fetch in its own thread group
         ThreadGroup grp = new ThreadGroup("MyGroup");
@@ -119,8 +141,5 @@ public class KeepAliveTimerThread {
         if (grp.activeCount() > 0) {
             throw new RuntimeException("Keep-alive thread started in wrong thread group");
         }
-
-        grp.destroy();
     }
-
 }

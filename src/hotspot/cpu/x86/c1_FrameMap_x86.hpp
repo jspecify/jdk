@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_C1_FRAMEMAP_X86_HPP
-#define CPU_X86_VM_C1_FRAMEMAP_X86_HPP
+#ifndef CPU_X86_C1_FRAMEMAP_X86_HPP
+#define CPU_X86_C1_FRAMEMAP_X86_HPP
 
 //  On i486 the frame looks as follows:
 //
@@ -148,23 +148,16 @@
 
   static int adjust_reg_range(int range) {
     // Reduce the number of available regs (to free r12) in case of compressed oops
-    if (UseCompressedOops || UseCompressedClassPointers) return range - 1;
+    if (UseCompressedOops) return range - 1;
     return range;
   }
 
-  static int get_num_caller_save_xmms(void) {
-    int num_caller_save_xmm_regs = nof_caller_save_xmm_regs;
-#ifdef _LP64
-    if (UseAVX < 3) {
-      num_caller_save_xmm_regs = num_caller_save_xmm_regs / 2;
-    }
-#endif
-    return num_caller_save_xmm_regs;
+  static int get_num_caller_save_xmms() {
+    return XMMRegister::available_xmm_registers();
   }
 
   static int nof_caller_save_cpu_regs() { return adjust_reg_range(pd_nof_caller_save_cpu_regs_frame_map); }
   static int last_cpu_reg()             { return adjust_reg_range(pd_last_cpu_reg);  }
   static int last_byte_reg()            { return adjust_reg_range(pd_last_byte_reg); }
 
-#endif // CPU_X86_VM_C1_FRAMEMAP_X86_HPP
-
+#endif // CPU_X86_C1_FRAMEMAP_X86_HPP

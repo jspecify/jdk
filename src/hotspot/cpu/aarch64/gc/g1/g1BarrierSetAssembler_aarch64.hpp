@@ -39,13 +39,14 @@ protected:
   void gen_write_ref_array_pre_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                        Register addr, Register count, RegSet saved_regs);
   void gen_write_ref_array_post_barrier(MacroAssembler* masm, DecoratorSet decorators,
-                                        Register start, Register end, Register tmp, RegSet saved_regs);
+                                        Register start, Register count, Register tmp, RegSet saved_regs);
 
   void g1_write_barrier_pre(MacroAssembler* masm,
                             Register obj,
                             Register pre_val,
                             Register thread,
-                            Register tmp,
+                            Register tmp1,
+                            Register tmp2,
                             bool tosca_live,
                             bool expand_call);
 
@@ -53,11 +54,11 @@ protected:
                              Register store_addr,
                              Register new_val,
                              Register thread,
-                             Register tmp,
+                             Register tmp1,
                              Register tmp2);
 
   virtual void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                            Address dst, Register val, Register tmp1, Register tmp2);
+                            Address dst, Register val, Register tmp1, Register tmp2, Register tmp3);
 
 public:
 #ifdef COMPILER1
@@ -69,7 +70,7 @@ public:
 #endif
 
   void load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-               Register dst, Address src, Register tmp1, Register tmp_thread);
+               Register dst, Address src, Register tmp1, Register tmp2);
 };
 
 #endif // CPU_AARCH64_GC_G1_G1BARRIERSETASSEMBLER_AARCH64_HPP

@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -25,12 +23,17 @@
 
 package jdk.jfr.jcmd;
 
+import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
+import jdk.jfr.internal.Repository;
+import jdk.jfr.internal.SecuritySupport.SafePath;
 import jdk.jfr.internal.Options;
 import jdk.test.lib.Asserts;
+import jdk.test.lib.Utils;
 
 /**
  * @test
@@ -39,7 +42,7 @@ import jdk.test.lib.Asserts;
  * @requires vm.hasJFR
  * @library /test/lib /test/jdk
  * @modules jdk.jfr/jdk.jfr.internal
- * @run main/othervm jdk.jfr.jcmd.TestJcmdConfigure
+ * @run main/othervm -Xlog:jfr=info:file=jfr_info.txt jdk.jfr.jcmd.TestJcmdConfigure
  */
 public class TestJcmdConfigure {
 
@@ -49,8 +52,14 @@ public class TestJcmdConfigure {
     private static final String GLOBAL_BUFFER_SIZE = "globalbuffersize";
     private static final String THREAD_BUFFER_SIZE = "thread_buffer_size";
     private static final String MAX_CHUNK_SIZE = "maxchunksize";
-    private static final String SAMPLE_THREADS = "samplethreads";
     private static final String UNSUPPORTED_OPTION = "unsupportedoption";
+
+    private static final String REPOSITORYPATH_1 = "." + File.pathSeparator + "repo1";
+    private static final String REPOSITORYPATH_2 = "." + File.pathSeparator + "repo2";
+
+    private static final String REPOSITORYPATH_SETTING_1 = "repositorypath="+REPOSITORYPATH_1;
+    private static final String REPOSITORYPATH_SETTING_2 = "repositorypath="+REPOSITORYPATH_2;
+    private static final String JFR_UNIFIED_LOG_FILE = "jfr_info.txt";
 
     public static void main(String[] args) throws Exception {
         //
@@ -62,7 +71,7 @@ public class TestJcmdConfigure {
         // - where feasible, check if they are respected
         //
 
-        String dumpPath = Files.createTempDirectory("dump-path").toAbsolutePath().toString();
+        String dumpPath = Utils.createTempDirectory("dump-path-").toAbsolutePath().toString();
 
         test(DUMPPATH, dumpPath);
         test(STACK_DEPTH, 15);
@@ -70,16 +79,16 @@ public class TestJcmdConfigure {
         test(GLOBAL_BUFFER_SIZE, 6);
         test(THREAD_BUFFER_SIZE, 5);
         test(MAX_CHUNK_SIZE, 14 * 1000 * 1000);
-        test(SAMPLE_THREADS, false);
-        test(SAMPLE_THREADS, true);
         testNegative(UNSUPPORTED_OPTION, 100000);
         testNegative(MAX_CHUNK_SIZE, -500);
+
+        testRepository();
 
         if (!testExceptions.isEmpty()) {
             for (Exception e : testExceptions) {
                 System.out.println("Error: " + e.getMessage());
             }
-            throw testExceptions.get(0);
+            throw testExceptions.getFirst();
         }
     }
 
@@ -99,9 +108,7 @@ public class TestJcmdConfigure {
 
     private static void testNegative(String configName, Object value) {
         try {
-            // Syntactically invalid arguments are catched by the JCMD framework where an error code of 1 is returned.
-            // Syntactically valid arguments that are semantically invalid (invalid value ranges for example) are handled by JFR code, it will always return a value of 0.
-            JcmdHelper.jcmd(configName.equals(UNSUPPORTED_OPTION) ? 1 : 0, "JFR.configure", configName + "=" + value);
+            JcmdHelper.jcmd(1, "JFR.configure", configName + "=" + value);
         } catch(Exception e) {
             testExceptions.add(e);
         }
@@ -115,8 +122,31 @@ public class TestJcmdConfigure {
             case GLOBAL_BUFFER_SIZE: return Options.getGlobalBufferSize();
             case THREAD_BUFFER_SIZE: return Options.getThreadBufferSize();
             case MAX_CHUNK_SIZE: return Options.getMaxChunkSize();
-            case SAMPLE_THREADS: return Options.getSampleThreads();
             default: throw new RuntimeException("Unknown option " + name);
+        }
+    }
+
+    private static void testRepository(){
+        final String findWhat = "[info][jfr] Same base repository path " + REPOSITORYPATH_1 + " is set";
+
+        try {
+            JcmdHelper.jcmd("JFR.configure", REPOSITORYPATH_SETTING_1);
+            SafePath initialPath = Repository.getRepository().getRepositoryPath();
+
+            JcmdHelper.jcmd("JFR.configure", REPOSITORYPATH_SETTING_1);
+            SafePath samePath = Repository.getRepository().getRepositoryPath();
+            Asserts.assertTrue(samePath.equals(initialPath));
+
+            List<String> lines = Files.readAllLines(Paths.get(JFR_UNIFIED_LOG_FILE));
+            Asserts.assertTrue(lines.stream().anyMatch(l->l.contains(findWhat)));
+
+            JcmdHelper.jcmd("JFR.configure", REPOSITORYPATH_SETTING_2);
+            SafePath changedPath = Repository.getRepository().getRepositoryPath();
+
+            Asserts.assertFalse(changedPath.equals(initialPath));
+
+        } catch(Exception e) {
+            testExceptions.add(e);
         }
     }
 }

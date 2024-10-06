@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -27,17 +27,33 @@ import java.io.IOException;
 import com.sun.org.apache.bcel.internal.Const;
 
 /**
- * This class is derived from the abstract  {@link Constant}
- * and represents a reference to a Double object.
+ * This class is derived from the abstract {@link Constant} and represents a reference to a Double object.
  *
- * @version $Id: ConstantDouble.java 1747278 2016-06-07 17:28:43Z britter $
  * @see     Constant
- * @LastModified: Nov 2017
+ * @LastModified: Jun 2019
  */
 public final class ConstantDouble extends Constant implements ConstantObject {
 
     private double bytes;
 
+    /**
+     * Initialize from another object.
+     *
+     * @param c Source to copy.
+     */
+    public ConstantDouble(final ConstantDouble c) {
+        this(c.getBytes());
+    }
+
+    /**
+     * Initialize instance from file data.
+     *
+     * @param file Input stream
+     * @throws IOException if an I/O error occurs.
+     */
+    ConstantDouble(final DataInput file) throws IOException {
+        this(file.readDouble());
+    }
 
     /**
      * @param bytes Data
@@ -47,81 +63,56 @@ public final class ConstantDouble extends Constant implements ConstantObject {
         this.bytes = bytes;
     }
 
-
     /**
-     * Initialize from another object.
-     */
-    public ConstantDouble(final ConstantDouble c) {
-        this(c.getBytes());
-    }
-
-
-    /**
-     * Initialize instance from file data.
-     *
-     * @param file Input stream
-     * @throws IOException
-     */
-    ConstantDouble(final DataInput file) throws IOException {
-        this(file.readDouble());
-    }
-
-
-    /**
-     * Called by objects that are traversing the nodes of the tree implicitely
-     * defined by the contents of a Java class. I.e., the hierarchy of methods,
-     * fields, attributes, etc. spawns a tree of objects.
+     * Called by objects that are traversing the nodes of the tree implicitly defined by the contents of a Java class.
+     * I.e., the hierarchy of methods, fields, attributes, etc. spawns a tree of objects.
      *
      * @param v Visitor object
      */
     @Override
-    public void accept( final Visitor v ) {
+    public void accept(final Visitor v) {
         v.visitConstantDouble(this);
     }
-
 
     /**
      * Dump constant double to file stream in binary format.
      *
      * @param file Output file stream
-     * @throws IOException
+     * @throws IOException if an I/O error occurs.
      */
     @Override
-    public final void dump( final DataOutputStream file ) throws IOException {
+    public void dump(final DataOutputStream file) throws IOException {
         file.writeByte(super.getTag());
         file.writeDouble(bytes);
     }
 
-
     /**
      * @return data, i.e., 8 bytes.
      */
-    public final double getBytes() {
+    public double getBytes() {
         return bytes;
     }
 
+    /**
+     * @return Double object
+     */
+    @Override
+    public Object getConstantValue(final ConstantPool cp) {
+        return Double.valueOf(bytes);
+    }
 
     /**
      * @param bytes the raw bytes that represent the double value
      */
-    public final void setBytes( final double bytes ) {
+    public void setBytes(final double bytes) {
         this.bytes = bytes;
     }
-
 
     /**
      * @return String representation.
      */
     @Override
-    public final String toString() {
+    public String toString() {
         return super.toString() + "(bytes = " + bytes + ")";
-    }
-
-
-    /** @return Double object
-     */
-    @Override
-    public Object getConstantValue( final ConstantPool cp ) {
-        return bytes;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,24 +23,101 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/systemDictionary.hpp"
+#include "classfile/stringTable.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "gc/shared/oopStorage.inline.hpp"
-#include "gc/shared/weakProcessor.hpp"
-#include "prims/jvmtiExport.hpp"
-#include "runtime/jniHandles.hpp"
+#include "gc/shared/oopStorageParState.inline.hpp"
+#include "gc/shared/oopStorageSet.hpp"
+#include "gc/shared/weakProcessor.inline.hpp"
+#include "gc/shared/oopStorageSetParState.inline.hpp"
+#include "gc/shared/weakProcessorTimes.hpp"
+#include "memory/allocation.inline.hpp"
+#include "memory/iterator.hpp"
+#include "prims/resolvedMethodTable.hpp"
+#include "runtime/globals.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_JFR
-#include "jfr/jfr.hpp"
-#endif
+
+#if INCLUDE_JVMTI
+#include "prims/jvmtiTagMap.hpp"
+#endif // INCLUDE_JVMTI
+
+static void notify_jvmti_tagmaps() {
+#if INCLUDE_JVMTI
+  // Notify JVMTI tagmaps that a STW weak reference processing might be
+  // clearing entries, so the tagmaps need cleaning.  Doing this here allows
+  // the tagmap's oopstorage notification handler to not care whether it's
+  // invoked by STW or concurrent reference processing.
+  JvmtiTagMap::set_needs_cleaning();
+#endif // INCLUDE_JVMTI
+}
 
 void WeakProcessor::weak_oops_do(BoolObjectClosure* is_alive, OopClosure* keep_alive) {
-  JNIHandles::weak_oops_do(is_alive, keep_alive);
-  JvmtiExport::weak_oops_do(is_alive, keep_alive);
-  SystemDictionary::vm_weak_oop_storage()->weak_oops_do(is_alive, keep_alive);
-  JFR_ONLY(Jfr::weak_oops_do(is_alive, keep_alive);)
+
+  notify_jvmti_tagmaps();
+
+  for (OopStorage* storage : OopStorageSet::Range<OopStorageSet::WeakId>()) {
+    if (storage->should_report_num_dead()) {
+      CountingClosure<BoolObjectClosure, OopClosure> cl(is_alive, keep_alive);
+      storage->oops_do(&cl);
+      storage->report_num_dead(cl.dead());
+    } else {
+      storage->weak_oops_do(is_alive, keep_alive);
+    }
+  }
 }
 
 void WeakProcessor::oops_do(OopClosure* closure) {
-  AlwaysTrueClosure always_true;
-  weak_oops_do(&always_true, closure);
+  for (OopStorage* storage : OopStorageSet::Range<OopStorageSet::WeakId>()) {
+    storage->weak_oops_do(closure);
+  }
+}
+
+uint WeakProcessor::ergo_workers(uint max_workers) {
+  // Ignore ParallelRefProcEnabled; that's for j.l.r.Reference processing.
+  if (ReferencesPerThread == 0) {
+    // Configuration says always use all the threads.
+    return max_workers;
+  }
+
+  // One thread per ReferencesPerThread references (or fraction thereof)
+  // in the various OopStorage objects, bounded by max_threads.
+  size_t ref_count = 0;
+  for (OopStorage* storage : OopStorageSet::Range<OopStorageSet::WeakId>()) {
+    ref_count += storage->allocation_count();
+  }
+
+  // +1 to (approx) round up the ref per thread division.
+  size_t nworkers = 1 + (ref_count / ReferencesPerThread);
+  nworkers = MIN2(nworkers, static_cast<size_t>(max_workers));
+  return static_cast<uint>(nworkers);
+}
+
+void WeakProcessor::Task::initialize() {
+  assert(_nworkers != 0, "must be");
+  assert(_times == nullptr || _nworkers <= _times->max_threads(),
+         "nworkers (%u) exceeds max threads (%u)",
+         _nworkers, _times->max_threads());
+
+  if (_times) {
+    _times->set_active_workers(_nworkers);
+  }
+  notify_jvmti_tagmaps();
+}
+
+WeakProcessor::Task::Task(uint nworkers) : Task(nullptr, nworkers) {}
+
+WeakProcessor::Task::Task(WeakProcessorTimes* times, uint nworkers) :
+  _times(times),
+  _nworkers(nworkers),
+  _storage_states()
+{
+  initialize();
+}
+
+void WeakProcessor::Task::report_num_dead() {
+  _storage_states.report_num_dead();
+}
+
+void WeakProcessor::WeakOopsDoTask::work(uint worker_id) {
+  _erased_do_work(this, worker_id);
 }

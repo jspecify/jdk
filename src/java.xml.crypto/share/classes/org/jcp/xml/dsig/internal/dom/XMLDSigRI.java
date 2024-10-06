@@ -28,17 +28,22 @@
  * ===========================================================================
  */
 /*
- * Portions copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
- */
-/*
- * $Id: XMLDSigRI.java 1804972 2017-08-14 09:59:23Z coheigea $
+ * Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
  */
 package org.jcp.xml.dsig.internal.dom;
 
-import java.util.*;
-import java.security.*;
+import java.security.AccessController;
+import java.security.InvalidParameterException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivilegedAction;
+import java.security.Provider;
+import java.security.ProviderException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
-import javax.xml.crypto.dsig.*;
+import javax.xml.crypto.dsig.CanonicalizationMethod;
+import javax.xml.crypto.dsig.Transform;
 
 /**
  * The XMLDSig RI Provider.
@@ -58,6 +63,7 @@ public final class XMLDSigRI extends Provider {
         "C14N 1.0, C14N 1.1, Exclusive C14N, Base64, Enveloped, XPath, " +
         "XPath2, XSLT TransformServices)";
 
+    @SuppressWarnings("removal")
     private static final String VER =
         AccessController.doPrivileged(new PrivilegedAction<>() {
             public String run() {
@@ -74,13 +80,13 @@ public final class XMLDSigRI extends Provider {
         ProviderService(Provider p, String type, String algo, String cn,
             String[] aliases) {
             super(p, type, algo, cn,
-                (aliases == null? null : Arrays.asList(aliases)), null);
+                aliases == null ? null : Arrays.asList(aliases), null);
         }
 
         ProviderService(Provider p, String type, String algo, String cn,
-            String[] aliases, HashMap<String, String> attrs) {
+            String[] aliases, Map<String, String> attrs) {
             super(p, type, algo, cn,
-                  (aliases == null? null : Arrays.asList(aliases)), attrs);
+                  aliases == null ? null : Arrays.asList(aliases), attrs);
         }
 
         @Override
@@ -94,20 +100,20 @@ public final class XMLDSigRI extends Provider {
 
             String algo = getAlgorithm();
             try {
-                if (type.equals("XMLSignatureFactory")) {
-                    if (algo.equals("DOM")) {
+                if ("XMLSignatureFactory".equals(type)) {
+                    if ("DOM".equals(algo)) {
                         return new DOMXMLSignatureFactory();
                     }
-                } else if (type.equals("KeyInfoFactory")) {
-                    if (algo.equals("DOM")) {
+                } else if ("KeyInfoFactory".equals(type)) {
+                    if ("DOM".equals(algo)) {
                         return new DOMKeyInfoFactory();
                     }
-                } else if (type.equals("TransformService")) {
+                } else if ("TransformService".equals(type)) {
                     if (algo.equals(CanonicalizationMethod.INCLUSIVE) ||
                         algo.equals(CanonicalizationMethod.INCLUSIVE_WITH_COMMENTS)) {
                         return new DOMCanonicalXMLC14NMethod();
-                    } else if (algo.equals("http://www.w3.org/2006/12/xml-c14n11") ||
-                        algo.equals("http://www.w3.org/2006/12/xml-c14n11#WithComments")) {
+                    } else if ("http://www.w3.org/2006/12/xml-c14n11".equals(algo) ||
+                        "http://www.w3.org/2006/12/xml-c14n11#WithComments".equals(algo)) {
                         return new DOMCanonicalXMLC14N11Method();
                     } else if (algo.equals(CanonicalizationMethod.EXCLUSIVE) ||
                         algo.equals(CanonicalizationMethod.EXCLUSIVE_WITH_COMMENTS)) {
@@ -123,7 +129,7 @@ public final class XMLDSigRI extends Provider {
                     } else if (algo.equals(Transform.XSLT)) {
                         return new DOMXSLTTransform();
                     }
-                 }
+                }
             } catch (Exception ex) {
                 throw new NoSuchAlgorithmException("Error constructing " +
                     type + " for " + algo + " using XMLDSig", ex);
@@ -133,14 +139,16 @@ public final class XMLDSigRI extends Provider {
         }
     }
 
+    @SuppressWarnings("removal")
     public XMLDSigRI() {
-        /* We are the XMLDSig provider */
+        // This is the JDK XMLDSig provider, synced from
+        // Apache Santuario XML Security for Java, version 3.0.3
         super("XMLDSig", VER, INFO);
 
         final Provider p = this;
         AccessController.doPrivileged(new PrivilegedAction<Void>() {
             public Void run() {
-                HashMap<String, String> MECH_TYPE = new HashMap<>();
+                Map<String, String> MECH_TYPE = new HashMap<>();
                 MECH_TYPE.put("MechanismType", "DOM");
 
                 putService(new ProviderService(p, "XMLSignatureFactory",

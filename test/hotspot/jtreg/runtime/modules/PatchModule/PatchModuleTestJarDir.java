@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,12 @@
 /*
  * @test
  * @summary Make sure --patch-module works when a jar file and a directory is specified for a module
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          jdk.jartool/sun.tools.jar
  * @compile PatchModule2DirsMain.java
- * @run main PatchModuleTestJarDir
+ * @run driver PatchModuleTestJarDir
  */
 
 import java.io.File;
@@ -36,6 +37,7 @@ import java.io.File;
 import jdk.test.lib.compiler.InMemoryJavaCompiler;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.helpers.ClassFileInstaller;
 
 public class PatchModuleTestJarDir {
     private static String moduleJar;
@@ -90,13 +92,13 @@ public class PatchModuleTestJarDir {
 
 
         // Supply --patch-module with the name of the jar file for the module java.naming.
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("--patch-module=java.naming=" +
-                                                                           moduleJar +
-                                                                           File.pathSeparator +
-                                                                           System.getProperty("test.classes") + "/mods/java.naming",
-                                                                  "PatchModule2DirsMain",
-                                                                  "javax.naming.spi.NamingManager1",
-                                                                  "javax.naming.spi.NamingManager2");
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder("--patch-module=java.naming=" +
+                                                                                 moduleJar +
+                                                                                 File.pathSeparator +
+                                                                                 System.getProperty("test.classes") + "/mods/java.naming",
+                                                                             "PatchModule2DirsMain",
+                                                                             "javax.naming.spi.NamingManager1",
+                                                                             "javax.naming.spi.NamingManager2");
 
         new OutputAnalyzer(pb.start())
             .shouldContain("I pass one!")

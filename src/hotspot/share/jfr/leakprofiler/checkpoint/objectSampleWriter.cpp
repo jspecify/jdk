@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,9 +32,9 @@
 #include "jfr/leakprofiler/checkpoint/rootResolver.hpp"
 #include "jfr/leakprofiler/sampling/objectSampler.hpp"
 #include "jfr/leakprofiler/utilities/rootType.hpp"
-#include "jfr/leakprofiler/utilities/unifiedOop.hpp"
-#include "jfr/recorder/checkpoint/types/jfrTypeSetUtils.hpp"
-#include "jfr/recorder/checkpoint/types/jfrTypeSetWriter.hpp"
+#include "jfr/leakprofiler/utilities/unifiedOopRef.inline.hpp"
+#include "jfr/metadata/jfrSerializer.hpp"
+#include "jfr/writers/jfrTypeWriterHost.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 #include "utilities/growableArray.hpp"
@@ -58,7 +58,7 @@ class ObjectSampleFieldInfo : public ResourceObj {
  public:
   const Symbol* _field_name_symbol;
   jshort _field_modifiers;
-  ObjectSampleFieldInfo() : _field_name_symbol(NULL), _field_modifiers(0) {}
+  ObjectSampleFieldInfo() : _field_name_symbol(nullptr), _field_modifiers(0) {}
 };
 
 class ObjectSampleRootDescriptionData {
@@ -67,8 +67,8 @@ class ObjectSampleRootDescriptionData {
   const char* _description;
   OldObjectRoot::System _system;
   OldObjectRoot::Type _type;
-  ObjectSampleRootDescriptionData() : _root_edge(NULL),
-                                      _description(NULL),
+  ObjectSampleRootDescriptionData() : _root_edge(nullptr),
+                                      _description(nullptr),
                                       _system(OldObjectRoot::_system_undetermined),
                                       _type(OldObjectRoot::_type_undetermined) {}
 };
@@ -94,26 +94,26 @@ class SampleSet : public ResourceObj {
  private:
   GrowableArray<Data>* _storage;
  public:
-  SampleSet() : _storage(NULL) {}
+  SampleSet() : _storage(nullptr) {}
 
   traceid store(Data data) {
-    assert(data != NULL, "invariant");
-    if (_storage == NULL) {
+    assert(data != nullptr, "invariant");
+    if (_storage == nullptr) {
       _storage = new GrowableArray<Data>(initial_storage_size);
     }
-    assert(_storage != NULL, "invariant");
+    assert(_storage != nullptr, "invariant");
     assert(_storage->find(data) == -1, "invariant");
     _storage->append(data);
     return data->_id;
   }
 
   size_t size() const {
-    return _storage != NULL ? (size_t)_storage->length() : 0;
+    return _storage != nullptr ? (size_t)_storage->length() : 0;
   }
 
   template <typename Functor>
   void iterate(Functor& functor) {
-    if (_storage != NULL) {
+    if (_storage != nullptr) {
       for (int i = 0; i < _storage->length(); ++i) {
         functor(_storage->at(i));
       }
@@ -137,39 +137,42 @@ class FieldTable : public ResourceObj {
             typename,
             size_t>
   friend class HashTableHost;
-  typedef HashTableHost<const ObjectSampleFieldInfo*, traceid, Entry, FieldTable, 109> FieldInfoTable;
+  typedef HashTableHost<const ObjectSampleFieldInfo*, traceid, JfrHashtableEntry, FieldTable, 109> FieldInfoTable;
  public:
   typedef FieldInfoTable::HashEntry FieldInfoEntry;
 
  private:
   static traceid _field_id_counter;
   FieldInfoTable* _table;
+  const ObjectSampleFieldInfo* _lookup;
 
-  void assign_id(FieldInfoEntry* entry) {
-    assert(entry != NULL, "invariant");
+  void on_link(FieldInfoEntry* entry) {
+    assert(entry != nullptr, "invariant");
     entry->set_id(++_field_id_counter);
   }
 
-  bool equals(const ObjectSampleFieldInfo* query, uintptr_t hash, const FieldInfoEntry* entry) {
+  bool on_equals(uintptr_t hash, const FieldInfoEntry* entry) {
     assert(hash == entry->hash(), "invariant");
-    assert(query != NULL, "invariant");
-    const ObjectSampleFieldInfo* stored = entry->literal();
-    assert(stored != NULL, "invariant");
-    assert(stored->_field_name_symbol->identity_hash() == query->_field_name_symbol->identity_hash(), "invariant");
-    return stored->_field_modifiers == query->_field_modifiers;
+    assert(_lookup != nullptr, "invariant");
+    return entry->literal()->_field_modifiers == _lookup->_field_modifiers;
+  }
+
+  void on_unlink(FieldInfoEntry* entry) {
+    assert(entry != nullptr, "invariant");
+    // nothing
   }
 
  public:
-  FieldTable() : _table(new FieldInfoTable(this)) {}
+  FieldTable() : _table(new FieldInfoTable(this)), _lookup(nullptr) {}
   ~FieldTable() {
-    assert(_table != NULL, "invariant");
+    assert(_table != nullptr, "invariant");
     delete _table;
   }
 
   traceid store(const ObjectSampleFieldInfo* field_info) {
-    assert(field_info != NULL, "invariant");
-    const FieldInfoEntry& entry =_table->lookup_put(field_info,
-                                                    field_info->_field_name_symbol->identity_hash());
+    assert(field_info != nullptr, "invariant");
+    _lookup = field_info;
+    const FieldInfoEntry& entry = _table->lookup_put(field_info->_field_name_symbol->identity_hash(), field_info);
     return entry.id();
   }
 
@@ -190,20 +193,20 @@ typedef SampleSet<const ReferenceInfo*> RefInfo;
 typedef SampleSet<const ObjectSampleArrayInfo*> ArrayInfo;
 typedef SampleSet<const ObjectSampleRootDescriptionInfo*> RootDescriptionInfo;
 
-static SampleInfo* sample_infos = NULL;
-static RefInfo* ref_infos = NULL;
-static ArrayInfo* array_infos = NULL;
-static FieldTable* field_infos = NULL;
-static RootDescriptionInfo* root_infos = NULL;
+static SampleInfo* sample_infos = nullptr;
+static RefInfo* ref_infos = nullptr;
+static ArrayInfo* array_infos = nullptr;
+static FieldTable* field_infos = nullptr;
+static RootDescriptionInfo* root_infos = nullptr;
 
-int __write_sample_info__(JfrCheckpointWriter* writer, JfrArtifactSet* unused, const void* si) {
-  assert(writer != NULL, "invariant");
-  assert(si != NULL, "invariant");
+static int __write_sample_info__(JfrCheckpointWriter* writer, const void* si) {
+  assert(writer != nullptr, "invariant");
+  assert(si != nullptr, "invariant");
   const OldObjectSampleInfo* const oosi = (const OldObjectSampleInfo*)si;
   oop object = oosi->_data._object;
-  assert(object != NULL, "invariant");
+  assert(object != nullptr, "invariant");
   writer->write(oosi->_id);
-  writer->write((u8)(const HeapWord*)object);
+  writer->write(cast_from_oop<u8>(object));
   writer->write(const_cast<const Klass*>(object->klass()));
   ObjectSampleDescription od(object);
   writer->write(od.description());
@@ -211,19 +214,19 @@ int __write_sample_info__(JfrCheckpointWriter* writer, JfrArtifactSet* unused, c
   return 1;
 }
 
-typedef JfrArtifactWriterImplHost<const OldObjectSampleInfo*, __write_sample_info__> SampleWriterImpl;
-typedef JfrArtifactWriterHost<SampleWriterImpl, TYPE_OLDOBJECT> SampleWriter;
+typedef JfrTypeWriterImplHost<const OldObjectSampleInfo*, __write_sample_info__> SampleWriterImpl;
+typedef JfrTypeWriterHost<SampleWriterImpl, TYPE_OLDOBJECT> SampleWriter;
 
 static void write_sample_infos(JfrCheckpointWriter& writer) {
-  if (sample_infos != NULL) {
-    SampleWriter sw(&writer, NULL, false);
+  if (sample_infos != nullptr) {
+    SampleWriter sw(&writer);
     sample_infos->iterate(sw);
   }
 }
 
-int __write_reference_info__(JfrCheckpointWriter* writer, JfrArtifactSet* unused, const void* ri) {
-  assert(writer != NULL, "invariant");
-  assert(ri != NULL, "invariant");
+static int __write_reference_info__(JfrCheckpointWriter* writer, const void* ri) {
+  assert(writer != nullptr, "invariant");
+  assert(ri != nullptr, "invariant");
   const ReferenceInfo* const ref_info = (const ReferenceInfo*)ri;
   writer->write(ref_info->_id);
   writer->write(ref_info->_data._array_info_id);
@@ -233,19 +236,19 @@ int __write_reference_info__(JfrCheckpointWriter* writer, JfrArtifactSet* unused
   return 1;
 }
 
-typedef JfrArtifactWriterImplHost<const ReferenceInfo*, __write_reference_info__> ReferenceWriterImpl;
-typedef JfrArtifactWriterHost<ReferenceWriterImpl, TYPE_REFERENCE> ReferenceWriter;
+typedef JfrTypeWriterImplHost<const ReferenceInfo*, __write_reference_info__> ReferenceWriterImpl;
+typedef JfrTypeWriterHost<ReferenceWriterImpl, TYPE_REFERENCE> ReferenceWriter;
 
 static void write_reference_infos(JfrCheckpointWriter& writer) {
-  if (ref_infos != NULL) {
-    ReferenceWriter rw(&writer, NULL, false);
+  if (ref_infos != nullptr) {
+    ReferenceWriter rw(&writer);
     ref_infos->iterate(rw);
   }
 }
 
-int __write_array_info__(JfrCheckpointWriter* writer, JfrArtifactSet* unused, const void* ai) {
-  assert(writer != NULL, "invariant");
-  assert(ai != NULL, "invariant");
+static int __write_array_info__(JfrCheckpointWriter* writer, const void* ai) {
+  assert(writer != nullptr, "invariant");
+  assert(ai != nullptr, "invariant");
   const ObjectSampleArrayInfo* const osai = (const ObjectSampleArrayInfo*)ai;
   writer->write(osai->_id);
   writer->write(osai->_data._array_size);
@@ -257,32 +260,32 @@ static traceid get_array_info_id(const Edge& edge, traceid id) {
   if (edge.is_root() || !EdgeUtils::is_array_element(edge)) {
     return 0;
   }
-  if (array_infos == NULL) {
+  if (array_infos == nullptr) {
     array_infos = new ArrayInfo();
   }
-  assert(array_infos != NULL, "invariant");
+  assert(array_infos != nullptr, "invariant");
 
   ObjectSampleArrayInfo* const osai = new ObjectSampleArrayInfo();
-  assert(osai != NULL, "invariant");
+  assert(osai != nullptr, "invariant");
   osai->_id = id;
   osai->_data._array_size = EdgeUtils::array_size(edge);
   osai->_data._array_index = EdgeUtils::array_index(edge);
   return array_infos->store(osai);
 }
 
-typedef JfrArtifactWriterImplHost<const ObjectSampleArrayInfo*, __write_array_info__> ArrayWriterImpl;
-typedef JfrArtifactWriterHost<ArrayWriterImpl, TYPE_OLDOBJECTARRAY> ArrayWriter;
+typedef JfrTypeWriterImplHost<const ObjectSampleArrayInfo*, __write_array_info__> ArrayWriterImpl;
+typedef JfrTypeWriterHost<ArrayWriterImpl, TYPE_OLDOBJECTARRAY> ArrayWriter;
 
 static void write_array_infos(JfrCheckpointWriter& writer) {
-  if (array_infos != NULL) {
-    ArrayWriter aw(&writer, NULL, false);
+  if (array_infos != nullptr) {
+    ArrayWriter aw(&writer);
     array_infos->iterate(aw);
   }
 }
 
-int __write_field_info__(JfrCheckpointWriter* writer, JfrArtifactSet* unused, const void* fi) {
-  assert(writer != NULL, "invariant");
-  assert(fi != NULL, "invariant");
+static int __write_field_info__(JfrCheckpointWriter* writer, const void* fi) {
+  assert(writer != nullptr, "invariant");
+  assert(fi != nullptr, "invariant");
   const FieldTable::FieldInfoEntry* field_info_entry = (const FieldTable::FieldInfoEntry*)fi;
   writer->write(field_info_entry->id());
   const ObjectSampleFieldInfo* const osfi = field_info_entry->literal();
@@ -295,40 +298,38 @@ static traceid get_field_info_id(const Edge& edge) {
   if (edge.is_root()) {
     return 0;
   }
-
   assert(!EdgeUtils::is_array_element(edge), "invariant");
-  const Symbol* const field_name_symbol = EdgeUtils::field_name_symbol(edge);
-  if (field_name_symbol == NULL) {
+  jshort field_modifiers;
+  const Symbol* const field_name_symbol = EdgeUtils::field_name(edge, &field_modifiers);
+  if (field_name_symbol == nullptr) {
     return 0;
   }
-
-  if (field_infos == NULL) {
+  if (field_infos == nullptr) {
     field_infos = new FieldTable();
   }
-  assert(field_infos != NULL, "invariant");
-
+  assert(field_infos != nullptr, "invariant");
   ObjectSampleFieldInfo* const osfi = new ObjectSampleFieldInfo();
-  assert(osfi != NULL, "invariant");
+  assert(osfi != nullptr, "invariant");
   osfi->_field_name_symbol = field_name_symbol;
-  osfi->_field_modifiers = EdgeUtils::field_modifiers(edge);
+  osfi->_field_modifiers = field_modifiers;
   return field_infos->store(osfi);
 }
 
-typedef JfrArtifactWriterImplHost<const FieldTable::FieldInfoEntry*, __write_field_info__> FieldWriterImpl;
-typedef JfrArtifactWriterHost<FieldWriterImpl, TYPE_OLDOBJECTFIELD> FieldWriter;
+typedef JfrTypeWriterImplHost<const FieldTable::FieldInfoEntry*, __write_field_info__> FieldWriterImpl;
+typedef JfrTypeWriterHost<FieldWriterImpl, TYPE_OLDOBJECTFIELD> FieldWriter;
 
 static void write_field_infos(JfrCheckpointWriter& writer) {
-  if (field_infos != NULL) {
-    FieldWriter fw(&writer, NULL, false);
+  if (field_infos != nullptr) {
+    FieldWriter fw(&writer);
     field_infos->iterate(fw);
   }
 }
 
 static const char* description(const ObjectSampleRootDescriptionInfo* osdi) {
-  assert(osdi != NULL, "invariant");
+  assert(osdi != nullptr, "invariant");
 
-  if (osdi->_data._description == NULL) {
-    return NULL;
+  if (osdi->_data._description == nullptr) {
+    return nullptr;
   }
 
   ObjectDescriptionBuilder description;
@@ -339,9 +340,9 @@ static const char* description(const ObjectSampleRootDescriptionInfo* osdi) {
   return description.description();
 }
 
-int __write_root_description_info__(JfrCheckpointWriter* writer, JfrArtifactSet* unused, const void* di) {
-  assert(writer != NULL, "invariant");
-  assert(di != NULL, "invariant");
+static int __write_root_description_info__(JfrCheckpointWriter* writer, const void* di) {
+  assert(writer != nullptr, "invariant");
+  assert(di != nullptr, "invariant");
   const ObjectSampleRootDescriptionInfo* const osdi = (const ObjectSampleRootDescriptionInfo*)di;
   writer->write(osdi->_id);
   writer->write(description(osdi));
@@ -350,33 +351,29 @@ int __write_root_description_info__(JfrCheckpointWriter* writer, JfrArtifactSet*
   return 1;
 }
 
-static traceid get_root_description_info_id(const Edge& edge, traceid id) {
+static traceid get_gc_root_description_info_id(const Edge& edge, traceid id) {
   assert(edge.is_root(), "invariant");
-  if (EdgeUtils::is_leak_edge(edge)) {
-    return 0;
-  }
-
-  if (root_infos == NULL) {
+  if (root_infos == nullptr) {
     root_infos = new RootDescriptionInfo();
   }
-  assert(root_infos != NULL, "invariant");
+  assert(root_infos != nullptr, "invariant");
   ObjectSampleRootDescriptionInfo* const oodi = new ObjectSampleRootDescriptionInfo();
   oodi->_id = id;
   oodi->_data._root_edge = &edge;
   return root_infos->store(oodi);
 }
 
-typedef JfrArtifactWriterImplHost<const ObjectSampleRootDescriptionInfo*, __write_root_description_info__> RootDescriptionWriterImpl;
-typedef JfrArtifactWriterHost<RootDescriptionWriterImpl, TYPE_OLDOBJECTGCROOT> RootDescriptionWriter;
+typedef JfrTypeWriterImplHost<const ObjectSampleRootDescriptionInfo*, __write_root_description_info__> RootDescriptionWriterImpl;
+typedef JfrTypeWriterHost<RootDescriptionWriterImpl, TYPE_OLDOBJECTGCROOT> RootDescriptionWriter;
 
 
-int _edge_reference_compare_(uintptr_t lhs, uintptr_t rhs) {
+static int _edge_reference_compare_(uintptr_t lhs, uintptr_t rhs) {
   return lhs > rhs ? 1 : (lhs < rhs) ? -1 : 0;
 }
 
-int _root_desc_compare_(const ObjectSampleRootDescriptionInfo*const & lhs, const ObjectSampleRootDescriptionInfo* const& rhs) {
-  const uintptr_t lhs_ref = (uintptr_t)lhs->_data._root_edge->reference();
-  const uintptr_t rhs_ref = (uintptr_t)rhs->_data._root_edge->reference();
+static int _root_desc_compare_(const ObjectSampleRootDescriptionInfo*const & lhs, const ObjectSampleRootDescriptionInfo* const& rhs) {
+  const uintptr_t lhs_ref = lhs->_data._root_edge->reference().addr<uintptr_t>();
+  const uintptr_t rhs_ref = rhs->_data._root_edge->reference().addr<uintptr_t>();
   return _edge_reference_compare_(lhs_ref, rhs_ref);
 }
 
@@ -384,7 +381,7 @@ static int find_sorted(const RootCallbackInfo& callback_info,
                        const GrowableArray<const ObjectSampleRootDescriptionInfo*>* arr,
                        int length,
                        bool& found) {
-  assert(arr != NULL, "invariant");
+  assert(arr != nullptr, "invariant");
   assert(length >= 0, "invariant");
   assert(length <= arr->length(), "invariant");
 
@@ -394,7 +391,7 @@ static int find_sorted(const RootCallbackInfo& callback_info,
   while (max >= min) {
     const int mid = (int)(((uint)max + min) / 2);
     int diff = _edge_reference_compare_((uintptr_t)callback_info._high,
-                                        (uintptr_t)arr->at(mid)->_data._root_edge->reference());
+                                        arr->at(mid)->_data._root_edge->reference().addr<uintptr_t>());
     if (diff > 0) {
       min = mid + 1;
     } else if (diff < 0) {
@@ -411,26 +408,26 @@ class RootResolutionSet : public ResourceObj, public RootCallback {
  private:
   GrowableArray<const ObjectSampleRootDescriptionInfo*>* _unresolved_roots;
 
-  const uintptr_t high() const {
-    return (uintptr_t)_unresolved_roots->last()->_data._root_edge->reference();
+  uintptr_t high() const {
+    return _unresolved_roots->last()->_data._root_edge->reference().addr<uintptr_t>();
   }
 
-  const uintptr_t low() const {
-    return (uintptr_t)_unresolved_roots->first()->_data._root_edge->reference();
+  uintptr_t low() const {
+    return _unresolved_roots->first()->_data._root_edge->reference().addr<uintptr_t>();
   }
 
   bool in_set_address_range(const RootCallbackInfo& callback_info) const {
-    assert(callback_info._low == NULL, "invariant");
+    assert(callback_info._low == nullptr, "invariant");
     const uintptr_t addr = (uintptr_t)callback_info._high;
     return low() <= addr && high() >= addr;
   }
 
   int compare_to_range(const RootCallbackInfo& callback_info) const {
-    assert(callback_info._high != NULL, "invariant");
-    assert(callback_info._low != NULL, "invariant");
+    assert(callback_info._high != nullptr, "invariant");
+    assert(callback_info._low != nullptr, "invariant");
 
     for (int i = 0; i < _unresolved_roots->length(); ++i) {
-      const uintptr_t ref_addr = (uintptr_t)_unresolved_roots->at(i)->_data._root_edge->reference();
+      const uintptr_t ref_addr = _unresolved_roots->at(i)->_data._root_edge->reference().addr<uintptr_t>();
       if ((uintptr_t)callback_info._low <= ref_addr && (uintptr_t)callback_info._high >= ref_addr) {
         return i;
       }
@@ -439,7 +436,7 @@ class RootResolutionSet : public ResourceObj, public RootCallback {
   }
 
   int exact(const RootCallbackInfo& callback_info) const {
-    assert(callback_info._high != NULL, "invariant");
+    assert(callback_info._high != nullptr, "invariant");
     assert(in_set_address_range(callback_info), "invariant");
 
     bool found;
@@ -453,15 +450,15 @@ class RootResolutionSet : public ResourceObj, public RootCallback {
 
     ObjectSampleRootDescriptionInfo* const desc =
       const_cast<ObjectSampleRootDescriptionInfo*>(_unresolved_roots->at(idx));
-    assert(desc != NULL, "invariant");
-    assert((uintptr_t)callback_info._high == (uintptr_t)desc->_data._root_edge->reference(), "invariant");
+    assert(desc != nullptr, "invariant");
+    assert((uintptr_t)callback_info._high == desc->_data._root_edge->reference().addr<uintptr_t>(), "invariant");
 
     desc->_data._system = callback_info._system;
     desc->_data._type = callback_info._type;
 
     if (callback_info._system == OldObjectRoot::_threads) {
       const JavaThread* jt = (const JavaThread*)callback_info._context;
-      assert(jt != NULL, "invariant");
+      assert(jt != nullptr, "invariant");
       desc->_data._description = jt->name();
     }
 
@@ -470,13 +467,13 @@ class RootResolutionSet : public ResourceObj, public RootCallback {
   }
 
  public:
-  RootResolutionSet(RootDescriptionInfo* info) : _unresolved_roots(NULL) {
-    assert(info != NULL, "invariant");
+  RootResolutionSet(RootDescriptionInfo* info) : _unresolved_roots(nullptr) {
+    assert(info != nullptr, "invariant");
     // construct a sorted copy
     const GrowableArray<const ObjectSampleRootDescriptionInfo*>& info_storage = info->storage();
     const int length = info_storage.length();
     _unresolved_roots = new GrowableArray<const ObjectSampleRootDescriptionInfo*>(length);
-    assert(_unresolved_roots != NULL, "invariant");
+    assert(_unresolved_roots != nullptr, "invariant");
 
     for (int i = 0; i < length; ++i) {
       _unresolved_roots->insert_sorted<_root_desc_compare_>(info_storage.at(i));
@@ -484,14 +481,14 @@ class RootResolutionSet : public ResourceObj, public RootCallback {
   }
 
   bool process(const RootCallbackInfo& callback_info) {
-    if (NULL == callback_info._low) {
+    if (nullptr == callback_info._low) {
       if (in_set_address_range(callback_info)) {
         const int idx = exact(callback_info);
         return idx == -1 ? false : resolve_root(callback_info, idx);
       }
       return false;
     }
-    assert(callback_info._low != NULL, "invariant");
+    assert(callback_info._low != nullptr, "invariant");
     const int idx = compare_to_range(callback_info);
     return idx == -1 ? false : resolve_root(callback_info, idx);
   }
@@ -500,7 +497,7 @@ class RootResolutionSet : public ResourceObj, public RootCallback {
     return _unresolved_roots->length();
   }
 
-  const void* at(int idx) const {
+  UnifiedOopRef at(int idx) const {
     assert(idx >= 0, "invariant");
     assert(idx < _unresolved_roots->length(), "invariant");
     return _unresolved_roots->at(idx)->_data._root_edge->reference();
@@ -508,78 +505,118 @@ class RootResolutionSet : public ResourceObj, public RootCallback {
 };
 
 static void write_root_descriptors(JfrCheckpointWriter& writer) {
-  if (root_infos != NULL) {
+  if (root_infos != nullptr) {
     // resolve roots
     RootResolutionSet rrs(root_infos);
     RootResolver::resolve(rrs);
     // write roots
-    RootDescriptionWriter rw(&writer, NULL, false);
+    RootDescriptionWriter rw(&writer);
     root_infos->iterate(rw);
   }
 }
 
-static void add_old_object_sample_info(const Edge* current, traceid id) {
-  assert(current != NULL, "invariant");
-  if (sample_infos == NULL) {
+static void add_old_object_sample_info(const StoredEdge* current, traceid id) {
+  assert(current != nullptr, "invariant");
+  if (sample_infos == nullptr) {
     sample_infos = new SampleInfo();
   }
-  assert(sample_infos != NULL, "invariant");
+  assert(sample_infos != nullptr, "invariant");
   OldObjectSampleInfo* const oosi = new OldObjectSampleInfo();
-  assert(oosi != NULL, "invariant");
+  assert(oosi != nullptr, "invariant");
   oosi->_id = id;
   oosi->_data._object = current->pointee();
-  oosi->_data._reference_id = current->is_root() ? (traceid)0 : id;
+  oosi->_data._reference_id = current->parent() == nullptr ? 0 : id;
   sample_infos->store(oosi);
 }
 
-static void add_reference_info(const RoutableEdge* current, traceid id, traceid parent_id) {
-  assert(current != NULL, "invariant");
-  if (ref_infos == NULL) {
+static void add_reference_info(const StoredEdge* current, traceid id, traceid parent_id) {
+  assert(current != nullptr, "invariant");
+  if (ref_infos == nullptr) {
     ref_infos = new RefInfo();
   }
 
-  assert(ref_infos != NULL, "invariant");
+  assert(ref_infos != nullptr, "invariant");
   ReferenceInfo* const ri = new ReferenceInfo();
-  assert(ri != NULL, "invariant");
+  assert(ri != nullptr, "invariant");
 
   ri->_id = id;
-  ri->_data._array_info_id =  !current->is_skip_edge() ? get_array_info_id(*current, id) : 0;
-  ri->_data._field_info_id = ri->_data._array_info_id == 0 && !current->is_skip_edge() ?
-                               get_field_info_id(*current) : (traceid)0;
+  ri->_data._array_info_id =  current->is_skip_edge() ? 0 : get_array_info_id(*current, id);
+  ri->_data._field_info_id = ri->_data._array_info_id != 0 || current->is_skip_edge() ? 0 : get_field_info_id(*current);
   ri->_data._old_object_sample_id = parent_id;
   ri->_data._skip = current->skip_length();
   ref_infos->store(ri);
 }
 
-static traceid add_root_info(const Edge* root, traceid id) {
-  assert(root != NULL, "invariant");
-  assert(root->is_root(), "invariant");
-  return get_root_description_info_id(*root, id);
+static bool is_gc_root(const StoredEdge* current) {
+  assert(current != nullptr, "invariant");
+  return current->parent() == nullptr && current->gc_root_id() != 0;
 }
 
-void ObjectSampleWriter::write(const RoutableEdge* edge) {
-  assert(edge != NULL, "invariant");
+static traceid add_gc_root_info(const StoredEdge* root, traceid id) {
+  assert(root != nullptr, "invariant");
+  assert(is_gc_root(root), "invariant");
+  return get_gc_root_description_info_id(*root, id);
+}
+
+void ObjectSampleWriter::write(const StoredEdge* edge) {
+  assert(edge != nullptr, "invariant");
   const traceid id = _store->get_id(edge);
   add_old_object_sample_info(edge, id);
-  const RoutableEdge* parent = edge->logical_parent();
-  if (parent != NULL) {
+  const StoredEdge* const parent = edge->parent();
+  if (parent != nullptr) {
     add_reference_info(edge, id, _store->get_id(parent));
-  } else {
-    assert(edge->is_root(), "invariant");
-    add_root_info(edge, id);
+    return;
+  }
+  if (is_gc_root(edge)) {
+    assert(edge->gc_root_id() == id, "invariant");
+    add_gc_root_info(edge, id);
   }
 }
 
-ObjectSampleWriter::ObjectSampleWriter(JfrCheckpointWriter& writer, const EdgeStore* store) :
+class RootSystemType : public JfrSerializer {
+ public:
+  void serialize(JfrCheckpointWriter& writer) {
+    const u4 nof_root_systems = OldObjectRoot::_number_of_systems;
+    writer.write_count(nof_root_systems);
+    for (u4 i = 0; i < nof_root_systems; ++i) {
+      writer.write_key(i);
+      writer.write(OldObjectRoot::system_description((OldObjectRoot::System)i));
+    }
+  }
+};
+
+class RootType : public JfrSerializer {
+ public:
+  void serialize(JfrCheckpointWriter& writer) {
+    const u4 nof_root_types = OldObjectRoot::_number_of_types;
+    writer.write_count(nof_root_types);
+    for (u4 i = 0; i < nof_root_types; ++i) {
+      writer.write_key(i);
+      writer.write(OldObjectRoot::type_description((OldObjectRoot::Type)i));
+    }
+  }
+};
+
+static void register_serializers() {
+  static bool is_registered = false;
+  if (!is_registered) {
+    JfrSerializer::register_serializer(TYPE_OLDOBJECTROOTSYSTEM, true, new RootSystemType());
+    JfrSerializer::register_serializer(TYPE_OLDOBJECTROOTTYPE, true, new RootType());
+    is_registered = true;
+  }
+}
+
+ObjectSampleWriter::ObjectSampleWriter(JfrCheckpointWriter& writer, EdgeStore* store) :
   _writer(writer),
   _store(store) {
-  assert(store != NULL, "invariant");
-  assert(store->number_of_entries() > 0, "invariant");
-  sample_infos = NULL;
-  ref_infos = NULL;
-  array_infos = NULL;
-  field_infos = NULL;
-  root_infos = NULL;
+  assert(store != nullptr, "invariant");
+  assert(!store->is_empty(), "invariant");
+  register_serializers();
+  assert(field_infos == nullptr, "Invariant");
+  assert(sample_infos == nullptr, "Invariant");
+  assert(ref_infos == nullptr, "Invariant");
+  assert(array_infos == nullptr, "Invariant");
+  assert(root_infos == nullptr, "Invariant");
 }
 
 ObjectSampleWriter::~ObjectSampleWriter() {
@@ -588,28 +625,19 @@ ObjectSampleWriter::~ObjectSampleWriter() {
   write_array_infos(_writer);
   write_field_infos(_writer);
   write_root_descriptors(_writer);
+
+  // Following are RA allocated, memory will be released automatically.
+  if (field_infos != nullptr) {
+    field_infos->~FieldTable();
+    field_infos = nullptr;
+  }
+  sample_infos = nullptr;
+  ref_infos = nullptr;
+  array_infos = nullptr;
+  root_infos = nullptr;
 }
 
-void ObjectSampleWriter::write_chain(const RoutableEdge& edge) {
-  assert(EdgeUtils::is_leak_edge(edge), "invariant");
-  if (edge.processed()) {
-    return;
-  }
-  EdgeUtils::collapse_chain(edge);
-  const RoutableEdge* current = &edge;
-  while (current != NULL) {
-    if (current->processed()) {
-      return;
-    }
-    write(current);
-    current->set_processed();
-    current = current->logical_parent();
-  }
-}
-
-bool ObjectSampleWriter::operator()(const RoutableEdge& edge) {
-  if (EdgeUtils::is_leak_edge(edge)) {
-    write_chain(edge);
-  }
+bool ObjectSampleWriter::operator()(StoredEdge& e) {
+  write(&e);
   return true;
 }

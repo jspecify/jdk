@@ -24,9 +24,13 @@
 /**
  * @test
  * @summary Verifies NotifyFramePop request is cleared if JVMTI_EVENT_FRAME_POP is disabled
+ * @requires vm.jvmti
+ * @library /test/lib
  * @compile NotifyFramePopTest.java
  * @run main/othervm/native -agentlib:NotifyFramePopTest NotifyFramePopTest
  */
+
+import jtreg.SkippedException;
 
 public class NotifyFramePopTest {
     static {
@@ -42,8 +46,7 @@ public class NotifyFramePopTest {
 
     public static void main(String args[]) {
         if (!canGenerateFramePopEvents()) {
-            log("FramePop event is not supported - skipping the test");
-            return;
+            throw new SkippedException("FramePop event is not supported");
         }
 
         // Sanity testing that FRAME_POP works.

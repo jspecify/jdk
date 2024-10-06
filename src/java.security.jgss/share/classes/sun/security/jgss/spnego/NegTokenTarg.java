@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,11 @@
 package sun.security.jgss.spnego;
 
 import java.io.*;
-import java.util.*;
 import org.ietf.jgss.*;
 import sun.security.jgss.*;
 import sun.security.util.*;
+
+import static sun.security.jgss.spnego.SpNegoContext.DEBUG;
 
 /**
  * Implements the SPNEGO NegTokenTarg token
@@ -76,67 +77,49 @@ public class NegTokenTarg extends SpNegoToken {
     }
 
     final byte[] encode() throws GSSException {
-        try {
-            // create negTargToken
-            DerOutputStream targToken = new DerOutputStream();
+        // create negTargToken
+        DerOutputStream targToken = new DerOutputStream();
 
-            // write the negotiated result with CONTEXT 00
-            DerOutputStream result = new DerOutputStream();
-            result.putEnumerated(negResult);
+        // write the negotiated result with CONTEXT 00
+        DerOutputStream result = new DerOutputStream();
+        result.putEnumerated(negResult);
+        targToken.write(DerValue.createTag(DerValue.TAG_CONTEXT,
+                true, (byte) 0x00), result);
+
+        // supportedMech with CONTEXT 01
+        if (supportedMech != null) {
+            DerOutputStream mech = new DerOutputStream();
+            byte[] mechType = supportedMech.getDER();
+            mech.writeBytes(mechType);
             targToken.write(DerValue.createTag(DerValue.TAG_CONTEXT,
-                                true, (byte) 0x00), result);
-
-            // supportedMech with CONTEXT 01
-            if (supportedMech != null) {
-                DerOutputStream mech = new DerOutputStream();
-                byte[] mechType = supportedMech.getDER();
-                mech.write(mechType);
-                targToken.write(DerValue.createTag(DerValue.TAG_CONTEXT,
-                                                true, (byte) 0x01), mech);
-            }
-
-            // response Token with CONTEXT 02
-            if (responseToken != null) {
-                DerOutputStream rspToken = new DerOutputStream();
-                rspToken.putOctetString(responseToken);
-                targToken.write(DerValue.createTag(DerValue.TAG_CONTEXT,
-                                        true, (byte) 0x02), rspToken);
-            }
-
-            // mechListMIC with CONTEXT 03
-            if (mechListMIC != null) {
-                if (DEBUG) {
-                    System.out.println("SpNegoToken NegTokenTarg: " +
-                                                "sending MechListMIC");
-                }
-                DerOutputStream mic = new DerOutputStream();
-                mic.putOctetString(mechListMIC);
-                targToken.write(DerValue.createTag(DerValue.TAG_CONTEXT,
-                                        true, (byte) 0x03), mic);
-            } else if (GSSUtil.useMSInterop()) {
-                // required for MS-interoperability
-                if (responseToken != null) {
-                    if (DEBUG) {
-                        System.out.println("SpNegoToken NegTokenTarg: " +
-                                "sending additional token for MS Interop");
-                    }
-                    DerOutputStream rspToken = new DerOutputStream();
-                    rspToken.putOctetString(responseToken);
-                    targToken.write(DerValue.createTag(DerValue.TAG_CONTEXT,
-                                                true, (byte) 0x03), rspToken);
-                }
-            }
-
-            // insert in a SEQUENCE
-            DerOutputStream out = new DerOutputStream();
-            out.write(DerValue.tag_Sequence, targToken);
-
-            return out.toByteArray();
-
-        } catch (IOException e) {
-            throw new GSSException(GSSException.DEFECTIVE_TOKEN, -1,
-                "Invalid SPNEGO NegTokenTarg token : " + e.getMessage());
+                    true, (byte) 0x01), mech);
         }
+
+        // response Token with CONTEXT 02
+        if (responseToken != null) {
+            DerOutputStream rspToken = new DerOutputStream();
+            rspToken.putOctetString(responseToken);
+            targToken.write(DerValue.createTag(DerValue.TAG_CONTEXT,
+                    true, (byte) 0x02), rspToken);
+        }
+
+        // mechListMIC with CONTEXT 03
+        if (mechListMIC != null) {
+            if (DEBUG != null) {
+                DEBUG.println("SpNegoToken NegTokenTarg: " +
+                        "sending MechListMIC");
+            }
+            DerOutputStream mic = new DerOutputStream();
+            mic.putOctetString(mechListMIC);
+            targToken.write(DerValue.createTag(DerValue.TAG_CONTEXT,
+                    true, (byte) 0x03), mic);
+        }
+
+        // insert in a SEQUENCE
+        DerOutputStream out = new DerOutputStream();
+        out.write(DerValue.tag_Sequence, targToken);
+
+        return out.toByteArray();
     }
 
     private void parseToken(byte[] in) throws GSSException {
@@ -160,16 +143,16 @@ public class NegTokenTarg extends SpNegoToken {
                 if (tmp2.isContextSpecific((byte)0x00)) {
                     lastField = checkNextField(lastField, 0);
                     negResult = tmp2.data.getEnumerated();
-                    if (DEBUG) {
-                        System.out.println("SpNegoToken NegTokenTarg: negotiated" +
+                    if (DEBUG != null) {
+                        DEBUG.println("SpNegoToken NegTokenTarg: negotiated" +
                                     " result = " + getNegoResultString(negResult));
                     }
                 } else if (tmp2.isContextSpecific((byte)0x01)) {
                     lastField = checkNextField(lastField, 1);
                     ObjectIdentifier mech = tmp2.data.getOID();
                     supportedMech = new Oid(mech.toString());
-                    if (DEBUG) {
-                        System.out.println("SpNegoToken NegTokenTarg: " +
+                    if (DEBUG != null) {
+                        DEBUG.println("SpNegoToken NegTokenTarg: " +
                                     "supported mechanism = " + supportedMech);
                     }
                 } else if (tmp2.isContextSpecific((byte)0x02)) {
@@ -179,8 +162,8 @@ public class NegTokenTarg extends SpNegoToken {
                     lastField = checkNextField(lastField, 3);
                     if (!GSSUtil.useMSInterop()) {
                         mechListMIC = tmp2.data.getOctetString();
-                        if (DEBUG) {
-                            System.out.println("SpNegoToken NegTokenTarg: " +
+                        if (DEBUG != null) {
+                            DEBUG.println("SpNegoToken NegTokenTarg: " +
                                                 "MechListMIC Token = " +
                                                 getHexBytes(mechListMIC));
                         }

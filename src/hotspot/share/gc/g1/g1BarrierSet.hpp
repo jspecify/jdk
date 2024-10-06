@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1BARRIERSET_HPP
-#define SHARE_VM_GC_G1_G1BARRIERSET_HPP
+#ifndef SHARE_GC_G1_G1BARRIERSET_HPP
+#define SHARE_GC_G1_G1BARRIERSET_HPP
 
-#include "gc/g1/dirtyCardQueue.hpp"
-#include "gc/g1/satbMarkQueue.hpp"
+#include "gc/g1/g1DirtyCardQueue.hpp"
+#include "gc/g1/g1SATBMarkQueueSet.hpp"
+#include "gc/shared/cardTable.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
+#include "gc/shared/bufferNode.hpp"
 
-class DirtyCardQueueSet;
-class CardTable;
 class G1CardTable;
 
 // This barrier is specialized to use a logging barrier to support
@@ -39,18 +39,30 @@ class G1CardTable;
 class G1BarrierSet: public CardTableBarrierSet {
   friend class VMStructs;
  private:
-  static SATBMarkQueueSet  _satb_mark_queue_set;
-  static DirtyCardQueueSet _dirty_card_queue_set;
+  BufferNode::Allocator _satb_mark_queue_buffer_allocator;
+  BufferNode::Allocator _dirty_card_queue_buffer_allocator;
+  G1SATBMarkQueueSet _satb_mark_queue_set;
+  G1DirtyCardQueueSet _dirty_card_queue_set;
+
+  static G1BarrierSet* g1_barrier_set() {
+    return barrier_set_cast<G1BarrierSet>(BarrierSet::barrier_set());
+  }
 
  public:
   G1BarrierSet(G1CardTable* table);
   ~G1BarrierSet() { }
 
-  // Add "pre_val" to a set of objects that may have been disconnected from the
-  // pre-marking object graph.
-  static void enqueue(oop pre_val);
+  virtual bool card_mark_must_follow_store() const {
+    return true;
+  }
 
-  static void enqueue_if_weak(DecoratorSet decorators, oop value);
+  // Add "pre_val" to a set of objects that may have been disconnected from the
+  // pre-marking object graph. Prefer the version that takes location, as it
+  // can avoid touching the heap unnecessarily.
+  template <class T> static void enqueue(T* dst);
+  static void enqueue_preloaded(oop pre_val);
+
+  static void enqueue_preloaded_if_weak(DecoratorSet decorators, oop value);
 
   template <class T> void write_ref_array_pre_work(T* dst, size_t count);
   virtual void write_ref_array_pre(oop* dst, size_t count, bool dest_uninitialized);
@@ -59,28 +71,24 @@ class G1BarrierSet: public CardTableBarrierSet {
   template <DecoratorSet decorators, typename T>
   void write_ref_field_pre(T* field);
 
-  // NB: if you do a whole-heap invalidation, the "usual invariant" defined
-  // above no longer applies.
-  void invalidate(MemRegion mr);
-
-  void write_region(MemRegion mr)         { invalidate(mr); }
-  void write_ref_array_work(MemRegion mr) { invalidate(mr); }
+  inline void write_region(MemRegion mr);
+  void write_region(JavaThread* thread, MemRegion mr);
 
   template <DecoratorSet decorators, typename T>
-  void write_ref_field_post(T* field, oop new_val);
-  void write_ref_field_post_slow(volatile jbyte* byte);
+  void write_ref_field_post(T* field);
+  void write_ref_field_post_slow(volatile CardValue* byte);
 
   virtual void on_thread_create(Thread* thread);
   virtual void on_thread_destroy(Thread* thread);
-  virtual void on_thread_attach(JavaThread* thread);
-  virtual void on_thread_detach(JavaThread* thread);
+  virtual void on_thread_attach(Thread* thread);
+  virtual void on_thread_detach(Thread* thread);
 
-  static SATBMarkQueueSet& satb_mark_queue_set() {
-    return _satb_mark_queue_set;
+  static G1SATBMarkQueueSet& satb_mark_queue_set() {
+    return g1_barrier_set()->_satb_mark_queue_set;
   }
 
-  static DirtyCardQueueSet& dirty_card_queue_set() {
-    return _dirty_card_queue_set;
+  static G1DirtyCardQueueSet& dirty_card_queue_set() {
+    return g1_barrier_set()->_dirty_card_queue_set;
   }
 
   // Callbacks for runtime accesses.
@@ -117,4 +125,4 @@ struct BarrierSet::GetType<BarrierSet::G1BarrierSet> {
   typedef ::G1BarrierSet type;
 };
 
-#endif // SHARE_VM_GC_G1_G1BARRIERSET_HPP
+#endif // SHARE_GC_G1_G1BARRIERSET_HPP

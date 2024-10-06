@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,16 +64,20 @@ public:
     jobject                 GetJavaDevice() { return javaDevice; }
     int                     GetDeviceIndex() { return screen; }
     void                    Release();
-    void                    DisableOffscreenAcceleration();
+    void                    DisableScaleAutoRefresh();
     void                    Invalidate(JNIEnv *env);
     void                    InitDesktopScales();
     void                    SetScale(float scaleX, float scaleY);
     float                   GetScaleX();
     float                   GetScaleY();
     int                     ScaleUpX(int x);
+    int                     ScaleUpAbsX(int x);
     int                     ScaleUpY(int y);
+    int                     ScaleUpAbsY(int x);
     int                     ScaleDownX(int x);
+    int                     ScaleDownAbsX(int x);
     int                     ScaleDownY(int y);
+    int                     ScaleDownAbsY(int y);
 
     static int              DeviceIndexForWindow(HWND hWnd);
     static jobject          GetColorModel(JNIEnv *env, jboolean dynamic,
@@ -88,9 +92,9 @@ public:
     static HMONITOR         GetMonitor(int deviceIndex);
     static LPMONITORINFO    GetMonitorInfo(int deviceIndex);
     static void             ResetAllMonitorInfo();
+    static void             ResetAllDesktopScales();
     static BOOL             IsPrimaryPalettized() { return primaryPalettized; }
     static int              GetDefaultDeviceIndex() { return primaryIndex; }
-    static void             DisableOffscreenAccelerationForDevice(HMONITOR hMonitor);
     static HDC              GetDCFromScreen(int screen);
     static int              GetScreenFromHMONITOR(HMONITOR mon);
 
@@ -117,9 +121,10 @@ private:
     Devices                 *devicesArray;
     float                   scaleX;
     float                   scaleY;
+    BOOL                    disableScaleAutoRefresh;
 
     static HDC              MakeDCFromMonitor(HMONITOR);
     static int              ClipRound(double value);
 };
 
-#endif AWT_WIN32GRAPHICSDEVICE_H
+#endif // AWT_WIN32GRAPHICSDEVICE_H

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,19 +24,17 @@
 /**
  * @test
  * @bug 8170772
- * @library /lib/testlibrary /test/lib
+ * @library /test/lib
  * @modules jdk.compiler
- * @build CacheTest jdk.test.lib.compiler.CompilerUtils jdk.testlibrary.*
+ * @build CacheTest jdk.test.lib.compiler.CompilerUtils
  * @run testng CacheTest
  */
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import jdk.testlibrary.OutputAnalyzer;
-import static jdk.testlibrary.ProcessTools.*;
+import static jdk.test.lib.process.ProcessTools.*;
 import jdk.test.lib.compiler.CompilerUtils;
 
 import org.testng.annotations.BeforeTest;
@@ -89,7 +87,6 @@ public class CacheTest {
         assertTrue(executeTestJava("--class-path", MODS_DIR.resolve(TEST_MODULE).toString(),
                                    "--module-path", MODS_DIR.resolve(MAIN_BUNDLES_MODULE).toString(),
                                    "--add-modules", MAIN_BUNDLES_MODULE,
-                                   "--illegal-access=deny",
                                    MAIN_CLASS, "cache")
                         .outputTo(System.out)
                         .errorTo(System.out)
@@ -112,7 +109,6 @@ public class CacheTest {
         assertTrue(executeTestJava("--class-path", MODS_DIR.resolve(TEST_MODULE).toString(),
                                    "--module-path", MODS_DIR.resolve(MAIN_BUNDLES_MODULE).toString(),
                                    "--add-modules", MAIN_BUNDLES_MODULE,
-                                   "--illegal-access=deny",
                                    MAIN_CLASS)
                         .outputTo(System.out)
                         .errorTo(System.out)

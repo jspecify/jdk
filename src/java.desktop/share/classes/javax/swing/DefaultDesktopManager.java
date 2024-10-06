@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,6 +75,11 @@ public class DefaultDesktopManager implements DesktopManager, java.io.Serializab
      * FASTER_DRAG_MODE.
      */
     private transient boolean didDrag;
+
+    /**
+     * Constructs a {@code DefaultDesktopManager}.
+     */
+    public DefaultDesktopManager() {}
 
     /** Normally this method will not be called. If it is, it
       * tries to determine the appropriate parent from the desktopIcon of the frame.
@@ -323,9 +328,9 @@ public class DefaultDesktopManager implements DesktopManager, java.io.Serializab
             Window window = SwingUtilities.getWindowAncestor(f);
             if (window != null && !window.isOpaque()) {
                 dragMode = DEFAULT_DRAG_MODE;
-            } else if (mode != null && mode.equals("outline")) {
+            } else if ("outline".equals(mode)) {
                 dragMode = OUTLINE_DRAG_MODE;
-            } else if (mode != null && mode.equals("faster")
+            } else if ("faster".equals(mode)
                     && f instanceof JInternalFrame
                     && ((JInternalFrame)f).isOpaque() &&
                        (parent == null || parent.isOpaque())) {
@@ -380,7 +385,6 @@ public class DefaultDesktopManager implements DesktopManager, java.io.Serializab
               if (!sData.isSurfaceLost()) {
                   currentLoc = new Point (newX, newY);
               }
-;
               g.dispose();
             }
         } else if (dragMode == FASTER_DRAG_MODE) {
@@ -721,7 +725,7 @@ public class DefaultDesktopManager implements DesktopManager, java.io.Serializab
           } else {
               dirtyRects = new Rectangle[1];
               dirtyRects[0] = previousBounds;
-          };
+          }
 
           // Fix the damage
           for (int i = 0; i < dirtyRects.length; i++) {

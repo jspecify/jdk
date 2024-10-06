@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -26,6 +26,7 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import javax.xml.transform.ErrorListener;
 import javax.xml.transform.SourceLocator;
 import javax.xml.transform.Transformer;
 import org.w3c.dom.Node;
@@ -48,7 +49,7 @@ import org.xml.sax.SAXException;
  *
  * This class is not a public API, it is public because it is used within Xalan.
  * @xsl.usage internal
- * @LastModified: Oct 2017
+ * @LastModified: Feb 2021
  */
 public final class ToUnknownStream extends SerializerBase
 {
@@ -116,7 +117,11 @@ public final class ToUnknownStream extends SerializerBase
      * That may change later to an HTML Stream object.
      */
     public ToUnknownStream() {
-        m_handler = new ToXMLStream();
+        this(null);
+    }
+
+    public ToUnknownStream(ErrorListener l) {
+        m_handler = new ToXMLStream(l);
     }
 
     /**
@@ -650,6 +655,11 @@ public final class ToUnknownStream extends SerializerBase
         m_handler.setStandalone(standalone);
     }
 
+    @Override
+    public void setIsStandalone(boolean isStandalone) {
+       super.setIsStandalone(isStandalone);
+       m_handler.setIsStandalone(isStandalone);
+    }
     /**
      * Pass the call on to the underlying handler
      * @see org.xml.sax.ext.DeclHandler#attributeDecl(String, String, String, String, String)

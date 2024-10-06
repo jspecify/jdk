@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@ package javax.swing;
 
 import java.awt.*;
 import java.awt.image.*;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.text.AttributedCharacterIterator;
 
 /**
@@ -72,11 +74,32 @@ public class DebugGraphics extends Graphics {
     /**
      * Constructs a new debug graphics context that supports slowed
      * down drawing.
+     * <p>
+     * NOTE: This constructor should not be called by
+     * applications, it is for internal use only. When called directly
+     * it will create an un-usable instance.
      */
+    @SuppressWarnings("removal")
     public DebugGraphics() {
         super();
         buffer = null;
         xOffset = yOffset = 0;
+
+        //  Creates a Graphics context when the constructor is called.
+        if (this.graphics == null) {
+            StackWalker walker = AccessController.doPrivileged(new PrivilegedAction<StackWalker>() {
+                @Override
+                public StackWalker run() {
+                    StackWalker stackwalker = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
+                    return stackwalker;
+                }
+            });
+
+            if (walker.getCallerClass() != this.getClass()) {
+                BufferedImage bi = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+                this.graphics = bi.createGraphics();
+            }
+        }
     }
 
     /**
@@ -770,7 +793,7 @@ public class DebugGraphics extends Graphics {
     /**
      * Overrides <code>Graphics.drawPolyline</code>.
      */
-    public void drawPolyline(int xPoints[], int yPoints[], int nPoints) {
+    public void drawPolyline(int[] xPoints, int[] yPoints, int nPoints) {
         DebugGraphicsInfo info = info();
 
         if (debugLog()) {
@@ -805,7 +828,7 @@ public class DebugGraphics extends Graphics {
     /**
      * Overrides <code>Graphics.drawPolygon</code>.
      */
-    public void drawPolygon(int xPoints[], int yPoints[], int nPoints) {
+    public void drawPolygon(int[] xPoints, int[] yPoints, int nPoints) {
         DebugGraphicsInfo info = info();
 
         if (debugLog()) {
@@ -840,7 +863,7 @@ public class DebugGraphics extends Graphics {
     /**
      * Overrides <code>Graphics.fillPolygon</code>.
      */
-    public void fillPolygon(int xPoints[], int yPoints[], int nPoints) {
+    public void fillPolygon(int[] xPoints, int[] yPoints, int nPoints) {
         DebugGraphicsInfo info = info();
 
         if (debugLog()) {
@@ -945,7 +968,7 @@ public class DebugGraphics extends Graphics {
     /**
      * Overrides <code>Graphics.drawBytes</code>.
      */
-    public void drawBytes(byte data[], int offset, int length, int x, int y) {
+    public void drawBytes(byte[] data, int offset, int length, int x, int y) {
         DebugGraphicsInfo info = info();
 
         Font font = graphics.getFont();
@@ -981,7 +1004,7 @@ public class DebugGraphics extends Graphics {
     /**
      * Overrides <code>Graphics.drawChars</code>.
      */
-    public void drawChars(char data[], int offset, int length, int x, int y) {
+    public void drawChars(char[] data, int offset, int length, int x, int y) {
         DebugGraphicsInfo info = info();
 
         Font font = graphics.getFont();
@@ -1417,8 +1440,8 @@ public class DebugGraphics extends Graphics {
             Container container = (Container)component;
             int debugOptions = 0;
 
-            while (container != null && (container instanceof JComponent)) {
-                debugOptions |= info.getDebugOptions((JComponent)container);
+            while (container instanceof JComponent jc) {
+                debugOptions |= info.getDebugOptions(jc);
                 container = container.getParent();
             }
 

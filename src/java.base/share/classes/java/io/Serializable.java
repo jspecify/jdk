@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,20 +43,19 @@ package java.io;
  * serializable.  The serialization interface has no methods or fields
  * and serves only to identify the semantics of being serializable. <p>
  *
- * To allow subtypes of non-serializable classes to be serialized, the
- * subtype may assume responsibility for saving and restoring the
- * state of the supertype's public, protected, and (if accessible)
- * package fields.  The subtype may assume this responsibility only if
- * the class it extends has an accessible no-arg constructor to
- * initialize the class's state.  It is an error to declare a class
- * Serializable if this is not the case.  The error will be detected at
- * runtime. <p>
- *
- * During deserialization, the fields of non-serializable classes will
- * be initialized using the public or protected no-arg constructor of
- * the class.  A no-arg constructor must be accessible to the subclass
- * that is serializable.  The fields of serializable subclasses will
- * be restored from the stream. <p>
+ * It is possible for subtypes of non-serializable classes to be serialized
+ * and deserialized. During serialization, no data will be written for the
+ * fields of non-serializable superclasses. During deserialization, the fields of non-serializable
+ * superclasses will be initialized using the no-arg constructor of the first (bottommost)
+ * non-serializable superclass. This constructor must be accessible to the subclass that is being
+ * deserialized. It is an error to declare a class Serializable if this is not
+ * the case; the error will be detected at runtime. A serializable subtype may
+ * assume responsibility for saving and restoring the state of a non-serializable
+ * supertype's public, protected, and (if accessible) package-access fields. See
+ * the <a href="{@docRoot}/../specs/serialization/input.html#the-objectinputstream-class">
+ * <cite>Java Object Serialization Specification,</cite></a> section 3.1, for
+ * a detailed specification of the deserialization process, including handling of
+ * serializable and non-serializable classes. <p>
  *
  * When traversing a graph, an object may be encountered that does not
  * support the Serializable interface. In this case the
@@ -69,7 +68,7 @@ package java.io;
  *
  * <PRE>
  * private void writeObject(java.io.ObjectOutputStream out)
- *     throws IOException
+ *     throws IOException;
  * private void readObject(java.io.ObjectInputStream in)
  *     throws IOException, ClassNotFoundException;
  * private void readObjectNoData()
@@ -134,6 +133,18 @@ package java.io;
  * This readResolve method follows the same invocation rules and
  * accessibility rules as writeReplace.<p>
  *
+ * Enum types are all serializable and receive treatment defined by
+ * the <a href="{@docRoot}/../specs/serialization/index.html"><cite>
+ * Java Object Serialization Specification</cite></a> during
+ * serialization and deserialization. Any declarations of the special
+ * handling methods discussed above are ignored for enum types.<p>
+ *
+ * Record classes can implement {@code Serializable} and receive treatment defined
+ * by the <a href="{@docRoot}/../specs/serialization/serial-arch.html#serialization-of-records">
+ * <cite>Java Object Serialization Specification,</cite> Section 1.13,
+ * "Serialization of Records"</a>. Any declarations of the special
+ * handling methods discussed above are ignored for record types.<p>
+ *
  * The serialization runtime associates with each serializable class a version
  * number, called a serialVersionUID, which is used during deserialization to
  * verify that the sender and receiver of a serialized object have loaded
@@ -142,8 +153,8 @@ package java.io;
  * serialVersionUID than that of the corresponding sender's class, then
  * deserialization will result in an {@link InvalidClassException}.  A
  * serializable class can declare its own serialVersionUID explicitly by
- * declaring a field named <code>"serialVersionUID"</code> that must be static,
- * final, and of type <code>long</code>:
+ * declaring a field named {@code "serialVersionUID"} that must be static,
+ * final, and of type {@code long}:
  *
  * <PRE>
  * ANY-ACCESS-MODIFIER static final long serialVersionUID = 42L;
@@ -152,23 +163,25 @@ package java.io;
  * If a serializable class does not explicitly declare a serialVersionUID, then
  * the serialization runtime will calculate a default serialVersionUID value
  * for that class based on various aspects of the class, as described in the
- * Java(TM) Object Serialization Specification.  However, it is <em>strongly
- * recommended</em> that all serializable classes explicitly declare
+ * <a href="{@docRoot}/../specs/serialization/index.html"><cite>Java Object Serialization
+ * Specification.</cite></a> This specification defines the
+ * serialVersionUID of an enum type to be 0L. However, it is <em>strongly
+ * recommended</em> that all serializable classes other than enum types explicitly declare
  * serialVersionUID values, since the default serialVersionUID computation is
  * highly sensitive to class details that may vary depending on compiler
  * implementations, and can thus result in unexpected
- * <code>InvalidClassException</code>s during deserialization.  Therefore, to
+ * {@code InvalidClassException}s during deserialization.  Therefore, to
  * guarantee a consistent serialVersionUID value across different java compiler
  * implementations, a serializable class must declare an explicit
  * serialVersionUID value.  It is also strongly advised that explicit
- * serialVersionUID declarations use the <code>private</code> modifier where
+ * serialVersionUID declarations use the {@code private} modifier where
  * possible, since such declarations apply only to the immediately declaring
  * class--serialVersionUID fields are not useful as inherited members. Array
  * classes cannot declare an explicit serialVersionUID, so they always have
  * the default computed value, but the requirement for matching
  * serialVersionUID values is waived for array classes.
  *
- * @author  unascribed
+ * @spec serialization/index.html Java Object Serialization Specification
  * @see java.io.ObjectOutputStream
  * @see java.io.ObjectInputStream
  * @see java.io.ObjectOutput

@@ -26,9 +26,6 @@
 
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * A class that describes the pointer position.
  * It provides the {@code GraphicsDevice} where the pointer is and
@@ -44,8 +41,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author Roman Poborchiy
  * @since 1.5
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class PointerInfo {
+public final class PointerInfo {
 
     private final GraphicsDevice device;
     private final Point location;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -162,7 +162,7 @@ class FrameSetView extends javax.swing.text.BoxView {
      *
      * @param targetSpan the total span given to the view, which
      *  would be used to layout the children
-     * @param axis the axis being layed out
+     * @param axis the axis being laid out
      * @param offsets the offsets from the origin of the view for
      *  each of the child views; this is a return value and is
      *  filled in by the implementation of this method
@@ -184,7 +184,7 @@ class FrameSetView extends javax.swing.text.BoxView {
 
     protected SizeRequirements[] getChildRequests(int targetSpan, int axis) {
 
-        int span[] = new int[children.length];
+        int[] span = new int[children.length];
 
         spread(targetSpan, span);
         int n = getViewCount();
@@ -215,7 +215,7 @@ class FrameSetView extends javax.swing.text.BoxView {
      * computes this based on the information that extracted
      * from the value of the ROW/COL attribute.
      */
-    private void spread(int targetSpan, int span[]) {
+    private void spread(int targetSpan, int[] span) {
 
         if (targetSpan == 0) {
             return;

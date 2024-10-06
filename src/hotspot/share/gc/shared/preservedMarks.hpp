@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,79 +22,62 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_PRESERVEDMARKS_HPP
-#define SHARE_VM_GC_SHARED_PRESERVEDMARKS_HPP
+#ifndef SHARE_GC_SHARED_PRESERVEDMARKS_HPP
+#define SHARE_GC_SHARED_PRESERVEDMARKS_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/padded.hpp"
 #include "oops/oop.hpp"
 #include "utilities/stack.hpp"
 
+class WorkerTask;
 class PreservedMarksSet;
-class WorkGang;
+class WorkerThreads;
+
+class PreservedMark {
+ private:
+  oop _o;
+  markWord _m;
+
+ public:
+  PreservedMark(oop obj, markWord m) : _o(obj), _m(m) { }
+
+  oop get_oop() { return _o; }
+  inline void set_mark() const;
+  void set_oop(oop obj) { _o = obj; }
+};
 
 class PreservedMarks {
 private:
-  class OopAndMarkOop {
-  private:
-    oop _o;
-    markOop _m;
+  typedef Stack<PreservedMark, mtGC> PreservedMarkStack;
 
-  public:
-    OopAndMarkOop(oop obj, markOop m) : _o(obj), _m(m) { }
+  PreservedMarkStack _stack;
 
-    oop get_oop() { return _o; }
-    inline void set_mark() const;
-    void set_oop(oop obj) { _o = obj; }
-  };
-  typedef Stack<OopAndMarkOop, mtGC> OopAndMarkOopStack;
-
-  OopAndMarkOopStack _stack;
-
-  inline bool should_preserve_mark(oop obj, markOop m) const;
+  inline bool should_preserve_mark(oop obj, markWord m) const;
 
 public:
   size_t size() const { return _stack.size(); }
-  inline void push(oop obj, markOop m);
-  inline void push_if_necessary(oop obj, markOop m);
+  inline void push_if_necessary(oop obj, markWord m);
+  inline void push_always(oop obj, markWord m);
   // Iterate over the stack, restore all preserved marks, and
   // reclaim the memory taken up by the stack segments.
   void restore();
+
+  // Adjust the preserved mark according to its
+  // forwarding location stored in the mark.
+  static void adjust_preserved_mark(PreservedMark* elem);
+
   // Iterate over the stack, adjust all preserved marks according
   // to their forwarding location stored in the mark.
   void adjust_during_full_gc();
 
   void restore_and_increment(volatile size_t* const _total_size_addr);
-  inline static void init_forwarded_mark(oop obj);
 
   // Assert the stack is empty and has no cached segments.
   void assert_empty() PRODUCT_RETURN;
 
   inline PreservedMarks();
   ~PreservedMarks() { assert_empty(); }
-};
-
-class RemoveForwardedPointerClosure: public ObjectClosure {
-public:
-  virtual void do_object(oop obj);
-};
-
-class RestorePreservedMarksTaskExecutor {
-public:
-  void virtual restore(PreservedMarksSet* preserved_marks_set,
-                       volatile size_t* total_size_addr) = 0;
-};
-
-class SharedRestorePreservedMarksTaskExecutor : public RestorePreservedMarksTaskExecutor {
-private:
-    WorkGang* _workers;
-
-public:
-    SharedRestorePreservedMarksTaskExecutor(WorkGang* workers) : _workers(workers) { }
-
-    void restore(PreservedMarksSet* preserved_marks_set,
-                 volatile size_t* total_size_addr);
-
 };
 
 class PreservedMarksSet : public CHeapObj<mtGC> {
@@ -109,8 +92,8 @@ private:
   uint _num;
 
   // Stack array (typically, one stack per GC worker) of length _num.
-  // This should be != NULL if the stacks have been initialized,
-  // or == NULL if they have not.
+  // This should be != null if the stacks have been initialized,
+  // or == null if they have not.
   Padded<PreservedMarks>* _stacks;
 
 public:
@@ -118,7 +101,7 @@ public:
 
   // Return the i'th stack.
   PreservedMarks* get(uint i = 0) const {
-    assert(_num > 0 && _stacks != NULL, "stacks should have been initialized");
+    assert(_num > 0 && _stacks != nullptr, "stacks should have been initialized");
     assert(i < _num, "pre-condition");
     return (_stacks + i);
   }
@@ -127,10 +110,11 @@ public:
   void init(uint num);
 
   // Iterate over all stacks, restore all preserved marks, and reclaim
-  // the memory taken up by the stack segments.
-  // Supported executors: SharedRestorePreservedMarksTaskExecutor (Serial, CMS, G1),
-  // PSRestorePreservedMarksTaskExecutor (PS).
-  inline void restore(RestorePreservedMarksTaskExecutor* executor);
+  // the memory taken up by the stack segments using the given WorkerThreads. If the WorkerThreads
+  // is null, perform the work serially in the current thread.
+  void restore(WorkerThreads* workers);
+
+  WorkerTask* create_task();
 
   // Reclaim stack array.
   void reclaim();
@@ -139,11 +123,11 @@ public:
   void assert_empty() PRODUCT_RETURN;
 
   PreservedMarksSet(bool in_c_heap)
-      : _in_c_heap(in_c_heap), _num(0), _stacks(NULL) { }
+      : _in_c_heap(in_c_heap), _num(0), _stacks(nullptr) { }
 
   ~PreservedMarksSet() {
-    assert(_stacks == NULL && _num == 0, "stacks should have been reclaimed");
+    assert(_stacks == nullptr && _num == 0, "stacks should have been reclaimed");
   }
 };
 
-#endif // SHARE_VM_GC_SHARED_PRESERVEDMARKS_HPP
+#endif // SHARE_GC_SHARED_PRESERVEDMARKS_HPP

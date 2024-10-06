@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,7 +58,6 @@ import java.awt.Point;
 import java.awt.PopupMenu;
 import java.awt.PrintJob;
 import java.awt.Rectangle;
-import java.awt.Robot;
 import java.awt.ScrollPane;
 import java.awt.Scrollbar;
 import java.awt.SystemColor;
@@ -117,15 +116,16 @@ import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.Vector;
+import java.util.concurrent.TimeUnit;
 
 import javax.swing.LookAndFeel;
 import javax.swing.UIDefaults;
@@ -212,7 +212,6 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
     private static volatile int maxWindowWidthInPixels = -1;
     private static volatile int maxWindowHeightInPixels = -1;
 
-    static long awt_defaultFg; // Pixel
     private static XMouseInfoPeer xPeer;
 
     static {
@@ -247,6 +246,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
 
     static void initSecurityWarning() {
         // Enable warning only for internal builds
+        @SuppressWarnings("removal")
         String runtime = AccessController.doPrivileged(
                              new GetPropertyAction("java.runtime.version"));
         securityWarningEnabled = (runtime != null && runtime.contains("internal"));
@@ -326,6 +326,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
         }
     }
 
+    @SuppressWarnings("removal")
     void init() {
         awtLock();
         try {
@@ -335,15 +336,16 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
             }
             tryXKB();
 
-            AwtScreenData defaultScreen = new AwtScreenData(XToolkit.getDefaultScreenData());
-            awt_defaultFg = defaultScreen.get_blackpixel();
-
             arrowCursor = XlibWrapper.XCreateFontCursor(XToolkit.getDisplay(),
                 XCursorFontConstants.XC_arrow);
-            areExtraMouseButtonsEnabled = Boolean.parseBoolean(System.getProperty("sun.awt.enableExtraMouseButtons", "true"));
-            //set system property if not yet assigned
-            System.setProperty("sun.awt.enableExtraMouseButtons", ""+areExtraMouseButtonsEnabled);
-
+            final String extraButtons = "sun.awt.enableExtraMouseButtons";
+            AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                areExtraMouseButtonsEnabled =
+                    Boolean.parseBoolean(System.getProperty(extraButtons, "true"));
+                //set system property if not yet assigned
+                System.setProperty(extraButtons, ""+areExtraMouseButtonsEnabled);
+                return null;
+            });
             // Detect display mode changes
             XlibWrapper.XSelectInput(XToolkit.getDisplay(), XToolkit.getDefaultRootWindow(), XConstants.StructureNotifyMask);
             XToolkit.addEventDispatcher(XToolkit.getDefaultRootWindow(), new XEventDispatcher() {
@@ -353,11 +355,15 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
                         awtUnlock();
                         try {
                             ((X11GraphicsEnvironment)GraphicsEnvironment.
-                             getLocalGraphicsEnvironment()).
-                                displayChanged();
+                             getLocalGraphicsEnvironment()).rebuildDevices();
                         } finally {
                             awtLock();
                         }
+                    } else {
+                        final XAtom XA_NET_WORKAREA = XAtom.get("_NET_WORKAREA");
+                        final boolean rootWindowWorkareaResized = (ev.get_type() == XConstants.PropertyNotify
+                                && ev.get_xproperty().get_atom() == XA_NET_WORKAREA.getAtom());
+                        if (rootWindowWorkareaResized) resetScreenInsetsCache();
                     }
                 }
             });
@@ -403,6 +409,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
         return awtAppClassName;
     }
 
+    @SuppressWarnings("removal")
     public XToolkit() {
         super();
         if (PerformanceLogger.loggingEnabled()) {
@@ -412,12 +419,12 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
         if (!GraphicsEnvironment.isHeadless()) {
             String mainClassName = null;
 
-            StackTraceElement trace[] = (new Throwable()).getStackTrace();
+            StackTraceElement[] trace = (new Throwable()).getStackTrace();
             int bottom = trace.length - 1;
             if (bottom >= 0) {
                 mainClassName = trace[bottom].getClassName();
             }
-            if (mainClassName == null || mainClassName.equals("")) {
+            if (mainClassName == null || mainClassName.isEmpty()) {
                 mainClassName = "AWT";
             }
             awtAppClassName = getCorrectXIDString(mainClassName);
@@ -623,9 +630,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
             }
         }
         if (dispatchers != null) {
-            Iterator<XEventDispatcher> iter = dispatchers.iterator();
-            while (iter.hasNext()) {
-                XEventDispatcher disp = iter.next();
+            for (XEventDispatcher disp : dispatchers) {
                 disp.dispatchEvent(ev);
             }
         }
@@ -728,9 +733,6 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
                 }
 
                 dispatchEvent(ev);
-            } catch (ThreadDeath td) {
-                XBaseWindow.ungrabInput();
-                return;
             } catch (Throwable thr) {
                 XBaseWindow.ungrabInput();
                 processException(thr);
@@ -826,182 +828,81 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
     }
 
     /*
-     * If we're running in non-Xinerama environment and the current
-     * window manager supports _NET protocol then the screen insets
-     * are calculated using _NET_WM_WORKAREA property of the root
-     * window.
-     * Otherwise, i. e. if Xinerama is on or _NET_WM_WORKAREA is
-     * not set, we try to calculate the insets ourselves using
-     * getScreenInsetsManually method.
+     * If the current window manager supports _NET protocol then the screen
+     * insets are calculated using _NET_WORKAREA property of the root window.
+     * <p>
+     * Note that _NET_WORKAREA is a rectangular area and it does not work
+     * well in the Xinerama mode.
+     * <p>
+     * We will trust the part of this rectangular area only if it starts at the
+     * requested graphics configuration. Below is an example when the
+     * _NET_WORKAREA intersects with the requested graphics configuration but
+     * produces wrong result.
+     *
+     *         //<-x1,y1///////
+     *         //            // ////////////////
+     *         //  SCREEN1   // // SCREEN2    //
+     *         // ********** // //     x2,y2->//
+     *         //////////////// //            //
+     *                          ////////////////
+     *
+     * When two screens overlap and the first contains a dock(*****), then
+     * _NET_WORKAREA may start at point x1,y1 and end at point x2,y2.
      */
-    @Override
-    public Insets getScreenInsets(GraphicsConfiguration gc)
-    {
-        XNETProtocol netProto = XWM.getWM().getNETProtocol();
-        if ((netProto == null) || !netProto.active())
-        {
+    private Insets getScreenInsetsImpl(final GraphicsConfiguration gc) {
+        GraphicsDevice gd = gc.getDevice();
+        XNETProtocol np = XWM.getWM().getNETProtocol();
+        if (np == null || !(gd instanceof X11GraphicsDevice) || !np.active()) {
             return super.getScreenInsets(gc);
         }
 
         XToolkit.awtLock();
-        try
-        {
-            X11GraphicsConfig x11gc = (X11GraphicsConfig)gc;
-            X11GraphicsDevice x11gd = x11gc.getDevice();
+        try {
+            X11GraphicsDevice x11gd = (X11GraphicsDevice) gd;
             long root = XlibUtil.getRootWindow(x11gd.getScreen());
-            int scale = x11gc.getScale();
-            Rectangle rootBounds = XlibUtil.getWindowGeometry(root, scale);
-
-            X11GraphicsEnvironment x11ge = (X11GraphicsEnvironment)
-                GraphicsEnvironment.getLocalGraphicsEnvironment();
-            if (!x11ge.runningXinerama())
-            {
-                Insets screenInsets = getInsets(root, rootBounds, scale);
-                if (screenInsets != null) return screenInsets;
+            Rectangle workArea = getWorkArea(root, x11gd.getScaleFactor());
+            Rectangle screen = gc.getBounds();
+            if (workArea != null && screen.contains(workArea.getLocation())) {
+                workArea = workArea.intersection(screen);
+                int top = workArea.y - screen.y;
+                int left = workArea.x - screen.x;
+                int bottom = screen.height - workArea.height - top;
+                int right = screen.width - workArea.width - left;
+                return new Insets(top, left, bottom, right);
             }
-
-            Insets insets = getScreenInsetsManually(root, rootBounds,
-                    gc.getBounds(), scale);
-            if ((insets.left | insets.top | insets.bottom | insets.right) == 0
-                    && rootBounds != null ) {
-                root = XlibWrapper.RootWindow(XToolkit.getDisplay(),
-                        x11gd.getScreen());
-                Insets screenInsets = getInsets(root, rootBounds, scale);
-                if (screenInsets != null) return screenInsets;
-            }
-            return insets;
-        }
-        finally
-        {
+            // Note that it is better to return zeros than inadequate values
+            return new Insets(0, 0, 0, 0);
+        } finally {
             XToolkit.awtUnlock();
         }
     }
 
-    private Insets getInsets(long root, Rectangle rootBounds, int scale) {
-        Rectangle workArea = XToolkit.getWorkArea(root, scale);
-        if (workArea == null) {
-            return null;
+    private void resetScreenInsetsCache() {
+        final GraphicsDevice[] devices = ((X11GraphicsEnvironment)GraphicsEnvironment.
+                getLocalGraphicsEnvironment()).getScreenDevices();
+        for (var gd : devices) {
+            ((X11GraphicsDevice)gd).resetInsets();
         }
-        return new Insets(workArea.y, workArea.x,
-                rootBounds.height - workArea.height - workArea.y,
-                rootBounds.width - workArea.width - workArea.x);
     }
 
-    /*
-     * Manual calculation of screen insets: get all the windows with
-     * _NET_WM_STRUT/_NET_WM_STRUT_PARTIAL hints and add these
-     * hints' values to screen insets.
-     *
-     * This method should be called under XToolkit.awtLock()
-     */
-    private Insets getScreenInsetsManually(long root, Rectangle rootBounds,
-                                           Rectangle screenBounds, int scale)
-    {
-        /*
-         * During the manual calculation of screen insets we iterate
-         * all the X windows hierarchy starting from root window. This
-         * constant is the max level inspected in this hierarchy.
-         * 3 is a heuristic value: I suppose any the toolbar-like
-         * window is a child of either root or desktop window.
-         */
-        final int MAX_NESTED_LEVEL = 3;
-
-        XAtom XA_NET_WM_STRUT = XAtom.get("_NET_WM_STRUT");
-        XAtom XA_NET_WM_STRUT_PARTIAL = XAtom.get("_NET_WM_STRUT_PARTIAL");
-
-        Insets insets = new Insets(0, 0, 0, 0);
-
-        java.util.List<Object> search = new LinkedList<>();
-        search.add(root);
-        search.add(0);
-        while (!search.isEmpty())
-        {
-            long window = (Long)search.remove(0);
-            int windowLevel = (Integer)search.remove(0);
-
-            /*
-             * Note that most of the modern window managers unmap
-             * application window if it is iconified. Thus, any
-             * _NET_WM_STRUT[_PARTIAL] hints for iconified windows
-             * are not included to the screen insets.
-             */
-            if (XlibUtil.getWindowMapState(window) == XConstants.IsUnmapped)
-            {
-                continue;
-            }
-
-            long native_ptr = Native.allocateLongArray(4);
-            try
-            {
-                // first, check if _NET_WM_STRUT or _NET_WM_STRUT_PARTIAL are present
-                // if both are set on the window, _NET_WM_STRUT_PARTIAL is used (see _NET spec)
-                boolean strutPresent = XA_NET_WM_STRUT_PARTIAL.getAtomData(window, XAtom.XA_CARDINAL, native_ptr, 4);
-                if (!strutPresent)
-                {
-                    strutPresent = XA_NET_WM_STRUT.getAtomData(window, XAtom.XA_CARDINAL, native_ptr, 4);
-                }
-                if (strutPresent)
-                {
-                    // second, verify that window is located on the proper screen
-                    Rectangle windowBounds = XlibUtil.getWindowGeometry(window,
-                                                                        scale);
-                    if (windowLevel > 1)
-                    {
-                        windowBounds = XlibUtil.translateCoordinates(window, root,
-                                                                     windowBounds,
-                                                                     scale);
-                    }
-                    // if _NET_WM_STRUT_PARTIAL is present, we should use its values to detect
-                    // if the struts area intersects with screenBounds, however some window
-                    // managers don't set this hint correctly, so we just get intersection with windowBounds
-                    if (windowBounds != null && windowBounds.intersects(screenBounds))
-                    {
-                        int left = scaleDown((int)Native.getLong(native_ptr, 0), scale);
-                        int right = scaleDown((int)Native.getLong(native_ptr, 1), scale);
-                        int top = scaleDown((int)Native.getLong(native_ptr, 2), scale);
-                        int bottom = scaleDown((int)Native.getLong(native_ptr, 3), scale);
-
-                        /*
-                         * struts could be relative to root window bounds, so
-                         * make them relative to the screen bounds in this case
-                         */
-                        left = rootBounds.x + left > screenBounds.x ?
-                                rootBounds.x + left - screenBounds.x : 0;
-                        right = rootBounds.x + rootBounds.width - right <
-                                screenBounds.x + screenBounds.width ?
-                                screenBounds.x + screenBounds.width -
-                                (rootBounds.x + rootBounds.width - right) : 0;
-                        top = rootBounds.y + top > screenBounds.y ?
-                                rootBounds.y + top - screenBounds.y : 0;
-                        bottom = rootBounds.y + rootBounds.height - bottom <
-                                screenBounds.y + screenBounds.height ?
-                                screenBounds.y + screenBounds.height -
-                                (rootBounds.y + rootBounds.height - bottom) : 0;
-
-                        insets.left = Math.max(left, insets.left);
-                        insets.right = Math.max(right, insets.right);
-                        insets.top = Math.max(top, insets.top);
-                        insets.bottom = Math.max(bottom, insets.bottom);
+    @Override
+    public Insets getScreenInsets(final GraphicsConfiguration gc) {
+        final GraphicsDevice gd = gc.getDevice();
+        if (gd instanceof X11GraphicsDevice x11Device) {
+            Insets insets = x11Device.getInsets();
+            if (insets == null) {
+                synchronized (x11Device) {
+                    insets = x11Device.getInsets();
+                    if (insets == null) {
+                        insets = getScreenInsetsImpl(gc);
+                        x11Device.setInsets(insets);
                     }
                 }
             }
-            finally
-            {
-                XlibWrapper.unsafe.freeMemory(native_ptr);
-            }
-
-            if (windowLevel < MAX_NESTED_LEVEL)
-            {
-                Set<Long> children = XlibUtil.getChildWindows(window);
-                for (long child : children)
-                {
-                    search.add(child);
-                    search.add(windowLevel + 1);
-                }
-            }
+            return (Insets) insets.clone();
+        } else {
+            return super.getScreenInsets(gc);
         }
-
-        return insets;
     }
 
     /*
@@ -1041,10 +942,12 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
     }
 
     @Override
-    public RobotPeer createRobot(Robot target, GraphicsDevice screen) {
-        return new XRobotPeer(screen.getDefaultConfiguration());
+    public RobotPeer createRobot(GraphicsDevice screen) throws AWTException {
+        if (screen instanceof X11GraphicsDevice) {
+            return new XRobotPeer((X11GraphicsDevice) screen);
+        }
+        return super.createRobot(screen);
     }
-
 
   /*
      * On X, support for dynamic layout on resizing is governed by the
@@ -1217,6 +1120,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
      * Returns the value of "sun.awt.disableGtkFileDialogs" property. Default
      * value is {@code false}.
      */
+    @SuppressWarnings("removal")
     public static synchronized boolean getSunAwtDisableGtkFileDialogs() {
         if (sunAwtDisableGtkFileDialogs == null) {
             sunAwtDisableGtkFileDialogs = AccessController.doPrivileged(
@@ -1361,6 +1265,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
 
     @Override
     public  Clipboard getSystemClipboard() {
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkPermission(AWTPermissions.ACCESS_CLIPBOARD_PERMISSION);
@@ -1375,6 +1280,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
 
     @Override
     public Clipboard getSystemSelection() {
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkPermission(AWTPermissions.ACCESS_CLIPBOARD_PERMISSION);
@@ -1457,7 +1363,6 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
     }
 
     static native long getDefaultXColormap();
-    static native long getDefaultScreenData();
 
     /**
      * Returns a new input method adapter descriptor for native input methods.
@@ -1501,9 +1406,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
                         awt_multiclick_time = AWT_MULTICLICK_DEFAULT_TIME;
                     }
                 }
-            } catch (NumberFormatException nf) {
-                awt_multiclick_time = AWT_MULTICLICK_DEFAULT_TIME;
-            } catch (NullPointerException npe) {
+            } catch (NumberFormatException | NullPointerException e) {
                 awt_multiclick_time = AWT_MULTICLICK_DEFAULT_TIME;
             }
         } finally {
@@ -1618,7 +1521,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
             } catch (InterruptedException ie) {
             // Note: the returned timeStamp can be incorrect in this case.
                 if (log.isLoggable(PlatformLogger.Level.FINE)) {
-                    log.fine("Catched exception, timeStamp may not be correct (ie = " + ie + ")");
+                    log.fine("Caught exception, timeStamp may not be correct (ie = " + ie + ")");
                 }
             }
         } finally {
@@ -1692,7 +1595,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
     @Override
     protected Object lazilyLoadDesktopProperty(String name) {
         if (name.startsWith(prefix)) {
-            String cursorName = name.substring(prefix.length(), name.length()) + postfix;
+            String cursorName = name.substring(prefix.length()) + postfix;
 
             try {
                 return Cursor.getSystemCustomCursor(cursorName);
@@ -1784,9 +1687,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
             return;
         }
 
-        Iterator<Map.Entry<String, Object>> i = updatedSettings.entrySet().iterator();
-        while (i.hasNext()) {
-            Map.Entry<String, Object> e = i.next();
+        for (Map.Entry<String, Object> e : updatedSettings.entrySet()) {
             String name = e.getKey();
 
             name = "gnome." + name;
@@ -1917,7 +1818,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
         final int shiftLock = keysymToPrimaryKeycode(XKeySymConstants.XK_Shift_Lock);
         final int capsLock  = keysymToPrimaryKeycode(XKeySymConstants.XK_Caps_Lock);
 
-        final int modmask[] = { XConstants.ShiftMask, XConstants.LockMask, XConstants.ControlMask, XConstants.Mod1Mask,
+        final int[] modmask = { XConstants.ShiftMask, XConstants.LockMask, XConstants.ControlMask, XConstants.Mod1Mask,
             XConstants.Mod2Mask, XConstants.Mod3Mask, XConstants.Mod4Mask, XConstants.Mod5Mask };
 
         log.fine("In setupModifierMap");
@@ -2038,7 +1939,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
      * @param task a Runnable which {@code run} method will be called
      *        on the toolkit thread when {@code interval} milliseconds
      *        elapse
-     * @param interval an interal in milliseconds
+     * @param interval an interval in milliseconds
      *
      * @throws NullPointerException if {@code task} is {@code null}
      * @throws IllegalArgumentException if {@code interval} is not positive
@@ -2115,9 +2016,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
         while (time.compareTo(currentTime) <= 0) {
             java.util.List<Runnable> tasks = timeoutTasks.remove(time);
 
-            for (Iterator<Runnable> iter = tasks.iterator(); iter.hasNext();) {
-                Runnable task = iter.next();
-
+            for (Runnable task : tasks) {
                 if (timeoutTaskLog.isLoggable(PlatformLogger.Level.FINER)) {
                     timeoutTaskLog.finer("XToolkit.callTimeoutTasks(): current time={0}" +
                                          ";  about to run task={1}", Long.valueOf(currentTime), task);
@@ -2125,8 +2024,6 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
 
                 try {
                     task.run();
-                } catch (ThreadDeath td) {
-                    throw td;
                 } catch (Throwable thr) {
                     processException(thr);
                 }
@@ -2137,10 +2034,6 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
             }
             time = timeoutTasks.firstKey();
         }
-    }
-
-    static long getAwtDefaultFg() {
-        return awt_defaultFg;
     }
 
     static boolean isLeftMouseButton(MouseEvent me) {
@@ -2172,40 +2065,6 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
                       (numButtons > 2 && (me.getModifiersEx() & InputEvent.BUTTON3_DOWN_MASK) != 0));
         }
         return false;
-    }
-
-    static long reset_time_utc;
-    static final long WRAP_TIME_MILLIS = 0x00000000FFFFFFFFL;
-
-    /*
-     * This function converts between the X server time (number of milliseconds
-     * since the last server reset) and the UTC time for the 'when' field of an
-     * InputEvent (or another event type with a timestamp).
-     */
-    static long nowMillisUTC_offset(long server_offset) {
-        // ported from awt_util.c
-        /*
-         * Because Time is of type 'unsigned long', it is possible that Time will
-         * never wrap when using 64-bit Xlib. However, if a 64-bit client
-         * connects to a 32-bit server, I suspect the values will still wrap. So
-         * we should not attempt to remove the wrap checking even if _LP64 is
-         * true.
-         */
-
-        long current_time_utc = System.currentTimeMillis();
-        if (log.isLoggable(PlatformLogger.Level.FINER)) {
-            log.finer("reset_time=" + reset_time_utc + ", current_time=" + current_time_utc
-                      + ", server_offset=" + server_offset + ", wrap_time=" + WRAP_TIME_MILLIS);
-        }
-
-        if ((current_time_utc - reset_time_utc) > WRAP_TIME_MILLIS) {
-            reset_time_utc = System.currentTimeMillis() - getCurrentServerTime();
-        }
-
-        if (log.isLoggable(PlatformLogger.Level.FINER)) {
-            log.finer("result = " + (reset_time_utc + server_offset));
-        }
-        return reset_time_utc + server_offset;
     }
 
     /**
@@ -2280,6 +2139,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
     }
 
     private static void setBackingStoreType() {
+        @SuppressWarnings("removal")
         String prop = AccessController.doPrivileged(
                 new sun.security.action.GetPropertyAction("sun.awt.backingStore"));
 
@@ -2522,14 +2382,16 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
                  //System.out.println("XkbNewKeyboard:"+(xke.get_new_kbd()));
                  break;
             case XConstants.XkbMapNotify :
-                 //TODO: provide a simple unit test.
-                 XlibWrapper.XkbGetUpdatedMap(getDisplay(),
-                                              XConstants.XkbKeyTypesMask    |
-                                              XConstants.XkbKeySymsMask     |
-                                              XConstants.XkbModifierMapMask |
-                                              XConstants.XkbVirtualModsMask,
-                                              awt_XKBDescPtr);
-                 //System.out.println("XkbMap:"+(xke.get_map()));
+                 if (awt_XKBDescPtr != 0) {
+                    //TODO: provide a simple unit test.
+                    XlibWrapper.XkbGetUpdatedMap(getDisplay(),
+                                                 XConstants.XkbKeyTypesMask    |
+                                                 XConstants.XkbKeySymsMask     |
+                                                 XConstants.XkbModifierMapMask |
+                                                 XConstants.XkbVirtualModsMask,
+                                                 awt_XKBDescPtr);
+                 }
+                //System.out.println("XkbMap:"+(xke.get_map()));
                  break;
             case XConstants.XkbStateNotify :
                  // May use it later e.g. to obtain an effective group etc.
@@ -2556,10 +2418,13 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
     private static int oops_position = 0;
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     @Override
-    protected boolean syncNativeQueue(final long timeout) {
+    protected boolean syncNativeQueue(long timeout) {
+        if (timeout <= 0) {
+            return false;
+        }
         XBaseWindow win = XBaseWindow.getXAWTRootWindow();
 
         if (oops_waiter == null) {
@@ -2567,7 +2432,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
                     @Override
                     public void dispatchEvent(XEvent e) {
                         if (e.get_type() == XConstants.ConfigureNotify) {
-                            // OOPS ConfigureNotify event catched
+                            // OOPS ConfigureNotify event caught
                             oops_updated = true;
                             awtLockNotifyAll();
                         }
@@ -2581,30 +2446,32 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
 
             oops_updated = false;
             long event_number = getEventNumber();
-            // Generate OOPS ConfigureNotify event
-            XlibWrapper.XMoveWindow(getDisplay(), win.getWindow(),
-                                    win.scaleUp(++oops_position), 0);
             // Change win position each time to avoid system optimization
+            oops_position += 5;
             if (oops_position > 50) {
                 oops_position = 0;
             }
+            // Generate OOPS ConfigureNotify event
+            XlibWrapper.XMoveWindow(getDisplay(), win.getWindow(),
+                                    oops_position, 0);
 
             XSync();
 
             eventLog.finer("Generated OOPS ConfigureNotify event");
 
-            long start = System.currentTimeMillis();
+            long end = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) + timeout;
+            // This "while" is a protection from spurious wake-ups.
+            // However, we shouldn't wait for too long.
             while (!oops_updated) {
+                timeout = timeout(end);
+                if (timeout <= 0) {
+                    break;
+                }
                 try {
                     // Wait for OOPS ConfigureNotify event
                     awtLockWait(timeout);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
-                }
-                // This "while" is a protection from spurious
-                // wake-ups.  However, we shouldn't wait for too long
-                if ((System.currentTimeMillis() - start > timeout) && timeout >= 0) {
-                    throw new OperationTimedOut(Long.toString(System.currentTimeMillis() - start));
                 }
             }
             // Don't take into account OOPS ConfigureNotify event
@@ -2698,6 +2565,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
      * Returns the value of "sun.awt.disablegrab" property. Default
      * value is {@code false}.
      */
+    @SuppressWarnings("removal")
     public static boolean getSunAwtDisableGrab() {
         return AccessController.doPrivileged(new GetBooleanAction("sun.awt.disablegrab"));
     }

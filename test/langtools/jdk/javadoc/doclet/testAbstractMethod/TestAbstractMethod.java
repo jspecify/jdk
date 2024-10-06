@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,77 +23,110 @@
 
 /*
  * @test
- * @bug      8004891
+ * @bug      8004891 8184205
  * @summary  Make sure that the abstract method is identified correctly
  *           if the abstract modifier is present explicitly or implicitly.
- * @author   bpatel
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestAbstractMethod
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestAbstractMethod extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestAbstractMethod tester = new TestAbstractMethod();
+        var tester = new TestAbstractMethod();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
 
         checkOutput("pkg/A.html", true,
-                "<td class=\"colFirst\"><code>default void</code></td>",
-                "<caption><span id=\"t0\" class=\"activeTableTab\"><span>"
-                + "All Methods</span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t2\" class=\"tableTab\"><span>"
-                + "<a href=\"javascript:show(2);\">Instance Methods</a></span>"
-                + "<span class=\"tabEnd\">&nbsp;</span></span><span id=\"t3\" "
-                + "class=\"tableTab\"><span><a href=\"javascript:show(4);\">"
-                + "Abstract Methods</a></span><span class=\"tabEnd\">&nbsp;</span>"
-                + "</span><span id=\"t5\" class=\"tableTab\"><span>"
-                + "<a href=\"javascript:show(16);\">Default Methods</a></span>"
-                + "<span class=\"tabEnd\">&nbsp;</span></span></caption>");
+                """
+                    <div class="col-first even-row-color method-summary-table method-summary-table-t\
+                    ab2 method-summary-table-tab5"><code>default void</code></div>""",
+                """
+                    <div class="table-tabs" role="tablist" aria-orientation="horizontal">\
+                    <button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-cont\
+                    rols="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" o\
+                    nclick="show('method-summary-table', 'method-summary-table', 3)" class="active-t\
+                    able-tab">All Methods</button>\
+                    <button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="t\
+                    able-tab">Instance Methods</button>\
+                    <button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="t\
+                    able-tab">Abstract Methods</button>\
+                    <button id="method-summary-table-tab5" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab5', 3)" class="t\
+                    able-tab">Default Methods</button>\
+                    </div>""");
 
         checkOutput("pkg/B.html", true,
-                "<caption><span id=\"t0\" class=\"activeTableTab\"><span>"
-                + "All Methods</span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t2\" class=\"tableTab\"><span>"
-                + "<a href=\"javascript:show(2);\">Instance Methods</a></span>"
-                + "<span class=\"tabEnd\">&nbsp;</span></span><span id=\"t3\" "
-                + "class=\"tableTab\"><span><a href=\"javascript:show(4);\">Abstract "
-                + "Methods</a></span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t4\" class=\"tableTab\"><span>"
-                + "<a href=\"javascript:show(8);\">Concrete Methods</a></span>"
-                + "<span class=\"tabEnd\">&nbsp;</span></span></caption>",
-                "<td class=\"colFirst\"><code>abstract void</code></td>");
+                """
+                    <div class="table-tabs" role="tablist" aria-orientation="horizontal">\
+                    <button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-cont\
+                    rols="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" o\
+                    nclick="show('method-summary-table', 'method-summary-table', 3)" class="active-t\
+                    able-tab">All Methods</button>\
+                    <button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="t\
+                    able-tab">Instance Methods</button>\
+                    <button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="t\
+                    able-tab">Abstract Methods</button>\
+                    <button id="method-summary-table-tab4" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab4', 3)" class="t\
+                    able-tab">Concrete Methods</button>\
+                    </div>""",
+                """
+                    <div class="col-first even-row-color method-summary-table method-summary-table-t\
+                    ab2 method-summary-table-tab3"><code>abstract void</code></div>""");
 
         checkOutput("pkg/C.html", true,
-                "<caption><span id=\"t0\" class=\"activeTableTab\"><span>"
-                + "All Methods</span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t2\" class=\"tableTab\"><span>"
-                + "<a href=\"javascript:show(2);\">Instance Methods</a></span>"
-                + "<span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t5\" class=\"tableTab\"><span>"
-                + "<a href=\"javascript:show(16);\">Default Methods</a></span>"
-                + "<span class=\"tabEnd\">&nbsp;</span></span></caption>",
-                "<td class=\"colFirst\"><code>default void</code></td>");
+                """
+                    <div class="table-tabs" role="tablist" aria-orientation="horizontal">\
+                    <button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-cont\
+                    rols="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" o\
+                    nclick="show('method-summary-table', 'method-summary-table', 3)" class="active-t\
+                    able-tab">All Methods</button>\
+                    <button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="t\
+                    able-tab">Instance Methods</button>\
+                    <button id="method-summary-table-tab5" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab5', 3)" class="t\
+                    able-tab">Default Methods</button>\
+                    </div>""");
 
         checkOutput("pkg/A.html", false,
-                "<td class=\"colFirst\"><code>abstract void</code></td>");
+                """
+                    <div class="col-first even-row-color method-summary-table-tab2 method-summary-ta\
+                    ble method-summary-table-tab3"><code>abstract void</code></div>""");
 
         checkOutput("pkg/B.html", false,
-                "<span><a href=\"javascript:show(16);\">Default Methods</a></span>"
-                + "<span class=\"tabEnd\">&nbsp;</span>",
-                "<td class=\"colFirst\"><code>default void</code></td>");
+                """
+                    Default Methods""",
+                """
+                    <div class="col-first even-row-color method-summary-table-tab2 method-summary-ta\
+                    ble-tab5 method-summary-table"><code>default void</code></div>""");
 
         checkOutput("pkg/C.html", false,
-                "<span><a href=\"javascript:show(4);\">Abstract Methods</a></span>"
-                + "<span class=\"tabEnd\">&nbsp;</span>");
+                """
+                    Abstract Methods""");
     }
 }

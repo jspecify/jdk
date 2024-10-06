@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@
 
 Node* ModRefBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) const {
   DecoratorSet decorators = access.decorators();
-  GraphKit* kit = access.kit();
 
   const TypePtr* adr_type = access.addr().type();
   Node* adr = access.addr().node();
@@ -41,16 +40,21 @@ Node* ModRefBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val
   bool anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool use_precise = is_array || anonymous;
+  bool tightly_coupled_alloc = (decorators & C2_TIGHTLY_COUPLED_ALLOC) != 0;
 
-  if (!access.is_oop() || (!in_heap && !anonymous)) {
+  if (!access.is_oop() || tightly_coupled_alloc || (!in_heap && !anonymous)) {
     return BarrierSetC2::store_at_resolved(access, val);
   }
+
+  assert(access.is_parse_access(), "entry not supported at optimization time");
+  C2ParseAccess& parse_access = static_cast<C2ParseAccess&>(access);
+  GraphKit* kit = parse_access.kit();
 
   uint adr_idx = kit->C->get_alias_index(adr_type);
   assert(adr_idx != Compile::AliasIdxTop, "use other store_to_memory factory" );
 
   pre_barrier(kit, true /* do_load */, kit->control(), access.base(), adr, adr_idx, val.node(),
-              static_cast<const TypeOopPtr*>(val.type()), NULL /* pre_val */, access.type());
+              static_cast<const TypeOopPtr*>(val.type()), nullptr /* pre_val */, access.type());
   Node* store = BarrierSetC2::store_at_resolved(access, val);
   post_barrier(kit, kit->control(), access.raw_access(), access.base(), adr, adr_idx, val.node(),
                access.type(), use_precise);
@@ -58,7 +62,7 @@ Node* ModRefBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val
   return store;
 }
 
-Node* ModRefBarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicAccess& access, Node* expected_val,
+Node* ModRefBarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
                                                          Node* new_val, const Type* value_type) const {
   GraphKit* kit = access.kit();
 
@@ -67,7 +71,7 @@ Node* ModRefBarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicAccess& access,
   }
 
   pre_barrier(kit, false /* do_load */,
-              kit->control(), NULL, NULL, max_juint, NULL, NULL,
+              kit->control(), nullptr, nullptr, max_juint, nullptr, nullptr,
               expected_val /* pre_val */, T_OBJECT);
 
   Node* result = BarrierSetC2::atomic_cmpxchg_val_at_resolved(access, expected_val, new_val, value_type);
@@ -78,7 +82,7 @@ Node* ModRefBarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicAccess& access,
   return result;
 }
 
-Node* ModRefBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicAccess& access, Node* expected_val,
+Node* ModRefBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
                                                           Node* new_val, const Type* value_type) const {
   GraphKit* kit = access.kit();
 
@@ -87,7 +91,7 @@ Node* ModRefBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicAccess& access
   }
 
   pre_barrier(kit, false /* do_load */,
-              kit->control(), NULL, NULL, max_juint, NULL, NULL,
+              kit->control(), nullptr, nullptr, max_juint, nullptr, nullptr,
               expected_val /* pre_val */, T_OBJECT);
 
   Node* load_store = BarrierSetC2::atomic_cmpxchg_bool_at_resolved(access, expected_val, new_val, value_type);
@@ -114,7 +118,7 @@ Node* ModRefBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicAccess& access
   return load_store;
 }
 
-Node* ModRefBarrierSetC2::atomic_xchg_at_resolved(C2AtomicAccess& access, Node* new_val, const Type* value_type) const {
+Node* ModRefBarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& access, Node* new_val, const Type* value_type) const {
   GraphKit* kit = access.kit();
 
   Node* result = BarrierSetC2::atomic_xchg_at_resolved(access, new_val, value_type);
@@ -126,7 +130,7 @@ Node* ModRefBarrierSetC2::atomic_xchg_at_resolved(C2AtomicAccess& access, Node* 
   // The pre_barrier can execute after the xchg as long as no safepoint
   // gets inserted between them.
   pre_barrier(kit, false /* do_load */,
-              kit->control(), NULL, NULL, max_juint, NULL, NULL,
+              kit->control(), nullptr, nullptr, max_juint, nullptr, nullptr,
               result /* pre_val */, T_OBJECT);
   post_barrier(kit, kit->control(), access.raw_access(), access.base(), access.addr().node(),
                access.alias_idx(), new_val, T_OBJECT, true);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package jdk.management.jfr;
 
-import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -37,6 +36,7 @@ import javax.management.openmbean.TabularData;
 
 import jdk.jfr.Recording;
 import jdk.jfr.RecordingState;
+import jdk.jfr.internal.management.ManagementSupport;
 
 /**
  * Management representation of a {@code Recording}.
@@ -51,7 +51,7 @@ public final class RecordingInfo {
     private final String state;
     private final boolean dumpOnExit;
     private final long size;
-    private final boolean disk;
+    private final boolean toDisk;
     private final long maxAge;
     private final long maxSize;
     private final long startTime;
@@ -67,7 +67,7 @@ public final class RecordingInfo {
         state = recording.getState().toString();
         dumpOnExit = recording.getDumpOnExit();
         size = recording.getSize();
-        disk = recording.isToDisk();
+        toDisk = recording.isToDisk();
 
         Duration d = recording.getMaxAge();
         if (d == null) {
@@ -80,20 +80,24 @@ public final class RecordingInfo {
         startTime = s == null ? 0L : s.toEpochMilli();
         Instant st = recording.getStopTime();
         stopTime = st == null ? 0L : st.toEpochMilli();
-        Path p = recording.getDestination();
-        destination = p == null ? null : p.toString();
+        destination = ManagementSupport.getDestinationOriginalText(recording);
         Duration duration = recording.getDuration();
         durationInSeconds = duration == null ? 0 : duration.getSeconds();
         settings = recording.getSettings();
     }
 
     private RecordingInfo(CompositeData cd) {
-        id = (int) cd.get("id");
+        id = (long) cd.get("id");
         name = (String) cd.get("name");
         state = (String) cd.get("state");
         dumpOnExit = (boolean) cd.get("dumpOnExit");
         size = (long) cd.get("size");
-        disk = (boolean) cd.get("disk");
+        if(cd.containsKey("toDisk")){
+            toDisk = (boolean) cd.get("toDisk");
+        } else {
+            // Before JDK-8219904 was fixed, the element name was disk, so for compatibility
+            toDisk = (boolean) cd.get("disk");
+        }
         maxAge = (Long) cd.get("maxAge");
         maxSize = (Long) cd.get("maxSize");
         startTime = (Long) cd.get("startTime");
@@ -102,8 +106,7 @@ public final class RecordingInfo {
         durationInSeconds = (long) cd.get("duration");
         settings = new LinkedHashMap<>();
         Object map = cd.get("settings");
-        if (map instanceof TabularData) {
-            TabularData td = (TabularData) map;
+        if (map instanceof TabularData td) {
             List<String> keyNames = td.getTabularType().getIndexNames();
             int size = keyNames.size();
             for (Object keys : td.keySet()) {
@@ -111,8 +114,8 @@ public final class RecordingInfo {
                 for (int i = 0; i < size; i++) {
                     String key = keyNames.get(i);
                     Object value = keyValues[i];
-                    if (value instanceof String) {
-                        settings.put(key, (String) value);
+                    if (value instanceof String s) {
+                        settings.put(key, s);
                     }
                 }
             }
@@ -291,15 +294,15 @@ public final class RecordingInfo {
      * @return {@code true} if recording is to disk, {@code false} otherwise
      */
     public boolean isToDisk() {
-        return disk;
+        return toDisk;
     }
 
     /**
      * Returns the desired duration, measured in seconds, of the recording
-     * associated with this {@link RecordingInfo}, or {code 0} if no duration
+     * associated with this {@link RecordingInfo}, or {@code 0} if no duration
      * has been set.
      *
-     * @return the desired duration, or {code 0} if no duration has been set
+     * @return the desired duration, or {@code 0} if no duration has been set
      *
      * @see Recording#getDuration()
      */
@@ -343,7 +346,7 @@ public final class RecordingInfo {
      * <td>{@code Long}</td>
      * </tr>
      * <tr>
-     * <th scope="row">disk</th>
+     * <th scope="row">toDisk</th>
      * <td>{@code Boolean}</td>
      * </tr>
      * <tr>

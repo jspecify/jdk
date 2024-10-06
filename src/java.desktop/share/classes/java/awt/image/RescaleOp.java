@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,9 @@
 
 package java.awt.image;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.awt.color.ColorSpace;
 import java.awt.geom.Rectangle2D;
 import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
 import java.awt.geom.Point2D;
 import java.awt.RenderingHints;
 import sun.awt.image.ImagingLib;
@@ -85,8 +80,7 @@ import sun.awt.image.ImagingLib;
  * @see java.awt.RenderingHints#KEY_COLOR_RENDERING
  * @see java.awt.RenderingHints#KEY_DITHERING
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class RescaleOp implements BufferedImageOp, RasterOp {
+public class RescaleOp implements BufferedImageOp, RasterOp {
     float[] scaleFactors;
     float[] offsets;
     int length = 0;
@@ -148,7 +142,7 @@ public @UsesObjectEquals class RescaleOp implements BufferedImageOp, RasterOp {
      *        this {@code RescaleOp}
      * @return the scale factors of this {@code RescaleOp}.
      */
-    public final float[] getScaleFactors (float scaleFactors[]) {
+    public final float[] getScaleFactors (float[] scaleFactors) {
         if (scaleFactors == null) {
             return this.scaleFactors.clone();
         }
@@ -166,7 +160,7 @@ public @UsesObjectEquals class RescaleOp implements BufferedImageOp, RasterOp {
      *        this {@code RescaleOp}
      * @return the offsets of this {@code RescaleOp}.
      */
-    public final float[] getOffsets(float offsets[]) {
+    public final float[] getOffsets(float[] offsets) {
         if (offsets == null) {
             return this.offsets.clone();
         }
@@ -194,8 +188,8 @@ public @UsesObjectEquals class RescaleOp implements BufferedImageOp, RasterOp {
      *                  This will generally be 256 for byte and
      *                  65536 for short.
      */
-    private ByteLookupTable createByteLut(float scale[],
-                                          float off[],
+    private ByteLookupTable createByteLut(float[] scale,
+                                          float[] off,
                                           int   nBands,
                                           int   nElems) {
 
@@ -241,8 +235,8 @@ public @UsesObjectEquals class RescaleOp implements BufferedImageOp, RasterOp {
      *                  This will generally be 256 for byte and
      *                  65536 for short.
      */
-    private ShortLookupTable createShortLut(float scale[],
-                                            float off[],
+    private ShortLookupTable createShortLut(float[] scale,
+                                            float[] off,
                                             int   nBands,
                                             int   nElems) {
 
@@ -383,7 +377,7 @@ public @UsesObjectEquals class RescaleOp implements BufferedImageOp, RasterOp {
         {
             throw new IllegalArgumentException("Number of scaling constants "+
                                                "does not equal the number of"+
-                                               " of color or color/alpha "+
+                                               " color or color/alpha"+
                                                " components");
         }
 
@@ -516,7 +510,7 @@ public @UsesObjectEquals class RescaleOp implements BufferedImageOp, RasterOp {
         if (sCheck && scaleConst != 1 && scaleConst != src.getNumBands()) {
             throw new IllegalArgumentException("Number of scaling constants "+
                                                "does not equal the number of"+
-                                               " of bands in the src raster");
+                                               " bands in the src raster");
         }
 
         //
@@ -566,8 +560,8 @@ public @UsesObjectEquals class RescaleOp implements BufferedImageOp, RasterOp {
             //  REMIND: This must change if we ever support signed data types.
             //
             int nbits;
-            int dstMax[] = new int[numBands];
-            int dstMask[] = new int[numBands];
+            int[] dstMax = new int[numBands];
+            int[] dstMask = new int[numBands];
             SampleModel dstSM = dst.getSampleModel();
             for (int z=0; z<numBands; z++) {
                 nbits = dstSM.getSampleSize(z);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,17 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/shared/cardTableBarrierSetAssembler.hpp"
+#include "compiler/compilerDefinitions.inline.hpp"
+#include "gc/shared/cardTable.hpp"
 #include "gc/shared/cardTableBarrierSet.inline.hpp"
+#include "gc/shared/cardTableBarrierSetAssembler.hpp"
 #include "gc/shared/collectedHeap.hpp"
-#include "gc/shared/space.inline.hpp"
+#include "gc/shared/space.hpp"
 #include "logging/log.hpp"
 #include "memory/virtualspace.hpp"
+#include "nmt/memTracker.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/thread.hpp"
-#include "services/memTracker.hpp"
+#include "runtime/javaThread.hpp"
 #include "utilities/align.hpp"
 #include "utilities/macros.hpp"
 #ifdef COMPILER1
@@ -78,12 +80,8 @@ CardTableBarrierSet::~CardTableBarrierSet() {
   delete _card_table;
 }
 
-void CardTableBarrierSet::write_ref_array_work(MemRegion mr) {
+void CardTableBarrierSet::write_region(MemRegion mr) {
   _card_table->dirty_MemRegion(mr);
-}
-
-void CardTableBarrierSet::invalidate(MemRegion mr) {
-  _card_table->invalidate(mr);
 }
 
 void CardTableBarrierSet::print_on(outputStream* st) const {
@@ -95,7 +93,7 @@ void CardTableBarrierSet::print_on(outputStream* st) const {
 // to a newly allocated object along the fast-path. We
 // compensate for such elided card-marks as follows:
 // (a) Generational, non-concurrent collectors, such as
-//     GenCollectedHeap(ParNew,DefNew,Tenured) and
+//     SerialHeap(DefNew,Tenured) and
 //     ParallelScavengeHeap(ParallelGC, ParallelOldGC)
 //     need the card-mark if and only if the region is
 //     in the old gen, and do not care if the card-mark
@@ -104,17 +102,7 @@ void CardTableBarrierSet::print_on(outputStream* st) const {
 //     scavenge. For all these cases, we can do a card mark
 //     at the point at which we do a slow path allocation
 //     in the old gen, i.e. in this call.
-// (b) GenCollectedHeap(ConcurrentMarkSweepGeneration) requires
-//     in addition that the card-mark for an old gen allocated
-//     object strictly follow any associated initializing stores.
-//     In these cases, the memRegion remembered below is
-//     used to card-mark the entire region either just before the next
-//     slow-path allocation by this thread or just before the next scavenge or
-//     CMS-associated safepoint, whichever of these events happens first.
-//     (The implicit assumption is that the object has been fully
-//     initialized by this point, a fact that we assert when doing the
-//     card-mark.)
-// (c) G1CollectedHeap(G1) uses two kinds of write barriers. When a
+// (b) G1CollectedHeap(G1) uses two kinds of write barriers. When a
 //     G1 concurrent marking is in progress an SATB (pre-write-)barrier
 //     is used to remember the pre-value of any store. Initializing
 //     stores will not need this barrier, so we need not worry about
@@ -123,11 +111,8 @@ void CardTableBarrierSet::print_on(outputStream* st) const {
 //     which simply enqueues a (sequence of) dirty cards which may
 //     optionally be refined by the concurrent update threads. Note
 //     that this barrier need only be applied to a non-young write,
-//     but, like in CMS, because of the presence of concurrent refinement
-//     (much like CMS' precleaning), must strictly follow the oop-store.
-//     Thus, using the same protocol for maintaining the intended
-//     invariants turns out, serendepitously, to be the same for both
-//     G1 and CMS.
+//     but, because of the presence of concurrent refinement,
+//     must strictly follow the oop-store.
 //
 // For any future collector, this code should be reexamined with
 // that specific collector in mind, and the documentation above suitably
@@ -145,14 +130,14 @@ void CardTableBarrierSet::on_slowpath_allocation_exit(JavaThread* thread, oop ne
     // following the flush above.
     assert(thread->deferred_card_mark().is_empty(), "Error");
   } else {
-    MemRegion mr((HeapWord*)new_obj, new_obj->size());
+    MemRegion mr(cast_from_oop<HeapWord*>(new_obj), new_obj->size());
     assert(!mr.is_empty(), "Error");
     if (_defer_initial_card_mark) {
       // Defer the card mark
       thread->set_deferred_card_mark(mr);
     } else {
       // Do the card mark
-      invalidate(mr);
+      write_region(mr);
     }
   }
 #endif // COMPILER2_OR_JVMCI
@@ -162,7 +147,7 @@ void CardTableBarrierSet::initialize_deferred_card_mark_barriers() {
   // Used for ReduceInitialCardMarks (when COMPILER2 or JVMCI is used);
   // otherwise remains unused.
 #if COMPILER2_OR_JVMCI
-  _defer_initial_card_mark = is_server_compilation_mode_vm() && ReduceInitialCardMarks
+  _defer_initial_card_mark = CompilerConfig::is_c2_or_jvmci_compiler_enabled() && ReduceInitialCardMarks
                              && (DeferInitialCardMark || card_mark_must_follow_store());
 #else
   assert(_defer_initial_card_mark == false, "Who would set it?");
@@ -176,14 +161,14 @@ void CardTableBarrierSet::flush_deferred_card_mark_barrier(JavaThread* thread) {
     assert(_defer_initial_card_mark, "Otherwise should be empty");
     {
       // Verify that the storage points to a parsable object in heap
-      DEBUG_ONLY(oop old_obj = oop(deferred.start());)
+      DEBUG_ONLY(oop old_obj = cast_to_oop(deferred.start());)
       assert(!_card_table->is_in_young(old_obj),
              "Else should have been filtered in on_slowpath_allocation_exit()");
       assert(oopDesc::is_oop(old_obj, true), "Not an oop");
-      assert(deferred.word_size() == (size_t)(old_obj->size()),
+      assert(deferred.word_size() == old_obj->size(),
              "Mismatch: multiple objects?");
     }
-    write_region(deferred);
+    write_region(thread, deferred);
     // "Clear" the deferred_card_mark field
     thread->set_deferred_card_mark(MemRegion());
   }
@@ -194,13 +179,15 @@ void CardTableBarrierSet::flush_deferred_card_mark_barrier(JavaThread* thread) {
 #endif
 }
 
-void CardTableBarrierSet::on_thread_detach(JavaThread* thread) {
+void CardTableBarrierSet::on_thread_detach(Thread* thread) {
   // The deferred store barriers must all have been flushed to the
   // card-table (or other remembered set structure) before GC starts
   // processing the card-table (or other remembered set).
-  flush_deferred_card_mark_barrier(thread);
+  if (thread->is_Java_thread()) { // Only relevant for Java threads.
+    flush_deferred_card_mark_barrier(JavaThread::cast(thread));
+  }
 }
 
 bool CardTableBarrierSet::card_mark_must_follow_store() const {
- return _card_table->scanned_concurrently();
+  return false;
 }

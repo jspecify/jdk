@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,15 +25,21 @@
 
 package sun.net.www.protocol.https;
 
+import java.net.Authenticator;
 import java.net.URL;
 import java.net.Proxy;
 import java.net.SecureCacheResponse;
 import java.security.Principal;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
+import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import sun.net.www.http.*;
 import sun.net.www.protocol.http.HttpURLConnection;
+import sun.net.www.protocol.http.HttpCallerInfo;
 
 /**
  * HTTPS URL connection support.
@@ -59,7 +65,7 @@ public abstract class AbstractDelegateHttpsURLConnection extends
 
     protected abstract javax.net.ssl.HostnameVerifier getHostnameVerifier();
 
-    /**
+    /*
      * No user application is able to call these routines, as no one
      * should ever get access to an instance of
      * DelegateHttpsURLConnection (sun.* or com.*)
@@ -68,10 +74,6 @@ public abstract class AbstractDelegateHttpsURLConnection extends
     /**
      * Create a new HttpClient object, bypassing the cache of
      * HTTP client objects/connections.
-     *
-     * Note: this method is changed from protected to public because
-     * the com.sun.ssl.internal.www.protocol.https handler reuses this
-     * class for its actual implemantation
      *
      * @param url the URL being accessed
      */
@@ -83,20 +85,22 @@ public abstract class AbstractDelegateHttpsURLConnection extends
     /**
      * Obtain a HttpClient object. Use the cached copy if specified.
      *
-     * Note: this method is changed from protected to public because
-     * the com.sun.ssl.internal.www.protocol.https handler reuses this
-     * class for its actual implemantation
-     *
      * @param url       the URL being accessed
      * @param useCache  whether the cached connection should be used
      *        if present
      */
     public void setNewClient (URL url, boolean useCache)
         throws IOException {
+        int readTimeout = getReadTimeout();
         http = HttpsClient.New (getSSLSocketFactory(),
                                 url,
                                 getHostnameVerifier(),
-                                useCache, this);
+                                null,
+                                -1,
+                                useCache,
+                                getConnectTimeout(),
+                                this);
+        http.setReadTimeout(readTimeout);
         ((HttpsClient)http).afterConnect();
     }
 
@@ -104,10 +108,6 @@ public abstract class AbstractDelegateHttpsURLConnection extends
      * Create a new HttpClient object, set up so that it uses
      * per-instance proxying to the given HTTP proxy.  This
      * bypasses the cache of HTTP client objects/connections.
-     *
-     * Note: this method is changed from protected to public because
-     * the com.sun.ssl.internal.www.protocol.https handler reuses this
-     * class for its actual implemantation
      *
      * @param url       the URL being accessed
      * @param proxyHost the proxy host to use
@@ -122,10 +122,6 @@ public abstract class AbstractDelegateHttpsURLConnection extends
      * Obtain a HttpClient object, set up so that it uses per-instance
      * proxying to the given HTTP proxy. Use the cached copy of HTTP
      * client objects/connections if specified.
-     *
-     * Note: this method is changed from protected to public because
-     * the com.sun.ssl.internal.www.protocol.https handler reuses this
-     * class for its actual implemantation
      *
      * @param url       the URL being accessed
      * @param proxyHost the proxy host to use
@@ -146,10 +142,16 @@ public abstract class AbstractDelegateHttpsURLConnection extends
             boolean useCache) throws IOException {
         if (connected)
             return;
+        int readTimeout = getReadTimeout();
         http = HttpsClient.New (getSSLSocketFactory(),
                                 url,
                                 getHostnameVerifier(),
-                                proxyHost, proxyPort, useCache, this);
+                                proxyHost,
+                                proxyPort,
+                                useCache,
+                                getConnectTimeout(),
+                                this);
+        http.setReadTimeout(readTimeout);
         connected = true;
     }
 
@@ -296,4 +298,87 @@ public abstract class AbstractDelegateHttpsURLConnection extends
         }
     }
 
+    SSLSession getSSLSession() {
+        if (cachedResponse != null) {
+            Optional<SSLSession> option =
+                    ((SecureCacheResponse)cachedResponse).getSSLSession();
+            if (option.isPresent()) {
+                return option.orElseThrow();
+            }
+        }
+
+        if (http == null) {
+            throw new IllegalStateException("connection not yet open");
+        }
+
+        return ((HttpsClient)http).getSSLSession();
+    }
+
+    /*
+     * If no SSL Session available or if the system config does not allow it
+     * don't use the extended caller info (the server cert).
+     * Otherwise return true to include the server cert
+     */
+    private boolean useExtendedCallerInfo(URL url) {
+        HttpsClient https = (HttpsClient)http;
+        if (https.getSSLSession() == null) {
+            return false;
+        }
+        String prop = http.getSpnegoCBT();
+        if (prop.equals("never")) {
+            return false;
+        }
+        String target = url.getHost();
+        if (prop.startsWith("domain:")) {
+            String[] domains = prop.substring(7).split(",");
+            for (String domain : domains) {
+                if (target.equalsIgnoreCase(domain)) {
+                    return true;
+                }
+                if (domain.startsWith("*.") && target.regionMatches(
+                        true, target.length() - domain.length() + 1, domain, 1, domain.length() - 1)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    protected HttpCallerInfo getHttpCallerInfo(URL url, String proxy, int port,
+                                               Authenticator authenticator)
+    {
+        if (!useExtendedCallerInfo(url)) {
+            return super.getHttpCallerInfo(url, proxy, port, authenticator);
+        }
+        HttpsClient https = (HttpsClient)http;
+        try {
+            Certificate[] certs = https.getServerCertificates();
+            if (certs[0] instanceof X509Certificate x509Cert) {
+                return new HttpCallerInfo(url, proxy, port, x509Cert, authenticator);
+            }
+        } catch (SSLPeerUnverifiedException e) {
+            // ignore
+        }
+        return super.getHttpCallerInfo(url, proxy, port, authenticator);
+    }
+
+    @Override
+    protected HttpCallerInfo getHttpCallerInfo(URL url, Authenticator authenticator)
+    {
+        if (!useExtendedCallerInfo(url)) {
+            return super.getHttpCallerInfo(url, authenticator);
+        }
+        HttpsClient https = (HttpsClient)http;
+        try {
+            Certificate[] certs = https.getServerCertificates();
+            if (certs[0] instanceof X509Certificate x509Cert) {
+                return new HttpCallerInfo(url, x509Cert, authenticator);
+            }
+        } catch (SSLPeerUnverifiedException e) {
+            // ignore
+        }
+        return super.getHttpCallerInfo(url, authenticator);
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,7 @@
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "utilities/powerOfTwo.hpp"
 #include "vmreg_arm.inline.hpp"
 
 #ifdef ASSERT
@@ -118,37 +119,19 @@ LIR_Opr LIRGenerator::rlock_byte(BasicType type) {
 
 
 bool LIRGenerator::can_store_as_constant(Value v, BasicType type) const {
-#ifdef AARCH64
-  if (v->type()->as_IntConstant() != NULL) {
-    return v->type()->as_IntConstant()->value() == 0;
-  } else if (v->type()->as_LongConstant() != NULL) {
-    return v->type()->as_LongConstant()->value() == 0;
-  } else if (v->type()->as_ObjectConstant() != NULL) {
-    return v->type()->as_ObjectConstant()->value()->is_null_object();
-  } else if (v->type()->as_FloatConstant() != NULL) {
-    return jint_cast(v->type()->as_FloatConstant()->value()) == 0;
-  } else if (v->type()->as_DoubleConstant() != NULL) {
-    return jlong_cast(v->type()->as_DoubleConstant()->value()) == 0;
-  }
-#endif // AARCH64
   return false;
 }
 
 
 bool LIRGenerator::can_inline_as_constant(Value v) const {
-  if (v->type()->as_IntConstant() != NULL) {
+  if (v->type()->as_IntConstant() != nullptr) {
     return Assembler::is_arith_imm_in_range(v->type()->as_IntConstant()->value());
-  } else if (v->type()->as_ObjectConstant() != NULL) {
+  } else if (v->type()->as_ObjectConstant() != nullptr) {
     return v->type()->as_ObjectConstant()->value()->is_null_object();
-#ifdef AARCH64
-  } else if (v->type()->as_LongConstant() != NULL) {
-    return Assembler::is_arith_imm_in_range(v->type()->as_LongConstant()->value());
-#else
-  } else if (v->type()->as_FloatConstant() != NULL) {
+  } else if (v->type()->as_FloatConstant() != nullptr) {
     return v->type()->as_FloatConstant()->value() == 0.0f;
-  } else if (v->type()->as_DoubleConstant() != NULL) {
+  } else if (v->type()->as_DoubleConstant() != nullptr) {
     return v->type()->as_DoubleConstant()->value() == 0.0;
-#endif // AARCH64
   }
   return false;
 }
@@ -160,39 +143,6 @@ bool LIRGenerator::can_inline_as_constant(LIR_Const* c) const {
 }
 
 
-#ifdef AARCH64
-
-static bool can_inline_as_constant_in_cmp(Value v) {
-  jlong constant;
-  if (v->type()->as_IntConstant() != NULL) {
-    constant = v->type()->as_IntConstant()->value();
-  } else if (v->type()->as_LongConstant() != NULL) {
-    constant = v->type()->as_LongConstant()->value();
-  } else if (v->type()->as_ObjectConstant() != NULL) {
-    return v->type()->as_ObjectConstant()->value()->is_null_object();
-  } else if (v->type()->as_FloatConstant() != NULL) {
-    return v->type()->as_FloatConstant()->value() == 0.0f;
-  } else if (v->type()->as_DoubleConstant() != NULL) {
-    return v->type()->as_DoubleConstant()->value() == 0.0;
-  } else {
-    return false;
-  }
-
-  return Assembler::is_arith_imm_in_range(constant) || Assembler::is_arith_imm_in_range(-constant);
-}
-
-
-static bool can_inline_as_constant_in_logic(Value v) {
-  if (v->type()->as_IntConstant() != NULL) {
-    return Assembler::LogicalImmediate(v->type()->as_IntConstant()->value(), true).is_encoded();
-  } else if (v->type()->as_LongConstant() != NULL) {
-    return Assembler::LogicalImmediate(v->type()->as_LongConstant()->value(), false).is_encoded();
-  }
-  return false;
-}
-
-
-#endif // AARCH64
 
 
 LIR_Opr LIRGenerator::safepoint_poll_register() {
@@ -211,48 +161,10 @@ static LIR_Opr make_constant(BasicType type, jlong c) {
   }
 }
 
-#ifdef AARCH64
-
-void LIRGenerator::add_constant(LIR_Opr src, jlong c, LIR_Opr dest) {
-  if (c == 0) {
-    __ move(src, dest);
-    return;
-  }
-
-  BasicType type = src->type();
-  bool is_neg = (c < 0);
-  c = ABS(c);
-
-  if ((c >> 24) == 0) {
-    for (int shift = 0; shift <= 12; shift += 12) {
-      int part = ((int)c) & (right_n_bits(12) << shift);
-      if (part != 0) {
-        if (is_neg) {
-          __ sub(src, make_constant(type, part), dest);
-        } else {
-          __ add(src, make_constant(type, part), dest);
-        }
-        src = dest;
-      }
-    }
-  } else {
-    __ move(make_constant(type, c), dest);
-    if (is_neg) {
-      __ sub(src, dest, dest);
-    } else {
-      __ add(src, dest, dest);
-    }
-  }
-}
-
-#endif // AARCH64
 
 
 void LIRGenerator::add_large_constant(LIR_Opr src, int c, LIR_Opr dest) {
   assert(c != 0, "must be");
-#ifdef AARCH64
-  add_constant(src, c, dest);
-#else
   // Find first non-zero bit
   int shift = 0;
   while ((c & (3 << shift)) == 0) {
@@ -272,7 +184,6 @@ void LIRGenerator::add_large_constant(LIR_Opr src, int c, LIR_Opr dest) {
   if (c & (mask << 24)) {
     __ add(dest, LIR_OprFact::intConst(c & (mask << 24)), dest);
   }
-#endif // AARCH64
 }
 
 static LIR_Address* make_address(LIR_Opr base, LIR_Opr index, LIR_Address::Scale scale, BasicType type) {
@@ -288,7 +199,6 @@ LIR_Address* LIRGenerator::generate_address(LIR_Opr base, LIR_Opr index,
     index = LIR_OprFact::illegalOpr;
   }
 
-#ifndef AARCH64
   if (base->type() == T_LONG) {
     LIR_Opr tmp = new_register(T_INT);
     __ convert(Bytecodes::_l2i, base, tmp);
@@ -302,26 +212,11 @@ LIR_Address* LIRGenerator::generate_address(LIR_Opr base, LIR_Opr index,
   // At this point base and index should be all ints and not constants
   assert(base->is_single_cpu() && !base->is_constant(), "base should be an non-constant int");
   assert(index->is_illegal() || (index->type() == T_INT && !index->is_constant()), "index should be an non-constant int");
-#endif
 
   int max_disp;
   bool disp_is_in_range;
   bool embedded_shift;
 
-#ifdef AARCH64
-  int align = exact_log2(type2aelembytes(type, true));
-  assert((disp & right_n_bits(align)) == 0, "displacement is not aligned");
-  assert(shift == 0 || shift == align, "shift should be zero or equal to embedded align");
-  max_disp = (1 << 12) << align;
-
-  if (disp >= 0) {
-    disp_is_in_range = Assembler::is_unsigned_imm_in_range(disp, 12, align);
-  } else {
-    disp_is_in_range = Assembler::is_imm_in_range(disp, 9, 0);
-  }
-
-  embedded_shift = true;
-#else
   switch (type) {
     case T_BYTE:
     case T_SHORT:
@@ -344,7 +239,6 @@ LIR_Address* LIRGenerator::generate_address(LIR_Opr base, LIR_Opr index,
   }
 
   disp_is_in_range = (-max_disp < disp && disp < max_disp);
-#endif // !AARCH64
 
   if (index->is_register()) {
     LIR_Opr tmp = new_pointer_register();
@@ -391,14 +285,10 @@ LIR_Address* LIRGenerator::emit_array_address(LIR_Opr array_opr, LIR_Opr index_o
 }
 
 
-LIR_Opr LIRGenerator::load_immediate(int x, BasicType type) {
+LIR_Opr LIRGenerator::load_immediate(jlong x, BasicType type) {
   assert(type == T_LONG || type == T_INT, "should be");
   LIR_Opr r = make_constant(type, x);
-#ifdef AARCH64
-  bool imm_in_range = Assembler::LogicalImmediate(x, type == T_INT).is_encoded();
-#else
-  bool imm_in_range = AsmOperand::is_rotated_imm(x);
-#endif // AARCH64
+  bool imm_in_range = AsmOperand::is_rotated_imm((unsigned int)(x));
   if (!imm_in_range) {
     LIR_Opr tmp = new_register(type);
     __ move(r, tmp);
@@ -436,20 +326,15 @@ void LIRGenerator::cmp_reg_mem(LIR_Condition condition, LIR_Opr reg, LIR_Opr bas
 }
 
 
-bool LIRGenerator::strength_reduce_multiply(LIR_Opr left, int c, LIR_Opr result, LIR_Opr tmp) {
+bool LIRGenerator::strength_reduce_multiply(LIR_Opr left, jint c, LIR_Opr result, LIR_Opr tmp) {
   assert(left != result, "should be different registers");
   if (is_power_of_2(c + 1)) {
-#ifdef AARCH64
-    __ shift_left(left, log2_intptr(c + 1), result);
-    __ sub(result, left, result);
-#else
-    LIR_Address::Scale scale = (LIR_Address::Scale) log2_intptr(c + 1);
+    LIR_Address::Scale scale = (LIR_Address::Scale) log2i_exact(c + 1);
     LIR_Address* addr = new LIR_Address(left, left, scale, 0, T_INT);
     __ sub(LIR_OprFact::address(addr), left, result); // rsb with shifted register
-#endif // AARCH64
     return true;
   } else if (is_power_of_2(c - 1)) {
-    LIR_Address::Scale scale = (LIR_Address::Scale) log2_intptr(c - 1);
+    LIR_Address::Scale scale = (LIR_Address::Scale) log2i_exact(c - 1);
     LIR_Address* addr = new LIR_Address(left, left, scale, 0, T_INT);
     __ add(left, LIR_OprFact::address(addr), result); // add with shifted register
     return true;
@@ -465,12 +350,7 @@ void LIRGenerator::store_stack_parameter(LIR_Opr item, ByteSize offset_from_sp) 
 
 void LIRGenerator::set_card(LIR_Opr value, LIR_Address* card_addr) {
   assert(CardTable::dirty_card_val() == 0,
-    "Cannot use ZR register (aarch64) or the register containing the card table base address directly (aarch32) otherwise");
-#ifdef AARCH64
-  // AARCH64 has a register that is constant zero. We can use that one to set the
-  // value in the card table to dirty.
-  __ move(FrameMap::ZR_opr, card_addr);
-#else // AARCH64
+    "Cannot use the register containing the card table base address directly");
   if((ci_card_table_address_as<intx>() & 0xff) == 0) {
     // If the card table base address is aligned to 256 bytes, we can use the register
     // that contains the card_table_base_address.
@@ -481,51 +361,33 @@ void LIRGenerator::set_card(LIR_Opr value, LIR_Address* card_addr) {
     __ move(LIR_OprFact::intConst(CardTable::dirty_card_val()), tmp_zero);
     __ move(tmp_zero, card_addr);
   }
-#endif // AARCH64
 }
 
-void LIRGenerator::CardTableBarrierSet_post_barrier_helper(LIR_OprDesc* addr, LIR_Const* card_table_base) {
+void LIRGenerator::CardTableBarrierSet_post_barrier_helper(LIR_Opr addr, LIR_Const* card_table_base) {
   assert(addr->is_register(), "must be a register at this point");
-
-  CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
-  CardTable* ct = ctbs->card_table();
 
   LIR_Opr tmp = FrameMap::LR_ptr_opr;
 
-  // TODO-AARCH64: check performance
-  bool load_card_table_base_const = AARCH64_ONLY(false) NOT_AARCH64(VM_Version::supports_movw());
+  bool load_card_table_base_const = VM_Version::supports_movw();
   if (load_card_table_base_const) {
     __ move((LIR_Opr)card_table_base, tmp);
   } else {
     __ move(new LIR_Address(FrameMap::Rthread_opr, in_bytes(JavaThread::card_table_base_offset()), T_ADDRESS), tmp);
   }
 
-#ifdef AARCH64
-  LIR_Address* shifted_reg_operand = new LIR_Address(tmp, addr, (LIR_Address::Scale) -CardTable::card_shift, 0, T_BYTE);
-  LIR_Opr tmp2 = tmp;
-  __ add(tmp, LIR_OprFact::address(shifted_reg_operand), tmp2); // tmp2 = tmp + (addr >> CardTable::card_shift)
-  LIR_Address* card_addr = new LIR_Address(tmp2, T_BYTE);
-#else
   // Use unsigned type T_BOOLEAN here rather than (signed) T_BYTE since signed load
   // byte instruction does not support the addressing mode we need.
-  LIR_Address* card_addr = new LIR_Address(tmp, addr, (LIR_Address::Scale) -CardTable::card_shift, 0, T_BOOLEAN);
-#endif
+  LIR_Address* card_addr = new LIR_Address(tmp, addr, (LIR_Address::Scale) -CardTable::card_shift(), 0, T_BOOLEAN);
   if (UseCondCardMark) {
-    if (ct->scanned_concurrently()) {
-      __ membar_storeload();
-    }
     LIR_Opr cur_value = new_register(T_INT);
     __ move(card_addr, cur_value);
 
     LabelObj* L_already_dirty = new LabelObj();
     __ cmp(lir_cond_equal, cur_value, LIR_OprFact::intConst(CardTable::dirty_card_val()));
-    __ branch(lir_cond_equal, T_BYTE, L_already_dirty->label());
+    __ branch(lir_cond_equal, L_already_dirty->label());
     set_card(tmp, card_addr);
     __ branch_destination(L_already_dirty->label());
   } else {
-    if (ct->scanned_concurrently()) {
-      __ membar_storestore();
-    }
     set_card(tmp, card_addr);
   }
 }
@@ -550,21 +412,13 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   LIR_Opr lock = new_pointer_register();
   LIR_Opr hdr  = new_pointer_register();
 
-  // Need a scratch register for biased locking on arm
-  LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if(UseBiasedLocking) {
-    scratch = new_pointer_register();
-  } else {
-    scratch = atomicLockOpr();
-  }
-
-  CodeEmitInfo* info_for_exception = NULL;
+  CodeEmitInfo* info_for_exception = nullptr;
   if (x->needs_null_check()) {
     info_for_exception = state_for(x);
   }
 
   CodeEmitInfo* info = state_for(x, x->state(), true);
-  monitor_enter(obj.result(), lock, hdr, scratch,
+  monitor_enter(obj.result(), lock, hdr, LIR_OprFact::illegalOpr,
                 x->monitor_no(), info_for_exception, info);
 }
 
@@ -586,15 +440,15 @@ void LIRGenerator::do_MonitorExit(MonitorExit* x) {
 // _ineg, _lneg, _fneg, _dneg
 void LIRGenerator::do_NegateOp(NegateOp* x) {
 #ifdef __SOFTFP__
-  address runtime_func = NULL;
+  address runtime_func = nullptr;
   ValueTag tag = x->type()->tag();
   if (tag == floatTag) {
     runtime_func = CAST_FROM_FN_PTR(address, SharedRuntime::fneg);
   } else if (tag == doubleTag) {
     runtime_func = CAST_FROM_FN_PTR(address, SharedRuntime::dneg);
   }
-  if (runtime_func != NULL) {
-    set_result(x, call_runtime(x->x(), runtime_func, x->type(), NULL));
+  if (runtime_func != nullptr) {
+    set_result(x, call_runtime(x->x(), runtime_func, x->type(), nullptr));
     return;
   }
 #endif // __SOFTFP__
@@ -654,13 +508,13 @@ void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) {
       left.load_item();
       right.load_item();
       rlock_result(x);
-      arithmetic_op_fpu(x->op(), x->operand(), left.result(), right.result(), x->is_strictfp());
+      arithmetic_op_fpu(x->op(), x->operand(), left.result(), right.result());
       return;
     }
 #endif // __SOFTFP__
   }
 
-  LIR_Opr result = call_runtime(x->x(), x->y(), runtime_func, x->type(), NULL);
+  LIR_Opr result = call_runtime(x->x(), x->y(), runtime_func, x->type(), nullptr);
   set_result(x, result);
 }
 
@@ -668,73 +522,17 @@ void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) {
 void LIRGenerator::make_div_by_zero_check(LIR_Opr right_arg, BasicType type, CodeEmitInfo* info) {
   assert(right_arg->is_register(), "must be");
   __ cmp(lir_cond_equal, right_arg, make_constant(type, 0));
-  __ branch(lir_cond_equal, type, new DivByZeroStub(info));
+  __ branch(lir_cond_equal, new DivByZeroStub(info));
 }
 
 
 // for  _ladd, _lmul, _lsub, _ldiv, _lrem
 void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) {
-  CodeEmitInfo* info = NULL;
+  CodeEmitInfo* info = nullptr;
   if (x->op() == Bytecodes::_ldiv || x->op() == Bytecodes::_lrem) {
     info = state_for(x);
   }
 
-#ifdef AARCH64
-  LIRItem left(x->x(), this);
-  LIRItem right(x->y(), this);
-  LIRItem* left_arg = &left;
-  LIRItem* right_arg = &right;
-
-  // Test if instr is commutative and if we should swap
-  if (x->is_commutative() && left.is_constant()) {
-    left_arg = &right;
-    right_arg = &left;
-  }
-
-  left_arg->load_item();
-  switch (x->op()) {
-    case Bytecodes::_ldiv:
-      right_arg->load_item();
-      make_div_by_zero_check(right_arg->result(), T_LONG, info);
-      __ idiv(left_arg->result(), right_arg->result(), rlock_result(x), LIR_OprFact::illegalOpr, NULL);
-      break;
-
-    case Bytecodes::_lrem: {
-      right_arg->load_item();
-      make_div_by_zero_check(right_arg->result(), T_LONG, info);
-      // a % b is implemented with 2 instructions:
-      // tmp = a/b       (sdiv)
-      // res = a - b*tmp (msub)
-      LIR_Opr tmp = FrameMap::as_long_opr(Rtemp);
-      __ irem(left_arg->result(), right_arg->result(), rlock_result(x), tmp, NULL);
-      break;
-    }
-
-    case Bytecodes::_lmul:
-      if (right_arg->is_constant() && is_power_of_2_long(right_arg->get_jlong_constant())) {
-        right_arg->dont_load_item();
-        __ shift_left(left_arg->result(), exact_log2_long(right_arg->get_jlong_constant()), rlock_result(x));
-      } else {
-        right_arg->load_item();
-        __ mul(left_arg->result(), right_arg->result(), rlock_result(x));
-      }
-      break;
-
-    case Bytecodes::_ladd:
-    case Bytecodes::_lsub:
-      if (right_arg->is_constant()) {
-        jlong c = right_arg->get_jlong_constant();
-        add_constant(left_arg->result(), (x->op() == Bytecodes::_ladd) ? c : -c, rlock_result(x));
-      } else {
-        right_arg->load_item();
-        arithmetic_op_long(x->op(), rlock_result(x), left_arg->result(), right_arg->result(), NULL);
-      }
-      break;
-
-    default:
-      ShouldNotReachHere();
-  }
-#else
   switch (x->op()) {
     case Bytecodes::_ldiv:
     case Bytecodes::_lrem: {
@@ -757,8 +555,9 @@ void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) {
         break;
       default:
         ShouldNotReachHere();
+        return;
       }
-      LIR_Opr result = call_runtime(x->y(), x->x(), entry, x->type(), NULL);
+      LIR_Opr result = call_runtime(x->y(), x->x(), entry, x->type(), nullptr);
       set_result(x, result);
       break;
     }
@@ -769,13 +568,12 @@ void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) {
       left.load_item();
       right.load_item();
       rlock_result(x);
-      arithmetic_op_long(x->op(), x->operand(), left.result(), right.result(), NULL);
+      arithmetic_op_long(x->op(), x->operand(), left.result(), right.result(), nullptr);
       break;
     }
     default:
       ShouldNotReachHere();
   }
-#endif // AARCH64
 }
 
 
@@ -802,20 +600,6 @@ void LIRGenerator::do_ArithmeticOp_Int(ArithmeticOp* x) {
       LIR_Opr result = rlock_result(x);
       __ idiv(left_arg->result(), right_arg->result(), result, tmp, info);
     } else {
-#ifdef AARCH64
-      left_arg->load_item();
-      right_arg->load_item();
-      make_div_by_zero_check(right_arg->result(), T_INT, info);
-      if (x->op() == Bytecodes::_idiv) {
-        __ idiv(left_arg->result(), right_arg->result(), rlock_result(x), LIR_OprFact::illegalOpr, NULL);
-      } else {
-        // a % b is implemented with 2 instructions:
-        // tmp = a/b       (sdiv)
-        // res = a - b*tmp (msub)
-        LIR_Opr tmp = FrameMap::as_opr(Rtemp);
-        __ irem(left_arg->result(), right_arg->result(), rlock_result(x), tmp, NULL);
-      }
-#else
       left_arg->load_item_force(FrameMap::R0_opr);
       right_arg->load_item_force(FrameMap::R2_opr);
       LIR_Opr tmp = FrameMap::R1_opr;
@@ -824,21 +608,13 @@ void LIRGenerator::do_ArithmeticOp_Int(ArithmeticOp* x) {
       if (x->op() == Bytecodes::_irem) {
         out_reg = FrameMap::R0_opr;
         __ irem(left_arg->result(), right_arg->result(), out_reg, tmp, info);
-      } else if (x->op() == Bytecodes::_idiv) {
+      } else { // (x->op() == Bytecodes::_idiv)
         out_reg = FrameMap::R1_opr;
         __ idiv(left_arg->result(), right_arg->result(), out_reg, tmp, info);
       }
       __ move(out_reg, result);
-#endif // AARCH64
     }
 
-#ifdef AARCH64
-  } else if (((x->op() == Bytecodes::_iadd) || (x->op() == Bytecodes::_isub)) && right_arg->is_constant()) {
-    left_arg->load_item();
-    jint c = right_arg->get_jint_constant();
-    right_arg->dont_load_item();
-    add_constant(left_arg->result(), (x->op() == Bytecodes::_iadd) ? c : -c, rlock_result(x));
-#endif // AARCH64
 
   } else {
     left_arg->load_item();
@@ -850,12 +626,11 @@ void LIRGenerator::do_ArithmeticOp_Int(ArithmeticOp* x) {
         right_arg->load_item();
       }
     } else {
-      AARCH64_ONLY(assert(!right_arg->is_constant(), "constant right_arg is already handled by this moment");)
       right_arg->load_nonconstant();
     }
     rlock_result(x);
     assert(right_arg->is_constant() || right_arg->is_register(), "wrong state of right");
-    arithmetic_op_int(x->op(), x->operand(), left_arg->result(), right_arg->result(), NULL);
+    arithmetic_op_int(x->op(), x->operand(), left_arg->result(), right_arg->result(), LIR_OprFact::nullOpr);
   }
 }
 
@@ -868,8 +643,8 @@ void LIRGenerator::do_ArithmeticOp(ArithmeticOp* x) {
     case doubleTag:  do_ArithmeticOp_FPU(x);  return;
     case longTag:    do_ArithmeticOp_Long(x); return;
     case intTag:     do_ArithmeticOp_Int(x);  return;
+    default:         ShouldNotReachHere();    return;
   }
-  ShouldNotReachHere();
 }
 
 
@@ -878,14 +653,12 @@ void LIRGenerator::do_ShiftOp(ShiftOp* x) {
   LIRItem value(x->x(), this);
   LIRItem count(x->y(), this);
 
-#ifndef AARCH64
   if (value.type()->is_long()) {
     count.set_destroys_register();
   }
-#endif // !AARCH64
 
   if (count.is_constant()) {
-    assert(count.type()->as_IntConstant() != NULL, "should be");
+    assert(count.type()->as_IntConstant() != nullptr, "should be");
     count.dont_load_item();
   } else {
     count.load_item();
@@ -904,15 +677,7 @@ void LIRGenerator::do_LogicOp(LogicOp* x) {
 
   left.load_item();
 
-#ifdef AARCH64
-  if (right.is_constant() && can_inline_as_constant_in_logic(right.value())) {
-    right.dont_load_item();
-  } else {
-    right.load_item();
-  }
-#else
   right.load_nonconstant();
-#endif // AARCH64
 
   logic_op(x->op(), rlock_result(x), left.result(), right.result());
 }
@@ -947,22 +712,14 @@ void LIRGenerator::do_CompareOp(CompareOp* x) {
     default:
       ShouldNotReachHere();
   }
-  LIR_Opr result = call_runtime(x->x(), x->y(), runtime_func, x->type(), NULL);
+  LIR_Opr result = call_runtime(x->x(), x->y(), runtime_func, x->type(), nullptr);
   set_result(x, result);
 #else // __SOFTFP__
   LIRItem left(x->x(), this);
   LIRItem right(x->y(), this);
   left.load_item();
 
-#ifdef AARCH64
-  if (right.is_constant() && can_inline_as_constant_in_cmp(right.value())) {
-    right.dont_load_item();
-  } else {
-    right.load_item();
-  }
-#else
   right.load_nonconstant();
-#endif // AARCH64
 
   LIR_Opr reg = rlock_result(x);
 
@@ -985,19 +742,11 @@ LIR_Opr LIRGenerator::atomic_cmpxchg(BasicType type, LIR_Opr addr, LIRItem& cmp_
   cmp_value.load_item();
   LIR_Opr result = new_register(T_INT);
   if (type == T_OBJECT || type == T_ARRAY) {
-#ifdef AARCH64
-    if (UseCompressedOops) {
-      tmp1 = new_pointer_register();
-      tmp2 = new_pointer_register();
-    }
-#endif
     __ cas_obj(addr, cmp_value.result(), new_value.result(), new_register(T_INT), new_register(T_INT), result);
   } else if (type == T_INT) {
     __ cas_int(addr->as_address_ptr()->base(), cmp_value.result(), new_value.result(), tmp1, tmp1, result);
   } else if (type == T_LONG) {
-#ifndef AARCH64
     tmp1 = new_register(T_LONG);
-#endif // !AARCH64
     __ cas_long(addr->as_address_ptr()->base(), cmp_value.result(), new_value.result(), tmp1, tmp2, result);
   } else {
     ShouldNotReachHere();
@@ -1009,7 +758,7 @@ LIR_Opr LIRGenerator::atomic_xchg(BasicType type, LIR_Opr addr, LIRItem& value) 
   bool is_oop = type == T_OBJECT || type == T_ARRAY;
   LIR_Opr result = new_register(type);
   value.load_item();
-  assert(type == T_INT || is_oop LP64_ONLY( || type == T_LONG ), "unexpected type");
+  assert(type == T_INT || is_oop || (type == T_LONG && VM_Version::supports_ldrexd()), "unexpected type");
   LIR_Opr tmp = (UseCompressedOops && is_oop) ? new_pointer_register() : LIR_OprFact::illegalOpr;
   __ xchg(addr, value.result(), result, tmp);
   return result;
@@ -1018,7 +767,7 @@ LIR_Opr LIRGenerator::atomic_xchg(BasicType type, LIR_Opr addr, LIRItem& value) 
 LIR_Opr LIRGenerator::atomic_add(BasicType type, LIR_Opr addr, LIRItem& value) {
   LIR_Opr result = new_register(type);
   value.load_item();
-  assert(type == T_INT LP64_ONLY( || type == T_LONG), "unexpected type");
+  assert(type == T_INT || (type == T_LONG && VM_Version::supports_ldrexd ()), "unexpected type");
   LIR_Opr tmp = new_register(type);
   __ xadd(addr, value.result(), result, tmp);
   return result;
@@ -1039,7 +788,8 @@ void LIRGenerator::do_MathIntrinsic(Intrinsic* x) {
       return;
 #endif // __SOFTFP__
     }
-    case vmIntrinsics::_dsqrt: {
+    case vmIntrinsics::_dsqrt:
+    case vmIntrinsics::_dsqrt_strict: {
 #ifdef __SOFTFP__
       runtime_func = CAST_FROM_FN_PTR(address, SharedRuntime::dsqrt);
       break;
@@ -1079,10 +829,10 @@ void LIRGenerator::do_MathIntrinsic(Intrinsic* x) {
 
   LIR_Opr result;
   if (x->number_of_arguments() == 1) {
-    result = call_runtime(x->argument_at(0), runtime_func, x->type(), NULL);
+    result = call_runtime(x->argument_at(0), runtime_func, x->type(), nullptr);
   } else {
     assert(x->number_of_arguments() == 2 && x->id() == vmIntrinsics::_dpow, "unexpected intrinsic");
-    result = call_runtime(x->argument_at(0), x->argument_at(1), runtime_func, x->type(), NULL);
+    result = call_runtime(x->argument_at(0), x->argument_at(1), runtime_func, x->type(), nullptr);
   }
   set_result(x, result);
 }
@@ -1133,7 +883,6 @@ void LIRGenerator::do_update_CRC32C(Intrinsic* x) {
 void LIRGenerator::do_Convert(Convert* x) {
   address runtime_func;
   switch (x->op()) {
-#ifndef AARCH64
     case Bytecodes::_l2f:
       runtime_func = CAST_FROM_FN_PTR(address, SharedRuntime::l2f);
       break;
@@ -1168,17 +917,16 @@ void LIRGenerator::do_Convert(Convert* x) {
       runtime_func = CAST_FROM_FN_PTR(address, SharedRuntime::d2i);
       break;
 #endif // __SOFTFP__
-#endif // !AARCH64
     default: {
       LIRItem value(x->value(), this);
       value.load_item();
       LIR_Opr reg = rlock_result(x);
-      __ convert(x->op(), value.result(), reg, NULL);
+      __ convert(x->op(), value.result(), reg, nullptr);
       return;
     }
   }
 
-  LIR_Opr result = call_runtime(x->value(), runtime_func, x->type(), NULL);
+  LIR_Opr result = call_runtime(x->value(), runtime_func, x->type(), nullptr);
   set_result(x, result);
 }
 
@@ -1238,7 +986,7 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
   length.load_item_force(FrameMap::R2_opr);           // R2 is required by runtime call in NewObjectArrayStub::emit_code
   LIR_Opr len = length.result();
 
-  CodeEmitInfo* patching_info = NULL;
+  CodeEmitInfo* patching_info = nullptr;
   if (!x->klass()->is_loaded() || PatchALot) {
     patching_info = state_for(x, x->state_before());
   }
@@ -1267,14 +1015,14 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
 void LIRGenerator::do_NewMultiArray(NewMultiArray* x) {
   Values* dims = x->dims();
   int i = dims->length();
-  LIRItemList* items = new LIRItemList(i, i, NULL);
+  LIRItemList* items = new LIRItemList(i, i, nullptr);
   while (i-- > 0) {
     LIRItem* size = new LIRItem(dims->at(i), this);
     items->at_put(i, size);
   }
 
   // Need to get the info before, as the items may become invalid through item_free
-  CodeEmitInfo* patching_info = NULL;
+  CodeEmitInfo* patching_info = nullptr;
   if (!x->klass()->is_loaded() || PatchALot) {
     patching_info = state_for(x, x->state_before());
 
@@ -1306,7 +1054,7 @@ void LIRGenerator::do_NewMultiArray(NewMultiArray* x) {
   args->append(rank);
   args->append(varargs);
   LIR_Opr reg = result_register_for(x->type());
-  __ call_runtime(Runtime1::entry_for(Runtime1::new_multi_array_id),
+  __ call_runtime(Runtime1::entry_for(C1StubId::new_multi_array_id),
                   LIR_OprFact::illegalOpr, reg, args, info);
 
   LIR_Opr result = rlock_result(x);
@@ -1321,7 +1069,7 @@ void LIRGenerator::do_BlockBegin(BlockBegin* x) {
 
 void LIRGenerator::do_CheckCast(CheckCast* x) {
   LIRItem obj(x->obj(), this);
-  CodeEmitInfo* patching_info = NULL;
+  CodeEmitInfo* patching_info = nullptr;
   if (!x->klass()->is_loaded() || (PatchALot && !x->is_incompatible_class_change_check() && !x->is_invokespecial_receiver_check())) {
     patching_info = state_for(x, x->state_before());
   }
@@ -1334,16 +1082,16 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
 
   CodeStub* stub;
   if (x->is_incompatible_class_change_check()) {
-    assert(patching_info == NULL, "can't patch this");
-    stub = new SimpleExceptionStub(Runtime1::throw_incompatible_class_change_error_id,
+    assert(patching_info == nullptr, "can't patch this");
+    stub = new SimpleExceptionStub(C1StubId::throw_incompatible_class_change_error_id,
                                    LIR_OprFact::illegalOpr, info_for_exception);
   } else if (x->is_invokespecial_receiver_check()) {
-    assert(patching_info == NULL, "can't patch this");
+    assert(patching_info == nullptr, "can't patch this");
     stub = new DeoptimizeStub(info_for_exception,
                               Deoptimization::Reason_class_check,
                               Deoptimization::Action_none);
   } else {
-    stub = new SimpleExceptionStub(Runtime1::throw_class_cast_exception_id,
+    stub = new SimpleExceptionStub(C1StubId::throw_class_cast_exception_id,
                                    LIR_OprFact::illegalOpr, info_for_exception);
   }
 
@@ -1359,7 +1107,7 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
 
 void LIRGenerator::do_InstanceOf(InstanceOf* x) {
   LIRItem obj(x->obj(), this);
-  CodeEmitInfo* patching_info = NULL;
+  CodeEmitInfo* patching_info = nullptr;
   if (!x->klass()->is_loaded() || PatchALot) {
     patching_info = state_for(x, x->state_before());
   }
@@ -1457,13 +1205,13 @@ void LIRGenerator::do_soft_float_compare(If* x) {
     __ safepoint(LIR_OprFact::illegalOpr, state_for(x, x->state_before()));
   }
   // Call float compare function, returns (1,0) if true or false.
-  LIR_Opr result = call_runtime(x->x(), x->y(), runtime_func, intType, NULL);
+  LIR_Opr result = call_runtime(x->x(), x->y(), runtime_func, intType, nullptr);
   __ cmp(lir_cond_equal, result,
          compare_to_zero ?
            LIR_OprFact::intConst(0) : LIR_OprFact::intConst(1));
   profile_branch(x, cond);
   move_to_phi(x->state());
-  __ branch(lir_cond_equal, T_INT, x->tsux());
+  __ branch(lir_cond_equal, x->tsux());
 }
 #endif // __SOFTFP__
 
@@ -1486,7 +1234,6 @@ void LIRGenerator::do_If(If* x) {
   LIRItem* yin = &yitem;
   If::Condition cond = x->cond();
 
-#ifndef AARCH64
   if (tag == longTag) {
     if (cond == If::gtr || cond == If::leq) {
       cond = Instruction::mirror(cond);
@@ -1495,20 +1242,11 @@ void LIRGenerator::do_If(If* x) {
     }
     xin->set_destroys_register();
   }
-#endif // !AARCH64
 
   xin->load_item();
   LIR_Opr left = xin->result();
   LIR_Opr right;
 
-#ifdef AARCH64
-  if (yin->is_constant() && can_inline_as_constant_in_cmp(yin->value())) {
-    yin->dont_load_item();
-  } else {
-    yin->load_item();
-  }
-  right = yin->result();
-#else
   if (tag == longTag && yin->is_constant() && yin->get_jlong_constant() == 0 &&
       (cond == If::eql || cond == If::neq)) {
     // inline long zero
@@ -1517,7 +1255,6 @@ void LIRGenerator::do_If(If* x) {
     yin->load_nonconstant();
     right = yin->result();
   }
-#endif // AARCH64
 
   set_no_result(x);
 
@@ -1532,9 +1269,9 @@ void LIRGenerator::do_If(If* x) {
   profile_branch(x, cond);
   move_to_phi(x->state());
   if (x->x()->type()->is_float_kind()) {
-    __ branch(lir_cond(cond), right->type(), x->tsux(), x->usux());
+    __ branch(lir_cond(cond), x->tsux(), x->usux());
   } else {
-    __ branch(lir_cond(cond), right->type(), x->tsux());
+    __ branch(lir_cond(cond), x->tsux());
   }
   assert(x->default_sux() == x->fsux(), "wrong destination above");
   __ jump(x->default_sux());
@@ -1556,30 +1293,38 @@ void LIRGenerator::trace_block_entry(BlockBegin* block) {
 
 void LIRGenerator::volatile_field_store(LIR_Opr value, LIR_Address* address,
                                         CodeEmitInfo* info) {
-#ifndef AARCH64
   if (value->is_double_cpu()) {
     assert(address->index()->is_illegal(), "should have a constant displacement");
-    LIR_Opr tmp = new_pointer_register();
-    add_large_constant(address->base(), address->disp(), tmp);
-    __ volatile_store_mem_reg(value, new LIR_Address(tmp, (intx)0, address->type()), info);
+    LIR_Address* store_addr = nullptr;
+    if (address->disp() != 0) {
+      LIR_Opr tmp = new_pointer_register();
+      add_large_constant(address->base(), address->disp(), tmp);
+      store_addr = new LIR_Address(tmp, (intx)0, address->type());
+    } else {
+      // address->disp() can be 0, if the address is referenced using the unsafe intrinsic
+      store_addr = address;
+    }
+    __ volatile_store_mem_reg(value, store_addr, info);
     return;
   }
-#endif // !AARCH64
-  // TODO-AARCH64 implement with stlr instruction
   __ store(value, address, info, lir_patch_none);
 }
 
 void LIRGenerator::volatile_field_load(LIR_Address* address, LIR_Opr result,
                                        CodeEmitInfo* info) {
-#ifndef AARCH64
   if (result->is_double_cpu()) {
     assert(address->index()->is_illegal(), "should have a constant displacement");
-    LIR_Opr tmp = new_pointer_register();
-    add_large_constant(address->base(), address->disp(), tmp);
-    __ volatile_load_mem_reg(new LIR_Address(tmp, (intx)0, address->type()), result, info);
+    LIR_Address* load_addr = nullptr;
+    if (address->disp() != 0) {
+      LIR_Opr tmp = new_pointer_register();
+      add_large_constant(address->base(), address->disp(), tmp);
+      load_addr = new LIR_Address(tmp, (intx)0, address->type());
+    } else {
+      // address->disp() can be 0, if the address is referenced using the unsafe intrinsic
+      load_addr = address;
+    }
+    __ volatile_load_mem_reg(load_addr, result, info);
     return;
   }
-#endif // !AARCH64
-  // TODO-AARCH64 implement with ldar instruction
   __ load(address, result, info, lir_patch_none);
 }

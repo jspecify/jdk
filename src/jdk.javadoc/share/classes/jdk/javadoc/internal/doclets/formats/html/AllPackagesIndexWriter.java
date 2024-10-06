@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,24 +22,20 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.javadoc.internal.doclets.formats.html;
 
 import javax.lang.model.element.PackageElement;
 
-import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
-import jdk.javadoc.internal.doclets.formats.html.markup.Navigation;
-import jdk.javadoc.internal.doclets.formats.html.markup.Navigation.PageMode;
-import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
-import jdk.javadoc.internal.doclets.formats.html.markup.Table;
-import jdk.javadoc.internal.doclets.formats.html.markup.TableHeader;
-import jdk.javadoc.internal.doclets.toolkit.Content;
+import jdk.javadoc.internal.doclets.formats.html.Navigation.PageMode;
+import jdk.javadoc.internal.doclets.formats.html.markup.BodyContents;
+import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyles;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException;
-import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
+import jdk.javadoc.internal.html.Content;
+import jdk.javadoc.internal.html.ContentBuilder;
+import jdk.javadoc.internal.html.HtmlTree;
+import jdk.javadoc.internal.html.Text;
 
 /**
  * Generate the file with list of all the packages in this run.
@@ -47,100 +43,53 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
 public class AllPackagesIndexWriter extends HtmlDocletWriter {
 
     /**
-     * The HTML tree for main tag.
-     */
-    protected HtmlTree mainTree = HtmlTree.MAIN();
-
-    private final Navigation navBar;
-
-    /**
      * Construct AllPackagesIndexWriter object.
      *
      * @param configuration The current configuration
-     * @param filename Path to the file which is getting generated.
      */
-    public AllPackagesIndexWriter(HtmlConfiguration configuration, DocPath filename) {
-        super(configuration, filename);
-        this.navBar = new Navigation(null, configuration, fixedNavDiv, PageMode.ALLPACKAGES, path);
-    }
-
-    /**
-     * Create AllPackagesIndexWriter object.
-     *
-     * @param configuration The current configuration
-     * @throws DocFileIOException
-     */
-    public static void generate(HtmlConfiguration configuration) throws DocFileIOException {
-        generate(configuration, DocPaths.ALLPACKAGES_INDEX);
-    }
-
-    private static void generate(HtmlConfiguration configuration, DocPath fileName) throws DocFileIOException {
-        AllPackagesIndexWriter allPkgGen = new AllPackagesIndexWriter(configuration, fileName);
-        allPkgGen.buildAllPackagesFile();
+    public AllPackagesIndexWriter(HtmlConfiguration configuration) {
+        super(configuration, DocPaths.ALLPACKAGES_INDEX);
     }
 
     /**
      * Print all the packages in the file.
      */
-    protected void buildAllPackagesFile() throws DocFileIOException {
-        String label = configuration.getText("doclet.All_Packages");
-        HtmlTree bodyTree = getBody(true, getWindowTitle(label));
-        HtmlTree htmlTree = (configuration.allowTag(HtmlTag.HEADER))
-                ? HtmlTree.HEADER()
-                : bodyTree;
-        addTop(htmlTree);
-        navBar.setUserHeader(getUserHeaderFooter(true));
-        htmlTree.addContent(navBar.getContent(true));
-        if (configuration.allowTag(HtmlTag.HEADER)) {
-            bodyTree.addContent(htmlTree);
-        }
-        HtmlTree div = new HtmlTree(HtmlTag.DIV);
-        div.setStyle(HtmlStyle.allPackagesContainer);
-        addPackages(div);
+    @Override
+    public void buildPage() throws DocFileIOException {
+        String label = resources.getText("doclet.All_Packages");
+        Content mainContent = new ContentBuilder();
+        addPackages(mainContent);
         Content titleContent = contents.allPackagesLabel;
-        Content pHeading = HtmlTree.HEADING(HtmlConstants.TITLE_HEADING, true,
-                HtmlStyle.title, titleContent);
-        Content headerDiv = HtmlTree.DIV(HtmlStyle.header, pHeading);
-        if (configuration.allowTag(HtmlTag.MAIN)) {
-            mainTree.addContent(headerDiv);
-            mainTree.addContent(div);
-            bodyTree.addContent(mainTree);
-        } else {
-            bodyTree.addContent(headerDiv);
-            bodyTree.addContent(div);
-        }
-        Content tree = (configuration.allowTag(HtmlTag.FOOTER))
-                ? HtmlTree.FOOTER()
-                : bodyTree;
-        navBar.setUserFooter(getUserHeaderFooter(false));
-        tree.addContent(navBar.getContent(false));
-        addBottom(tree);
-        if (configuration.allowTag(HtmlTag.FOOTER)) {
-            bodyTree.addContent(tree);
-        }
-        printHtmlDocument(null, true, bodyTree);
+        var pHeading = HtmlTree.HEADING_TITLE(Headings.PAGE_TITLE_HEADING,
+                HtmlStyles.title, titleContent);
+        var headerDiv = HtmlTree.DIV(HtmlStyles.header, pHeading);
+        HtmlTree body = getBody(getWindowTitle(label));
+        body.add(new BodyContents()
+                .setHeader(getHeader(PageMode.ALL_PACKAGES))
+                .addMainContent(headerDiv)
+                .addMainContent(mainContent)
+                .setFooter(getFooter()));
+        printHtmlDocument(null, "package index", body);
     }
 
     /**
-     * Add all the packages to the content tree.
+     * Add all the packages to the content.
      *
-     * @param content HtmlTree content to which the links will be added
+     * @param target the content to which the links will be added
      */
-    protected void addPackages(Content content) {
-        Table table = new Table(configuration.htmlVersion, HtmlStyle.packagesSummary)
-                .setSummary(resources.packageTableSummary)
-                .setCaption(getTableCaption(new StringContent(resources.packageSummary)))
+    protected void addPackages(Content target) {
+        var table = new Table<PackageElement>(HtmlStyles.summaryTable)
+                .setCaption(Text.of(contents.packageSummaryLabel.toString()))
                 .setHeader(new TableHeader(contents.packageLabel, contents.descriptionLabel))
-                .setColumnStyles(HtmlStyle.colFirst, HtmlStyle.colLast);
+                .setColumnStyles(HtmlStyles.colFirst, HtmlStyles.colLast);
         for (PackageElement pkg : configuration.packages) {
-            if (!(configuration.nodeprecated && utils.isDeprecated(pkg))) {
-                Content packageLinkContent = getPackageLink(pkg, getPackageName(pkg));
+            if (!(options.noDeprecated() && utils.isDeprecated(pkg))) {
+                Content packageLinkContent = getPackageLink(pkg, getLocalizedPackageName(pkg));
                 Content summaryContent = new ContentBuilder();
                 addSummaryComment(pkg, summaryContent);
                 table.addRow(pkg, packageLinkContent, summaryContent);
             }
         }
-        HtmlTree li = HtmlTree.LI(HtmlStyle.blockList, table.toContent());
-        content.addContent(HtmlTree.UL(HtmlStyle.blockList, li));
+        target.add(table);
     }
 }

@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -45,11 +43,7 @@ import sun.security.provider.certpath.ResponderId;
 import sun.security.provider.certpath.CertId;
 import sun.security.provider.certpath.OCSPResponse;
 import sun.security.provider.certpath.OCSPResponse.ResponseStatus;
-import sun.security.util.Debug;
-import sun.security.util.DerInputStream;
-import sun.security.util.DerOutputStream;
-import sun.security.util.DerValue;
-import sun.security.util.ObjectIdentifier;
+import sun.security.util.*;
 
 
 /**
@@ -59,8 +53,8 @@ import sun.security.util.ObjectIdentifier;
 public class SimpleOCSPServer {
     private final Debug debug = Debug.getInstance("oserv");
     private static final ObjectIdentifier OCSP_BASIC_RESPONSE_OID =
-            ObjectIdentifier.newInternal(
-                    new int[] { 1, 3, 6, 1, 5, 5, 7, 48, 1, 1});
+            ObjectIdentifier.of(KnownOIDs.OCSPBasicResponse);
+
     private static final SimpleDateFormat utcDateFmt =
             new SimpleDateFormat("MMM dd yyyy, HH:mm:ss z");
 
@@ -88,10 +82,11 @@ public class SimpleOCSPServer {
     private boolean logEnabled = false;
     private ExecutorService threadPool;
     private volatile boolean started = false;
-    private volatile boolean serverReady = false;
+    private CountDownLatch serverReady = new CountDownLatch(1);
     private volatile boolean receivedShutdown = false;
     private volatile boolean acceptConnections = true;
     private volatile long delayMsec = 0;
+    private boolean omitContentLength = false;
 
     // Fields used in the generation of responses
     private long nextUpdateInterval = -1;
@@ -178,8 +173,7 @@ public class SimpleOCSPServer {
                     issuerAlias + " not found");
             }
         }
-
-        sigAlgId = AlgorithmId.get("Sha256withRSA");
+        sigAlgId = AlgorithmId.get(SignatureUtil.getDefaultSigAlgForKey(signerKey));
         respId = new ResponderId(signerCert.getSubjectX500Principal());
         listenAddress = addr;
         listenPort = port;
@@ -221,13 +215,14 @@ public class SimpleOCSPServer {
                             listenPort), 128);
                     log("Listening on " + servSocket.getLocalSocketAddress());
 
-                    // Singal ready
-                    serverReady = true;
-
                     // Update the listenPort with the new port number.  If
                     // the server is restarted, it will bind to the same
                     // port rather than picking a new one.
                     listenPort = servSocket.getLocalPort();
+
+                    // Decrement the latch, allowing any waiting entities
+                    // to proceed with their requests.
+                    serverReady.countDown();
 
                     // Main dispatch loop
                     while (!receivedShutdown) {
@@ -262,7 +257,7 @@ public class SimpleOCSPServer {
                     // Reset state variables so the server can be restarted
                     receivedShutdown = false;
                     started = false;
-                    serverReady = false;
+                    serverReady = new CountDownLatch(1);
                 }
             }
         });
@@ -291,7 +286,15 @@ public class SimpleOCSPServer {
     public synchronized void stop() {
         if (started) {
             receivedShutdown = true;
+            started = false;
             log("Received shutdown notification");
+        }
+    }
+
+    public synchronized void shutdownNow() {
+        stop();
+        if (threadPool != null) {
+            threadPool.shutdownNow();
         }
     }
 
@@ -324,12 +327,13 @@ public class SimpleOCSPServer {
      * @return the hexdump of the byte array
      */
     private static String dumpHexBytes(byte[] data) {
-        return dumpHexBytes(data, 16, "\n", " ");
+        return dumpHexBytes(data, data.length, 16, "\n", " ");
     }
 
     /**
      *
-     * @param data the array of bytes to dump to stdout.
+     * @param data the array of bytes to dump to stdout
+     * @param dataLen the length of the data to be displayed
      * @param itemsPerLine the number of bytes to display per line
      * if the {@code lineDelim} character is blank then all bytes will be
      * printed on a single line.
@@ -338,11 +342,11 @@ public class SimpleOCSPServer {
      *
      * @return The hexdump of the byte array
      */
-    private static String dumpHexBytes(byte[] data, int itemsPerLine,
-            String lineDelim, String itemDelim) {
+    private static String dumpHexBytes(byte[] data, int dataLen,
+            int itemsPerLine, String lineDelim, String itemDelim) {
         StringBuilder sb = new StringBuilder();
         if (data != null) {
-            for (int i = 0; i < data.length; i++) {
+            for (int i = 0; i < dataLen; i++) {
                 if (i % itemsPerLine == 0 && i != 0) {
                     sb.append(lineDelim);
                 }
@@ -447,7 +451,7 @@ public class SimpleOCSPServer {
     }
 
     /**
-     * Check the status database for revocation information one one or more
+     * Check the status database for revocation information on one or more
      * certificates.
      *
      * @param reqList the list of {@code LocalSingleRequest} objects taken
@@ -492,6 +496,7 @@ public class SimpleOCSPServer {
             throws NoSuchAlgorithmException {
         if (!started) {
             sigAlgId = AlgorithmId.get(algName);
+            log("Signature algorithm set to " + sigAlgId.getName());
         }
     }
 
@@ -502,7 +507,7 @@ public class SimpleOCSPServer {
      * server has not yet been bound to a port.
      */
     public int getPort() {
-        if (serverReady) {
+        if (serverReady.getCount() == 0) {
             InetSocketAddress inetSock =
                     (InetSocketAddress)servSocket.getLocalSocketAddress();
             return inetSock.getPort();
@@ -512,12 +517,21 @@ public class SimpleOCSPServer {
     }
 
     /**
-     * Use to check if OCSP server is ready to accept connection.
+     * Allow SimpleOCSPServer consumers to wait for the server to be in
+     * the ready state before sending requests.
      *
-     * @return true if server ready, false otherwise
+     * @param timeout the length of time to wait for the server to be ready
+     * @param unit the unit of time applied to the timeout parameter
+     *
+     * @return true if the server enters the ready state, false if the
+     *      timeout period elapses while the caller is waiting for the server
+     *      to become ready.
+     *
+     * @throws InterruptedException if the current thread is interrupted.
      */
-    public boolean isServerReady() {
-        return serverReady;
+    public boolean awaitServerReady(long timeout, TimeUnit unit)
+            throws InterruptedException {
+        return serverReady.await(timeout, unit);
     }
 
     /**
@@ -537,14 +551,29 @@ public class SimpleOCSPServer {
     }
 
     /**
+     * Setting to control whether HTTP responses have the Content-Length
+     * field asserted or not.
+     *
+     * @param isDisabled true if the Content-Length field should not be
+     *        asserted, false otherwise.
+     */
+    public void setDisableContentLength(boolean isDisabled) {
+        if (!started) {
+            omitContentLength = isDisabled;
+            log("Response Content-Length field " +
+                    (isDisabled ? "disabled" : "enabled"));
+        }
+    }
+
+    /**
      * Log a message to stdout.
      *
      * @param message the message to log
      */
     private synchronized void log(String message) {
         if (logEnabled || debug != null) {
-            System.out.println("[" + Thread.currentThread().getName() + "]: " +
-                    message);
+            System.out.println("[" + Thread.currentThread().getName() + "][" +
+                    System.currentTimeMillis() + "]: " + message);
         }
     }
 
@@ -554,7 +583,7 @@ public class SimpleOCSPServer {
      * @param message the message to log
      */
     private static synchronized void err(String message) {
-        System.out.println("[" + Thread.currentThread().getName() + "]: " +
+        System.err.println("[" + Thread.currentThread().getName() + "]: " +
                 message);
     }
 
@@ -673,6 +702,9 @@ public class SimpleOCSPServer {
      * responses.
      */
     private class OcspHandler implements Runnable {
+        private final boolean USE_GET =
+            !System.getProperty("com.sun.security.ocsp.useget", "").equals("false");
+
         private final Socket sock;
         InetSocketAddress peerSockAddr;
 
@@ -695,6 +727,7 @@ public class SimpleOCSPServer {
             // wait out the delay here before any other processing.
             try {
                 if (delayMsec > 0) {
+                    log("Delaying response for " + delayMsec + " milliseconds.");
                     Thread.sleep(delayMsec);
                 }
             } catch (InterruptedException ie) {
@@ -707,21 +740,25 @@ public class SimpleOCSPServer {
                     OutputStream out = ocspSocket.getOutputStream()) {
                 peerSockAddr =
                         (InetSocketAddress)ocspSocket.getRemoteSocketAddress();
-                log("Received incoming connection from " + peerSockAddr);
+
+                // Read in the first line which will be the request line.
+                // This will be tokenized so we know if we are dealing with
+                // a GET or POST.
                 String[] headerTokens = readLine(in).split(" ");
                 LocalOcspRequest ocspReq = null;
                 LocalOcspResponse ocspResp = null;
                 ResponseStatus respStat = ResponseStatus.INTERNAL_ERROR;
                 try {
                     if (headerTokens[0] != null) {
-                        switch (headerTokens[0]) {
+                        log("Received incoming HTTP " + headerTokens[0] +
+                                " from " + peerSockAddr);
+                        switch (headerTokens[0].toUpperCase()) {
                             case "POST":
-                                    ocspReq = parseHttpOcspPost(in);
+                                ocspReq = parseHttpOcspPost(in);
                                 break;
                             case "GET":
-                                // req = parseHttpOcspGet(in);
-                                // TODO implement the GET parsing
-                                throw new IOException("GET method unsupported");
+                                ocspReq = parseHttpOcspGet(headerTokens, in);
+                                break;
                             default:
                                 respStat = ResponseStatus.MALFORMED_REQUEST;
                                 throw new IOException("Not a GET or POST");
@@ -754,6 +791,9 @@ public class SimpleOCSPServer {
                     ocspResp = new LocalOcspResponse(respStat);
                 }
                 sendResponse(out, ocspResp);
+                out.flush();
+
+                log("Closing " + ocspSocket);
             } catch (IOException | CertificateException exc) {
                 err(exc);
             }
@@ -781,8 +821,11 @@ public class SimpleOCSPServer {
 
             sb.append("HTTP/1.0 200 OK\r\n");
             sb.append("Content-Type: application/ocsp-response\r\n");
-            sb.append("Content-Length: ").append(respBytes.length);
-            sb.append("\r\n\r\n");
+            if (!omitContentLength) {
+                sb.append("Content-Length: ").append(respBytes.length).
+                        append("\r\n");
+            }
+            sb.append("\r\n");
 
             out.write(sb.toString().getBytes("UTF-8"));
             out.write(respBytes);
@@ -835,12 +878,69 @@ public class SimpleOCSPServer {
             // Okay, make sure we got what we needed from the header, then
             // read the remaining OCSP Request bytes
             if (properContentType && length >= 0) {
+                if (USE_GET && length <= 255) {
+                    // Received a small POST request. Check that our client code properly
+                    // handled the relevant flag. We expect small GET requests, unless
+                    // explicitly disabled.
+                    throw new IOException("Should have received small GET, not POST.");
+                }
                 byte[] ocspBytes = new byte[length];
                 inStream.read(ocspBytes);
                 return new LocalOcspRequest(ocspBytes);
             } else {
                 return null;
             }
+        }
+
+        /**
+         * Parse the incoming HTTP GET of an OCSP Request.
+         *
+         * @param headerTokens the individual String tokens from the first
+         * line of the HTTP GET.
+         * @param inStream the input stream from the socket bound to this
+         * {@code OcspHandler}.
+         *
+         * @return the OCSP Request as a {@code LocalOcspRequest}
+         *
+         * @throws IOException if there are network related issues or problems
+         * occur during parsing of the OCSP request.
+         * @throws CertificateException if one or more of the certificates in
+         * the OCSP request cannot be read/parsed.
+         */
+        private LocalOcspRequest parseHttpOcspGet(String[] headerTokens,
+                InputStream inStream) throws IOException, CertificateException {
+            // Display the whole request
+            StringBuilder sb = new StringBuilder("OCSP GET REQUEST\n");
+            for (String hTok : headerTokens) {
+                sb.append(hTok).append("\n");
+            }
+            log(sb.toString());
+
+            // Before we process the remainder of the GET URL, we should drain
+            // the InputStream of any other header data.  We (for now) won't
+            // use it, but will display the contents if logging is enabled.
+            boolean endOfHeader = false;
+            while (!endOfHeader) {
+                String[] lineTokens = readLine(inStream).split(":", 2);
+                // We expect to see a type and value pair delimited by a colon.
+                if (lineTokens[0].isEmpty()) {
+                    endOfHeader = true;
+                } else if (lineTokens.length == 2) {
+                    log(String.format("ReqHdr: %s: %s", lineTokens[0].trim(),
+                            lineTokens[1].trim()));
+                } else {
+                    // A colon wasn't found and token 0 should be the whole line
+                    log("ReqHdr: " + lineTokens[0].trim());
+                }
+            }
+
+            // We have already established headerTokens[0] to be "GET".
+            // We should have the URL-encoded base64 representation of the
+            // OCSP request in headerTokens[1].  We need to strip any leading
+            // "/" off before decoding.
+            return new LocalOcspRequest(Base64.getMimeDecoder().decode(
+                    URLDecoder.decode(headerTokens[1].replaceAll("/", ""),
+                            "UTF-8")));
         }
 
         /**
@@ -907,6 +1007,10 @@ public class SimpleOCSPServer {
         private LocalOcspRequest(byte[] requestBytes) throws IOException,
                 CertificateException {
             Objects.requireNonNull(requestBytes, "Received null input");
+
+            // Display the DER encoding before parsing
+            log("Local OCSP Request Constructor, parsing bytes:\n" +
+                    dumpHexBytes(requestBytes));
 
             DerInputStream dis = new DerInputStream(requestBytes);
 
@@ -1154,10 +1258,14 @@ public class SimpleOCSPServer {
                 sb.append("CertId, Algorithm = ");
                 sb.append(cid.getHashAlgorithm()).append("\n");
                 sb.append("\tIssuer Name Hash: ");
-                sb.append(dumpHexBytes(cid.getIssuerNameHash(), 256, "", ""));
+                byte[] cidHashBuf = cid.getIssuerNameHash();
+                sb.append(dumpHexBytes(cidHashBuf, cidHashBuf.length,
+                        256, "", ""));
                 sb.append("\n");
                 sb.append("\tIssuer Key Hash: ");
-                sb.append(dumpHexBytes(cid.getIssuerKeyHash(), 256, "", ""));
+                cidHashBuf = cid.getIssuerKeyHash();
+                sb.append(dumpHexBytes(cidHashBuf, cidHashBuf.length,
+                        256, "", ""));
                 sb.append("\n");
                 sb.append("\tSerial Number: ").append(cid.getSerialNumber());
                 if (!extensions.isEmpty()) {
@@ -1328,13 +1436,14 @@ public class SimpleOCSPServer {
             basicORItemStream.write(tbsResponseBytes);
 
             try {
-                sigAlgId.derEncode(basicORItemStream);
-
                 // Create the signature
-                Signature sig = Signature.getInstance(sigAlgId.getName());
-                sig.initSign(signerKey);
+                Signature sig = SignatureUtil.fromKey(
+                        sigAlgId.getName(), signerKey, (Provider)null);
                 sig.update(tbsResponseBytes);
                 signature = sig.sign();
+                // Rewrite signAlg, RSASSA-PSS needs some parameters.
+                sigAlgId = SignatureUtil.fromSignature(sig, signerKey);
+                sigAlgId.encode(basicORItemStream);
                 basicORItemStream.putBitString(signature);
             } catch (GeneralSecurityException exc) {
                 err(exc);
@@ -1496,10 +1605,14 @@ public class SimpleOCSPServer {
                 sb.append("CertId, Algorithm = ");
                 sb.append(certId.getHashAlgorithm()).append("\n");
                 sb.append("\tIssuer Name Hash: ");
-                sb.append(dumpHexBytes(certId.getIssuerNameHash(), 256, "", ""));
+                byte[] cidHashBuf = certId.getIssuerNameHash();
+                sb.append(dumpHexBytes(cidHashBuf, cidHashBuf.length,
+                        256, "", ""));
                 sb.append("\n");
                 sb.append("\tIssuer Key Hash: ");
-                sb.append(dumpHexBytes(certId.getIssuerKeyHash(), 256, "", ""));
+                cidHashBuf = certId.getIssuerKeyHash();
+                sb.append(dumpHexBytes(cidHashBuf, cidHashBuf.length,
+                        256, "", ""));
                 sb.append("\n");
                 sb.append("\tSerial Number: ").append(certId.getSerialNumber());
                 sb.append("\n");

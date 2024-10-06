@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,20 +26,30 @@
   @key headful
   @bug       6314575
   @summary   Tests that previosly focused owned window doesn't steal focus when an owner's component requests focus.
-  @author    Anton.Tarasov: area=awt.focus
-  @library   ../../regtesthelpers
-  @build     Util
+  @library /java/awt/regtesthelpers /test/lib
+  @build   Util jdk.test.lib.Platform
   @run       main ActualFocusedWindowBlockingTest
 */
 
-import java.awt.*;
-import java.awt.event.*;
-import java.applet.Applet;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.lang.reflect.InvocationTargetException;
+import java.awt.AWTEvent;
+import java.awt.Button;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.EventQueue;
+import java.awt.FlowLayout;
+import java.awt.Frame;
+import java.awt.KeyboardFocusManager;
+import java.awt.Robot;
+import java.awt.Toolkit;
+import java.awt.Window;
+import java.awt.event.AWTEventListener;
+import java.awt.event.FocusEvent;
+import java.awt.event.WindowEvent;
+
+import jdk.test.lib.Platform;
 import test.java.awt.regtesthelpers.Util;
 
-public class ActualFocusedWindowBlockingTest extends Applet {
+public class ActualFocusedWindowBlockingTest {
     Robot robot = Util.createRobot();
     Frame owner = new Frame("Owner Frame");
     Window win = new Window(owner);
@@ -48,7 +58,7 @@ public class ActualFocusedWindowBlockingTest extends Applet {
     Button wButton = new Button("window button") {public String toString() {return "Window_Button";}};
     Button aButton = new Button("auxiliary button") {public String toString() {return "Auxiliary_Button";}};
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         ActualFocusedWindowBlockingTest app = new ActualFocusedWindowBlockingTest();
         app.init();
         app.start();
@@ -72,12 +82,7 @@ public class ActualFocusedWindowBlockingTest extends Applet {
         tuneAndShowWindows(new Window[] {owner, win, frame});
     }
 
-    public void start() {
-        if ("sun.awt.motif.MToolkit".equals(Toolkit.getDefaultToolkit().getClass().getName())) {
-            System.out.println("No testing on Motif. Test passed.");
-            return;
-        }
-
+    public void start() throws Exception {
         System.out.println("\nTest started:\n");
 
         // Test 1.
@@ -108,7 +113,12 @@ public class ActualFocusedWindowBlockingTest extends Applet {
         clickOnCheckFocus(fButton);
         clickOnCheckFocus(aButton);
 
-        Util.clickOnTitle(owner, robot);
+        EventQueue.invokeAndWait(owner::toFront);
+
+        if (!Platform.isOnWayland()) {
+            Util.clickOnTitle(owner, robot);
+        }
+
         if (!testFocused(fButton)) {
             throw new TestFailedException("The owner's component [" + fButton + "] couldn't be focused as the most recent focus owner");
         }
@@ -126,11 +136,15 @@ public class ActualFocusedWindowBlockingTest extends Applet {
             y += 200;
             Util.waitForIdle(robot);
         }
+        robot.delay(500);
     }
 
-    void clickOnCheckFocus(Component c) {
+    void clickOnCheckFocus(Component c) throws Exception {
         if (c instanceof Frame) {
-            Util.clickOnTitle((Frame)c, robot);
+            EventQueue.invokeAndWait(() -> ((Frame) c).toFront());
+            if (!Platform.isOnWayland()) {
+                Util.clickOnTitle((Frame) c, robot);
+            }
         } else {
             Util.clickOnComp(c, robot);
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,37 +25,38 @@
  * @test
  * @bug 6851834
  * @summary This test verifies the HTML document generation for javadoc output.
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.doclets.formats.html.markup
  *          jdk.javadoc/jdk.javadoc.internal.doclets.toolkit.util
+ *          jdk.javadoc/jdk.javadoc.internal.html
  *          jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
- * @author Bhavesh Patel
+ * @build javadoc.tester.*
  * @run main TestHtmlDocument
  */
 
 
 import jdk.javadoc.internal.doclets.formats.html.markup.*;
-
-import static jdk.javadoc.internal.doclets.toolkit.util.DocletConstants.NL;
+import jdk.javadoc.internal.html.*;
 
 /**
  * The class reads each file, complete with newlines, into a string to easily
  * compare the existing markup with the generated markup.
  */
+import javadoc.tester.JavadocTester;
+
 public class TestHtmlDocument extends JavadocTester {
 
     // Entry point
     public static void main(String... args) throws Exception {
-        TestHtmlDocument tester = new TestHtmlDocument();
+        var tester = new TestHtmlDocument();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         checking("markup");
         // Check whether the generated markup is same as the existing markup.
-        String expected = readFile(testSrc, "testMarkup.html").replace("\n", NL);
+        String expected = readFile(testSrc, "testMarkup.html");
         String actual = generateHtmlTree();
         if (actual.equals(expected)) {
             passed("");
@@ -69,80 +70,72 @@ public class TestHtmlDocument extends JavadocTester {
     // Generate the HTML output using the HTML document generation within doclet.
     public static String generateHtmlTree() {
         // Document type for the HTML document
-        DocType htmlDocType = DocType.HTML4_TRANSITIONAL;
-        HtmlTree html = new HtmlTree(HtmlTag.HTML);
-        HtmlTree head = new HtmlTree(HtmlTag.HEAD);
-        HtmlTree title = new HtmlTree(HtmlTag.TITLE);
+        HtmlTree html = HtmlTree.of(HtmlTag.HTML);
+        HtmlTree head = HtmlTree.of(HtmlTag.HEAD);
+        HtmlTree title = HtmlTree.of(HtmlTag.TITLE);
         // String content within the document
-        StringContent titleContent = new StringContent("Markup test");
-        title.addContent(titleContent);
-        head.addContent(title);
+        TextBuilder titleContent = new TextBuilder("Markup test");
+        title.add(titleContent);
+        head.add(title);
         // Test META tag
-        HtmlTree meta = new HtmlTree(HtmlTag.META);
-        meta.addAttr(HtmlAttr.NAME, "keywords");
-        meta.addAttr(HtmlAttr.CONTENT, "testContent");
-        head.addContent(meta);
-        // Test invalid META tag
-        HtmlTree invmeta = new HtmlTree(HtmlTag.META);
-        head.addContent(invmeta);
-        // Test LINK tag
-        HtmlTree link = new HtmlTree(HtmlTag.LINK);
-        link.addAttr(HtmlAttr.REL, "testRel");
-        link.addAttr(HtmlAttr.HREF, "testLink.html");
-        head.addContent(link);
-        // Test invalid LINK tag
-        HtmlTree invlink = new HtmlTree(HtmlTag.LINK);
-        head.addContent(invlink);
-        html.addContent(head);
+        HtmlTree meta = HtmlTree.of(HtmlTag.META);
+        meta.put(HtmlAttr.NAME, "keywords");
+        meta.put(HtmlAttr.CONTENT, "testContent");
+        head.add(meta);
+        HtmlTree link = HtmlTree.of(HtmlTag.LINK);
+        link.put(HtmlAttr.REL, "testRel");
+        link.put(HtmlAttr.HREF, "testLink.html");
+        head.add(link);
+        html.add(head);
         // Comment within the document
         Comment bodyMarker = new Comment("======== START OF BODY ========");
-        html.addContent(bodyMarker);
-        HtmlTree body = new HtmlTree(HtmlTag.BODY);
+        html.add(bodyMarker);
+        HtmlTree body = HtmlTree.of(HtmlTag.BODY);
         Comment pMarker = new Comment("======== START OF PARAGRAPH ========");
-        body.addContent(pMarker);
-        HtmlTree p = new HtmlTree(HtmlTag.P);
-        StringContent bodyContent = new StringContent(
+        body.add(pMarker);
+        HtmlTree p = HtmlTree.of(HtmlTag.P);
+        TextBuilder bodyContent = new TextBuilder(
                 "This document is generated from sample source code and HTML " +
                 "files with examples of a wide variety of Java language constructs: packages, " +
                 "subclasses, subinterfaces, nested classes, nested interfaces," +
                 "inheriting from other packages, constructors, fields," +
                 "methods, and so forth. ");
-        p.addContent(bodyContent);
-        StringContent anchorContent = new StringContent("Click Here");
-        p.addContent(HtmlTree.A("testLink.html", anchorContent));
-        StringContent pContent = new StringContent(" to <test> out a link.");
-        p.addContent(pContent);
-        body.addContent(p);
-        HtmlTree p1 = new HtmlTree(HtmlTag.P);
+        p.add(bodyContent);
+        TextBuilder anchorContent = new TextBuilder("Click Here");
+        p.add(HtmlTree.A("testLink.html", anchorContent));
+        TextBuilder pContent = new TextBuilder(" to <test> out a link.");
+        p.add(pContent);
+        body.add(p);
+        HtmlTree p1 = HtmlTree.of(HtmlTag.P);
         // Test another version of A tag.
-        HtmlTree anchor = new HtmlTree(HtmlTag.A);
-        anchor.addAttr(HtmlAttr.HREF, "testLink.html");
-        anchor.addAttr(HtmlAttr.ID, "Another version of a tag");
-        p1.addContent(anchor);
-        body.addContent(p1);
+        HtmlTree anchor = HtmlTree.of(HtmlTag.A);
+        anchor.put(HtmlAttr.HREF, "testLink.html");
+        anchor.put(HtmlAttr.ID, "Another version of a tag");
+        p1.add(anchor);
+        body.add(p1);
         // Test for empty tags.
-        HtmlTree dl = new HtmlTree(HtmlTag.DL);
-        html.addContent(dl);
+        HtmlTree dl = HtmlTree.of(HtmlTag.DL);
+        html.add(dl);
         // Test for empty nested tags.
-        HtmlTree dlTree = new HtmlTree(HtmlTag.DL);
-        dlTree.addContent(new HtmlTree(HtmlTag.DT));
-        dlTree.addContent(new HtmlTree (HtmlTag.DD));
-        html.addContent(dlTree);
-        HtmlTree dlDisplay = new HtmlTree(HtmlTag.DL);
-        dlDisplay.addContent(new HtmlTree(HtmlTag.DT));
-        HtmlTree dd = new HtmlTree (HtmlTag.DD);
-        StringContent ddContent = new StringContent("Test DD");
-        dd.addContent(ddContent);
-        dlDisplay.addContent(dd);
-        body.addContent(dlDisplay);
-        StringContent emptyString = new StringContent("");
-        body.addContent(emptyString);
+        HtmlTree dlTree = HtmlTree.of(HtmlTag.DL);
+        dlTree.add(HtmlTree.of(HtmlTag.DT));
+        dlTree.add(HtmlTree.of (HtmlTag.DD));
+        html.add(dlTree);
+        HtmlTree dlDisplay = HtmlTree.of(HtmlTag.DL);
+        dlDisplay.add(HtmlTree.of(HtmlTag.DT));
+        HtmlTree dd = HtmlTree.of (HtmlTag.DD);
+        TextBuilder ddContent = new TextBuilder("Test DD");
+        dd.add(ddContent);
+        dlDisplay.add(dd);
+        body.add(dlDisplay);
+        TextBuilder emptyString = new TextBuilder("");
+        body.add(emptyString);
         Comment emptyComment = new Comment("");
-        body.addContent(emptyComment);
-        HtmlTree hr = new HtmlTree(HtmlTag.HR);
-        body.addContent(hr);
-        html.addContent(body);
-        HtmlDocument htmlDoc = new HtmlDocument(htmlDocType, html);
+        body.add(emptyComment);
+        HtmlTree hr = HtmlTree.of(HtmlTag.HR);
+        body.add(hr);
+        html.add(body);
+        HtmlDocument htmlDoc = new HtmlDocument(html);
         return htmlDoc.toString();
     }
 }

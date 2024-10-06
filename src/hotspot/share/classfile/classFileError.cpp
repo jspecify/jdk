@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "classfile/classFileParser.hpp"
 #include "classfile/stackMapTable.hpp"
 #include "classfile/verifier.hpp"
+#include "classfile/vmSymbols.hpp"
 #include "memory/resourceArea.hpp"
 
 // Keep these in a separate file to prevent inlining
@@ -34,7 +35,7 @@ PRAGMA_DIAG_PUSH
 PRAGMA_FORMAT_NONLITERAL_IGNORED
 
 void ClassFileParser::classfile_parse_error(const char* msg, TRAPS) const {
-  assert(_class_name != NULL, "invariant");
+  assert(_class_name != nullptr, "invariant");
   ResourceMark rm(THREAD);
   Exceptions::fthrow(THREAD_AND_LOCATION, vmSymbols::java_lang_ClassFormatError(),
                      msg, _class_name->as_C_string());
@@ -43,7 +44,7 @@ void ClassFileParser::classfile_parse_error(const char* msg, TRAPS) const {
 void ClassFileParser::classfile_parse_error(const char* msg,
                                             int index,
                                             TRAPS) const {
-  assert(_class_name != NULL, "invariant");
+  assert(_class_name != nullptr, "invariant");
   ResourceMark rm(THREAD);
   Exceptions::fthrow(THREAD_AND_LOCATION, vmSymbols::java_lang_ClassFormatError(),
                      msg, index, _class_name->as_C_string());
@@ -52,7 +53,7 @@ void ClassFileParser::classfile_parse_error(const char* msg,
 void ClassFileParser::classfile_parse_error(const char* msg,
                                             const char* name,
                                             TRAPS) const {
-  assert(_class_name != NULL, "invariant");
+  assert(_class_name != nullptr, "invariant");
   ResourceMark rm(THREAD);
   Exceptions::fthrow(THREAD_AND_LOCATION, vmSymbols::java_lang_ClassFormatError(),
                      msg, name, _class_name->as_C_string());
@@ -62,7 +63,7 @@ void ClassFileParser::classfile_parse_error(const char* msg,
                                             int index,
                                             const char* name,
                                             TRAPS) const {
-  assert(_class_name != NULL, "invariant");
+  assert(_class_name != nullptr, "invariant");
   ResourceMark rm(THREAD);
   Exceptions::fthrow(THREAD_AND_LOCATION, vmSymbols::java_lang_ClassFormatError(),
                      msg, index, name, _class_name->as_C_string());
@@ -72,10 +73,29 @@ void ClassFileParser::classfile_parse_error(const char* msg,
                                             const char* name,
                                             const char* signature,
                                             TRAPS) const {
-  assert(_class_name != NULL, "invariant");
+  assert(_class_name != nullptr, "invariant");
   ResourceMark rm(THREAD);
   Exceptions::fthrow(THREAD_AND_LOCATION, vmSymbols::java_lang_ClassFormatError(),
                      msg, name, signature, _class_name->as_C_string());
+}
+
+void ClassFileParser::classfile_icce_error(const char* msg,
+                                           const Klass* k,
+                                           TRAPS) const {
+  assert(_class_name != nullptr, "invariant");
+  ResourceMark rm(THREAD);
+  Exceptions::fthrow(THREAD_AND_LOCATION, vmSymbols::java_lang_IncompatibleClassChangeError(),
+                     msg, _class_name->as_klass_external_name(), k->external_name());
+}
+
+void ClassFileParser::classfile_ucve_error(const char* msg,
+                                           const Symbol* class_name,
+                                           u2 major,
+                                           u2 minor,
+                                           TRAPS) const {
+  ResourceMark rm(THREAD);
+  Exceptions::fthrow(THREAD_AND_LOCATION, vmSymbols::java_lang_UnsupportedClassVersionError(),
+                     msg, class_name->as_C_string(), major, minor);
 }
 
 PRAGMA_DIAG_POP

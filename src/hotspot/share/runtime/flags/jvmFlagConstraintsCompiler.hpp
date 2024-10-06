@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_JVMFLAGCONSTRAINTSCOMPILER_HPP
-#define SHARE_VM_RUNTIME_JVMFLAGCONSTRAINTSCOMPILER_HPP
+#ifndef SHARE_RUNTIME_FLAGS_JVMFLAGCONSTRAINTSCOMPILER_HPP
+#define SHARE_RUNTIME_FLAGS_JVMFLAGCONSTRAINTSCOMPILER_HPP
 
 #include "runtime/flags/jvmFlag.hpp"
+#include "utilities/macros.hpp"
 
 /*
  * Here we have compiler arguments constraints functions, which are called automatically
@@ -33,42 +34,29 @@
  * an appropriate error value.
  */
 
-JVMFlag::Error AliasLevelConstraintFunc(intx value, bool verbose);
+#define COMPILER_CONSTRAINTS(f)                         \
+  f(intx,  CICompilerCountConstraintFunc)               \
+  f(intx,  AllocatePrefetchInstrConstraintFunc)         \
+  f(int,   AllocatePrefetchStepSizeConstraintFunc)      \
+  f(intx,  CompileThresholdConstraintFunc)              \
+  f(intx,  OnStackReplacePercentageConstraintFunc)      \
+  f(uintx, CodeCacheSegmentSizeConstraintFunc)          \
+  f(intx,  CodeEntryAlignmentConstraintFunc)            \
+  f(intx,  OptoLoopAlignmentConstraintFunc)             \
+  f(uintx, ArraycopyDstPrefetchDistanceConstraintFunc)  \
+  f(uintx, ArraycopySrcPrefetchDistanceConstraintFunc)  \
+  f(int,   AVX3ThresholdConstraintFunc)                 \
+  f(uint,  TypeProfileLevelConstraintFunc)              \
+  f(uint,  VerifyIterativeGVNConstraintFunc)            \
+  f(intx,  InitArrayShortSizeConstraintFunc)            \
+  f(ccstrlist, DisableIntrinsicConstraintFunc)          \
+  f(ccstrlist, ControlIntrinsicConstraintFunc)          \
+COMPILER2_PRESENT(                                      \
+  f(intx,  InteriorEntryAlignmentConstraintFunc)        \
+  f(intx,  NodeLimitFudgeFactorConstraintFunc)          \
+  f(uintx, LoopStripMiningIterConstraintFunc)           \
+)
 
-JVMFlag::Error CICompilerCountConstraintFunc(intx value, bool verbose);
+COMPILER_CONSTRAINTS(DECLARE_CONSTRAINT)
 
-JVMFlag::Error AllocatePrefetchDistanceConstraintFunc(intx value, bool verbose);
-
-JVMFlag::Error AllocatePrefetchInstrConstraintFunc(intx value, bool verbose);
-
-JVMFlag::Error AllocatePrefetchStepSizeConstraintFunc(intx value, bool verbose);
-
-JVMFlag::Error CompileThresholdConstraintFunc(intx value, bool verbose);
-
-JVMFlag::Error OnStackReplacePercentageConstraintFunc(intx value, bool verbose);
-
-JVMFlag::Error CodeCacheSegmentSizeConstraintFunc(uintx value, bool verbose);
-
-JVMFlag::Error CompilerThreadPriorityConstraintFunc(intx value, bool verbose);
-
-JVMFlag::Error CodeEntryAlignmentConstraintFunc(intx value, bool verbose);
-
-JVMFlag::Error OptoLoopAlignmentConstraintFunc(intx value, bool verbose);
-
-JVMFlag::Error ArraycopyDstPrefetchDistanceConstraintFunc(uintx value, bool verbose);
-
-JVMFlag::Error ArraycopySrcPrefetchDistanceConstraintFunc(uintx value, bool verbose);
-
-JVMFlag::Error TypeProfileLevelConstraintFunc(uintx value, bool verbose);
-
-JVMFlag::Error InitArrayShortSizeConstraintFunc(intx value, bool verbose);
-
-#ifdef COMPILER2
-JVMFlag::Error InteriorEntryAlignmentConstraintFunc(intx value, bool verbose);
-
-JVMFlag::Error NodeLimitFudgeFactorConstraintFunc(intx value, bool verbose);
-#endif
-
-JVMFlag::Error RTMTotalCountIncrRateConstraintFunc(int value, bool verbose);
-
-#endif /* SHARE_VM_RUNTIME_JVMFLAGCONSTRAINTSCOMPILER_HPP */
+#endif // SHARE_RUNTIME_FLAGS_JVMFLAGCONSTRAINTSCOMPILER_HPP

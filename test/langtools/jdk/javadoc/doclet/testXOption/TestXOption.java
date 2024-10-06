@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,24 +25,26 @@
  * @test
  * @bug      8007687
  * @summary  Make sure that the -X option works properly.
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestXOption
  */
 
 import java.util.*;
 import java.util.stream.*;
 
+import javadoc.tester.JavadocTester;
+
 public class TestXOption extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestXOption tester = new TestXOption();
+        var tester = new TestXOption();
         tester.runTests();
     }
 
     @Test
-    void testLineLengths() {
+    public void testLineLengths() {
         javadoc("-d", "out1",
                 "-sourcepath", testSrc,
                 "-X",
@@ -62,7 +64,7 @@ public class TestXOption extends JavadocTester {
     }
 
     @Test
-    void testWithHelpExtraOption() {
+    public void testWithHelpExtraOption() {
         javadoc("-d", "out1",
                 "-sourcepath", testSrc,
                 "--help-extra",
@@ -72,7 +74,7 @@ public class TestXOption extends JavadocTester {
     }
 
     @Test
-    void testWithOption() {
+    public void testWithOption() {
         javadoc("-d", "out1",
                 "-sourcepath", testSrc,
                 "-X",
@@ -82,7 +84,7 @@ public class TestXOption extends JavadocTester {
     }
 
     @Test
-    void testWithoutOption() {
+    public void testWithoutOption() {
         javadoc("-d", "out2",
                 "-sourcepath", testSrc,
                 testSrc("TestXOption.java"));
@@ -96,6 +98,7 @@ public class TestXOption extends JavadocTester {
                 "-Xmaxwarns ",
                 "-Xdocrootparent ",
                 "-Xdoclint ",
-                "-Xdoclint:");
+                "-Xdoclint:",
+                "--date ");
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,40 @@
 
 package sun.awt;
 
-import java.awt.*;
+import java.awt.AWTEvent;
+import java.awt.AWTException;
+import java.awt.Button;
+import java.awt.Canvas;
+import java.awt.Checkbox;
+import java.awt.Choice;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.DefaultKeyboardFocusManager;
+import java.awt.Dialog;
+import java.awt.Dimension;
+import java.awt.EventQueue;
+import java.awt.FocusTraversalPolicy;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
+import java.awt.HeadlessException;
+import java.awt.Image;
+import java.awt.KeyboardFocusManager;
+import java.awt.Label;
+import java.awt.MenuComponent;
+import java.awt.Panel;
+import java.awt.RenderingHints;
+import java.awt.ScrollPane;
+import java.awt.Scrollbar;
+import java.awt.SystemTray;
+import java.awt.TextArea;
+import java.awt.TextField;
+import java.awt.Toolkit;
+import java.awt.TrayIcon;
+import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowEvent;
@@ -35,10 +68,10 @@ import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferInt;
 import java.awt.image.ImageObserver;
 import java.awt.image.ImageProducer;
+import java.awt.image.MultiResolutionImage;
 import java.awt.image.Raster;
 import java.awt.peer.FramePeer;
 import java.awt.peer.KeyboardFocusManagerPeer;
-import java.awt.peer.MouseInfoPeer;
 import java.awt.peer.SystemTrayPeer;
 import java.awt.peer.TrayIconPeer;
 import java.io.File;
@@ -49,12 +82,12 @@ import java.net.URL;
 import java.security.AccessController;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Vector;
 import java.util.WeakHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -62,7 +95,6 @@ import sun.awt.im.InputContext;
 import sun.awt.image.ByteArrayImageSource;
 import sun.awt.image.FileImageSource;
 import sun.awt.image.ImageRepresentation;
-import java.awt.image.MultiResolutionImage;
 import sun.awt.image.MultiResolutionToolkitImage;
 import sun.awt.image.ToolkitImage;
 import sun.awt.image.URLImageSource;
@@ -72,7 +104,13 @@ import sun.security.action.GetBooleanAction;
 import sun.security.action.GetPropertyAction;
 import sun.util.logging.PlatformLogger;
 
-import static java.awt.RenderingHints.*;
+import static java.awt.RenderingHints.KEY_TEXT_ANTIALIASING;
+import static java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_GASP;
+import static java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HBGR;
+import static java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB;
+import static java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_VBGR;
+import static java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_VRGB;
+import static java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
 
 public abstract class SunToolkit extends Toolkit
     implements ComponentFactory, InputMethodSupport, KeyboardFocusManagerPeerProvider {
@@ -81,13 +119,18 @@ public abstract class SunToolkit extends Toolkit
 
     /* Load debug settings for native code */
     static {
+        initStatic();
+    }
+
+    @SuppressWarnings("removal")
+    private static void initStatic() {
         if (AccessController.doPrivileged(new GetBooleanAction("sun.awt.nativedebug"))) {
             DebugSettings.init();
         }
-        touchKeyboardAutoShowIsEnabled = Boolean.valueOf(
+        touchKeyboardAutoShowIsEnabled = Boolean.parseBoolean(
             GetPropertyAction.privilegedGetProperty(
                 "awt.touchKeyboardAutoShowIsEnabled", "true"));
-    };
+    }
 
     /**
      * Special mask for the UngrabEvent events, in addition to the
@@ -161,7 +204,7 @@ public abstract class SunToolkit extends Toolkit
      * access to Xlib, OpenGL, etc.  However, these methods are implemented
      * in SunToolkit so that they can be called from shared code (e.g.
      * from the OGL pipeline) or from the X11 pipeline regardless of whether
-     * XToolkit or MToolkit is currently in use.  There are native macros
+     * XToolkit is currently in use.  There are native macros
      * (such as AWT_LOCK) defined in awt.h, so if the implementation of these
      * methods is changed, make sure it is compatible with the native macros.
      *
@@ -188,7 +231,9 @@ public abstract class SunToolkit extends Toolkit
      *     }
      */
 
-    private static final ReentrantLock AWT_LOCK = new ReentrantLock();
+    @SuppressWarnings("removal")
+    private static final ReentrantLock AWT_LOCK = new ReentrantLock(
+            AccessController.doPrivileged(new GetBooleanAction("awt.lock.fair")));
     private static final Condition AWT_LOCK_COND = AWT_LOCK.newCondition();
 
     public static final void awtLock() {
@@ -255,7 +300,7 @@ public abstract class SunToolkit extends Toolkit
      * Fetch the peer associated with the given target (as specified
      * in the peer creation method).  This can be used to determine
      * things like what the parent peer is.  If the target is null
-     * or the target can't be found (either because the a peer was
+     * or the target can't be found (either because the peer was
      * never created for it or the peer was disposed), a null will
      * be returned.
      */
@@ -367,7 +412,7 @@ public abstract class SunToolkit extends Toolkit
 
     public static void setLWRequestStatus(Window changed,boolean status){
         AWTAccessor.getWindowAccessor().setLWRequestStatus(changed, status);
-    };
+    }
 
     public static void checkAndSetPolicy(Container cont) {
         FocusTraversalPolicy defaultPolicy = KeyboardFocusManager.
@@ -506,7 +551,7 @@ public abstract class SunToolkit extends Toolkit
      * Execute a chunk of code on the Java event handler thread. The
      * method takes into account provided AppContext and sets
      * {@code SunToolkit.getDefaultToolkit()} as a target of the
-     * event. See 6451487 for detailes.
+     * event. See 6451487 for details.
      * Does not wait for the execution to occur before returning to
      * the caller.
      */
@@ -628,6 +673,7 @@ public abstract class SunToolkit extends Toolkit
      * Returns the value of "sun.awt.noerasebackground" property. Default
      * value is {@code false}.
      */
+    @SuppressWarnings("removal")
     public static boolean getSunAwtNoerasebackground() {
         return AccessController.doPrivileged(new GetBooleanAction("sun.awt.noerasebackground"));
     }
@@ -636,6 +682,7 @@ public abstract class SunToolkit extends Toolkit
      * Returns the value of "sun.awt.erasebackgroundonresize" property. Default
      * value is {@code false}.
      */
+    @SuppressWarnings("removal")
     public static boolean getSunAwtErasebackgroundonresize() {
         return AccessController.doPrivileged(new GetBooleanAction("sun.awt.erasebackgroundonresize"));
     }
@@ -855,6 +902,7 @@ public abstract class SunToolkit extends Toolkit
     }
 
     private static void checkPermissions(String filename) {
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkRead(filename);
@@ -862,6 +910,7 @@ public abstract class SunToolkit extends Toolkit
     }
 
     private static void checkPermissions(URL url) {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             try {
@@ -898,13 +947,12 @@ public abstract class SunToolkit extends Toolkit
         int bestHeight = 0;
         double bestSimilarity = 3; //Impossibly high value
         double bestScaleFactor = 0;
-        for (Iterator<Image> i = multiResAndnormalImages.iterator();i.hasNext();) {
+        for (Image im : multiResAndnormalImages) {
             //Iterate imageList looking for best matching image.
             //'Similarity' measure is defined as good scale factor and small insets.
             //best possible similarity is 0 (no scale, no insets).
             //It's found while the experiments that good-looking result is achieved
             //with scale factors x1, x3/4, x2/3, xN, x1/N.
-            Image im = i.next();
             if (im == null) {
                 continue;
             }
@@ -1069,6 +1117,7 @@ public abstract class SunToolkit extends Toolkit
     public boolean canPopupOverlapTaskBar() {
         boolean result = true;
         try {
+            @SuppressWarnings("removal")
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 sm.checkPermission(AWTPermissions.SET_WINDOW_ALWAYS_ON_TOP_PERMISSION);
@@ -1109,6 +1158,7 @@ public abstract class SunToolkit extends Toolkit
     /**
      * Returns the locale in which the runtime was started.
      */
+    @SuppressWarnings("removal")
     public static Locale getStartupLocale() {
         if (startupLocale == null) {
             String language, region, country, variant;
@@ -1133,7 +1183,7 @@ public abstract class SunToolkit extends Toolkit
                 variant = AccessController.doPrivileged(
                                 new GetPropertyAction("user.variant", ""));
             }
-            startupLocale = new Locale(language, country, variant);
+            startupLocale = Locale.of(language, country, variant);
         }
         return startupLocale;
     }
@@ -1152,6 +1202,7 @@ public abstract class SunToolkit extends Toolkit
      * @return {@code true}, if XEmbed is needed, {@code false} otherwise
      */
     public static boolean needsXEmbed() {
+        @SuppressWarnings("removal")
         String noxembed = AccessController.
             doPrivileged(new GetPropertyAction("sun.awt.noxembed", "false"));
         if ("true".equals(noxembed)) {
@@ -1185,6 +1236,7 @@ public abstract class SunToolkit extends Toolkit
      * developer.  If true, Toolkit should return an
      * XEmbed-server-enabled CanvasPeer instead of the ordinary CanvasPeer.
      */
+    @SuppressWarnings("removal")
     protected final boolean isXEmbedServerRequested() {
         return AccessController.doPrivileged(new GetBooleanAction("sun.awt.xembedserver"));
     }
@@ -1329,17 +1381,15 @@ public abstract class SunToolkit extends Toolkit
 
         @Override
         public void modalityPushed(ModalityEvent ev) {
-            Iterator<ModalityListener> it = listeners.iterator();
-            while (it.hasNext()) {
-                it.next().modalityPushed(ev);
+            for (ModalityListener listener : listeners) {
+                listener.modalityPushed(ev);
             }
         }
 
         @Override
         public void modalityPopped(ModalityEvent ev) {
-            Iterator<ModalityListener> it = listeners.iterator();
-            while (it.hasNext()) {
-                it.next().modalityPopped(ev);
+            for (ModalityListener listener : listeners) {
+                listener.modalityPopped(ev);
             }
         }
     } // end of class ModalityListenerList
@@ -1369,19 +1419,6 @@ public abstract class SunToolkit extends Toolkit
     }
 
     @SuppressWarnings("serial")
-    public static class OperationTimedOut extends RuntimeException {
-        public OperationTimedOut(String msg) {
-            super(msg);
-        }
-        public OperationTimedOut() {
-        }
-    }
-
-    @SuppressWarnings("serial")
-    public static class InfiniteLoop extends RuntimeException {
-    }
-
-    @SuppressWarnings("serial")
     public static class IllegalThreadException extends RuntimeException {
         public IllegalThreadException(String msg) {
             super(msg);
@@ -1391,14 +1428,15 @@ public abstract class SunToolkit extends Toolkit
     }
 
     public static final int DEFAULT_WAIT_TIME = 10000;
-    private static final int MAX_ITERS = 20;
-    private static final int MIN_ITERS = 0;
-    private static final int MINIMAL_EDELAY = 0;
+    private static final int MAX_ITERS = 100;
+    private static final int MIN_ITERS = 1;
+    private static final int MINIMAL_DELAY = 5;
 
     /**
-     * Parameterless version of realsync which uses default timout (see DEFAUL_WAIT_TIME).
+     * Parameterless version of {@link #realSync(long)} which uses
+     * the default timeout of {@link #DEFAULT_WAIT_TIME}.
      */
-    public void realSync() throws OperationTimedOut, InfiniteLoop {
+    public void realSync() {
         realSync(DEFAULT_WAIT_TIME);
     }
 
@@ -1441,19 +1479,27 @@ public abstract class SunToolkit extends Toolkit
      *
      * <p> For example, requestFocus() generates native request, which
      * generates one or two Java focus events, which then generate a
-     * serie of paint events, a serie of Java focus events, which then
-     * generate a serie of paint events which then are processed -
+     * series of paint events, a series of Java focus events, which then
+     * generate a series of paint events which then are processed -
      * three cycles, minimum.
      *
      * @param timeout the maximum time to wait in milliseconds, negative means "forever".
      */
-    public void realSync(final long timeout) throws OperationTimedOut, InfiniteLoop
-    {
+    public void realSync(final long timeout) {
         if (EventQueue.isDispatchThread()) {
             throw new IllegalThreadException("The SunToolkit.realSync() method cannot be used on the event dispatch thread (EDT).");
         }
+        try {
+            // We should wait unconditionally for the first event on EDT
+            EventQueue.invokeAndWait(() -> {/*dummy implementation*/});
+        } catch (InterruptedException | InvocationTargetException ignored) {
+        }
         int bigLoop = 0;
+        long end = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) + timeout;
         do {
+            if (timeout(end) < 0) {
+                return;
+            }
             // Let's do sync first
             sync();
 
@@ -1464,14 +1510,11 @@ public abstract class SunToolkit extends Toolkit
             // to dispatch.
             int iters = 0;
             while (iters < MIN_ITERS) {
-                syncNativeQueue(timeout);
+                syncNativeQueue(timeout(end));
                 iters++;
             }
-            while (syncNativeQueue(timeout) && iters < MAX_ITERS) {
+            while (syncNativeQueue(timeout(end)) && iters < MAX_ITERS) {
                 iters++;
-            }
-            if (iters >= MAX_ITERS) {
-                throw new InfiniteLoop();
             }
 
             // native requests were dispatched by X/Window Manager or Windows
@@ -1483,21 +1526,23 @@ public abstract class SunToolkit extends Toolkit
             // waitForIdle, we may end up with full EventQueue
             iters = 0;
             while (iters < MIN_ITERS) {
-                waitForIdle(timeout);
+                waitForIdle(timeout(end));
                 iters++;
             }
-            while (waitForIdle(timeout) && iters < MAX_ITERS) {
+            while (waitForIdle(end) && iters < MAX_ITERS) {
                 iters++;
-            }
-            if (iters >= MAX_ITERS) {
-                throw new InfiniteLoop();
             }
 
             bigLoop++;
             // Again, for Java events, it was simple to check for new Java
             // events by checking event queue, but what if Java events
-            // resulted in native requests?  Therefor, check native events again.
-        } while ((syncNativeQueue(timeout) || waitForIdle(timeout)) && bigLoop < MAX_ITERS);
+            // resulted in native requests?  Therefore, check native events again.
+        } while ((syncNativeQueue(timeout(end)) || waitForIdle(end))
+                && bigLoop < MAX_ITERS);
+    }
+
+    protected long timeout(long end){
+        return end - TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
     }
 
     /**
@@ -1508,10 +1553,8 @@ public abstract class SunToolkit extends Toolkit
      * {@code true} if some events were processed,
      * {@code false} otherwise.
      */
-    protected abstract boolean syncNativeQueue(final long timeout);
+    protected abstract boolean syncNativeQueue(long timeout);
 
-    private boolean eventDispatched;
-    private boolean queueEmpty;
     private final Object waitLock = new Object();
 
     private boolean isEQEmpty() {
@@ -1527,13 +1570,16 @@ public abstract class SunToolkit extends Toolkit
      * necessary, {@code false} otherwise.
      */
     @SuppressWarnings("serial")
-    protected final boolean waitForIdle(final long timeout) {
+    private final boolean waitForIdle(final long end) {
+        if (timeout(end) <= 0) {
+            return false;
+        }
         flushPendingEvents();
         final boolean queueWasEmpty;
+        final AtomicBoolean queueEmpty = new AtomicBoolean();
+        final AtomicBoolean eventDispatched = new AtomicBoolean();
         synchronized (waitLock) {
             queueWasEmpty = isEQEmpty();
-            queueEmpty = false;
-            eventDispatched = false;
             postEvent(AppContext.getAppContext(),
                       new PeerEvent(getSystemEventQueueImpl(), null, PeerEvent.LOW_PRIORITY_EVENT) {
                           @Override
@@ -1545,24 +1591,24 @@ public abstract class SunToolkit extends Toolkit
                               // flush Java events again.
                               int iters = 0;
                               while (iters < MIN_ITERS) {
-                                  syncNativeQueue(timeout);
+                                  syncNativeQueue(timeout(end));
                                   iters++;
                               }
-                              while (syncNativeQueue(timeout) && iters < MAX_ITERS) {
+                              while (syncNativeQueue(timeout(end)) && iters < MAX_ITERS) {
                                   iters++;
                               }
                               flushPendingEvents();
 
                               synchronized(waitLock) {
-                                  queueEmpty = isEQEmpty();
-                                  eventDispatched = true;
+                                  queueEmpty.set(isEQEmpty());
+                                  eventDispatched.set(true);
                                   waitLock.notifyAll();
                               }
                           }
                       });
             try {
-                while (!eventDispatched) {
-                    waitLock.wait();
+                while (!eventDispatched.get() && timeout(end) > 0) {
+                    waitLock.wait(timeout(end));
                 }
             } catch (InterruptedException ie) {
                 return false;
@@ -1570,7 +1616,7 @@ public abstract class SunToolkit extends Toolkit
         }
 
         try {
-            Thread.sleep(MINIMAL_EDELAY);
+            Thread.sleep(MINIMAL_DELAY);
         } catch (InterruptedException ie) {
             throw new RuntimeException("Interrupted");
         }
@@ -1579,7 +1625,7 @@ public abstract class SunToolkit extends Toolkit
 
         // Lock to force write-cache flush for queueEmpty.
         synchronized (waitLock) {
-            return !(queueEmpty && isEQEmpty() && queueWasEmpty);
+            return !(queueEmpty.get() && isEQEmpty() && queueWasEmpty);
         }
     }
 
@@ -1712,6 +1758,7 @@ public abstract class SunToolkit extends Toolkit
      * to be inapplicable in that case. In that headless case although
      * this method will return "true" the toolkit will return a null map.
      */
+    @SuppressWarnings("removal")
     private static boolean useSystemAAFontSettings() {
         if (!checkedSystemAAFontSettings) {
             useSystemAAFontSettings = true; /* initially set this true */
@@ -1723,8 +1770,7 @@ public abstract class SunToolkit extends Toolkit
                          new GetPropertyAction("awt.useSystemAAFontSettings"));
             }
             if (systemAAFonts != null) {
-                useSystemAAFontSettings =
-                    Boolean.valueOf(systemAAFonts).booleanValue();
+                useSystemAAFontSettings = Boolean.parseBoolean(systemAAFonts);
                 /* If it is anything other than "true", then it may be
                  * a hint name , or it may be "off, "default", etc.
                  */
@@ -1759,8 +1805,8 @@ public abstract class SunToolkit extends Toolkit
         if (useSystemAAFontSettings()) {
              Toolkit tk = Toolkit.getDefaultToolkit();
              if (tk instanceof SunToolkit) {
-                 Object map = ((SunToolkit)tk).getDesktopAAHints();
-                 return (RenderingHints)map;
+                 RenderingHints map = ((SunToolkit)tk).getDesktopAAHints();
+                 return map;
              } else { /* Headless Toolkit */
                  return null;
              }
@@ -1815,12 +1861,17 @@ public abstract class SunToolkit extends Toolkit
      * Returns the value of "sun.awt.disableMixing" property. Default
      * value is {@code false}.
      */
+    @SuppressWarnings("removal")
     public static synchronized boolean getSunAwtDisableMixing() {
         if (sunAwtDisableMixing == null) {
             sunAwtDisableMixing = AccessController.doPrivileged(
                                       new GetBooleanAction("sun.awt.disableMixing"));
         }
         return sunAwtDisableMixing.booleanValue();
+    }
+
+    public String getDesktop() {
+        return null;
     }
 
     /**
@@ -1831,6 +1882,20 @@ public abstract class SunToolkit extends Toolkit
     public boolean isNativeGTKAvailable() {
         return false;
     }
+
+    /**
+     * Checks if the system is running Linux with the Wayland server.
+     *
+     * @return true if running on Wayland, false otherwise
+     */
+    public boolean isRunningOnWayland() {
+        return false;
+    }
+
+    public void dismissPopupOnFocusLostIfNeeded(Window invoker) {}
+
+    public void dismissPopupOnFocusLostIfNeededCleanUp(Window invoker) {}
+
 
     private static final Object DEACTIVATION_TIMES_MAP_KEY = new Object();
 
@@ -1865,7 +1930,7 @@ public abstract class SunToolkit extends Toolkit
     public void updateScreenMenuBarUI() {
     }
 
-    // Cosntant alpha
+    // Constant alpha
     public boolean isWindowOpacitySupported() {
         return false;
     }
@@ -1927,7 +1992,7 @@ public abstract class SunToolkit extends Toolkit
      * Returns whether the native system requires using the peer.updateWindow()
      * method to update the contents of a non-opaque window, or if usual
      * painting procedures are sufficient. The default return value covers
-     * the X11 systems. On MS Windows this method is overriden in WToolkit
+     * the X11 systems. On MS Windows this method is overridden in WToolkit
      * to return true.
      */
     public boolean needUpdateWindow() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.TooManyListenersException;
 
@@ -96,6 +97,10 @@ import sun.awt.ComponentFactory;
 public @UsesObjectEquals class DragSourceContext
     implements DragSourceListener, DragSourceMotionListener, Serializable {
 
+    /**
+     * Use serialVersionUID from JDK 1.4 for interoperability.
+     */
+    @Serial
     private static final long serialVersionUID = -115407898692194719L;
 
     // used by updateCurrentCursor
@@ -548,6 +553,8 @@ public @UsesObjectEquals class DragSourceContext
      * {@code DragSourceListener} is written out if and only if it can be
      * serialized. If not, {@code null} is written instead.
      *
+     * @param  s the {@code ObjectOutputStream} to write
+     * @throws IOException if an I/O error occurs
      * @serialData The default serializable fields, in alphabetical order,
      *             followed by either a {@code Transferable} instance, or
      *             {@code null}, followed by either a
@@ -555,6 +562,7 @@ public @UsesObjectEquals class DragSourceContext
      *             {@code null}.
      * @since 1.4
      */
+    @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         s.defaultWriteObject();
 
@@ -574,8 +582,13 @@ public @UsesObjectEquals class DragSourceContext
      * {@code Transferable} is set to a dummy {@code Transferable}
      * which supports no {@code DataFlavor}s.
      *
+     * @param  s the {@code ObjectInputStream} to read
+     * @throws ClassNotFoundException if the class of a serialized object could
+     *         not be found
+     * @throws IOException if an I/O error occurs
      * @since 1.4
      */
+    @Serial
     private void readObject(ObjectInputStream s)
         throws ClassNotFoundException, IOException
     {

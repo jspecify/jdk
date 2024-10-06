@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,17 +27,32 @@ package com.sun.tools.javac.jvm;
 
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.*;
-import com.sun.tools.javac.code.Types.UniqueType;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
-import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
+import java.util.function.ToIntBiFunction;
+import java.util.function.ToIntFunction;
+
 import static com.sun.tools.javac.code.TypeTag.BOT;
+import static com.sun.tools.javac.code.TypeTag.DOUBLE;
 import static com.sun.tools.javac.code.TypeTag.INT;
+import static com.sun.tools.javac.code.TypeTag.LONG;
 import static com.sun.tools.javac.jvm.ByteCodes.*;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Class;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Double;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Fieldref;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Float;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Integer;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_InterfaceMethodref;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Long;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_MethodHandle;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_MethodType;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Methodref;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_String;
 import static com.sun.tools.javac.jvm.UninitializedType.*;
 import static com.sun.tools.javac.jvm.ClassWriter.StackMapTableFrame;
+import java.util.Arrays;
 
 /** An internal structure that corresponds to the code attribute of
  *  methods in a classfile. The class also provides some utility operations to
@@ -72,6 +87,7 @@ public class Code {
 
     final Types types;
     final Symtab syms;
+    final PoolWriter poolWriter;
 
 /*---------- classfile fields: --------------- */
 
@@ -177,11 +193,9 @@ public class Code {
      */
     Position.LineMap lineMap;
 
-    /** The constant pool of the current class.
-     */
-    final Pool pool;
-
     final MethodSymbol meth;
+
+    private int letExprStackPos = 0;
 
     /** Construct a code object, given the settings of the fatcode,
      *  debugging info switches and the CharacterRangeTable.
@@ -195,7 +209,7 @@ public class Code {
                 CRTable crt,
                 Symtab syms,
                 Types types,
-                Pool pool) {
+                PoolWriter poolWriter) {
         this.meth = meth;
         this.fatcode = fatcode;
         this.lineMap = lineMap;
@@ -204,6 +218,7 @@ public class Code {
         this.crt = crt;
         this.syms = syms;
         this.types = types;
+        this.poolWriter = poolWriter;
         this.debugCode = debugCode;
         this.stackMap = stackMap;
         switch (stackMap) {
@@ -216,7 +231,6 @@ public class Code {
         }
         state = new State();
         lvar = new LocalVar[20];
-        this.pool = pool;
     }
 
 
@@ -382,17 +396,20 @@ public class Code {
     }
 
     void postop() {
-        Assert.check(alive || state.stacksize == 0);
+        Assert.check(alive || isStatementStart());
     }
 
     /** Emit a ldc (or ldc_w) instruction, taking into account operand size
     */
-    public void emitLdc(int od) {
-        if (od <= 255) {
-            emitop1(ldc1, od);
-        }
-        else {
-            emitop2(ldc2, od);
+    public void emitLdc(LoadableConstant constant) {
+        int od = poolWriter.putConstant(constant);
+        Type constantType = types.constantType(constant);
+        if (constantType.hasTag(LONG) || constantType.hasTag(DOUBLE)) {
+            emitop2(ldc2w, od, constant);
+        } else if (od <= 255) {
+            emitop1(ldc1, od, constant);
+        } else {
+            emitop2(ldc2, od, constant);
         }
     }
 
@@ -429,11 +446,11 @@ public class Code {
 
     /** Emit an invokeinterface instruction.
      */
-    public void emitInvokeinterface(int meth, Type mtype) {
+    public void emitInvokeinterface(Symbol member, Type mtype) {
         int argsize = width(mtype.getParameterTypes());
         emitop(invokeinterface);
         if (!alive) return;
-        emit2(meth);
+        emit2(poolWriter.putMember(member));
         emit1(argsize + 1);
         emit1(0);
         state.pop(argsize + 1);
@@ -442,14 +459,13 @@ public class Code {
 
     /** Emit an invokespecial instruction.
      */
-    public void emitInvokespecial(int meth, Type mtype) {
+    public void emitInvokespecial(Symbol member, Type mtype) {
         int argsize = width(mtype.getParameterTypes());
         emitop(invokespecial);
         if (!alive) return;
-        emit2(meth);
-        Symbol sym = (Symbol)pool.pool[meth];
+        emit2(poolWriter.putMember(member));
         state.pop(argsize);
-        if (sym.isConstructor())
+        if (member.isConstructor())
             state.markInitialized((UninitializedType)state.peek());
         state.pop(1);
         state.push(mtype.getReturnType());
@@ -457,33 +473,33 @@ public class Code {
 
     /** Emit an invokestatic instruction.
      */
-    public void emitInvokestatic(int meth, Type mtype) {
+    public void emitInvokestatic(Symbol member, Type mtype) {
         int argsize = width(mtype.getParameterTypes());
         emitop(invokestatic);
         if (!alive) return;
-        emit2(meth);
+        emit2(poolWriter.putMember(member));
         state.pop(argsize);
         state.push(mtype.getReturnType());
     }
 
     /** Emit an invokevirtual instruction.
      */
-    public void emitInvokevirtual(int meth, Type mtype) {
+    public void emitInvokevirtual(Symbol member, Type mtype) {
         int argsize = width(mtype.getParameterTypes());
         emitop(invokevirtual);
         if (!alive) return;
-        emit2(meth);
+        emit2(poolWriter.putMember(member));
         state.pop(argsize + 1);
         state.push(mtype.getReturnType());
     }
 
     /** Emit an invokedynamic instruction.
      */
-    public void emitInvokedynamic(int desc, Type mtype) {
+    public void emitInvokedynamic(DynamicMethodSymbol dynMember, Type mtype) {
         int argsize = width(mtype.getParameterTypes());
         emitop(invokedynamic);
         if (!alive) return;
-        emit2(desc);
+        emit2(poolWriter.putDynamic(dynMember));
         emit2(0);
         state.pop(argsize);
         state.push(mtype.getReturnType());
@@ -609,7 +625,7 @@ public class Code {
             markDead();
             break;
         case athrow:
-            state.pop(1);
+            state.pop(state.stacksize);
             markDead();
             break;
         case lstore_0:
@@ -894,6 +910,10 @@ public class Code {
     /** Emit an opcode with a one-byte operand field.
      */
     public void emitop1(int op, int od) {
+        emitop1(op, od, null);
+    }
+
+    public void emitop1(int op, int od, PoolConstant data) {
         emitop(op);
         if (!alive) return;
         emit1(od);
@@ -902,31 +922,12 @@ public class Code {
             state.push(syms.intType);
             break;
         case ldc1:
-            state.push(typeForPool(pool.pool[od]));
+            state.push(types.constantType((LoadableConstant)data));
             break;
         default:
             throw new AssertionError(mnem(op));
         }
         postop();
-    }
-
-    /** The type of a constant pool entry. */
-    private Type typeForPool(Object o) {
-        if (o instanceof Integer) return syms.intType;
-        if (o instanceof Float) return syms.floatType;
-        if (o instanceof String) return syms.stringType;
-        if (o instanceof Long) return syms.longType;
-        if (o instanceof Double) return syms.doubleType;
-        if (o instanceof ClassSymbol) return syms.classType;
-        if (o instanceof Pool.MethodHandle) return syms.methodHandleType;
-        if (o instanceof UniqueType) return typeForPool(((UniqueType)o).type);
-        if (o instanceof Type) {
-            Type ty = (Type) o;
-
-            if (ty instanceof Type.ArrayType) return syms.classType;
-            if (ty instanceof Type.MethodType) return syms.methodTypeType;
-        }
-        throw new AssertionError("Invalid type of constant pool entry: " + o.getClass());
     }
 
     /** Emit an opcode with a one-byte operand field;
@@ -1001,29 +1002,31 @@ public class Code {
 
     /** Emit an opcode with a two-byte operand field.
      */
+    public <P extends PoolConstant> void emitop2(int op, P constant, ToIntBiFunction<PoolWriter, P> poolFunc) {
+        int od = poolFunc.applyAsInt(poolWriter, constant);
+        emitop2(op, od, constant);
+    }
+
     public void emitop2(int op, int od) {
+        emitop2(op, od, null);
+    }
+
+    public void emitop2(int op, int od, PoolConstant data) {
         emitop(op);
         if (!alive) return;
         emit2(od);
         switch (op) {
         case getstatic:
-            state.push(((Symbol)(pool.pool[od])).erasure(types));
+            state.push(((Symbol)data).erasure(types));
             break;
         case putstatic:
-            state.pop(((Symbol)(pool.pool[od])).erasure(types));
+            state.pop(((Symbol)data).erasure(types));
             break;
-        case new_:
-            Symbol sym;
-            if (pool.pool[od] instanceof UniqueType) {
-                // Required by change in Gen.makeRef to allow
-                // annotated types.
-                // TODO: is this needed anywhere else?
-                sym = ((UniqueType)(pool.pool[od])).type.tsym;
-            } else {
-                sym = (Symbol)(pool.pool[od]);
-            }
-            state.push(uninitializedObject(sym.erasure(types), cp-3));
+        case new_: {
+            Type t = (Type)data;
+            state.push(uninitializedObject(t.tsym.erasure(types), cp-3));
             break;
+        }
         case sipush:
             state.push(syms.intType);
             break;
@@ -1051,30 +1054,25 @@ public class Code {
             markDead();
             break;
         case putfield:
-            state.pop(((Symbol)(pool.pool[od])).erasure(types));
+            state.pop(((Symbol)data).erasure(types));
             state.pop(1); // object ref
             break;
         case getfield:
             state.pop(1); // object ref
-            state.push(((Symbol)(pool.pool[od])).erasure(types));
+            state.push(((Symbol)data).erasure(types));
             break;
         case checkcast: {
             state.pop(1); // object ref
-            Object o = pool.pool[od];
-            Type t = (o instanceof Symbol)
-                ? ((Symbol)o).erasure(types)
-                : types.erasure((((UniqueType)o).type));
+            Type t = types.erasure((Type)data);
             state.push(t);
             break; }
+        case ldc2:
         case ldc2w:
-            state.push(typeForPool(pool.pool[od]));
+            state.push(types.constantType((LoadableConstant)data));
             break;
         case instanceof_:
             state.pop(1);
             state.push(syms.intType);
-            break;
-        case ldc2:
-            state.push(typeForPool(pool.pool[od]));
             break;
         case jsr:
             break;
@@ -1211,8 +1209,17 @@ public class Code {
         return pc;
     }
 
+    public int setLetExprStackPos(int pos) {
+        int res = letExprStackPos;
+        letExprStackPos = pos;
+        return res;
+    }
 
-/**************************************************************************
+    public boolean isStatementStart() {
+        return !alive || state.stacksize == letExprStackPos;
+    }
+
+/* ************************************************************************
  * Stack map generation
  *************************************************************************/
 
@@ -1387,7 +1394,7 @@ public class Code {
     }
 
 
-/**************************************************************************
+/* ************************************************************************
  * Operations having to do with jumps
  *************************************************************************/
 
@@ -1474,7 +1481,7 @@ public class Code {
         State newState = state;
         for (; chain != null; chain = chain.next) {
             Assert.check(state != chain.state
-                    && (target > chain.pc || state.stacksize == 0));
+                    && (target > chain.pc || isStatementStart()));
             if (target >= cp) {
                 target = cp;
             } else if (get1(target) == goto_) {
@@ -2010,7 +2017,7 @@ public class Code {
             if (localVar != null) {
                 for (LocalVar.Range range: localVar.aliveRanges) {
                     if (range.closed() && range.start_pc + range.length >= oldCP) {
-                        range.length += delta;
+                        range.length += (char)delta;
                     }
                 }
             }
@@ -2071,6 +2078,7 @@ public class Code {
                 lvar[adr] = v.dup();
                 v.closeRange(length);
                 putVar(v);
+                fillLocalVarPosition(v);
             } else {
                 v.removeLastRange();
             }
@@ -2102,18 +2110,29 @@ public class Code {
     private void fillLocalVarPosition(LocalVar lv) {
         if (lv == null || lv.sym == null || lv.sym.isExceptionParameter()|| !lv.sym.hasTypeAnnotations())
             return;
-        LocalVar.Range widestRange = lv.getWidestRange();
+        LocalVar.Range[] validRanges = lv.aliveRanges.stream().filter(r -> r.closed() && r.length > 0).toArray(s -> new LocalVar.Range[s]);
+        if (validRanges.length == 0)
+            return ;
+        int[] lvarOffset = Arrays.stream(validRanges).mapToInt(r -> r.start_pc).toArray();
+        int[] lvarLength = Arrays.stream(validRanges).mapToInt(r -> r.length).toArray();
+        int[] lvarIndex = Arrays.stream(validRanges).mapToInt(r -> lv.reg).toArray();
         for (Attribute.TypeCompound ta : lv.sym.getRawTypeAttributes()) {
             TypeAnnotationPosition p = ta.position;
-            if (widestRange.closed() && widestRange.length > 0) {
-                p.lvarOffset = new int[] { (int)widestRange.start_pc };
-                p.lvarLength = new int[] { (int)widestRange.length };
-                p.lvarIndex = new int[] { (int)lv.reg };
-                p.isValidOffset = true;
-            } else {
-                p.isValidOffset = false;
-            }
+            p.lvarOffset = appendArray(p.lvarOffset, lvarOffset);
+            p.lvarLength = appendArray(p.lvarLength, lvarLength);
+            p.lvarIndex = appendArray(p.lvarIndex, lvarIndex);
+            p.isValidOffset = true;
         }
+    }
+
+    private int[] appendArray(int[] source, int[] append) {
+        if (source == null || source.length == 0) return append;
+
+        int[] result = new int[source.length + append.length];
+
+        System.arraycopy(source, 0, result, 0, source.length);
+        System.arraycopy(append, 0, result, source.length, append.length);
+        return result;
     }
 
     // Method to be called after compressCatchTable to
@@ -2172,6 +2191,8 @@ public class Code {
                 ((var.sym.owner.flags() & Flags.LAMBDA_METHOD) == 0 ||
                  (var.sym.flags() & Flags.PARAMETER) == 0);
         if (ignoredSyntheticVar) return;
+        //don't include unnamed variables:
+        if (var.sym.name == var.sym.name.table.names.empty) return ;
         if (varBuffer == null)
             varBuffer = new LocalVar[20];
         else
@@ -2217,7 +2238,7 @@ public class Code {
         for (int i = nextreg; i < prevNextReg; i++) endScope(i);
     }
 
-/**************************************************************************
+/* ************************************************************************
  * static tables
  *************************************************************************/
 
@@ -2226,7 +2247,7 @@ public class Code {
     }
 
     private static class Mneumonics {
-        private final static String[] mnem = new String[ByteCodeCount];
+        private static final String[] mnem = new String[ByteCodeCount];
         static {
             mnem[nop] = "nop";
             mnem[aconst_null] = "aconst_null";

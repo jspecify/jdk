@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,8 @@ import java.io.FileDescriptor;
 import java.net.SocketException;
 import java.net.SocketOption;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Defines the infrastructure to support extended socket options, beyond those
@@ -45,6 +45,10 @@ public abstract class ExtendedSocketOptions {
     public static final short SOCK_DGRAM = 2;
 
     private final Set<SocketOption<?>> options;
+    private final Set<SocketOption<?>> datagramOptions;
+    private final Set<SocketOption<?>> clientStreamOptions;
+    private final Set<SocketOption<?>> serverStreamOptions;
+    private final Set<SocketOption<?>> unixDomainClientOptions;
 
     /** Tells whether or not the option is supported. */
     public final boolean isOptionSupported(SocketOption<?> option) {
@@ -54,63 +58,145 @@ public abstract class ExtendedSocketOptions {
     /** Return the, possibly empty, set of extended socket options available. */
     public final Set<SocketOption<?>> options() { return options; }
 
-    public static final Set<SocketOption<?>> options(short type) {
-        return getInstance().options0(type);
+    /**
+     * Returns the (possibly empty) set of extended socket options for
+     * stream-oriented listening sockets.
+     */
+    public static Set<SocketOption<?>> serverSocketOptions() {
+        return getInstance().options0(SOCK_STREAM, true);
     }
 
-    private Set<SocketOption<?>> options0(short type) {
-        Set<SocketOption<?>> extOptions = null;
+    /**
+     * Returns the (possibly empty) set of extended socket options for
+     * stream-oriented connecting sockets.
+     */
+    public static Set<SocketOption<?>> clientSocketOptions() {
+        return getInstance().options0(SOCK_STREAM, false);
+    }
+
+    /**
+     * Return the, possibly empty, set of extended socket options available for
+     * Unix domain client sockets. Note, there are no extended
+     * Unix domain server options.
+     */
+    private final Set<SocketOption<?>> unixDomainClientOptions() {
+        return unixDomainClientOptions;
+    }
+
+    public static Set<SocketOption<?>> unixDomainSocketOptions() {
+        return getInstance().unixDomainClientOptions();
+    }
+
+    /**
+     * Returns the (possibly empty) set of extended socket options for
+     * datagram-oriented sockets.
+     */
+    public static Set<SocketOption<?>> datagramSocketOptions() {
+        return getInstance().options0(SOCK_DGRAM, false);
+    }
+
+    private static boolean isDatagramOption(SocketOption<?> option) {
+        if (option.name().startsWith("TCP_") || isUnixDomainOption(option)) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    private static boolean isUnixDomainOption(SocketOption<?> option) {
+        return option.name().equals("SO_PEERCRED");
+    }
+
+    private static boolean isStreamOption(SocketOption<?> option, boolean server) {
+        if (option.name().startsWith("UDP_") || isUnixDomainOption(option)
+            || option.name().equals("IP_DONTFRAGMENT")) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    private Set<SocketOption<?>> options0(short type, boolean server) {
         switch (type) {
             case SOCK_DGRAM:
-                extOptions = options.stream()
-                        .filter((option) -> !option.name().startsWith("TCP_"))
-                        .collect(Collectors.toUnmodifiableSet());
-                break;
+                return datagramOptions;
             case SOCK_STREAM:
-                extOptions = options.stream()
-                        .filter((option) -> !option.name().startsWith("UDP_"))
-                        .collect(Collectors.toUnmodifiableSet());
-                break;
+                if (server) {
+                    return serverStreamOptions;
+                } else {
+                    return clientStreamOptions;
+                }
             default:
                 //this will never happen
                 throw new IllegalArgumentException("Invalid socket option type");
         }
-        return extOptions;
     }
 
     /** Sets the value of a socket option, for the given socket. */
-    public abstract void setOption(FileDescriptor fd, SocketOption<?> option, Object value)
+    public abstract void setOption(FileDescriptor fd, SocketOption<?> option, Object value, boolean isIPv6)
             throws SocketException;
 
     /** Returns the value of a socket option, for the given socket. */
-    public abstract Object getOption(FileDescriptor fd, SocketOption<?> option)
+    public abstract Object getOption(FileDescriptor fd, SocketOption<?> option, boolean isIPv6)
             throws SocketException;
 
     protected ExtendedSocketOptions(Set<SocketOption<?>> options) {
         this.options = options;
+        var datagramOptions = new HashSet<SocketOption<?>>();
+        var serverStreamOptions = new HashSet<SocketOption<?>>();
+        var clientStreamOptions = new HashSet<SocketOption<?>>();
+        var unixDomainClientOptions = new HashSet<SocketOption<?>>();
+        for (var option : options) {
+            if (isDatagramOption(option)) {
+                datagramOptions.add(option);
+            }
+            if (isStreamOption(option, true)) {
+                serverStreamOptions.add(option);
+            }
+            if (isStreamOption(option, false)) {
+                clientStreamOptions.add(option);
+            }
+            if (isUnixDomainOption(option)) {
+                unixDomainClientOptions.add(option);
+            }
+        }
+        this.datagramOptions = Set.copyOf(datagramOptions);
+        this.serverStreamOptions = Set.copyOf(serverStreamOptions);
+        this.clientStreamOptions = Set.copyOf(clientStreamOptions);
+        this.unixDomainClientOptions = Set.copyOf(unixDomainClientOptions);
     }
 
     private static volatile ExtendedSocketOptions instance;
 
-    public static final ExtendedSocketOptions getInstance() { return instance; }
-
-    /** Registers support for extended socket options. Invoked by the jdk.net module. */
-    public static final void register(ExtendedSocketOptions extOptions) {
-        if (instance != null)
-            throw new InternalError("Attempting to reregister extended options");
-
-        instance = extOptions;
-    }
-
-    static {
+    public static ExtendedSocketOptions getInstance() {
+        ExtendedSocketOptions ext = instance;
+        if (ext != null) {
+            return ext;
+        }
         try {
             // If the class is present, it will be initialized which
             // triggers registration of the extended socket options.
             Class<?> c = Class.forName("jdk.net.ExtendedSocketOptions");
+            ext = instance;
         } catch (ClassNotFoundException e) {
-            // the jdk.net module is not present => no extended socket options
-            instance = new NoExtendedSocketOptions();
+            synchronized (ExtendedSocketOptions.class) {
+                ext = instance;
+                if (ext != null) {
+                    return ext;
+                }
+                // the jdk.net module is not present => no extended socket options
+                ext = instance = new NoExtendedSocketOptions();
+            }
         }
+        return ext;
+    }
+
+    /** Registers support for extended socket options. Invoked by the jdk.net module. */
+    public static synchronized void register(ExtendedSocketOptions extOptions) {
+        if (instance != null)
+            throw new InternalError("Attempting to reregister extended options");
+
+        instance = extOptions;
     }
 
     static final class NoExtendedSocketOptions extends ExtendedSocketOptions {
@@ -120,7 +206,7 @@ public abstract class ExtendedSocketOptions {
         }
 
         @Override
-        public void setOption(FileDescriptor fd, SocketOption<?> option, Object value)
+        public void setOption(FileDescriptor fd, SocketOption<?> option, Object value, boolean isIPv6)
             throws SocketException
         {
             throw new UnsupportedOperationException(
@@ -128,7 +214,7 @@ public abstract class ExtendedSocketOptions {
         }
 
         @Override
-        public Object getOption(FileDescriptor fd, SocketOption<?> option)
+        public Object getOption(FileDescriptor fd, SocketOption<?> option, boolean isIPv6)
             throws SocketException
         {
             throw new UnsupportedOperationException(

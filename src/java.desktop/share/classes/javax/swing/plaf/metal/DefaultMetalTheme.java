@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ import sun.swing.SwingUtilities2;
  * All colors returned by {@code DefaultMetalTheme} are completely
  * opaque.
  *
- * <h3><a id="fontStyle"></a>Font Style</h3>
+ * <h2><a id="fontStyle"></a>Font Style</h2>
  *
  * {@code DefaultMetalTheme} uses bold fonts for many controls.  To make all
  * controls (with the exception of the internal frame title bars and
@@ -79,7 +79,7 @@ import sun.swing.SwingUtilities2;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -182,6 +182,7 @@ public class DefaultMetalTheme extends MetalTheme {
     }
 
     static {
+        @SuppressWarnings("removal")
         Object boldProperty = java.security.AccessController.doPrivileged(
             new GetPropertyAction("swing.boldMetal"));
         if (boldProperty == null || !"false".equals(boldProperty)) {
@@ -360,7 +361,7 @@ public class DefaultMetalTheme extends MetalTheme {
             USER_TEXT_FONT, CONTROL_TEXT_FONT,
             CONTROL_TEXT_FONT, SUB_TEXT_FONT
         };
-        FontUIResource fonts[];
+        FontUIResource[] fonts;
 
         // menu and window are mapped to controlFont
         public FontDelegate() {
@@ -387,6 +388,7 @@ public class DefaultMetalTheme extends MetalTheme {
          * <code>Font.getFont(key)</code>, with the exception
          * that it is wrapped inside a <code>doPrivileged</code> call.
          */
+        @SuppressWarnings("removal")
         protected Font getPrivilegedFont(final int key) {
             return java.security.AccessController.doPrivileged(
                 new java.security.PrivilegedAction<Font>() {
@@ -403,21 +405,21 @@ public class DefaultMetalTheme extends MetalTheme {
      */
     private static class WindowsFontDelegate extends FontDelegate {
         private MetalFontDesktopProperty[] props;
-        private boolean[] checkedPriviledged;
+        private boolean[] checkedPrivileged;
 
         public WindowsFontDelegate() {
             props = new MetalFontDesktopProperty[6];
-            checkedPriviledged = new boolean[6];
+            checkedPrivileged = new boolean[6];
         }
 
         public FontUIResource getFont(int type) {
             if (fonts[type] != null) {
                 return fonts[type];
             }
-            if (!checkedPriviledged[type]) {
+            if (!checkedPrivileged[type]) {
                 Font f = getPrivilegedFont(type);
 
-                checkedPriviledged[type] = true;
+                checkedPrivileged[type] = true;
                 if (f != null) {
                     fonts[type] = new FontUIResource(f);
                     return fonts[type];

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import javax.swing.*;
 import javax.swing.plaf.*;
 import javax.swing.plaf.basic.*;
 import javax.swing.text.View;
+import javax.swing.tree.DefaultTreeCellRenderer;
 import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.Insets;
@@ -45,6 +46,12 @@ import java.beans.PropertyChangeEvent;
  */
 public class SynthLabelUI extends BasicLabelUI implements SynthUI {
     private SynthStyle style;
+
+    /**
+     *
+     * Constructs a {@code SynthLabelUI}.
+     */
+    public SynthLabelUI() {}
 
     /**
      * Returns the LabelUI implementation used for the skins look and feel.
@@ -115,7 +122,7 @@ public class SynthLabelUI extends BasicLabelUI implements SynthUI {
         }
         JLabel label = (JLabel)c;
         String text = label.getText();
-        if (text == null || "".equals(text)) {
+        if (text == null || text.isEmpty()) {
             return -1;
         }
         Insets i = label.getInsets();
@@ -201,8 +208,14 @@ public class SynthLabelUI extends BasicLabelUI implements SynthUI {
         Icon icon = (label.isEnabled()) ? label.getIcon() :
                                           label.getDisabledIcon();
 
-        g.setColor(context.getStyle().getColor(context,
-                                               ColorType.TEXT_FOREGROUND));
+        if (label instanceof DefaultTreeCellRenderer &&
+                label.getForeground() instanceof UIResource) {
+            g.setColor(label.getForeground());
+        } else {
+            g.setColor(context.getStyle().getColor(context,
+                    ColorType.TEXT_FOREGROUND));
+        }
+
         g.setFont(style.getFont(context));
         context.getStyle().getGraphicsUtils(context).paintText(
             context, g, label.getText(), icon,

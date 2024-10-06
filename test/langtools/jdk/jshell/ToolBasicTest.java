@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8143037 8142447 8144095 8140265 8144906 8146138 8147887 8147886 8148316 8148317 8143955 8157953 8080347 8154714 8166649 8167643 8170162 8172102 8165405 8174796 8174797 8175304 8167554 8180508 8166232 8196133 8199912
+ * @bug 8143037 8142447 8144095 8140265 8144906 8146138 8147887 8147886 8148316 8148317 8143955 8157953 8080347 8154714 8166649 8167643 8170162 8172102 8165405 8174796 8174797 8175304 8167554 8180508 8166232 8196133 8199912 8211694 8223688 8254196 8295984
  * @summary Tests for Basic tests for REPL tool
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
@@ -48,6 +48,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Scanner;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -60,6 +61,7 @@ import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.fail;
 
 @Test
@@ -130,6 +132,18 @@ public class ToolBasicTest extends ReplToolTesting {
         }
     }
 
+    public void testCtrlD() {
+        test(false, new String[]{"--no-startup"},
+                a -> {
+                    if (!a) {
+                        closeCommandInput();
+                    } else {
+                        throw new IllegalStateException();
+                    }
+                }
+        );
+    }
+
     private final Object lock = new Object();
     private PrintWriter out;
     private boolean isStopped;
@@ -141,11 +155,6 @@ public class ToolBasicTest extends ReplToolTesting {
             out = new PrintWriter(writer);
             setCommandInput(cmd + "\n");
             t = new Thread(() -> {
-                try {
-                    // no chance to know whether cmd is being evaluated
-                    Thread.sleep(5000);
-                } catch (InterruptedException ignored) {
-                }
                 int i = 1;
                 int n = 30;
                 synchronized (lock) {
@@ -512,7 +521,7 @@ public class ToolBasicTest extends ReplToolTesting {
     public void testOpenFileOverHttp() throws IOException {
         var script = "int a = 10;int b = 20;int c = a + b;";
 
-        var localhostAddress = new InetSocketAddress(InetAddress.getLocalHost().getHostAddress(), 0);
+        var localhostAddress = new InetSocketAddress(InetAddress.getLoopbackAddress().getHostAddress(), 0);
         var httpServer = HttpServer.create(localhostAddress, 0);
         try {
             httpServer.createContext("/script", exchange -> {
@@ -533,13 +542,15 @@ public class ToolBasicTest extends ReplToolTesting {
                         (a) -> assertCommand(a, "c", "c ==> 30")
                 );
             }
+            test(new String[] {urlAddress},
+                 "File '" + urlAddress + "' for 'jshell' is not found.\n");
         } finally {
             httpServer.stop(0);
         }
     }
 
     public void testOpenResource() {
-        test(
+        test(new String[]{"-R", "-Duser.language=en", "-R", "-Duser.country=US"},
                 (a) -> assertCommand(a, "/open PRINTING", ""),
                 (a) -> assertCommandOutputContains(a, "/list",
                         "void println", "System.out.printf"),
@@ -686,8 +697,7 @@ public class ToolBasicTest extends ReplToolTesting {
                     a -> assertCommand(a, "/set feedback " + off, ""),
                     a -> assertCommand(a, "int a", ""),
                     a -> assertCommand(a, "void f() {}", ""),
-                    a -> assertCommandCheckOutput(a, "aaaa", assertStartsWith("|  Error:")),
-                    a -> assertCommandCheckOutput(a, "static void f() {}", assertStartsWith("|  Warning:"))
+                    a -> assertCommandCheckOutput(a, "aaaa", assertStartsWith("|  Error:"))
             );
         }
     }
@@ -833,8 +843,8 @@ public class ToolBasicTest extends ReplToolTesting {
                 a -> assertCommandOutputStartsWith(a, "import jdk.internal.misc.VM;", "|  Error:")
         );
         test(false, new String[]{"--no-startup",
-            "-R--add-exports", "-Rjava.base/jdk.internal.misc=ALL-UNNAMED",
-            "-C--add-exports", "-Cjava.base/jdk.internal.misc=ALL-UNNAMED"},
+                        "-R--add-exports", "-Rjava.base/jdk.internal.misc=ALL-UNNAMED",
+                        "-C--add-exports", "-Cjava.base/jdk.internal.misc=ALL-UNNAMED"},
                 a -> assertImport(a, "import jdk.internal.misc.VM;", "", "jdk.internal.misc.VM"),
                 a -> assertCommand(a, "System.err.println(VM.isBooted())", "", "", null, "", "true\n")
         );
@@ -844,4 +854,49 @@ public class ToolBasicTest extends ReplToolTesting {
         );
     }
 
+    public void testRedeclareVariableNoInit() {
+        test(
+                a -> assertCommand(a, "Integer a;", "a ==> null"),
+                a -> assertCommand(a, "a instanceof Integer;", "$2 ==> false"),
+                a -> assertCommand(a, "a = 1;", "a ==> 1"),
+                a -> assertCommand(a, "Integer a;", "a ==> null"),
+                a -> assertCommand(a, "a instanceof Integer;", "$5 ==> false"),
+                a -> assertCommand(a, "a", "a ==> null")
+        );
+     }
+
+    public void testWarningUnchecked() { //8223688
+        test(false, new String[]{"--no-startup"},
+                a -> assertCommand(a, "abstract class A<T> { A(T t){} }", "|  created class A"),
+                a -> assertCommandCheckOutput(a, "new A(\"\") {}", s -> {
+                            assertStartsWith("|  Warning:");
+                            assertTrue(s.contains("unchecked call"));
+                            assertFalse(s.contains("Exception"));
+                        })
+        );
+    }
+
+    public void testIndent() { //8223688
+        prefsMap.remove("INDENT");
+        test(false, new String[]{"--no-startup"},
+                a -> assertCommand(a, "/set indent", "|  /set indent 4"),
+                a -> assertCommand(a, "/set indent 2", "|  Indent level set to: 2"),
+                a -> assertCommand(a, "/set indent", "|  /set indent 2"),
+                a -> assertCommand(a, "/set indent broken", "|  Invalid indent level: broken"),
+                a -> assertCommandOutputContains(a, "/set", "|  /set indent 2")
+        );
+    }
+
+    public void testSystemExitStartUp() {
+        Compiler compiler = new Compiler();
+        Path startup = compiler.getPath("SystemExitStartUp/startup.txt");
+        compiler.writeToFile(startup, "int i1 = 0;\n" +
+                                      "System.exit(0);\n" +
+                                      "int i2 = 0;\n");
+        test(Locale.ROOT, true, new String[]{"--startup", startup.toString()},
+                "State engine terminated.",
+                (a) -> assertCommand(a, "i2", "i2 ==> 0"),
+                (a) -> assertCommandOutputContains(a, "i1", "Error:", "variable i1")
+        );
+    }
 }

@@ -38,7 +38,7 @@ import java.util.EventListener;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -55,6 +55,10 @@ public abstract class AbstractListModel<E> implements ListModel<E>, Serializable
      */
     protected EventListenerList listenerList = new EventListenerList();
 
+    /**
+     * Constructor for subclasses to call.
+     */
+    protected AbstractListModel() {}
 
     /**
      * Adds a listener to the list that's notified each time a change
@@ -130,7 +134,7 @@ public abstract class AbstractListModel<E> implements ListModel<E>, Serializable
      * <code>AbstractListModel</code> subclasses must call this method
      * <b>after</b>
      * one or more elements are added to the model.  The new elements
-     * are specified by a closed interval index0, index1 -- the enpoints
+     * are specified by a closed interval index0, index1 -- the endpoints
      * are included.  Note that
      * index0 need not be less than or equal to index1.
      *
@@ -214,7 +218,7 @@ public abstract class AbstractListModel<E> implements ListModel<E>, Serializable
      *          on this model,
      *          or an empty array if no such
      *          listeners have been added
-     * @exception ClassCastException if <code>listenerType</code> doesn't
+     * @throws ClassCastException if <code>listenerType</code> doesn't
      *          specify a class or interface that implements
      *          <code>java.util.EventListener</code>
      *

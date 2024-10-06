@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
 
- Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -27,14 +27,17 @@
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 version="1.0">
 
+  <xsl:param name="majorversion"></xsl:param>
+
   <xsl:template name="microversion">
-    <xsl:value-of select="//specification/@microversion"/>
+    <!-- Now microversion is always 0 -->
+    <xsl:text>0</xsl:text>
   </xsl:template>
 
   <xsl:template name="showbasicversion">
-    <xsl:value-of select="//specification/@majorversion"/>
-    <xsl:text>.</xsl:text>
-    <xsl:value-of select="//specification/@minorversion"/>
+    <xsl:value-of select="$majorversion"/>
+    <!-- Now minorversion is always 0 -->
+    <xsl:text>.0</xsl:text>
   </xsl:template>
 
   <xsl:template name="showversion">
@@ -174,7 +177,7 @@
     <xsl:value-of select="../../@id"/>
   </code>
   is
-  <code>NULL</code>, <xsl:apply-templates/>.
+  <code>null</code> pointer, <xsl:apply-templates/>.
 </xsl:template>
 
 <xsl:template match="vmbuf|allocfieldbuf|struct" mode="funcdescription">
@@ -375,7 +378,7 @@
       <xsl:value-of select="../@id"/>
     </code>
     is
-    <code>NULL</code>, the current thread is used.
+    null, the current thread is used.
   </xsl:if>
 </xsl:template>
 
@@ -929,7 +932,7 @@ typedef </xsl:text>
 </xsl:template>
 
 <xsl:template match="jmethodID" mode="HotSpotName">
-  <xsl:text>method_oop</xsl:text>
+  <xsl:text>checked_method</xsl:text>
 </xsl:template>
 
 <xsl:template match="jfieldID" mode="HotSpotName">
@@ -1007,7 +1010,7 @@ typedef </xsl:text>
 </xsl:template>
 
 <xsl:template match="varargs" mode="HotSpotValue">
-  <xsl:text>NULL</xsl:text>
+  <xsl:text>nullptr</xsl:text>
 </xsl:template>
 
 </xsl:stylesheet>

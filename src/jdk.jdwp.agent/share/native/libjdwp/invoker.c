@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "eventHandler.h"
 #include "threadControl.h"
 #include "outStream.h"
+#include "signature.h"
 
 static jrawMonitorID invokerLock;
 
@@ -52,65 +53,20 @@ void invoker_unlock(void)
     debugMonitorExit(invokerLock);
 }
 
-static jbyte
-returnTypeTag(char *signature)
-{
-    char *tagPtr = strchr(signature, SIGNATURE_END_ARGS);
-    JDI_ASSERT(tagPtr);
-    tagPtr++;    /* 1st character after the end of args */
-    return (jbyte)*tagPtr;
-}
-
-static jbyte
-nextArgumentTypeTag(void **cursor)
-{
-    char *tagPtr = *cursor;
-    jbyte argumentTag = (jbyte)*tagPtr;
-
-    if (*tagPtr != SIGNATURE_END_ARGS) {
-        /* Skip any array modifiers */
-        while (*tagPtr == JDWP_TAG(ARRAY)) {
-            tagPtr++;
-        }
-        /* Skip class name */
-        if (*tagPtr == JDWP_TAG(OBJECT)) {
-            tagPtr = strchr(tagPtr, SIGNATURE_END_CLASS) + 1;
-            JDI_ASSERT(tagPtr);
-        } else {
-            /* Skip primitive sig */
-            tagPtr++;
-        }
-    }
-
-    *cursor = tagPtr;
-    return argumentTag;
-}
-
-static jbyte
-firstArgumentTypeTag(char *signature, void **cursor)
-{
-    JDI_ASSERT(signature[0] == SIGNATURE_BEGIN_ARGS);
-    *cursor = signature + 1; /* skip to the first arg */
-    return nextArgumentTypeTag(cursor);
-}
-
-
 /*
  * Note: argument refs may be destroyed on out-of-memory error
  */
 static jvmtiError
 createGlobalRefs(JNIEnv *env, InvokeRequest *request)
 {
-    jvmtiError error;
+    jvmtiError error = JVMTI_ERROR_NONE;
+    void *cursor = NULL;
+    jbyte argumentTag = 0;
+    jint argIndex = 0;
+    jvalue *argument = request->arguments;
     jclass clazz = NULL;
     jobject instance = NULL;
-    jint argIndex;
-    jbyte argumentTag;
-    jvalue *argument;
-    void *cursor;
     jobject *argRefs = NULL;
-
-    error = JVMTI_ERROR_NONE;
 
     if ( request->argumentCount > 0 ) {
         /*LINTED*/
@@ -138,15 +94,12 @@ createGlobalRefs(JNIEnv *env, InvokeRequest *request)
     }
 
     if ( error == JVMTI_ERROR_NONE && argRefs!=NULL ) {
-        argIndex = 0;
-        argumentTag = firstArgumentTypeTag(request->methodSignature, &cursor);
-        argument = request->arguments;
-        while (argumentTag != SIGNATURE_END_ARGS) {
+        methodSignature_init(request->methodSignature, &cursor);
+        while (methodSignature_nextArgumentExists(&cursor, &argumentTag)) {
             if ( argIndex > request->argumentCount ) {
                 break;
             }
-            if ((argumentTag == JDWP_TAG(OBJECT)) ||
-                (argumentTag == JDWP_TAG(ARRAY))) {
+            if (isReferenceTag(argumentTag)) {
                 /* Create a global ref for any non-null argument */
                 if (argument->l != NULL) {
                     saveGlobalRef(env, argument->l, &argRefs[argIndex]);
@@ -158,7 +111,6 @@ createGlobalRefs(JNIEnv *env, InvokeRequest *request)
             }
             argument++;
             argIndex++;
-            argumentTag = nextArgumentTypeTag(&cursor);
         }
     }
 
@@ -175,16 +127,15 @@ createGlobalRefs(JNIEnv *env, InvokeRequest *request)
         request->instance = instance;
         if ( argRefs!=NULL ) {
             argIndex = 0;
-            argumentTag = firstArgumentTypeTag(request->methodSignature, &cursor);
+            methodSignature_init(request->methodSignature, &cursor);
             argument = request->arguments;
-            while ( argIndex < request->argumentCount ) {
-                if ((argumentTag == JDWP_TAG(OBJECT)) ||
-                    (argumentTag == JDWP_TAG(ARRAY))) {
+            while ( methodSignature_nextArgumentExists(&cursor, &argumentTag) &&
+                   argIndex < request->argumentCount ) {
+                if ( isReferenceTag(argumentTag) ) {
                     argument->l = argRefs[argIndex];
                 }
                 argument++;
                 argIndex++;
-                argumentTag = nextArgumentTypeTag(&cursor);
             }
             jvmtiDeallocate(argRefs);
         }
@@ -218,10 +169,11 @@ createGlobalRefs(JNIEnv *env, InvokeRequest *request)
 static void
 deleteGlobalArgumentRefs(JNIEnv *env, InvokeRequest *request)
 {
-    void *cursor;
+    void *cursor = NULL;
     jint argIndex = 0;
+    jbyte argumentTag = 0;
     jvalue *argument = request->arguments;
-    jbyte argumentTag = firstArgumentTypeTag(request->methodSignature, &cursor);
+    methodSignature_init(request->methodSignature, &cursor);
 
     if (request->clazz != NULL) {
         tossGlobalRef(env, &(request->clazz));
@@ -230,16 +182,15 @@ deleteGlobalArgumentRefs(JNIEnv *env, InvokeRequest *request)
         tossGlobalRef(env, &(request->instance));
     }
     /* Delete global argument references */
-    while (argIndex < request->argumentCount) {
-        if ((argumentTag == JDWP_TAG(OBJECT)) ||
-            (argumentTag == JDWP_TAG(ARRAY))) {
+    while (methodSignature_nextArgumentExists(&cursor, &argumentTag) &&
+           argIndex < request->argumentCount) {
+        if (isReferenceTag(argumentTag)) {
             if (argument->l != NULL) {
                 tossGlobalRef(env, &(argument->l));
             }
         }
         argument++;
         argIndex++;
-        argumentTag = nextArgumentTypeTag(&cursor);
     }
 }
 
@@ -281,6 +232,7 @@ fillInvokeRequest(JNIEnv *env, InvokeRequest *request,
     /*
      * Squirrel away the method signature
      */
+    JDI_ASSERT_MSG(request->methodSignature == NULL, "Request methodSignature not null");
     error = methodSignature(method, NULL, &request->methodSignature,  NULL);
     if (error != JVMTI_ERROR_NONE) {
         return error;
@@ -404,23 +356,23 @@ invokeConstructor(JNIEnv *env, InvokeRequest *request)
 static void
 invokeStatic(JNIEnv *env, InvokeRequest *request)
 {
-    switch(returnTypeTag(request->methodSignature)) {
-        case JDWP_TAG(OBJECT):
-        case JDWP_TAG(ARRAY): {
-            jobject object;
-            JDI_ASSERT_MSG(request->clazz, "Request clazz null");
-            object = JNI_FUNC_PTR(env,CallStaticObjectMethodA)(env,
-                                       request->clazz,
-                                       request->method,
-                                       request->arguments);
-            request->returnValue.l = NULL;
-            if (object != NULL) {
-                saveGlobalRef(env, object, &(request->returnValue.l));
-            }
-            break;
+    jbyte returnType = methodSignature_returnTag(request->methodSignature);
+
+    if (isReferenceTag(returnType)) {
+        jobject object;
+        JDI_ASSERT_MSG(request->clazz, "Request clazz null");
+        object = JNI_FUNC_PTR(env,CallStaticObjectMethodA)(env,
+                                   request->clazz,
+                                   request->method,
+                                   request->arguments);
+        request->returnValue.l = NULL;
+        if (object != NULL) {
+            saveGlobalRef(env, object, &(request->returnValue.l));
         }
+        return;
+    }
 
-
+    switch (returnType) {
         case JDWP_TAG(BYTE):
             request->returnValue.b = JNI_FUNC_PTR(env,CallStaticByteMethodA)(env,
                                                        request->clazz,
@@ -493,22 +445,22 @@ invokeStatic(JNIEnv *env, InvokeRequest *request)
 static void
 invokeVirtual(JNIEnv *env, InvokeRequest *request)
 {
-    switch(returnTypeTag(request->methodSignature)) {
-        case JDWP_TAG(OBJECT):
-        case JDWP_TAG(ARRAY): {
-            jobject object;
-            JDI_ASSERT_MSG(request->instance, "Request instance null");
-            object = JNI_FUNC_PTR(env,CallObjectMethodA)(env,
-                                 request->instance,
-                                 request->method,
-                                 request->arguments);
-            request->returnValue.l = NULL;
-            if (object != NULL) {
-                saveGlobalRef(env, object, &(request->returnValue.l));
-            }
-            break;
+    jbyte returnType = methodSignature_returnTag(request->methodSignature);
+    if (isReferenceTag(returnType)) {
+        jobject object;
+        JDI_ASSERT_MSG(request->instance, "Request instance null");
+        object = JNI_FUNC_PTR(env,CallObjectMethodA)(env,
+                             request->instance,
+                             request->method,
+                             request->arguments);
+        request->returnValue.l = NULL;
+        if (object != NULL) {
+            saveGlobalRef(env, object, &(request->returnValue.l));
         }
+        return;
+    }
 
+    switch (returnType) {
         case JDWP_TAG(BYTE):
             request->returnValue.b = JNI_FUNC_PTR(env,CallByteMethodA)(env,
                                                  request->instance,
@@ -581,24 +533,24 @@ invokeVirtual(JNIEnv *env, InvokeRequest *request)
 static void
 invokeNonvirtual(JNIEnv *env, InvokeRequest *request)
 {
-    switch(returnTypeTag(request->methodSignature)) {
-        case JDWP_TAG(OBJECT):
-        case JDWP_TAG(ARRAY): {
-            jobject object;
-            JDI_ASSERT_MSG(request->clazz, "Request clazz null");
-            JDI_ASSERT_MSG(request->instance, "Request instance null");
-            object = JNI_FUNC_PTR(env,CallNonvirtualObjectMethodA)(env,
-                                           request->instance,
-                                           request->clazz,
-                                           request->method,
-                                           request->arguments);
-            request->returnValue.l = NULL;
-            if (object != NULL) {
-                saveGlobalRef(env, object, &(request->returnValue.l));
-            }
-            break;
+    jbyte returnType = methodSignature_returnTag(request->methodSignature);
+    if (isReferenceTag(returnType)) {
+        jobject object;
+        JDI_ASSERT_MSG(request->clazz, "Request clazz null");
+        JDI_ASSERT_MSG(request->instance, "Request instance null");
+        object = JNI_FUNC_PTR(env,CallNonvirtualObjectMethodA)(env,
+                                       request->instance,
+                                       request->clazz,
+                                       request->method,
+                                       request->arguments);
+        request->returnValue.l = NULL;
+        if (object != NULL) {
+            saveGlobalRef(env, object, &(request->returnValue.l));
         }
+        return;
+    }
 
+    switch (returnType) {
         case JDWP_TAG(BYTE):
             request->returnValue.b = JNI_FUNC_PTR(env,CallNonvirtualByteMethodA)(env,
                                                  request->instance,
@@ -767,7 +719,9 @@ invoker_completeInvokeRequest(jthread thread)
     exc = NULL;
     id  = 0;
 
-    eventHandler_lock(); /* for proper lock order */
+    callback_lock();     /* for proper lock order in threadControl getLocks() */
+    eventHandler_lock(); /* for proper lock order in threadControl getLocks() */
+    stepControl_lock();  /* for proper lock order in threadControl getLocks() */
     debugMonitorEnter(invokerLock);
 
     request = threadControl_getInvokeRequest(thread);
@@ -797,17 +751,19 @@ invoker_completeInvokeRequest(jthread thread)
              */
             tag = specificTypeKey(env, request->returnValue.l);
         } else {
-            tag = returnTypeTag(request->methodSignature);
+            tag = methodSignature_returnTag(request->methodSignature);
         }
         id = request->id;
         exc = request->exception;
+        request->exception = NULL;
         returnValue = request->returnValue;
+        request->returnValue.l = NULL;
 
         /* Release return value and exception references, but delay the release
          * until after the return packet was sent. */
+        jbyte returnType = methodSignature_returnTag(request->methodSignature);
         mustReleaseReturnValue = request->invokeType == INVOKE_CONSTRUCTOR ||
-           returnTypeTag(request->methodSignature) == JDWP_TAG(OBJECT) ||
-           returnTypeTag(request->methodSignature) == JDWP_TAG(ARRAY);
+           isReferenceTag(returnType);
     }
 
     /*
@@ -818,9 +774,13 @@ invoker_completeInvokeRequest(jthread thread)
      * We cannot delete saved exception or return value references
      * since otherwise a deleted handle would escape when writing
      * the response to the stream. Instead, we clean those refs up
-     * after writing the respone.
+     * after writing the response.
      */
     deleteGlobalArgumentRefs(env, request);
+
+    JDI_ASSERT_MSG(request->methodSignature != NULL, "methodSignature is NULL");
+    jvmtiDeallocate(request->methodSignature);
+    request->methodSignature = NULL;
 
     /* From now on, do not access the request structure anymore
      * for this request id, because once we give up the invokerLock it may
@@ -832,30 +792,30 @@ invoker_completeInvokeRequest(jthread thread)
      * Give up the lock before I/O operation
      */
     debugMonitorExit(invokerLock);
+    stepControl_unlock();
     eventHandler_unlock();
+    callback_unlock();
 
     if (!detached) {
         outStream_initReply(&out, id);
         (void)outStream_writeValue(env, &out, tag, returnValue);
         (void)outStream_writeObjectTag(env, &out, exc);
         (void)outStream_writeObjectRef(env, &out, exc);
+        /*
+         * Delete potentially saved global references for return value
+         * and exception. This must be done before sending the reply or
+         * these objects will briefly be viewable by the debugger as live
+         * when they shouldn't be.
+         */
+        if (mustReleaseReturnValue && returnValue.l != NULL) {
+            tossGlobalRef(env, &returnValue.l);
+        }
+        if (exc != NULL) {
+            tossGlobalRef(env, &exc);
+        }
         outStream_sendReply(&out);
+        outStream_destroy(&out);
     }
-
-    /*
-     * Delete potentially saved global references of return value
-     * and exception
-     */
-    eventHandler_lock(); // for proper lock order
-    debugMonitorEnter(invokerLock);
-    if (mustReleaseReturnValue && returnValue.l != NULL) {
-        tossGlobalRef(env, &returnValue.l);
-    }
-    if (exc != NULL) {
-        tossGlobalRef(env, &exc);
-    }
-    debugMonitorExit(invokerLock);
-    eventHandler_unlock();
 }
 
 jboolean

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -89,6 +89,7 @@ public class Operators {
         return instance;
     }
 
+    @SuppressWarnings("this-escape")
     protected Operators(Context context) {
         context.put(operatorsKey, this);
         syms = Symtab.instance(context);
@@ -210,7 +211,7 @@ public class Operators {
      * Report an operator lookup error.
      */
     private OperatorSymbol reportErrorIfNeeded(DiagnosticPosition pos, Tag tag, Type... args) {
-        if (Stream.of(args).noneMatch(Type::isErroneous)) {
+        if (Stream.of(args).noneMatch(t -> t.isErroneous() || t.hasTag(TypeTag.NONE))) {
             Name opName = operatorName(tag);
             JCDiagnostic.Error opError = (args.length) == 1 ?
                     Errors.OperatorCantBeApplied(opName, args[0]) :
@@ -229,7 +230,7 @@ public class Operators {
 
     /**
      * The constants in this enum represent the types upon which all the operator helpers
-     * operate upon. This allows lazy and consise mapping between a type name and a type instance.
+     * operate upon. This allows lazy and concise mapping between a type name and a type instance.
      */
     enum OperatorType {
         BYTE(syms -> syms.byteType),
@@ -280,7 +281,7 @@ public class Operators {
 
         /**
          * This routine implements the main operator lookup process. Each operator is tested
-         * using an applicability predicate; if the test suceeds that same operator is returned,
+         * using an applicability predicate; if the test succeeds that same operator is returned,
          * otherwise a dummy symbol is returned.
          */
         final OperatorSymbol doLookup(Predicate<OperatorSymbol> applicabilityTest) {

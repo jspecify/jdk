@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,13 +32,12 @@
  *     This JVMTI test is for SP02 scenario of "time sampling profiling" area.
  *     This test checks that JVMTI methods GetFrameCount() and GetStackTrace()
  *     return expected number of stack frames for each kind of thread.
- *     Threads are supended/resumed individually by SuspendThread() and ResumeThread().
- *     Checked statements:
+ *     Threads are suspended/resumed individually by SuspendThread() and ResumeThread().
+ *     Checked statements for suspended threads:
  *         - number of stack frames returned by GetFramesCount() and GetStackTrace()
- *           are not less than expected minimal stack depth.
+ *           are not less than expected minimal stack depth
  *         - number of stack frames returned by GetFrameCount() should be equal to
- *           or less than frames number returned by successive call to GetStackTrace()
- *         - for suspended thread these numbers should be strictly equal
+ *           frames number returned by successive call to GetStackTrace()
  *     Tested threads:
  *         Running             - running in Java method
  *         Entering            - entering monitor in synchronized block
@@ -48,18 +47,16 @@
  *         RunningNative       - running in native method
  *     Testcases:
  *         - start threads
- *         - check stack frames of not suspended threads
  *         - suspend each threads
  *         - check stack frames of suspended threads
  *         - resume each threads
- *         - check stack frames of resumed threads
+
  * COMMENTS
  *     Fixed according to test bug:
  *     6405644 TEST_BUG: no proper sync with agent thread in sp02t001/sp02t003
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm/native
  *      -agentlib:sp02t001=-waittime=5
  *      nsk.jvmti.scenarios.sampling.SP02.sp02t001

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +24,9 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/nmethod.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "compiler/compileBroker.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/linkResolver.hpp"
@@ -33,10 +34,11 @@
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jniCheck.hpp"
-#include "runtime/compilationPolicy.hpp"
+#include "prims/jvmtiExport.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/javaThread.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.inline.hpp"
@@ -46,15 +48,13 @@
 #include "runtime/thread.inline.hpp"
 #if INCLUDE_JVMCI
 #include "jvmci/jvmciJavaClasses.hpp"
-#include "jvmci/jvmciRuntime.hpp"
 #endif
 
 // -----------------------------------------------------
 // Implementation of JavaCallWrapper
 
 JavaCallWrapper::JavaCallWrapper(const methodHandle& callee_method, Handle receiver, JavaValue* result, TRAPS) {
-  JavaThread* thread = (JavaThread *)THREAD;
-  bool clear_pending_exception = true;
+  JavaThread* thread = THREAD;
 
   guarantee(thread->is_Java_thread(), "crucial check - the VM thread cannot and must not escape to Java code");
   assert(!thread->owns_locks(), "must release all locks when leaving VM");
@@ -65,20 +65,12 @@ JavaCallWrapper::JavaCallWrapper(const methodHandle& callee_method, Handle recei
   // since it can potentially block.
   JNIHandleBlock* new_handles = JNIHandleBlock::allocate_block(thread);
 
+  // clear any pending exception in thread (native calls start with no exception pending)
+  thread->clear_pending_exception();
+
   // After this, we are official in JavaCode. This needs to be done before we change any of the thread local
   // info, since we cannot find oops before the new information is set up completely.
-  ThreadStateTransition::transition(thread, _thread_in_vm, _thread_in_Java);
-
-  // Make sure that we handle asynchronous stops and suspends _before_ we clear all thread state
-  // in JavaCallWrapper::JavaCallWrapper(). This way, we can decide if we need to do any pd actions
-  // to prepare for stop/suspend (flush register windows on sparcs, cache sp, or other state).
-  if (thread->has_special_runtime_exit_condition()) {
-    thread->handle_special_runtime_exit_condition();
-    if (HAS_PENDING_EXCEPTION) {
-      clear_pending_exception = false;
-    }
-  }
-
+  ThreadStateTransition::transition_from_vm(thread, _thread_in_Java, true /* check_asyncs */);
 
   // Make sure to set the oop's after the thread transition - since we can block there. No one is GC'ing
   // the JavaCallWrapper before the entry frame is on the stack.
@@ -89,11 +81,11 @@ JavaCallWrapper::JavaCallWrapper(const methodHandle& callee_method, Handle recei
   THREAD->allow_unhandled_oop(&_receiver);
 #endif // CHECK_UNHANDLED_OOPS
 
-  _thread       = (JavaThread *)thread;
+  _thread       = thread;
   _handles      = _thread->active_handles();    // save previous handle block & Java frame linkage
 
   // For the profiler, the last_Java_frame information in thread must always be in
-  // legal state. We have no last Java frame if last_Java_sp == NULL so
+  // legal state. We have no last Java frame if last_Java_sp == nullptr so
   // the valid transition is to clear _last_Java_sp and then reset the rest of
   // the (platform specific) state.
 
@@ -103,21 +95,14 @@ JavaCallWrapper::JavaCallWrapper(const methodHandle& callee_method, Handle recei
   debug_only(_thread->inc_java_call_counter());
   _thread->set_active_handles(new_handles);     // install new handle block and reset Java frame linkage
 
-  assert (_thread->thread_state() != _thread_in_native, "cannot set native pc to NULL");
-
-  // clear any pending exception in thread (native calls start with no exception pending)
-  if(clear_pending_exception) {
-    _thread->clear_pending_exception();
-  }
-
-  if (_anchor.last_Java_sp() == NULL) {
-    _thread->record_base_of_stack_pointer();
-  }
+  MACOS_AARCH64_ONLY(_thread->enable_wx(WXExec));
 }
 
 
 JavaCallWrapper::~JavaCallWrapper() {
   assert(_thread == JavaThread::current(), "must still be the same thread");
+
+  MACOS_AARCH64_ONLY(_thread->enable_wx(WXWrite));
 
   // restore previous handle block & Java frame linkage
   JNIHandleBlock *_old_handles = _thread->active_handles();
@@ -127,18 +112,13 @@ JavaCallWrapper::~JavaCallWrapper() {
 
   debug_only(_thread->dec_java_call_counter());
 
-  if (_anchor.last_Java_sp() == NULL) {
-    _thread->set_base_of_stack_pointer(NULL);
-  }
-
-
   // Old thread-local info. has been restored. We are not back in the VM.
   ThreadStateTransition::transition_from_java(_thread, _thread_in_vm);
 
   // State has been restored now make the anchor frame visible for the profiler.
   // Do this after the transition because this allows us to put an assert
   // the Java->vm transition which checks to see that stack is not walkable
-  // on sparc/ia64 which will catch violations of the reseting of last_Java_frame
+  // on sparc/ia64 which will catch violations of the resetting of last_Java_frame
   // invariants (i.e. _flags always cleared on return to Java)
 
   _thread->frame_anchor()->copy(&_anchor);
@@ -146,6 +126,14 @@ JavaCallWrapper::~JavaCallWrapper() {
   // Release handles after we are marked as being inside the VM again, since this
   // operation might block
   JNIHandleBlock::release_block(_old_handles, _thread);
+
+  if (_thread->has_pending_exception() && _thread->has_last_Java_frame()) {
+    // If we get here, the Java code threw an exception that unwound a frame.
+    // It could be that the new frame anchor has not passed through the required
+    // StackWatermark barriers. Therefore, we process any such deferred unwind
+    // requests here.
+    StackWatermarkSet::after_unwind(_thread);
+  }
 }
 
 
@@ -186,11 +174,11 @@ static BasicType runtime_type_from(JavaValue* result) {
 void JavaCalls::call_virtual(JavaValue* result, Klass* spec_klass, Symbol* name, Symbol* signature, JavaCallArguments* args, TRAPS) {
   CallInfo callinfo;
   Handle receiver = args->receiver();
-  Klass* recvrKlass = receiver.is_null() ? (Klass*)NULL : receiver->klass();
+  Klass* recvrKlass = receiver.is_null() ? (Klass*)nullptr : receiver->klass();
   LinkInfo link_info(spec_klass, name, signature);
   LinkResolver::resolve_virtual_call(
           callinfo, receiver, recvrKlass, link_info, true, CHECK);
-  methodHandle method = callinfo.selected_method();
+  methodHandle method(THREAD, callinfo.selected_method());
   assert(method.not_null(), "should have thrown exception");
 
   // Invoke the method
@@ -226,7 +214,7 @@ void JavaCalls::call_special(JavaValue* result, Klass* klass, Symbol* name, Symb
   CallInfo callinfo;
   LinkInfo link_info(klass, name, signature);
   LinkResolver::resolve_special_call(callinfo, args->receiver(), link_info, CHECK);
-  methodHandle method = callinfo.selected_method();
+  methodHandle method(THREAD, callinfo.selected_method());
   assert(method.not_null(), "should have thrown exception");
 
   // Invoke the method
@@ -261,7 +249,7 @@ void JavaCalls::call_static(JavaValue* result, Klass* klass, Symbol* name, Symbo
   CallInfo callinfo;
   LinkInfo link_info(klass, name, signature);
   LinkResolver::resolve_static_call(callinfo, link_info, true, CHECK);
-  methodHandle method = callinfo.selected_method();
+  methodHandle method(THREAD, callinfo.selected_method());
   assert(method.not_null(), "should have thrown exception");
 
   // Invoke the method
@@ -307,25 +295,26 @@ Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* construct
   JavaCalls::call_special(&void_result, klass,
                           vmSymbols::object_initializer_name(),
                           constructor_signature, args, CHECK_NH);
+  // Already returned a Null Handle if any exception is pending.
   return obj;
 }
 
 Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* constructor_signature, TRAPS) {
   JavaCallArguments args;
-  return JavaCalls::construct_new_instance(klass, constructor_signature, &args, CHECK_NH);
+  return JavaCalls::construct_new_instance(klass, constructor_signature, &args, THREAD);
 }
 
 Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* constructor_signature, Handle arg1, TRAPS) {
   JavaCallArguments args;
   args.push_oop(arg1);
-  return JavaCalls::construct_new_instance(klass, constructor_signature, &args, CHECK_NH);
+  return JavaCalls::construct_new_instance(klass, constructor_signature, &args, THREAD);
 }
 
 Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* constructor_signature, Handle arg1, Handle arg2, TRAPS) {
   JavaCallArguments args;
   args.push_oop(arg1);
   args.push_oop(arg2);
-  return JavaCalls::construct_new_instance(klass, constructor_signature, &args, CHECK_NH);
+  return JavaCalls::construct_new_instance(klass, constructor_signature, &args, THREAD);
 }
 
 // -------------------------------------------------
@@ -333,46 +322,29 @@ Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* construct
 
 
 void JavaCalls::call(JavaValue* result, const methodHandle& method, JavaCallArguments* args, TRAPS) {
-  // Check if we need to wrap a potential OS exception handler around thread
-  // This is used for e.g. Win32 structured exception handlers
-  assert(THREAD->is_Java_thread(), "only JavaThreads can make JavaCalls");
+  // Check if we need to wrap a potential OS exception handler around thread.
+  // This is used for e.g. Win32 structured exception handlers.
   // Need to wrap each and every time, since there might be native code down the
-  // stack that has installed its own exception handlers
+  // stack that has installed its own exception handlers.
   os::os_exception_wrapper(call_helper, result, method, args, THREAD);
 }
 
 void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaCallArguments* args, TRAPS) {
 
-  JavaThread* thread = (JavaThread*)THREAD;
-  assert(thread->is_Java_thread(), "must be called by a java thread");
+  JavaThread* thread = THREAD;
   assert(method.not_null(), "must have a method to call");
   assert(!SafepointSynchronize::is_at_safepoint(), "call to Java code during VM operation");
   assert(!thread->handle_area()->no_handle_mark_active(), "cannot call out to Java here");
 
-
-  CHECK_UNHANDLED_OOPS_ONLY(thread->clear_unhandled_oops();)
-
-#if INCLUDE_JVMCI
-  // Gets the nmethod (if any) that should be called instead of normal target
-  nmethod* alternative_target = args->alternative_target();
-  if (alternative_target == NULL) {
-#endif
-// Verify the arguments
-
-  if (CheckJNICalls)  {
+  // Verify the arguments
+  if (JVMCI_ONLY(args->alternative_target().is_null() &&) (DEBUG_ONLY(true ||) CheckJNICalls)) {
     args->verify(method, result->get_type());
   }
-  else debug_only(args->verify(method, result->get_type()));
-#if INCLUDE_JVMCI
-  }
-#else
-
   // Ignore call if method is empty
-  if (method->is_empty_method()) {
+  if (JVMCI_ONLY(args->alternative_target().is_null() &&) method->is_empty_method()) {
     assert(result->get_type() == T_VOID, "an empty method must return a void value");
     return;
   }
-#endif
 
 #ifdef ASSERT
   { InstanceKlass* holder = method->method_holder();
@@ -385,35 +357,21 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
 
   CompilationPolicy::compile_if_required(method, CHECK);
 
-  // Since the call stub sets up like the interpreter we call the from_interpreted_entry
-  // so we can go compiled via a i2c. Otherwise initial entry method will always
-  // run interpreted.
-  address entry_point = method->from_interpreted_entry();
-  if (JvmtiExport::can_post_interpreter_events() && thread->is_interp_only_mode()) {
-    entry_point = method->interpreter_entry();
-  }
-
   // Figure out if the result value is an oop or not (Note: This is a different value
   // than result_type. result_type will be T_INT of oops. (it is about size)
   BasicType result_type = runtime_type_from(result);
-  bool oop_result_flag = (result->get_type() == T_OBJECT || result->get_type() == T_ARRAY);
-
-  // NOTE: if we move the computation of the result_val_address inside
-  // the call to call_stub, the optimizer produces wrong code.
-  intptr_t* result_val_address = (intptr_t*)(result->get_value_addr());
+  bool oop_result_flag = is_reference_type(result->get_type());
 
   // Find receiver
   Handle receiver = (!method->is_static()) ? args->receiver() : Handle();
 
-  // When we reenter Java, we need to reenable the reserved/yellow zone which
+  // When we reenter Java, we need to re-enable the reserved/yellow zone which
   // might already be disabled when we are in VM.
-  if (!thread->stack_guards_enabled()) {
-    thread->reguard_stack();
-  }
+  thread->stack_overflow_state()->reguard_stack_if_needed();
 
   // Check that there are shadow pages available before changing thread state
   // to Java. Calculate current_stack_pointer here to make sure
-  // stack_shadow_pages_available() and bang_stack_shadow_pages() use the same sp.
+  // stack_shadow_pages_available() and map_stack_shadow_pages() use the same sp.
   address sp = os::current_stack_pointer();
   if (!os::stack_shadow_pages_available(THREAD, method, sp)) {
     // Throw stack overflow exception with preinitialized exception.
@@ -424,21 +382,42 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
     os::map_stack_shadow_pages(sp);
   }
 
-#if INCLUDE_JVMCI
-  if (alternative_target != NULL) {
-    if (alternative_target->is_alive()) {
-      thread->set_jvmci_alternate_call_target(alternative_target->verified_entry_point());
-      entry_point = method->adapter()->get_i2c_entry();
-    } else {
-      THROW(vmSymbols::jdk_vm_ci_code_InvalidInstalledCodeException());
-    }
-  }
-#endif
-
   // do call
   { JavaCallWrapper link(method, receiver, result, CHECK);
     { HandleMark hm(thread);  // HandleMark used by HandleMarkCleaner
 
+      // NOTE: if we move the computation of the result_val_address inside
+      // the call to call_stub, the optimizer produces wrong code.
+      intptr_t* result_val_address = (intptr_t*)(result->get_value_addr());
+      intptr_t* parameter_address = args->parameters();
+
+      address entry_point;
+      {
+        // The enter_interp_only_mode use handshake to set interp_only mode
+        // so no safepoint should be allowed between is_interp_only_mode() and call
+        NoSafepointVerifier nsv;
+        if (JvmtiExport::can_post_interpreter_events() && thread->is_interp_only_mode()) {
+          entry_point = method->interpreter_entry();
+        } else {
+          // Since the call stub sets up like the interpreter we call the from_interpreted_entry
+          // so we can go compiled via a i2c.
+          entry_point = method->from_interpreted_entry();
+#if INCLUDE_JVMCI
+          // Gets the alternative target (if any) that should be called
+          Handle alternative_target = args->alternative_target();
+          if (!alternative_target.is_null()) {
+            // Must extract verified entry point from HotSpotNmethod after VM to Java
+            // transition in JavaCallWrapper constructor so that it is safe with
+            // respect to nmethod sweeping.
+            address verified_entry_point = (address) HotSpotJVMCI::InstalledCode::entryPoint(nullptr, alternative_target());
+            if (verified_entry_point != nullptr) {
+              thread->set_jvmci_alternate_call_target(verified_entry_point);
+              entry_point = method->adapter()->get_i2c_entry();
+            }
+          }
+#endif
+        }
+      }
       StubRoutines::call_stub()(
         (address)&link,
         // (intptr_t*)&(result->_value), // see NOTE above (compiler problem)
@@ -446,7 +425,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
         result_type,
         method(),
         entry_point,
-        args->parameters(),
+        parameter_address,
         args->size_of_parameters(),
         CHECK
       );
@@ -454,7 +433,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
       result = link.result();  // circumvent MS C++ 5.0 compiler bug (result is clobbered across call)
       // Preserve oop return value across possible gc points
       if (oop_result_flag) {
-        thread->set_vm_result((oop) result->get_jobject());
+        thread->set_vm_result(result->get_oop());
       }
     }
   } // Exit JavaCallWrapper (can block - potential return oop must be preserved)
@@ -465,8 +444,8 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
 
   // Restore possible oop return
   if (oop_result_flag) {
-    result->set_jobject((jobject)thread->vm_result());
-    thread->set_vm_result(NULL);
+    result->set_oop(thread->vm_result());
+    thread->set_vm_result(nullptr);
   }
 }
 
@@ -498,7 +477,7 @@ inline oop resolve_indirect_oop(intptr_t value, uint state) {
 
   default:
     ShouldNotReachHere();
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -526,8 +505,6 @@ class SignatureChekker : public SignatureIterator {
    intptr_t* _value;
 
  public:
-  bool _is_return;
-
   SignatureChekker(Symbol* signature,
                    BasicType return_type,
                    bool is_static,
@@ -537,17 +514,19 @@ class SignatureChekker : public SignatureIterator {
     _pos(0),
     _return_type(return_type),
     _value_state(value_state),
-    _value(value),
-    _is_return(false)
+    _value(value)
   {
     if (!is_static) {
       check_value(true); // Receiver must be an oop
     }
+    do_parameters_on(this);
+    check_return_type(return_type);
   }
 
-  void check_value(bool type) {
+ private:
+  void check_value(bool is_reference) {
     uint state = _value_state[_pos++];
-    if (type) {
+    if (is_reference) {
       guarantee(is_value_state_indirect_oop(state),
                 "signature does not match pushed arguments: %u at %d",
                 state, _pos - 1);
@@ -558,43 +537,25 @@ class SignatureChekker : public SignatureIterator {
     }
   }
 
-  void check_doing_return(bool state) { _is_return = state; }
-
   void check_return_type(BasicType t) {
-    guarantee(_is_return && t == _return_type, "return type does not match");
+    guarantee(t == _return_type, "return type does not match");
   }
 
-  void check_int(BasicType t) {
-    if (_is_return) {
-      check_return_type(t);
-      return;
-    }
+  void check_single_word() {
     check_value(false);
   }
 
-  void check_double(BasicType t) { check_long(t); }
-
-  void check_long(BasicType t) {
-    if (_is_return) {
-      check_return_type(t);
-      return;
-    }
-
+  void check_double_word() {
     check_value(false);
     check_value(false);
   }
 
-  void check_obj(BasicType t) {
-    if (_is_return) {
-      check_return_type(t);
-      return;
-    }
-
+  void check_reference() {
     intptr_t v = _value[_pos];
     if (v != 0) {
       // v is a "handle" referring to an oop, cast to integral type.
       // There shouldn't be any handles in very low memory.
-      guarantee((size_t)v >= (size_t)os::vm_page_size(),
+      guarantee((size_t)v >= os::vm_page_size(),
                 "Bad JNI oop argument %d: " PTR_FORMAT, _pos, v);
       // Verify the pointee.
       oop vv = resolve_indirect_oop(v, _value_state[_pos]);
@@ -606,17 +567,26 @@ class SignatureChekker : public SignatureIterator {
     check_value(true);          // Verify value state.
   }
 
-  void do_bool()                       { check_int(T_BOOLEAN);       }
-  void do_char()                       { check_int(T_CHAR);          }
-  void do_float()                      { check_int(T_FLOAT);         }
-  void do_double()                     { check_double(T_DOUBLE);     }
-  void do_byte()                       { check_int(T_BYTE);          }
-  void do_short()                      { check_int(T_SHORT);         }
-  void do_int()                        { check_int(T_INT);           }
-  void do_long()                       { check_long(T_LONG);         }
-  void do_void()                       { check_return_type(T_VOID);  }
-  void do_object(int begin, int end)   { check_obj(T_OBJECT);        }
-  void do_array(int begin, int end)    { check_obj(T_OBJECT);        }
+  friend class SignatureIterator;  // so do_parameters_on can call do_type
+  void do_type(BasicType type) {
+    switch (type) {
+    case T_BYTE:
+    case T_BOOLEAN:
+    case T_CHAR:
+    case T_SHORT:
+    case T_INT:
+    case T_FLOAT:  // this one also
+      check_single_word(); break;
+    case T_LONG:
+    case T_DOUBLE:
+      check_double_word(); break;
+    case T_ARRAY:
+    case T_OBJECT:
+      check_reference(); break;
+    default:
+      ShouldNotReachHere();
+    }
+  }
 };
 
 
@@ -624,7 +594,7 @@ void JavaCallArguments::verify(const methodHandle& method, BasicType return_type
   guarantee(method->size_of_parameters() == size_of_parameters(), "wrong no. of arguments pushed");
 
   // Treat T_OBJECT and T_ARRAY as the same
-  if (return_type == T_ARRAY) return_type = T_OBJECT;
+  if (is_reference_type(return_type)) return_type = T_OBJECT;
 
   // Check that oop information is correct
   Symbol* signature = method->signature();
@@ -634,7 +604,4 @@ void JavaCallArguments::verify(const methodHandle& method, BasicType return_type
                       method->is_static(),
                       _value_state,
                       _value);
-  sc.iterate_parameters();
-  sc.check_doing_return(true);
-  sc.iterate_returntype();
 }

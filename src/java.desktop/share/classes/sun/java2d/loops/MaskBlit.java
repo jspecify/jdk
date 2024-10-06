@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2004, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,10 @@ package sun.java2d.loops;
 
 import java.awt.Composite;
 import java.lang.ref.WeakReference;
-import sun.java2d.loops.GraphicsPrimitive;
+
 import sun.java2d.SurfaceData;
 import sun.java2d.pipe.Region;
+import sun.java2d.loops.GraphicsPrimitiveMgr.GeneralPrimitives;
 
 /**
  * MaskBlit
@@ -109,12 +110,12 @@ public class MaskBlit extends GraphicsPrimitive
                                 byte[] mask, int maskoff, int maskscan);
 
     static {
-        GraphicsPrimitiveMgr.registerGeneral(new MaskBlit(null, null, null));
+        GeneralPrimitives.register(new MaskBlit(null, null, null));
     }
 
-    public GraphicsPrimitive makePrimitive(SurfaceType srctype,
-                                           CompositeType comptype,
-                                           SurfaceType dsttype)
+    protected GraphicsPrimitive makePrimitive(SurfaceType srctype,
+                                              CompositeType comptype,
+                                              SurfaceType dsttype)
     {
         /*
         new Throwable().printStackTrace();
@@ -171,7 +172,7 @@ public class MaskBlit extends GraphicsPrimitive
                                           int srcx, int srcy,
                                           int dstx, int dsty,
                                           int width, int height,
-                                          byte mask[], int offset, int scan)
+                                          byte[] mask, int offset, int scan)
         {
             SurfaceData src, dst;
             Region opclip;

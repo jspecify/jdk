@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,45 +21,27 @@
  * questions.
  */
 
+package gc;
+
 /* @test TestAllocateHeapAt.java
- * @key gc
  * @summary Test to check allocation of Java Heap with AllocateHeapAt option
- * @requires vm.gc != "Z"
+ * @requires vm.gc != "Z" & os.family != "aix"
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
+ * @run driver gc.TestAllocateHeapAt
  */
 
-import jdk.test.lib.JDKToolFinder;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
-import java.util.ArrayList;
-import java.util.Collections;
 
 public class TestAllocateHeapAt {
   public static void main(String args[]) throws Exception {
-    ArrayList<String> vmOpts = new ArrayList();
-
-    String testVmOptsStr = System.getProperty("test.java.opts");
-    if (!testVmOptsStr.isEmpty()) {
-      String[] testVmOpts = testVmOptsStr.split(" ");
-      Collections.addAll(vmOpts, testVmOpts);
-    }
-    String test_dir = System.getProperty("test.dir", ".");
-    Collections.addAll(vmOpts, new String[] {"-XX:AllocateHeapAt=" + test_dir,
-                                             "-Xlog:gc+heap=info",
-                                             "-Xmx32m",
-                                             "-Xms32m",
-                                             "-version"});
-
-    System.out.print("Testing:\n" + JDKToolFinder.getJDKTool("java"));
-    for (int i = 0; i < vmOpts.size(); i += 1) {
-      System.out.print(" " + vmOpts.get(i));
-    }
-    System.out.println();
-
-    ProcessBuilder pb =
-      ProcessTools.createJavaProcessBuilder(vmOpts.toArray(new String[vmOpts.size()]));
-    OutputAnalyzer output = new OutputAnalyzer(pb.start());
+    OutputAnalyzer output = ProcessTools.executeTestJava(
+        "-XX:AllocateHeapAt=" + System.getProperty("test.dir", "."),
+        "-Xlog:gc+heap=info",
+        "-Xmx32m",
+        "-Xms32m",
+        "-version");
 
     System.out.println("Output:\n" + output.getOutput());
 

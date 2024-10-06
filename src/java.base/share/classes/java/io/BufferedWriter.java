@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,10 @@ package java.io;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
+import java.util.Objects;
+import jdk.internal.misc.InternalLock;
+import jdk.internal.misc.VM;
 
 /**
  * Writes text to a character-output stream, buffering characters so as to
@@ -36,26 +40,31 @@ import org.jspecify.annotations.Nullable;
  * <p> The buffer size may be specified, or the default size may be accepted.
  * The default is large enough for most purposes.
  *
- * <p> A newLine() method is provided, which uses the platform's own notion of
- * line separator as defined by the system property {@code line.separator}.
- * Not all platforms use the newline character ('\n') to terminate lines.
- * Calling this method to terminate each output line is therefore preferred to
- * writing a newline character directly.
+ * <p> A {@code newLine()} method is provided, which uses the platform's own
+ * notion of line separator as defined by the system property
+ * {@linkplain System#lineSeparator() line.separator}. Not all platforms use the newline character ('\n')
+ * to terminate lines. Calling this method to terminate each output line is
+ * therefore preferred to writing a newline character directly.
  *
- * <p> In general, a Writer sends its output immediately to the underlying
- * character or byte stream.  Unless prompt output is required, it is advisable
- * to wrap a BufferedWriter around any Writer whose write() operations may be
- * costly, such as FileWriters and OutputStreamWriters.  For example,
+ * <p> In general, a {@code Writer} sends its output immediately to the
+ * underlying character or byte stream.  Unless prompt output is required, it
+ * is advisable to wrap a {@code BufferedWriter} around any {@code Writer} whose
+ * {@code write()} operations may be costly, such as {@code FileWriter}s and
+ * {@code OutputStreamWriter}s.  For example,
  *
- * <pre>
- * PrintWriter out
- *   = new PrintWriter(new BufferedWriter(new FileWriter("foo.out")));
- * </pre>
+ * {@snippet lang=java :
+ *     PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("foo.out")));
+ * }
  *
- * will buffer the PrintWriter's output to the file.  Without buffering, each
- * invocation of a print() method would cause characters to be converted into
- * bytes that would then be written immediately to the file, which can be very
- * inefficient.
+ * will buffer the {@code PrintWriter}'s output to the file.  Without buffering,
+ * each invocation of a {@code print()} method would cause characters to be
+ * converted into bytes that would then be written immediately to the file,
+ * which can be very inefficient.
+ *
+ * @apiNote
+ * Once wrapped in a {@code BufferedWriter}, the underlying
+ * {@code Writer} should not be used directly nor wrapped with
+ * another writer.
  *
  * @see PrintWriter
  * @see FileWriter
@@ -68,13 +77,41 @@ import org.jspecify.annotations.Nullable;
 
 @NullMarked
 public class BufferedWriter extends Writer {
+    private static final int DEFAULT_INITIAL_BUFFER_SIZE = 512;
+    private static final int DEFAULT_MAX_BUFFER_SIZE = 8192;
 
     private Writer out;
 
-    private char cb[];
-    private int nChars, nextChar;
+    private char[] cb;
+    private int nChars;
+    private int nextChar;
+    private final int maxChars;  // maximum number of buffers chars
 
-    private static int defaultCharBufferSize = 8192;
+    /**
+     * Returns the buffer size to use when no output buffer size specified
+     */
+    private static int initialBufferSize() {
+        if (VM.isBooted() && Thread.currentThread().isVirtual()) {
+            return DEFAULT_INITIAL_BUFFER_SIZE;
+        } else {
+            return DEFAULT_MAX_BUFFER_SIZE;
+        }
+    }
+
+    /**
+     * Creates a buffered character-output stream.
+     */
+    private BufferedWriter(Writer out, int initialSize, int maxSize) {
+        super(out);
+        if (initialSize <= 0) {
+            throw new IllegalArgumentException("Buffer size <= 0");
+        }
+
+        this.out = out;
+        this.cb = new char[initialSize];
+        this.nChars = initialSize;
+        this.maxChars = maxSize;
+    }
 
     /**
      * Creates a buffered character-output stream that uses a default-sized
@@ -83,7 +120,7 @@ public class BufferedWriter extends Writer {
      * @param  out  A Writer
      */
     public BufferedWriter(Writer out) {
-        this(out, defaultCharBufferSize);
+        this(out, initialBufferSize(), DEFAULT_MAX_BUFFER_SIZE);
     }
 
     /**
@@ -93,16 +130,10 @@ public class BufferedWriter extends Writer {
      * @param  out  A Writer
      * @param  sz   Output-buffer size, a positive integer
      *
-     * @exception  IllegalArgumentException  If {@code sz <= 0}
+     * @throws     IllegalArgumentException  If {@code sz <= 0}
      */
-    public BufferedWriter(Writer out,  int sz) {
-        super(out);
-        if (sz <= 0)
-            throw new IllegalArgumentException("Buffer size <= 0");
-        this.out = out;
-        cb = new char[sz];
-        nChars = sz;
-        nextChar = 0;
+    public BufferedWriter(Writer out, int sz) {
+        this(out, sz, sz);
     }
 
     /** Checks to make sure that the stream has not been closed */
@@ -112,32 +143,79 @@ public class BufferedWriter extends Writer {
     }
 
     /**
+     * Grow char array to fit an additional len characters if needed.
+     * If possible, it grows by len+1 to avoid flushing when len chars
+     * are added.
+     *
+     * This method should only be called while holding the lock.
+     */
+    private void growIfNeeded(int len) {
+        int neededSize = nextChar + len + 1;
+        if (neededSize < 0)
+            neededSize = Integer.MAX_VALUE;
+        if (neededSize > nChars && nChars < maxChars) {
+            int newSize = min(neededSize, maxChars);
+            cb = Arrays.copyOf(cb, newSize);
+            nChars = newSize;
+        }
+    }
+
+    /**
      * Flushes the output buffer to the underlying character stream, without
      * flushing the stream itself.  This method is non-private only so that it
      * may be invoked by PrintStream.
      */
     void flushBuffer() throws IOException {
-        synchronized (lock) {
-            ensureOpen();
-            if (nextChar == 0)
-                return;
-            out.write(cb, 0, nextChar);
-            nextChar = 0;
+        Object lock = this.lock;
+        if (lock instanceof InternalLock locker) {
+            locker.lock();
+            try {
+                implFlushBuffer();
+            } finally {
+                locker.unlock();
+            }
+        } else {
+            synchronized (lock) {
+                implFlushBuffer();
+            }
         }
+    }
+
+    private void implFlushBuffer() throws IOException {
+        ensureOpen();
+        if (nextChar == 0)
+            return;
+        out.write(cb, 0, nextChar);
+        nextChar = 0;
     }
 
     /**
      * Writes a single character.
      *
-     * @exception  IOException  If an I/O error occurs
+     * @throws     IOException  If an I/O error occurs
      */
     public void write(int c) throws IOException {
-        synchronized (lock) {
-            ensureOpen();
-            if (nextChar >= nChars)
-                flushBuffer();
-            cb[nextChar++] = (char) c;
+        Object lock = this.lock;
+        if (lock instanceof InternalLock locker) {
+            locker.lock();
+            try {
+                implWrite(c);
+            } finally {
+                locker.unlock();
+            }
+        } else {
+            synchronized (lock) {
+                implWrite(c);
+            }
         }
+    }
+
+    private void implWrite(int c) throws IOException {
+        ensureOpen();
+        growIfNeeded(1);
+        if (nextChar >= nChars)
+            flushBuffer();
+        cb[nextChar++] = (char) c;
     }
 
     /**
@@ -170,33 +248,47 @@ public class BufferedWriter extends Writer {
      *
      * @throws  IOException  If an I/O error occurs
      */
-    public void write(char cbuf[],  int off,   int len) throws IOException {
-        synchronized (lock) {
-            ensureOpen();
-            if ((off < 0) || (off > cbuf.length) || (len < 0) ||
-                ((off + len) > cbuf.length) || ((off + len) < 0)) {
-                throw new IndexOutOfBoundsException();
-            } else if (len == 0) {
-                return;
+    public void write(char[] cbuf, int off, int len) throws IOException {
+        Object lock = this.lock;
+        if (lock instanceof InternalLock locker) {
+            locker.lock();
+            try {
+                implWrite(cbuf, off, len);
+            } finally {
+                locker.unlock();
             }
+        } else {
+            synchronized (lock) {
+                implWrite(cbuf, off, len);
+            }
+        }
+    }
 
-            if (len >= nChars) {
-                /* If the request length exceeds the size of the output buffer,
-                   flush the buffer and then write the data directly.  In this
-                   way buffered streams will cascade harmlessly. */
+    private void implWrite(char[] cbuf, int off, int len) throws IOException {
+        ensureOpen();
+        Objects.checkFromIndexSize(off, len, cbuf.length);
+        if (len == 0) {
+            return;
+        }
+
+        if (len >= maxChars) {
+            /* If the request length exceeds the max size of the output buffer,
+               flush the buffer and then write the data directly.  In this
+               way buffered streams will cascade harmlessly. */
+            flushBuffer();
+            out.write(cbuf, off, len);
+            return;
+        }
+
+        growIfNeeded(len);
+        int b = off, t = off + len;
+        while (b < t) {
+            int d = min(nChars - nextChar, t - b);
+            System.arraycopy(cbuf, b, cb, nextChar, d);
+            b += d;
+            nextChar += d;
+            if (nextChar >= nChars) {
                 flushBuffer();
-                out.write(cbuf, off, len);
-                return;
-            }
-
-            int b = off, t = off + len;
-            while (b < t) {
-                int d = min(nChars - nextChar, t - b);
-                System.arraycopy(cbuf, b, cb, nextChar, d);
-                b += d;
-                nextChar += d;
-                if (nextChar >= nChars)
-                    flushBuffer();
             }
         }
     }
@@ -223,19 +315,33 @@ public class BufferedWriter extends Writer {
      *
      * @throws  IOException  If an I/O error occurs
      */
-    public void write(String s,  int off,   int len) throws IOException {
-        synchronized (lock) {
-            ensureOpen();
-
-            int b = off, t = off + len;
-            while (b < t) {
-                int d = min(nChars - nextChar, t - b);
-                s.getChars(b, b + d, cb, nextChar);
-                b += d;
-                nextChar += d;
-                if (nextChar >= nChars)
-                    flushBuffer();
+    public void write(String s, int off, int len) throws IOException {
+        Object lock = this.lock;
+        if (lock instanceof InternalLock locker) {
+            locker.lock();
+            try {
+                implWrite(s, off, len);
+            } finally {
+                locker.unlock();
             }
+        } else {
+            synchronized (lock) {
+                implWrite(s, off, len);
+            }
+        }
+    }
+
+    private void implWrite(String s, int off, int len) throws IOException {
+        ensureOpen();
+        growIfNeeded(len);
+        int b = off, t = off + len;
+        while (b < t) {
+            int d = min(nChars - nextChar, t - b);
+            s.getChars(b, b + d, cb, nextChar);
+            b += d;
+            nextChar += d;
+            if (nextChar >= nChars)
+                flushBuffer();
         }
     }
 
@@ -244,7 +350,7 @@ public class BufferedWriter extends Writer {
      * system property {@code line.separator}, and is not necessarily a single
      * newline ('\n') character.
      *
-     * @exception  IOException  If an I/O error occurs
+     * @throws     IOException  If an I/O error occurs
      */
     public void newLine() throws IOException {
         write(System.lineSeparator());
@@ -253,27 +359,55 @@ public class BufferedWriter extends Writer {
     /**
      * Flushes the stream.
      *
-     * @exception  IOException  If an I/O error occurs
+     * @throws     IOException  If an I/O error occurs
      */
     public void flush() throws IOException {
-        synchronized (lock) {
-            flushBuffer();
-            out.flush();
+        Object lock = this.lock;
+        if (lock instanceof InternalLock locker) {
+            locker.lock();
+            try {
+                implFlush();
+            } finally {
+                locker.unlock();
+            }
+        } else {
+            synchronized (lock) {
+                implFlush();
+            }
+        }
+    }
+
+    private void implFlush() throws IOException {
+        flushBuffer();
+        out.flush();
+    }
+
+    public void close() throws IOException {
+        Object lock = this.lock;
+        if (lock instanceof InternalLock locker) {
+            locker.lock();
+            try {
+                implClose();
+            } finally {
+                locker.unlock();
+            }
+        } else {
+            synchronized (lock) {
+                implClose();
+            }
         }
     }
 
     @SuppressWarnings("try")
-    public void close() throws IOException {
-        synchronized (lock) {
-            if (out == null) {
-                return;
-            }
-            try (Writer w = out) {
-                flushBuffer();
-            } finally {
-                out = null;
-                cb = null;
-            }
+    private void implClose() throws IOException {
+        if (out == null) {
+            return;
+        }
+        try (Writer w = out) {
+            flushBuffer();
+        } finally {
+            out = null;
+            cb = null;
         }
     }
 }

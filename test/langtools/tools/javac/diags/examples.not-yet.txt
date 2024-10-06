@@ -11,6 +11,7 @@ compiler.err.invalid.repeatable.annotation              # should not happen
 compiler.err.invalid.repeatable.annotation.invalid.value # "can't" happen
 compiler.err.invalid.repeatable.annotation.multiple.values # can't happen
 compiler.err.io.exception                               # (javah.JavahTask?)
+compiler.err.is.preview                                 # difficult to produce reliably despite future changes to java.base
 compiler.err.limit.code                                 # Code
 compiler.err.limit.code.too.large.for.try.stmt          # Gen
 compiler.err.limit.dimensions                           # Gen
@@ -35,35 +36,41 @@ compiler.err.proc.cant.create.loader                    # security exception fro
 compiler.err.proc.no.service                            # JavacProcessingEnvironment: no service loader available
 compiler.err.proc.processor.bad.option.name             # cannot happen? masked by javac.err.invalid.A.key
 compiler.err.proc.service.problem                       # JavacProcessingEnvironment: catch Throwable from service loader
+compiler.err.proc.cant.load.class                       # JavacProcessingEnvironment: cant load the class/jar file
 compiler.err.signature.doesnt.match.intf                # UNUSED
 compiler.err.signature.doesnt.match.supertype           # UNUSED
 compiler.err.source.cant.overwrite.input.file
 compiler.err.stack.sim.error
+compiler.err.cant.attach.type.annotations               # bad class file
 compiler.err.type.var.more.than.once                    # UNUSED
 compiler.err.type.var.more.than.once.in.result          # UNUSED
 compiler.err.unexpected.type
-compiler.err.unsupported.cross.fp.lit                   # Scanner: host system dependent
 compiler.misc.bad.class.signature                       # bad class file
+compiler.misc.bad.class.truncated.at.offset             # bad class file
 compiler.misc.bad.const.pool.tag                        # bad class file
 compiler.misc.bad.const.pool.tag.at                     # bad class file
+compiler.misc.unexpected.const.pool.tag.at              # bad class file
+compiler.misc.bad.const.pool.index                      # bad class file
 compiler.misc.bad.constant.range                        # bad class file
 compiler.misc.bad.constant.value                        # bad class file
 compiler.misc.bad.enclosing.class                       # bad class file
 compiler.misc.bad.enclosing.method                      # bad class file
-compiler.misc.bad.runtime.invisible.param.annotations   # bad class file
+compiler.warn.runtime.invisible.parameter.annotations   # bad class file
+compiler.warn.runtime.visible.invisible.param.annotations.mismatch   # bad class file
 compiler.misc.bad.signature                             # bad class file
-compiler.misc.bad.requires.flag				# bad class file
+compiler.misc.bad.requires.flag                         # bad class file
+compiler.misc.bad.utf8.byte.sequence.at                 # bad class file
 compiler.misc.bad.type.annotation.value
-compiler.misc.base.membership                           # UNUSED
 compiler.misc.class.file.not.found                      # ClassReader
 compiler.misc.class.file.wrong.class
 compiler.misc.exception.message                         # uncommon completion failure based on a string
 compiler.misc.fatal.err.cant.locate.ctor                # Resolve, from Lower
 compiler.misc.fatal.err.cant.locate.field               # Resolve, from Lower
 compiler.misc.fatal.err.cant.locate.meth                # Resolve, from Lower
-compiler.misc.fatal.err.cant.close	                # JavaCompiler
+compiler.misc.fatal.err.cant.close                      # JavaCompiler
 compiler.misc.feature.not.supported.in.source.plural    # cannot happen (for now)
 compiler.misc.file.does.not.contain.package
+compiler.misc.illegal.flag.combo                        # ClassReader
 compiler.misc.illegal.start.of.class.file
 compiler.misc.inferred.do.not.conform.to.lower.bounds   # cannot happen?
 compiler.misc.kindname.annotation
@@ -73,6 +80,8 @@ compiler.misc.kindname.static
 compiler.misc.kindname.type.variable
 compiler.misc.kindname.type.variable.bound
 compiler.misc.kindname.value
+compiler.misc.method.descriptor.invalid                 # bad class file
+compiler.misc.module.info.definition.expected           # bad class file
 compiler.misc.module.name.mismatch
 compiler.misc.module.non.zero.opens                     # bad class file
 compiler.misc.no.unique.minimal.instance.exists
@@ -105,13 +114,18 @@ compiler.misc.wrong.version                             # ClassReader
 compiler.warn.annotation.method.not.found               # ClassReader
 compiler.warn.annotation.method.not.found.reason        # ClassReader
 compiler.warn.big.major.version                         # ClassReader
+compiler.warn.doclint.not.available                     # requires restricted image
 compiler.warn.future.attr                               # ClassReader
 compiler.warn.illegal.char.for.encoding
 compiler.warn.incubating.modules                        # requires adjusted classfile
 compiler.warn.invalid.archive.file
+compiler.warn.invalid.utf8.in.classfile                 # bad class file
+compiler.warn.is.preview.reflective                     # difficult to produce reliably despite future changes to java.base
+compiler.warn.output.file.clash                         # this warning is not generated on Linux
 compiler.warn.override.bridge
 compiler.warn.position.overflow                         # CRTable: caused by files with long lines >= 1024 chars
 compiler.warn.proc.type.already.exists                  # JavacFiler: just mentioned in TODO
+compiler.warn.restricted.type.not.allowed.preview       # not produced by the compiler right now
 compiler.warn.unchecked.assign                          # DEAD, replaced by compiler.misc.unchecked.assign
 compiler.warn.unchecked.cast.to.type                    # DEAD, replaced by compiler.misc.unchecked.cast.to.type
 compiler.warn.unexpected.archive.file                   # Paths: zip file with unknown extn
@@ -125,12 +139,16 @@ compiler.misc.bad.class.file                            # class file is malforme
 compiler.misc.bad.const.pool.entry                      # constant pool entry has wrong type
 compiler.warn.access.to.member.from.serializable.lambda # in order to generate it we need to modify a restricted package
 compiler.warn.invalid.path                              # this warning is generated only in Windows systems
+compiler.err.invalid.path                               # this error is generated only in Windows systems
 compiler.note.multiple.elements                         # needs user code
 compiler.err.preview.feature.disabled.classfile         # preview feature support: needs compilation against classfile
 compiler.warn.preview.feature.use.classfile             # preview feature support: needs compilation against classfile
 compiler.note.preview.plural.additional                 # preview feature support: diag test causes intermittent failures (see JDK-8201498)
 compiler.misc.bad.intersection.target.for.functional.expr  # currently not generated, should be removed?
 compiler.misc.not.an.intf.component
+compiler.warn.declared.using.preview                    # after making sealed classes a final feature there is no other
+                                                        # preview feature but we should keep this key for future use just
+                                                        # in case
 
 # The following module-related messages will have to stay on the not-yet list for various reasons:
 compiler.warn.locn.unknown.file.on.module.path                # Never issued ATM (short circuited with an if (false))
@@ -173,12 +191,14 @@ compiler.err.invalid.flag
 compiler.err.invalid.profile
 compiler.err.invalid.source
 compiler.err.invalid.target
+compiler.err.multiple.values.for.module.source.path
 compiler.err.no.source.files.classes
 compiler.err.no.value.for.option
 compiler.err.option.not.allowed.with.target
 compiler.err.option.too.many
 compiler.err.profile.bootclasspath.conflict
 compiler.err.release.bootclasspath.conflict
+compiler.err.repeated.value.for.module.source.path
 compiler.err.repeated.value.for.patch.module
 compiler.err.req.arg
 compiler.err.sourcepath.modulesourcepath.conflict
@@ -187,7 +207,18 @@ compiler.err.two.class.loaders.2
 compiler.err.unmatched.quote
 compiler.err.unsupported.release.version
 compiler.warn.profile.target.conflict
-compiler.warn.source.target.conflict
-compiler.warn.target.default.source.conflict
+compiler.err.source.target.conflict
+compiler.err.target.default.source.conflict
 compiler.err.preview.not.latest
 compiler.err.preview.without.source.or.release
+compiler.misc.illegal.signature                               # the compiler can now detect more non-denotable types before class writing
+
+# this one needs a forged class file to be reproduced
+compiler.err.annotation.unrecognized.attribute.name
+
+# this one is transitional (waiting for FFM API to exit preview)
+compiler.warn.restricted.method
+
+# Pending removal
+compiler.note.implicit.annotation.processing
+compiler.warn.proc.use.proc.or.implicit

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,12 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CIMETADATA_HPP
-#define SHARE_VM_CI_CIMETADATA_HPP
+#ifndef SHARE_CI_CIMETADATA_HPP
+#define SHARE_CI_CIMETADATA_HPP
 
 #include "ci/ciBaseObject.hpp"
 #include "ci/ciClassList.hpp"
 #include "runtime/handles.hpp"
-#include "runtime/jniHandles.hpp"
 
 // ciMetadata
 //
@@ -41,17 +40,16 @@ class ciMetadata: public ciBaseObject {
  protected:
   Metadata* _metadata;
 
-  ciMetadata(): _metadata(NULL) {}
+  ciMetadata(): _metadata(nullptr) {}
   ciMetadata(Metadata* o): _metadata(o) {}
 
-  virtual bool is_classless() const         { return false; }
+  virtual bool is_classless() const;
  public:
-  bool is_loaded() const { return _metadata != NULL || is_classless(); }
+  bool is_loaded() const { return _metadata != nullptr || is_classless(); }
 
   virtual bool is_metadata() const          { return true; }
 
   virtual bool is_type() const              { return false; }
-  virtual bool is_cpcache() const           { return false; }
   virtual bool is_return_address() const    { return false; }
   virtual bool is_method() const            { return false; }
   virtual bool is_method_data() const       { return false; }
@@ -107,7 +105,7 @@ class ciMetadata: public ciBaseObject {
 
   bool equals(ciMetadata* obj) const { return (this == obj); }
 
-  int hash() { return ident() * 31; } // ???
+  uint hash() { return ident() * 31; } // ???
 
   void print(outputStream* st);
   virtual void print_impl(outputStream* st) {}
@@ -117,4 +115,4 @@ class ciMetadata: public ciBaseObject {
   void print_metadata(outputStream* st = tty);
 
 };
-#endif // SHARE_VM_CI_CIMETADATA_HPP
+#endif // SHARE_CI_CIMETADATA_HPP

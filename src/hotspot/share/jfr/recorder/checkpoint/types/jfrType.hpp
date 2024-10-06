@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,25 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_CHECKPOINT_TYPES_JFRTYPE_HPP
-#define SHARE_VM_JFR_CHECKPOINT_TYPES_JFRTYPE_HPP
+#ifndef SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPE_HPP
+#define SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPE_HPP
 
 #include "jfr/metadata/jfrSerializer.hpp"
-
-class JfrThreadConstantSet : public JfrSerializer {
- public:
-  void serialize(JfrCheckpointWriter& writer);
-};
-
-class JfrThreadGroupConstant : public JfrSerializer {
- public:
-  void serialize(JfrCheckpointWriter& writer);
-};
-
-class ClassUnloadTypeSet : public JfrSerializer {
- public:
-  void serialize(JfrCheckpointWriter& writer);
-};
 
 class FlagValueOriginConstant : public JfrSerializer {
  public:
@@ -67,11 +52,6 @@ class GCWhenConstant : public JfrSerializer {
   void serialize(JfrCheckpointWriter& writer);
 };
 
-class G1HeapRegionTypeConstant : public JfrSerializer {
- public:
-  void serialize(JfrCheckpointWriter& writer);
-};
-
 class GCThresholdUpdaterConstant : public JfrSerializer {
  public:
   void serialize(JfrCheckpointWriter& writer);
@@ -87,22 +67,12 @@ class MetaspaceObjectTypeConstant : public JfrSerializer {
   void serialize(JfrCheckpointWriter& writer);
 };
 
-class G1YCTypeConstant : public JfrSerializer {
- public:
-  void serialize(JfrCheckpointWriter& writer);
-};
-
 class ReferenceTypeConstant : public JfrSerializer {
  public:
   void serialize(JfrCheckpointWriter& writer);
 };
 
 class NarrowOopModeConstant : public JfrSerializer {
- public:
-  void serialize(JfrCheckpointWriter& writer);
-};
-
-class CompilerPhaseTypeConstant : public JfrSerializer {
  public:
   void serialize(JfrCheckpointWriter& writer);
 };
@@ -117,7 +87,12 @@ class VMOperationTypeConstant : public JfrSerializer {
   void serialize(JfrCheckpointWriter& writer);
 };
 
-class TypeSet : public JfrSerializer {
+class JfrThreadConstantSet : public JfrSerializer {
+ public:
+  void serialize(JfrCheckpointWriter& writer);
+};
+
+class JfrThreadGroupConstant : public JfrSerializer {
  public:
   void serialize(JfrCheckpointWriter& writer);
 };
@@ -129,10 +104,32 @@ class ThreadStateConstant : public JfrSerializer {
 
 class JfrThreadConstant : public JfrSerializer {
  private:
-  JavaThread* _thread;
+  Thread* _thread;
+  traceid _tid;
+  oop _vthread;
+  const char* _name;
+  int _length;
+  void write_name(JfrCheckpointWriter& writer);
+  void write_os_name(JfrCheckpointWriter& writer, bool is_vthread);
  public:
-  JfrThreadConstant(JavaThread* jt) : _thread(jt) {}
+  JfrThreadConstant(Thread* t, traceid tid, oop vthread = nullptr) :
+    _thread(t), _tid(tid), _vthread(vthread), _name(nullptr), _length(-1) {}
   void serialize(JfrCheckpointWriter& writer);
 };
 
-#endif // SHARE_VM_JFR_CHECKPOINT_CONSTANT_JFRCONSTANT_HPP
+class BytecodeConstant : public JfrSerializer {
+ public:
+  void serialize(JfrCheckpointWriter& writer);
+};
+
+class CompilerTypeConstant : public JfrSerializer {
+ public:
+  void serialize(JfrCheckpointWriter& writer);
+};
+
+class NMTTypeConstant : public JfrSerializer {
+ public:
+  void serialize(JfrCheckpointWriter& writer);
+};
+
+#endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPE_HPP

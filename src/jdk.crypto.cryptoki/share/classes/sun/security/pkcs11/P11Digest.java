@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,14 @@
 
 package sun.security.pkcs11;
 
-import java.util.*;
 import java.nio.ByteBuffer;
 
 import java.security.*;
 
 import javax.crypto.SecretKey;
 
+import jdk.internal.access.JavaNioAccess;
+import jdk.internal.access.SharedSecrets;
 import sun.nio.ch.DirectBuffer;
 
 import sun.security.util.MessageDigestSpi2;
@@ -41,7 +42,8 @@ import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 
 /**
  * MessageDigest implementation class. This class currently supports
- * MD2, MD5, SHA-1, SHA-224, SHA-256, SHA-384, and SHA-512.
+ * MD2, MD5, SHA-1, SHA-2 family (SHA-224, SHA-256, SHA-384, and SHA-512)
+ * and SHA-3 family (SHA3-224, SHA3-256, SHA3-384, and SHA3-512) of digests.
  *
  * Note that many digest operations are on fairly small amounts of data
  * (less than 100 bytes total). For example, the 2nd hashing in HMAC or
@@ -54,16 +56,18 @@ import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 final class P11Digest extends MessageDigestSpi implements Cloneable,
     MessageDigestSpi2 {
 
+    private static final JavaNioAccess NIO_ACCESS = SharedSecrets.getJavaNioAccess();
+
     /* fields initialized, no session acquired */
-    private final static int S_BLANK    = 1;
+    private static final int S_BLANK    = 1;
 
     /* data in buffer, session acquired, but digest not initialized */
-    private final static int S_BUFFERED = 2;
+    private static final int S_BUFFERED = 2;
 
     /* session initialized for digesting */
-    private final static int S_INIT     = 3;
+    private static final int S_INIT     = 3;
 
-    private final static int BUFFER_SIZE = 96;
+    private static final int BUFFER_SIZE = 96;
 
     // token instance
     private final Token token;
@@ -94,29 +98,15 @@ final class P11Digest extends MessageDigestSpi implements Cloneable,
         this.token = token;
         this.algorithm = algorithm;
         this.mechanism = new CK_MECHANISM(mechanism);
-        switch ((int)mechanism) {
-        case (int)CKM_MD2:
-        case (int)CKM_MD5:
-            digestLength = 16;
-            break;
-        case (int)CKM_SHA_1:
-            digestLength = 20;
-            break;
-        case (int)CKM_SHA224:
-            digestLength = 28;
-            break;
-        case (int)CKM_SHA256:
-            digestLength = 32;
-            break;
-        case (int)CKM_SHA384:
-            digestLength = 48;
-            break;
-        case (int)CKM_SHA512:
-            digestLength = 64;
-            break;
-        default:
-            throw new ProviderException("Unknown mechanism: " + mechanism);
-        }
+        digestLength = switch ((int) mechanism) {
+            case (int) CKM_MD2, (int) CKM_MD5 -> 16;
+            case (int) CKM_SHA_1 -> 20;
+            case (int) CKM_SHA224, (int) CKM_SHA512_224, (int) CKM_SHA3_224 -> 28;
+            case (int) CKM_SHA256, (int) CKM_SHA512_256, (int) CKM_SHA3_256 -> 32;
+            case (int) CKM_SHA384, (int) CKM_SHA3_384 -> 48;
+            case (int) CKM_SHA512, (int) CKM_SHA3_512 -> 64;
+            default -> throw new ProviderException("Unknown mechanism: " + mechanism);
+        };
         buffer = new byte[BUFFER_SIZE];
         state = S_BLANK;
     }
@@ -143,7 +133,8 @@ final class P11Digest extends MessageDigestSpi implements Cloneable,
         token.ensureValid();
 
         if (session != null) {
-            if (state == S_INIT && token.explicitCancel == true) {
+            if (state == S_INIT && token.explicitCancel
+                    && !session.hasObjects()) {
                 session = token.killSession(session);
             } else {
                 session = token.releaseSession(session);
@@ -244,16 +235,16 @@ final class P11Digest extends MessageDigestSpi implements Cloneable,
         // SunJSSE calls this method only if the key does not have a RAW
         // encoding, i.e. if it is sensitive. Therefore, no point in calling
         // SecretKeyFactory to try to convert it. Just verify it ourselves.
-        if (key instanceof P11Key == false) {
+        if (!(key instanceof P11Key p11Key)) {
             throw new InvalidKeyException("Not a P11Key: " + key);
         }
-        P11Key p11Key = (P11Key)key;
         if (p11Key.token != token) {
             throw new InvalidKeyException("Not a P11Key of this provider: " +
                     key);
         }
 
         fetchSession();
+        long p11KeyID = p11Key.getKeyID();
         try {
             if (state == S_BUFFERED) {
                 token.p11.C_DigestInit(session.id(), mechanism);
@@ -264,10 +255,12 @@ final class P11Digest extends MessageDigestSpi implements Cloneable,
                 token.p11.C_DigestUpdate(session.id(), 0, buffer, 0, bufOfs);
                 bufOfs = 0;
             }
-            token.p11.C_DigestKey(session.id(), p11Key.keyID);
+            token.p11.C_DigestKey(session.id(), p11KeyID);
         } catch (PKCS11Exception e) {
             engineReset();
             throw new ProviderException("update(SecretKey) failed", e);
+        } finally {
+            p11Key.releaseKeyID();
         }
     }
 
@@ -278,13 +271,12 @@ final class P11Digest extends MessageDigestSpi implements Cloneable,
             return;
         }
 
-        if (byteBuffer instanceof DirectBuffer == false) {
+        if (!(byteBuffer instanceof DirectBuffer dByteBuffer)) {
             super.engineUpdate(byteBuffer);
             return;
         }
 
         fetchSession();
-        long addr = ((DirectBuffer)byteBuffer).address();
         int ofs = byteBuffer.position();
         try {
             if (state == S_BUFFERED) {
@@ -295,7 +287,12 @@ final class P11Digest extends MessageDigestSpi implements Cloneable,
                 token.p11.C_DigestUpdate(session.id(), 0, buffer, 0, bufOfs);
                 bufOfs = 0;
             }
-            token.p11.C_DigestUpdate(session.id(), addr + ofs, null, 0, len);
+            NIO_ACCESS.acquireSession(byteBuffer);
+            try {
+                token.p11.C_DigestUpdate(session.id(), dByteBuffer.address() + ofs, null, 0, len);
+            } finally {
+                NIO_ACCESS.releaseSession(byteBuffer);
+            }
             byteBuffer.position(ofs + len);
         } catch (PKCS11Exception e) {
             engineReset();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,31 +23,49 @@
 
 package jdk.test.lib.containers.docker;
 
-import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
-import jdk.test.lib.Platform;
+import jdk.test.lib.Container;
 import jdk.test.lib.Utils;
 import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.process.ProcessTools;
+import jtreg.SkippedException;
 
 
 public class DockerTestUtils {
-    private static final String FS = File.separator;
     private static boolean isDockerEngineAvailable = false;
     private static boolean wasDockerEngineChecked = false;
 
-    // Diagnostics: set to true to enable more diagnostic info
-    private static final boolean DEBUG = false;
+    // Specifies how many lines to copy from child STDOUT to main test output.
+    // Having too many lines in the main test output will result
+    // in JT harness trimming the output, and can lead to loss of useful
+    // diagnostic information.
+    private static final int MAX_LINES_TO_COPY_FOR_CHILD_STDOUT = 100;
+
+    // Set this property to true to retain image after test. By default
+    // images are removed after test execution completes.
+    // Retaining the image can be useful for diagnostics and image inspection.
+    // E.g.: start image interactively: docker run -it <IMAGE_NAME>.
+    public static final boolean RETAIN_IMAGE_AFTER_TEST =
+        Boolean.getBoolean("jdk.test.docker.retain.image");
+
+    // Path to a JDK under test.
+    // This may be useful when developing tests on non-Linux platforms.
+    public static final String JDK_UNDER_TEST =
+        System.getProperty("jdk.test.docker.jdk", Utils.TEST_JDK);
+
 
     /**
      * Optimized check of whether the docker engine is available in a given
@@ -77,9 +95,7 @@ public class DockerTestUtils {
         if (isDockerEngineAvailable()) {
             return true;
         } else {
-            System.out.println("Docker engine is not available on this system");
-            System.out.println("This test is SKIPPED");
-            return false;
+            throw new SkippedException("Docker engine is not available on this system");
         }
     }
 
@@ -95,7 +111,7 @@ public class DockerTestUtils {
      */
     private static boolean isDockerEngineAvailableCheck() throws Exception {
         try {
-            execute("docker", "ps")
+            execute(Container.ENGINE_COMMAND, "ps")
                 .shouldHaveExitValue(0)
                 .shouldContain("CONTAINER")
                 .shouldContain("IMAGE");
@@ -105,81 +121,87 @@ public class DockerTestUtils {
         return true;
     }
 
-
-    /**
-     * Build a docker image that contains JDK under test.
-     * The jdk will be placed under the "/jdk/" folder inside the docker file system.
+     /**
+     * Build a container image that contains JDK under test.
+     * The jdk will be placed under the "/jdk/" folder inside the image/container file system.
      *
-     * @param imageName     name of the image to be created, including version tag
-     * @param dockerfile    name of the dockerfile residing in the test source;
-     *                      we check for a platform specific dockerfile as well
-     *                      and use this one in case it exists
-     * @param buildDirName  name of the docker build/staging directory, which will
-     *                      be created in the jtreg's scratch folder
+     * @param imageName name of the image to be created, including version tag
      * @throws Exception
      */
-    public static void
-        buildJdkDockerImage(String imageName, String dockerfile, String buildDirName)
-            throws Exception {
+    public static void buildJdkContainerImage(String imageName) throws Exception {
+        buildJdkContainerImage(imageName, null);
+    }
 
-        Path buildDir = Paths.get(".", buildDirName);
+     /**
+     * Build a container image that contains JDK under test.
+     * The jdk will be placed under the "/jdk/" folder inside the image/container file system.
+     *
+     * @param imageName         name of the image to be created, including version tag
+     * @param dockerfileContent content of the Dockerfile; use null to generate default content
+     * @throws Exception
+     */
+    public static void buildJdkContainerImage(String imageName, String dockerfileContent) throws Exception {
+        // image name may contain tag, hence replace ':'
+        String imageDirName = imageName.replace(":", "-");
+
+        // Create an image build/staging directory
+        Path buildDir = Paths.get(imageDirName);
         if (Files.exists(buildDir)) {
             throw new RuntimeException("The docker build directory already exists: " + buildDir);
         }
-        // check for the existance of a platform specific docker file as well
-        String platformSpecificDockerfile = dockerfile + "-" + Platform.getOsArch();
-        if (Files.exists(Paths.get(Utils.TEST_SRC, platformSpecificDockerfile))) {
-          dockerfile = platformSpecificDockerfile;
+        Files.createDirectories(buildDir);
+
+        // Generate Dockerfile
+        if (dockerfileContent != null) {
+            Files.writeString(buildDir.resolve("Dockerfile"), dockerfileContent);
+        } else {
+            generateDockerFile(buildDir.resolve("Dockerfile"),
+                           DockerfileConfig.getBaseImageName(),
+                           DockerfileConfig.getBaseImageVersion());
         }
-
-        Path jdkSrcDir = Paths.get(Utils.TEST_JDK);
-        Path jdkDstDir = buildDir.resolve("jdk");
-
-        Files.createDirectories(jdkDstDir);
 
         // Copy JDK-under-test tree to the docker build directory.
         // This step is required for building a docker image.
-        Files.walkFileTree(jdkSrcDir, new CopyFileVisitor(jdkSrcDir, jdkDstDir));
-        buildDockerImage(imageName, Paths.get(Utils.TEST_SRC, dockerfile), buildDir);
+        Path jdkSrcDir = Paths.get(JDK_UNDER_TEST);
+        Path jdkDstDir = buildDir.resolve("jdk");
+        Files.createDirectories(jdkDstDir);
+        Files.walkFileTree(jdkSrcDir, EnumSet.of(FileVisitOption.FOLLOW_LINKS), Integer.MAX_VALUE, new CopyFileVisitor(jdkSrcDir, jdkDstDir));
+
+        buildImage(imageName, buildDir);
     }
 
 
     /**
-     * Build a docker image based on given docker file and docker build directory.
+     * Build a container image based on image build directory.
      *
      * @param imageName  name of the image to be created, including version tag
-     * @param dockerfile  path to the Dockerfile to be used for building the docker
-     *        image. The specified dockerfile will be copied to the docker build
-     *        directory as 'Dockerfile'
-     * @param buildDir  build directory; it should already contain all the content
-     *        needed to build the docker image.
+     * @param buildDir   build directory; it should already contain all the content
+     *                   needed to build the image.
      * @throws Exception
      */
-    public static void
-        buildDockerImage(String imageName, Path dockerfile, Path buildDir) throws Exception {
-
-        // Copy docker file to the build dir
-        Files.copy(dockerfile, buildDir.resolve("Dockerfile"));
-
-        // Build the docker
-        execute("docker", "build", "--no-cache", "--tag", imageName, buildDir.toString())
-            .shouldHaveExitValue(0)
-            .shouldContain("Successfully built");
+    private static void buildImage(String imageName, Path buildDir) throws Exception {
+        try {
+            execute(Container.ENGINE_COMMAND, "build", "--no-cache", "--tag", imageName, buildDir.toString())
+                .shouldHaveExitValue(0);
+        } catch (Exception e) {
+            // If docker image building fails there is a good chance it happens due to environment and/or
+            // configuration other than product failure. Throw jtreg skipped exception in such case
+            // instead of failing the test.
+            throw new SkippedException("Building docker image failed. Details: \n" + e.getMessage());
+        }
     }
 
 
     /**
-     * Run Java inside the docker image with specified parameters and options.
+     * Build the docker command to run java inside a container
      *
-     * @param DockerRunOptions optins for running docker
+     * @param DockerRunOptions options for running docker
      *
-     * @return output of the run command
+     * @return command
      * @throws Exception
      */
-    public static OutputAnalyzer dockerRunJava(DockerRunOptions opts) throws Exception {
-        ArrayList<String> cmd = new ArrayList<>();
-
-        cmd.add("docker");
+    public static List<String> buildJavaCommand(DockerRunOptions opts) throws Exception {
+        List<String> cmd = buildContainerCommand();
         cmd.add("run");
         if (opts.tty)
             cmd.add("--tty=true");
@@ -194,23 +216,41 @@ public class DockerTestUtils {
         if (opts.appendTestJavaOptions) {
             Collections.addAll(cmd, Utils.getTestJavaOpts());
         }
+        cmd.addAll(opts.javaOptsAppended);
 
         cmd.add(opts.classToRun);
         cmd.addAll(opts.classParams);
 
-        return execute(cmd);
+        return cmd;
+    }
+
+    public static List<String> buildContainerCommand() {
+        List<String> cmd = new ArrayList<>();
+        cmd.add(Container.ENGINE_COMMAND);
+        return cmd;
+    }
+
+    /**
+     * Run Java inside the docker image with specified parameters and options.
+     *
+     * @param DockerRunOptions options for running docker
+     *
+     * @return output of the run command
+     * @throws Exception
+     */
+    public static OutputAnalyzer dockerRunJava(DockerRunOptions opts) throws Exception {
+        return execute(buildJavaCommand(opts));
     }
 
 
      /**
      * Remove docker image
      *
-     * @param DockerRunOptions optins for running docker
-     * @return output of the command
+     * @param DockerRunOptions options for running docker
      * @throws Exception
      */
-    public static OutputAnalyzer removeDockerImage(String imageNameAndTag) throws Exception {
-        return execute("docker", "rmi", "--force", imageNameAndTag);
+    public static void removeDockerImage(String imageNameAndTag) throws Exception {
+            execute(Container.ENGINE_COMMAND, "rmi", "--force", imageNameAndTag);
     }
 
 
@@ -235,18 +275,61 @@ public class DockerTestUtils {
      * @throws Exception
      */
     public static OutputAnalyzer execute(String... command) throws Exception {
-
         ProcessBuilder pb = new ProcessBuilder(command);
         System.out.println("[COMMAND]\n" + Utils.getCommandLine(pb));
 
         long started = System.currentTimeMillis();
-        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        Process p = pb.start();
+        long pid = p.pid();
+        OutputAnalyzer output = new OutputAnalyzer(p);
 
+        int max = MAX_LINES_TO_COPY_FOR_CHILD_STDOUT;
+        String stdout = output.getStdout();
+        String stdoutLimited = limitLines(stdout, max);
         System.out.println("[ELAPSED: " + (System.currentTimeMillis() - started) + " ms]");
         System.out.println("[STDERR]\n" + output.getStderr());
-        System.out.println("[STDOUT]\n" + output.getStdout());
+        System.out.println("[STDOUT]\n" + stdoutLimited);
+        if (stdout != stdoutLimited) {
+            System.out.printf("Child process STDOUT is limited to %d lines\n",
+                              max);
+        }
+
+        String stdoutLogFile = String.format("docker-stdout-%d.log", pid);
+        writeOutputToFile(stdout, stdoutLogFile);
+        System.out.println("Full child process STDOUT was saved to " + stdoutLogFile);
 
         return output;
+    }
+
+
+    private static void writeOutputToFile(String output, String fileName) throws Exception {
+        try (FileWriter fw = new FileWriter(fileName)) {
+            fw.write(output, 0, output.length());
+        }
+    }
+
+
+    private static String limitLines(String buffer, int nrOfLines) {
+        List<String> l = Arrays.asList(buffer.split("\\R"));
+        if (l.size() < nrOfLines) {
+            return buffer;
+        }
+
+        return String.join("\n", l.subList(0, nrOfLines));
+    }
+
+
+    private static void generateDockerFile(Path dockerfile, String baseImage,
+                                           String baseImageVersion) throws Exception {
+        String template = "FROM %s:%s\n";
+        if (baseImage.contains("ubuntu") && DockerfileConfig.isUbsan()) {
+            template += "RUN apt-get update && apt-get install -y libubsan1\n";
+        }
+        template = template + "COPY /jdk /jdk\n" +
+            "ENV JAVA_HOME=/jdk\n" +
+            "CMD [\"/bin/bash\"]\n";
+        String dockerFileStr = String.format(template, baseImage, baseImageVersion);
+        Files.writeString(dockerfile, dockerFileStr);
     }
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,63 +25,49 @@
 #include "gc/z/zArray.inline.hpp"
 #include "unittest.hpp"
 
-TEST(ZArrayTest, test_add) {
+TEST(ZArray, sanity) {
   ZArray<int> a;
 
   // Add elements
   for (int i = 0; i < 10; i++) {
-    a.add(i);
+    a.append(i);
   }
+
+  ZArray<int> b;
+
+  b.swap(&a);
 
   // Check size
-  ASSERT_EQ(a.size(), 10u);
+  ASSERT_EQ(a.length(), 0);
+  ASSERT_EQ(a.capacity(), 0);
+  ASSERT_EQ(a.is_empty(), true);
 
-  // Check elements
-  for (int i = 0; i < 10; i++) {
-    EXPECT_EQ(a.at(i), i);
-  }
-}
-
-TEST(ZArrayTest, test_clear) {
-  ZArray<int> a;
-
-  // Add elements
-  for (int i = 0; i < 10; i++) {
-    a.add(i);
-  }
-
-  // Check size
-  ASSERT_EQ(a.size(), 10u);
-  ASSERT_EQ(a.is_empty(), false);
+  ASSERT_EQ(b.length(), 10);
+  ASSERT_GE(b.capacity(), 10);
+  ASSERT_EQ(b.is_empty(), false);
 
   // Clear elements
   a.clear();
 
-  // Check size
-  ASSERT_EQ(a.size(), 0u);
-  ASSERT_EQ(a.is_empty(), true);
+  // Check that b is unaffected
+  ASSERT_EQ(b.length(), 10);
+  ASSERT_GE(b.capacity(), 10);
+  ASSERT_EQ(b.is_empty(), false);
 
-  // Add element
-  a.add(11);
+  a.append(1);
 
-  // Check size
-  ASSERT_EQ(a.size(), 1u);
-  ASSERT_EQ(a.is_empty(), false);
-
-  // Clear elements
-  a.clear();
-
-  // Check size
-  ASSERT_EQ(a.size(), 0u);
-  ASSERT_EQ(a.is_empty(), true);
+  // Check that b is unaffected
+  ASSERT_EQ(b.length(), 10);
+  ASSERT_GE(b.capacity(), 10);
+  ASSERT_EQ(b.is_empty(), false);
 }
 
-TEST(ZArrayTest, test_iterator) {
+TEST(ZArray, iterator) {
   ZArray<int> a;
 
   // Add elements
   for (int i = 0; i < 10; i++) {
-    a.add(i);
+    a.append(i);
   }
 
   // Iterate

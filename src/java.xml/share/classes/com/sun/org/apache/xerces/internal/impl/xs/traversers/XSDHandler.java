@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2023, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -60,8 +60,8 @@ import com.sun.org.apache.xerces.internal.util.StAXLocationWrapper;
 import com.sun.org.apache.xerces.internal.util.SymbolHash;
 import com.sun.org.apache.xerces.internal.util.SymbolTable;
 import com.sun.org.apache.xerces.internal.util.URI.MalformedURIException;
+import com.sun.org.apache.xerces.internal.util.XMLChar;
 import com.sun.org.apache.xerces.internal.util.XMLSymbols;
-import com.sun.org.apache.xerces.internal.utils.XMLSecurityManager;
 import com.sun.org.apache.xerces.internal.utils.XMLSecurityPropertyManager;
 import com.sun.org.apache.xerces.internal.xni.QName;
 import com.sun.org.apache.xerces.internal.xni.XNIException;
@@ -105,8 +105,10 @@ import javax.xml.catalog.CatalogFeatures;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
+import jdk.xml.internal.JdkConstants;
 import jdk.xml.internal.JdkXmlUtils;
 import jdk.xml.internal.SecuritySupport;
+import jdk.xml.internal.XMLSecurityManager;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -129,7 +131,7 @@ import org.xml.sax.XMLReader;
  * @author Neil Graham, IBM
  * @author Pavani Mukthipudi, Sun Microsystems
  *
- * @LastModified: Nov 2017
+ * @LastModified: July 2023
  */
 @SuppressWarnings("deprecation") //org.xml.sax.helpers.XMLReaderFactory
 public class XSDHandler {
@@ -224,7 +226,7 @@ public class XSDHandler {
 
     /** Property identifier: Security property manager. */
     private static final String XML_SECURITY_PROPERTY_MANAGER =
-        Constants.XML_SECURITY_PROPERTY_MANAGER;
+        JdkConstants.XML_SECURITY_PROPERTY_MANAGER;
 
     protected static final boolean DEBUG_NODE_POOL = false;
 
@@ -591,10 +593,27 @@ public class XSDHandler {
         } //is instanceof XMLInputSource
 
         if (schemaRoot == null) {
-            // something went wrong right off the hop
             if (is instanceof XSInputSource) {
-                return fGrammarBucket.getGrammar(desc.getTargetNamespace());
+                // Need to return a grammar. If the XSInputSource has a list
+                // of grammar objects, then get the first one and return it.
+                // If it has a list of components, then get the grammar that
+                // contains the first component and return it.
+                // If we return null, the XMLSchemaLoader will think nothing
+                // was loaded, and will not try to put the grammar objects
+                // into the grammar pool.
+                XSInputSource xsinput = (XSInputSource)is;
+                SchemaGrammar[] grammars = xsinput.getGrammars();
+                if (grammars != null && grammars.length > 0) {
+                    grammar = fGrammarBucket.getGrammar(grammars[0].getTargetNamespace());
+                }
+                else {
+                    XSObject[] components = xsinput.getComponents();
+                    if (components != null && components.length > 0) {
+                        grammar = fGrammarBucket.getGrammar(components[0].getNamespace());
+                    }
+                }
             }
+            // something went wrong right off the hop
             return grammar;
         }
 
@@ -1299,6 +1318,7 @@ public class XSDHandler {
                         String qName = currSchemaDoc.fTargetNamespace == null ?
                                 ","+lName:
                                     currSchemaDoc.fTargetNamespace +","+lName;
+                        qName = XMLChar.trim(qName);
                         String componentType = DOMUtil.getLocalName(redefineComp);
                         if (componentType.equals(SchemaSymbols.ELT_ATTRIBUTEGROUP)) {
                             checkForDuplicateNames(qName, ATTRIBUTEGROUP_TYPE, fUnparsedAttributeGroupRegistry, fUnparsedAttributeGroupRegistrySub, redefineComp, currSchemaDoc);
@@ -1343,6 +1363,7 @@ public class XSDHandler {
                     String qName = currSchemaDoc.fTargetNamespace == null?
                             ","+lName:
                                 currSchemaDoc.fTargetNamespace +","+lName;
+                    qName = XMLChar.trim(qName);
                     String componentType = DOMUtil.getLocalName(globalComp);
 
                     if (componentType.equals(SchemaSymbols.ELT_ATTRIBUTE)) {
@@ -2194,7 +2215,7 @@ public class XSDHandler {
                     if ((!schemaSource.isCreatedByResolver()) &&
                             (referType == XSDDescription.CONTEXT_IMPORT || referType == XSDDescription.CONTEXT_INCLUDE
                             || referType == XSDDescription.CONTEXT_REDEFINE)) {
-                        String accessError = SecuritySupport.checkAccess(schemaId, fAccessExternalSchema, Constants.ACCESS_EXTERNAL_ALL);
+                        String accessError = SecuritySupport.checkAccess(schemaId, fAccessExternalSchema, JdkConstants.ACCESS_EXTERNAL_ALL);
                         if (accessError != null) {
                             reportSchemaFatalError("schema_reference.access",
                                     new Object[] { SecuritySupport.sanitizePath(schemaId), accessError },
@@ -2262,8 +2283,10 @@ public class XSDHandler {
                     catch (SAXException se) {}
                 }
                 else {
-                    parser = JdkXmlUtils.getXMLReader(fOverrideDefaultParser,
-                            fSecurityManager.isSecureProcessing());
+                    parser = JdkXmlUtils.getXMLReader(fSecurityManager,
+                            fOverrideDefaultParser, fSecurityManager.isSecureProcessing(),
+                            fUseCatalog,
+                            JdkXmlUtils.getCatalogFeatures(fDefer, fCatalogFile, fPrefer, fResolve));
 
                     try {
                         parser.setFeature(NAMESPACE_PREFIXES, true);
@@ -2466,9 +2489,15 @@ public class XSDHandler {
             return getSchemaDocument0(key, schemaId, schemaElement);
         }
         catch (XMLStreamException e) {
-            StAXLocationWrapper slw = new StAXLocationWrapper();
-            slw.setLocation(e.getLocation());
-            throw new XMLParseException(slw, e.getMessage(), e);
+            Throwable t = e.getNestedException();
+            if (t instanceof IOException) {
+                exception = (IOException) t;
+            }
+            else {
+                StAXLocationWrapper slw = new StAXLocationWrapper();
+                slw.setLocation(e.getLocation());
+                throw new XMLParseException(slw, e.getMessage(), e);
+            }
         }
         catch (IOException e) {
             exception = e;
@@ -2741,16 +2770,29 @@ public class XSDHandler {
 
     @SuppressWarnings("unchecked")
     private void addNewImportedGrammars(SchemaGrammar srcGrammar, SchemaGrammar dstGrammar) {
-        final ArrayList<SchemaGrammar> igs1 = (ArrayList<SchemaGrammar>)srcGrammar.getImportedGrammars();
-        if (igs1 != null) {
-           ArrayList<SchemaGrammar> igs2 = (ArrayList<SchemaGrammar>)dstGrammar.getImportedGrammars();
-
-            if (igs2 == null) {
-                igs2 = (ArrayList<SchemaGrammar>)igs1.clone();
-                dstGrammar.setImportedGrammars(igs2);
+        final ArrayList<SchemaGrammar> src = (ArrayList<SchemaGrammar>)srcGrammar.getImportedGrammars();
+        if (src != null) {
+            ArrayList<SchemaGrammar> dst = (ArrayList<SchemaGrammar>)dstGrammar.getImportedGrammars();
+            if (dst == null) {
+                dst = new ArrayList<>();
+                dstGrammar.setImportedGrammars(dst);
             }
-            else {
-                updateImportList(igs1, igs2);
+            for (SchemaGrammar sg :src) {
+                // Can't use the object from the source import list directly.
+                // It's possible there is already a grammar with the same
+                // namespace in the bucket but a different object.
+                // This can happen if the bucket has grammar A1, and we try
+                // to add B and A2, where A2 imports B. When B is added, we
+                // create a new object B' and store it in the bucket. Then we
+                // try to merge A2 and A1. We can't use B. Need to get B' from
+                // the bucket and store it in A's import list.
+                SchemaGrammar sg1 = fGrammarBucket.getGrammar(sg.getTargetNamespace());
+                if (sg1 != null) {
+                    sg = sg1;
+                }
+                if (!containedImportedGrammar(dst, sg)) {
+                    dst.add(sg);
+                }
             }
         }
     }
@@ -3162,7 +3204,7 @@ public class XSDHandler {
 
     private void addRelatedType(XSTypeDefinition type, List<XSObject> componentList, String namespace, Map<String, List<String>> dependencies) {
         if (!type.getAnonymous()) {
-            if (!type.getNamespace().equals(SchemaSymbols.URI_SCHEMAFORSCHEMA)) { //REVISIT - do we use == instead
+            if (!SchemaSymbols.URI_SCHEMAFORSCHEMA.equals(type.getNamespace())) { //REVISIT - do we use == instead
                 if (!componentList.contains(type)) {
                     final List<String> importedNamespaces = findDependentNamespaces(namespace, dependencies);
                     addNamespaceDependency(namespace, type.getNamespace(), importedNamespaces);
@@ -3626,9 +3668,9 @@ public class XSDHandler {
         fAccessExternalSchema = fSecurityPropertyMgr.getValue(
                 XMLSecurityPropertyManager.Property.ACCESS_EXTERNAL_SCHEMA);
 
-        fOverrideDefaultParser = componentManager.getFeature(JdkXmlUtils.OVERRIDE_PARSER);
-        fSchemaParser.setFeature(JdkXmlUtils.OVERRIDE_PARSER, fOverrideDefaultParser);
-        fEntityManager.setFeature(JdkXmlUtils.OVERRIDE_PARSER, fOverrideDefaultParser);
+        fOverrideDefaultParser = componentManager.getFeature(JdkConstants.OVERRIDE_PARSER);
+        fSchemaParser.setFeature(JdkConstants.OVERRIDE_PARSER, fOverrideDefaultParser);
+        fEntityManager.setFeature(JdkConstants.OVERRIDE_PARSER, fOverrideDefaultParser);
         // Passing the Catalog settings to the parser
         fUseCatalog = componentManager.getFeature(XMLConstants.USE_CATALOG);
         fSchemaParser.setFeature(XMLConstants.USE_CATALOG, fUseCatalog);
@@ -3646,10 +3688,10 @@ public class XSDHandler {
                     componentManager.getProperty(f.getPropertyName()));
         }
 
-        fSchemaParser.setProperty(JdkXmlUtils.CDATA_CHUNK_SIZE,
-                componentManager.getProperty(JdkXmlUtils.CDATA_CHUNK_SIZE));
-        fEntityManager.setProperty(JdkXmlUtils.CDATA_CHUNK_SIZE,
-                componentManager.getProperty(JdkXmlUtils.CDATA_CHUNK_SIZE));
+        fSchemaParser.setProperty(JdkConstants.CDATA_CHUNK_SIZE,
+                componentManager.getProperty(JdkConstants.CDATA_CHUNK_SIZE));
+        fEntityManager.setProperty(JdkConstants.CDATA_CHUNK_SIZE,
+                componentManager.getProperty(JdkConstants.CDATA_CHUNK_SIZE));
     } // reset(XMLComponentManager)
 
 
@@ -3974,7 +4016,7 @@ public class XSDHandler {
                     ","+oldName:currSchema.fTargetNamespace+","+oldName;
             int attGroupRefsCount = changeRedefineGroup(processedBaseName, componentType, newName, child, currSchema);
             if (attGroupRefsCount > 1) {
-                reportSchemaError("src-redefine.7.1", new Object []{new Integer(attGroupRefsCount)}, child);
+                reportSchemaError("src-redefine.7.1", new Object []{attGroupRefsCount}, child);
             }
             else if (attGroupRefsCount == 1) {
                 //                return true;
@@ -3990,7 +4032,7 @@ public class XSDHandler {
                     ","+oldName:currSchema.fTargetNamespace+","+oldName;
             int groupRefsCount = changeRedefineGroup(processedBaseName, componentType, newName, child, currSchema);
             if (groupRefsCount > 1) {
-                reportSchemaError("src-redefine.6.1.1", new Object []{new Integer(groupRefsCount)}, child);
+                reportSchemaError("src-redefine.6.1.1", new Object []{groupRefsCount}, child);
             }
             else if (groupRefsCount == 1) {
                 //                return true;

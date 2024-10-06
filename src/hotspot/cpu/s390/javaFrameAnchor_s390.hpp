@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_S390_VM_JAVAFRAMEANCHOR_S390_HPP
-#define CPU_S390_VM_JAVAFRAMEANCHOR_S390_HPP
+#ifndef CPU_S390_JAVAFRAMEANCHOR_S390_HPP
+#define CPU_S390_JAVAFRAMEANCHOR_S390_HPP
 
  public:
 
@@ -37,11 +37,11 @@
   inline void clear(void) {
     // Clearing _last_Java_sp must be first.
     OrderAccess::release();
-    _last_Java_sp = NULL;
+    _last_Java_sp = nullptr;
     // Fence?
     OrderAccess::fence();
 
-    _last_Java_pc = NULL;
+    _last_Java_pc = nullptr;
   }
 
   inline void set(intptr_t* sp, address pc) {
@@ -55,12 +55,12 @@
     // In order to make sure the transition state is valid for "this"
     // we must clear _last_Java_sp before copying the rest of the new data.
     // Hack Alert: Temporary bugfix for 4717480/4721647
-    // To act like previous version (pd_cache_state) don't NULL _last_Java_sp
+    // To act like previous version (pd_cache_state) don't null _last_Java_sp
     // unless the value is changing.
     //
     if (_last_Java_sp != src->_last_Java_sp) {
       OrderAccess::release();
-      _last_Java_sp = NULL;
+      _last_Java_sp = nullptr;
       OrderAccess::fence();
     }
     _last_Java_pc = src->_last_Java_pc;
@@ -72,16 +72,16 @@
 
   // We don't have to flush registers, so the stack is always walkable.
   inline bool walkable(void) { return true; }
-  inline void make_walkable(JavaThread* thread) { }
+  inline void make_walkable() { }
 
  public:
 
   // We don't have a frame pointer.
-  intptr_t* last_Java_fp(void)        { return NULL; }
+  intptr_t* last_Java_fp(void)        { return nullptr; }
 
   intptr_t* last_Java_sp() const      { return _last_Java_sp; }
   void set_last_Java_sp(intptr_t* sp) { OrderAccess::release(); _last_Java_sp = sp; }
 
   address last_Java_pc(void)          { return _last_Java_pc; }
 
-#endif // CPU_S390_VM_JAVAFRAMEANCHOR_S390_HPP
+#endif // CPU_S390_JAVAFRAMEANCHOR_S390_HPP

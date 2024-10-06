@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,6 @@
 
 package java.lang.invoke;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import static java.lang.invoke.MethodHandleStatics.*;
 import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
 
@@ -43,9 +40,9 @@ import jdk.internal.vm.annotation.Stable;
  * In any case, it may be invoked through an associated method handle
  * called its {@linkplain #dynamicInvoker dynamic invoker}.
  * <p>
- * {@code CallSite} is an abstract class which does not allow
+ * {@code CallSite} is an abstract sealed class which does not allow
  * direct subclassing by users.  It has three immediate,
- * concrete subclasses that may be either instantiated or subclassed.
+ * concrete non-sealed subclasses that may be either instantiated or subclassed.
  * <ul>
  * <li>If a mutable target is not required, an {@code invokedynamic} instruction
  * may be permanently bound by means of a {@linkplain ConstantCallSite constant call site}.
@@ -86,14 +83,15 @@ private static CallSite bootstrapDynamic(MethodHandles.Lookup caller, String nam
 }</pre></blockquote>
  * @author John Rose, JSR 292 EG
  * @since 1.7
+ * @sealedGraph
  */
-@AnnotatedFor({"interning"})
-abstract
-public @UsesObjectEquals class CallSite {
+public
+abstract sealed class CallSite permits ConstantCallSite, MutableCallSite, VolatileCallSite {
 
-    // The actual payload of this call site:
+    // The actual payload of this call site.
+    // Can be modified using {@link MethodHandleNatives#setCallSiteTargetNormal} or {@link MethodHandleNatives#setCallSiteTargetVolatile}.
     /*package-private*/
-    MethodHandle target;    // Note: This field is known to the JVM.  Do not change.
+    final MethodHandle target;  // Note: This field is known to the JVM.
 
     /**
      * Make a blank call site object with the given method type.
@@ -133,11 +131,11 @@ public @UsesObjectEquals class CallSite {
      */
     /*package-private*/
     CallSite(MethodType targetType, MethodHandle createTargetHook) throws Throwable {
-        this(targetType);
+        this(targetType); // need to initialize target to make CallSite.type() work in createTargetHook
         ConstantCallSite selfCCS = (ConstantCallSite) this;
         MethodHandle boundTarget = (MethodHandle) createTargetHook.invokeWithArguments(selfCCS);
-        checkTargetChange(this.target, boundTarget);
-        this.target = boundTarget;
+        setTargetNormal(boundTarget); // ConstantCallSite doesn't publish CallSite.target
+        UNSAFE.storeStoreFence(); // barrier between target and isFrozen updates
     }
 
     /**
@@ -194,11 +192,12 @@ public @UsesObjectEquals class CallSite {
      */
     public abstract void setTarget(MethodHandle newTarget);
 
-    void checkTargetChange(MethodHandle oldTarget, MethodHandle newTarget) {
-        MethodType oldType = oldTarget.type();
+    private void checkTargetChange(MethodHandle newTarget) {
+        MethodType oldType = target.type(); // target is always present
         MethodType newType = newTarget.type();  // null check!
-        if (!newType.equals(oldType))
+        if (newType != oldType) {
             throw wrongTargetType(newTarget, oldType);
+        }
     }
 
     private static WrongMethodTypeException wrongTargetType(MethodHandle target, MethodType type) {
@@ -221,7 +220,8 @@ public @UsesObjectEquals class CallSite {
      */
     public abstract MethodHandle dynamicInvoker();
 
-    /*non-public*/ MethodHandle makeDynamicInvoker() {
+    /*package-private*/
+    MethodHandle makeDynamicInvoker() {
         MethodHandle getTarget = getTargetHandle().bindArgumentL(0, this);
         MethodHandle invoker = MethodHandles.exactInvoker(this.type());
         return MethodHandles.foldArguments(invoker, getTarget);
@@ -286,19 +286,24 @@ public @UsesObjectEquals class CallSite {
     }
 
     /*package-private*/
-    void setTargetNormal(MethodHandle newTarget) {
+    final void setTargetNormal(MethodHandle newTarget) {
+        checkTargetChange(newTarget);
         MethodHandleNatives.setCallSiteTargetNormal(this, newTarget);
     }
+
     /*package-private*/
-    MethodHandle getTargetVolatile() {
-        return (MethodHandle) UNSAFE.getObjectVolatile(this, getTargetOffset());
+    final MethodHandle getTargetVolatile() {
+        return (MethodHandle) UNSAFE.getReferenceVolatile(this, getTargetOffset());
     }
+
     /*package-private*/
-    void setTargetVolatile(MethodHandle newTarget) {
+    final void setTargetVolatile(MethodHandle newTarget) {
+        checkTargetChange(newTarget);
         MethodHandleNatives.setCallSiteTargetVolatile(this, newTarget);
     }
 
     // this implements the upcall from the JVM, MethodHandleNatives.linkCallSite:
+    /*package-private*/
     static CallSite makeSite(MethodHandle bootstrapMethod,
                              // Callee information:
                              String name, MethodType type,
@@ -310,8 +315,8 @@ public @UsesObjectEquals class CallSite {
         try {
             Object binding = BootstrapMethodInvoker.invoke(
                     CallSite.class, bootstrapMethod, name, type, info, callerClass);
-            if (binding instanceof CallSite) {
-                site = (CallSite) binding;
+            if (binding instanceof CallSite cs) {
+                site = cs;
             } else {
                 // See the "Linking Exceptions" section for the invokedynamic
                 // instruction in JVMS 6.5.
@@ -331,7 +336,7 @@ public @UsesObjectEquals class CallSite {
         } catch (Error e) {
             // Pass through an Error, including BootstrapMethodError, any other
             // form of linkage error, such as IllegalAccessError if the bootstrap
-            // method is inaccessible, or say ThreadDeath/OutOfMemoryError
+            // method is inaccessible, or say OutOfMemoryError
             // See the "Linking Exceptions" section for the invokedynamic
             // instruction in JVMS 6.5.
             throw e;

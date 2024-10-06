@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -44,13 +42,14 @@ import jdk.test.lib.Asserts;
  * @summary Test for EventTypeInfo
  * @requires vm.hasJFR
  * @library /test/lib /test/jdk
- * @run main/othervm jdk.jfr.jmx.info.TestEventTypeInfo
+ * @run main/othervm -Djdk.attach.allowAttachSelf=true -Dcom.sun.management.jmxremote jdk.jfr.jmx.info.TestEventTypeInfo
  */
 public class TestEventTypeInfo {
     public static void main(String[] args) throws Throwable {
         FlightRecorder jfr = FlightRecorder.getFlightRecorder();
 
-        FlightRecorderMXBean bean = JmxHelper.getFlighteRecorderMXBean();
+        long selfPID = JmxHelper.getPID();
+        FlightRecorderMXBean bean = JmxHelper.getFlighteRecorderMXBean(selfPID);
         List<EventTypeInfo> typeInfos = bean.getEventTypes();
 
         Map<String, EventType> types = new HashMap<>();

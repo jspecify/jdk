@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "memory/allocation.inline.hpp"
-#include "memory/universe.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -80,7 +79,7 @@ void InterpreterRuntime::SignatureHandlerGenerator::move(int from_offset, int to
 
 void InterpreterRuntime::SignatureHandlerGenerator::box(int from_offset, int to_offset) {
   __ lea(temp(), Address(from(), Interpreter::local_offset_in_bytes(from_offset)));
-  __ cmpptr(Address(from(), Interpreter::local_offset_in_bytes(from_offset)), (int32_t)NULL_WORD); // do not use temp() to avoid AGI
+  __ cmpptr(Address(from(), Interpreter::local_offset_in_bytes(from_offset)), NULL_WORD); // do not use temp() to avoid AGI
   Label L;
   __ jcc(Assembler::notZero, L);
   __ movptr(temp(), NULL_WORD);
@@ -147,11 +146,11 @@ class SlowSignatureHandler: public NativeSignatureIterator {
   }
 };
 
-IRT_ENTRY(address, InterpreterRuntime::slow_signature_handler(JavaThread* thread, Method* method, intptr_t* from, intptr_t* to))
-  methodHandle m(thread, (Method*)method);
+JRT_ENTRY(address, InterpreterRuntime::slow_signature_handler(JavaThread* current, Method* method, intptr_t* from, intptr_t* to))
+  methodHandle m(current, (Method*)method);
   assert(m->is_native(), "sanity check");
   // handle arguments
   SlowSignatureHandler(m, (address)from, to + 1).iterate((uint64_t)CONST64(-1));
   // return result handler
   return Interpreter::result_handler(m->result_type());
-IRT_END
+JRT_END

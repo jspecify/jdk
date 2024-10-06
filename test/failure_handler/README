@@ -1,4 +1,4 @@
-Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
 This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@ The library uses JTHarness Observer and jtreg TimeoutHandler extensions points.
 
 DEPENDENCES
 
-The library requires jtreg 4b13+ and JDK 7+.
+The library requires jtreg 4b13+ and JDK 15+.
 
 BUILDING
 
@@ -103,3 +103,14 @@ $ ${JTREG_HOME}/bin/jtreg -jdk:${JAVA_HOME}                                   \
  -observer:jdk.test.failurehandler.jtreg.GatherDiagnosticInfoObserver         \
  ${WS}/hotspot/test/
 
+TESTING
+
+There are a few make targets for testing the failure_handler itself.
+ - Everything in `test/failure_handler/Makefile`
+ - The `test-failure-handler` target in `make/RunTests.gmk`
+ - The `test` target in `make/test/BuildFailureHandler.gmk`
+All of these targets are written for manual testing only. They rely on
+manual inspection of generated artifacts and cannot be run as part of a CI.
+They are tests which timeout, crash, fail in various ways and you can check
+the failure_handler output yourself. They might also leave processes running
+on your machine so be extra careful about cleaning up.

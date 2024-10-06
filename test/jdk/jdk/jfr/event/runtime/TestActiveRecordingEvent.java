@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -91,7 +89,7 @@ public final class TestActiveRecordingEvent {
         List<RecordedEvent> events = Events.fromRecording(recording);
 
         Events.hasEvents(events);
-        RecordedEvent ev = events.get(0);
+        RecordedEvent ev = events.getFirst();
 
         // Duration must be kept in milliseconds
         assertEquals(REC_DURATION.toMillis(), ev.getValue("recordingDuration"));
@@ -119,6 +117,8 @@ public final class TestActiveRecordingEvent {
         assertTrue(tsAfterStop >= tsRecordingStart);
 
         assertEquals(recording.getId(), ev.getValue("id"));
+
+        assertEquals(recording.isToDisk(), ev.getValue("disk"));
 
         ValueDescriptor maxAgeField = evType.getField("maxAge");
         assertEquals(maxAgeField.getAnnotation(Timespan.class).value(), Timespan.MILLISECONDS);

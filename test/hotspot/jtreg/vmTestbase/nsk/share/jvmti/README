@@ -1,4 +1,4 @@
-Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
 DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
 This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,13 @@ This directory contains source files of testbase_nsk JVMTI framework,
 which provides support for JVMTI tests and accessing JVMTI environment.
 
     Source files:
-        jvmti_tools.h
-        jvmti_tools.c
-        agent_tools.c
-        Injector.h
-        Injector.c
-        JVMTITools.h
-        JVMTITools.c
+        jvmti_tools.hpp
+        jvmti_tools.cpp
+        agent_tools.cpp
+        Injector.hpp
+        Injector.cpp
+        JVMTITools.hpp
+        JVMTITools.cpp
 
     Naming conventions:
         macroses:  NSK_JVMTI_*
@@ -39,7 +39,7 @@ which provides support for JVMTI tests and accessing JVMTI environment.
 
 ---------------------------------------------------------------------------------
 
-jvmti_tools.h
+jvmti_tools.hpp
 
 Provides functions and macroses for invocation of JVMTI functions
 and checking JVMTI errors:
@@ -117,27 +117,25 @@ Also provides functions for running JVMTI agent:
 
 ---------------------------------------------------------------------------------
 
-Typical example of usage of NSK_JVMTI_VERIFY and NSK_CPP_STUB macroses
+Typical example of usage of the NSK_JVMTI_VERIFY macro
 for invocation of JVMTI functions:
 
     // jvmti->GetVersion(jvmti, &version)
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(GetVersion, jvmti, &version) != NULL)) {
+    if (!NSK_JVMTI_VERIFY(jvmti->GetVersion(&version) != NULL)) {
         return JNI_ERR;
     }
 
 or with saving error code:
 
     // err = jvmti->GetVersion(jvmti, &version)
-    if (!NSK_JVMTI_VERIFY(err =
-            NSK_CPP_STUB2(GetVersion, jvmti, &version))) {
+    if (!NSK_JVMTI_VERIFY(err = jvmti->GetVersion(&version))) {
         return err;
     }
         functions: nsk_jvmti_*
 
 ---------------------------------------------------------------------------------
 
-JVMTITools.h
+JVMTITools.hpp
 
 Provides set of functions which convert JVMTI binary data to
 a null-terminated character string:
@@ -152,7 +150,7 @@ a null-terminated character string:
 
 ---------------------------------------------------------------------------------
 
-Injector.h
+Injector.hpp
 
 Provides class file format constants and the function which inject some
 profiling bytecodes into Java class files:

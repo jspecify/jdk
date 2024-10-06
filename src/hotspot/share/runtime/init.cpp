@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,28 +25,39 @@
 #include "precompiled.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
-#include "code/icBuffer.hpp"
+#include "compiler/compiler_globals.hpp"
 #include "gc/shared/collectedHeap.hpp"
+#include "gc/shared/gcHeapSummary.hpp"
 #include "interpreter/bytecodes.hpp"
+#include "logging/logAsyncWriter.hpp"
 #include "memory/universe.hpp"
+#include "nmt/memTracker.hpp"
+#include "prims/downcallLinker.hpp"
+#include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/atomic.hpp"
+#include "runtime/continuation.hpp"
 #include "runtime/flags/jvmFlag.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/init.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/sharedRuntime.hpp"
-#include "services/memTracker.hpp"
+#include "sanitizers/leak.hpp"
 #include "utilities/macros.hpp"
-
+#if INCLUDE_JVMCI
+#include "jvmci/jvmci.hpp"
+#endif
 
 // Initialization done by VM thread in vm_init_globals()
 void check_ThreadShadow();
 void eventlog_init();
 void mutex_init();
-void chunkpool_init();
+void universe_oopstorage_init();
 void perfMemory_init();
 void SuspendibleThreadSet_init();
+void ExternalsRecorder_init(); // After mutex_init() and before CodeCache_init
 
 // Initialization done by Java thread in init_globals()
 void management_init();
@@ -55,31 +66,33 @@ void classLoader_init1();
 void compilationPolicy_init();
 void codeCache_init();
 void VM_Version_init();
-void os_init_globals();        // depends on VM_Version_init, before universe_init
-void stubRoutines_init1();
-jint universe_init();          // depends on codeCache_init and stubRoutines_init
+void initial_stubs_init();
+
+jint universe_init();           // depends on codeCache_init and initial_stubs_init
 // depends on universe_init, must be before interpreter_init (currently only on SPARC)
 void gc_barrier_stubs_init();
-void interpreter_init();       // before any methods loaded
-void invocationCounter_init(); // before any methods loaded
+void continuations_init();      // depends on flags (UseCompressedOops) and barrier sets
+void continuation_stubs_init(); // depend on continuations_init
+void interpreter_init_stub();   // before any methods loaded
+void interpreter_init_code();   // after methods loaded, but before they are linked
 void accessFlags_init();
-void templateTable_init();
 void InterfaceSupport_init();
-void universe2_init();  // dependent on codeCache_init and stubRoutines_init, loads primordial classes
+void universe2_init();  // dependent on codeCache_init and initial_stubs_init, loads primordial classes
 void referenceProcessor_init();
 void jni_handles_init();
-void vmStructs_init();
+void vmStructs_init() NOT_DEBUG_RETURN;
 
 void vtableStubs_init();
-void InlineCacheBuffer_init();
-void compilerOracle_init();
+bool compilerOracle_init();
 bool compileBroker_init();
 void dependencyContext_init();
+void dependencies_init();
 
 // Initialization after compiler initialization
 bool universe_post_init();  // must happen after compiler_init
-void javaClasses_init();  // must happen after vtable initialization
-void stubRoutines_init2(); // note: StubRoutines need 2-phase init
+void javaClasses_init();    // must happen after vtable initialization
+void compiler_stubs_init(bool in_compiler_thread); // compiler's StubRoutines stubs
+void final_stubs_init();    // final StubRoutines stubs
 
 // Do not disable thread-local-storage, as it is important for some
 // JNI/JVM/JVMTI functions and signal handlers to work properly
@@ -92,36 +105,63 @@ void vm_init_globals() {
   basic_types_init();
   eventlog_init();
   mutex_init();
-  chunkpool_init();
+  universe_oopstorage_init();
   perfMemory_init();
   SuspendibleThreadSet_init();
+  ExternalsRecorder_init(); // After mutex_init() and before CodeCache_init
 }
 
 
 jint init_globals() {
-  HandleMark hm;
   management_init();
+  JvmtiExport::initialize_oop_storage();
+#if INCLUDE_JVMTI
+  if (AlwaysRecordEvolDependencies) {
+    JvmtiExport::set_can_hotswap_or_post_breakpoint(true);
+    JvmtiExport::set_all_dependencies_are_recorded(true);
+  }
+#endif
   bytecodes_init();
   classLoader_init1();
   compilationPolicy_init();
   codeCache_init();
-  VM_Version_init();
-  os_init_globals();
-  stubRoutines_init1();
+  VM_Version_init();              // depends on codeCache_init for emitting code
+  // stub routines in initial blob are referenced by later generated code
+  initial_stubs_init();
+  // stack overflow exception blob is referenced by the interpreter
+  SharedRuntime::generate_initial_stubs();
   jint status = universe_init();  // dependent on codeCache_init and
-                                  // stubRoutines_init1 and metaspace_init.
+                                  // initial_stubs_init and metaspace_init.
   if (status != JNI_OK)
     return status;
 
+#ifdef LEAK_SANITIZER
+  {
+    // Register the Java heap with LSan.
+    VirtualSpaceSummary summary = Universe::heap()->create_heap_space_summary();
+    LSAN_REGISTER_ROOT_REGION(summary.start(), summary.reserved_size());
+  }
+#endif // LEAK_SANITIZER
+
+  AsyncLogWriter::initialize();
   gc_barrier_stubs_init();   // depends on universe_init, must be before interpreter_init
-  interpreter_init();        // before any methods loaded
-  invocationCounter_init();  // before any methods loaded
+  continuations_init();      // must precede continuation stub generation
+  continuation_stubs_init(); // depends on continuations_init
+#if INCLUDE_JFR
+  SharedRuntime::generate_jfr_stubs();
+#endif
+  interpreter_init_stub();   // before methods get loaded
   accessFlags_init();
-  templateTable_init();
   InterfaceSupport_init();
+  VMRegImpl::set_regName();  // need this before generate_stubs (for printing oop maps).
   SharedRuntime::generate_stubs();
-  universe2_init();  // dependent on codeCache_init and stubRoutines_init1
-  javaClasses_init();// must happen after vtable initialization, before referenceProcessor_init
+  return JNI_OK;
+}
+
+jint init_globals2() {
+  universe2_init();          // dependent on codeCache_init and initial_stubs_init
+  javaClasses_init();        // must happen after vtable initialization, before referenceProcessor_init
+  interpreter_init_code();   // after javaClasses_init and before any method gets linked
   referenceProcessor_init();
   jni_handles_init();
 #if INCLUDE_VM_STRUCTS
@@ -129,26 +169,27 @@ jint init_globals() {
 #endif // INCLUDE_VM_STRUCTS
 
   vtableStubs_init();
-  InlineCacheBuffer_init();
-  compilerOracle_init();
+  if (!compilerOracle_init()) {
+    return JNI_EINVAL;
+  }
   dependencyContext_init();
+  dependencies_init();
 
   if (!compileBroker_init()) {
     return JNI_EINVAL;
   }
-  VMRegImpl::set_regName();
+#if INCLUDE_JVMCI
+  if (EnableJVMCI) {
+    JVMCI::initialize_globals();
+  }
+#endif
 
   if (!universe_post_init()) {
     return JNI_ERR;
   }
-  stubRoutines_init2(); // note: StubRoutines need 2-phase init
+  compiler_stubs_init(false /* in_compiler_thread */); // compiler's intrinsics stubs
+  final_stubs_init();    // final StubRoutines stubs
   MethodHandles::generate_adapters();
-
-#if INCLUDE_NMT
-  // Solaris stack is walkable only after stubRoutines are set up.
-  // On Other platforms, the stack is always walkable.
-  NMT_stack_walkable = true;
-#endif // INCLUDE_NMT
 
   // All the flags that get adjusted by VM_Version_init and os::init_2
   // have been set so dump the flags now.
@@ -165,26 +206,38 @@ void exit_globals() {
   if (!destructorsCalled) {
     destructorsCalled = true;
     perfMemory_exit();
-    if (PrintSafepointStatistics) {
-      // Print the collected safepoint statistics.
-      SafepointSynchronize::print_stat_on_exit();
-    }
+    SafepointTracing::statistics_exit_log();
     if (PrintStringTableStatistics) {
       SymbolTable::dump(tty);
       StringTable::dump(tty);
     }
     ostream_exit();
+#ifdef LEAK_SANITIZER
+    {
+      // Unregister the Java heap with LSan.
+      VirtualSpaceSummary summary = Universe::heap()->create_heap_space_summary();
+      LSAN_UNREGISTER_ROOT_REGION(summary.start(), summary.reserved_size());
+    }
+#endif // LEAK_SANITIZER
   }
 }
 
 static volatile bool _init_completed = false;
 
 bool is_init_completed() {
-  return _init_completed;
+  return Atomic::load_acquire(&_init_completed);
 }
 
+void wait_init_completed() {
+  MonitorLocker ml(InitCompleted_lock, Monitor::_no_safepoint_check_flag);
+  while (!_init_completed) {
+    ml.wait();
+  }
+}
 
 void set_init_completed() {
   assert(Universe::is_fully_initialized(), "Should have completed initialization");
-  _init_completed = true;
+  MonitorLocker ml(InitCompleted_lock, Monitor::_no_safepoint_check_flag);
+  Atomic::release_store(&_init_completed, true);
+  ml.notify_all();
 }

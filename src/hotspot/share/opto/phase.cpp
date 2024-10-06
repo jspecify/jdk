@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,7 @@ elapsedTimer Phase::_t_stubCompilation;
 elapsedTimer Phase::timers[max_phase_timers];
 
 //------------------------------Phase------------------------------------------
-Phase::Phase( PhaseNumber pnum ) : _pnum(pnum), C( pnum == Compiler ? NULL : Compile::current()) {
+Phase::Phase( PhaseNumber pnum ) : _pnum(pnum), C( pnum == Compiler ? nullptr : Compile::current()) {
   // Poll for requests from shutdown mechanism to quiesce compiler (4448539, 4448544).
   // This is an effective place to poll, since the compiler is full of phases.
   // In particular, every inlining site uses a recursively created Parse phase.
@@ -64,45 +64,54 @@ void Phase::print_timers() {
     {
        tty->print_cr ("         Incremental Inline:  %7.3f s", timers[_t_incrInline].seconds());
        tty->print_cr ("           IdealLoop:           %7.3f s", timers[_t_incrInline_ideal].seconds());
-       tty->print_cr ("           IGVN:                %7.3f s", timers[_t_incrInline_igvn].seconds());
-       tty->print_cr ("           Inline:              %7.3f s", timers[_t_incrInline_inline].seconds());
-       tty->print_cr ("           Prune Useless:       %7.3f s", timers[_t_incrInline_pru].seconds());
+       tty->print_cr ("          (IGVN:                %7.3f s)", timers[_t_incrInline_igvn].seconds());
+       tty->print_cr ("          (Inline:              %7.3f s)", timers[_t_incrInline_inline].seconds());
+       tty->print_cr ("          (Prune Useless:       %7.3f s)", timers[_t_incrInline_pru].seconds());
 
        double other = timers[_t_incrInline].seconds() -
-        (timers[_t_incrInline_ideal].seconds() +
-         timers[_t_incrInline_igvn].seconds() +
-         timers[_t_incrInline_inline].seconds() +
-         timers[_t_incrInline_pru].seconds());
+        (timers[_t_incrInline_ideal].seconds());
        if (other > 0) {
          tty->print_cr("           Other:               %7.3f s", other);
        }
     }
+
+    tty->print_cr ("         Vector:              %7.3f s", timers[_t_vector].seconds());
+    tty->print_cr ("           Box elimination:   %7.3f s", timers[_t_vector_elimination].seconds());
+    tty->print_cr ("             IGVN:            %7.3f s", timers[_t_vector_igvn].seconds());
+    tty->print_cr ("             Prune Useless:   %7.3f s", timers[_t_vector_pru].seconds());
     tty->print_cr ("         Renumber Live:       %7.3f s", timers[_t_renumberLive].seconds());
     tty->print_cr ("         IdealLoop:           %7.3f s", timers[_t_idealLoop].seconds());
+    tty->print_cr ("           AutoVectorize:     %7.3f s", timers[_t_autoVectorize].seconds());
     tty->print_cr ("         IdealLoop Verify:    %7.3f s", timers[_t_idealLoopVerify].seconds());
     tty->print_cr ("         Cond Const Prop:     %7.3f s", timers[_t_ccp].seconds());
     tty->print_cr ("         GVN 2:               %7.3f s", timers[_t_iterGVN2].seconds());
     tty->print_cr ("         Macro Expand:        %7.3f s", timers[_t_macroExpand].seconds());
+    tty->print_cr ("         Barrier Expand:      %7.3f s", timers[_t_barrierExpand].seconds());
     tty->print_cr ("         Graph Reshape:       %7.3f s", timers[_t_graphReshaping].seconds());
 
     double other = timers[_t_optimizer].seconds() -
       (timers[_t_escapeAnalysis].seconds() +
        timers[_t_iterGVN].seconds() +
        timers[_t_incrInline].seconds() +
+       timers[_t_vector].seconds() +
        timers[_t_renumberLive].seconds() +
        timers[_t_idealLoop].seconds() +
        timers[_t_idealLoopVerify].seconds() +
        timers[_t_ccp].seconds() +
        timers[_t_iterGVN2].seconds() +
        timers[_t_macroExpand].seconds() +
+       timers[_t_barrierExpand].seconds() +
        timers[_t_graphReshaping].seconds());
     if (other > 0) {
       tty->print_cr("         Other:               %7.3f s", other);
     }
   }
 
-  tty->print_cr ("       Matcher:             %7.3f s", timers[_t_matcher].seconds());
-  tty->print_cr ("       Scheduler:           %7.3f s", timers[_t_scheduler].seconds());
+  tty->print_cr ("       Matcher:                  %7.3f s", timers[_t_matcher].seconds());
+  if (Matcher::supports_generic_vector_operands) {
+    tty->print_cr ("         Post Selection Cleanup: %7.3f s", timers[_t_postselect_cleanup].seconds());
+  }
+  tty->print_cr ("       Scheduler:                %7.3f s", timers[_t_scheduler].seconds());
 
   {
     tty->print_cr ("       Regalloc:            %7.3f s", timers[_t_registerAllocation].seconds());
@@ -150,8 +159,23 @@ void Phase::print_timers() {
   }
   tty->print_cr ("       Code Emission:         %7.3f s", timers[_t_output].seconds());
   tty->print_cr ("         Insn Scheduling:     %7.3f s", timers[_t_instrSched].seconds());
+  tty->print_cr ("         Shorten branches:    %7.3f s", timers[_t_shortenBranches].seconds());
   tty->print_cr ("         Build OOP maps:      %7.3f s", timers[_t_buildOopMaps].seconds());
-  tty->print_cr ("       Code Installation:   %7.3f s", timers[_t_registerMethod].seconds());
+  tty->print_cr ("         Fill buffer:         %7.3f s", timers[_t_fillBuffer].seconds());
+  tty->print_cr ("         Code Installation:   %7.3f s", timers[_t_registerMethod].seconds());
+
+  {
+    double other = timers[_t_output].seconds() -
+                   (timers[_t_instrSched].seconds() +
+                    timers[_t_shortenBranches].seconds() +
+                    timers[_t_buildOopMaps].seconds() +
+                    timers[_t_fillBuffer].seconds() +
+                    timers[_t_registerMethod].seconds());
+
+    if (other > 0) {
+      tty->print_cr("         Other:               %7.3f s", other);
+    }
+  }
 
   if( timers[_t_temporaryTimer1].seconds() > 0 ) {
     tty->cr();

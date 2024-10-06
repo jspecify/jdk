@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,12 +24,11 @@
 /**
  * @test
  * @bug 8055061
- * @key nmt
  * @requires vm.cds
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main NMTWithCDS
+ * @run driver NMTWithCDS
  */
 
 import jdk.test.lib.process.ProcessTools;
@@ -39,14 +38,14 @@ public class NMTWithCDS {
 
   public static void main(String[] args) throws Exception {
     ProcessBuilder pb;
-    pb = ProcessTools.createJavaProcessBuilder(
-        "-XX:+UnlockDiagnosticVMOptions", "-XX:SharedArchiveFile=./NMTWithCDS.jsa", "-Xshare:dump");
+    pb = ProcessTools.createTestJavaProcessBuilder(
+        "-XX:+UnlockDiagnosticVMOptions", "-XX:SharedArchiveFile=./NMTWithCDS.jsa", "-Xshare:dump", "-Xlog:cds");
     OutputAnalyzer output = new OutputAnalyzer(pb.start());
     try {
       output.shouldContain("Loading classes to share");
       output.shouldHaveExitValue(0);
 
-      pb = ProcessTools.createJavaProcessBuilder(
+      pb = ProcessTools.createTestJavaProcessBuilder(
         "-XX:+UnlockDiagnosticVMOptions", "-XX:NativeMemoryTracking=detail", "-XX:SharedArchiveFile=./NMTWithCDS.jsa", "-Xshare:on", "-version");
       output = new OutputAnalyzer(pb.start());
       output.shouldContain("sharing");

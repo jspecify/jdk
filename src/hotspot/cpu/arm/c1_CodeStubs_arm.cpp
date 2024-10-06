@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,8 @@
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
+#include "classfile/javaClasses.hpp"
+#include "memory/universe.hpp"
 #include "nativeInst_arm.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/macros.hpp"
@@ -36,41 +38,26 @@
 
 #define __ ce->masm()->
 
+void C1SafepointPollStub::emit_code(LIR_Assembler* ce) {
+  ShouldNotReachHere();
+}
+
 void CounterOverflowStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   ce->store_parameter(_bci, 0);
   ce->store_parameter(_method->as_constant_ptr()->as_metadata(), 1);
-  __ call(Runtime1::entry_for(Runtime1::counter_overflow_id), relocInfo::runtime_call_type);
+  __ call(Runtime1::entry_for(C1StubId::counter_overflow_id), relocInfo::runtime_call_type);
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
 
   __ b(_continuation);
 }
 
-
-// TODO: ARM - is it possible to inline these stubs into the main code stream?
-
-
-RangeCheckStub::RangeCheckStub(CodeEmitInfo* info, LIR_Opr index, LIR_Opr array)
-  : _throw_index_out_of_bounds_exception(false), _index(index), _array(array) {
-  assert(info != NULL, "must have info");
-  _info = new CodeEmitInfo(info);
-}
-
-RangeCheckStub::RangeCheckStub(CodeEmitInfo* info, LIR_Opr index)
-  : _throw_index_out_of_bounds_exception(true), _index(index), _array(NULL) {
-  assert(info != NULL, "must have info");
-  _info = new CodeEmitInfo(info);
-}
-
 void RangeCheckStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
 
   if (_info->deoptimize_on_exception()) {
-#ifdef AARCH64
-    __ NOT_TESTED();
-#endif
-    __ call(Runtime1::entry_for(Runtime1::predicate_failed_trap_id), relocInfo::runtime_call_type);
+    __ call(Runtime1::entry_for(C1StubId::predicate_failed_trap_id), relocInfo::runtime_call_type);
     ce->add_call_info_here(_info);
     ce->verify_oop_map(_info);
     debug_only(__ should_not_reach_here());
@@ -86,13 +73,10 @@ void RangeCheckStub::emit_code(LIR_Assembler* ce) {
   }
 
   if (_throw_index_out_of_bounds_exception) {
-#ifdef AARCH64
-    __ NOT_TESTED();
-#endif
-    __ call(Runtime1::entry_for(Runtime1::throw_index_exception_id), relocInfo::runtime_call_type);
+    __ call(Runtime1::entry_for(C1StubId::throw_index_exception_id), relocInfo::runtime_call_type);
   } else {
     __ str(_array->as_pointer_register(), Address(SP, BytesPerWord)); // ??? Correct offset? Correct instruction?
-    __ call(Runtime1::entry_for(Runtime1::throw_range_check_failed_id), relocInfo::runtime_call_type);
+    __ call(Runtime1::entry_for(C1StubId::throw_range_check_failed_id), relocInfo::runtime_call_type);
   }
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
@@ -105,7 +89,7 @@ PredicateFailedStub::PredicateFailedStub(CodeEmitInfo* info) {
 
 void PredicateFailedStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
-  __ call(Runtime1::entry_for(Runtime1::predicate_failed_trap_id), relocInfo::runtime_call_type);
+  __ call(Runtime1::entry_for(C1StubId::predicate_failed_trap_id), relocInfo::runtime_call_type);
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   debug_only(__ should_not_reach_here());
@@ -116,7 +100,7 @@ void DivByZeroStub::emit_code(LIR_Assembler* ce) {
     ce->compilation()->implicit_exception_table()->append(_offset, __ offset());
   }
   __ bind(_entry);
-  __ call(Runtime1::entry_for(Runtime1::throw_div0_exception_id),
+  __ call(Runtime1::entry_for(C1StubId::throw_div0_exception_id),
           relocInfo::runtime_call_type);
   ce->add_call_info_here(_info);
   DEBUG_ONLY(STOP("DivByZero");)
@@ -125,14 +109,14 @@ void DivByZeroStub::emit_code(LIR_Assembler* ce) {
 
 // Implementation of NewInstanceStub
 
-NewInstanceStub::NewInstanceStub(LIR_Opr klass_reg, LIR_Opr result, ciInstanceKlass* klass, CodeEmitInfo* info, Runtime1::StubID stub_id) {
+NewInstanceStub::NewInstanceStub(LIR_Opr klass_reg, LIR_Opr result, ciInstanceKlass* klass, CodeEmitInfo* info, C1StubId stub_id) {
   _result = result;
   _klass = klass;
   _klass_reg = klass_reg;
   _info = new CodeEmitInfo(info);
-  assert(stub_id == Runtime1::new_instance_id                 ||
-         stub_id == Runtime1::fast_new_instance_id            ||
-         stub_id == Runtime1::fast_new_instance_init_check_id,
+  assert(stub_id == C1StubId::new_instance_id                 ||
+         stub_id == C1StubId::fast_new_instance_id            ||
+         stub_id == C1StubId::fast_new_instance_init_check_id,
          "need new_instance id");
   _stub_id   = stub_id;
 }
@@ -164,7 +148,7 @@ void NewTypeArrayStub::emit_code(LIR_Assembler* ce) {
   assert(_klass_reg->as_register() == R1, "runtime call setup");
   assert(_length->as_register() == R2, "runtime call setup");
   __ bind(_entry);
-  __ call(Runtime1::entry_for(Runtime1::new_type_array_id), relocInfo::runtime_call_type);
+  __ call(Runtime1::entry_for(C1StubId::new_type_array_id), relocInfo::runtime_call_type);
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   __ b(_continuation);
@@ -186,21 +170,11 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
   assert(_klass_reg->as_register() == R1, "runtime call setup");
   assert(_length->as_register() == R2, "runtime call setup");
   __ bind(_entry);
-  __ call(Runtime1::entry_for(Runtime1::new_object_array_id), relocInfo::runtime_call_type);
+  __ call(Runtime1::entry_for(C1StubId::new_object_array_id), relocInfo::runtime_call_type);
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   __ b(_continuation);
 }
-
-
-// Implementation of MonitorAccessStubs
-
-MonitorEnterStub::MonitorEnterStub(LIR_Opr obj_reg, LIR_Opr lock_reg, CodeEmitInfo* info)
-: MonitorAccessStub(obj_reg, lock_reg)
-{
-  _info = new CodeEmitInfo(info);
-}
-
 
 void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
@@ -208,20 +182,16 @@ void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   const Register lock_reg = _lock_reg->as_pointer_register();
 
   ce->verify_reserved_argument_area_size(2);
-#ifdef AARCH64
-  __ stp(obj_reg, lock_reg, Address(SP));
-#else
   if (obj_reg < lock_reg) {
     __ stmia(SP, RegisterSet(obj_reg) | RegisterSet(lock_reg));
   } else {
     __ str(obj_reg, Address(SP));
     __ str(lock_reg, Address(SP, BytesPerWord));
   }
-#endif // AARCH64
 
-  Runtime1::StubID enter_id = ce->compilation()->has_fpu_code() ?
-                              Runtime1::monitorenter_id :
-                              Runtime1::monitorenter_nofpu_id;
+  C1StubId enter_id = ce->compilation()->has_fpu_code() ?
+                              C1StubId::monitorenter_id :
+                              C1StubId::monitorenter_nofpu_id;
   __ call(Runtime1::entry_for(enter_id), relocInfo::runtime_call_type);
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
@@ -240,9 +210,9 @@ void MonitorExitStub::emit_code(LIR_Assembler* ce) {
   __ str(lock_reg, Address(SP));
 
   // Non-blocking leaf routine - no call info needed
-  Runtime1::StubID exit_id = ce->compilation()->has_fpu_code() ?
-                             Runtime1::monitorexit_id :
-                             Runtime1::monitorexit_nofpu_id;
+  C1StubId exit_id = ce->compilation()->has_fpu_code() ?
+                             C1StubId::monitorexit_id :
+                             C1StubId::monitorexit_nofpu_id;
   __ call(Runtime1::entry_for(exit_id), relocInfo::runtime_call_type);
   __ b(_continuation);
 }
@@ -259,7 +229,7 @@ void PatchingStub::align_patch_site(MacroAssembler* masm) {
 }
 
 void PatchingStub::emit_code(LIR_Assembler* ce) {
-  const int patchable_instruction_offset = AARCH64_ONLY(NativeInstruction::instruction_size) NOT_AARCH64(0);
+  const int patchable_instruction_offset = 0;
 
   assert(NativeCall::instruction_size <= _bytes_to_copy && _bytes_to_copy <= 0xFF,
          "not enough room for call");
@@ -267,31 +237,17 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
   Label call_patch;
   bool is_load = (_id == load_klass_id) || (_id == load_mirror_id) || (_id == load_appendix_id);
 
-#ifdef AARCH64
-  assert(nativeInstruction_at(_pc_start)->is_nop(), "required for MT safe patching");
 
-  // Same alignment of reg2mem code and PatchingStub code. Required to make copied bind_literal() code properly aligned.
-  __ align(wordSize);
-#endif // AARCH64
-
-  if (is_load NOT_AARCH64(&& !VM_Version::supports_movw())) {
+  if (is_load && !VM_Version::supports_movw()) {
     address start = __ pc();
 
     // The following sequence duplicates code provided in MacroAssembler::patchable_mov_oop()
     // without creating relocation info entry.
-#ifdef AARCH64
-    // Extra nop for MT safe patching
-    __ nop();
-#endif // AARCH64
 
     assert((__ pc() - start) == patchable_instruction_offset, "should be");
-#ifdef AARCH64
-    __ ldr(_obj, __ pc());
-#else
     __ ldr(_obj, Address(PC));
     // Extra nop to handle case of large offset of oop placeholder (see NativeMovConstReg::set_data).
     __ nop();
-#endif // AARCH64
 
 #ifdef ASSERT
     for (int i = 0; i < _bytes_to_copy; i++) {
@@ -334,7 +290,7 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
 
     assert(_obj != noreg, "must be a valid register");
     // Rtemp should be OK in C1
-    __ ldr(Rtemp, Address(_obj, java_lang_Class::klass_offset_in_bytes()));
+    __ ldr(Rtemp, Address(_obj, java_lang_Class::klass_offset()));
     __ ldr(Rtemp, Address(Rtemp, InstanceKlass::init_thread_offset()));
     __ cmp(Rtemp, Rthread);
     __ b(call_patch, ne);
@@ -363,13 +319,13 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
 
   address entry = __ pc();
   NativeGeneralJump::insert_unconditional((address)_pc_start, entry);
-  address target = NULL;
+  address target = nullptr;
   relocInfo::relocType reloc_type = relocInfo::none;
   switch (_id) {
-    case access_field_id:  target = Runtime1::entry_for(Runtime1::access_field_patching_id); break;
-    case load_klass_id:    target = Runtime1::entry_for(Runtime1::load_klass_patching_id); reloc_type = relocInfo::metadata_type; break;
-    case load_mirror_id:   target = Runtime1::entry_for(Runtime1::load_mirror_patching_id); reloc_type = relocInfo::oop_type; break;
-    case load_appendix_id: target = Runtime1::entry_for(Runtime1::load_appendix_patching_id); reloc_type = relocInfo::oop_type; break;
+    case access_field_id:  target = Runtime1::entry_for(C1StubId::access_field_patching_id); break;
+    case load_klass_id:    target = Runtime1::entry_for(C1StubId::load_klass_patching_id); reloc_type = relocInfo::metadata_type; break;
+    case load_mirror_id:   target = Runtime1::entry_for(C1StubId::load_mirror_patching_id); reloc_type = relocInfo::oop_type; break;
+    case load_appendix_id: target = Runtime1::entry_for(C1StubId::load_appendix_patching_id); reloc_type = relocInfo::oop_type; break;
     default: ShouldNotReachHere();
   }
   __ bind(call_patch);
@@ -395,7 +351,7 @@ void DeoptimizeStub::emit_code(LIR_Assembler* ce) {
   __ mov_slow(Rtemp, _trap_request);
   ce->verify_reserved_argument_area_size(1);
   __ str(Rtemp, Address(SP));
-  __ call(Runtime1::entry_for(Runtime1::deoptimize_id), relocInfo::runtime_call_type);
+  __ call(Runtime1::entry_for(C1StubId::deoptimize_id), relocInfo::runtime_call_type);
   ce->add_call_info_here(_info);
   DEBUG_ONLY(__ should_not_reach_here());
 }
@@ -406,9 +362,9 @@ void ImplicitNullCheckStub::emit_code(LIR_Assembler* ce) {
   if (_info->deoptimize_on_exception()) {
     // Deoptimize, do not throw the exception, because it is
     // probably wrong to do it here.
-    a = Runtime1::entry_for(Runtime1::predicate_failed_trap_id);
+    a = Runtime1::entry_for(C1StubId::predicate_failed_trap_id);
   } else {
-    a = Runtime1::entry_for(Runtime1::throw_null_pointer_exception_id);
+    a = Runtime1::entry_for(C1StubId::throw_null_pointer_exception_id);
   }
   ce->compilation()->implicit_exception_table()->append(_offset, __ offset());
   __ bind(_entry);
@@ -439,7 +395,7 @@ void ArrayCopyStub::emit_code(LIR_Assembler* ce) {
 
   VMRegPair args[5];
   BasicType signature[5] = { T_OBJECT, T_INT, T_OBJECT, T_INT, T_INT };
-  SharedRuntime::java_calling_convention(signature, args, 5, true);
+  SharedRuntime::java_calling_convention(signature, args, 5);
 
   Register r[5];
   r[0] = src()->as_pointer_register();

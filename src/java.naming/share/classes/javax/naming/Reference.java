@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,6 @@
  */
 
 package javax.naming;
-
-import org.jspecify.annotations.Nullable;
 
 import java.util.Vector;
 import java.util.Enumeration;
@@ -239,7 +237,7 @@ public class Reference implements Cloneable, java.io.Serializable {
       * @param posn The index of the address to retrieve.
       * @return The address at the 0-based index posn. It must be in the
       *         range [0,getAddressCount()).
-      * @exception ArrayIndexOutOfBoundsException If posn not in the specified
+      * @throws ArrayIndexOutOfBoundsException If posn not in the specified
       *         range.
       */
     public RefAddr get(int posn) {
@@ -285,7 +283,7 @@ public class Reference implements Cloneable, java.io.Serializable {
       *
       * @param posn The 0-based index of the list to insert addr.
       * @param addr The non-null address to add.
-      * @exception ArrayIndexOutOfBoundsException If posn not in the specified
+      * @throws ArrayIndexOutOfBoundsException If posn not in the specified
       *         range.
       */
     public void add(int posn, RefAddr addr) {
@@ -299,7 +297,7 @@ public class Reference implements Cloneable, java.io.Serializable {
       *
       * @param posn The 0-based index of in address to delete.
       * @return The address removed.
-      * @exception ArrayIndexOutOfBoundsException If posn not in the specified
+      * @throws ArrayIndexOutOfBoundsException If posn not in the specified
       *         range.
       */
     public Object remove(int posn) {
@@ -327,11 +325,8 @@ public class Reference implements Cloneable, java.io.Serializable {
       * @param obj The possibly null object to check.
       * @return true if obj is equal to this reference; false otherwise.
       */
-    
-    
-    public boolean equals(@Nullable Object obj) {
-        if ((obj != null) && (obj instanceof Reference)) {
-            Reference target = (Reference)obj;
+    public boolean equals(Object obj) {
+        if (obj instanceof Reference target) {
             // ignore factory information
             if (target.className.equals(this.className) &&
                 target.size() ==  this.size()) {

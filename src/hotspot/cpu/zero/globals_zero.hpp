@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2009, 2010, 2011 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_ZERO_VM_GLOBALS_ZERO_HPP
-#define CPU_ZERO_VM_GLOBALS_ZERO_HPP
+#ifndef CPU_ZERO_GLOBALS_ZERO_HPP
+#define CPU_ZERO_GLOBALS_ZERO_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
@@ -32,17 +32,15 @@
 // Set the default values for platform dependent flags used by the
 // runtime system.  See globals.hpp for details of what they do.
 
-define_pd_global(bool,  ShareVtableStubs,     true);
-define_pd_global(bool,  NeedsDeoptSuspend,    false);
-
 define_pd_global(bool,  ImplicitNullChecks,   true);
 define_pd_global(bool,  TrapBasedNullChecks,  false);
 define_pd_global(bool,  UncommonNullCast,     true);
 
-define_pd_global(uintx, CodeCacheSegmentSize, 64 TIERED_ONLY(+64)); // Tiered compilation has large code-entry alignment.
+define_pd_global(bool,  DelayCompilerStubsGeneration, false); // Don't have compiler's stubs
+
+define_pd_global(uintx, CodeCacheSegmentSize, 64 COMPILER1_AND_COMPILER2_PRESENT(+64)); // Tiered compilation has large code-entry alignment.
 define_pd_global(intx,  CodeEntryAlignment,   32);
 define_pd_global(intx,  OptoLoopAlignment,    16);
-define_pd_global(intx,  InlineFrequencyCount, 100);
 define_pd_global(intx,  InlineSmallCode,      1000);
 
 // not used, but must satisfy following constraints:
@@ -66,31 +64,21 @@ define_pd_global(intx,  StackRedPages,        DEFAULT_STACK_RED_PAGES);
 define_pd_global(intx,  StackShadowPages,     DEFAULT_STACK_SHADOW_PAGES);
 define_pd_global(intx,  StackReservedPages,   DEFAULT_STACK_RESERVED_PAGES);
 
+define_pd_global(bool,  VMContinuations, false);
+
 define_pd_global(bool,  RewriteBytecodes,     true);
 define_pd_global(bool,  RewriteFrequentPairs, true);
-
-define_pd_global(bool,  UseMembar,            true);
-
-// GC Ergo Flags
-define_pd_global(size_t, CMSYoungGenPerWorker, 16*M);  // default max size of CMS young gen, per GC worker thread
 
 define_pd_global(uintx, TypeProfileLevel, 0);
 
 define_pd_global(bool, PreserveFramePointer, false);
 
-// No performance work done here yet.
-define_pd_global(bool, CompactStrings, false);
+define_pd_global(bool, CompactStrings, true);
 
-define_pd_global(bool, ThreadLocalHandshakes, false);
-
-#define ARCH_FLAGS(develop, \
-                   product, \
-                   diagnostic, \
-                   experimental, \
-                   notproduct, \
-                   range, \
-                   constraint, \
-                   writeable)  \
+#define ARCH_FLAGS(develop,                                                 \
+                   product,                                                 \
+                   range,                                                   \
+                   constraint)                                              \
                                                                             \
   product(bool, UseFastEmptyMethods, true,                                  \
           "Use fast method entry code for empty methods")                   \
@@ -98,5 +86,10 @@ define_pd_global(bool, ThreadLocalHandshakes, false);
   product(bool, UseFastAccessorMethods, true,                               \
           "Use fast method entry code for accessor methods")                \
                                                                             \
+  product(bool, DecodeErrorContext, false, DIAGNOSTIC,                      \
+          "Try to decode the architecture-specific context for better "     \
+          "diagnostics")
 
-#endif // CPU_ZERO_VM_GLOBALS_ZERO_HPP
+// end of ARCH_FLAGS
+
+#endif // CPU_ZERO_GLOBALS_ZERO_HPP

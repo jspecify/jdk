@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,14 @@
 package jdk.net;
 
 import java.net.SocketException;
+import java.nio.file.attribute.UserPrincipal;
+import java.nio.file.attribute.GroupPrincipal;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import jdk.net.ExtendedSocketOptions.PlatformSocketOptions;
+import sun.nio.fs.UnixUserPrincipals;
 
+@SuppressWarnings({"removal", "restricted"})
 class MacOSXSocketOptions extends PlatformSocketOptions {
 
     public MacOSXSocketOptions() {
@@ -40,8 +44,13 @@ class MacOSXSocketOptions extends PlatformSocketOptions {
     }
 
     @Override
-    void setTcpkeepAliveProbes(int fd, final int value) throws SocketException {
-        setTcpkeepAliveProbes0(fd, value);
+    boolean ipDontFragmentSupported() {
+        return ipDontFragmentSupported0();
+    }
+
+    @Override
+    void setTcpKeepAliveProbes(int fd, final int value) throws SocketException {
+        setTcpKeepAliveProbes0(fd, value);
     }
 
     @Override
@@ -50,13 +59,18 @@ class MacOSXSocketOptions extends PlatformSocketOptions {
     }
 
     @Override
+    boolean peerCredentialsSupported() {
+        return true;
+    }
+
+    @Override
     void setTcpKeepAliveIntvl(int fd, final int value) throws SocketException {
         setTcpKeepAliveIntvl0(fd, value);
     }
 
     @Override
-    int getTcpkeepAliveProbes(int fd) throws SocketException {
-        return getTcpkeepAliveProbes0(fd);
+    int getTcpKeepAliveProbes(int fd) throws SocketException {
+        return getTcpKeepAliveProbes0(fd);
     }
 
     @Override
@@ -69,17 +83,46 @@ class MacOSXSocketOptions extends PlatformSocketOptions {
         return getTcpKeepAliveIntvl0(fd);
     }
 
-    private static native void setTcpkeepAliveProbes0(int fd, int value) throws SocketException;
+    @Override
+    void setIpDontFragment(int fd, final boolean value, boolean isIPv6) throws SocketException {
+        setIpDontFragment0(fd, value, isIPv6);
+    }
+
+    @Override
+    boolean getIpDontFragment(int fd, boolean isIPv6) throws SocketException {
+        return getIpDontFragment0(fd, isIPv6);
+    }
+
+    @Override
+    UnixDomainPrincipal getSoPeerCred(int fd) throws SocketException {
+        long l = getSoPeerCred0(fd);
+        int uid = (int)(l >> 32);
+        int gid = (int)l;
+        UserPrincipal user = UnixUserPrincipals.fromUid(uid);
+        GroupPrincipal group = UnixUserPrincipals.fromGid(gid);
+        return new UnixDomainPrincipal(user, group);
+    }
+
+    private static native void setTcpKeepAliveProbes0(int fd, int value) throws SocketException;
     private static native void setTcpKeepAliveTime0(int fd, int value) throws SocketException;
     private static native void setTcpKeepAliveIntvl0(int fd, int value) throws SocketException;
-    private static native int getTcpkeepAliveProbes0(int fd) throws SocketException;
+    private static native void setIpDontFragment0(int fd, boolean value, boolean isIPv6) throws SocketException;
+    private static native int getTcpKeepAliveProbes0(int fd) throws SocketException;
     private static native int getTcpKeepAliveTime0(int fd) throws SocketException;
     private static native int getTcpKeepAliveIntvl0(int fd) throws SocketException;
+    private static native boolean getIpDontFragment0(int fd, boolean isIPv6) throws SocketException;
+    private static native long getSoPeerCred0(int fd) throws SocketException;
     private static native boolean keepAliveOptionsSupported0();
+    private static native boolean ipDontFragmentSupported0();
+
     static {
-        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+        if (System.getSecurityManager() == null) {
             System.loadLibrary("extnet");
-            return null;
-        });
+        } else {
+            AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                System.loadLibrary("extnet");
+                return null;
+            });
+        }
     }
 }

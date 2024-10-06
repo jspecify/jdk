@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,46 +33,6 @@
 #include "defines.h"
 #include "jli_util.h"
 #include "jni.h"
-
-#ifdef _MSC_VER
-#if _MSC_VER > 1400 && _MSC_VER < 1600
-
-/*
- * When building for Microsoft Windows, main has a dependency on msvcr??.dll.
- *
- * When using Visual Studio 2005 or 2008, that must be recorded in
- * the [java,javaw].exe.manifest file.
- *
- * As of VS2010 (ver=1600), the runtimes again no longer need manifests.
- *
- * Reference:
- *     C:/Program Files/Microsoft SDKs/Windows/v6.1/include/crtdefs.h
- */
-#include <crtassem.h>
-#ifdef _M_IX86
-
-#pragma comment(linker,"/manifestdependency:\"type='win32' "            \
-        "name='" __LIBRARIES_ASSEMBLY_NAME_PREFIX ".CRT' "              \
-        "version='" _CRT_ASSEMBLY_VERSION "' "                          \
-        "processorArchitecture='x86' "                                  \
-        "publicKeyToken='" _VC_ASSEMBLY_PUBLICKEYTOKEN "'\"")
-
-#endif /* _M_IX86 */
-
-//This may not be necessary yet for the Windows 64-bit build, but it
-//will be when that build environment is updated.  Need to test to see
-//if it is harmless:
-#ifdef _M_AMD64
-
-#pragma comment(linker,"/manifestdependency:\"type='win32' "            \
-        "name='" __LIBRARIES_ASSEMBLY_NAME_PREFIX ".CRT' "              \
-        "version='" _CRT_ASSEMBLY_VERSION "' "                          \
-        "processorArchitecture='amd64' "                                \
-        "publicKeyToken='" _VC_ASSEMBLY_PUBLICKEYTOKEN "'\"")
-
-#endif  /* _M_AMD64 */
-#endif  /* _MSC_VER > 1400 && _MSC_VER < 1600 */
-#endif  /* _MSC_VER */
 
 /*
  * Entry point.
@@ -150,7 +110,25 @@ main(int argc, char **argv)
             }
         }
     }
-    JLI_CmdToArgs(GetCommandLine());
+
+    // Obtain the command line in UTF-16, then convert it to ANSI code page
+    // without the "best-fit" option
+    LPWSTR wcCmdline = GetCommandLineW();
+    int mbSize = WideCharToMultiByte(CP_ACP,
+        WC_NO_BEST_FIT_CHARS | WC_COMPOSITECHECK | WC_DEFAULTCHAR,
+        wcCmdline, -1, NULL, 0, NULL, NULL);
+    // If the call to WideCharToMultiByte() fails, it returns 0, which
+    // will then make the following JLI_MemAlloc() to issue exit(1)
+    LPSTR mbCmdline = JLI_MemAlloc(mbSize);
+    if (WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS | WC_COMPOSITECHECK | WC_DEFAULTCHAR,
+        wcCmdline, -1, mbCmdline, mbSize, NULL, NULL) == 0) {
+        perror("command line encoding conversion failure");
+        exit(1);
+    }
+
+    JLI_CmdToArgs(mbCmdline);
+    JLI_MemFree(mbCmdline);
+
     margc = JLI_GetStdArgc();
     // add one more to mark the end
     margv = (char **)JLI_MemAlloc((margc + 1) * (sizeof(char *)));

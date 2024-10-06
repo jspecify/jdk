@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CODE_DEBUGINFOREC_HPP
-#define SHARE_VM_CODE_DEBUGINFOREC_HPP
+#ifndef SHARE_CODE_DEBUGINFOREC_HPP
+#define SHARE_CODE_DEBUGINFOREC_HPP
 
 #include "ci/ciClassList.hpp"
 #include "ci/ciInstanceKlass.hpp"
@@ -31,9 +31,11 @@
 #include "code/debugInfo.hpp"
 #include "code/location.hpp"
 #include "code/pcDesc.hpp"
-#include "compiler/oopMap.hpp"
 #include "oops/oop.hpp"
 #include "utilities/growableArray.hpp"
+
+class OopMap;
+class OopMapSet;
 
 //** The DebugInformationRecorder collects debugging information
 //   for a compiled method.
@@ -105,9 +107,11 @@ class DebugInformationRecorder: public ResourceObj {
                       bool        rethrow_exception = false,
                       bool        is_method_handle_invoke = false,
                       bool        return_oop = false,
-                      DebugToken* locals      = NULL,
-                      DebugToken* expressions = NULL,
-                      DebugToken* monitors    = NULL);
+                      bool        has_ea_local_in_scope = false,
+                      bool        arg_escape = false,
+                      DebugToken* locals      = nullptr,
+                      DebugToken* expressions = nullptr,
+                      DebugToken* monitors    = nullptr);
 
 
   void dump_object_pool(GrowableArray<ScopeValue*>* objects);
@@ -117,7 +121,7 @@ class DebugInformationRecorder: public ResourceObj {
   void end_safepoint(int pc_offset)      { end_scopes(pc_offset, true); }
   void end_non_safepoint(int pc_offset)  { end_scopes(pc_offset, false); }
 
-  // helper fuctions for describe_scope to enable sharing
+  // helper functions for describe_scope to enable sharing
   DebugToken* create_scope_values(GrowableArray<ScopeValue*>* values);
   DebugToken* create_monitor_values(GrowableArray<MonitorValue*>* monitors);
 
@@ -208,4 +212,4 @@ class DebugInformationRecorder: public ResourceObj {
   enum { serialized_null = 0 };
 };
 
-#endif // SHARE_VM_CODE_DEBUGINFOREC_HPP
+#endif // SHARE_CODE_DEBUGINFOREC_HPP

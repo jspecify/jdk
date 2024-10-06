@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -65,8 +63,7 @@ public class DropArgumentsTest {
         };
     }
 
-    @Test(dataProvider = "dropArgumentsToMatchNPEData")
-    @ExpectedExceptions(NullPointerException.class)
+    @Test(dataProvider = "dropArgumentsToMatchNPEData", expectedExceptions = { NullPointerException.class })
     public void dropArgumentsToMatchNPE(MethodHandle target, int pos, List<Class<?>> valueType, int skip) {
         MethodHandles.dropArgumentsToMatch(target, pos, valueType , skip);
     }
@@ -85,14 +82,12 @@ public class DropArgumentsTest {
         };
     }
 
-    @Test(dataProvider = "dropArgumentsToMatchIAEData")
-    @ExpectedExceptions(IllegalArgumentException.class)
+    @Test(dataProvider = "dropArgumentsToMatchIAEData", expectedExceptions = { IllegalArgumentException.class })
     public void dropArgumentsToMatchIAE(MethodHandle target, int pos, List<Class<?>> valueType, int skip) {
         MethodHandles.dropArgumentsToMatch(target, pos, valueType , skip);
     }
 
-    @Test
-    @ExpectedExceptions(IllegalArgumentException.class)
+    @Test(expectedExceptions = { IllegalArgumentException.class })
     public void dropArgumentsToMatchTestWithVoid() throws Throwable {
         MethodHandle cat = lookup().findVirtual(String.class, "concat",
                                    MethodType.methodType(String.class, String.class));

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,12 +28,19 @@ import java.awt.Graphics;
 import java.awt.Shape;
 
 /**
+ * Implementation of {@code Highlighter} interface to mark up the
+ * background of leaf views with colored areas.
  *
  * @author  Scott Violet
  * @author  Timothy Prinzing
  * @see     Highlighter
  */
 public abstract class LayeredHighlighter implements Highlighter {
+    /**
+     * Constructor for subclasses to call.
+     */
+    protected LayeredHighlighter() {}
+
     /**
      * When leaf Views (such as LabelView) are rendering they should
      * call into this method. If a highlight is in the given region it will
@@ -57,6 +64,13 @@ public abstract class LayeredHighlighter implements Highlighter {
      */
     public abstract static class LayerPainter implements Highlighter.HighlightPainter {
         /**
+         * Constructor for subclasses to call.
+         */
+        protected LayerPainter() {}
+
+        /**
+         * Paints a portion of a highlight.
+         *
          * @return a shape
          * @param g Graphics used to draw
          * @param p0 starting offset of view

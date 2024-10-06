@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,16 @@
  */
 
 #include "precompiled.hpp"
-#include "jvm.h"
+#include "cds/classListWriter.hpp"
 #include "compiler/compileLog.hpp"
+#include "jvm.h"
 #include "memory/allocation.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/mutexLocker.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.inline.hpp"
+#include "runtime/safepoint.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/macros.hpp"
@@ -40,32 +44,22 @@
 extern "C" void jio_print(const char* s, size_t len);
 extern "C" int jio_printf(const char *fmt, ...);
 
-outputStream::outputStream(int width) {
-  _width       = width;
+outputStream::outputStream(bool has_time_stamps) {
   _position    = 0;
-  _newlines    = 0;
   _precount    = 0;
   _indentation = 0;
-  _scratch     = NULL;
-  _scratch_len = 0;
-}
-
-outputStream::outputStream(int width, bool has_time_stamps) {
-  _width       = width;
-  _position    = 0;
-  _newlines    = 0;
-  _precount    = 0;
-  _indentation = 0;
-  _scratch     = NULL;
+  _autoindent  = false;
+  _scratch     = nullptr;
   _scratch_len = 0;
   if (has_time_stamps)  _stamp.update();
 }
 
-void outputStream::update_position(const char* s, size_t len) {
+bool outputStream::update_position(const char* s, size_t len) {
+  bool saw_newline = false;
   for (size_t i = 0; i < len; i++) {
     char ch = s[i];
     if (ch == '\n') {
-      _newlines += 1;
+      saw_newline = true;
       _precount += _position + 1;
       _position = 0;
     } else if (ch == '\t') {
@@ -76,47 +70,71 @@ void outputStream::update_position(const char* s, size_t len) {
       _position += 1;
     }
   }
+  return saw_newline;
 }
 
 // Execute a vsprintf, using the given buffer if necessary.
-// Return a pointer to the formatted string.
+// Return a pointer to the formatted string. Optimise for
+// strings without format specifiers, or only "%s". See
+// comments in the header file for more details.
 const char* outputStream::do_vsnprintf(char* buffer, size_t buflen,
                                        const char* format, va_list ap,
                                        bool add_cr,
                                        size_t& result_len) {
   assert(buflen >= 2, "buffer too small");
 
-  const char* result;
-  if (add_cr)  buflen--;
+  const char* result;  // The string to return. May not be the buffer.
+  size_t required_len = 0; // The length of buffer needed to avoid truncation
+                           // (excluding space for the nul terminator).
+
+  if (add_cr) { // Ensure space for CR even if truncation occurs.
+    buflen--;
+  }
+
   if (!strchr(format, '%')) {
     // constant format string
     result = format;
     result_len = strlen(result);
-    if (add_cr && result_len >= buflen)  result_len = buflen-1;  // truncate
-  } else if (format[0] == '%' && format[1] == 's' && format[2] == '\0') {
+    if (add_cr && result_len >= buflen) { // truncate
+      required_len = result_len + 1;
+      result_len = buflen - 1;
+    }
+  } else if (strncmp(format, "%s", 3) == 0) { //(format[0] == '%' && format[1] == 's' && format[2] == '\0') {
     // trivial copy-through format string
     result = va_arg(ap, const char*);
     result_len = strlen(result);
-    if (add_cr && result_len >= buflen)  result_len = buflen-1;  // truncate
+    if (add_cr && result_len >= buflen) { // truncate
+      required_len = result_len + 1;
+      result_len = buflen - 1;
+    }
   } else {
-    int written = os::vsnprintf(buffer, buflen, format, ap);
-    assert(written >= 0, "vsnprintf encoding error");
+    int required_buffer_len = os::vsnprintf(buffer, buflen, format, ap);
+    assert(required_buffer_len >= 0, "vsnprintf encoding error");
     result = buffer;
-    if ((size_t)written < buflen) {
-      result_len = written;
-    } else {
-      DEBUG_ONLY(warning("increase O_BUFLEN in ostream.hpp -- output truncated");)
+    required_len = required_buffer_len;
+    if (required_len < buflen) {
+      result_len = required_len;
+    } else { // truncation
       result_len = buflen - 1;
     }
   }
   if (add_cr) {
-    if (result != buffer) {
+    if (result != buffer) { // Need to copy to add CR
       memcpy(buffer, result, result_len);
       result = buffer;
+    } else {
+      required_len++;
     }
     buffer[result_len++] = '\n';
     buffer[result_len] = 0;
   }
+#ifdef ASSERT
+  if (required_len > result_len) {
+    warning("outputStream::do_vsnprintf output truncated -- buffer length is " SIZE_FORMAT
+            " bytes but " SIZE_FORMAT " bytes are needed.",
+            add_cr ? buflen + 1 : buflen, required_len + 1);
+  }
+#endif
   return result;
 }
 
@@ -134,6 +152,9 @@ void outputStream::do_vsnprintf_and_write_with_scratch_buffer(const char* format
 }
 
 void outputStream::do_vsnprintf_and_write(const char* format, va_list ap, bool add_cr) {
+  if (_autoindent && _position == 0) {
+    indent();
+  }
   if (_scratch) {
     do_vsnprintf_and_write_with_scratch_buffer(format, ap, add_cr);
   } else {
@@ -163,9 +184,17 @@ void outputStream::vprint_cr(const char* format, va_list argptr) {
   do_vsnprintf_and_write(format, argptr, true);
 }
 
-void outputStream::fill_to(int col) {
-  int need_fill = col - position();
+void outputStream::print_raw(const char* str, size_t len) {
+  if (_autoindent && _position == 0) {
+    indent();
+  }
+  write(str, len);
+}
+
+int outputStream::fill_to(int col) {
+  const int need_fill = MAX2(col - position(), 0);
   sp(need_fill);
+  return need_fill;
 }
 
 void outputStream::move_to(int col, int slop, int min_space) {
@@ -183,18 +212,9 @@ void outputStream::put(char ch) {
   write(buf, 1);
 }
 
-#define SP_USE_TABS false
-
 void outputStream::sp(int count) {
   if (count < 0)  return;
-  if (SP_USE_TABS && count >= 8) {
-    int target = position() + count;
-    while (count >= 8) {
-      this->write("\t", 1);
-      count -= 8;
-    }
-    count = target - position();
-  }
+
   while (count > 0) {
     int nw = (count > 8) ? 8 : count;
     this->write("        ", nw);
@@ -244,7 +264,7 @@ void outputStream::date_stamp(bool guard,
   static const int buffer_length = 32;
   char buffer[buffer_length];
   const char* iso8601_result = os::iso8601_time(buffer, buffer_length);
-  if (iso8601_result != NULL) {
+  if (iso8601_result != nullptr) {
     print_raw(buffer);
   } else {
     print_raw(error_time);
@@ -254,8 +274,14 @@ void outputStream::date_stamp(bool guard,
 }
 
 outputStream& outputStream::indent() {
-  while (_position < _indentation) sp();
+  sp(_indentation - _position);
   return *this;
+}
+
+bool outputStream::set_autoindent(bool value) {
+  const bool old = _autoindent;
+  _autoindent = value;
+  return old;
 }
 
 void outputStream::print_jlong(jlong value) {
@@ -277,11 +303,15 @@ void outputStream::print_julong(julong value) {
  *
  * indent is applied to each line.  Ends with a CR.
  */
-void outputStream::print_data(void* data, size_t len, bool with_ascii) {
+void outputStream::print_data(void* data, size_t len, bool with_ascii, bool rel_addr) {
   size_t limit = (len + 16) / 16 * 16;
   for (size_t i = 0; i < limit; ++i) {
     if (i % 16 == 0) {
-      indent().print(INTPTR_FORMAT_W(07) ":", i);
+      if (rel_addr) {
+        indent().print("%07" PRIxPTR ":", i);
+      } else {
+        indent().print(PTR_FORMAT ":", p2i((unsigned char*)data + i));
+      }
     }
     if (i % 2 == 0) {
       print(" ");
@@ -307,54 +337,74 @@ void outputStream::print_data(void* data, size_t len, bool with_ascii) {
   }
 }
 
-stringStream::stringStream(size_t initial_size) : outputStream() {
-  buffer_length = initial_size;
-  buffer        = NEW_RESOURCE_ARRAY(char, buffer_length);
-  buffer_pos    = 0;
-  buffer_fixed  = false;
-  DEBUG_ONLY(rm = Thread::current()->current_resource_mark();)
+stringStream::stringStream(size_t initial_capacity) :
+  outputStream(),
+  _buffer(_small_buffer),
+  _written(0),
+  _capacity(sizeof(_small_buffer)),
+  _is_fixed(false)
+{
+  if (initial_capacity > _capacity) {
+    grow(initial_capacity);
+  }
+  zero_terminate();
 }
 
 // useful for output to fixed chunks of memory, such as performance counters
-stringStream::stringStream(char* fixed_buffer, size_t fixed_buffer_size) : outputStream() {
-  buffer_length = fixed_buffer_size;
-  buffer        = fixed_buffer;
-  buffer_pos    = 0;
-  buffer_fixed  = true;
+stringStream::stringStream(char* fixed_buffer, size_t fixed_buffer_size) :
+  outputStream(),
+  _buffer(fixed_buffer),
+  _written(0),
+  _capacity(fixed_buffer_size),
+  _is_fixed(true)
+{
+  zero_terminate();
+}
+
+// Grow backing buffer to desired capacity. Don't call for fixed buffers
+void stringStream::grow(size_t new_capacity) {
+  assert(!_is_fixed, "Don't call for caller provided buffers");
+  assert(new_capacity > _capacity, "Sanity");
+  assert(new_capacity > sizeof(_small_buffer), "Sanity");
+  if (_buffer == _small_buffer) {
+    _buffer = NEW_C_HEAP_ARRAY(char, new_capacity, mtInternal);
+    _capacity = new_capacity;
+    if (_written > 0) {
+      ::memcpy(_buffer, _small_buffer, _written);
+    }
+    zero_terminate();
+  } else {
+    _buffer = REALLOC_C_HEAP_ARRAY(char, _buffer, new_capacity, mtInternal);
+    _capacity = new_capacity;
+  }
 }
 
 void stringStream::write(const char* s, size_t len) {
-  size_t write_len = len;               // number of non-null bytes to write
-  size_t end = buffer_pos + len + 1;    // position after write and final '\0'
-  if (end > buffer_length) {
-    if (buffer_fixed) {
-      // if buffer cannot resize, silently truncate
-      end = buffer_length;
-      write_len = end - buffer_pos - 1; // leave room for the final '\0'
-    } else {
-      // For small overruns, double the buffer.  For larger ones,
-      // increase to the requested size.
-      if (end < buffer_length * 2) {
-        end = buffer_length * 2;
-      }
-      char* oldbuf = buffer;
-      assert(rm == NULL || Thread::current()->current_resource_mark() == rm,
-             "StringStream is re-allocated with a different ResourceMark. Current: "
-             PTR_FORMAT " original: " PTR_FORMAT,
-             p2i(Thread::current()->current_resource_mark()), p2i(rm));
-      buffer = NEW_RESOURCE_ARRAY(char, end);
-      if (buffer_pos > 0) {
-        memcpy(buffer, oldbuf, buffer_pos);
-      }
-      buffer_length = end;
+  assert(_is_frozen == false, "Modification forbidden");
+  assert(_capacity >= _written + 1, "Sanity");
+  if (len == 0) {
+    return;
+  }
+  const size_t reasonable_max_len = 1 * G;
+  if (len >= reasonable_max_len) {
+    assert(false, "bad length? (" SIZE_FORMAT ")", len);
+    return;
+  }
+  size_t write_len = 0;
+  if (_is_fixed) {
+    write_len = MIN2(len, _capacity - _written - 1);
+  } else {
+    write_len = len;
+    size_t needed = _written + len + 1;
+    if (needed > _capacity) {
+      grow(MAX2(needed, _capacity * 2));
     }
   }
-  // invariant: buffer is always null-terminated
-  guarantee(buffer_pos + write_len + 1 <= buffer_length, "stringStream oob");
+  assert(_written + write_len + 1 <= _capacity, "stringStream oob");
   if (write_len > 0) {
-    buffer[buffer_pos + write_len] = 0;
-    memcpy(buffer + buffer_pos, s, write_len);
-    buffer_pos += write_len;
+    ::memcpy(_buffer + _written, s, write_len);
+    _written += write_len;
+    zero_terminate();
   }
 
   // Note that the following does not depend on write_len.
@@ -363,24 +413,55 @@ void stringStream::write(const char* s, size_t len) {
   update_position(s, len);
 }
 
-char* stringStream::as_string() {
-  char* copy = NEW_RESOURCE_ARRAY(char, buffer_pos + 1);
-  strncpy(copy, buffer, buffer_pos);
-  copy[buffer_pos] = 0;  // terminating null
+void stringStream::zero_terminate() {
+  assert(_buffer != nullptr &&
+         _written < _capacity, "sanity");
+  _buffer[_written] = '\0';
+}
+
+void stringStream::reset() {
+  assert(_is_frozen == false, "Modification forbidden");
+  _written = 0; _precount = 0; _position = 0;
+  zero_terminate();
+}
+
+char* stringStream::as_string(bool c_heap) const {
+  char* copy = c_heap ?
+    NEW_C_HEAP_ARRAY(char, _written + 1, mtInternal) : NEW_RESOURCE_ARRAY(char, _written + 1);
+  ::memcpy(copy, _buffer, _written);
+  copy[_written] = '\0';  // terminating null
+  if (c_heap) {
+    // Need to ensure our content is written to memory before we return
+    // the pointer to it.
+    OrderAccess::storestore();
+  }
   return copy;
 }
 
-stringStream::~stringStream() {}
+stringStream::~stringStream() {
+  if (!_is_fixed && _buffer != _small_buffer) {
+    FREE_C_HEAP_ARRAY(char, _buffer);
+  }
+}
+
+// tty needs to be always accessible since there are code paths that may write to it
+// outside of the VM lifespan.
+// Examples for pre-VM-init accesses: Early NMT init, Early UL init
+// Examples for post-VM-exit accesses: many, e.g. NMT C-heap bounds checker, signal handling, AGCT, ...
+// During lifetime tty is served by an instance of defaultStream. That instance's deletion cannot
+// be (easily) postponed or omitted since it has ties to the JVM infrastructure.
+// The policy followed here is a compromise reached during review of JDK-8292351:
+// - pre-init: we silently swallow all output. We won't see anything, but at least won't crash
+// - post-exit: we write to a simple fdStream, but somewhat mimic the behavior of the real defaultStream
+static nullStream tty_preinit_stream;
+outputStream* tty = &tty_preinit_stream;
 
 xmlStream*   xtty;
-outputStream* tty;
-CDS_ONLY(fileStream* classlist_file;) // Only dump the classes that can be stored into the CDS archive
-extern Mutex* tty_lock;
 
 #define EXTRACHARLEN   32
 #define CURRENTAPPX    ".current"
 // convert YYYY-MM-DD HH:MM:SS to YYYY-MM-DD_HH-MM-SS
-char* get_datetime_string(char *buf, size_t len) {
+static char* get_datetime_string(char *buf, size_t len) {
   os::local_time_string(buf, len);
   int i = (int)strlen(buf);
   while (--i >= 0) {
@@ -405,7 +486,7 @@ static const char* make_log_name_internal(const char* log_name, const char* forc
   const char* nametail = log_name;
   // Compute buffer length
   size_t buffer_length;
-  if (force_directory != NULL) {
+  if (force_directory != nullptr) {
     buffer_length = strlen(force_directory) + strlen(os::file_separator()) +
                     strlen(basename) + 1;
   } else {
@@ -413,7 +494,7 @@ static const char* make_log_name_internal(const char* log_name, const char* forc
   }
 
   const char* pts = strstr(basename, "%p");
-  int pid_pos = (pts == NULL) ? -1 : (pts - nametail);
+  int pid_pos = (pts == nullptr) ? -1 : (pts - nametail);
 
   if (pid_pos >= 0) {
     jio_snprintf(pid_text, sizeof(pid_text), "pid%u", pid);
@@ -421,21 +502,21 @@ static const char* make_log_name_internal(const char* log_name, const char* forc
   }
 
   pts = strstr(basename, "%t");
-  int tms_pos = (pts == NULL) ? -1 : (pts - nametail);
+  int tms_pos = (pts == nullptr) ? -1 : (pts - nametail);
   if (tms_pos >= 0) {
     buffer_length += strlen(tms);
   }
 
   // File name is too long.
   if (buffer_length > JVM_MAXPATHLEN) {
-    return NULL;
+    return nullptr;
   }
 
   // Create big enough buffer.
   char *buf = NEW_C_HEAP_ARRAY(char, buffer_length, mtInternal);
 
   strcpy(buf, "");
-  if (force_directory != NULL) {
+  if (force_directory != nullptr) {
     strcat(buf, force_directory);
     strcat(buf, os::file_separator());
     nametail = basename;       // completely skip directory prefix
@@ -443,8 +524,8 @@ static const char* make_log_name_internal(const char* log_name, const char* forc
 
   // who is first, %p or %t?
   int first = -1, second = -1;
-  const char *p1st = NULL;
-  const char *p2nd = NULL;
+  const char *p1st = nullptr;
+  const char *p2nd = nullptr;
 
   if (pid_pos >= 0 && tms_pos >= 0) {
     // contains both %p and %t
@@ -493,7 +574,7 @@ static const char* make_log_name_internal(const char* log_name, const char* forc
 // -XX:DumpLoadedClassList=<file_name>
 // in log_name, %p => pid1234 and
 //              %t => YYYY-MM-DD_HH-MM-SS
-static const char* make_log_name(const char* log_name, const char* force_directory) {
+const char* make_log_name(const char* log_name, const char* force_directory) {
   char timestr[32];
   get_datetime_string(timestr, sizeof(timestr));
   return make_log_name_internal(log_name, force_directory, os::current_process_id(),
@@ -501,8 +582,8 @@ static const char* make_log_name(const char* log_name, const char* force_directo
 }
 
 fileStream::fileStream(const char* file_name) {
-  _file = fopen(file_name, "w");
-  if (_file != NULL) {
+  _file = os::fopen(file_name, "w");
+  if (_file != nullptr) {
     _need_close = true;
   } else {
     warning("Cannot open file %s due to %s\n", file_name, os::strerror(errno));
@@ -511,8 +592,8 @@ fileStream::fileStream(const char* file_name) {
 }
 
 fileStream::fileStream(const char* file_name, const char* opentype) {
-  _file = fopen(file_name, opentype);
-  if (_file != NULL) {
+  _file = os::fopen(file_name, opentype);
+  if (_file != nullptr) {
     _need_close = true;
   } else {
     warning("Cannot open file %s due to %s\n", file_name, os::strerror(errno));
@@ -521,16 +602,16 @@ fileStream::fileStream(const char* file_name, const char* opentype) {
 }
 
 void fileStream::write(const char* s, size_t len) {
-  if (_file != NULL)  {
-    // Make an unused local variable to avoid warning from gcc 4.x compiler.
+  if (_file != nullptr)  {
+    // Make an unused local variable to avoid warning from gcc compiler.
     size_t count = fwrite(s, 1, len, _file);
+    update_position(s, len);
   }
-  update_position(s, len);
 }
 
 long fileStream::fileSize() {
   long size = -1;
-  if (_file != NULL) {
+  if (_file != nullptr) {
     long pos = ::ftell(_file);
     if (pos < 0) return pos;
     if (::fseek(_file, 0, SEEK_END) == 0) {
@@ -541,45 +622,31 @@ long fileStream::fileSize() {
   return size;
 }
 
-char* fileStream::readln(char *data, int count ) {
-  char * ret = ::fgets(data, count, _file);
-  //Get rid of annoying \n char
-  data[::strlen(data)-1] = '\0';
-  return ret;
-}
-
 fileStream::~fileStream() {
-  if (_file != NULL) {
-    if (_need_close) fclose(_file);
-    _file      = NULL;
+  if (_file != nullptr) {
+    close();
+    _file = nullptr;
   }
 }
 
 void fileStream::flush() {
-  fflush(_file);
-}
-
-fdStream::fdStream(const char* file_name) {
-  _fd = open(file_name, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-  _need_close = true;
-}
-
-fdStream::~fdStream() {
-  if (_fd != -1) {
-    if (_need_close) close(_fd);
-    _fd = -1;
+  if (_file != nullptr) {
+    fflush(_file);
   }
 }
+
+fdStream fdStream::_stdout_stream(1);
+fdStream fdStream::_stderr_stream(2);
 
 void fdStream::write(const char* s, size_t len) {
   if (_fd != -1) {
-    // Make an unused local variable to avoid warning from gcc 4.x compiler.
-    size_t count = ::write(_fd, s, (int)len);
+    // Make an unused local variable to avoid warning from gcc compiler.
+    ssize_t count = ::write(_fd, s, (int)len);
+    update_position(s, len);
   }
-  update_position(s, len);
 }
 
-defaultStream* defaultStream::instance = NULL;
+defaultStream* defaultStream::instance = nullptr;
 int defaultStream::_output_fd = 1;
 int defaultStream::_error_fd  = 2;
 FILE* defaultStream::_output_stream = stdout;
@@ -601,17 +668,17 @@ bool defaultStream::has_log_file() {
   // For safer printing during fatal error handling, do not init logfile
   // if a VM error has been reported.
   if (!_inited && !VMError::is_error_reported())  init();
-  return _log_file != NULL;
+  return _log_file != nullptr;
 }
 
 fileStream* defaultStream::open_file(const char* log_name) {
-  const char* try_name = make_log_name(log_name, NULL);
-  if (try_name == NULL) {
+  const char* try_name = make_log_name(log_name, nullptr);
+  if (try_name == nullptr) {
     warning("Cannot open file %s: file name is too long.\n", log_name);
-    return NULL;
+    return nullptr;
   }
 
-  fileStream* file = new(ResourceObj::C_HEAP, mtInternal) fileStream(try_name);
+  fileStream* file = new (mtInternal) fileStream(try_name);
   FREE_C_HEAP_ARRAY(char, try_name);
   if (file->is_open()) {
     return file;
@@ -622,34 +689,34 @@ fileStream* defaultStream::open_file(const char* log_name) {
   // Note: This feature is for maintainer use only.  No need for L10N.
   jio_printf("Warning:  Cannot open log file: %s\n", log_name);
   try_name = make_log_name(log_name, os::get_temp_directory());
-  if (try_name == NULL) {
+  if (try_name == nullptr) {
     warning("Cannot open file %s: file name is too long for directory %s.\n", log_name, os::get_temp_directory());
-    return NULL;
+    return nullptr;
   }
 
   jio_printf("Warning:  Forcing option -XX:LogFile=%s\n", try_name);
 
-  file = new(ResourceObj::C_HEAP, mtInternal) fileStream(try_name);
+  file = new (mtInternal) fileStream(try_name);
   FREE_C_HEAP_ARRAY(char, try_name);
   if (file->is_open()) {
     return file;
   }
 
   delete file;
-  return NULL;
+  return nullptr;
 }
 
 void defaultStream::init_log() {
   // %%% Need a MutexLocker?
-  const char* log_name = LogFile != NULL ? LogFile : "hotspot_%p.log";
+  const char* log_name = LogFile != nullptr ? LogFile : "hotspot_%p.log";
   fileStream* file = open_file(log_name);
 
-  if (file != NULL) {
+  if (file != nullptr) {
     _log_file = file;
-    _outer_xmlStream = new(ResourceObj::C_HEAP, mtInternal) xmlStream(file);
+    _outer_xmlStream = new(mtInternal) xmlStream(file);
     start_log();
   } else {
-    // and leave xtty as NULL
+    // and leave xtty as null
     LogVMOutput = false;
     DisplayVMOutput = true;
     LogCompilation = false;
@@ -662,9 +729,10 @@ void defaultStream::start_log() {
     // Write XML header.
     xs->print_cr("<?xml version='1.0' encoding='UTF-8'?>");
     // (For now, don't bother to issue a DTD for this private format.)
+
+    // Calculate the start time of the log as ms since the epoch: this is
+    // the current time in ms minus the uptime in ms.
     jlong time_ms = os::javaTimeMillis() - tty->time_stamp().milliseconds();
-    // %%% Should be: jlong time_ms = os::start_time_milliseconds(), if
-    // we ever get round to introduce that method on the os class
     xs->head("hotspot_log version='%d %d'"
              " process='%d' time_ms='" INT64_FORMAT "'",
              LOG_MAJOR_VERSION, LOG_MINOR_VERSION,
@@ -690,27 +758,27 @@ void defaultStream::start_log() {
       Arguments::print_jvm_args_on(xs->text());
       xs->tail("args");
     }
-    if (Arguments::java_command() != NULL) {
+    if (Arguments::java_command() != nullptr) {
       xs->head("command"); xs->text()->print_cr("%s", Arguments::java_command());
       xs->tail("command");
     }
-    if (Arguments::sun_java_launcher() != NULL) {
+    if (Arguments::sun_java_launcher() != nullptr) {
       xs->head("launcher"); xs->text()->print_cr("%s", Arguments::sun_java_launcher());
       xs->tail("launcher");
     }
-    if (Arguments::system_properties() !=  NULL) {
+    if (Arguments::system_properties() !=  nullptr) {
       xs->head("properties");
       // Print it as a java-style property list.
       // System properties don't generally contain newlines, so don't bother with unparsing.
       outputStream *text = xs->text();
-      for (SystemProperty* p = Arguments::system_properties(); p != NULL; p = p->next()) {
-        assert(p->key() != NULL, "p->key() is NULL");
-        if (p->is_readable()) {
+      for (SystemProperty* p = Arguments::system_properties(); p != nullptr; p = p->next()) {
+        assert(p->key() != nullptr, "p->key() is null");
+        if (p->readable()) {
           // Print in two stages to avoid problems with long
           // keys/values.
           text->print_raw(p->key());
           text->put('=');
-          assert(p->value() != NULL, "p->value() is NULL");
+          assert(p->value() != nullptr, "p->value() is null");
           text->print_raw_cr(p->value());
         }
       }
@@ -737,10 +805,10 @@ void defaultStream::finish_log() {
   xs->flush();
 
   fileStream* file = _log_file;
-  _log_file = NULL;
+  _log_file = nullptr;
 
   delete _outer_xmlStream;
-  _outer_xmlStream = NULL;
+  _outer_xmlStream = nullptr;
 
   file->flush();
   delete file;
@@ -760,8 +828,8 @@ void defaultStream::finish_log_on_error(char *buf, int buflen) {
     xs->flush();
 
     fileStream* file = _log_file;
-    _log_file = NULL;
-    _outer_xmlStream = NULL;
+    _log_file = nullptr;
+    _outer_xmlStream = nullptr;
 
     if (file) {
       file->flush();
@@ -779,10 +847,10 @@ intx defaultStream::hold(intx writer_id) {
       writer_id == NO_WRITER ||
 
       // bootstrap problem
-      tty_lock == NULL ||
+      tty_lock == nullptr ||
 
       // can't grab a lock if current Thread isn't set
-      Thread::current_or_null() == NULL ||
+      Thread::current_or_null() == nullptr ||
 
       // developer hook
       !SerializeVMOutput ||
@@ -832,17 +900,17 @@ void defaultStream::write(const char* s, size_t len) {
   intx holder = hold(thread_id);
 
   if (DisplayVMOutput &&
-      (_outer_xmlStream == NULL || !_outer_xmlStream->inside_attrs())) {
+      (_outer_xmlStream == nullptr || !_outer_xmlStream->inside_attrs())) {
     // print to output stream. It can be redirected by a vfprintf hook
     jio_print(s, len);
   }
 
   // print to log file
-  if (has_log_file()) {
-    int nl0 = _newlines;
-    xmlTextStream::write(s, len);
+  if (has_log_file() && _outer_xmlStream != nullptr) {
+     _outer_xmlStream->write_text(s, len);
+    bool nl = update_position(s, len);
     // flush the log file too, if there were any newlines
-    if (nl0 != _newlines){
+    if (nl) {
       flush();
     }
   } else {
@@ -853,7 +921,7 @@ void defaultStream::write(const char* s, size_t len) {
 }
 
 intx ttyLocker::hold_tty() {
-  if (defaultStream::instance == NULL)  return defaultStream::NO_WRITER;
+  if (defaultStream::instance == nullptr)  return defaultStream::NO_WRITER;
   intx thread_id = os::current_thread_id();
   return defaultStream::instance->hold(thread_id);
 }
@@ -875,9 +943,9 @@ bool ttyLocker::release_tty_if_locked() {
 }
 
 void ttyLocker::break_tty_lock_for_safepoint(intx holder) {
-  if (defaultStream::instance != NULL &&
+  if (defaultStream::instance != nullptr &&
       defaultStream::instance->writer() == holder) {
-    if (xtty != NULL) {
+    if (xtty != nullptr) {
       xtty->print_cr("<!-- safepoint while printing -->");
     }
     defaultStream::instance->release(holder);
@@ -886,8 +954,8 @@ void ttyLocker::break_tty_lock_for_safepoint(intx holder) {
 }
 
 void ostream_init() {
-  if (defaultStream::instance == NULL) {
-    defaultStream::instance = new(ResourceObj::C_HEAP, mtInternal) defaultStream();
+  if (defaultStream::instance == nullptr) {
+    defaultStream::instance = new(mtInternal) defaultStream();
     tty = defaultStream::instance;
 
     // We want to ensure that time stamps in GC logs consider time 0
@@ -901,15 +969,7 @@ void ostream_init() {
 void ostream_init_log() {
   // Note : this must be called AFTER ostream_init()
 
-#if INCLUDE_CDS
-  // For -XX:DumpLoadedClassList=<file> option
-  if (DumpLoadedClassList != NULL) {
-    const char* list_name = make_log_name(DumpLoadedClassList, NULL);
-    classlist_file = new(ResourceObj::C_HEAP, mtInternal)
-                         fileStream(list_name);
-    FREE_C_HEAP_ARRAY(char, list_name);
-  }
-#endif
+  ClassListWriter::init();
 
   // If we haven't lazily initialized the logfile yet, do it now,
   // to avoid the possibility of lazy initialization during a VM
@@ -923,20 +983,16 @@ void ostream_exit() {
   static bool ostream_exit_called = false;
   if (ostream_exit_called)  return;
   ostream_exit_called = true;
-#if INCLUDE_CDS
-  if (classlist_file != NULL) {
-    delete classlist_file;
+  ClassListWriter::delete_classlist();
+  // Make sure tty works after VM exit by assigning an always-on functioning fdStream.
+  outputStream* tmp = tty;
+  tty = DisplayVMOutputToStderr ? fdStream::stderr_stream() : fdStream::stdout_stream();
+  if (tmp != &tty_preinit_stream && tmp != defaultStream::instance) {
+    delete tmp;
   }
-#endif
-  if (tty != defaultStream::instance) {
-    delete tty;
-  }
-  if (defaultStream::instance != NULL) {
-    delete defaultStream::instance;
-  }
-  tty = NULL;
-  xtty = NULL;
-  defaultStream::instance = NULL;
+  delete defaultStream::instance;
+  xtty = nullptr;
+  defaultStream::instance = nullptr;
 }
 
 // ostream_abort() is called by os::abort() when VM is about to die.
@@ -944,7 +1000,7 @@ void ostream_abort() {
   // Here we can't delete tty, just flush its output
   if (tty) tty->flush();
 
-  if (defaultStream::instance != NULL) {
+  if (defaultStream::instance != nullptr) {
     static char buf[4096];
     defaultStream::instance->finish_log_on_error(buf, sizeof(buf));
   }
@@ -954,42 +1010,55 @@ bufferedStream::bufferedStream(size_t initial_size, size_t bufmax) : outputStrea
   buffer_length = initial_size;
   buffer        = NEW_C_HEAP_ARRAY(char, buffer_length, mtInternal);
   buffer_pos    = 0;
-  buffer_fixed  = false;
   buffer_max    = bufmax;
-}
-
-bufferedStream::bufferedStream(char* fixed_buffer, size_t fixed_buffer_size, size_t bufmax) : outputStream() {
-  buffer_length = fixed_buffer_size;
-  buffer        = fixed_buffer;
-  buffer_pos    = 0;
-  buffer_fixed  = true;
-  buffer_max    = bufmax;
+  truncated     = false;
 }
 
 void bufferedStream::write(const char* s, size_t len) {
 
+  if (truncated) {
+    return;
+  }
+
   if(buffer_pos + len > buffer_max) {
-    flush();
+    flush(); // Note: may be a noop.
   }
 
   size_t end = buffer_pos + len;
   if (end >= buffer_length) {
-    if (buffer_fixed) {
-      // if buffer cannot resize, silently truncate
-      len = buffer_length - buffer_pos - 1;
-    } else {
-      // For small overruns, double the buffer.  For larger ones,
-      // increase to the requested size.
-      if (end < buffer_length * 2) {
-        end = buffer_length * 2;
+    // For small overruns, double the buffer.  For larger ones,
+    // increase to the requested size.
+    if (end < buffer_length * 2) {
+      end = buffer_length * 2;
+    }
+    // Impose a cap beyond which the buffer cannot grow - a size which
+    // in all probability indicates a real error, e.g. faulty printing
+    // code looping, while not affecting cases of just-very-large-but-its-normal
+    // output.
+    const size_t reasonable_cap = MAX2(100 * M, buffer_max * 2);
+    if (end > reasonable_cap) {
+      // In debug VM, assert right away.
+      assert(false, "Exceeded max buffer size for this string (\"%.200s...\").", buffer);
+      // Release VM: silently truncate. We do this since these kind of errors
+      // are both difficult to predict with testing (depending on logging content)
+      // and usually not serious enough to kill a production VM for it.
+      end = reasonable_cap;
+      size_t remaining = end - buffer_pos;
+      if (len >= remaining) {
+        len = remaining - 1;
+        truncated = true;
       }
+    }
+    if (buffer_length < end) {
       buffer = REALLOC_C_HEAP_ARRAY(char, buffer, end, mtInternal);
       buffer_length = end;
     }
   }
-  memcpy(buffer + buffer_pos, s, len);
-  buffer_pos += len;
-  update_position(s, len);
+  if (len > 0) {
+    memcpy(buffer + buffer_pos, s, len);
+    buffer_pos += len;
+    update_position(s, len);
+  }
 }
 
 char* bufferedStream::as_string() {
@@ -1000,20 +1069,19 @@ char* bufferedStream::as_string() {
 }
 
 bufferedStream::~bufferedStream() {
-  if (!buffer_fixed) {
-    FREE_C_HEAP_ARRAY(char, buffer);
-  }
+  FREE_C_HEAP_ARRAY(char, buffer);
 }
 
 #ifndef PRODUCT
 
-#if defined(SOLARIS) || defined(LINUX) || defined(AIX) || defined(_ALLBSD_SOURCE)
+#if defined(LINUX) || defined(AIX) || defined(_ALLBSD_SOURCE)
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 #elif defined(_WINDOWS)
-#include <winsock2.h>
+#include <Ws2tcpip.h>
 #endif
 
 // Network access
@@ -1021,7 +1089,7 @@ networkStream::networkStream() : bufferedStream(1024*10, 1024*10) {
 
   _socket = -1;
 
-  int result = os::socket(AF_INET, SOCK_STREAM, 0);
+  int result = ::socket(AF_INET, SOCK_STREAM, 0);
   if (result <= 0) {
     assert(false, "Socket could not be created!");
   } else {
@@ -1029,15 +1097,15 @@ networkStream::networkStream() : bufferedStream(1024*10, 1024*10) {
   }
 }
 
-int networkStream::read(char *buf, size_t len) {
-  return os::recv(_socket, buf, (int)len, 0);
+ssize_t networkStream::read(char *buf, size_t len) {
+  return os::recv(_socket, buf, len, 0);
 }
 
 void networkStream::flush() {
   if (size() != 0) {
-    int result = os::raw_send(_socket, (char *)base(), size(), 0);
+    ssize_t result = os::raw_send(_socket, (char *)base(), size(), 0);
     assert(result != -1, "connection error");
-    assert(result == (int)size(), "didn't send enough data");
+    assert(result >= 0 && (size_t)result == size(), "didn't send enough data");
   }
   reset();
 }
@@ -1054,25 +1122,31 @@ void networkStream::close() {
   }
 }
 
-bool networkStream::connect(const char *ip, short port) {
+// host could be IP address, or a host name
+bool networkStream::connect(const char *host, short port) {
 
-  struct sockaddr_in server;
-  server.sin_family = AF_INET;
-  server.sin_port = htons(port);
+  char s_port[6]; // 5 digits max plus terminator
+  int ret = os::snprintf(s_port, sizeof(s_port), "%hu", (unsigned short) port);
+  assert(ret > 0, "snprintf failed: %d", ret);
 
-  server.sin_addr.s_addr = inet_addr(ip);
-  if (server.sin_addr.s_addr == (uint32_t)-1) {
-    struct hostent* host = os::get_host_by_name((char*)ip);
-    if (host != NULL) {
-      memcpy(&server.sin_addr, host->h_addr_list[0], host->h_length);
-    } else {
-      return false;
-    }
+  struct addrinfo* addr_info = nullptr;
+  struct addrinfo hints;
+
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_INET;       // Allow IPv4 only
+  hints.ai_socktype = SOCK_STREAM; // TCP only
+
+  // getaddrinfo can resolve both an IP address and a host name
+  ret = getaddrinfo(host, s_port, &hints, &addr_info);
+  if (ret != 0) {
+    warning("networkStream::connect getaddrinfo for host %s and port %s failed: %s",
+            host, s_port, gai_strerror(ret));
+    return false;
   }
 
-
-  int result = os::connect(_socket, (struct sockaddr*)&server, sizeof(struct sockaddr_in));
-  return (result >= 0);
+  ssize_t conn = os::connect(_socket, addr_info->ai_addr, (socklen_t)addr_info->ai_addrlen);
+  freeaddrinfo(addr_info);
+  return (conn >= 0);
 }
 
 #endif

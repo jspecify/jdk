@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,20 +26,17 @@
  * @bug 8087112
  * @summary this test verifies that a client may provides authorization
  *          headers directly when connecting with a server over SSL.
- * @library /lib/testlibrary http2/server
- * @build jdk.testlibrary.SimpleSSLContext DigestEchoServer
+ * @library /test/lib /test/jdk/java/net/httpclient/lib
+ * @build jdk.test.lib.net.SimpleSSLContext DigestEchoServer
  *        DigestEchoClient ReferenceTracker DigestEchoClientSSL
- * @modules java.net.http/jdk.internal.net.http.common
- *          java.net.http/jdk.internal.net.http.frame
- *          java.net.http/jdk.internal.net.http.hpack
- *          java.logging
- *          java.base/sun.net.www.http
- *          java.base/sun.net.www
- *          java.base/sun.net
- * @run main/othervm DigestEchoClientSSL SSL
- * @run main/othervm -Djdk.http.auth.proxying.disabledSchemes=
- *                   -Djdk.http.auth.tunneling.disabledSchemes=
- *                   DigestEchoClientSSL SSL PROXY
+ *        jdk.httpclient.test.lib.common.HttpServerAdapters
+ * @run main/othervm/timeout=300
+ *          DigestEchoClientSSL SSL
+ * @run main/othervm/timeout=300
+ *          -Djdk.http.auth.proxying.disabledSchemes=
+ *          -Djdk.http.auth.tunneling.disabledSchemes=
+ *          DigestEchoClientSSL SSL PROXY
+ *
  */
 
 public class DigestEchoClientSSL {

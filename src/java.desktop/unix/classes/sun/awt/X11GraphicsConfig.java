@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,32 +28,33 @@ package sun.awt;
 import java.awt.AWTException;
 import java.awt.BufferCapabilities;
 import java.awt.Component;
-import java.awt.Toolkit;
 import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsDevice;
 import java.awt.Image;
 import java.awt.ImageCapabilities;
+import java.awt.Rectangle;
+import java.awt.Toolkit;
 import java.awt.Transparency;
-import java.awt.image.ColorModel;
 import java.awt.color.ColorSpace;
+import java.awt.geom.AffineTransform;
+import java.awt.image.ColorModel;
 import java.awt.image.ComponentColorModel;
-import java.awt.image.DirectColorModel;
 import java.awt.image.DataBuffer;
+import java.awt.image.DirectColorModel;
 import java.awt.image.VolatileImage;
 import java.awt.image.WritableRaster;
-import java.awt.geom.AffineTransform;
-import java.awt.Rectangle;
-import sun.java2d.Disposer;
-import sun.java2d.DisposerRecord;
-import sun.java2d.SurfaceData;
-import sun.java2d.loops.RenderLoops;
-import sun.java2d.loops.SurfaceType;
-import sun.java2d.loops.CompositeType;
-import sun.java2d.pipe.Region;
-import sun.java2d.x11.X11SurfaceData;
+
 import sun.awt.image.OffScreenImage;
 import sun.awt.image.SunVolatileImage;
 import sun.awt.image.SurfaceManager;
+import sun.java2d.Disposer;
+import sun.java2d.DisposerRecord;
+import sun.java2d.SurfaceData;
+import sun.java2d.loops.CompositeType;
+import sun.java2d.loops.RenderLoops;
+import sun.java2d.loops.SurfaceType;
+import sun.java2d.pipe.Region;
+import sun.java2d.x11.X11SurfaceData;
 
 /**
  * This is an implementation of a GraphicsConfiguration object for a
@@ -65,7 +66,7 @@ import sun.awt.image.SurfaceManager;
 public class X11GraphicsConfig extends GraphicsConfiguration
     implements SurfaceManager.ProxiedGraphicsConfig
 {
-    protected X11GraphicsDevice screen;
+    private final X11GraphicsDevice device;
     protected int visual;
     int depth;
     int colormap;
@@ -97,7 +98,7 @@ public class X11GraphicsConfig extends GraphicsConfiguration
      * as this was the method used in jdk 1.2 beta4 to create the
      * X11GraphicsConfig objects. Java3D code had called this method
      * explicitly so without this, if a user tries to use JDK1.2 fcs
-     * with Java3D beta1, a NoSuchMethod execption is thrown and
+     * with Java3D beta1, a NoSuchMethod exception is thrown and
      * the program exits. REMOVE this method after Java3D fcs is
      * released!
      */
@@ -116,12 +117,12 @@ public class X11GraphicsConfig extends GraphicsConfiguration
                                 int visualnum, int depth,
                                 int colormap, boolean doubleBuffer)
     {
-        this.screen = device;
+        this.device = device;
         this.visual = visualnum;
         this.doubleBuffer = doubleBuffer;
         this.depth = depth;
         this.colormap = colormap;
-        init (visualnum, screen.getScreen());
+        init (visualnum, device.getScreen());
 
         // add a record to the Disposer so that we destroy the native
         // AwtGraphicsConfigData when this object goes away (i.e. after a
@@ -134,8 +135,9 @@ public class X11GraphicsConfig extends GraphicsConfiguration
     /**
      * Return the graphics device associated with this configuration.
      */
+    @Override
     public X11GraphicsDevice getDevice() {
-        return screen;
+        return device;
     }
 
     /**
@@ -177,8 +179,9 @@ public class X11GraphicsConfig extends GraphicsConfiguration
         return surfaceType;
     }
 
+    @Override
     public Object getProxyKey() {
-        return screen.getProxyKeyFor(getSurfaceType());
+        return device.getProxyKeyFor(getSurfaceType());
     }
 
     /**
@@ -197,6 +200,7 @@ public class X11GraphicsConfig extends GraphicsConfiguration
     /**
      * Returns the color model associated with this configuration.
      */
+    @Override
     public synchronized ColorModel getColorModel() {
         if (colorModel == null)  {
             // Force SystemColors to be resolved before we create the CM
@@ -218,6 +222,7 @@ public class X11GraphicsConfig extends GraphicsConfiguration
      * Returns the color model associated with this configuration that
      * supports the specified transparency.
      */
+    @Override
     public ColorModel getColorModel(int transparency) {
         switch (transparency) {
         case Transparency.OPAQUE:
@@ -256,6 +261,7 @@ public class X11GraphicsConfig extends GraphicsConfiguration
      * increasing to the right and Y coordinates increasing downwards.
      * For image buffers, this Transform will be the Identity transform.
      */
+    @Override
     public AffineTransform getDefaultTransform() {
         double scale = getScale();
         return AffineTransform.getScaleInstance(scale, scale);
@@ -292,9 +298,10 @@ public class X11GraphicsConfig extends GraphicsConfiguration
      * For image buffers, this Transform will be the Identity transform,
      * since there is no valid distance measurement.
      */
+    @Override
     public AffineTransform getNormalizingTransform() {
-        double xscale = getXResolution(screen.getScreen()) / 72.0;
-        double yscale = getYResolution(screen.getScreen()) / 72.0;
+        double xscale = getXResolution(device.getScreen()) / 72.0;
+        double yscale = getYResolution(device.getScreen()) / 72.0;
         return new AffineTransform(xscale, 0.0, 0.0, yscale, 0.0, 0.0);
     }
 
@@ -306,7 +313,7 @@ public class X11GraphicsConfig extends GraphicsConfiguration
     }
 
     public String toString() {
-        return ("X11GraphicsConfig[dev="+screen+
+        return ("X11GraphicsConfig[dev="+device+
                 ",vis=0x"+Integer.toHexString(visual)+
                 "]");
     }
@@ -321,18 +328,10 @@ public class X11GraphicsConfig extends GraphicsConfiguration
         initIDs ();
     }
 
-    public Rectangle getBounds() {
-        Rectangle rect = pGetBounds(screen.getScreen());
-        if (getScale() != 1) {
-            rect.x = scaleDown(rect.x);
-            rect.y = scaleDown(rect.y);
-            rect.width = scaleDown(rect.width);
-            rect.height = scaleDown(rect.height);
-        }
-        return rect;
+    @Override
+    public final Rectangle getBounds() {
+        return device.getBounds();
     }
-
-    private native Rectangle pGetBounds(int screenNum);
 
     private static class XDBECapabilities extends BufferCapabilities {
         public XDBECapabilities() {
@@ -340,6 +339,7 @@ public class X11GraphicsConfig extends GraphicsConfiguration
         }
     }
 
+    @Override
     public BufferCapabilities getBufferCapabilities() {
         if (bufferCaps == null) {
             if (doubleBuffer) {
@@ -351,6 +351,7 @@ public class X11GraphicsConfig extends GraphicsConfiguration
         return bufferCaps;
     }
 
+    @Override
     public ImageCapabilities getImageCapabilities() {
         return imageCaps;
     }
@@ -366,6 +367,7 @@ public class X11GraphicsConfig extends GraphicsConfiguration
         public X11GCDisposerRecord(long x11CfgData) {
             this.x11ConfigData = x11CfgData;
         }
+        @Override
         public synchronized void dispose() {
             if (x11ConfigData != 0L) {
                 X11GraphicsConfig.dispose(x11ConfigData);

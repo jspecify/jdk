@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,14 @@
 /*
  * @test
  * @bug 8136421
- * @requires vm.jvmci
- *         & (vm.compMode != "Xcomp" | vm.opt.TieredCompilation == null | vm.opt.TieredCompilation == true)
- * @summary no "-Xcomp -XX:-TieredCompilation" combination allowed until JDK-8140018 is resolved
+ *
+ * @requires vm.jvmci & vm.compMode == "Xmixed"
+ * @requires vm.opt.final.EliminateAllocations == true
+ * @requires vm.opt.StressUnstableIfTraps == null | !vm.opt.StressUnstableIfTraps
+ *
+ * @comment no "-Xcomp -XX:-TieredCompilation" combination allowed until JDK-8140018 is resolved
+ * @requires vm.opt.TieredCompilation == null | vm.opt.TieredCompilation == true
+ *
  * @library / /test/lib
  * @library ../common/patches
  * @modules java.base/jdk.internal.misc
@@ -37,50 +42,53 @@
  *          jdk.internal.vm.ci/jdk.vm.ci.code.stack
  *          jdk.internal.vm.ci/jdk.vm.ci.meta
  *
- * @build jdk.internal.vm.ci/jdk.vm.ci.hotspot.CompilerToVMHelper sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xmixed -Xbatch -Xbootclasspath/a:.
+ * @build jdk.internal.vm.ci/jdk.vm.ci.hotspot.CompilerToVMHelper jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbatch -Xbootclasspath/a:.
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI
  *                   -XX:CompileCommand=exclude,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::check
  *                   -XX:CompileCommand=dontinline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::testFrame
  *                   -XX:CompileCommand=dontinline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::testFrame2
  *                   -XX:CompileCommand=inline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::recurse
- *                   -XX:+DoEscapeAnalysis -XX:-UseCounterDecay
+ *                   -XX:CompileCommand=inline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::testFrame3
+ *                   -XX:+DoEscapeAnalysis
  *                   -Dcompiler.jvmci.compilerToVM.MaterializeVirtualObjectTest.materializeFirst=true
  *                   -Dcompiler.jvmci.compilerToVM.MaterializeVirtualObjectTest.invalidate=false
  *                   compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest
- * @run main/othervm -Xmixed -Xbatch -Xbootclasspath/a:.
+ * @run main/othervm -Xbatch -Xbootclasspath/a:.
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI
  *                   -XX:CompileCommand=exclude,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::check
  *                   -XX:CompileCommand=dontinline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::testFrame
  *                   -XX:CompileCommand=dontinline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::testFrame2
  *                   -XX:CompileCommand=inline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::recurse
- *                   -XX:+DoEscapeAnalysis -XX:-UseCounterDecay
+ *                   -XX:CompileCommand=inline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::testFrame3
+ *                   -XX:+DoEscapeAnalysis
  *                   -Dcompiler.jvmci.compilerToVM.MaterializeVirtualObjectTest.materializeFirst=false
  *                   -Dcompiler.jvmci.compilerToVM.MaterializeVirtualObjectTest.invalidate=false
  *                   compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest
- * @run main/othervm -Xmixed -Xbatch -Xbootclasspath/a:.
+ * @run main/othervm -Xbatch -Xbootclasspath/a:.
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI
  *                   -XX:CompileCommand=exclude,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::check
  *                   -XX:CompileCommand=dontinline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::testFrame
  *                   -XX:CompileCommand=dontinline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::testFrame2
  *                   -XX:CompileCommand=inline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::recurse
- *                   -XX:+DoEscapeAnalysis -XX:-UseCounterDecay
+ *                   -XX:CompileCommand=inline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::testFrame3
+ *                   -XX:+DoEscapeAnalysis
  *                   -Dcompiler.jvmci.compilerToVM.MaterializeVirtualObjectTest.materializeFirst=true
  *                   -Dcompiler.jvmci.compilerToVM.MaterializeVirtualObjectTest.invalidate=true
  *                   compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest
- * @run main/othervm -Xmixed -Xbatch -Xbootclasspath/a:.
+ * @run main/othervm -Xbatch -Xbootclasspath/a:.
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI
  *                   -XX:CompileCommand=exclude,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::check
  *                   -XX:CompileCommand=dontinline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::testFrame
  *                   -XX:CompileCommand=dontinline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::testFrame2
  *                   -XX:CompileCommand=inline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::recurse
- *                   -XX:+DoEscapeAnalysis -XX:-UseCounterDecay
+ *                   -XX:CompileCommand=inline,compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest::testFrame3
+ *                   -XX:+DoEscapeAnalysis
  *                   -Dcompiler.jvmci.compilerToVM.MaterializeVirtualObjectTest.materializeFirst=false
  *                   -Dcompiler.jvmci.compilerToVM.MaterializeVirtualObjectTest.invalidate=true
  *                   compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest
@@ -96,7 +104,8 @@ import jdk.vm.ci.code.stack.InspectedFrame;
 import jdk.vm.ci.hotspot.CompilerToVMHelper;
 import jdk.vm.ci.hotspot.HotSpotStackFrameReference;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
-import sun.hotspot.WhiteBox;
+import jtreg.SkippedException;
+import jdk.test.whitebox.WhiteBox;
 
 import java.lang.reflect.Method;
 
@@ -106,8 +115,11 @@ public class MaterializeVirtualObjectTest {
     private static final int COMPILE_THRESHOLD;
     private static final Method MATERIALIZED_METHOD;
     private static final Method NOT_MATERIALIZED_METHOD;
+    private static final Method FRAME3_METHOD;
     private static final ResolvedJavaMethod MATERIALIZED_RESOLVED;
     private static final ResolvedJavaMethod NOT_MATERIALIZED_RESOLVED;
+    private static final ResolvedJavaMethod FRAME2_RESOLVED;
+    private static final ResolvedJavaMethod FRAME3_RESOLVED;
     private static final boolean MATERIALIZE_FIRST;
 
     static {
@@ -119,22 +131,22 @@ public class MaterializeVirtualObjectTest {
                     String.class, int.class);
             method2 = MaterializeVirtualObjectTest.class.getDeclaredMethod("testFrame2",
                     String.class, int.class);
+            FRAME3_METHOD = MaterializeVirtualObjectTest.class.getDeclaredMethod("testFrame3",
+                    Helper.class, int.class);
         } catch (NoSuchMethodException e) {
             throw new Error("Can't get executable for test method", e);
         }
         ResolvedJavaMethod resolved1;
-        ResolvedJavaMethod resolved2;
         resolved1 = CTVMUtilities.getResolvedMethod(method1);
-        resolved2 = CTVMUtilities.getResolvedMethod(method2);
+        FRAME2_RESOLVED = CTVMUtilities.getResolvedMethod(method2);
+        FRAME3_RESOLVED = CTVMUtilities.getResolvedMethod(FRAME3_METHOD);
         INVALIDATE = Boolean.getBoolean(
                 "compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest.invalidate");
-        COMPILE_THRESHOLD = WB.getBooleanVMFlag("TieredCompilation")
-                ? CompilerWhiteBoxTest.THRESHOLD
-                : CompilerWhiteBoxTest.THRESHOLD * 2;
+        COMPILE_THRESHOLD = CompilerWhiteBoxTest.THRESHOLD;
         MATERIALIZE_FIRST = Boolean.getBoolean(
                 "compiler.jvmci.compilerToVM.MaterializeVirtualObjectTest.materializeFirst");
-        MATERIALIZED_RESOLVED = MATERIALIZE_FIRST ? resolved1 : resolved2;
-        NOT_MATERIALIZED_RESOLVED = MATERIALIZE_FIRST ? resolved2 : resolved1;
+        MATERIALIZED_RESOLVED = MATERIALIZE_FIRST ? resolved1 : FRAME2_RESOLVED;
+        NOT_MATERIALIZED_RESOLVED = MATERIALIZE_FIRST ? FRAME2_RESOLVED : resolved1;
         MATERIALIZED_METHOD = MATERIALIZE_FIRST ? method1 : method2;
         NOT_MATERIALIZED_METHOD = MATERIALIZE_FIRST ? method2 : method1;
     }
@@ -143,10 +155,13 @@ public class MaterializeVirtualObjectTest {
         int levels[] = CompilerUtils.getAvailableCompilationLevels();
         // we need compilation level 4 to use EscapeAnalysis
         if (levels.length < 1 || levels[levels.length - 1] != 4) {
-            System.out.println("INFO: Test needs compilation level 4 to"
-                    + " be available. Skipping.");
-        } else {
+            throw new SkippedException("Test needs compilation level 4");
+        }
+
+        try {
             new MaterializeVirtualObjectTest().test();
+        } catch (MaterializationNotSupported e) {
+            Asserts.assertTrue(Thread.currentThread().isVirtual());
         }
     }
 
@@ -158,7 +173,6 @@ public class MaterializeVirtualObjectTest {
     }
 
     private void test() {
-        System.out.println(getName());
         Asserts.assertFalse(WB.isMethodCompiled(MATERIALIZED_METHOD),
                 getName() + " : materialized method is compiled");
         Asserts.assertFalse(WB.isMethodCompiled(NOT_MATERIALIZED_METHOD),
@@ -171,6 +185,16 @@ public class MaterializeVirtualObjectTest {
         Asserts.assertTrue(WB.isMethodCompiled(NOT_MATERIALIZED_METHOD),
                 getName() + " : not materialized method not compiled");
         testFrame("someString", /* materialize */ CompilerWhiteBoxTest.THRESHOLD);
+
+        // run second test types
+        for (int i = 0; i < CompilerWhiteBoxTest.THRESHOLD; i++) {
+            testFrame("someString", i);
+        }
+        Asserts.assertTrue(WB.isMethodCompiled(MATERIALIZED_METHOD), getName()
+                + " : materialized method not compiled");
+        Asserts.assertTrue(WB.isMethodCompiled(NOT_MATERIALIZED_METHOD),
+                getName() + " : not materialized method not compiled");
+        testFrame("someString", /* materialize */ CompilerWhiteBoxTest.THRESHOLD + 1);
     }
 
     private void testFrame(String str, int iteration) {
@@ -178,13 +202,25 @@ public class MaterializeVirtualObjectTest {
         testFrame2(str, iteration);
         Asserts.assertTrue((helper.string != null) && (this != null)
                 && (helper != null), String.format("%s : some locals are null", getName()));
-     }
+    }
 
     private void testFrame2(String str, int iteration) {
         Helper helper = new Helper(str);
-        recurse(2, iteration);
-        Asserts.assertTrue((helper.string != null) && (this != null)
+        Helper helper2 = new Helper("bar");
+        testFrame3(helper, iteration);
+        Asserts.assertTrue((helper.string != null) && (this != null) && helper.string == str
                 && (helper != null), String.format("%s : some locals are null", getName()));
+        Asserts.assertTrue((helper2.string != null) && (this != null)
+                && (helper2 != null), String.format("%s : some locals are null", getName()));
+    }
+
+    private void testFrame3(Helper outerHelper, int iteration) {
+        Helper innerHelper = new Helper("foo");
+        recurse(2, iteration);
+        Asserts.assertTrue((innerHelper.string != null) && (this != null)
+                && (innerHelper != null), String.format("%s : some locals are null", getName()));
+        Asserts.assertTrue((outerHelper.string != null) && (this != null)
+                && (outerHelper != null), String.format("%s : some locals are null", getName()));
     }
 
     private void recurse(int depth, int iteration) {
@@ -196,6 +232,56 @@ public class MaterializeVirtualObjectTest {
             Asserts.assertEQ(s.intValue(), depth,
                     String.format("different values: %s != %s", s.intValue(), depth));
         }
+    }
+
+    private static void materializeVirtualObjects(InspectedFrame f, boolean invalidateCode) {
+        try {
+            f.materializeVirtualObjects(invalidateCode);
+        } catch (IllegalArgumentException e) {
+            throw new MaterializationNotSupported(e);
+        }
+    }
+
+    private void checkStructure(boolean materialize) {
+        boolean[] framesSeen = new boolean[2];
+        Object[] helpers = new Object[1];
+        CompilerToVMHelper.iterateFrames(
+            new ResolvedJavaMethod[] {FRAME3_RESOLVED},
+            null, /* any */
+            0,
+            f -> {
+                if (!framesSeen[1]) {
+                    Asserts.assertTrue(f.isMethod(FRAME3_RESOLVED),
+                            "Expected testFrame3 first");
+                    framesSeen[1] = true;
+                    Asserts.assertTrue(f.getLocal(0) != null, "this should not be null");
+                    Asserts.assertTrue(f.getLocal(1) != null, "outerHelper should not be null");
+                    Asserts.assertTrue(f.getLocal(3) != null, "innerHelper should not be null");
+                    Asserts.assertEQ(((Helper) f.getLocal(3)).string, "foo", "innerHelper.string should be foo");
+                    helpers[0] = f.getLocal(1);
+                    if (materialize) {
+                        materializeVirtualObjects(f, false);
+                    }
+                    return null; //continue
+                } else {
+                    Asserts.assertFalse(framesSeen[0], "frame3 can not have been seen");
+                    Asserts.assertTrue(f.isMethod(FRAME2_RESOLVED),
+                            "Expected testFrame2 second");
+                    framesSeen[0] = true;
+                    Asserts.assertTrue(f.getLocal(0) != null, "this should not be null");
+                    Asserts.assertTrue(f.getLocal(1) != null, "str should not be null");
+                    Asserts.assertTrue(f.getLocal(3) != null, "helper should not be null");
+                    Asserts.assertTrue(f.getLocal(4) != null, "helper2 should not be null");
+                    Asserts.assertEQ(((Helper) f.getLocal(3)).string, f.getLocal(1), "helper.string should be the same as str");
+                    Asserts.assertEQ(((Helper) f.getLocal(4)).string, "bar", "helper2.string should be foo");
+                    if (!materialize) {
+                        Asserts.assertEQ(f.getLocal(3), helpers[0], "helper should be the same as frame3's outerHelper");
+                    }
+                    return f; // stop
+                }
+            });
+        Asserts.assertTrue(framesSeen[1], "frame3 should have been seen");
+        Asserts.assertTrue(framesSeen[0], "frame2 should have been seen");
     }
 
     private void check(int iteration) {
@@ -232,7 +318,7 @@ public class MaterializeVirtualObjectTest {
             Asserts.assertTrue(notMaterialized.hasVirtualObjects(), getName()
                     + ": notMaterialized frame has no virtual object before materialization");
             // materialize
-            CompilerToVMHelper.materializeVirtualObjects(materialized, INVALIDATE);
+            materializeVirtualObjects(materialized, INVALIDATE);
             // check that only not materialized frame has virtual objects
             Asserts.assertFalse(materialized.hasVirtualObjects(), getName()
                     + " : materialized has virtual object after materialization");
@@ -244,6 +330,9 @@ public class MaterializeVirtualObjectTest {
             // check that not materialized frame wasn't deoptimized
             Asserts.assertTrue(WB.isMethodCompiled(NOT_MATERIALIZED_METHOD), getName()
                     + " : not materialized method has unexpected compiled status");
+        } else if (iteration == COMPILE_THRESHOLD + 1) {
+            checkStructure(false);
+            checkStructure(true);
         }
     }
 
@@ -252,6 +341,12 @@ public class MaterializeVirtualObjectTest {
 
         public Helper(String s) {
             this.string = s;
+        }
+    }
+
+    static class MaterializationNotSupported extends RuntimeException {
+        public MaterializationNotSupported(Throwable cause) {
+            super(cause);
         }
     }
 }

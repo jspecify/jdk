@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #import "ThreadUtilities.h"
 #import "LWCToolkit.h"
 #import "CGLSurfaceData.h"
+#import "JNIUtilities.h"
 
 
 extern NSOpenGLPixelFormat *sharedPixelFormat;
@@ -40,13 +41,8 @@ extern NSOpenGLContext *sharedContext;
 @synthesize target;
 @synthesize textureWidth;
 @synthesize textureHeight;
-#ifdef REMOTELAYER
-@synthesize parentLayer;
-@synthesize remoteLayer;
-@synthesize jrsRemoteLayer;
-#endif
 
-- (id) initWithJavaLayer:(JNFWeakJObjectWrapper *)layer;
+- (id) initWithJavaLayer:(jobject)layer;
 {
 AWT_ASSERT_APPKIT_THREAD;
     // Initialize ourselves
@@ -83,6 +79,8 @@ AWT_ASSERT_APPKIT_THREAD;
 }
 
 - (void) dealloc {
+    JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
+    (*env)->DeleteWeakGlobalRef(env, self.javaLayer);
     self.javaLayer = nil;
     [super dealloc];
 }
@@ -134,10 +132,10 @@ AWT_ASSERT_APPKIT_THREAD;
     AWT_ASSERT_APPKIT_THREAD;
 
     JNIEnv *env = [ThreadUtilities getJNIEnv];
-    static JNF_CLASS_CACHE(jc_JavaLayer, "sun/java2d/opengl/CGLLayer");
-    static JNF_MEMBER_CACHE(jm_drawInCGLContext, jc_JavaLayer, "drawInCGLContext", "()V");
+    DECLARE_CLASS(jc_JavaLayer, "sun/java2d/opengl/CGLLayer");
+    DECLARE_METHOD(jm_drawInCGLContext, jc_JavaLayer, "drawInCGLContext", "()V");
 
-    jobject javaLayerLocalRef = [self.javaLayer jObjectWithEnv:env];
+    jobject javaLayerLocalRef = (*env)->NewLocalRef(env, self.javaLayer);
     if ((*env)->IsSameObject(env, javaLayerLocalRef, NULL)) {
         return;
     }
@@ -151,7 +149,8 @@ AWT_ASSERT_APPKIT_THREAD;
 
     glViewport(0, 0, textureWidth, textureHeight);
 
-    JNFCallVoidMethod(env, javaLayerLocalRef, jm_drawInCGLContext);
+    (*env)->CallVoidMethod(env, javaLayerLocalRef, jm_drawInCGLContext);
+    CHECK_EXCEPTION();
     (*env)->DeleteLocalRef(env, javaLayerLocalRef);
 
     // Call super to finalize the drawing. By default all it does is call glFlush().
@@ -173,17 +172,17 @@ Java_sun_java2d_opengl_CGLLayer_nativeCreateLayer
 {
     __block CGLLayer *layer = nil;
 
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
 
-    JNFWeakJObjectWrapper *javaLayer = [JNFWeakJObjectWrapper wrapperWithJObject:obj withEnv:env];
+    jobject javaLayer = (*env)->NewWeakGlobalRef(env, obj);
 
     [ThreadUtilities performOnMainThreadWaiting:YES block:^(){
             AWT_ASSERT_APPKIT_THREAD;
-        
+
             layer = [[CGLLayer alloc] initWithJavaLayer: javaLayer];
     }];
-    
-JNF_COCOA_EXIT(env);
+
+JNI_COCOA_EXIT(env);
 
     return ptr_to_jlong(layer);
 }
@@ -220,14 +219,14 @@ JNIEXPORT void JNICALL
 Java_sun_java2d_opengl_CGLLayer_nativeSetScale
 (JNIEnv *env, jclass cls, jlong layerPtr, jdouble scale)
 {
-    JNF_COCOA_ENTER(env);
+    JNI_COCOA_ENTER(env);
     CGLLayer *layer = jlong_to_ptr(layerPtr);
-    // We always call all setXX methods asynchronously, exception is only in 
+    // We always call all setXX methods asynchronously, exception is only in
     // this method where we need to change native texture size and layer's scale
-    // in one call on appkit, otherwise we'll get window's contents blinking, 
+    // in one call on appkit, otherwise we'll get window's contents blinking,
     // during screen-2-screen moving.
     [ThreadUtilities performOnMainThreadWaiting:[NSThread isMainThread] block:^(){
         layer.contentsScale = scale;
     }];
-    JNF_COCOA_EXIT(env);
+    JNI_COCOA_EXIT(env);
 }

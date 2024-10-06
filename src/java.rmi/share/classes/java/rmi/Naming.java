@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,10 +85,10 @@ public final class Naming {
      *
      * @param name a name in URL format (without the scheme component)
      * @return a reference for a remote object
-     * @exception NotBoundException if name is not currently bound
-     * @exception RemoteException if registry could not be contacted
-     * @exception AccessException if this operation is not permitted
-     * @exception MalformedURLException if the name is not an appropriately
+     * @throws NotBoundException if name is not currently bound
+     * @throws RemoteException if registry could not be contacted
+     * @throws AccessException if this operation is not permitted
+     * @throws MalformedURLException if the name is not an appropriately
      *  formatted URL
      * @since 1.1
      */
@@ -110,12 +110,12 @@ public final class Naming {
      *
      * @param name a name in URL format (without the scheme component)
      * @param obj a reference for the remote object (usually a stub)
-     * @exception AlreadyBoundException if name is already bound
-     * @exception MalformedURLException if the name is not an appropriately
-     *  formatted URL
-     * @exception RemoteException if registry could not be contacted
-     * @exception AccessException if this operation is not permitted (if
-     * originating from a non-local host, for example)
+     * @throws AlreadyBoundException if name is already bound
+     * @throws MalformedURLException if the name is not an appropriately
+     *         formatted URL
+     * @throws RemoteException if registry could not be contacted
+     * @throws AccessException if this operation is not permitted (if
+     *         originating from a non-local host, for example)
      * @since 1.1
      */
     public static void bind(String name, Remote obj)
@@ -137,12 +137,12 @@ public final class Naming {
      * with a remote object.
      *
      * @param name a name in URL format (without the scheme component)
-     * @exception NotBoundException if name is not currently bound
-     * @exception MalformedURLException if the name is not an appropriately
-     *  formatted URL
-     * @exception RemoteException if registry could not be contacted
-     * @exception AccessException if this operation is not permitted (if
-     * originating from a non-local host, for example)
+     * @throws NotBoundException if name is not currently bound
+     * @throws MalformedURLException if the name is not an appropriately
+     *         formatted URL
+     * @throws RemoteException if registry could not be contacted
+     * @throws AccessException if this operation is not permitted (if
+     *         originating from a non-local host, for example)
      * @since 1.1
      */
     public static void unbind(String name)
@@ -162,11 +162,11 @@ public final class Naming {
      *
      * @param name a name in URL format (without the scheme component)
      * @param obj new remote object to associate with the name
-     * @exception MalformedURLException if the name is not an appropriately
-     *  formatted URL
-     * @exception RemoteException if registry could not be contacted
-     * @exception AccessException if this operation is not permitted (if
-     * originating from a non-local host, for example)
+     * @throws MalformedURLException if the name is not an appropriately
+     *         formatted URL
+     * @throws RemoteException if registry could not be contacted
+     * @throws AccessException if this operation is not permitted (if
+     *         originating from a non-local host, for example)
      * @since 1.1
      */
     public static void rebind(String name, Remote obj)
@@ -191,9 +191,9 @@ public final class Naming {
      *          component)
      * @return  an array of names (in the appropriate format) bound
      *          in the registry
-     * @exception MalformedURLException if the name is not an appropriately
-     *  formatted URL
-     * @exception RemoteException if registry could not be contacted.
+     * @throws MalformedURLException if the name is not an appropriately
+     *         formatted URL
+     * @throws RemoteException if registry could not be contacted.
      * @since 1.1
      */
     public static String[] list(String name)
@@ -203,7 +203,7 @@ public final class Naming {
         Registry registry = getRegistry(parsed);
 
         String prefix = "";
-        if (parsed.port > 0 || !parsed.host.equals(""))
+        if (parsed.port > 0 || !parsed.host.isEmpty())
             prefix += "//" + parsed.host;
         if (parsed.port > 0)
             prefix += ":" + parsed.port;
@@ -232,7 +232,7 @@ public final class Naming {
      * @return an object which contains each of the above
      * components.
      *
-     * @exception MalformedURLException if given url string is malformed
+     * @throws MalformedURLException if given url string is malformed
      */
     private static ParsedNamingURL parseURL(String str)
         throws MalformedURLException

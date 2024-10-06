@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,98 +22,156 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/workerThread.hpp"
 #include "runtime/mutex.hpp"
+#include "runtime/os.hpp"
 #include "runtime/semaphore.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/vmThread.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "utilities/concurrentHashTable.inline.hpp"
 #include "utilities/concurrentHashTableTasks.inline.hpp"
-#include "utilitiesHelper.inline.hpp"
+#include "threadHelper.inline.hpp"
 #include "unittest.hpp"
 
 // NOTE: On win32 gtest asserts are not mt-safe.
 // Amusingly as long as they do not assert they are mt-safe.
 #define SIZE_32 5
 
-struct Pointer;
-
-typedef ConcurrentHashTable<uintptr_t, Pointer, mtInternal> SimpleTestTable;
-typedef ConcurrentHashTable<uintptr_t, Pointer, mtInternal>::MultiGetHandle SimpleTestGetHandle;
-
-// Simplest working CRPT implementation for the hash-table.
-struct Pointer : public SimpleTestTable::BaseConfig {
-  static uintx get_hash(const uintptr_t& value, bool* dead_hash) {
+struct Pointer : public AllStatic {
+  typedef uintptr_t Value;
+  static uintx get_hash(const Value& value, bool* dead_hash) {
     return (uintx)value;
   }
-  static const uintptr_t& notfound() {
-    static uintptr_t notfound = 0;
-    return notfound;
+  static void* allocate_node(void* context, size_t size, const Value& value) {
+    return os::malloc(size, mtTest);
   }
-  static void* allocate_node(size_t size, const uintptr_t& value) {
-    return ::malloc(size);
-  }
-  static void free_node(void* memory, const uintptr_t& value) {
-    ::free(memory);
+  static void free_node(void* context, void* memory, const Value& value) {
+    os::free(memory);
   }
 };
+
+struct Allocator {
+  struct TableElement{
+    TableElement * volatile _next;
+    uintptr_t _value;
+  };
+
+  const uint nelements = 5;
+  TableElement* elements;
+  uint cur_index;
+
+  Allocator() : cur_index(0) {
+    elements = (TableElement*)os::malloc(nelements * sizeof(TableElement), mtTest);
+  }
+
+  void* allocate_node() {
+    return (void*)&elements[cur_index++];
+  }
+
+  void free_node(void* value) { /* Arena allocator. Ignore freed nodes*/ }
+
+  void reset() {
+    cur_index = 0;
+  }
+
+  ~Allocator() {
+    os::free(elements);
+  }
+};
+
+struct Config : public AllStatic {
+  typedef uintptr_t Value;
+
+  static uintx get_hash(const Value& value, bool* dead_hash) {
+    return (uintx)value;
+  }
+  static void* allocate_node(void* context, size_t size, const Value& value) {
+    Allocator* mm = (Allocator*)context;
+    return mm->allocate_node();
+  }
+
+  static void free_node(void* context, void* memory, const Value& value) {
+    Allocator* mm = (Allocator*)context;
+    mm->free_node(memory);
+  }
+};
+
+typedef ConcurrentHashTable<Pointer, mtInternal> SimpleTestTable;
+typedef ConcurrentHashTable<Pointer, mtInternal>::MultiGetHandle SimpleTestGetHandle;
+typedef ConcurrentHashTable<Config, mtInternal> CustomTestTable;
 
 struct SimpleTestLookup {
   uintptr_t _val;
   SimpleTestLookup(uintptr_t val) : _val(val) {}
   uintx get_hash() {
-    return Pointer::get_hash(_val, NULL);
+    return Pointer::get_hash(_val, nullptr);
   }
-  bool equals(const uintptr_t* value, bool* is_dead) {
+  bool equals(const uintptr_t* value) {
     return _val == *value;
   }
+  bool is_dead(const uintptr_t* value) {
+    return false;
+  }
 };
+
+struct ValueGet {
+  uintptr_t _return;
+  ValueGet() : _return(0) {}
+  void operator()(uintptr_t* value) {
+    EXPECT_NE(value, (uintptr_t*)nullptr) << "expected valid value";
+    _return = *value;
+  }
+  uintptr_t get_value() const {
+    return _return;
+  }
+};
+
+template <typename T=SimpleTestTable>
+static uintptr_t cht_get_copy(T* cht, Thread* thr, SimpleTestLookup stl) {
+  ValueGet vg;
+  cht->get(thr, stl, vg);
+  return vg.get_value();
+}
+
+template <typename T=SimpleTestTable>
+static void cht_find(Thread* thr, T* cht, uintptr_t val) {
+  SimpleTestLookup stl(val);
+  ValueGet vg;
+  EXPECT_EQ(cht->get(thr, stl, vg), true) << "Getting an old value failed.";
+  EXPECT_EQ(val, vg.get_value()) << "Getting an old value failed.";
+}
+
+template <typename T=SimpleTestTable>
+static void cht_insert_and_find(Thread* thr, T* cht, uintptr_t val) {
+  SimpleTestLookup stl(val);
+  EXPECT_EQ(cht->insert(thr, stl, val), true) << "Inserting an unique value failed.";
+  cht_find(thr, cht, val);
+}
 
 static void cht_insert(Thread* thr) {
   uintptr_t val = 0x2;
   SimpleTestLookup stl(val);
   SimpleTestTable* cht = new SimpleTestTable();
   EXPECT_TRUE(cht->insert(thr, stl, val)) << "Insert unique value failed.";
-  EXPECT_EQ(cht->get_copy(thr, stl), val) << "Getting an existing value failed.";
+  EXPECT_EQ(cht_get_copy(cht, thr, stl), val) << "Getting an existing value failed.";
   EXPECT_TRUE(cht->remove(thr, stl)) << "Removing an existing value failed.";
   EXPECT_FALSE(cht->remove(thr, stl)) << "Removing an already removed item succeeded.";
-  EXPECT_NE(cht->get_copy(thr, stl), val) << "Getting a removed value succeeded.";
+  EXPECT_NE(cht_get_copy(cht, thr, stl), val) << "Getting a removed value succeeded.";
   delete cht;
 }
 
-struct ValVerify {
-  uintptr_t _val;
-  bool called_get;
-  bool called_insert;
-  ValVerify(uintptr_t val) : called_get(false), called_insert(false), _val(val) {}
-  void operator()(bool inserted, uintptr_t* val) {
-    EXPECT_EQ(_val, *val) << "The value inserted is not correct.";
-    if (inserted) {
-      called_insert = true;
-    } else {
-      called_get = true;
-    }
-  }
-  void verify(bool get, bool insert) {
-    EXPECT_EQ(called_get, get) << "Get unexpected";
-    EXPECT_EQ(called_insert, insert) << "Insert unexpected";
-  }
-};
-
-static void cht_get_insert_helper(Thread* thr, SimpleTestTable* cht, uintptr_t val) {
-  {
-    SimpleTestLookup stl(val);
-    ValVerify vv(val);
-    EXPECT_EQ(cht->get_insert(thr, stl, val, vv), false) << "Inserting an unique value failed.";
-    vv.verify(false, true);
-  }
-
-  {
-    SimpleTestLookup stl(val);
-    ValVerify vv(val);
-    EXPECT_EQ(cht->get_insert(thr, stl, val, vv), true) << "Getting an old value failed.";
-    vv.verify(true, false);
-  }
+static void cht_insert_get(Thread* thr) {
+  uintptr_t val = 0x2;
+  SimpleTestLookup stl(val);
+  SimpleTestTable* cht = new SimpleTestTable();
+  ValueGet vg;
+  EXPECT_TRUE(cht->insert_get(thr, stl, val, vg)) << "Insert unique value failed.";
+  EXPECT_EQ(val, vg.get_value()) << "Getting an inserted value failed.";
+  ValueGet vg_dup;
+  EXPECT_FALSE(cht->insert_get(thr, stl, val, vg_dup)) << "Insert duplicate value succeeded.";
+  EXPECT_EQ(val, vg_dup.get_value()) << "Getting an existing value failed.";
+  delete cht;
 }
 
 static void cht_get_insert(Thread* thr) {
@@ -123,15 +181,15 @@ static void cht_get_insert(Thread* thr) {
 
   {
     SCOPED_TRACE("First");
-    cht_get_insert_helper(thr, cht, val);
+    cht_insert_and_find(thr, cht, val);
   }
-  EXPECT_EQ(cht->get_copy(thr, stl), val) << "Get an old value failed";
+  EXPECT_EQ(cht_get_copy(cht, thr, stl), val) << "Get an old value failed";
   EXPECT_TRUE(cht->remove(thr, stl)) << "Removing existing value failed.";
-  EXPECT_NE(cht->get_copy(thr, stl), val) << "Got an already removed item.";
+  EXPECT_NE(cht_get_copy(cht, thr, stl), val) << "Got an already removed item.";
 
   {
     SCOPED_TRACE("Second");
-    cht_get_insert_helper(thr, cht, val);
+    cht_insert_and_find(thr, cht, val);
   }
 
   delete cht;
@@ -148,43 +206,72 @@ static void getinsert_bulkdelete_del(uintptr_t* val) {
 
 static void cht_getinsert_bulkdelete_insert_verified(Thread* thr, SimpleTestTable* cht, uintptr_t val,
                                                      bool verify_expect_get, bool verify_expect_inserted) {
-  ValVerify vv(val);
   SimpleTestLookup stl(val);
-  EXPECT_EQ(cht->get_insert(thr, stl, val, vv), verify_expect_get) << "Inserting an unique value failed.";
-  vv.verify(verify_expect_get, verify_expect_inserted);
+  if (verify_expect_inserted) {
+    cht_insert_and_find(thr, cht, val);
+  }
+  if (verify_expect_get) {
+    cht_find(thr, cht, val);
+  }
 }
 
 static void cht_getinsert_bulkdelete(Thread* thr) {
-  uintptr_t val1 = 1;
-  uintptr_t val2 = 2;
-  uintptr_t val3 = 3;
-  SimpleTestLookup stl1(val1), stl2(val2), stl3(val3);
+  SimpleTestTable a[] = {SimpleTestTable(), SimpleTestTable(2, 2, 14) /* force long lists in the buckets*/ };
+  const unsigned iter = 1000;
+  for (auto& table: a) {
+    for (unsigned i = 0; i < iter; ++i) {
+      uintptr_t val1 = i * 10 + 1;
+      uintptr_t val2 = i * 10 + 2;
+      uintptr_t val3 = i * 10 + 3;
+      SimpleTestLookup stl1(val1), stl2(val2), stl3(val3);
+      cht_getinsert_bulkdelete_insert_verified(thr, &table, val1, false, true);
+      cht_getinsert_bulkdelete_insert_verified(thr, &table, val2, false, true);
+      cht_getinsert_bulkdelete_insert_verified(thr, &table, val3, false, true);
 
-  SimpleTestTable* cht = new SimpleTestTable();
-  cht_getinsert_bulkdelete_insert_verified(thr, cht, val1, false, true);
-  cht_getinsert_bulkdelete_insert_verified(thr, cht, val2, false, true);
-  cht_getinsert_bulkdelete_insert_verified(thr, cht, val3, false, true);
+      EXPECT_TRUE(table.remove(thr, stl2)) << "Remove did not find value.";
 
-  EXPECT_TRUE(cht->remove(thr, stl2)) << "Remove did not find value.";
+      cht_getinsert_bulkdelete_insert_verified(thr, &table, val1, true, false); // val1 should be present
+      cht_getinsert_bulkdelete_insert_verified(thr, &table, val2, false, true); // val2 should be inserted
+      cht_getinsert_bulkdelete_insert_verified(thr, &table, val3, true, false); // val3 should be present
 
-  cht_getinsert_bulkdelete_insert_verified(thr, cht, val1, true, false); // val1 should be present
-  cht_getinsert_bulkdelete_insert_verified(thr, cht, val2, false, true); // val2 should be inserted
-  cht_getinsert_bulkdelete_insert_verified(thr, cht, val3, true, false); // val3 should be present
+      EXPECT_EQ(cht_get_copy(&table, thr, stl1), val1) << "Get did not find value.";
+      EXPECT_EQ(cht_get_copy(&table, thr, stl2), val2) << "Get did not find value.";
+      EXPECT_EQ(cht_get_copy(&table, thr, stl3), val3) << "Get did not find value.";
+    }
 
-  EXPECT_EQ(cht->get_copy(thr, stl1), val1) << "Get did not find value.";
-  EXPECT_EQ(cht->get_copy(thr, stl2), val2) << "Get did not find value.";
-  EXPECT_EQ(cht->get_copy(thr, stl3), val3) << "Get did not find value.";
+    unsigned delete_count = 0;
+    unsigned scan_count = 0;
+    auto eval_odd_f = [](uintptr_t* val)                  { return *val & 0x1; };
+    auto eval_true_f = [](uintptr_t* val)                 { return true; };
+    auto scan_count_f = [&scan_count](uintptr_t* val)     { scan_count++; return true; };
+    auto delete_count_f = [&delete_count](uintptr_t* val) { delete_count++; };
+    table.bulk_delete(thr, eval_odd_f, delete_count_f);
+    EXPECT_EQ(iter*2, delete_count) << "All odd values should have been deleted";
+    table.do_scan(thr, scan_count_f);
+    EXPECT_EQ(iter, scan_count) << "All odd values should have been deleted";
 
-  // Removes all odd values.
-  cht->bulk_delete(thr, getinsert_bulkdelete_eval, getinsert_bulkdelete_del);
+    for (unsigned i = 0; i < iter; ++i) {
+      uintptr_t val1 = i * 10 + 1;
+      uintptr_t val2 = i * 10 + 2;
+      uintptr_t val3 = i * 10 + 3;
+      SimpleTestLookup stl1(val1), stl2(val2), stl3(val3);
+      EXPECT_EQ(cht_get_copy(&table, thr, stl1), (uintptr_t)0) << "Odd value should not exist.";
+      EXPECT_FALSE(table.remove(thr, stl1)) << "Odd value should not exist.";
+      EXPECT_EQ(cht_get_copy(&table, thr, stl2), val2) << "Even value should not have been removed.";
+      EXPECT_EQ(cht_get_copy(&table, thr, stl3), (uintptr_t)0) << "Add value should not exists.";
+      EXPECT_FALSE(table.remove(thr, stl3)) << "Odd value should not exists.";
+    }
 
-  EXPECT_EQ(cht->get_copy(thr, stl1), (uintptr_t)0) << "Odd value should not exist.";
-  EXPECT_FALSE(cht->remove(thr, stl1)) << "Odd value should not exist.";
-  EXPECT_EQ(cht->get_copy(thr, stl2), val2) << "Even value should not have been removed.";
-  EXPECT_EQ(cht->get_copy(thr, stl3), (uintptr_t)0) << "Add value should not exists.";
-  EXPECT_FALSE(cht->remove(thr, stl3)) << "Odd value should not exists.";
-
-  delete cht;
+    scan_count = 0;
+    table.do_scan(thr, scan_count_f);
+    EXPECT_EQ(iter, scan_count) << "All values should have been deleted";
+    delete_count = 0;
+    table.bulk_delete(thr, eval_true_f, delete_count_f);
+    EXPECT_EQ(iter, delete_count) << "All odd values should have been deleted";
+    scan_count = 0;
+    table.do_scan(thr, scan_count_f);
+    EXPECT_EQ(0u, scan_count) << "All values should have been deleted";
+  }
 }
 
 static void cht_getinsert_bulkdelete_task(Thread* thr) {
@@ -204,9 +291,9 @@ static void cht_getinsert_bulkdelete_task(Thread* thr) {
   cht_getinsert_bulkdelete_insert_verified(thr, cht, val2, false, true); // val2 should be inserted
   cht_getinsert_bulkdelete_insert_verified(thr, cht, val3, true, false); // val3 should be present
 
-  EXPECT_EQ(cht->get_copy(thr, stl1), val1) << "Get did not find value.";
-  EXPECT_EQ(cht->get_copy(thr, stl2), val2) << "Get did not find value.";
-  EXPECT_EQ(cht->get_copy(thr, stl3), val3) << "Get did not find value.";
+  EXPECT_EQ(cht_get_copy(cht, thr, stl1), val1) << "Get did not find value.";
+  EXPECT_EQ(cht_get_copy(cht, thr, stl2), val2) << "Get did not find value.";
+  EXPECT_EQ(cht_get_copy(cht, thr, stl3), val3) << "Get did not find value.";
 
   // Removes all odd values.
   SimpleTestTable::BulkDeleteTask bdt(cht);
@@ -218,12 +305,39 @@ static void cht_getinsert_bulkdelete_task(Thread* thr) {
     bdt.done(thr);
   }
 
-  EXPECT_EQ(cht->get_copy(thr, stl1), (uintptr_t)0) << "Odd value should not exist.";
+  EXPECT_EQ(cht_get_copy(cht, thr, stl1), (uintptr_t)0) << "Odd value should not exist.";
   EXPECT_FALSE(cht->remove(thr, stl1)) << "Odd value should not exist.";
-  EXPECT_EQ(cht->get_copy(thr, stl2), val2) << "Even value should not have been removed.";
-  EXPECT_EQ(cht->get_copy(thr, stl3), (uintptr_t)0) << "Add value should not exists.";
+  EXPECT_EQ(cht_get_copy(cht, thr, stl2), val2) << "Even value should not have been removed.";
+  EXPECT_EQ(cht_get_copy(cht, thr, stl3), (uintptr_t)0) << "Add value should not exists.";
   EXPECT_FALSE(cht->remove(thr, stl3)) << "Odd value should not exists.";
 
+  delete cht;
+}
+
+static void cht_reset_shrink(Thread* thr) {
+  uintptr_t val1 = 1;
+  uintptr_t val2 = 2;
+  uintptr_t val3 = 3;
+  SimpleTestLookup stl1(val1), stl2(val2), stl3(val3);
+
+  Allocator mem_allocator;
+  const uint initial_log_table_size = 4;
+  CustomTestTable* cht = new CustomTestTable(Mutex::nosafepoint-2, &mem_allocator);
+
+  cht_insert_and_find(thr, cht, val1);
+  cht_insert_and_find(thr, cht, val2);
+  cht_insert_and_find(thr, cht, val3);
+
+  cht->unsafe_reset();
+  mem_allocator.reset();
+
+  EXPECT_EQ(cht_get_copy(cht, thr, stl1), (uintptr_t)0) << "Table should have been reset";
+  // Re-inserted values should not be considered duplicates; table was reset.
+  cht_insert_and_find(thr, cht, val1);
+  cht_insert_and_find(thr, cht, val2);
+  cht_insert_and_find(thr, cht, val3);
+
+  cht->unsafe_reset();
   delete cht;
 }
 
@@ -238,7 +352,7 @@ static void cht_scope(Thread* thr) {
   }
   // We do remove here to make sure the value-handle 'unlocked' the table when leaving the scope.
   EXPECT_TRUE(cht->remove(thr, stl)) << "Removing a pre-existing value failed.";
-  EXPECT_FALSE(cht->get_copy(thr, stl) == val) << "Got a removed value.";
+  EXPECT_FALSE(cht_get_copy(cht, thr, stl) == val) << "Got a removed value.";
   delete cht;
 }
 
@@ -261,7 +375,7 @@ static void cht_scan(Thread* thr) {
   EXPECT_TRUE(cht->insert(thr, stl, val)) << "Insert unique value failed.";
   EXPECT_EQ(cht->try_scan(thr, scan), true) << "Scanning an non-growing/shrinking table should work.";
   EXPECT_TRUE(cht->remove(thr, stl)) << "Removing a pre-existing value failed.";
-  EXPECT_FALSE(cht->get_copy(thr, stl) == val) << "Got a removed value.";
+  EXPECT_FALSE(cht_get_copy(cht, thr, stl) == val) << "Got a removed value.";
   delete cht;
 }
 
@@ -285,7 +399,8 @@ static void cht_move_to(Thread* thr) {
   EXPECT_TRUE(from_cht->insert(thr, stl3, val3)) << "Insert unique value failed.";
 
   SimpleTestTable* to_cht = new SimpleTestTable();
-  EXPECT_TRUE(from_cht->try_move_nodes_to(thr, to_cht)) << "Moving nodes to new table failed";
+  // This is single threaded and not shared
+  from_cht->rehash_nodes_to(thr, to_cht);
 
   ChtCountScan scan_old;
   EXPECT_TRUE(from_cht->try_scan(thr, scan_old)) << "Scanning table should work.";
@@ -294,9 +409,9 @@ static void cht_move_to(Thread* thr) {
   ChtCountScan scan_new;
   EXPECT_TRUE(to_cht->try_scan(thr, scan_new)) << "Scanning table should work.";
   EXPECT_EQ(scan_new._count, (size_t)3) << "All items should be moved";
-  EXPECT_TRUE(to_cht->get_copy(thr, stl1) == val1) << "Getting an inserted value should work.";
-  EXPECT_TRUE(to_cht->get_copy(thr, stl2) == val2) << "Getting an inserted value should work.";
-  EXPECT_TRUE(to_cht->get_copy(thr, stl3) == val3) << "Getting an inserted value should work.";
+  EXPECT_TRUE(cht_get_copy(to_cht, thr, stl1) == val1) << "Getting an inserted value should work.";
+  EXPECT_TRUE(cht_get_copy(to_cht, thr, stl2) == val2) << "Getting an inserted value should work.";
+  EXPECT_TRUE(cht_get_copy(to_cht, thr, stl3) == val3) << "Getting an inserted value should work.";
 }
 
 static void cht_grow(Thread* thr) {
@@ -310,31 +425,31 @@ static void cht_grow(Thread* thr) {
   EXPECT_TRUE(cht->insert(thr, stl2, val2)) << "Insert unique value failed.";
   EXPECT_TRUE(cht->insert(thr, stl3, val3)) << "Insert unique value failed.";
   EXPECT_FALSE(cht->insert(thr, stl3, val3)) << "Insert duplicate value should have failed.";
-  EXPECT_TRUE(cht->get_copy(thr, stl) == val) << "Getting an inserted value should work.";
-  EXPECT_TRUE(cht->get_copy(thr, stl2) == val2) << "Getting an inserted value should work.";
-  EXPECT_TRUE(cht->get_copy(thr, stl3) == val3) << "Getting an inserted value should work.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl) == val) << "Getting an inserted value should work.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl2) == val2) << "Getting an inserted value should work.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl3) == val3) << "Getting an inserted value should work.";
 
   EXPECT_TRUE(cht->remove(thr, stl2)) << "Removing an inserted value should work.";
 
-  EXPECT_TRUE(cht->get_copy(thr, stl) == val) << "Getting an inserted value should work.";
-  EXPECT_FALSE(cht->get_copy(thr, stl2) == val2) << "Getting a removed value should have failed.";
-  EXPECT_TRUE(cht->get_copy(thr, stl3) == val3) << "Getting an inserted value should work.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl) == val) << "Getting an inserted value should work.";
+  EXPECT_FALSE(cht_get_copy(cht, thr, stl2) == val2) << "Getting a removed value should have failed.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl3) == val3) << "Getting an inserted value should work.";
 
 
   EXPECT_TRUE(cht->grow(thr)) << "Growing uncontended should not fail.";
 
-  EXPECT_TRUE(cht->get_copy(thr, stl) == val) << "Getting an item after grow failed.";
-  EXPECT_FALSE(cht->get_copy(thr, stl2) == val2) << "Getting a removed value after grow should have failed.";
-  EXPECT_TRUE(cht->get_copy(thr, stl3) == val3) << "Getting an item after grow failed.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl) == val) << "Getting an item after grow failed.";
+  EXPECT_FALSE(cht_get_copy(cht, thr, stl2) == val2) << "Getting a removed value after grow should have failed.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl3) == val3) << "Getting an item after grow failed.";
 
   EXPECT_TRUE(cht->insert(thr, stl2, val2)) << "Insert unique value failed.";
   EXPECT_TRUE(cht->remove(thr, stl3)) << "Removing an inserted value should work.";
 
   EXPECT_TRUE(cht->shrink(thr)) << "Shrinking uncontended should not fail.";
 
-  EXPECT_TRUE(cht->get_copy(thr, stl) == val) << "Getting an item after shrink failed.";
-  EXPECT_TRUE(cht->get_copy(thr, stl2) == val2) << "Getting an item after shrink failed.";
-  EXPECT_FALSE(cht->get_copy(thr, stl3) == val3) << "Getting a removed value after shrink should have failed.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl) == val) << "Getting an item after shrink failed.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl2) == val2) << "Getting an item after shrink failed.";
+  EXPECT_FALSE(cht_get_copy(cht, thr, stl3) == val3) << "Getting a removed value after shrink should have failed.";
 
   delete cht;
 }
@@ -350,33 +465,33 @@ static void cht_task_grow(Thread* thr) {
   EXPECT_TRUE(cht->insert(thr, stl2, val2)) << "Insert unique value failed.";
   EXPECT_TRUE(cht->insert(thr, stl3, val3)) << "Insert unique value failed.";
   EXPECT_FALSE(cht->insert(thr, stl3, val3)) << "Insert duplicate value should have failed.";
-  EXPECT_TRUE(cht->get_copy(thr, stl) == val) << "Getting an inserted value should work.";
-  EXPECT_TRUE(cht->get_copy(thr, stl2) == val2) << "Getting an inserted value should work.";
-  EXPECT_TRUE(cht->get_copy(thr, stl3) == val3) << "Getting an inserted value should work.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl) == val) << "Getting an inserted value should work.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl2) == val2) << "Getting an inserted value should work.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl3) == val3) << "Getting an inserted value should work.";
 
   EXPECT_TRUE(cht->remove(thr, stl2)) << "Removing an inserted value should work.";
 
-  EXPECT_TRUE(cht->get_copy(thr, stl) == val) << "Getting an inserted value should work.";
-  EXPECT_FALSE(cht->get_copy(thr, stl2) == val2) << "Getting a removed value should have failed.";
-  EXPECT_TRUE(cht->get_copy(thr, stl3) == val3) << "Getting an inserted value should work.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl) == val) << "Getting an inserted value should work.";
+  EXPECT_FALSE(cht_get_copy(cht, thr, stl2) == val2) << "Getting a removed value should have failed.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl3) == val3) << "Getting an inserted value should work.";
 
   SimpleTestTable::GrowTask gt(cht);
   EXPECT_TRUE(gt.prepare(thr)) << "Growing uncontended should not fail.";
   while(gt.do_task(thr)) { /* grow */  }
   gt.done(thr);
 
-  EXPECT_TRUE(cht->get_copy(thr, stl) == val) << "Getting an item after grow failed.";
-  EXPECT_FALSE(cht->get_copy(thr, stl2) == val2) << "Getting a removed value after grow should have failed.";
-  EXPECT_TRUE(cht->get_copy(thr, stl3) == val3) << "Getting an item after grow failed.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl) == val) << "Getting an item after grow failed.";
+  EXPECT_FALSE(cht_get_copy(cht, thr, stl2) == val2) << "Getting a removed value after grow should have failed.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl3) == val3) << "Getting an item after grow failed.";
 
   EXPECT_TRUE(cht->insert(thr, stl2, val2)) << "Insert unique value failed.";
   EXPECT_TRUE(cht->remove(thr, stl3)) << "Removing an inserted value should work.";
 
   EXPECT_TRUE(cht->shrink(thr)) << "Shrinking uncontended should not fail.";
 
-  EXPECT_TRUE(cht->get_copy(thr, stl) == val) << "Getting an item after shrink failed.";
-  EXPECT_TRUE(cht->get_copy(thr, stl2) == val2) << "Getting an item after shrink failed.";
-  EXPECT_FALSE(cht->get_copy(thr, stl3) == val3) << "Getting a removed value after shrink should have failed.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl) == val) << "Getting an item after shrink failed.";
+  EXPECT_TRUE(cht_get_copy(cht, thr, stl2) == val2) << "Getting an item after shrink failed.";
+  EXPECT_FALSE(cht_get_copy(cht, thr, stl3) == val3) << "Getting a removed value after shrink should have failed.";
 
   delete cht;
 }
@@ -389,6 +504,10 @@ TEST_VM(ConcurrentHashTable, basic_get_insert) {
   nomt_test_doer(cht_get_insert);
 }
 
+TEST_VM(ConcurrentHashTable, basic_insert_get) {
+  nomt_test_doer(cht_insert_get);
+}
+
 TEST_VM(ConcurrentHashTable, basic_scope) {
   nomt_test_doer(cht_scope);
 }
@@ -399,6 +518,10 @@ TEST_VM(ConcurrentHashTable, basic_get_insert_bulk_delete) {
 
 TEST_VM(ConcurrentHashTable, basic_get_insert_bulk_delete_task) {
   nomt_test_doer(cht_getinsert_bulkdelete_task);
+}
+
+TEST_VM(ConcurrentHashTable, basic_reset_shrink) {
+  nomt_test_doer(cht_reset_shrink);
 }
 
 TEST_VM(ConcurrentHashTable, basic_scan) {
@@ -419,32 +542,42 @@ TEST_VM(ConcurrentHashTable, task_grow) {
 
 //#############################################################################################
 
-class TestInterface;
-
-typedef ConcurrentHashTable<uintptr_t, TestInterface, mtInternal> TestTable;
-typedef ConcurrentHashTable<uintptr_t, TestInterface, mtInternal>::MultiGetHandle TestGetHandle;
-
-class TestInterface : public TestTable::BaseConfig {
+class TestInterface : public AllStatic {
 public:
-  static uintx get_hash(const uintptr_t& value, bool* dead_hash) {
+  typedef uintptr_t Value;
+  static uintx get_hash(const Value& value, bool* dead_hash) {
     return (uintx)(value + 18446744073709551557ul) * 18446744073709551557ul;
   }
-  static const uintptr_t& notfound() {
-    static uintptr_t notfound = 0;
-    return notfound;
+  static void* allocate_node(void* context, size_t size, const Value& value) {
+    return AllocateHeap(size, mtInternal);
+  }
+  static void free_node(void* context, void* memory, const Value& value) {
+    FreeHeap(memory);
   }
 };
+
+typedef ConcurrentHashTable<TestInterface, mtInternal> TestTable;
+typedef ConcurrentHashTable<TestInterface, mtInternal>::MultiGetHandle TestGetHandle;
 
 struct TestLookup {
   uintptr_t _val;
   TestLookup(uintptr_t val) : _val(val) {}
   uintx get_hash() {
-    return TestInterface::get_hash(_val, NULL);
+    return TestInterface::get_hash(_val, nullptr);
   }
-  bool equals(const uintptr_t* value, bool* is_dead) {
+  bool equals(const uintptr_t* value) {
     return _val == *value;
   }
+  bool is_dead(const uintptr_t* value) {
+    return false;
+  }
 };
+
+static uintptr_t cht_get_copy(TestTable* cht, Thread* thr, TestLookup tl) {
+  ValueGet vg;
+  cht->get(thr, tl, vg);
+  return vg.get_value();
+}
 
 class CHTTestThread : public JavaTestThread {
   public:
@@ -532,7 +665,7 @@ public:
     }
     for (uintptr_t v = _start; v <= _stop; v++) {
       TestLookup tl(v);
-      EXPECT_TRUE(_cht->get_copy(this, tl) == v) << "Getting an previously inserted value unsafe failed.";
+      EXPECT_TRUE(cht_get_copy(_cht, this, tl) == v) << "Getting an previously inserted value unsafe failed.";
     }
     for (uintptr_t v = _start; v <= _stop; v++) {
       TestLookup tl(v);
@@ -540,7 +673,7 @@ public:
     }
     for (uintptr_t v = _start; v <= _stop; v++) {
       TestLookup tl(v);
-      EXPECT_TRUE(_cht->get_copy(this, tl) == TestInterface::notfound()) << "Got a removed value.";
+      EXPECT_TRUE(cht_get_copy(_cht, this, tl) == 0) << "Got a removed value.";
     }
     return true;
   }
@@ -552,7 +685,7 @@ class RunnerSimpleInserterThread : public CHTTestThread {
 public:
   Semaphore _done;
 
-  RunnerSimpleInserterThread(Semaphore* post) : CHTTestThread(0, 0, NULL, post) {
+  RunnerSimpleInserterThread(Semaphore* post) : CHTTestThread(0, 0, nullptr, post) {
     _cht = new TestTable(SIZE_32, SIZE_32);
   };
   virtual ~RunnerSimpleInserterThread(){}
@@ -579,7 +712,7 @@ public:
   bool test_loop() {
     for (uintptr_t v = 0x500; v < 0x5FF; v++ ) {
       TestLookup tl(v);
-      EXPECT_TRUE(_cht->get_copy(this, tl) == v) << "Getting an previously inserted value unsafe failed.";;
+      EXPECT_TRUE(cht_get_copy(_cht, this, tl) == v) << "Getting an previously inserted value unsafe failed.";;
     }
     return true;
   }
@@ -636,7 +769,7 @@ class RunnerDeleteInserterThread : public CHTTestThread {
 public:
   Semaphore _done;
 
-  RunnerDeleteInserterThread(Semaphore* post) : CHTTestThread(0, 0, NULL, post) {
+  RunnerDeleteInserterThread(Semaphore* post) : CHTTestThread(0, 0, nullptr, post) {
     _cht = new TestTable(SIZE_32, SIZE_32);
   };
   virtual ~RunnerDeleteInserterThread(){}
@@ -658,12 +791,12 @@ public:
       uintptr_t tv;
       if (v & 0x1) {
         TestLookup tl(v);
-        tv = _cht->get_copy(this, tl);
+        tv = cht_get_copy(_cht, this, tl);
       } else {
         TestLookup tl(v);
         TestGetHandle value_handle(this, _cht);
         uintptr_t* tmp = value_handle.get(tl);
-        tv = tmp != NULL ? *tmp : 0;
+        tv = tmp != nullptr ? *tmp : 0;
       }
       EXPECT_TRUE(tv == 0 || tv == v) << "Got unknown value.";
     }
@@ -714,7 +847,7 @@ public:
     }
     for (uintptr_t v = _start; v <= _stop; v++) {
       TestLookup tl(v);
-      EXPECT_TRUE(_cht->get_copy(this, tl) == v) <<  "Getting an previously inserted value unsafe failed.";
+      EXPECT_TRUE(cht_get_copy(_cht, this, tl) == v) <<  "Getting an previously inserted value unsafe failed.";
     }
     for (uintptr_t v = _start; v <= _stop; v++) {
       TestLookup tl(v);
@@ -725,7 +858,7 @@ public:
     }
     for (uintptr_t v = _start; v <= _stop; v++) {
       TestLookup tl(v);
-      EXPECT_FALSE(_cht->get_copy(this, tl) == v)  << "Getting a removed value should have failed.";
+      EXPECT_FALSE(cht_get_copy(_cht, this, tl) == v)  << "Getting a removed value should have failed.";
     }
     if (!_shrink && _cht->get_size_log2(this) == END_SIZE) {
       _shrink = true;
@@ -762,7 +895,7 @@ public:
   uintptr_t _range;
   Semaphore _done;
 
-  RunnerGSInserterThread(Semaphore* post) : CHTTestThread(0, 0, NULL, post) {
+  RunnerGSInserterThread(Semaphore* post) : CHTTestThread(0, 0, nullptr, post) {
     _cht = new TestTable(START_SIZE, END_SIZE, 2);
   };
   virtual ~RunnerGSInserterThread(){}
@@ -796,7 +929,7 @@ public:
   bool test_loop() {
     for (uintptr_t v = _start; v <= (_start + _range); v++ ) {
       TestLookup tl(v);
-      EXPECT_TRUE(_cht->get_copy(this, tl) == v) <<  "Getting an previously inserted value unsafe failed.";
+      EXPECT_TRUE(cht_get_copy(_cht, this, tl) == v) <<  "Getting an previously inserted value unsafe failed.";
     }
     return true;
   }
@@ -856,10 +989,19 @@ public:
     bool grow;
     MyDel del(_br);
     for (uintptr_t v = _start; v <= _stop; v++) {
-      ValVerify vv(v);
-      TestLookup tl(v);
-      _cht->get_insert(this, tl, v, vv, &grow);
-      EXPECT_NE(vv.called_get, vv.called_insert) << "Non or both callbacks was called.";
+      {
+        TestLookup tl(v);
+        ValueGet vg;
+        do {
+          if (_cht->get(this, tl, vg, &grow)) {
+            EXPECT_EQ(v, vg.get_value()) << "Getting an old value failed.";
+            break;
+          }
+          if (_cht->insert(this, tl, v, &grow)) {
+            break;
+          }
+        } while(true);
+      }
       if (grow && !_shrink) {
         _cht->grow(this);
       }
@@ -895,7 +1037,7 @@ public:
   Semaphore _done;
   uintptr_t _start;
   uintptr_t _range;
-  RunnerGI_BD_InserterThread(Semaphore* post) : CHTTestThread(0, 0, NULL, post) {
+  RunnerGI_BD_InserterThread(Semaphore* post) : CHTTestThread(0, 0, nullptr, post) {
     _cht = new TestTable(GI_BD_GI_BD_START_SIZE, GI_BD_END_SIZE, 2);
   };
   virtual ~RunnerGI_BD_InserterThread(){}
@@ -923,9 +1065,9 @@ public:
     for (uintptr_t v = _start; v <= (_start + _range); v++ ) {
       TestLookup tl(v);
       if (v & 0xF) {
-        _cht->get_copy(this, tl);
+        cht_get_copy(_cht, this, tl);
       } else {
-        EXPECT_EQ(_cht->get_copy(this, tl), v) << "Item ending with 0xX0 should never be removed.";
+        EXPECT_EQ(cht_get_copy(_cht, this, tl), v) << "Item ending with 0xX0 should never be removed.";
       }
     }
     return true;
@@ -958,13 +1100,21 @@ TEST_VM(ConcurrentHashTable, concurrent_get_insert_bulk_delete) {
 
 class MT_BD_Thread : public JavaTestThread {
   TestTable::BulkDeleteTask* _bd;
+  Semaphore run;
+
   public:
-  MT_BD_Thread(Semaphore* post, TestTable::BulkDeleteTask* bd)
-    : JavaTestThread(post), _bd(bd){}
+  MT_BD_Thread(Semaphore* post)
+    : JavaTestThread(post) {}
   virtual ~MT_BD_Thread() {}
   void main_run() {
+    run.wait();
     MyDel del;
     while(_bd->do_task(this, *this, del));
+  }
+
+  void set_bd_task(TestTable::BulkDeleteTask* bd) {
+    _bd = bd;
+    run.signal();
   }
 
   bool operator()(uintptr_t* val) {
@@ -991,18 +1141,24 @@ public:
       TestLookup tl(v);
       EXPECT_TRUE(cht->insert(this, tl, v)) << "Inserting an unique value should work.";
     }
+
+    // Must create and start threads before acquiring mutex inside BulkDeleteTask.
+    MT_BD_Thread* tt[4];
+    for (int i = 0; i < 4; i++) {
+      tt[i] = new MT_BD_Thread(&done);
+      tt[i]->doit();
+    }
+
     TestTable::BulkDeleteTask bdt(cht, true /* mt */ );
     EXPECT_TRUE(bdt.prepare(this)) << "Uncontended prepare must work.";
 
-    MT_BD_Thread* tt[4];
     for (int i = 0; i < 4; i++) {
-      tt[i] = new MT_BD_Thread(&done, &bdt);
-      tt[i]->doit();
+      tt[i]->set_bd_task(&bdt);
     }
 
     for (uintptr_t v = 1; v < 99999; v++ ) {
       TestLookup tl(v);
-      cht->get_copy(this, tl);
+      cht_get_copy(cht, this, tl);
     }
 
     for (int i = 0; i < 4; i++) {
@@ -1022,4 +1178,80 @@ public:
 
 TEST_VM(ConcurrentHashTable, concurrent_mt_bulk_delete) {
   mt_test_doer<Driver_BD_Thread>();
+}
+
+class CHTParallelScanTask: public WorkerTask {
+  TestTable* _cht;
+  TestTable::ScanTask* _scan_task;
+  size_t *_total_scanned;
+
+public:
+  CHTParallelScanTask(TestTable* cht,
+                      TestTable::ScanTask* bc,
+                      size_t *total_scanned) :
+    WorkerTask("CHT Parallel Scan"),
+    _cht(cht),
+    _scan_task(bc),
+    _total_scanned(total_scanned)
+  { }
+
+  void work(uint worker_id) {
+    ChtCountScan par_scan;
+    _scan_task->do_safepoint_scan(par_scan);
+    Atomic::add(_total_scanned, par_scan._count);
+  }
+};
+
+class CHTWorkers : AllStatic {
+  static WorkerThreads* _workers;
+  static WorkerThreads* workers() {
+    if (_workers == nullptr) {
+      _workers = new WorkerThreads("CHT Workers", MaxWorkers);
+      _workers->initialize_workers();
+      _workers->set_active_workers(MaxWorkers);
+    }
+    return _workers;
+  }
+
+public:
+  static const uint MaxWorkers = 8;
+  static void run_task(WorkerTask* task) {
+    workers()->run_task(task);
+  }
+};
+
+WorkerThreads* CHTWorkers::_workers = nullptr;
+
+class CHTParallelScan: public VM_GTestExecuteAtSafepoint {
+  TestTable* _cht;
+  uintptr_t _num_items;
+public:
+  CHTParallelScan(TestTable* cht, uintptr_t num_items) :
+    _cht(cht), _num_items(num_items)
+  {}
+
+  void doit() {
+    size_t total_scanned = 0;
+    TestTable::ScanTask scan_task(_cht, 64);
+
+    CHTParallelScanTask task(_cht, &scan_task, &total_scanned);
+    CHTWorkers::run_task(&task);
+
+     EXPECT_TRUE(total_scanned == (size_t)_num_items) << " Should scan all inserted items: " << total_scanned;
+  }
+};
+
+TEST_VM(ConcurrentHashTable, concurrent_par_scan) {
+  TestTable* cht = new TestTable(16, 16, 2);
+
+  uintptr_t num_items = 999999;
+  for (uintptr_t v = 1; v <= num_items; v++ ) {
+    TestLookup tl(v);
+    EXPECT_TRUE(cht->insert(JavaThread::current(), tl, v)) << "Inserting an unique value should work.";
+  }
+
+  // Run the test at a safepoint.
+  CHTParallelScan op(cht, num_items);
+  ThreadInVMfromNative invm(JavaThread::current());
+  VMThread::execute(&op);
 }

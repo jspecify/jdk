@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,13 @@
  * questions.
  */
 
+#include <cmath>
+#include <cfloat>
 #include "awt_Component.h"
 #include "awt_PrintControl.h"
 #include "awt.h"
 #include "awt_PrintDialog.h"
 #include <winspool.h>
-#include <float.h>
-#include <math.h>
 
 #define ROUNDTOINT(x) ((int)((x)+0.5))
 static const int DEFAULT_RES = 72;
@@ -130,7 +130,7 @@ BOOL AwtPrintControl::FindPrinter(jstring printerName, LPBYTE pPrinterEnum,
     DWORD cbBuf = *pcbBuf, dummyWord = 0;
 
     JavaStringBuffer printerNameBuf(env, printerName);
-    LPTSTR lpcPrinterName = (LPTSTR)printerNameBuf;
+    LPCTSTR lpcPrinterName = (LPCTSTR)printerNameBuf;
     DASSERT(lpcPrinterName != NULL);
 
     // For NT, first do a quick check of all remote and local printers.
@@ -696,6 +696,7 @@ BOOL AwtPrintControl::InitPrintDialog(JNIEnv *env,
             }
             ::GlobalUnlock(pd.hDevNames);
         }
+        JNU_ReleaseStringPlatformChars(env, printerName, getName);
 
         if (!samePrinter) {
             LPTSTR foundPrinter = NULL;
@@ -1044,7 +1045,7 @@ BOOL AwtPrintControl::UpdateAttributes(JNIEnv *env,
         DEVNAMES *devnames = (DEVNAMES*)::GlobalLock(pd.hDevNames);
         DASSERT(!IsBadReadPtr(devnames, sizeof(DEVNAMES)));
         LPTSTR lpcNames = (LPTSTR)devnames;
-        LPTSTR pbuf = (_tcslen(lpcNames + devnames->wDeviceOffset) == 0 ?
+        LPCTSTR pbuf = (_tcslen(lpcNames + devnames->wDeviceOffset) == 0 ?
                       TEXT("") : lpcNames + devnames->wDeviceOffset);
         if (pbuf != NULL) {
             jstring jstr = JNU_NewStringPlatform(env, pbuf);

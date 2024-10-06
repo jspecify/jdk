@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -162,7 +162,7 @@ public abstract @UsesObjectEquals class PKIXCertPathChecker
      * @param cert the {@code Certificate} to be checked
      * @param unresolvedCritExts a {@code Collection} of OID strings
      * representing the current set of unresolved critical extensions
-     * @exception CertPathValidatorException if the specified certificate does
+     * @throws    CertPathValidatorException if the specified certificate does
      * not pass the check
      */
     public abstract void check(Certificate cert,
@@ -177,7 +177,7 @@ public abstract @UsesObjectEquals class PKIXCertPathChecker
      */
     @Override
     public void check(Certificate cert) throws CertPathValidatorException {
-        check(cert, java.util.Collections.<String>emptySet());
+        check(cert, java.util.Collections.emptySet());
     }
 
     /**

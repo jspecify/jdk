@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,15 @@
 
 package java.security.cert;
 
+import sun.security.util.SignatureUtil;
+import sun.security.x509.X509CertImpl;
+
+import javax.security.auth.x500.X500Principal;
 import java.math.BigInteger;
 import java.security.*;
-import java.security.spec.*;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
-import javax.security.auth.x500.X500Principal;
-
-import sun.security.x509.X509CertImpl;
-import sun.security.util.SignatureUtil;
 
 /**
  * <p>
@@ -65,7 +64,7 @@ import sun.security.util.SignatureUtil;
  * CA such as a "root" CA.
  * <p>
  * More information can be found in
- * <a href="http://tools.ietf.org/html/rfc5280">RFC 5280: Internet X.509
+ * <a href="https://tools.ietf.org/html/rfc5280">RFC 5280: Internet X.509
  * Public Key Infrastructure Certificate and CRL Profile</a>.
  * <p>
  * The ASN.1 definition of {@code tbsCertificate} is:
@@ -108,6 +107,7 @@ import sun.security.util.SignatureUtil;
 public abstract class X509Certificate extends Certificate
 implements X509Extension {
 
+    @java.io.Serial
     private static final long serialVersionUID = -2491127588187038216L;
 
     private transient X500Principal subjectX500Principal, issuerX500Principal;
@@ -140,8 +140,8 @@ implements X509Extension {
      *     generalTime    GeneralizedTime }
      * </pre>
      *
-     * @exception CertificateExpiredException if the certificate has expired.
-     * @exception CertificateNotYetValidException if the certificate is not
+     * @throws    CertificateExpiredException if the certificate has expired.
+     * @throws    CertificateNotYetValidException if the certificate is not
      * yet valid.
      */
     public abstract void checkValidity()
@@ -155,9 +155,9 @@ implements X509Extension {
      * @param date the Date to check against to see if this certificate
      *        is valid at that date/time.
      *
-     * @exception CertificateExpiredException if the certificate has expired
+     * @throws    CertificateExpiredException if the certificate has expired
      * with respect to the {@code date} supplied.
-     * @exception CertificateNotYetValidException if the certificate is not
+     * @throws    CertificateNotYetValidException if the certificate is not
      * yet valid with respect to the {@code date} supplied.
      *
      * @see #checkValidity()
@@ -196,12 +196,6 @@ implements X509Extension {
     public abstract BigInteger getSerialNumber();
 
     /**
-     * <strong>Denigrated</strong>, replaced by {@linkplain
-     * #getIssuerX500Principal()}. This method returns the {@code issuer}
-     * as an implementation specific Principal object, which should not be
-     * relied upon by portable code.
-     *
-     * <p>
      * Gets the {@code issuer} (issuer distinguished name) value from
      * the certificate. The issuer name identifies the entity that signed (and
      * issued) the certificate.
@@ -233,7 +227,13 @@ implements X509Extension {
      * {@code TeletexString} or {@code UniversalString}.
      *
      * @return a Principal whose name is the issuer distinguished name.
+     *
+     * @deprecated Use {@link #getIssuerX500Principal} instead. This method
+     * returns the {@code issuer} as an implementation specific
+     * {@code Principal} object, which should not be relied upon by portable
+     * code.
      */
+    @Deprecated(since="16")
     public abstract Principal getIssuerDN();
 
     /**
@@ -254,12 +254,6 @@ implements X509Extension {
     }
 
     /**
-     * <strong>Denigrated</strong>, replaced by {@linkplain
-     * #getSubjectX500Principal()}. This method returns the {@code subject}
-     * as an implementation specific Principal object, which should not be
-     * relied upon by portable code.
-     *
-     * <p>
      * Gets the {@code subject} (subject distinguished name) value
      * from the certificate.  If the {@code subject} value is empty,
      * then the {@code getName()} method of the returned
@@ -274,7 +268,13 @@ implements X509Extension {
      * and other relevant definitions.
      *
      * @return a Principal whose name is the subject name.
+     *
+     * @deprecated Use {@link #getSubjectX500Principal} instead. This method
+     * returns the {@code subject} as an implementation specific
+     * {@code Principal} object, which should not be relied upon by portable
+     * code.
      */
+    @Deprecated(since="16")
     public abstract Principal getSubjectDN();
 
     /**
@@ -333,7 +333,7 @@ implements X509Extension {
      * This can be used to verify the signature independently.
      *
      * @return the DER-encoded certificate information.
-     * @exception CertificateEncodingException if an encoding error occurs.
+     * @throws    CertificateEncodingException if an encoding error occurs.
      */
     public abstract byte[] getTBSCertificate()
         throws CertificateEncodingException;
@@ -561,6 +561,10 @@ implements X509Extension {
      *      uniformResourceIdentifier       [6]     IA5String,
      *      iPAddress                       [7]     OCTET STRING,
      *      registeredID                    [8]     OBJECT IDENTIFIER}
+     *
+     * OtherName ::= SEQUENCE {
+     *      type-id    OBJECT IDENTIFIER,
+     *      value      [0] EXPLICIT ANY DEFINED BY type-id }
      * </pre>
      * <p>
      * If this certificate does not contain a {@code SubjectAltName}
@@ -570,7 +574,7 @@ implements X509Extension {
      * {@code List} whose first entry is an {@code Integer}
      * (the name type, 0-8) and whose second entry is a {@code String}
      * or a byte array (the name, in string or ASN.1 DER encoded form,
-     * respectively).
+     * respectively). More entries may exist depending on the name type.
      * <p>
      * <a href="http://www.ietf.org/rfc/rfc822.txt">RFC 822</a>, DNS, and URI
      * names are returned as {@code String}s,
@@ -580,12 +584,18 @@ implements X509Extension {
      * in the form "a1:a2:...:a8", where a1-a8 are hexadecimal values
      * representing the eight 16-bit pieces of the address. OID names are
      * returned as {@code String}s represented as a series of nonnegative
-     * integers separated by periods. And directory names (distinguished names)
+     * integers separated by periods. Directory names (distinguished names)
      * are returned in <a href="http://www.ietf.org/rfc/rfc2253.txt">
-     * RFC 2253</a> string format. No standard string format is
-     * defined for otherNames, X.400 names, EDI party names, or any
-     * other type of names. They are returned as byte arrays
-     * containing the ASN.1 DER encoded form of the name.
+     * RFC 2253</a> string format. No standard string format is defined for
+     * X.400 names or EDI party names. They are returned as byte arrays
+     * containing the ASN.1 DER encoded form of the name. otherNames are also
+     * returned as byte arrays containing the ASN.1 DER encoded form of the
+     * name. A third entry may also be present in the list containing the
+     * {@code type-id} of the otherName in string form, and a fourth entry
+     * containing its {@code value} as either a string (if the value is
+     * a valid supported character string) or a byte array containing the
+     * ASN.1 DER encoded form of the value without the context-specific
+     * constructed tag with number 0.
      * <p>
      * Note that the {@code Collection} returned may contain more
      * than one name of the same type. Also, note that the returned
@@ -597,6 +607,9 @@ implements X509Extension {
      * service providers, this method is not {@code abstract}
      * and it provides a default implementation. Subclasses
      * should override this method with a correct implementation.
+     *
+     * @implNote The JDK SUN provider supports the third and fourth
+     * otherName entries.
      *
      * @return an immutable {@code Collection} of subject alternative
      * names (or {@code null})
@@ -626,7 +639,8 @@ implements X509Extension {
      * {@code List} whose first entry is an {@code Integer}
      * (the name type, 0-8) and whose second entry is a {@code String}
      * or a byte array (the name, in string or ASN.1 DER encoded form,
-     * respectively). For more details about the formats used for each
+     * respectively).  More entries may exist depending on the name type.
+     * For more details about the formats used for each
      * name type, see the {@code getSubjectAlternativeNames} method.
      * <p>
      * Note that the {@code Collection} returned may contain more
@@ -665,27 +679,25 @@ implements X509Extension {
      * @param key the PublicKey used to carry out the verification.
      * @param sigProvider the signature provider.
      *
-     * @exception NoSuchAlgorithmException on unsupported signature
+     * @throws    NoSuchAlgorithmException on unsupported signature
      * algorithms.
-     * @exception InvalidKeyException on incorrect key.
-     * @exception SignatureException on signature errors.
-     * @exception CertificateException on encoding errors.
-     * @exception UnsupportedOperationException if the method is not supported
+     * @throws    InvalidKeyException on incorrect key.
+     * @throws    SignatureException on signature errors.
+     * @throws    CertificateException on encoding errors.
+     * @throws    UnsupportedOperationException if the method is not supported
      * @since 1.8
      */
     public void verify(PublicKey key, Provider sigProvider)
         throws CertificateException, NoSuchAlgorithmException,
         InvalidKeyException, SignatureException {
+        String sigName = getSigAlgName();
         Signature sig = (sigProvider == null)
-            ? Signature.getInstance(getSigAlgName())
-            : Signature.getInstance(getSigAlgName(), sigProvider);
+            ? Signature.getInstance(sigName)
+            : Signature.getInstance(sigName, sigProvider);
 
-        sig.initVerify(key);
-
-        // set parameters after Signature.initSign/initVerify call,
-        // so the deferred provider selections occur when key is set
         try {
-            SignatureUtil.specialSetParameter(sig, getSigAlgParams());
+            SignatureUtil.initVerifyWithParam(sig, key,
+                SignatureUtil.getParamSpec(sigName, getSigAlgParams()));
         } catch (ProviderException e) {
             throw new CertificateException(e.getMessage(), e.getCause());
         } catch (InvalidAlgorithmParameterException e) {
@@ -695,7 +707,7 @@ implements X509Extension {
         byte[] tbsCert = getTBSCertificate();
         sig.update(tbsCert, 0, tbsCert.length);
 
-        if (sig.verify(getSignature()) == false) {
+        if (!sig.verify(getSignature())) {
             throw new SignatureException("Signature does not match.");
         }
     }

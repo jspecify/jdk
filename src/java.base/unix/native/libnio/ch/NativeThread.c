@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,20 +32,15 @@
 #include "sun_nio_ch_NativeThread.h"
 #include "nio_util.h"
 #include <signal.h>
+#include <pthread.h>
 
 #ifdef __linux__
-  #include <pthread.h>
   /* Also defined in net/linux_close.c */
-  #define INTERRUPT_SIGNAL (__SIGRTMAX - 2)
-#elif _AIX
-  #include <pthread.h>
+  #define INTERRUPT_SIGNAL (SIGRTMAX - 2)
+#elif defined(_AIX)
   /* Also defined in net/aix_close.c */
   #define INTERRUPT_SIGNAL (SIGRTMAX - 1)
-#elif __solaris__
-  #include <thread.h>
-  #define INTERRUPT_SIGNAL (SIGRTMAX - 2)
-#elif _ALLBSD_SOURCE
-  #include <pthread.h>
+#elif defined(_ALLBSD_SOURCE)
   /* Also defined in net/bsd_close.c */
   #define INTERRUPT_SIGNAL SIGIO
 #else
@@ -67,7 +62,6 @@ Java_sun_nio_ch_NativeThread_init(JNIEnv *env, jclass cl)
      * should somehow be unified, perhaps within the VM.
      */
 
-    sigset_t ss;
     struct sigaction sa, osa;
     sa.sa_handler = nullHandler;
     sa.sa_flags = 0;
@@ -77,24 +71,16 @@ Java_sun_nio_ch_NativeThread_init(JNIEnv *env, jclass cl)
 }
 
 JNIEXPORT jlong JNICALL
-Java_sun_nio_ch_NativeThread_current(JNIEnv *env, jclass cl)
+Java_sun_nio_ch_NativeThread_current0(JNIEnv *env, jclass cl)
 {
-#ifdef __solaris__
-    return (jlong)thr_self();
-#else
     return (jlong)pthread_self();
-#endif
 }
 
 JNIEXPORT void JNICALL
-Java_sun_nio_ch_NativeThread_signal(JNIEnv *env, jclass cl, jlong thread)
+Java_sun_nio_ch_NativeThread_signal0(JNIEnv *env, jclass cl, jlong thread)
 {
     int ret;
-#ifdef __solaris__
-    ret = thr_kill((thread_t)thread, INTERRUPT_SIGNAL);
-#else
     ret = pthread_kill((pthread_t)thread, INTERRUPT_SIGNAL);
-#endif
 #ifdef MACOSX
     if (ret != 0 && ret != ESRCH)
 #else

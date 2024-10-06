@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,9 +33,12 @@
  *          java.base/jdk.internal.org.objectweb.asm.tree
  *          jdk.internal.vm.ci/jdk.vm.ci.hotspot
  *          jdk.internal.vm.ci/jdk.vm.ci.code
+ *          jdk.internal.vm.ci/jdk.vm.ci.meta
+ *          jdk.internal.vm.ci/jdk.vm.ci.runtime
+ *
  * @build jdk.internal.vm.ci/jdk.vm.ci.hotspot.CompilerToVMHelper
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI
- *                   -Djvmci.Compiler=null
+ *                   -XX:-UseJVMCICompiler
  *                   compiler.jvmci.compilerToVM.MethodIsIgnoredBySecurityStackWalkTest
  */
 
@@ -78,7 +81,7 @@ public class MethodIsIgnoredBySecurityStackWalkTest {
             testCases.put(aClass.getMethod("invoke", Object.class,
                     Object[].class), true);
 
-            aClass = Class.forName("jdk.internal.reflect.NativeMethodAccessorImpl");
+            aClass = Class.forName("jdk.internal.reflect.DirectMethodHandleAccessor$NativeAccessor");
             testCases.put(aClass.getMethod("invoke", Object.class,
                     Object[].class), true);
             testCases.put(aClass.getDeclaredMethod("invoke0", Method.class,

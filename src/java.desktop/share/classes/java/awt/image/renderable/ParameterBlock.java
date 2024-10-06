@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,9 @@
  */
 
 package java.awt.image.renderable;
+
 import java.awt.image.RenderedImage;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Vector;
 
@@ -46,7 +48,7 @@ import java.util.Vector;
  * downward cast and have return values of base type; an exception
  * will be thrown if the stored values do not have the correct type.
  * There is no way to distinguish between the results of
- * "short s; add(s)" and "add(new Short(s))".
+ * "short s; add(s)" and "add(Short.valueOf(s))".
  *
  * <p> Note that the get and set methods operate on references.
  * Therefore, one must be careful not to share references between
@@ -93,6 +95,11 @@ import java.util.Vector;
  * </pre>
  * */
 public class ParameterBlock implements Cloneable, Serializable {
+
+    /**
+     * Use serialVersionUID from JDK 9 for interoperability.
+     */
+    @Serial
     private static final long serialVersionUID = -7577115551785240750L;
 
     /** A Vector of sources, stored as arbitrary Objects. */

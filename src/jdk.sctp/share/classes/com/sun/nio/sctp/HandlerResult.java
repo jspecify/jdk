@@ -29,14 +29,14 @@ package com.sun.nio.sctp;
  *
  * <P> The {@code HandlerResult} is used to determine the behavior of the
  * channel after it handles a notification from the SCTP stack. Essentially its
- * value determines if the channel should try to receive another notificaiton or
+ * value determines if the channel should try to receive another notification or
  * a message before returning.
  *
  * @since 1.7
  */
 public enum HandlerResult {
     /**
-     * Try to receieve another message or notification.
+     * Try to receive another message or notification.
      */
     CONTINUE,
 

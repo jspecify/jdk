@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,8 @@ import javax.swing.JLabel;
 import javax.swing.UIManager;
 import javax.swing.plaf.basic.BasicHTML;
 
+import jdk.internal.ref.CleanerFactory;
+
 /**
  * A class which implements an arbitrary border
  * with the addition of a String title in a
@@ -63,7 +65,7 @@ import javax.swing.plaf.basic.BasicHTML;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -372,6 +374,8 @@ public class TitledBorder extends AbstractBorder
      * Reinitialize the insets parameter with this Border's current Insets.
      * @param c the component for which this border insets value applies
      * @param insets the object to be reinitialized
+     * @throws NullPointerException if the specified {@code insets}
+     *         is {@code null}
      */
     public Insets getBorderInsets(Component c, Insets insets) {
         Border border = getBorder();
@@ -585,7 +589,7 @@ public class TitledBorder extends AbstractBorder
     /**
      * Returns the baseline.
      *
-     * @throws NullPointerException {@inheritDoc}
+     * @throws NullPointerException if {@code Component} is {@code null}
      * @throws IllegalArgumentException {@inheritDoc}
      * @see javax.swing.JComponent#getBaseline(int, int)
      * @since 1.6
@@ -759,22 +763,19 @@ public class TitledBorder extends AbstractBorder
 
     private void installPropertyChangeListeners() {
         final WeakReference<TitledBorder> weakReference = new WeakReference<TitledBorder>(this);
-        final PropertyChangeListener listener = new PropertyChangeListener() {
-            @Override
-            public void propertyChange(PropertyChangeEvent evt) {
-                if (weakReference.get() == null) {
-                    UIManager.removePropertyChangeListener(this);
-                    UIManager.getDefaults().removePropertyChangeListener(this);
-                } else {
-                    String prop = evt.getPropertyName();
-                    if ("lookAndFeel".equals(prop) || "LabelUI".equals(prop)) {
-                        label.updateUI();
-                    }
-                }
+        final PropertyChangeListener listener = evt -> {
+            TitledBorder tb = weakReference.get();
+            String prop = evt.getPropertyName();
+            if (tb != null && ("lookAndFeel".equals(prop) || "LabelUI".equals(prop))) {
+                tb.label.updateUI();
             }
         };
 
         UIManager.addPropertyChangeListener(listener);
         UIManager.getDefaults().addPropertyChangeListener(listener);
+        CleanerFactory.cleaner().register(this, () -> {
+            UIManager.removePropertyChangeListener(listener);
+            UIManager.getDefaults().removePropertyChangeListener(listener);
+        });
     }
 }

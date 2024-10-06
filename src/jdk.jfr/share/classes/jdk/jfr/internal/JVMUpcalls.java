@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,9 @@ package jdk.jfr.internal;
 
 import java.lang.reflect.Modifier;
 
-import jdk.jfr.Event;
-import jdk.jfr.internal.handlers.EventHandler;
-import jdk.jfr.internal.instrument.JDKEvents;
-
+import jdk.jfr.internal.event.EventConfiguration;
+import jdk.jfr.internal.util.Bytecode;
+import jdk.jfr.internal.util.Utils;
 /**
  * All upcalls from the JVM should go through this class.
  *
@@ -41,9 +40,16 @@ final class JVMUpcalls {
      *
      * @param traceId
      *            Id of the class
-     * @param dummy
-     *            (not used but needed since invoke infrastructure in native
-     *            uses same signature bytesForEagerInstrumentation)
+     * @param dummy1
+     *            not used, but act as padding so bytesForEagerInstrumentation and
+     *            onRetransform can have identical method signatures, which simplifies the
+     *            invoke machinery in native
+     *
+     * @param dummy2
+     *            not used, but act as padding so bytesForEagerInstrumentation and
+     *            onRetransform can have identical method signatures, which simplifies the
+     *            invoke machinery in native
+     *
      * @param clazz
      *            class being retransformed
      * @param oldBytes
@@ -51,27 +57,32 @@ final class JVMUpcalls {
      * @return byte code to use
      * @throws Throwable
      */
-    static byte[] onRetransform(long traceId, boolean dummy, Class<?> clazz, byte[] oldBytes) throws Throwable {
+    static byte[] onRetransform(long traceId, boolean dummy1, boolean dummy2, Class<?> clazz, byte[] oldBytes) throws Throwable {
         try {
-            if (Event.class.isAssignableFrom(clazz) && !Modifier.isAbstract(clazz.getModifiers())) {
-                EventHandler handler = Utils.getHandler(clazz.asSubclass(Event.class));
-                if (handler == null) {
-                    Logger.log(LogTag.JFR_SYSTEM, LogLevel.INFO, "No event handler found for " + clazz.getName() + ". Ignoring instrumentation request.");
+            if (jdk.internal.event.Event.class.isAssignableFrom(clazz) && !Modifier.isAbstract(clazz.getModifiers())) {
+                if (!JVMSupport.shouldInstrument(Utils.isJDKClass(clazz), clazz.getName())) {
+                    Logger.log(LogTag.JFR_SYSTEM, LogLevel.INFO, "Skipping instrumentation for " + clazz.getName() + " since container support is missing");
+                    return oldBytes;
+                }
+                EventWriterKey.ensureEventWriterFactory();
+                EventConfiguration configuration = JVMSupport.getConfiguration(clazz.asSubclass(jdk.internal.event.Event.class));
+                if (configuration == null) {
+                    Logger.log(LogTag.JFR_SYSTEM, LogLevel.INFO, "No event configuration found for " + clazz.getName() + ". Ignoring instrumentation request.");
                     // Probably triggered by some other agent
                     return oldBytes;
                 }
+                boolean jdkClass = Utils.isJDKClass(clazz);
                 Logger.log(LogTag.JFR_SYSTEM, LogLevel.INFO, "Adding instrumentation to event class " + clazz.getName() + " using retransform");
-                EventInstrumentation ei = new EventInstrumentation(clazz.getSuperclass(), oldBytes, traceId);
+                EventInstrumentation ei = new EventInstrumentation(clazz.getSuperclass(), oldBytes, traceId, jdkClass, false);
                 byte[] bytes = ei.buildInstrumented();
-                ASMToolkit.logASM(clazz.getName(), bytes);
+                Bytecode.log(clazz.getName(), bytes);
                 return bytes;
             }
-            return JDKEvents.retransformCallback(clazz, oldBytes);
+            return oldBytes;
         } catch (Throwable t) {
             Logger.log(LogTag.JFR_SYSTEM, LogLevel.WARN, "Unexpected error when adding instrumentation to event class " + clazz.getName());
         }
         return oldBytes;
-
     }
 
     /**
@@ -82,21 +93,26 @@ final class JVMUpcalls {
      *            Id of the class
      * @param forceInstrumentation
      *            add instrumentation regardless if event is enabled or not.
-     * @param superClazz
+     * @param superClass
      *            the super class of the class being processed
      * @param oldBytes
      *            byte code
      * @return byte code to use
      * @throws Throwable
      */
-    static byte[] bytesForEagerInstrumentation(long traceId, boolean forceInstrumentation, Class<?> superClass, byte[] oldBytes) throws Throwable {
+    static byte[] bytesForEagerInstrumentation(long traceId, boolean forceInstrumentation, boolean bootClassLoader, Class<?> superClass, byte[] oldBytes) throws Throwable {
         if (JVMSupport.isNotAvailable()) {
             return oldBytes;
         }
         String eventName = "<Unknown>";
         try {
-            EventInstrumentation ei = new EventInstrumentation(superClass, oldBytes, traceId);
+            EventInstrumentation ei = new EventInstrumentation(superClass, oldBytes, traceId, bootClassLoader, true);
             eventName = ei.getEventName();
+            if (!JVMSupport.shouldInstrument(bootClassLoader,  ei.getEventName())) {
+                Logger.log(LogTag.JFR_SYSTEM, LogLevel.INFO, "Skipping instrumentation for " + eventName + " since container support is missing");
+                return oldBytes;
+            }
+
             if (!forceInstrumentation) {
                 // Assume we are recording
                 MetadataRepository mr = MetadataRepository.getInstance();
@@ -108,17 +124,10 @@ final class JVMUpcalls {
                     return oldBytes;
                 }
             }
-            // Corner case when we are forced to generate bytecode. We can't reference the event
-            // handler in #isEnabled() before event class has been registered, so we add a
-            // guard against a null reference.
-            ei.setGuardHandler(true);
+            EventWriterKey.ensureEventWriterFactory();
             Logger.log(LogTag.JFR_SYSTEM, LogLevel.INFO, "Adding " + (forceInstrumentation ? "forced " : "") + "instrumentation for event type " + eventName + " during initial class load");
-            EventHandlerCreator eh = new EventHandlerCreator(traceId, ei.getSettingInfos(), ei.getFieldInfos());
-            // Handler class must be loaded before instrumented event class can
-            // be used
-            eh.makeEventHandlerClass();
             byte[] bytes = ei.buildInstrumented();
-            ASMToolkit.logASM(ei.getClassName() + "(" + traceId + ")", bytes);
+            Bytecode.log(ei.getClassName() + "(" + traceId + ")", bytes);
             return bytes;
         } catch (Throwable t) {
             Logger.log(LogTag.JFR_SYSTEM, LogLevel.WARN, "Unexpected error when adding instrumentation for event type " + eventName);
@@ -127,13 +136,21 @@ final class JVMUpcalls {
     }
 
     /**
+     * Called by the JVM to ensure metadata for internal events/types become public.
+     *
+     * Must be called after metadata repository has been initialized (JFR created).
+     *
+     */
+    static void unhideInternalTypes() {
+        MetadataRepository.unhideInternalTypes();
+    }
+
+    /**
      * Called by the JVM to create the recorder thread.
      *
-     * @param systemThreadGroup
-     *            the system thread group
+     * @param systemThreadGroup  the system thread group
      *
-     * @param contextClassLoader
-     *            the context class loader.
+     * @param contextClassLoader the context class loader.
      *
      * @return a new thread
      */

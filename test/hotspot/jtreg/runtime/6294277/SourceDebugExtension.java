@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,9 @@
 /*
  * @test
  * @bug 6294277
- * @summary java -Xdebug crashes on SourceDebugExtension attribute larger than 64K
- * @run main/othervm -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n SourceDebugExtension
+ * @requires vm.jvmti
+ * @summary verify that the JVM doesn't crash when SourceDebugExtension attribute is larger than 64K
+ * @run main/othervm -Xrunjdwp:transport=dt_socket,server=y,suspend=n SourceDebugExtension
  */
 import java.io.*;
 

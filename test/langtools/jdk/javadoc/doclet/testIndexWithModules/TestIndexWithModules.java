@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,14 +23,14 @@
 
 /*
  * @test
- * @bug 8190875
+ * @bug 8190875 8215599
  * @summary modules not listed in overview/index page
- * @library /tools/lib ../lib
+ * @library /tools/lib ../../lib
  * @modules
  *      jdk.javadoc/jdk.javadoc.internal.tool
  *      jdk.compiler/com.sun.tools.javac.api
  *      jdk.compiler/com.sun.tools.javac.main
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestIndexWithModules
  */
 
@@ -42,14 +42,16 @@ import toolbox.ModuleBuilder;
 import toolbox.ToolBox;
 
 
+import javadoc.tester.JavadocTester;
+
 public class TestIndexWithModules extends JavadocTester {
 
     final ToolBox tb;
     private final Path src;
 
     public static void main(String... args) throws Exception {
-        TestIndexWithModules tester = new TestIndexWithModules();
-        tester.runTests(m -> new Object[]{Paths.get(m.getName())});
+        var tester = new TestIndexWithModules();
+        tester.runTests();
     }
 
     TestIndexWithModules() throws Exception{
@@ -59,7 +61,7 @@ public class TestIndexWithModules extends JavadocTester {
     }
 
     @Test
-    void testIndexWithOverviewPath(Path base) throws Exception {
+    public void testIndexWithOverviewPath(Path base) throws Exception {
         Path out = base.resolve("out");
 
         tb.writeFile("overview.html",
@@ -74,33 +76,36 @@ public class TestIndexWithModules extends JavadocTester {
         checkOrder("index.html",
                 "The overview summary page header",
                 "Modules",
-                "<a href=\"m1/module-summary.html\">m1</a>");
+                """
+                    <a href="m1/module-summary.html">m1</a>""");
 
     }
 
     //multiple modules with frames
     @Test
-    void testIndexWithMultipleModules1(Path base) throws Exception {
+    public void testIndexWithMultipleModules1(Path base) throws Exception {
         Path out = base.resolve("out");
         javadoc("-d", out.toString(),
                 "--module-source-path", src.toString(),
-                "--module", "m1,m3,m4",
-                "--frames");
+                "--module", "m1,m3,m4");
 
         checkExit(Exit.OK);
 
-        checkOutput("index.html", true,
-                "window.location.replace('overview-summary.html')");
-        checkOrder("overview-summary.html",
+        checkOutput("overview-summary.html", true,
+                "window.location.replace('index.html')");
+        checkOrder("index.html",
                 "Modules",
-                "<a href=\"m1/module-summary.html\">m1</a>",
-                "<a href=\"m3/module-summary.html\">m3</a>",
-                "<a href=\"m4/module-summary.html\">m4</a>");
+                """
+                    <a href="m1/module-summary.html">m1</a>""",
+                """
+                    <a href="m3/module-summary.html">m3</a>""",
+                """
+                    <a href="m4/module-summary.html">m4</a>""");
     }
 
     //multiple modules with out frames
     @Test
-    void testIndexWithMultipleModules2(Path base) throws Exception {
+    public void testIndexWithMultipleModules2(Path base) throws Exception {
         Path out = base.resolve("out");
         javadoc("-d", out.toString(),
                 "--module-source-path", src.toString(),
@@ -110,13 +115,16 @@ public class TestIndexWithModules extends JavadocTester {
         checkExit(Exit.OK);
         checkOrder("index.html",
                 "Modules",
-                "<a href=\"m1/module-summary.html\">m1</a>",
-                "<a href=\"m3/module-summary.html\">m3</a>",
-                "<a href=\"m4/module-summary.html\">m4</a>");
+                """
+                    <a href="m1/module-summary.html">m1</a>""",
+                """
+                    <a href="m3/module-summary.html">m3</a>""",
+                """
+                    <a href="m4/module-summary.html">m4</a>""");
     }
 
     @Test
-    void testIndexWithSingleModule(Path base) throws Exception {
+    public void testIndexWithSingleModule(Path base) throws Exception {
         Path out = base.resolve("out");
         javadoc("-d", out.toString(),
                 "--module-source-path", src.toString(),
@@ -129,7 +137,7 @@ public class TestIndexWithModules extends JavadocTester {
 
     //no modules and multiple packages
     @Test
-    void testIndexWithNoModules1(Path base) throws Exception{
+    public void testIndexWithNoModules1(Path base) throws Exception{
         Path out = base.resolve("out");
         new ClassBuilder(tb, "P1.A1")
                 .setModifiers("public","class")
@@ -147,14 +155,16 @@ public class TestIndexWithModules extends JavadocTester {
         checkExit(Exit.OK);
         checkOrder("index.html",
                 "Packages",
-                "<a href=\"P1/package-summary.html\">P1</a>",
-                "<a href=\"P2/package-summary.html\">P2</a>");
+                """
+                    <a href="P1/package-summary.html">P1</a>""",
+                """
+                    <a href="P2/package-summary.html">P2</a>""");
 
     }
 
     //no modules and one package
     @Test
-    void testIndexWithNoModules2(Path base) throws Exception{
+    public void testIndexWithNoModules2(Path base) throws Exception{
         Path out = base.resolve("out");
         new ClassBuilder(tb, "P1.A1")
                 .setModifiers("public","class")

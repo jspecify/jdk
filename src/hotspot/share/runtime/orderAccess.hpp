@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_ORDERACCESS_HPP
-#define SHARE_VM_RUNTIME_ORDERACCESS_HPP
+#ifndef SHARE_RUNTIME_ORDERACCESS_HPP
+#define SHARE_RUNTIME_ORDERACCESS_HPP
 
-#include "memory/allocation.hpp"
-#include "runtime/atomic.hpp"
+#include "memory/allStatic.hpp"
+#include "runtime/vm_version.hpp"
 #include "utilities/macros.hpp"
 
 //                Memory Access Ordering Model
@@ -92,7 +92,7 @@
 //
 // Total Store Order (TSO) machines can be seen as machines issuing a
 // release store for each store and a load acquire for each load. Therefore
-// there is an inherent resemblence between TSO and acquire/release
+// there is an inherent resemblance between TSO and acquire/release
 // semantics. TSO can be seen as an abstract machine where loads are
 // executed immediately when encountered (hence loadload reordering not
 // happening) but enqueues stores in a FIFO queue
@@ -113,7 +113,7 @@
 // may be more conservative in implementations. We advise using the bound
 // variants whenever possible.
 //
-// Finally, we define a "fence" operation, as a bidirectional barrier.
+// We define a "fence" operation, as a bidirectional barrier.
 // It guarantees that any memory access preceding the fence is not
 // reordered w.r.t. any memory accesses subsequent to the fence in program
 // order. This may be used to prevent sequences of loads from floating up
@@ -230,31 +230,12 @@
 // order*.  And that their destructors do a release and unlock, in *that*
 // order.  If their implementations change such that these assumptions
 // are violated, a whole lot of code will break.
+//
+// Finally, we define an "instruction_fence" operation, which ensures that all
+// instructions that come after the fence in program order are fetched
+// from the cache or memory after the fence has completed.
 
-enum ScopedFenceType {
-    X_ACQUIRE
-  , RELEASE_X
-  , RELEASE_X_FENCE
-};
-
-template <ScopedFenceType T>
-class ScopedFenceGeneral: public StackObj {
- public:
-  void prefix() {}
-  void postfix() {}
-};
-
-template <ScopedFenceType T>
-class ScopedFence : public ScopedFenceGeneral<T> {
-  void *const _field;
- public:
-  ScopedFence(void *const field) : _field(field) { prefix(); }
-  ~ScopedFence() { postfix(); }
-  void prefix() { ScopedFenceGeneral<T>::prefix(); }
-  void postfix() { ScopedFenceGeneral<T>::postfix(); }
-};
-
-class OrderAccess : private Atomic {
+class OrderAccess : public AllStatic {
  public:
   // barriers
   static void     loadload();
@@ -266,84 +247,32 @@ class OrderAccess : private Atomic {
   static void     release();
   static void     fence();
 
-  template <typename T>
-  static T        load_acquire(const volatile T* p);
+  static void     cross_modify_fence() {
+    cross_modify_fence_impl();
+    cross_modify_fence_verify();
+  }
 
-  template <typename T, typename D>
-  static void     release_store(volatile D* p, T v);
-
-  template <typename T, typename D>
-  static void     release_store_fence(volatile D* p, T v);
-
- private:
+  // Processors which are not multi-copy-atomic require a full fence
+  // to enforce a globally consistent order of Independent Reads of
+  // Independent Writes. Please use only for such patterns!
+  static void     loadload_for_IRIW() {
+#ifndef CPU_MULTI_COPY_ATOMIC
+    fence();
+#else
+    loadload();
+#endif
+  }
+private:
   // This is a helper that invokes the StubRoutines::fence_entry()
   // routine if it exists, It should only be used by platforms that
   // don't have another way to do the inline assembly.
   static void StubRoutines_fence();
 
-  // Give platforms a variation point to specialize.
-  template<size_t byte_size, ScopedFenceType type> struct PlatformOrderedStore;
-  template<size_t byte_size, ScopedFenceType type> struct PlatformOrderedLoad;
+  static void cross_modify_fence_impl();
 
-  template<typename FieldType, ScopedFenceType FenceType>
-  static void ordered_store(volatile FieldType* p, FieldType v);
-
-  template<typename FieldType, ScopedFenceType FenceType>
-  static FieldType ordered_load(const volatile FieldType* p);
-};
-
-// The following methods can be specialized using simple template specialization
-// in the platform specific files for optimization purposes. Otherwise the
-// generalized variant is used.
-
-template<size_t byte_size, ScopedFenceType type>
-struct OrderAccess::PlatformOrderedStore {
-  template <typename T>
-  void operator()(T v, volatile T* p) const {
-    ordered_store<T, type>(p, v);
-  }
-};
-
-template<size_t byte_size, ScopedFenceType type>
-struct OrderAccess::PlatformOrderedLoad {
-  template <typename T>
-  T operator()(const volatile T* p) const {
-    return ordered_load<T, type>(p);
-  }
+  static void cross_modify_fence_verify() PRODUCT_RETURN;
 };
 
 #include OS_CPU_HEADER(orderAccess)
 
-template<> inline void ScopedFenceGeneral<X_ACQUIRE>::postfix()       { OrderAccess::acquire(); }
-template<> inline void ScopedFenceGeneral<RELEASE_X>::prefix()        { OrderAccess::release(); }
-template<> inline void ScopedFenceGeneral<RELEASE_X_FENCE>::prefix()  { OrderAccess::release(); }
-template<> inline void ScopedFenceGeneral<RELEASE_X_FENCE>::postfix() { OrderAccess::fence();   }
-
-
-template <typename FieldType, ScopedFenceType FenceType>
-inline void OrderAccess::ordered_store(volatile FieldType* p, FieldType v) {
-  ScopedFence<FenceType> f((void*)p);
-  Atomic::store(v, p);
-}
-
-template <typename FieldType, ScopedFenceType FenceType>
-inline FieldType OrderAccess::ordered_load(const volatile FieldType* p) {
-  ScopedFence<FenceType> f((void*)p);
-  return Atomic::load(p);
-}
-
-template <typename T>
-inline T OrderAccess::load_acquire(const volatile T* p) {
-  return LoadImpl<T, PlatformOrderedLoad<sizeof(T), X_ACQUIRE> >()(p);
-}
-
-template <typename T, typename D>
-inline void OrderAccess::release_store(volatile D* p, T v) {
-  StoreImpl<T, D, PlatformOrderedStore<sizeof(D), RELEASE_X> >()(v, p);
-}
-
-template <typename T, typename D>
-inline void OrderAccess::release_store_fence(volatile D* p, T v) {
-  StoreImpl<T, D, PlatformOrderedStore<sizeof(D), RELEASE_X_FENCE> >()(v, p);
-}
-#endif // SHARE_VM_RUNTIME_ORDERACCESS_HPP
+#endif // SHARE_RUNTIME_ORDERACCESS_HPP

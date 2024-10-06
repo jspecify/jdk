@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,18 +21,20 @@
  * questions.
  */
 
-/**
+/*
  * @test
  * @bug 8006263
  * @summary Supplementary test cases needed for doclint
- * @modules jdk.compiler/com.sun.tools.doclint
+ * @modules jdk.javadoc/jdk.javadoc.internal.doclint
+ *          jdk.javadoc/jdk.javadoc.internal.html
  */
 
-import com.sun.tools.doclint.Checker;
-import com.sun.tools.doclint.Entity;
-import com.sun.tools.doclint.HtmlTag;
-import com.sun.tools.doclint.Messages;
 import java.util.Objects;
+
+import jdk.javadoc.internal.doclint.Checker;
+import jdk.javadoc.internal.doclint.Messages;
+import jdk.javadoc.internal.html.HtmlAttr;
+import jdk.javadoc.internal.html.HtmlTag;
 
 public class CoverageExtras {
     public static void main(String... args) {
@@ -41,15 +43,13 @@ public class CoverageExtras {
 
     void run() {
         check(HtmlTag.A, HtmlTag.valueOf("A"), HtmlTag.values());
-        check(HtmlTag.Attr.ABBR, HtmlTag.Attr.valueOf("ABBR"), HtmlTag.Attr.values());
-        check(HtmlTag.AttrKind.INVALID, HtmlTag.AttrKind.valueOf("INVALID"), HtmlTag.AttrKind.values());
+        check(HtmlAttr.ABBR, HtmlAttr.valueOf("ABBR"), HtmlAttr.values());
+        check(HtmlAttr.AttrKind.INVALID, HtmlAttr.AttrKind.valueOf("INVALID"), HtmlAttr.AttrKind.values());
         check(HtmlTag.BlockType.BLOCK, HtmlTag.BlockType.valueOf("BLOCK"), HtmlTag.BlockType.values());
         check(HtmlTag.EndKind.NONE, HtmlTag.EndKind.valueOf("NONE"), HtmlTag.EndKind.values());
         check(HtmlTag.Flag.EXPECT_CONTENT, HtmlTag.Flag.valueOf("EXPECT_CONTENT"), HtmlTag.Flag.values());
 
         check(Checker.Flag.TABLE_HAS_CAPTION, Checker.Flag.valueOf("TABLE_HAS_CAPTION"), Checker.Flag.values());
-
-        check(Entity.nbsp, Entity.valueOf("nbsp"), Entity.values());
 
         check(Messages.Group.ACCESSIBILITY, Messages.Group.valueOf("ACCESSIBILITY"), Messages.Group.values());
     }

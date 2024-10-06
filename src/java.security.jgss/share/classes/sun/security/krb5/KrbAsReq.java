@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,15 +36,16 @@ import sun.security.krb5.internal.crypto.Nonce;
 import sun.security.krb5.internal.crypto.KeyUsage;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Arrays;
+
+import static sun.security.krb5.internal.Krb5.DEBUG;
 
 /**
  * This class encapsulates the KRB-AS-REQ message that the client
  * sends to the KDC.
  */
-public class KrbAsReq {
+public class KrbAsReq extends KrbKdcReq {
     private ASReq asReqMessg;
-
-    private boolean DEBUG = Krb5.DEBUG;
 
     /**
      * Constructs an AS-REQ message.
@@ -58,7 +59,8 @@ public class KrbAsReq {
                       KerberosTime till,        // ok, will use
                       KerberosTime rtime,       // ok
                       int[] eTypes,             // NO
-                      HostAddresses addresses   // ok
+                      HostAddresses addresses,  // ok
+                      PAData[] extraPAs         // ok
                       )
             throws KrbException, IOException {
 
@@ -93,14 +95,23 @@ public class KrbAsReq {
             paData[0] = new PAData( Krb5.PA_ENC_TIMESTAMP,
                                     encTs.asn1Encode());
         }
+        if (extraPAs != null && extraPAs.length > 0) {
+            if (paData == null) {
+                paData = new PAData[extraPAs.length];
+            } else {
+                paData = Arrays.copyOf(paData, paData.length + extraPAs.length);
+            }
+            System.arraycopy(extraPAs, 0, paData,
+                    paData.length - extraPAs.length, extraPAs.length);
+        }
 
         if (cname.getRealm() == null) {
             throw new RealmException(Krb5.REALM_NULL,
                                      "default realm not specified ");
         }
 
-        if (DEBUG) {
-            System.out.println(">>> KrbAsReq creating message");
+        if (DEBUG != null) {
+            DEBUG.println(">>> KrbAsReq creating message");
         }
 
         Config cfg = Config.getInstance();
@@ -154,10 +165,7 @@ public class KrbAsReq {
         asReqMessg = new ASReq(
                          paData,
                          kdc_req_body);
-    }
-
-    byte[] encoding() throws IOException, Asn1Exception {
-        return asReqMessg.asn1Encode();
+        obuf = asReqMessg.asn1Encode();
     }
 
     // Used by KrbAsRep to validate AS-REP

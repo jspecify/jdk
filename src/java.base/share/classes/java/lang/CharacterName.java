@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,20 +25,17 @@
 
 package java.lang;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import jdk.internal.util.ArraysSupport;
 
 import java.io.DataInputStream;
 import java.io.InputStream;
 import java.lang.ref.SoftReference;
 import java.util.Arrays;
-import java.util.Locale;
 import java.util.zip.InflaterInputStream;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 
-@AnnotatedFor({"index", "interning"})
-@UsesObjectEquals class CharacterName {
+class CharacterName {
 
     private static SoftReference<CharacterName> refCharName;
 
@@ -52,7 +49,7 @@ import java.security.PrivilegedAction;
     private final int[] hsIndices;   // chain heads, hash indices into "cps"
 
     private CharacterName()  {
-        try (DataInputStream dis = new DataInputStream(new InflaterInputStream(
+        try (@SuppressWarnings("removal") DataInputStream dis = new DataInputStream(new InflaterInputStream(
             AccessController.doPrivileged(new PrivilegedAction<>() {
                 public InputStream run() {
                     return getClass().getResourceAsStream("uniName.dat");
@@ -63,7 +60,7 @@ import java.security.PrivilegedAction;
             int bkNum = dis.readInt();
             int cpNum = dis.readInt();
             int cpEnd = dis.readInt();
-            byte ba[] = new byte[cpEnd];
+            byte[] ba = new byte[cpEnd];
             lookup = new int[bkNum * 256];
             bkIndices = new int[(Character.MAX_CODE_POINT + 1) >> 8];
             strPool = new byte[total - cpEnd];
@@ -80,9 +77,9 @@ import java.security.PrivilegedAction;
             int bk = -1;
             int prevBk = -1;   // prev bkNo;
             int idx = 0;
-            int next = -1;
-            int hash = 0;
-            int hsh = 0;
+            int next;
+            int hash;
+            int hsh;
             do {
                 int len = ba[cpOff++] & 0xff;
                 if (len == 0) {
@@ -115,12 +112,8 @@ import java.security.PrivilegedAction;
         }
     }
 
-    private static final int hashN(byte[] a, int off, int len) {
-        int h = 1;
-        while (len-- > 0) {
-            h = 31 * h + a[off++];
-        }
-        return h;
+    private static int hashN(byte[] a, int off, int len) {
+        return ArraysSupport.hashCode(a, off, len, 1);
     }
 
     private int addCp(int idx, int hash, int next, int cp) {
@@ -136,7 +129,7 @@ import java.security.PrivilegedAction;
 
     public static CharacterName getInstance() {
         SoftReference<CharacterName> ref = refCharName;
-        CharacterName cname = null;
+        CharacterName cname;
         if (ref == null || (cname = ref.get()) == null) {
             cname = new CharacterName();
             refCharName = new SoftReference<>(cname);
@@ -145,7 +138,7 @@ import java.security.PrivilegedAction;
     }
 
     public String getName(int cp) {
-        int off = 0;
+        int off;
         int bk = bkIndices[cp >> 8];
         if (bk == -1 || (off = lookup[(bk << 8) + (cp & 0xff)]) == 0)
             return null;
@@ -155,13 +148,13 @@ import java.security.PrivilegedAction;
     }
 
     public int getCodePoint(String name) {
-        byte[] bname = name.getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
+        byte[] bname = name.getBytes(sun.nio.cs.ISO_8859_1.INSTANCE);
         int hsh = hashN(bname, 0, bname.length);
         int idx = hsIndices[(hsh & 0x7fffffff) % hsIndices.length];
         while (idx != -1) {
             if (getCpHash(idx) == hsh) {
                 int cp = getCp(idx);
-                int off = -1;
+                int off;
                 int bk = bkIndices[cp >> 8];
                 if (bk != -1 && (off = lookup[(bk << 8) + (cp & 0xff)]) != 0) {
                     int len = off & 0xff;

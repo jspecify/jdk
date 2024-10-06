@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,6 +65,7 @@ final class WInputMethod extends InputMethodAdapter
     private Locale currentLocale;
     // indicate whether status window is hidden or not.
     private boolean statusWindowHidden = false;
+    private boolean hasCompositionString = false;
 
     // attribute definition in Win32 (in IMM.H)
     public static final byte ATTR_INPUT                 = 0x00;
@@ -90,7 +91,7 @@ final class WInputMethod extends InputMethodAdapter
     // Initialize highlight mapping table
     static {
         @SuppressWarnings({"rawtypes", "unchecked"})
-        Map<TextAttribute,Object> styles[] = new Map[4];
+        Map<TextAttribute,Object>[] styles = new Map[4];
         HashMap<TextAttribute,Object> map;
 
         // UNSELECTED_RAW_TEXT_HIGHLIGHT
@@ -132,7 +133,7 @@ final class WInputMethod extends InputMethodAdapter
     }
 
     @Override
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal")
     protected void finalize() throws Throwable
     {
         // Release the resources used by the native input context.
@@ -246,6 +247,7 @@ final class WInputMethod extends InputMethodAdapter
         } else if (locale.getLanguage().equals(Locale.KOREAN.getLanguage())) {
             if (subset1 == UnicodeBlock.BASIC_LATIN || subset1 == InputSubset.LATIN_DIGITS) {
                 setOpenStatus(context, false);
+                setConversionStatus(context, IME_CMODE_ALPHANUMERIC);
             } else {
                 if (subset1 == UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
                     || subset1 == InputSubset.HANJA
@@ -263,11 +265,14 @@ final class WInputMethod extends InputMethodAdapter
         } else if (locale.getLanguage().equals(Locale.CHINESE.getLanguage())) {
             if (subset1 == UnicodeBlock.BASIC_LATIN || subset1 == InputSubset.LATIN_DIGITS) {
                 setOpenStatus(context, false);
+                newmode = getConversionStatus(context);
+                newmode &= ~IME_CMODE_FULLSHAPE;
+                setConversionStatus(context, newmode);
             } else {
                 if (subset1 == UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
                     || subset1 == InputSubset.TRADITIONAL_HANZI
                     || subset1 == InputSubset.SIMPLIFIED_HANZI)
-                    newmode = IME_CMODE_NATIVE;
+                    newmode = IME_CMODE_NATIVE | IME_CMODE_FULLSHAPE;
                 else if (subset1 == InputSubset.FULLWIDTH_LATIN)
                     newmode = IME_CMODE_FULLSHAPE;
                 else
@@ -298,9 +303,9 @@ final class WInputMethod extends InputMethodAdapter
     public void activate() {
         boolean isAc = haveActiveClient();
 
-        // When the last focussed component peer is different from the
-        // current focussed component or if they are different client
-        // (active or passive), disable native IME for the old focussed
+        // When the last focused component peer is different from the
+        // current focused component or if they are different client
+        // (active or passive), disable native IME for the old focused
         // component and enable for the new one.
         if (lastFocussedComponentPeer != awtFocussedComponentPeer ||
             isLastFocussedActiveClient != isAc) {
@@ -316,6 +321,15 @@ final class WInputMethod extends InputMethodAdapter
         isActive = true;
         if (currentLocale != null) {
             setLocale(currentLocale, true);
+        }
+
+        // Compare IM's composition string with Java's composition string
+        if (hasCompositionString && !isCompositionStringAvailable(context)) {
+            endCompositionNative(context, DISCARD_INPUT);
+            sendInputMethodEvent(InputMethodEvent.INPUT_METHOD_TEXT_CHANGED,
+                EventQueue.getMostRecentEventTime(),
+                null, null, null, null, null, 0, 0, 0);
+            hasCompositionString = false;
         }
 
         /* If the status window or Windows language bar is turned off due to
@@ -339,12 +353,18 @@ final class WInputMethod extends InputMethodAdapter
         getLocale();
 
         // Delay calling disableNativeIME until activate is called and the newly
-        // focussed component has a different peer as the last focussed component.
+        // focused component has a different peer as the last focused component.
         if (awtFocussedComponentPeer != null) {
             lastFocussedComponentPeer = awtFocussedComponentPeer;
             isLastFocussedActiveClient = haveActiveClient();
         }
         isActive = false;
+        hasCompositionString = isCompositionStringAvailable(context);
+
+        // IME is going to be disabled commit the composition string
+        if (hasCompositionString) {
+            endComposition();
+        }
     }
 
     /**
@@ -372,7 +392,7 @@ final class WInputMethod extends InputMethodAdapter
      /**
      * @see sun.awt.im.InputMethodAdapter#stopListening
      * This method is called when the input method is swapped out.
-     * Calling stopListening to give other input method the keybaord input
+     * Calling stopListening to give other input method the keyboard input
      * focus.
      */
     @Override
@@ -409,7 +429,7 @@ final class WInputMethod extends InputMethodAdapter
     public void hideWindows() {
         if (awtFocussedComponentPeer != null) {
             /* Hide the native status window including the Windows language
-               bar if it is on. One typical senario this method
+               bar if it is on. One typical scenario this method
                gets called is when the native input method is
                switched to java input method, for example.
             */
@@ -516,7 +536,7 @@ final class WInputMethod extends InputMethodAdapter
                                      new Annotation(""), 0, text.length());
             }
 
-            // set Hilight Information
+            // set Highlight Information
             if (attributeBoundary!=null && attributeValue!=null &&
                 attributeValue.length!=0 && attributeBoundary.length==attributeValue.length+1 &&
                 attributeBoundary[0]==0 && attributeBoundary[attributeValue.length]==text.length() )
@@ -649,4 +669,5 @@ final class WInputMethod extends InputMethodAdapter
     static native Locale getNativeLocale();
     static native boolean setNativeLocale(String localeName, boolean onActivate);
     private native void openCandidateWindow(WComponentPeer peer, int x, int y);
+    private native boolean isCompositionStringAvailable(int context);
 }

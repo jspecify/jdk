@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,22 +22,33 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_HANDLES_INLINE_HPP
-#define SHARE_VM_RUNTIME_HANDLES_INLINE_HPP
+#ifndef SHARE_RUNTIME_HANDLES_INLINE_HPP
+#define SHARE_RUNTIME_HANDLES_INLINE_HPP
 
 #include "runtime/handles.hpp"
-#include "runtime/thread.inline.hpp"
+
+#include "runtime/javaThread.hpp"
+#include "oops/metadata.hpp"
+#include "oops/oop.hpp"
 
 // these inline functions are in a separate file to break an include cycle
 // between Thread and Handle
 
 inline Handle::Handle(Thread* thread, oop obj) {
   assert(thread == Thread::current(), "sanity check");
-  if (obj == NULL) {
-    _handle = NULL;
+  if (obj == nullptr) {
+    _handle = nullptr;
   } else {
     _handle = thread->handle_area()->allocate_handle(obj);
   }
+}
+
+inline void Handle::replace(oop obj) {
+  // Unlike in OopHandle::replace, we shouldn't use a barrier here.
+  // OopHandle has its storage in OopStorage, which is walked concurrently and uses barriers.
+  // Handle is thread private, and iterated by Thread::oops_do, which is why it shouldn't have any barriers at all.
+  assert(_handle != nullptr, "should not use replace");
+  *_handle = obj;
 }
 
 // Inline constructors for Specific Handles for different oop types
@@ -53,30 +64,17 @@ DEF_HANDLE_CONSTR(typeArray, is_typeArray_noinline)
 
 // Constructor for metadata handles
 #define DEF_METADATA_HANDLE_FN(name, type) \
-inline name##Handle::name##Handle(type* obj) : _value(obj), _thread(NULL) {       \
-  if (obj != NULL) {                                                   \
-    assert(((Metadata*)obj)->is_valid(), "obj is valid");              \
-    _thread = Thread::current();                                       \
-    assert (_thread->is_in_stack((address)this), "not on stack?");     \
-    _thread->metadata_handles()->push((Metadata*)obj);                 \
-  }                                                                    \
-}                                                                      \
 inline name##Handle::name##Handle(Thread* thread, type* obj) : _value(obj), _thread(thread) { \
-  if (obj != NULL) {                                                   \
+  if (obj != nullptr) {                                                   \
     assert(((Metadata*)obj)->is_valid(), "obj is valid");              \
     assert(_thread == Thread::current(), "thread must be current");    \
-    assert (_thread->is_in_stack((address)this), "not on stack?");     \
+    assert(_thread->is_in_live_stack((address)this), "not on stack?"); \
     _thread->metadata_handles()->push((Metadata*)obj);                 \
   }                                                                    \
 }                                                                      \
 
 DEF_METADATA_HANDLE_FN(method, Method)
 DEF_METADATA_HANDLE_FN(constantPool, ConstantPool)
-
-inline HandleMark::HandleMark() {
-  initialize(Thread::current());
-}
-
 
 inline void HandleMark::push() {
   // This is intentionally a NOP. pop_and_restore will reset
@@ -86,22 +84,18 @@ inline void HandleMark::push() {
 }
 
 inline void HandleMark::pop_and_restore() {
-  HandleArea* area = _area;   // help compilers with poor alias analysis
   // Delete later chunks
-  if( _chunk->next() ) {
-    // reset arena size before delete chunks. Otherwise, the total
-    // arena size could exceed total chunk size
-    assert(area->size_in_bytes() > size_in_bytes(), "Sanity check");
-    area->set_size_in_bytes(size_in_bytes());
-    _chunk->next_chop();
+  if(_chunk->next() != nullptr) {
+    assert(_area->size_in_bytes() > size_in_bytes(), "Sanity check");
+    chop_later_chunks();
   } else {
-    assert(area->size_in_bytes() == size_in_bytes(), "Sanity check");
+    assert(_area->size_in_bytes() == size_in_bytes(), "Sanity check");
   }
   // Roll back arena to saved top markers
-  area->_chunk = _chunk;
-  area->_hwm = _hwm;
-  area->_max = _max;
-  debug_only(area->_handle_mark_nesting--);
+  _area->_chunk = _chunk;
+  _area->_hwm = _hwm;
+  _area->_max = _max;
+  debug_only(_area->_handle_mark_nesting--);
 }
 
 inline HandleMarkCleaner::HandleMarkCleaner(Thread* thread) {
@@ -113,4 +107,4 @@ inline HandleMarkCleaner::~HandleMarkCleaner() {
   _thread->last_handle_mark()->pop_and_restore();
 }
 
-#endif // SHARE_VM_RUNTIME_HANDLES_INLINE_HPP
+#endif // SHARE_RUNTIME_HANDLES_INLINE_HPP

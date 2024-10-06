@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,10 @@
 #ifndef SHARE_OOPS_ACCESS_INLINE_HPP
 #define SHARE_OOPS_ACCESS_INLINE_HPP
 
-#include "gc/shared/barrierSetConfig.inline.hpp"
 #include "oops/access.hpp"
+
+#include "gc/shared/barrierSet.inline.hpp"
+#include "gc/shared/barrierSetConfig.inline.hpp"
 #include "oops/accessBackend.inline.hpp"
 
 // This file outlines the last 2 steps of the template pipeline of accesses going through
@@ -89,16 +91,16 @@ namespace AccessInternal {
   template <class GCBarrierType, DecoratorSet decorators>
   struct PostRuntimeDispatch<GCBarrierType, BARRIER_ATOMIC_XCHG, decorators>: public AllStatic {
     template <typename T>
-    static T access_barrier(T new_value, void* addr) {
-      return GCBarrierType::atomic_xchg_in_heap(new_value, reinterpret_cast<T*>(addr));
+    static T access_barrier(void* addr, T new_value) {
+      return GCBarrierType::atomic_xchg_in_heap(reinterpret_cast<T*>(addr), new_value);
     }
 
-    static oop oop_access_barrier(oop new_value, void* addr) {
+    static oop oop_access_barrier(void* addr, oop new_value) {
       typedef typename HeapOopType<decorators>::type OopType;
       if (HasDecorator<decorators, IN_HEAP>::value) {
-        return GCBarrierType::oop_atomic_xchg_in_heap(new_value, reinterpret_cast<OopType*>(addr));
+        return GCBarrierType::oop_atomic_xchg_in_heap(reinterpret_cast<OopType*>(addr), new_value);
       } else {
-        return GCBarrierType::oop_atomic_xchg_not_in_heap(new_value, reinterpret_cast<OopType*>(addr));
+        return GCBarrierType::oop_atomic_xchg_not_in_heap(reinterpret_cast<OopType*>(addr), new_value);
       }
     }
   };
@@ -106,16 +108,16 @@ namespace AccessInternal {
   template <class GCBarrierType, DecoratorSet decorators>
   struct PostRuntimeDispatch<GCBarrierType, BARRIER_ATOMIC_CMPXCHG, decorators>: public AllStatic {
     template <typename T>
-    static T access_barrier(T new_value, void* addr, T compare_value) {
-      return GCBarrierType::atomic_cmpxchg_in_heap(new_value, reinterpret_cast<T*>(addr), compare_value);
+    static T access_barrier(void* addr, T compare_value, T new_value) {
+      return GCBarrierType::atomic_cmpxchg_in_heap(reinterpret_cast<T*>(addr), compare_value, new_value);
     }
 
-    static oop oop_access_barrier(oop new_value, void* addr, oop compare_value) {
+    static oop oop_access_barrier(void* addr, oop compare_value, oop new_value) {
       typedef typename HeapOopType<decorators>::type OopType;
       if (HasDecorator<decorators, IN_HEAP>::value) {
-        return GCBarrierType::oop_atomic_cmpxchg_in_heap(new_value, reinterpret_cast<OopType*>(addr), compare_value);
+        return GCBarrierType::oop_atomic_cmpxchg_in_heap(reinterpret_cast<OopType*>(addr), compare_value, new_value);
       } else {
-        return GCBarrierType::oop_atomic_cmpxchg_not_in_heap(new_value, reinterpret_cast<OopType*>(addr), compare_value);
+        return GCBarrierType::oop_atomic_cmpxchg_not_in_heap(reinterpret_cast<OopType*>(addr), compare_value, new_value);
       }
     }
   };
@@ -170,24 +172,24 @@ namespace AccessInternal {
   template <class GCBarrierType, DecoratorSet decorators>
   struct PostRuntimeDispatch<GCBarrierType, BARRIER_ATOMIC_XCHG_AT, decorators>: public AllStatic {
     template <typename T>
-    static T access_barrier(T new_value, oop base, ptrdiff_t offset) {
-      return GCBarrierType::atomic_xchg_in_heap_at(new_value, base, offset);
+    static T access_barrier(oop base, ptrdiff_t offset, T new_value) {
+      return GCBarrierType::atomic_xchg_in_heap_at(base, offset, new_value);
     }
 
-    static oop oop_access_barrier(oop new_value, oop base, ptrdiff_t offset) {
-      return GCBarrierType::oop_atomic_xchg_in_heap_at(new_value, base, offset);
+    static oop oop_access_barrier(oop base, ptrdiff_t offset, oop new_value) {
+      return GCBarrierType::oop_atomic_xchg_in_heap_at(base, offset, new_value);
     }
   };
 
   template <class GCBarrierType, DecoratorSet decorators>
   struct PostRuntimeDispatch<GCBarrierType, BARRIER_ATOMIC_CMPXCHG_AT, decorators>: public AllStatic {
     template <typename T>
-    static T access_barrier(T new_value, oop base, ptrdiff_t offset, T compare_value) {
-      return GCBarrierType::atomic_cmpxchg_in_heap_at(new_value, base, offset, compare_value);
+    static T access_barrier(oop base, ptrdiff_t offset, T compare_value, T new_value) {
+      return GCBarrierType::atomic_cmpxchg_in_heap_at(base, offset, compare_value, new_value);
     }
 
-    static oop oop_access_barrier(oop new_value, oop base, ptrdiff_t offset, oop compare_value) {
-      return GCBarrierType::oop_atomic_cmpxchg_in_heap_at(new_value, base, offset, compare_value);
+    static oop oop_access_barrier(oop base, ptrdiff_t offset, oop compare_value, oop new_value) {
+      return GCBarrierType::oop_atomic_cmpxchg_in_heap_at(base, offset, compare_value, new_value);
     }
   };
 
@@ -195,20 +197,6 @@ namespace AccessInternal {
   struct PostRuntimeDispatch<GCBarrierType, BARRIER_CLONE, decorators>: public AllStatic {
     static void access_barrier(oop src, oop dst, size_t size) {
       GCBarrierType::clone_in_heap(src, dst, size);
-    }
-  };
-
-  template <class GCBarrierType, DecoratorSet decorators>
-  struct PostRuntimeDispatch<GCBarrierType, BARRIER_RESOLVE, decorators>: public AllStatic {
-    static oop access_barrier(oop obj) {
-      return GCBarrierType::resolve(obj);
-    }
-  };
-
-  template <class GCBarrierType, DecoratorSet decorators>
-  struct PostRuntimeDispatch<GCBarrierType, BARRIER_EQUALS, decorators>: public AllStatic {
-    static bool access_barrier(oop o1, oop o2) {
-      return GCBarrierType::equals(o1, o2);
     }
   };
 
@@ -223,7 +211,7 @@ namespace AccessInternal {
       FunctionPointerT>::type
     resolve_barrier_gc() {
       BarrierSet* bs = BarrierSet::barrier_set();
-      assert(bs != NULL, "GC barriers invoked before BarrierSet is set");
+      assert(bs != nullptr, "GC barriers invoked before BarrierSet is set");
       switch (bs->kind()) {
 #define BARRIER_SET_RESOLVE_BARRIER_CLOSURE(bs_name)                    \
         case BarrierSet::bs_name: {                                     \
@@ -236,7 +224,7 @@ namespace AccessInternal {
 
       default:
         fatal("BarrierSet AccessBarrier resolving not implemented");
-        return NULL;
+        return nullptr;
       };
     }
 
@@ -246,7 +234,7 @@ namespace AccessInternal {
       FunctionPointerT>::type
     resolve_barrier_gc() {
       BarrierSet* bs = BarrierSet::barrier_set();
-      assert(bs != NULL, "GC barriers invoked before BarrierSet is set");
+      assert(bs != nullptr, "GC barriers invoked before BarrierSet is set");
       switch (bs->kind()) {
 #define BARRIER_SET_RESOLVE_BARRIER_CLOSURE(bs_name)                    \
         case BarrierSet::bs_name: {                                       \
@@ -259,7 +247,7 @@ namespace AccessInternal {
 
       default:
         fatal("BarrierSet AccessBarrier resolving not implemented");
-        return NULL;
+        return nullptr;
       };
     }
 
@@ -315,31 +303,31 @@ namespace AccessInternal {
   }
 
   template <DecoratorSet decorators, typename T>
-  T RuntimeDispatch<decorators, T, BARRIER_ATOMIC_CMPXCHG>::atomic_cmpxchg_init(T new_value, void* addr, T compare_value) {
+  T RuntimeDispatch<decorators, T, BARRIER_ATOMIC_CMPXCHG>::atomic_cmpxchg_init(void* addr, T compare_value, T new_value) {
     func_t function = BarrierResolver<decorators, func_t, BARRIER_ATOMIC_CMPXCHG>::resolve_barrier();
     _atomic_cmpxchg_func = function;
-    return function(new_value, addr, compare_value);
+    return function(addr, compare_value, new_value);
   }
 
   template <DecoratorSet decorators, typename T>
-  T RuntimeDispatch<decorators, T, BARRIER_ATOMIC_CMPXCHG_AT>::atomic_cmpxchg_at_init(T new_value, oop base, ptrdiff_t offset, T compare_value) {
+  T RuntimeDispatch<decorators, T, BARRIER_ATOMIC_CMPXCHG_AT>::atomic_cmpxchg_at_init(oop base, ptrdiff_t offset, T compare_value, T new_value) {
     func_t function = BarrierResolver<decorators, func_t, BARRIER_ATOMIC_CMPXCHG_AT>::resolve_barrier();
     _atomic_cmpxchg_at_func = function;
-    return function(new_value, base, offset, compare_value);
+    return function(base, offset, compare_value, new_value);
   }
 
   template <DecoratorSet decorators, typename T>
-  T RuntimeDispatch<decorators, T, BARRIER_ATOMIC_XCHG>::atomic_xchg_init(T new_value, void* addr) {
+  T RuntimeDispatch<decorators, T, BARRIER_ATOMIC_XCHG>::atomic_xchg_init(void* addr, T new_value) {
     func_t function = BarrierResolver<decorators, func_t, BARRIER_ATOMIC_XCHG>::resolve_barrier();
     _atomic_xchg_func = function;
-    return function(new_value, addr);
+    return function(addr, new_value);
   }
 
   template <DecoratorSet decorators, typename T>
-  T RuntimeDispatch<decorators, T, BARRIER_ATOMIC_XCHG_AT>::atomic_xchg_at_init(T new_value, oop base, ptrdiff_t offset) {
+  T RuntimeDispatch<decorators, T, BARRIER_ATOMIC_XCHG_AT>::atomic_xchg_at_init(oop base, ptrdiff_t offset, T new_value) {
     func_t function = BarrierResolver<decorators, func_t, BARRIER_ATOMIC_XCHG_AT>::resolve_barrier();
     _atomic_xchg_at_func = function;
-    return function(new_value, base, offset);
+    return function(base, offset, new_value);
   }
 
   template <DecoratorSet decorators, typename T>
@@ -358,20 +346,6 @@ namespace AccessInternal {
     func_t function = BarrierResolver<decorators, func_t, BARRIER_CLONE>::resolve_barrier();
     _clone_func = function;
     function(src, dst, size);
-  }
-
-  template <DecoratorSet decorators, typename T>
-  oop RuntimeDispatch<decorators, T, BARRIER_RESOLVE>::resolve_init(oop obj) {
-    func_t function = BarrierResolver<decorators, func_t, BARRIER_RESOLVE>::resolve_barrier();
-    _resolve_func = function;
-    return function(obj);
-  }
-
-  template <DecoratorSet decorators, typename T>
-  bool RuntimeDispatch<decorators, T, BARRIER_EQUALS>::equals_init(oop o1, oop o2) {
-    func_t function = BarrierResolver<decorators, func_t, BARRIER_EQUALS>::resolve_barrier();
-    _equals_func = function;
-    return function(o1, o2);
   }
 }
 

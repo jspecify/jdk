@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,7 @@
  */
 package com.sun.tools.jdeps;
 
-import com.sun.tools.classfile.Dependencies;
-import com.sun.tools.classfile.Dependency;
-import com.sun.tools.classfile.Dependency.Location;
+import com.sun.tools.jdeps.Dependency.Location;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -55,6 +53,7 @@ public class JdepsFilter implements Dependency.Filter, Analyzer.Filter {
     private final boolean filterSamePackage;
     private final boolean filterSameArchive;
     private final boolean findJDKInternals;
+    private final boolean findMissingDeps;
     private final Pattern includePattern;
 
     private final Set<String> requires;
@@ -64,6 +63,7 @@ public class JdepsFilter implements Dependency.Filter, Analyzer.Filter {
                         boolean filterSamePackage,
                         boolean filterSameArchive,
                         boolean findJDKInternals,
+                        boolean findMissingDeps,
                         Pattern includePattern,
                         Set<String> requires) {
         this.filter = filter;
@@ -71,6 +71,7 @@ public class JdepsFilter implements Dependency.Filter, Analyzer.Filter {
         this.filterSamePackage = filterSamePackage;
         this.filterSameArchive = filterSameArchive;
         this.findJDKInternals = findJDKInternals;
+        this.findMissingDeps = findMissingDeps;
         this.includePattern = includePattern;
         this.requires = requires;
     }
@@ -153,6 +154,8 @@ public class JdepsFilter implements Dependency.Filter, Analyzer.Filter {
             Module module = targetArchive.getModule();
             return originArchive != targetArchive &&
                     isJDKInternalPackage(module, target.getPackageName());
+        } else if (findMissingDeps) {
+            return Analyzer.notFound(targetArchive);
         } else if (filterSameArchive) {
             // accepts origin and target that from different archive
             return originArchive != targetArchive;
@@ -188,6 +191,7 @@ public class JdepsFilter implements Dependency.Filter, Analyzer.Filter {
         boolean filterSamePackage;
         boolean filterSameArchive;
         boolean findJDKInterals;
+        boolean findMissingDeps;
         // source filters
         Pattern includePattern;
         Set<String> requires = new HashSet<>();
@@ -221,6 +225,10 @@ public class JdepsFilter implements Dependency.Filter, Analyzer.Filter {
             this.findJDKInterals = value;
             return this;
         }
+        public Builder findMissingDeps(boolean value) {
+            this.findMissingDeps = value;
+            return this;
+        }
         public Builder includePattern(Pattern regex) {
             this.includePattern = regex;
             return this;
@@ -238,6 +246,7 @@ public class JdepsFilter implements Dependency.Filter, Analyzer.Filter {
                                    filterSamePackage,
                                    filterSameArchive,
                                    findJDKInterals,
+                                   findMissingDeps,
                                    includePattern,
                                    requires);
         }

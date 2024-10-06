@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,8 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/systemDictionary.hpp"
+#include "classfile/javaClasses.hpp"
+#include "classfile/vmClasses.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -39,42 +40,43 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 
-GCNotificationRequest *GCNotifier::first_request = NULL;
-GCNotificationRequest *GCNotifier::last_request = NULL;
+GCNotificationRequest *GCNotifier::first_request = nullptr;
+GCNotificationRequest *GCNotifier::last_request = nullptr;
 
 void GCNotifier::pushNotification(GCMemoryManager *mgr, const char *action, const char *cause) {
   // Make a copy of the last GC statistics
   // GC may occur between now and the creation of the notification
   int num_pools = MemoryService::num_memory_pools();
   // stat is deallocated inside GCNotificationRequest
-  GCStatInfo* stat = new(ResourceObj::C_HEAP, mtGC) GCStatInfo(num_pools);
+  GCStatInfo* stat = new GCStatInfo(num_pools);
   mgr->get_last_gc_stat(stat);
+  // timestamp is current time in ms
   GCNotificationRequest *request = new GCNotificationRequest(os::javaTimeMillis(),mgr,action,cause,stat);
   addRequest(request);
  }
 
 void GCNotifier::addRequest(GCNotificationRequest *request) {
-  MutexLockerEx ml(Service_lock, Mutex::_no_safepoint_check_flag);
-  if(first_request == NULL) {
+  MutexLocker ml(Notification_lock, Mutex::_no_safepoint_check_flag);
+  if(first_request == nullptr) {
     first_request = request;
   } else {
     last_request->next = request;
   }
   last_request = request;
-  Service_lock->notify_all();
+  Notification_lock->notify_all();
 }
 
 GCNotificationRequest *GCNotifier::getRequest() {
-  MutexLockerEx ml(Service_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(Notification_lock, Mutex::_no_safepoint_check_flag);
   GCNotificationRequest *request = first_request;
-  if(first_request != NULL) {
+  if(first_request != nullptr) {
     first_request = first_request->next;
   }
   return request;
 }
 
 bool GCNotifier::has_event() {
-  return first_request != NULL;
+  return first_request != nullptr;
 }
 
 static Handle getGcInfoBuilder(GCMemoryManager *gcManager,TRAPS) {
@@ -93,7 +95,7 @@ static Handle getGcInfoBuilder(GCMemoryManager *gcManager,TRAPS) {
                           vmSymbols::getGcInfoBuilder_signature(),
                           &args,
                           CHECK_NH);
-  return Handle(THREAD,(oop)result.get_jobject());
+  return Handle(THREAD, result.get_oop());
 }
 
 static Handle createGcInfo(GCMemoryManager *gcManager, GCStatInfo *gcStatInfo,TRAPS) {
@@ -120,7 +122,7 @@ static Handle createGcInfo(GCMemoryManager *gcManager, GCStatInfo *gcStatInfo,TR
     if (u.max_size() == 0 && u.used() > 0) {
       // If max size == 0, this pool is a survivor space.
       // Set max size = -1 since the pools will be swapped after GC.
-      MemoryUsage usage(u.init_size(), u.used(), u.committed(), (size_t)-1);
+      MemoryUsage usage(u.init_size(), u.used(), u.committed(), MemoryUsage::undefined_size());
       after_usage = MemoryService::create_MemoryUsage_obj(usage, CHECK_NH);
     } else {
         after_usage = MemoryService::create_MemoryUsage_obj(u, CHECK_NH);
@@ -131,13 +133,13 @@ static Handle createGcInfo(GCMemoryManager *gcManager, GCStatInfo *gcStatInfo,TR
 
   // Current implementation only has 1 attribute (number of GC threads)
   // The type is 'I'
-  objArrayOop extra_args_array = oopFactory::new_objArray(SystemDictionary::Integer_klass(), 1, CHECK_NH);
+  objArrayOop extra_args_array = oopFactory::new_objArray(vmClasses::Integer_klass(), 1, CHECK_NH);
   objArrayHandle extra_array (THREAD, extra_args_array);
 
   JavaCallArguments argsInt;
   argsInt.push_int(gcManager->num_gc_threads());
   Handle extra_arg_val = JavaCalls::construct_new_instance(
-                            SystemDictionary::Integer_klass(),
+                            vmClasses::Integer_klass(),
                             vmSymbols::int_void_signature(),
                             &argsInt,
                             CHECK_NH);
@@ -159,7 +161,7 @@ static Handle createGcInfo(GCMemoryManager *gcManager, GCStatInfo *gcStatInfo,TR
                           gcInfoklass,
                           vmSymbols::com_sun_management_GcInfo_constructor_signature(),
                           &constructor_args,
-                          CHECK_NH);
+                          THREAD);
 }
 
 void GCNotifier::sendNotification(TRAPS) {
@@ -181,7 +183,7 @@ public:
     _request = r;
   }
   ~NotificationMark() {
-    assert(_request != NULL, "Sanity check");
+    assert(_request != nullptr, "Sanity check");
     delete _request;
   }
 };
@@ -190,7 +192,7 @@ void GCNotifier::sendNotificationInternal(TRAPS) {
   ResourceMark rm(THREAD);
   HandleMark hm(THREAD);
   GCNotificationRequest *request = getRequest();
-  if (request != NULL) {
+  if (request != nullptr) {
     NotificationMark nm(request);
     Handle objGcInfo = createGcInfo(request->gcManager, request->gcStatInfo, CHECK);
 

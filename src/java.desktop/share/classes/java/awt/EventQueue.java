@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,6 @@
 
 package java.awt;
 
-import org.checkerframework.checker.guieffect.qual.SafeEffect;
-import org.checkerframework.checker.guieffect.qual.UI;
-import org.checkerframework.checker.guieffect.qual.UIType;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.event.*;
 
 import java.awt.peer.ComponentPeer;
@@ -53,8 +47,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import java.security.AccessControlContext;
 
-import jdk.internal.misc.SharedSecrets;
-import jdk.internal.misc.JavaSecurityAccess;
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.access.JavaSecurityAccess;
 
 /**
  * {@code EventQueue} is a platform-independent class
@@ -100,10 +94,8 @@ import jdk.internal.misc.JavaSecurityAccess;
  *
  * @since       1.1
  */
-@UIType
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class EventQueue {
-    private static final AtomicInteger threadInitNumber = new AtomicInteger(0);
+public class EventQueue {
+    private static final AtomicInteger threadInitNumber = new AtomicInteger();
 
     private static final int LOW_PRIORITY = 0;
     private static final int NORM_PRIORITY = 1;
@@ -199,8 +191,6 @@ public @UsesObjectEquals class EventQueue {
         return eventLog;
     }
 
-    private static boolean fxAppThreadIsDispatchThread;
-
     static {
         AWTAccessor.setEventQueueAccessor(
             new AWTAccessor.EventQueueAccessor() {
@@ -237,14 +227,15 @@ public @UsesObjectEquals class EventQueue {
                     return eventQueue.getMostRecentEventTimeImpl();
                 }
             });
-        AccessController.doPrivileged(new PrivilegedAction<Object>() {
-            public Object run() {
-                fxAppThreadIsDispatchThread =
-                        "true".equals(System.getProperty("javafx.embed.singleThread"));
-                return null;
-            }
-        });
     }
+
+    @SuppressWarnings("removal")
+    private static boolean fxAppThreadIsDispatchThread =
+            AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+                public Boolean run() {
+                    return "true".equals(System.getProperty("javafx.embed.singleThread"));
+                }
+            });
 
     /**
      * Initializes a new instance of {@code EventQueue}.
@@ -553,7 +544,7 @@ public @UsesObjectEquals class EventQueue {
      * returns it.  This method will block until an event has
      * been posted by another thread.
      * @return the next {@code AWTEvent}
-     * @exception InterruptedException
+     * @throws InterruptedException
      *            if any thread has interrupted this thread
      */
     public AWTEvent getNextEvent() throws InterruptedException {
@@ -741,8 +732,11 @@ public @UsesObjectEquals class EventQueue {
             }
         };
 
+        @SuppressWarnings("removal")
         final AccessControlContext stack = AccessController.getContext();
+        @SuppressWarnings("removal")
         final AccessControlContext srcAcc = getAccessControlContextFrom(src);
+        @SuppressWarnings("removal")
         final AccessControlContext eventAcc = event.getAccessControlContext();
         if (srcAcc == null) {
             javaSecurityAccess.doIntersectionPrivilege(action, stack, eventAcc);
@@ -757,6 +751,7 @@ public @UsesObjectEquals class EventQueue {
         }
     }
 
+    @SuppressWarnings("removal")
     private static AccessControlContext getAccessControlContextFrom(Object src) {
         return src instanceof Component ?
             ((Component)src).getAccessControlContext() :
@@ -951,7 +946,7 @@ public @UsesObjectEquals class EventQueue {
      * Warning: To avoid deadlock, do not declare this method
      * synchronized in a subclass.
      *
-     * @exception EmptyStackException if no previous push was made
+     * @throws EmptyStackException if no previous push was made
      *  on this {@code EventQueue}
      * @see      java.awt.EventQueue#push
      * @since           1.2
@@ -1027,8 +1022,8 @@ public @UsesObjectEquals class EventQueue {
     }
 
     private class FwSecondaryLoopWrapper implements SecondaryLoop {
-        final private SecondaryLoop loop;
-        final private EventFilter filter;
+        private final SecondaryLoop loop;
+        private final EventFilter filter;
 
         public FwSecondaryLoopWrapper(SecondaryLoop loop, EventFilter filter) {
             this.loop = loop;
@@ -1113,6 +1108,7 @@ public @UsesObjectEquals class EventQueue {
         }
     }
 
+    @SuppressWarnings({"deprecation", "removal"})
     final void initDispatchThread() {
         pushPopLock.lock();
         try {
@@ -1316,8 +1312,7 @@ public @UsesObjectEquals class EventQueue {
      * @see             #isDispatchThread
      * @since           1.2
      */
-    @SafeEffect
-    public static void invokeLater(@UI Runnable runnable) {
+    public static void invokeLater(Runnable runnable) {
         Toolkit.getEventQueue().postEvent(
             new InvocationEvent(Toolkit.getDefaultToolkit(), runnable));
     }
@@ -1336,9 +1331,9 @@ public @UsesObjectEquals class EventQueue {
      *                  synchronously in the
      *                  {@link #isDispatchThread event dispatch thread}
      *                  of {@link Toolkit#getSystemEventQueue the system EventQueue}
-     * @exception       InterruptedException  if any thread has
+     * @throws       InterruptedException  if any thread has
      *                  interrupted this thread
-     * @exception       InvocationTargetException  if an throwable is thrown
+     * @throws       InvocationTargetException  if an throwable is thrown
      *                  when running {@code runnable}
      * @see             #invokeLater
      * @see             Toolkit#getSystemEventQueue

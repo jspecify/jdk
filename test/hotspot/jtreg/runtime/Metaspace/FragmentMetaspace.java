@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,24 @@
 
 /**
  * @test
- * @library /runtime/testlibrary
+ * @library /test/lib
  * @modules java.base/jdk.internal.misc
  * @modules java.compiler
- * @run main/othervm/timeout=200 -Xmx300m FragmentMetaspace
+ * @run main/othervm/timeout=200 -Xmx1g FragmentMetaspace
+ */
+
+/**
+ * @test id=8320331
+ * @bug 8320331
+ * @requires vm.debug
+ * @library /test/lib
+ * @modules java.base/jdk.internal.misc
+ * @modules java.compiler
+ * @run main/othervm/timeout=200 -XX:+UnlockDiagnosticVMOptions -XX:+VerifyDuringGC -Xmx1g FragmentMetaspace
  */
 
 import java.io.IOException;
+import jdk.test.lib.classloader.GeneratingCompilingClassLoader;
 
 /**
  * Test that tries to fragment the native memory used by class loaders.
@@ -42,8 +53,8 @@ public class FragmentMetaspace {
     public static Class<?> c;
 
     public static void main(String... args) {
-        runGrowing(Long.valueOf(System.getProperty("time", "80000")),
-            Integer.valueOf(System.getProperty("iterations", "200")));
+        runGrowing(Long.valueOf(System.getProperty("time", "40000")),
+            Integer.valueOf(System.getProperty("iterations", "100")));
         // try to clean up and unload classes to decrease
         // class verification time in debug vm
         System.gc();
@@ -53,7 +64,7 @@ public class FragmentMetaspace {
         long startTime = System.currentTimeMillis();
         for (int i = 0; System.currentTimeMillis() < startTime + time && i < iterations; ++i) {
             try {
-                GeneratedClassLoader gcl = new GeneratedClassLoader();
+                GeneratingCompilingClassLoader gcl = new GeneratingCompilingClassLoader();
 
                 // getGeneratedClasses throws a RuntimeException in cases where
                 // the javac exit code is not 0. If the original reason for the exception is
@@ -68,6 +79,9 @@ public class FragmentMetaspace {
                 gcl = null;
             } catch (IOException | InstantiationException | IllegalAccessException ex) {
                 throw new RuntimeException(ex);
+            } catch (OutOfMemoryError oome) {
+                System.out.println("javac failed with OOM; ignored.");
+                return;
             }
         }
     }

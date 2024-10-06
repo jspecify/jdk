@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +47,7 @@ import javax.accessibility.AccessibleContext;
  * in <em>The Java Tutorial</em>,
  * in the section
  * <a
- href="http://docs.oracle.com/javase/tutorial/uiswing/components/applet.html">How to Make Applets</a>.
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/applet.html">How to Make Applets</a>.
  * <p>
  * The <code>JApplet</code> class is slightly incompatible with
  * <code>java.applet.Applet</code>.  <code>JApplet</code> contains a
@@ -85,7 +85,7 @@ import javax.accessibility.AccessibleContext;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -96,15 +96,18 @@ import javax.accessibility.AccessibleContext;
  *
  * @deprecated The Applet API is deprecated, no replacement.
  */
-@Deprecated(since = "9")
+@Deprecated(since = "9", forRemoval = true)
 @JavaBean(defaultProperty = "JMenuBar", description = "Swing's Applet subclass.")
 @SwingContainer(delegate = "getContentPane")
-@SuppressWarnings("serial") // Same-version serialization only
+@SuppressWarnings({"serial", "removal"}) // Same-version serialization only
 public class JApplet extends Applet implements Accessible,
                                                RootPaneContainer,
                                TransferHandler.HasGetTransferHandler
 {
     /**
+     * The <code>JRootPane</code> instance that manages the
+     * <code>contentPane</code>.
+     *
      * @see #getRootPane
      * @see #setRootPane
      */
@@ -132,7 +135,7 @@ public class JApplet extends Applet implements Accessible,
      * This constructor sets the component's locale property to the value
      * returned by <code>JComponent.getDefaultLocale</code>.
      *
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true.
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @see JComponent#getDefaultLocale
@@ -174,7 +177,7 @@ public class JApplet extends Applet implements Accessible,
         JRootPane rp = new JRootPane();
         // NOTE: this uses setOpaque vs LookAndFeel.installProperty as there
         // is NO reason for the RootPane not to be opaque. For painting to
-        // work the contentPane must be opaque, therefor the RootPane can
+        // work the contentPane must be opaque, therefore the RootPane can
         // also be opaque.
         rp.setOpaque(true);
         return rp;
@@ -197,7 +200,7 @@ public class JApplet extends Applet implements Accessible,
      * are currently typed to {@code JComponent}.
      * <p>
      * Please see
-     * <a href="http://docs.oracle.com/javase/tutorial/uiswing/dnd/index.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/dnd/index.html">
      * How to Use Drag and Drop and Data Transfer</a>, a section in
      * <em>The Java Tutorial</em>, for more information.
      *
@@ -309,10 +312,10 @@ public class JApplet extends Applet implements Accessible,
      * @param comp the component to be enhanced
      * @param constraints the constraints to be respected
      * @param index the index
-     * @exception IllegalArgumentException if <code>index</code> is invalid
-     * @exception IllegalArgumentException if adding the container's parent
+     * @throws IllegalArgumentException if <code>index</code> is invalid
+     * @throws IllegalArgumentException if adding the container's parent
      *                  to itself
-     * @exception IllegalArgumentException if adding a window to a container
+     * @throws IllegalArgumentException if adding a window to a container
      *
      * @see #setRootPaneCheckingEnabled
      * @see javax.swing.RootPaneContainer
@@ -420,7 +423,7 @@ public class JApplet extends Applet implements Accessible,
      * Sets the contentPane property.  This method is called by the constructor.
      * @param contentPane the contentPane object for this applet
      *
-     * @exception java.awt.IllegalComponentStateException (a runtime
+     * @throws java.awt.IllegalComponentStateException (a runtime
      *            exception) if the content pane parameter is null
      * @see #getContentPane
      * @see RootPaneContainer#setContentPane
@@ -434,7 +437,7 @@ public class JApplet extends Applet implements Accessible,
     /**
      * Returns the layeredPane object for this applet.
      *
-     * @exception java.awt.IllegalComponentStateException (a runtime
+     * @throws java.awt.IllegalComponentStateException (a runtime
      *            exception) if the layered pane parameter is null
      * @see #setLayeredPane
      * @see RootPaneContainer#getLayeredPane
@@ -566,6 +569,12 @@ public class JApplet extends Applet implements Accessible,
      * <code>JApplet</code> class.
      */
     protected class AccessibleJApplet extends AccessibleApplet {
+
+        /**
+         * Constructs an {@code AccessibleJApplet}.
+         */
+        protected AccessibleJApplet() {}
+
         // everything moved to new parent, AccessibleApplet
     }
 }

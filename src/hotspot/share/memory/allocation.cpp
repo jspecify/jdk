@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,214 +26,199 @@
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/arena.hpp"
-#include "memory/metaspaceShared.hpp"
+#include "memory/metaspace.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.hpp"
-#include "runtime/atomic.hpp"
+#include "nmt/memTracker.hpp"
 #include "runtime/os.hpp"
 #include "runtime/task.hpp"
 #include "runtime/threadCritical.hpp"
-#include "services/memTracker.hpp"
 #include "utilities/ostream.hpp"
 
 // allocate using malloc; will fail if no memory available
 char* AllocateHeap(size_t size,
-                   MEMFLAGS flags,
+                   MemTag mem_tag,
                    const NativeCallStack& stack,
                    AllocFailType alloc_failmode /* = AllocFailStrategy::EXIT_OOM*/) {
-  char* p = (char*) os::malloc(size, flags, stack);
-  if (p == NULL && alloc_failmode == AllocFailStrategy::EXIT_OOM) {
+  char* p = (char*) os::malloc(size, mem_tag, stack);
+  if (p == nullptr && alloc_failmode == AllocFailStrategy::EXIT_OOM) {
     vm_exit_out_of_memory(size, OOM_MALLOC_ERROR, "AllocateHeap");
   }
   return p;
 }
 
 char* AllocateHeap(size_t size,
-                   MEMFLAGS flags,
+                   MemTag mem_tag,
                    AllocFailType alloc_failmode /* = AllocFailStrategy::EXIT_OOM*/) {
-  return AllocateHeap(size, flags, CALLER_PC);
+  return AllocateHeap(size, mem_tag, CALLER_PC, alloc_failmode);
 }
 
 char* ReallocateHeap(char *old,
                      size_t size,
-                     MEMFLAGS flag,
+                     MemTag mem_tag,
                      AllocFailType alloc_failmode) {
-  char* p = (char*) os::realloc(old, size, flag, CALLER_PC);
-  if (p == NULL && alloc_failmode == AllocFailStrategy::EXIT_OOM) {
+  char* p = (char*) os::realloc(old, size, mem_tag, CALLER_PC);
+  if (p == nullptr && alloc_failmode == AllocFailStrategy::EXIT_OOM) {
     vm_exit_out_of_memory(size, OOM_MALLOC_ERROR, "ReallocateHeap");
   }
   return p;
 }
 
+// handles null pointers
 void FreeHeap(void* p) {
   os::free(p);
 }
 
-void* MetaspaceObj::_shared_metaspace_base = NULL;
-void* MetaspaceObj::_shared_metaspace_top  = NULL;
-
-void* StackObj::operator new(size_t size)     throw() { ShouldNotCallThis(); return 0; }
-void  StackObj::operator delete(void* p)              { ShouldNotCallThis(); }
-void* StackObj::operator new [](size_t size)  throw() { ShouldNotCallThis(); return 0; }
-void  StackObj::operator delete [](void* p)           { ShouldNotCallThis(); }
+void* MetaspaceObj::_shared_metaspace_base = nullptr;
+void* MetaspaceObj::_shared_metaspace_top  = nullptr;
 
 void* MetaspaceObj::operator new(size_t size, ClassLoaderData* loader_data,
                                  size_t word_size,
                                  MetaspaceObj::Type type, TRAPS) throw() {
-  // Klass has it's own operator new
-  return Metaspace::allocate(loader_data, word_size, type, THREAD);
+  // Klass has its own operator new
+  assert(type != ClassType, "class has its own operator new");
+  return Metaspace::allocate(loader_data, word_size, type, /*use_class_space*/ false, THREAD);
 }
 
-bool MetaspaceObj::is_metaspace_object() const {
-  return Metaspace::contains((void*)this);
+void* MetaspaceObj::operator new(size_t size, ClassLoaderData* loader_data,
+                                 size_t word_size,
+                                 MetaspaceObj::Type type) throw() {
+  assert(!Thread::current()->is_Java_thread(), "only allowed by non-Java thread");
+  assert(type != ClassType, "class has its own operator new");
+  return Metaspace::allocate(loader_data, word_size, type, /*use_class_space*/ false);
+}
+
+bool MetaspaceObj::is_valid(const MetaspaceObj* p) {
+  // Weed out obvious bogus values first without traversing metaspace
+  if ((size_t)p < os::min_page_size()) {
+    return false;
+  } else if (!is_aligned((address)p, sizeof(MetaWord))) {
+    return false;
+  }
+  return Metaspace::contains((void*)p);
 }
 
 void MetaspaceObj::print_address_on(outputStream* st) const {
-  st->print(" {" INTPTR_FORMAT "}", p2i(this));
+  st->print(" {" PTR_FORMAT "}", p2i(this));
 }
 
-void* ResourceObj::operator new(size_t size, Arena *arena) throw() {
+//
+// ArenaObj
+//
+
+void* ArenaObj::operator new(size_t size, Arena *arena) throw() {
+  return arena->Amalloc(size);
+}
+
+//
+// AnyObj
+//
+
+void* AnyObj::operator new(size_t size, Arena *arena) {
   address res = (address)arena->Amalloc(size);
   DEBUG_ONLY(set_allocation_type(res, ARENA);)
   return res;
 }
 
-void* ResourceObj::operator new [](size_t size, Arena *arena) throw() {
-  address res = (address)arena->Amalloc(size);
-  DEBUG_ONLY(set_allocation_type(res, ARENA);)
+void* AnyObj::operator new(size_t size, MemTag mem_tag) throw() {
+  address res = (address)AllocateHeap(size, mem_tag, CALLER_PC);
+  DEBUG_ONLY(set_allocation_type(res, C_HEAP);)
   return res;
 }
 
-void* ResourceObj::operator new(size_t size, allocation_type type, MEMFLAGS flags) throw() {
-  address res = NULL;
-  switch (type) {
-   case C_HEAP:
-    res = (address)AllocateHeap(size, flags, CALLER_PC);
-    DEBUG_ONLY(set_allocation_type(res, C_HEAP);)
-    break;
-   case RESOURCE_AREA:
-    // new(size) sets allocation type RESOURCE_AREA.
-    res = (address)operator new(size);
-    break;
-   default:
-    ShouldNotReachHere();
-  }
-  return res;
-}
-
-void* ResourceObj::operator new [](size_t size, allocation_type type, MEMFLAGS flags) throw() {
-  return (address) operator new(size, type, flags);
-}
-
-void* ResourceObj::operator new(size_t size, const std::nothrow_t&  nothrow_constant,
-    allocation_type type, MEMFLAGS flags) throw() {
+void* AnyObj::operator new(size_t size, const std::nothrow_t&  nothrow_constant,
+    MemTag mem_tag) throw() {
   // should only call this with std::nothrow, use other operator new() otherwise
-  address res = NULL;
-  switch (type) {
-   case C_HEAP:
-    res = (address)AllocateHeap(size, flags, CALLER_PC, AllocFailStrategy::RETURN_NULL);
-    DEBUG_ONLY(if (res!= NULL) set_allocation_type(res, C_HEAP);)
-    break;
-   case RESOURCE_AREA:
-    // new(size) sets allocation type RESOURCE_AREA.
-    res = (address)operator new(size, std::nothrow);
-    break;
-   default:
-    ShouldNotReachHere();
-  }
+    address res = (address)AllocateHeap(size, mem_tag, CALLER_PC, AllocFailStrategy::RETURN_NULL);
+    DEBUG_ONLY(if (res!= nullptr) set_allocation_type(res, C_HEAP);)
   return res;
 }
 
-void* ResourceObj::operator new [](size_t size, const std::nothrow_t&  nothrow_constant,
-    allocation_type type, MEMFLAGS flags) throw() {
-  return (address)operator new(size, nothrow_constant, type, flags);
-}
-
-void ResourceObj::operator delete(void* p) {
-  assert(((ResourceObj *)p)->allocated_on_C_heap(),
+void AnyObj::operator delete(void* p) {
+  if (p == nullptr) {
+    return;
+  }
+  assert(((AnyObj *)p)->allocated_on_C_heap(),
          "delete only allowed for C_HEAP objects");
-  DEBUG_ONLY(((ResourceObj *)p)->_allocation_t[0] = (uintptr_t)badHeapOopVal;)
+  DEBUG_ONLY(((AnyObj *)p)->_allocation_t[0] = (uintptr_t)badHeapOopVal;)
   FreeHeap(p);
 }
 
-void ResourceObj::operator delete [](void* p) {
-  operator delete(p);
-}
-
 #ifdef ASSERT
-void ResourceObj::set_allocation_type(address res, allocation_type type) {
-    // Set allocation type in the resource object
-    uintptr_t allocation = (uintptr_t)res;
-    assert((allocation & allocation_mask) == 0, "address should be aligned to 4 bytes at least: " INTPTR_FORMAT, p2i(res));
-    assert(type <= allocation_mask, "incorrect allocation type");
-    ResourceObj* resobj = (ResourceObj *)res;
-    resobj->_allocation_t[0] = ~(allocation + type);
-    if (type != STACK_OR_EMBEDDED) {
-      // Called from operator new() and CollectionSetChooser(),
-      // set verification value.
-      resobj->_allocation_t[1] = (uintptr_t)&(resobj->_allocation_t[1]) + type;
-    }
+void AnyObj::set_allocation_type(address res, allocation_type type) {
+  // Set allocation type in the resource object
+  uintptr_t allocation = (uintptr_t)res;
+  assert((allocation & allocation_mask) == 0, "address should be aligned to 4 bytes at least: " PTR_FORMAT, p2i(res));
+  assert(type <= allocation_mask, "incorrect allocation type");
+  AnyObj* resobj = (AnyObj *)res;
+  resobj->_allocation_t[0] = ~(allocation + type);
+  if (type != STACK_OR_EMBEDDED) {
+    // Called from operator new(), set verification value.
+    resobj->_allocation_t[1] = (uintptr_t)&(resobj->_allocation_t[1]) + type;
+  }
 }
 
-ResourceObj::allocation_type ResourceObj::get_allocation_type() const {
-    assert(~(_allocation_t[0] | allocation_mask) == (uintptr_t)this, "lost resource object");
-    return (allocation_type)((~_allocation_t[0]) & allocation_mask);
+AnyObj::allocation_type AnyObj::get_allocation_type() const {
+  assert(~(_allocation_t[0] | allocation_mask) == (uintptr_t)this, "lost resource object");
+  return (allocation_type)((~_allocation_t[0]) & allocation_mask);
 }
 
-bool ResourceObj::is_type_set() const {
-    allocation_type type = (allocation_type)(_allocation_t[1] & allocation_mask);
-    return get_allocation_type()  == type &&
-           (_allocation_t[1] - type) == (uintptr_t)(&_allocation_t[1]);
+bool AnyObj::is_type_set() const {
+  allocation_type type = (allocation_type)(_allocation_t[1] & allocation_mask);
+  return get_allocation_type()  == type &&
+         (_allocation_t[1] - type) == (uintptr_t)(&_allocation_t[1]);
 }
 
-ResourceObj::ResourceObj() { // default constructor
-    if (~(_allocation_t[0] | allocation_mask) != (uintptr_t)this) {
-      // Operator new() is not called for allocations
-      // on stack and for embedded objects.
-      set_allocation_type((address)this, STACK_OR_EMBEDDED);
-    } else if (allocated_on_stack()) { // STACK_OR_EMBEDDED
-      // For some reason we got a value which resembles
-      // an embedded or stack object (operator new() does not
-      // set such type). Keep it since it is valid value
-      // (even if it was garbage).
-      // Ignore garbage in other fields.
-    } else if (is_type_set()) {
-      // Operator new() was called and type was set.
-      assert(!allocated_on_stack(),
-             "not embedded or stack, this(" PTR_FORMAT ") type %d a[0]=(" PTR_FORMAT ") a[1]=(" PTR_FORMAT ")",
-             p2i(this), get_allocation_type(), _allocation_t[0], _allocation_t[1]);
-    } else {
-      // Operator new() was not called.
-      // Assume that it is embedded or stack object.
-      set_allocation_type((address)this, STACK_OR_EMBEDDED);
-    }
-    _allocation_t[1] = 0; // Zap verification value
-}
-
-ResourceObj::ResourceObj(const ResourceObj& r) { // default copy constructor
-    // Used in ClassFileParser::parse_constant_pool_entries() for ClassFileStream.
-    // Note: garbage may resembles valid value.
-    assert(~(_allocation_t[0] | allocation_mask) != (uintptr_t)this || !is_type_set(),
-           "embedded or stack only, this(" PTR_FORMAT ") type %d a[0]=(" PTR_FORMAT ") a[1]=(" PTR_FORMAT ")",
-           p2i(this), get_allocation_type(), _allocation_t[0], _allocation_t[1]);
+// This whole business of passing information from AnyObj::operator new
+// to the AnyObj constructor via fields in the "object" is technically UB.
+// But it seems to work within the limitations of HotSpot usage (such as no
+// multiple inheritance) with the compilers and compiler options we're using.
+// And it gives some possibly useful checking for misuse of AnyObj.
+void AnyObj::initialize_allocation_info() {
+  if (~(_allocation_t[0] | allocation_mask) != (uintptr_t)this) {
+    // Operator new() is not called for allocations
+    // on stack and for embedded objects.
     set_allocation_type((address)this, STACK_OR_EMBEDDED);
-    _allocation_t[1] = 0; // Zap verification value
-}
-
-ResourceObj& ResourceObj::operator=(const ResourceObj& r) { // default copy assignment
-    // Used in InlineTree::ok_to_inline() for WarmCallInfo.
-    assert(allocated_on_stack(),
-           "copy only into local, this(" PTR_FORMAT ") type %d a[0]=(" PTR_FORMAT ") a[1]=(" PTR_FORMAT ")",
+  } else if (allocated_on_stack_or_embedded()) { // STACK_OR_EMBEDDED
+    // For some reason we got a value which resembles
+    // an embedded or stack object (operator new() does not
+    // set such type). Keep it since it is valid value
+    // (even if it was garbage).
+    // Ignore garbage in other fields.
+  } else if (is_type_set()) {
+    // Operator new() was called and type was set.
+    assert(!allocated_on_stack_or_embedded(),
+           "not embedded or stack, this(" PTR_FORMAT ") type %d a[0]=(" PTR_FORMAT ") a[1]=(" PTR_FORMAT ")",
            p2i(this), get_allocation_type(), _allocation_t[0], _allocation_t[1]);
-    // Keep current _allocation_t value;
-    return *this;
+  } else {
+    // Operator new() was not called.
+    // Assume that it is embedded or stack object.
+    set_allocation_type((address)this, STACK_OR_EMBEDDED);
+  }
+  _allocation_t[1] = 0; // Zap verification value
 }
 
-ResourceObj::~ResourceObj() {
-    // allocated_on_C_heap() also checks that encoded (in _allocation) address == this.
-    if (!allocated_on_C_heap()) { // ResourceObj::delete() will zap _allocation for C_heap.
-      _allocation_t[0] = (uintptr_t)badHeapOopVal; // zap type
-    }
+AnyObj::AnyObj() {
+  initialize_allocation_info();
+}
+
+AnyObj::AnyObj(const AnyObj&) {
+  // Initialize _allocation_t as a new object, ignoring object being copied.
+  initialize_allocation_info();
+}
+
+AnyObj& AnyObj::operator=(const AnyObj& r) {
+  assert(allocated_on_stack_or_embedded(),
+         "copy only into local, this(" PTR_FORMAT ") type %d a[0]=(" PTR_FORMAT ") a[1]=(" PTR_FORMAT ")",
+         p2i(this), get_allocation_type(), _allocation_t[0], _allocation_t[1]);
+  // Keep current _allocation_t value;
+  return *this;
+}
+
+AnyObj::~AnyObj() {
+  // allocated_on_C_heap() also checks that encoded (in _allocation) address == this.
+  if (!allocated_on_C_heap()) { // AnyObj::delete() will zap _allocation for C_heap.
+    _allocation_t[0] = (uintptr_t)badHeapOopVal; // zap type
+  }
 }
 #endif // ASSERT
 
@@ -241,34 +226,10 @@ ResourceObj::~ResourceObj() {
 // Non-product code
 
 #ifndef PRODUCT
-void AllocatedObj::print() const       { print_on(tty); }
-void AllocatedObj::print_value() const { print_value_on(tty); }
+void AnyObj::print() const       { print_on(tty); }
 
-void AllocatedObj::print_on(outputStream* st) const {
-  st->print_cr("AllocatedObj(" INTPTR_FORMAT ")", p2i(this));
-}
-
-void AllocatedObj::print_value_on(outputStream* st) const {
-  st->print("AllocatedObj(" INTPTR_FORMAT ")", p2i(this));
-}
-
-AllocStats::AllocStats() {
-  start_mallocs      = os::num_mallocs;
-  start_frees        = os::num_frees;
-  start_malloc_bytes = os::alloc_bytes;
-  start_mfree_bytes  = os::free_bytes;
-  start_res_bytes    = Arena::_bytes_allocated;
-}
-
-julong  AllocStats::num_mallocs() { return os::num_mallocs - start_mallocs; }
-julong  AllocStats::alloc_bytes() { return os::alloc_bytes - start_malloc_bytes; }
-julong  AllocStats::num_frees()   { return os::num_frees - start_frees; }
-julong  AllocStats::free_bytes()  { return os::free_bytes - start_mfree_bytes; }
-julong  AllocStats::resource_bytes() { return Arena::_bytes_allocated - start_res_bytes; }
-void    AllocStats::print() {
-  tty->print_cr(UINT64_FORMAT " mallocs (" UINT64_FORMAT "MB), "
-                UINT64_FORMAT " frees (" UINT64_FORMAT "MB), " UINT64_FORMAT "MB resrc",
-                num_mallocs(), alloc_bytes()/M, num_frees(), free_bytes()/M, resource_bytes()/M);
+void AnyObj::print_on(outputStream* st) const {
+  st->print_cr("AnyObj(" PTR_FORMAT ")", p2i(this));
 }
 
 ReallocMark::ReallocMark() {
@@ -278,9 +239,10 @@ ReallocMark::ReallocMark() {
 #endif
 }
 
-void ReallocMark::check() {
+void ReallocMark::check(Arena* arena) {
 #ifdef ASSERT
-  if (_nesting != Thread::current()->resource_area()->nesting()) {
+  if ((arena == nullptr || arena == Thread::current()->resource_area()) &&
+      _nesting != Thread::current()->resource_area()->nesting()) {
     fatal("allocation bug: array could grow within nested ResourceMark");
   }
 #endif

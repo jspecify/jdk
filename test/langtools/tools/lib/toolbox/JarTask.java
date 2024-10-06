@@ -25,7 +25,6 @@ package toolbox;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
@@ -332,7 +331,7 @@ public class JarTask extends AbstractTask<JarTask> {
                         String p = base.relativize(file)
                                 .normalize()
                                 .toString()
-                                .replace(File.separatorChar, '/');
+                                .replace(ToolBox.fileSeparatorChar, '/');
                         JarEntry e = new JarEntry(p);
                             jos.putNextEntry(e);
                         try {
@@ -377,9 +376,9 @@ public class JarTask extends AbstractTask<JarTask> {
     private final Pattern jarEntry = Pattern.compile(".*!/(?:META-INF/sym/[^/]+/)?(.*)");
 
     /*
-     * A jrt: URL is of the form  jrt:/modules/<module>/<package>/<file>
+     * A jrt: URL is of the form  jrt:/<module>/<package>/<file>
      */
-    private final Pattern jrtEntry = Pattern.compile("/modules/([^/]+)/(.*)");
+    private final Pattern jrtEntry = Pattern.compile("/([^/]+)/(.*)");
 
     /*
      * A file: URL is of the form  file:/path/to/{modules,patches}/<module>/<package>/<file>

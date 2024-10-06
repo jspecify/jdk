@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,22 +20,46 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 /*
- *
+ * @test
+ * @bug 4052440 7200341 8062588 8210406 8174269
+ * @summary DateFormatSymbolsProvider tests
+ * @library providersrc/foobarutils
+ *          providersrc/fooprovider
+ * @modules java.base/sun.util.locale.provider
+ *          java.base/sun.util.resources
+ * @build com.foobar.Utils
+ *        com.foo.*
+ * @run main/othervm -Djava.locale.providers=CLDR,SPI DateFormatSymbolsProviderTest
  */
 
-import java.text.*;
-import java.util.*;
-import sun.util.locale.provider.*;
-import sun.util.resources.*;
+import java.text.DateFormatSymbols;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
+import java.util.Set;
+import java.util.stream.Stream;
+
+import com.foo.DateFormatSymbolsProviderImpl;
+
+import sun.util.locale.provider.LocaleProviderAdapter;
+import sun.util.locale.provider.ResourceBundleBasedAdapter;
 
 public class DateFormatSymbolsProviderTest extends ProviderTest {
 
-    com.foo.DateFormatSymbolsProviderImpl dfsp = new com.foo.DateFormatSymbolsProviderImpl();
+    DateFormatSymbolsProviderImpl dfsp = new DateFormatSymbolsProviderImpl();
     List<Locale> availloc = Arrays.asList(DateFormatSymbols.getAvailableLocales());
     List<Locale> providerloc = Arrays.asList(dfsp.getAvailableLocales());
-    List<Locale> jreloc = Arrays.asList(LocaleProviderAdapter.forJRE().getAvailableLocales());
-    List<Locale> jreimplloc = Arrays.asList(LocaleProviderAdapter.forJRE().getDateFormatSymbolsProvider().getAvailableLocales());
+    List<Locale> jreloc = Stream.concat(
+            Arrays.stream(LocaleProviderAdapter.forType(LocaleProviderAdapter.Type.CLDR).getAvailableLocales()),
+            Arrays.stream(LocaleProviderAdapter.forType(LocaleProviderAdapter.Type.FALLBACK).getAvailableLocales())).toList();
+    List<Locale> jreimplloc = Stream.concat(
+            Arrays.stream(LocaleProviderAdapter.forType(LocaleProviderAdapter.Type.CLDR).getDateFormatSymbolsProvider().getAvailableLocales()),
+            Arrays.stream(LocaleProviderAdapter.forType(LocaleProviderAdapter.Type.FALLBACK).getDateFormatSymbolsProvider().getAvailableLocales())).toList();
 
     public static void main(String[] s) {
         new DateFormatSymbolsProviderTest();
@@ -62,7 +86,7 @@ public class DateFormatSymbolsProviderTest extends ProviderTest {
 
         for (Locale target: availloc) {
             // pure JRE implementation
-            ResourceBundle rb = ((ResourceBundleBasedAdapter)LocaleProviderAdapter.forJRE()).getLocaleData().getDateFormatData(target);
+            ResourceBundle rb = ((ResourceBundleBasedAdapter)LocaleProviderAdapter.forType(LocaleProviderAdapter.Type.CLDR)).getLocaleData().getDateFormatData(target);
             boolean jreSupportsLocale = jreimplloc.contains(target);
 
             // JRE string arrays

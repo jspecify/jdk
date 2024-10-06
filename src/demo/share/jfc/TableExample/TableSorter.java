@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -71,7 +71,7 @@ import javax.swing.table.TableColumnModel;
 @SuppressWarnings("serial")
 public final class TableSorter extends TableMap {
 
-    int indexes[];
+    int[] indexes;
     List<Integer> sortingColumns = new ArrayList<Integer>();
     boolean ascending = true;
     int compares;
@@ -91,7 +91,7 @@ public final class TableSorter extends TableMap {
     }
 
     public int compareRowsByColumn(int row1, int row2, int column) {
-        Class type = model.getColumnClass(column);
+        Class<?> type = model.getColumnClass(column);
         TableModel data = model;
 
         // Check for nulls
@@ -249,7 +249,7 @@ public final class TableSorter extends TableMap {
     // arrays. The number of compares appears to vary between N-1 and
     // NlogN depending on the initial order but the main reason for
     // using it here is that, unlike qsort, it is stable.
-    public void shuttlesort(int from[], int to[], int low, int high) {
+    public void shuttlesort(int[] from, int[] to, int low, int high) {
         if (high - low < 2) {
             return;
         }
@@ -339,7 +339,7 @@ public final class TableSorter extends TableMap {
                 int column = tableView.convertColumnIndexToModel(viewColumn);
                 if (e.getClickCount() == 1 && column != -1) {
                     System.out.println("Sorting ...");
-                    int shiftPressed = e.getModifiers() & InputEvent.SHIFT_MASK;
+                    int shiftPressed = e.getModifiersEx() & InputEvent.SHIFT_DOWN_MASK;
                     boolean ascending = (shiftPressed == 0);
                     sorter.sortByColumn(column, ascending);
                 }

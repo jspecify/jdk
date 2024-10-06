@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -27,121 +25,89 @@
  * @test
  * @bug      8173425 8186332 8182765 8196202
  * @summary  tests for the summary tag behavior
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestSummaryTag
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestSummaryTag extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestSummaryTag tester = new TestSummaryTag();
+        var tester = new TestSummaryTag();
         tester.runTests();
     }
 
     @Test
-    void test1() {
+    public void test1() {
         javadoc("-d", "out1",
                 "-sourcepath", testSrc,
                 "p1");
         checkExit(Exit.OK);
 
         checkOutput("index-all.html", true,
-            "<dl>\n"
-            + "<dt><span class=\"memberNameLink\"><a href=\"p1/A.html#m()\">m()"
-            + "</a></span> - Method in class p1.<a href=\"p1/A.html\" title=\"class in p1\">A</a></dt>\n"
-            + "<dd>\n"
-            + "<div class=\"block\">First sentence</div>\n"
-            + "</dd>\n"
-            + "<dt><span class=\"memberNameLink\"><a href=\"p1/B.html#m()\">m()"
-            + "</a></span> - Method in class p1.<a href=\"p1/B.html\" title=\"class in p1\">B</a></dt>\n"
-            + "<dd>\n"
-            + "<div class=\"block\">First sentence</div>\n"
-            + "</dd>\n"
-            + "<dt><span class=\"memberNameLink\"><a href=\"p1/A.html#m1()\">m1()"
-            + "</a></span> - Method in class p1.<a href=\"p1/A.html\" title=\"class in p1\">A</a></dt>\n"
-            + "<dd>\n"
-            + "<div class=\"block\"> First sentence </div>\n"
-            + "</dd>\n"
-            + "<dt><span class=\"memberNameLink\"><a href=\"p1/A.html#m2()\">m2()"
-            + "</a></span> - Method in class p1.<a href=\"p1/A.html\" title=\"class in p1\">A</a></dt>\n"
-            + "<dd>\n"
-            + "<div class=\"block\">Some html &lt;foo&gt; &nbsp; codes</div>\n"
-            + "</dd>\n"
-            + "<dt><span class=\"memberNameLink\"><a href=\"p1/A.html#m3()\">m3()"
-            + "</a></span> - Method in class p1.<a href=\"p1/A.html\" title=\"class in p1\">A</a></dt>\n"
-            + "<dd>\n"
-            + "<div class=\"block\">First sentence </div>\n"
-            + "</dd>\n"
-            + "<dt><span class=\"memberNameLink\"><a href=\"p1/A.html#m4()\">m4()"
-            + "</a></span> - Method in class p1.<a href=\"p1/A.html\" title=\"class in p1\">A</a></dt>\n"
-            + "<dd>\n"
-            + "<div class=\"block\">First sentence i.e. the first sentence</div>\n"
-            + "</dd>\n"
-            + "</dl>\n",
-            "<div class=\"block\">The first... line</div>\n"
+            """
+                <dl class="index">
+                <dt><a href="p1/A.html#m()" class="member-name-link">m()</a> - Method in class p1.<a\
+                 href="p1/A.html" title="class in p1">A</a></dt>
+                <dd>
+                <div class="block">First sentence</div>
+                </dd>
+                <dt><a href="p1/B.html#m()" class="member-name-link">m()</a> - Method in class p1.<a\
+                 href="p1/B.html" title="class in p1">B</a></dt>
+                <dd>
+                <div class="block">First sentence</div>
+                </dd>
+                <dt><a href="p1/A.html#m1()" class="member-name-link">m1()</a> - Method in class p1.\
+                <a href="p1/A.html" title="class in p1">A</a></dt>
+                <dd>
+                <div class="block"> First sentence</div>
+                </dd>
+                <dt><a href="p1/A.html#m2()" class="member-name-link">m2()</a> - Method in class p1.\
+                <a href="p1/A.html" title="class in p1">A</a></dt>
+                <dd>
+                <div class="block">Some html &lt;foo&gt; &nbsp; codes</div>
+                </dd>
+                <dt><a href="p1/A.html#m3()" class="member-name-link">m3()</a> - Method in class p1.\
+                <a href="p1/A.html" title="class in p1">A</a></dt>
+                <dd>
+                <div class="block">First sentence</div>
+                </dd>
+                <dt><a href="p1/A.html#m4()" class="member-name-link">m4()</a> - Method in class p1.\
+                <a href="p1/A.html" title="class in p1">A</a></dt>
+                <dd>
+                <div class="block">First sentence i.e. the first sentence</div>
+                </dd>
+                </dl>
+                """,
+            """
+                <div class="block">The first... line</div>
+                """
         );
 
         // make sure the second @summary's content is displayed correctly
         checkOutput("p1/A.html", true,
-             "<li class=\"blockList\">\n"
-             + "<h4>m3</h4>\n"
-             + "<pre class=\"methodSignature\">public&nbsp;void&nbsp;m3()</pre>\n"
-             + "<div class=\"block\">First sentence  some text maybe second sentence.</div>\n"
-             + "</li>\n"
+             """
+                 <section class="detail" id="m3()">
+                 <h3>m3</h3>
+                 <div class="horizontal-scroll">
+                 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span c\
+                 lass="return-type">void</span>&nbsp;<span class="element-name">m3</span>()</div>
+                 <div class="block">First sentence  some text maybe second sentence.</div>
+                 </div>
+                 </section>
+                 """
         );
 
         checkOutput("p1/package-summary.html", true,
-                "<div class=\"block\">The first... line second from ...</div>");
+                """
+                    <div class="block">The first... line second from ...</div>""");
     }
 
     @Test
-    void test1_html4() {
-        javadoc("-d", "out1-html4",
-                "-html4",
-                "-sourcepath", testSrc,
-                "p1");
-        checkExit(Exit.OK);
-
-        checkOutput("index-all.html", true,
-            "<dl>\n"
-            + "<dt><span class=\"memberNameLink\"><a href=\"p1/A.html#m--\">m()"
-            + "</a></span> - Method in class p1.<a href=\"p1/A.html\" title=\"class in p1\">A</a></dt>\n"
-            + "<dd>\n"
-            + "<div class=\"block\">First sentence</div>\n"
-            + "</dd>\n"
-            + "<dt><span class=\"memberNameLink\"><a href=\"p1/B.html#m--\">m()"
-            + "</a></span> - Method in class p1.<a href=\"p1/B.html\" title=\"class in p1\">B</a></dt>\n"
-            + "<dd>\n"
-            + "<div class=\"block\">First sentence</div>\n"
-            + "</dd>\n"
-            + "<dt><span class=\"memberNameLink\"><a href=\"p1/A.html#m1--\">m1()"
-            + "</a></span> - Method in class p1.<a href=\"p1/A.html\" title=\"class in p1\">A</a></dt>\n"
-            + "<dd>\n"
-            + "<div class=\"block\"> First sentence </div>\n"
-            + "</dd>\n"
-            + "<dt><span class=\"memberNameLink\"><a href=\"p1/A.html#m2--\">m2()"
-            + "</a></span> - Method in class p1.<a href=\"p1/A.html\" title=\"class in p1\">A</a></dt>\n"
-            + "<dd>\n"
-            + "<div class=\"block\">Some html &lt;foo&gt; &nbsp; codes</div>\n"
-            + "</dd>\n"
-            + "<dt><span class=\"memberNameLink\"><a href=\"p1/A.html#m3--\">m3()"
-            + "</a></span> - Method in class p1.<a href=\"p1/A.html\" title=\"class in p1\">A</a></dt>\n"
-            + "<dd>\n"
-            + "<div class=\"block\">First sentence </div>\n"
-            + "</dd>\n"
-            + "<dt><span class=\"memberNameLink\"><a href=\"p1/A.html#m4--\">m4()"
-            + "</a></span> - Method in class p1.<a href=\"p1/A.html\" title=\"class in p1\">A</a></dt>\n"
-            + "<dd>\n"
-            + "<div class=\"block\">First sentence i.e. the first sentence</div>\n"
-            + "</dd>\n"
-            + "</dl>\n"
-        );
-    }
-
-    @Test
-    void test2() {
+    public void test2() {
         javadoc("-d", "out2",
                 "-sourcepath", testSrc,
                 "p2");
@@ -149,21 +115,25 @@ public class TestSummaryTag extends JavadocTester {
 
         checkOutput(Output.OUT, true, "package.html:3: warning: invalid use of @summary");
 
-        checkOutput("index-all.html", true, "<div class=\"block\">foo bar</div>\n");
+        checkOutput("index-all.html", true, """
+            <div class="block">foo bar</div>
+            """);
 
-        checkOutput("p2/package-summary.html", true, "<div class=\"block\">foo bar baz.</div>\n");
+        checkOutput("p2/package-summary.html", true, """
+            <div class="block">foo bar baz.</div>
+            """);
     }
 
     @Test
-    void test3() {
+    public void test3() {
         javadoc("-d", "out3",
-                "--frames",
                 "-sourcepath", testSrc,
                 "-overview", testSrc("p3/overview.html"),
                 "p3");
         checkExit(Exit.OK);
 
-        checkOutput("overview-summary.html", true,
-                "<div class=\"block\">The first... line second from ...</div>");
+        checkOutput("index.html", true,
+                """
+                    <div class="block">The first... line second from ...</div>""");
     }
 }

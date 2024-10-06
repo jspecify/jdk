@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_DEFAULTSTREAM_HPP
-#define SHARE_VM_UTILITIES_DEFAULTSTREAM_HPP
+#ifndef SHARE_UTILITIES_DEFAULTSTREAM_HPP
+#define SHARE_UTILITIES_DEFAULTSTREAM_HPP
 
 #include "utilities/xmlstream.hpp"
 
@@ -49,7 +49,7 @@ class defaultStream : public xmlTextStream {
   // must defer time stamp due to the fact that os::init() hasn't
   // yet been called and os::elapsed_counter() may not be valid
   defaultStream() {
-    _log_file = NULL;
+    _log_file = nullptr;
     _inited = false;
     _writer = -1;
     _last_writer = -1;
@@ -96,4 +96,4 @@ class defaultStream : public xmlTextStream {
   static defaultStream* instance;  // sole instance
 };
 
-#endif // SHARE_VM_UTILITIES_DEFAULTSTREAM_HPP
+#endif // SHARE_UTILITIES_DEFAULTSTREAM_HPP

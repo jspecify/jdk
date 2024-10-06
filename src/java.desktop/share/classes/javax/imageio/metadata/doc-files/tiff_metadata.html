@@ -5,7 +5,7 @@
     <title>TIFF Metadata Format Specification and Usage Notes</title>
 </head>
 <!--
-Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
 DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
 This code is free software; you can redistribute it and/or modify it
@@ -71,9 +71,9 @@ questions.
 
 <h2><a id="Reading">Reading Images</a></h2>
 
-TIFF images are read by an <a href="../../ImageReader.html">ImageReader</a>
+TIFF images are read by an {@link javax.imageio.ImageReader ImageReader}
 which may be controlled by its public interface as well as via a supplied
-<a href="../../plugins/tiff/TIFFImageReadParam.html">TIFFImageReadParam</a>.
+{@link javax.imageio.plugins.tiff.TIFFImageReadParam TIFFImageReadParam}.
 
 <!-- <h3>Supported Image Types</h3> -->
 
@@ -89,7 +89,7 @@ RGB using an internal color converter.</p>
 <h3><a id="ColorSpacesRead">Color Spaces</a></h3>
 
 The raw color space assigned by default, i.e., in the absence of a
-user-supplied <a href="../../ImageTypeSpecifier.html">ImageTypeSpecifier</a>,
+user-supplied {@link javax.imageio.ImageTypeSpecifier ImageTypeSpecifier},
 will be the first among the following which applies:
 
 <ul>
@@ -157,8 +157,8 @@ for the data in question.</p>
 <h3><a id="ICCProfilesRead">ICC Profiles</a></h3>
 
 If an ICC profile is contained in the image metadata
-(<a href="../../plugins/tiff/BaselineTIFFTagSet.html">
-BaselineTIFFTagSet</a>.TAG_ICC_PROFILE, tag number 34675),
+({@link javax.imageio.plugins.tiff.BaselineTIFFTagSet BaselineTIFFTagSet}.
+TAG_ICC_PROFILE, tag number 34675),
 an attempt will be made to use it to create the color space
 of the loaded image. It will be used if the data layout is of component type
 and the number of samples per pixel equals or is one greater than the number
@@ -173,15 +173,13 @@ it may be used manually by following this procedure:
 <li>Obtain the image metadata from
 <code>ImageReader.getImageMetadata</code></li>
 <li>Extract the ICC profile field and its value.</li>
-<li>Create an <a href="../../../../java/awt/color/ICC_ColorSpace.html">
-ICC_ColorSpace</a> from an
-<a href="../../../../java/awt/color/ICC_Profile.html">
-ICC_Profile</a> created from the ICC profile field data
+<li>Create an {@link java.awt.color.ICC_ColorSpace ICC_ColorSpace} from an
+{@link java.awt.color.ICC_Profile ICC_Profile} created from the ICC profile field data
 using <code>ICC_Profile.getInstance(byte[])</code>.</li>
 <li>Create an <code>ImageTypeSpecifier</code> from the new color
 space using one of its factory methods which accepts an
 <code>ICC_ColorSpace</code>.
-<li>Create a compatible <a href="../../ImageReadParam.html">ImageReadParam</a>
+<li>Create a compatible {@link javax.imageio.ImageReadParam ImageReadParam}
 and set the <code>ImageTypeSpecifier</code> using
 <code>ImageReadParam.setDestinationType</code>.</li>
 <li>Pass the parameter object to the appropriate <code>read</code> method.</li>
@@ -191,7 +189,7 @@ and set the <code>ImageTypeSpecifier</code> using
 with the ICC profile-based color space, then a second
 <code>ImageTypeSpecifier</code> derived from this inferred color
 space will be included in the
-<a href="../../../../java/util/Iterator.html">Iterator</a> returned by
+{@link java.util.Iterator Iterator} returned by
 <code>ImageReader.getImageTypes</code>. If the iterator contains
 more than one type, the first one will be based on the ICC profile and the
 second on the inferred color space.</p>
@@ -205,7 +203,7 @@ whether to read fields with unrecognized tags, and whether to ignore all
 metadata. The reader is informed to disregard all metadata as usual via the
 <code>ignoreMetadata</code> parameter of
 <code>ImageReader.setInput(Object,boolean,boolean)</code>. It is
-informed of which <a href="../../plugins/tiff/TIFFTag.html">TIFFTag</a>s to
+informed of which {@link javax.imageio.plugins.tiff.TIFFTag TIFFTag}s to
 recognize or not to recognize via
 <code>TIFFImageReadParam.addAllowedTagSet(TIFFTagSet)</code> and
 <code>TIFFImageReadParam.removeAllowedTagSet(TIFFTagSet)</code>.
@@ -220,7 +218,7 @@ by passing in a <code>TIFFImageReadParam</code> on which
 <code>TIFFImageReadParam.setReadUnknownTags(boolean)</code> has been
 invoked with parameter <code>true</code>.
 
-<p>Use of a <a href="../../plugins/tiff/TIFFDirectory.html">TIFFDirectory</a>
+<p>Use of a {@link javax.imageio.plugins.tiff.TIFFDirectory TIFFDirectory}
 object may simplify gaining access to metadata values. An instance of
 <code>TIFFDirectory</code> may be created from the <code>IIOMetadata</code>
 object returned by the TIFF reader using the
@@ -229,17 +227,21 @@ object returned by the TIFF reader using the
 <h4><a id="MapNativeStandard"></a>
 Mapping of TIFF Native Image Metadata to the Standard Metadata Format</h4>
 
-The derivation of standard metadata format
+<table class="striped">
+<caption>The derivation of standard metadata format
 <a href="standard_metadata.html">javax_imageio_1.0</a>
 elements from <a href="#ImageMetadata">TIFF native image metadata</a> is given
-in the following table.
-
-<table border="1">
+in the following table.</caption>
+<thead>
 <tr>
-<th>Standard Metadata Element</th>
-<th>Derivation from TIFF Fields</th>
+<th scope="col">Index</th>
+<th scope="col">Standard Metadata Element</th>
+<th scope="col">Derivation from TIFF Fields</th>
 </tr>
+</thead>
+<tbody>
 <tr>
+<th scope="row">1</th>
 <td>/Chroma/ColorSpaceType@name</td>
 <td>PhotometricInterpretation: WhiteIsZero, BlackIsZero, TransparencyMask =
 "GRAY"; RGB, PaletteColor =&gt; "RGB"; CMYK =&gt; "CMYK";
@@ -247,18 +249,22 @@ YCbCr =&gt; "YCbCr";
 CIELab, ICCLab =&gt; "Lab".</td>
 </tr>
 <tr>
+<th scope="row">2</th>
 <td>/Chroma/NumChannels@value</td>
 <td>SamplesPerPixel</td>
 </tr>
 <tr>
+<th scope="row">3</th>
 <td>/Chroma/BlackIsZero@value</td>
 <td>"TRUE" &lt;=&gt; PhotometricInterpretation =&gt; WhiteIsZero</td>
 </tr>
 <tr>
+<th scope="row">4</th>
 <td>/Chroma/Palette</td>
 <td>ColorMap</td>
 </tr>
 <tr>
+<th scope="row">5</th>
 <td>/Compression/CompressionTypeName@value</td>
 <td>Compression: Uncompressed =&gt; "none"; CCITT 1D =&gt; "CCITT
 RLE";
@@ -269,14 +275,17 @@ JPEG =&gt; "Old JPEG"; New JPEG =&gt; "JPEG"; Zlib =&gt;&gt; "ZLib"; PackBits =&
 Deflate =&gt; "Deflate"; Exif JPEG =&gt; "JPEG".</td>
 </tr>
 <tr>
+<th scope="row">6</th>
 <td>/Compression/Lossless@value</td>
 <td>Compression: JPEG or New JPEG =&gt; "FALSE"; otherwise "TRUE".</td>
 </tr>
 <tr>
+<th scope="row">7</th>
 <td>/Data/PlanarConfiguration@value</td>
 <td>Chunky =&gt; "PixelInterleaved"; Planar =&gt; "PlaneInterleaved".</td>
 </tr>
 <tr>
+<th scope="row">8</th>
 <td>/Data/SampleFormat@value</td>
 <td>PhotometricInterpretation PaletteColor =&gt; "Index";
 SampleFormat unsigned integer data =&gt; "UnsignedIntegral";
@@ -286,53 +295,65 @@ otherwise element not emitted.
 </td>
 </tr>
 <tr>
+<th scope="row">9</th>
 <td>/Data/BitsPerSample@value</td>
 <td>BitsPerSample as a space-separated list.</td>
 </tr>
 <tr>
+<th scope="row">10</th>
 <td>/Data/SampleMSB@value</td>
 <td>FillOrder: left-to-right =&gt; space-separated list of BitsPerSample-1;
 right-to-left =&gt; space-separated list of 0s.</td>
 </tr>
 <tr>
+<th scope="row">11</th>
 <td>/Dimension/PixelAspectRatio@value</td>
 <td>(1/XResolution)/(1/YResolution)</td>
 </tr>
 <tr>
+<th scope="row">12</th>
 <td>/Dimension/ImageOrientation@value</td>
 <td>Orientation</td>
 </tr>
 <tr>
+<th scope="row">13</th>
 <td>/Dimension/HorizontalPixelSize@value</td>
 <td>1/XResolution in millimeters if ResolutionUnit is not None.</td>
 </tr>
 <tr>
+<th scope="row">14</th>
 <td>/Dimension/VerticalPixelSize@value</td>
 <td>1/YResolution in millimeters if ResolutionUnit is not None.</td>
 </tr>
 <tr>
+<th scope="row">15</th>
 <td>/Dimension/HorizontalPosition@value</td>
 <td>XPosition in millimeters if ResolutionUnit is not None.</td>
 </tr>
 <tr>
+<th scope="row">16</th>
 <td>/Dimension/VerticalPosition@value</td>
 <td>YPosition in millimeters if ResolutionUnit is not None.</td>
 </tr>
 <tr>
+<th scope="row">17</th>
 <td>/Document/FormatVersion@value</td>
 <td>6.0</td>
 </tr>
 <tr>
+<th scope="row">18</th>
 <td>/Document/SubimageInterpretation@value</td>
 <td>NewSubFileType: transparency =&gt; "TransparencyMask";
 reduced-resolution =&gt; "ReducedResolution";
 single page =&gt; "SinglePage".</td>
 </tr>
 <tr>
+<th scope="row">19</th>
 <td>/Document/ImageCreationTime@value</td>
 <td>DateTime</td>
 </tr>
 <tr>
+<th scope="row">20</th>
 <td>/Text/TextEntry</td>
 <td>DocumentName, ImageDescription, Make, Model, PageName, Software,
 Artist, HostComputer, InkNames, Copyright:
@@ -343,10 +364,12 @@ Example: TIFF Software field =&gt; /Text/TextEntry@keyword = "Software",
 used to create the image.</td>
 </tr>
 <tr>
+<th scope="row">21</th>
 <td>/Transparency/Alpha@value</td>
 <td>ExtraSamples: associated alpha =&gt; "premultiplied";
 unassociated alpha =&gt; "nonpremultiplied".</td>
 </tr>
+</tbody>
 </table>
 
 <h3><a id="ExifRead">Reading Exif Images</a></h3>
@@ -455,9 +478,9 @@ empty; the primary image should be obtained using the JPEG reader itself.
 
 <h2><a id="Writing">Writing Images</a></h2>
 
-TIFF images are written by a <a href="../../ImageWriter.html">ImageWriter</a> which may be
+TIFF images are written by a {@link javax.imageio.ImageWriter ImageWriter} which may be
 controlled by its public interface as well as via a supplied
-<a href="../../ImageWriteParam.html">ImageWriteParam</a>.  For an <code>ImageWriteParam</code> returned
+{@link javax.imageio.ImageWriteParam ImageWriteParam}.  For an <code>ImageWriteParam</code> returned
 by the <code>getDefaultWriteParam()</code> method of the TIFF <code>ImageWriter</code>,
 the <code>canWriteTiles()</code> and <code>canWriteCompressed()</code> methods
 will return <code>true</code>; the <code>canOffsetTiles()</code> and
@@ -488,55 +511,73 @@ the <code>ImageWriteParam</code> after setting the compression mode to
 <code>MODE_EXPLICIT</code>. The set of innately
 supported compression types is listed in the following table:
 
-<table border=1>
+<table class="striped">
 <caption><b>Supported Compression Types</b></caption>
-<tr><th>Compression Type</th> <th>Description</th> <th>Reference</th></tr>
+<thead>
 <tr>
+  <th scope="col">Index</th>
+  <th scope="col">Compression Type</th>
+  <th scope="col">Description</th>
+  <th scope="col">Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th scope="row">1</th>
 <td>CCITT RLE</td>
 <td>Modified Huffman compression</td>
 <td>TIFF 6.0 Specification, Section 10</td>
 </tr>
 <tr>
+<th scope="row">2</th>
 <td>CCITT T.4</td>
 <td>CCITT T.4 bilevel encoding/Group 3 facsimile compression</td>
 <td>TIFF 6.0 Specification, Section 11</td>
 </tr>
 <tr>
+<th scope="row">3</th>
 <td>CCITT T.6</td>
 <td>CCITT T.6 bilevel encoding/Group 4 facsimile compression</td>
 <td>TIFF 6.0 Specification, Section 11</td></tr>
 <tr>
+<th scope="row">4</th>
 <td>LZW</td>
 <td>LZW compression</td>
 <td>TIFF 6.0 Specification, Section 13</td></tr>
 <tr>
+<th scope="row">5</th>
 <td>JPEG</td>
 <td>"New" JPEG-in-TIFF compression</td>
-<td><a href="ftp://ftp.sgi.com/graphics/tiff/TTN2.draft.txt">TIFF
-Technical Note #2</a></td>
-</tr>
+<td>TIFF Technical Note #2</td></tr>
 <tr>
+<th scope="row">6</th>
 <td>ZLib</td>
 <td>"Deflate/Inflate" compression (see note following this table)</td>
+<td>Adobe Photoshop&#174; TIFF Technical Notes</td>
 </tr>
 <tr>
+<th scope="row">7</th>
 <td>PackBits</td>
 <td>Byte-oriented, run length compression</td>
 <td>TIFF 6.0 Specification, Section 9</td>
 </tr>
 <tr>
+<th scope="row">8</th>
 <td>Deflate</td>
 <td>"Zip-in-TIFF" compression (see note following this table)</td>
-<td><a href="https://tools.ietf.org/html/rfc1950">
+<td><a href="https://www.rfc-editor.org/info/rfc1950">
 ZLIB Compressed Data Format Specification</a>,
-<a href="https://tools.ietf.org/html/rfc1951">
+<a href="https://www.rfc-editor.org/info/rfc1951">
 DEFLATE Compressed Data Format Specification</a></td>
 </tr>
 <tr>
+<th scope="row">9</th>
 <td>Exif JPEG</td>
 <td>Exif-specific JPEG compression (see note following this table)</td>
-<td><a href="http://www.exif.org/Exif2-2.PDF">Exif 2.2 Specification</a>
-(PDF), section 4.5.5, "Basic Structure of Thumbnail Data"</td>
+<td><a href="https://www.cipa.jp/std/documents/e/DC-008-2012_E.pdf">
+    Exif 2.3 Specification</a>
+(PDF), section 4.5.8, "Basic Structure of Thumbnail Data"</td>
+</tbody>
 </table>
 
 <p>
@@ -588,9 +629,9 @@ RGB using an internal color converter.</p>
 An <code>ICC Profile</code> field will be written if either:
 <ul>
 <li>one is present in the native image metadata
-<a href="../IIOMetadata.html">IIOMetadata</a> instance supplied to the writer,
+{@link javax.imageio.metadata.IIOMetadata IIOMetadata} instance supplied to the writer,
 or</li>
-<li>the <a href="../../../../java/awt/color/ColorSpace.html">ColorSpace</a>
+<li>the {@link java.awt.color.ColorSpace ColorSpace}
 of the destination <code>ImageTypeSpecifier</code> is an instance of
 <code>ICC_ColorSpace</code> which is not one of the standard
 color spaces defined by the <code>CS_*</code> constants in the
@@ -699,13 +740,13 @@ color space is grayscale.</li>
 be written as supplied.</p>
 
 <p>If an Exif image is being written, the set of fields present and their
-values will be modified such that the result is in accord with the Exif 2.2
+values will be modified such that the result is in accord with the Exif 2.3
 specification.</p>
 
 <p>Setting up the image metadata to write to a TIFF stream may be simplified
 by using the <code>TIFFDirectory</code> class
 which represents a TIFF IFD. A field in a TIFF IFD is represented by an
-instance of <a href="../../plugins/tiff/TIFFField.html">TIFFField</a>. For each
+instance of {@link javax.imageio.plugins.tiff.TIFFField TIFFField}. For each
 field to be written a <code>TIFFField</code> may be added to the
 <code>TIFFDirectory</code> and the latter converted to an
 <code>IIOMetadata</code> object by invoking
@@ -716,17 +757,22 @@ writer.</p>
 <h4><a id="MapStandardNative"></a>
 Mapping of the Standard Metadata Format to TIFF Native Image Metadata</h4>
 
-The derivation of <a href="#ImageMetadata">TIFF native image metadata</a>
+
+<table class="striped">
+<caption>The derivation of <a href="#ImageMetadata">TIFF native image metadata</a>
 elements from the standard metadata format
 <a href="standard_metadata.html">javax_imageio_1.0</a> is
-given in the following table.
-
-<table border="1">
+given in the following table.</caption>
+<thead>
 <tr>
-<th>TIFF Field</th>
-<th>Derivation from Standard Metadata Elements</th>
+<th scope="col">Index</th>
+<th scope="col">TIFF Field</th>
+<th scope="col">Derivation from Standard Metadata Elements</th>
 </tr>
+</thead>
+<tbody>
 <tr>
+<th scope="row">1</th>
 <td>
 PhotometricInterpretation
 </td>
@@ -737,14 +783,17 @@ PaletteColor; "GRAY" =&gt; BlackIsZero; "RGB" =&gt; RGB; "YCbCr" =&gt; YCbCr;
 "CMYK" =&gt; CMYK; "Lab" =&gt; CIELab.</td>
 </tr>
 <tr>
+<th scope="row">2</th>
 <td>SamplesPerPixel</td>
 <td>/Chroma/NumChannels@value</td>
 </tr>
 <tr>
+<th scope="row">3</th>
 <td>ColorMap</td>
 <td>/Chroma/Palette</td>
 </tr>
 <tr>
+<th scope="row">4</th>
 <td>Compression</td>
 <td>/Compression/CompressionTypeName@value: "none" =&gt; Uncompressed;
 "CCITT RLE" =&gt; CCITT 1D; "CCITT T.4" =&gt; Group 3 Fax; "CCITT T.6" =&gt; Group 4
@@ -752,11 +801,13 @@ Fax; "LZW" =&gt; LZW; "Old JPEG" =&gt; JPEG; "JPEG" =&gt; New JPEG; "ZLib" =&gt;
 "PackBits" =&gt; PackBits; "Deflate" =&gt; Deflate.</td>
 </tr>
 <tr>
+<th scope="row">5</th>
 <td>PlanarConfiguration</td>
 <td>/Data/PlanarConfiguration@value: "PixelInterleaved" =&gt; Chunky;
 "PlaneInterleaved" =&gt; Planar.</td>
 </tr>
 <tr>
+<th scope="row">6</th>
 <td>SampleFormat</td>
 <td>/Data/SampleFormat@value: "SignedIntegral" =&gt; two's complement signed
 integer data; "UnsignedIntegral" =&gt; unsigned integer data; "Real" =&gt;
@@ -764,54 +815,65 @@ IEEE floating point data; "Index" =&gt; unsigned integer data.
 </td>
 </tr>
 <tr>
+<th scope="row">7</th>
 <td>BitsPerSample</td>
 <td>/Data/BitsPerSample@value: space-separated list parsed to char array.</td>
 </tr>
 <tr>
+<th scope="row">8</th>
 <td>FillOrder</td>
 <td>/Data/SampleMSB@value: if all values in space-separated list are 0s =&gt;
 right-to-left; otherwise =&gt; left-to-right.
 </td>
 </tr>
 <tr>
+<th scope="row">9</th>
 <td>XResolution</td>
 <td>(10 / /Dimension/HorizontalPixelSize@value) or
 (10 / (/Dimension/VerticalPixelSize@value *
 /Dimension/PixelAspectRatio@value))</td>
 </tr>
 <tr>
+<th scope="row">10</th>
 <td>YResolution</td>
 <td>(10 / /Dimension/VerticalPixelSize@value) or
 (10 / (/Dimension/HorizontalPixelSize@value /
 /Dimension/PixelAspectRatio@value))</td>
 </tr>
 <tr>
+<th scope="row">11</th>
 <td>ResolutionUnit</td>
 <td>Centimeter if XResolution or YResolution set; otherwise None.</td>
 </tr>
 <tr>
+<th scope="row">12</th>
 <td>Orientation</td>
 <td>/Dimension/ImageOrientation@value</td>
 </tr>
 <tr>
+<th scope="row">13</th>
 <td>XPosition</td>
 <td>/Dimension/HorizontalPosition@value / 10</td>
 </tr>
 <tr>
+<th scope="row">14</th>
 <td>YPosition</td>
 <td>/Dimension/VerticalPosition@value / 10</td>
 </tr>
 <tr>
+<th scope="row">15</th>
 <td>NewSubFileType</td>
 <td>/Document/SubimageInterpretation@value: "TransparencyMask" =&gt;
 transparency mask; "ReducedResolution" =&gt; reduced-resolution;
 "SinglePage" =&gt; single page.</td>
 </tr>
 <tr>
+<th scope="row">16</th>
 <td>DateTime</td>
 <td>/Document/ImageCreationTime@value</td>
 </tr>
 <tr>
+<th scope="row">17</th>
 <td>DocumentName, ImageDescription, Make, Model, PageName, Software,
 Artist, HostComputer, InkNames, Copyright</td>
 <td>/Text/TextEntry: if /Text/TextEntry@keyword is the name of any of the
@@ -819,14 +881,12 @@ TIFF Fields, e.g., "Software", then the field is added with content
 /Text/TextEntry@value and count 1.</td>
 </tr>
 <tr>
+<th scope="row">18</th>
 <td>ExtraSamples</td>
 <td>/Transparency/Alpha@value: "premultiplied" =&gt; associated alpha, count 1;
 "nonpremultiplied" =&gt; unassociated alpha, count 1.</td>
 </tr>
-<tr>
-<td></td>
-<td></td>
-</tr>
+</tbody>
 </table>
 
 <h3><a id="ExifWrite">Writing Exif Images</a></h3>
@@ -1052,7 +1112,7 @@ The DTD for the TIFF native image metadata format is as follows:
         TIFFFloats | TIFFDoubles | TIFFUndefined)&gt;
         &lt;!-- A field containing data --&gt;
         &lt;!ATTLIST "TIFFField" "number" #CDATA #REQUIRED&gt;
-          &lt;!-- The tag number asociated with the field --&gt;
+          &lt;!-- The tag number associated with the field --&gt;
           &lt;!-- Data type: String --&gt;
         &lt;!ATTLIST "TIFFField" "name" #CDATA #IMPLIED&gt;
           &lt;!-- A mnemonic name associated with the field, if known --&gt;

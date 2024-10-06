@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,7 +70,10 @@ public class crstepreq006 {
     //------------------------------------------------------ immutable common methods
 
     public static void main (String argv[]) {
-        System.exit(run(argv, System.out) + PASS_BASE);
+        int result = run(argv,System.out);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     //------------------------------------------------------ test specific fields
@@ -215,7 +218,7 @@ public class crstepreq006 {
             }
 
             display("Getting mirror of thread: " + threadName);
-            ThreadReference thread = threadByName(threadName);
+            ThreadReference thread = debuggee.threadByNameOrThrow(threadName);
 
             display("Getting ReferenceType of thread: " + threadName);
             ReferenceType debuggeeThread = debuggee.classByName(debuggeeThreadName);
@@ -437,19 +440,6 @@ public class crstepreq006 {
         } catch (Exception e) {
             throw new Failure("getEventSet(): Unexpected exception while waiting for an event: " + e);
         }
-    }
-
-
-    private ThreadReference threadByName(String name) throws Failure{
-        List all = vm.allThreads();
-        ListIterator li = all.listIterator();
-
-        while (li.hasNext()) {
-            ThreadReference thread = (ThreadReference) li.next();
-            if (thread.name().equals(name))
-                return thread;
-        }
-        throw new Failure("Thread with searching for name is not found: " + name);
     }
 
     private ReferenceType waitForDebuggeeClassPrepared () {

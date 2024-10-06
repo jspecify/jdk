@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@ package javax.tools;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.Iterator;
+import java.util.Objects;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 
@@ -36,7 +36,6 @@ import java.util.ServiceLoader;
  * providers of compilers.  This class complements the
  * functionality of {@link java.util.ServiceLoader}.
  *
- * @author Peter von der Ah&eacute;
  * @since 1.6
  */
 public class ToolProvider {
@@ -44,8 +43,10 @@ public class ToolProvider {
     private static final String systemJavaCompilerModule = "jdk.compiler";
     private static final String systemJavaCompilerName   = "com.sun.tools.javac.api.JavacTool";
 
+    private ToolProvider() {}
+
     /**
-     * Returns the Java&trade; programming language compiler provided
+     * Returns the Java programming language compiler provided
      * with this platform.
      * <p>The file manager returned by calling
      * {@link JavaCompiler#getStandardFileManager getStandardFileManager}
@@ -66,7 +67,7 @@ public class ToolProvider {
     private static final String systemDocumentationToolName = "jdk.javadoc.internal.api.JavadocTool";
 
     /**
-     * Returns the Java&trade; programming language documentation tool provided
+     * Returns the Java programming language documentation tool provided
      * with this platform.
      * <p>The file manager returned by calling
      * {@link DocumentationTool#getStandardFileManager getStandardFileManager}
@@ -89,8 +90,8 @@ public class ToolProvider {
      * @implSpec This implementation always returns {@code null}.
      * @deprecated This method is subject to removal in a future version of
      * Java SE.
-     * Use the {@link java.util.spi.ToolProvider system tool provider} or
-     * {@link java.util.ServiceLoader service loader} mechanisms to
+     * Use the {@linkplain java.util.spi.ToolProvider system tool provider} or
+     * {@linkplain java.util.ServiceLoader service loader} mechanisms to
      * locate system tools as well as user-installed tools.
      * @return a class loader, or {@code null}
      */
@@ -116,8 +117,7 @@ public class ToolProvider {
 
         try {
             ServiceLoader<T> sl = ServiceLoader.load(clazz, ClassLoader.getSystemClassLoader());
-            for (Iterator<T> iter = sl.iterator(); iter.hasNext(); ) {
-                T tool = iter.next();
+            for (T tool : sl) {
                 if (matches(tool, moduleName))
                     return tool;
             }
@@ -134,11 +134,12 @@ public class ToolProvider {
      * @param moduleName        the name of the module containing the desired implementation
      * @return true if and only if the tool matches the specified criteria
      */
+    @SuppressWarnings("removal")
     private static <T> boolean matches(T tool, String moduleName) {
         PrivilegedAction<Boolean> pa = () -> {
             Module toolModule = tool.getClass().getModule();
             String toolModuleName = toolModule.getName();
-            return toolModuleName.equals(moduleName);
+            return Objects.equals(toolModuleName, moduleName);
         };
         return AccessController.doPrivileged(pa);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,19 @@
  */
 
 /*
-  test
-  @bug       6271849
-  @summary   Tests that component in modal excluded Window which parent is blocked responses to mouse clicks.
-  @author    anton.tarasov@sun.com: area=awt.focus
-  @run       applet ModalExcludedWindowClickTest.html
+  @test
+  @key headful
+  @bug        6271849
+  @summary    Tests that component in modal excluded Window which parent is blocked responses to mouse clicks.
+  @modules java.desktop/sun.awt
+  @run        main ModalExcludedWindowClickTest
 */
 
-import java.applet.Applet;
 import java.awt.*;
 import java.awt.event.*;
 import java.lang.reflect.*;
 
-public class ModalExcludedWindowClickTest extends Applet {
+public class ModalExcludedWindowClickTest {
     Robot robot;
     Frame frame = new Frame("Frame");
     Window w = new Window(frame);
@@ -54,19 +54,9 @@ public class ModalExcludedWindowClickTest extends Applet {
         } catch (AWTException e) {
             throw new RuntimeException("Error: unable to create robot", e);
         }
-        // Create instructions for the user here, as well as set up
-        // the environment -- set the layout manager, add buttons,
-        // etc.
-        this.setLayout (new BorderLayout ());
     }
 
     public void start() {
-
-        if ("sun.awt.motif.MToolkit".equals(Toolkit.getDefaultToolkit().getClass().getName())) {
-            System.out.println("No testing on MToolkit.");
-            return;
-        }
-
         button.addActionListener(new ActionListener() {
                 public void actionPerformed(ActionEvent e) {
                     actionPerformed = true;
@@ -117,7 +107,9 @@ public class ModalExcludedWindowClickTest extends Applet {
         } else {
             robot.mouseMove(p.x + (int)(d.getWidth()/2), p.y + (int)(d.getHeight()/2));
         }
+        waitForIdle();
         robot.mousePress(InputEvent.BUTTON1_MASK);
+        robot.delay(50);
         robot.mouseRelease(InputEvent.BUTTON1_MASK);
         waitForIdle();
     }
@@ -125,8 +117,9 @@ public class ModalExcludedWindowClickTest extends Applet {
         while (true) {
             try {
                 Thread.sleep(100);
-                c.getLocationOnScreen();
-                break;
+                Point p = c.getLocationOnScreen();
+                if (p != null)
+                    break;
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             } catch (IllegalComponentStateException e) {}

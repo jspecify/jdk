@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2018, SAP SE. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +47,6 @@ void CardTableBarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembl
                                                                     bool do_return) {
   CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
   CardTable* ct = ctbs->card_table();
-  assert(sizeof(*ct->byte_map_base()) == sizeof(jbyte), "adjust this code");
 
   NearLabel doXC, done;
   assert_different_registers(Z_R0, Z_R1, addr, count);
@@ -71,8 +70,8 @@ void CardTableBarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembl
   __ load_const_optimized(Z_R1, (address)ct->byte_map_base());
 
   // count = (count>>shift) - (addr>>shift)
-  __ z_srlg(addr,  addr,  CardTable::card_shift);
-  __ z_srlg(count, count, CardTable::card_shift);
+  __ z_srlg(addr,  addr,  CardTable::card_shift());
+  __ z_srlg(count, count, CardTable::card_shift());
 
   // Prefetch first elements of card table for update.
   if (VM_Version::has_Prefetch()) {
@@ -144,11 +143,10 @@ void CardTableBarrierSetAssembler::store_check(MacroAssembler* masm, Register st
   // register obj is destroyed afterwards.
   CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
   CardTable* ct = ctbs->card_table();
-  assert(sizeof(*ct->byte_map_base()) == sizeof(jbyte), "adjust this code");
 
   assert_different_registers(store_addr, tmp);
 
-  __ z_srlg(store_addr, store_addr, CardTable::card_shift);
+  __ z_srlg(store_addr, store_addr, CardTable::card_shift());
   __ load_absolute_address(tmp, (address)ct->byte_map_base());
   __ z_agr(store_addr, tmp);
   __ z_mvi(0, store_addr, CardTable::dirty_card_val());
@@ -162,7 +160,7 @@ void CardTableBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorS
 
   BarrierSetAssembler::store_at(masm, decorators, type, dst, val, tmp1, tmp2, tmp3);
 
-  // No need for post barrier if storing NULL
+  // No need for post barrier if storing null
   if (val != noreg) {
     const Register base = dst.base(),
                    idx  = dst.index();

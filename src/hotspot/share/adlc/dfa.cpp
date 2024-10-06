@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,14 +28,6 @@
 //---------------------------Switches for debugging output---------------------
 static bool debug_output   = false;
 static bool debug_output1  = false;    // top level chain rules
-
-//---------------------------Access to internals of class State----------------
-static const char *sLeft   = "_kids[0]";
-static const char *sRight  = "_kids[1]";
-
-//---------------------------DFA productions-----------------------------------
-static const char *dfa_production           = "DFA_PRODUCTION";
-static const char *dfa_production_set_valid = "DFA_PRODUCTION__SET_VALID";
 
 //---------------------------Production State----------------------------------
 static const char *knownInvalid = "knownInvalid";    // The result does NOT have a rule defined
@@ -75,12 +67,12 @@ public:
 // Reset for each root opcode (e.g., Op_RegI, Op_AddI, ...)
 class ProductionState {
 private:
-  Dict _production;    // map result of production, char*, to information or NULL
+  Dict _production;    // map result of production, char*, to information or null
   const char *_constraint;
 
 public:
-  // cmpstr does string comparisions.  hashstr computes a key.
-  ProductionState(Arena *arena) : _production(cmpstr, hashstr, arena) { initialize(); };
+  // cmpstr does string comparisons.  hashstr computes a key.
+  ProductionState(AdlArena *arena) : _production(cmpstr, hashstr, arena) { initialize(); };
   ~ProductionState() { };
 
   void        initialize();                // reset local and dictionary state
@@ -111,7 +103,7 @@ private:
 //---------------------------Helper Functions----------------------------------
 // cost_check template:
 // 1)      if (STATE__NOT_YET_VALID(EBXREGI) || _cost[EBXREGI] > c) {
-// 2)        DFA_PRODUCTION__SET_VALID(EBXREGI, cmovI_memu_rule, c)
+// 2)        DFA_PRODUCTION(EBXREGI, cmovI_memu_rule, c)
 // 3)      }
 //
 static void cost_check(FILE *fp, const char *spaces,
@@ -162,13 +154,13 @@ static void cost_check(FILE *fp, const char *spaces,
   }
 
   // line 2)
-  // no need to set State vector if our state is knownValid
-  const char *production = (validity_check == knownValid) ? dfa_production : dfa_production_set_valid;
-  fprintf(fp, "%s  %s(%s, %s_rule, %s)", spaces, production, arrayIdx, rule, cost->as_string() );
-  if( validity_check == knownValid ) {
-    if( cost_is_below_lower_bound ) { fprintf(fp, "\t  // overwrites higher cost rule"); }
-   }
-   fprintf(fp, "\n");
+  fprintf(fp, "%s  DFA_PRODUCTION(%s, %s_rule, %s)", spaces, arrayIdx, rule, cost->as_string() );
+  if (validity_check == knownValid) {
+    if (cost_is_below_lower_bound) {
+      fprintf(fp, "\t  // overwrites higher cost rule");
+    }
+  }
+  fprintf(fp, "\n");
 
   // line 3)
   if( cost_check || state_check ) {
@@ -190,14 +182,19 @@ static void cost_check(FILE *fp, const char *spaces,
 //   STATE__VALID_CHILD(_kids[0], FOO) &&  STATE__VALID_CHILD(_kids[1], BAR)
 // Macro equivalent to: _kids[0]->valid(FOO) && _kids[1]->valid(BAR)
 //
-static void child_test(FILE *fp, MatchList &mList) {
+static void child_test(FILE *fp, MatchList &mList, bool is_vector_unary_op) {
   if (mList._lchild) { // If left child, check it
     const char* lchild_to_upper = ArchDesc::getMachOperEnum(mList._lchild);
     fprintf(fp, "STATE__VALID_CHILD(_kids[0], %s)", lchild_to_upper);
     delete[] lchild_to_upper;
-  }
-  if (mList._lchild && mList._rchild) { // If both, add the "&&"
-    fprintf(fp, " && ");
+
+    if (mList._rchild) { // If both, add the "&&"
+      fprintf(fp, " && ");
+    } else if (is_vector_unary_op) {
+      // If unpredicated vector unary operation, add one extra check, i.e. right
+      // child should be null, to distinguish from the predicated version.
+      fprintf(fp, " && _kids[1] == nullptr");
+    }
   }
   if (mList._rchild) { // If right child, check it
     const char* rchild_to_upper = ArchDesc::getMachOperEnum(mList._rchild);
@@ -215,13 +212,13 @@ Expr *ArchDesc::calc_cost(FILE *fp, const char *spaces, MatchList &mList, Produc
   Expr *c = new Expr("0");
   if (mList._lchild) { // If left child, add it in
     const char* lchild_to_upper = ArchDesc::getMachOperEnum(mList._lchild);
-    sprintf(Expr::buffer(), "_kids[0]->_cost[%s]", lchild_to_upper);
+    snprintf_checked(Expr::buffer(), STRING_BUFFER_LENGTH, "_kids[0]->_cost[%s]", lchild_to_upper);
     c->add(Expr::buffer());
     delete[] lchild_to_upper;
 }
   if (mList._rchild) { // If right child, add it in
     const char* rchild_to_upper = ArchDesc::getMachOperEnum(mList._rchild);
-    sprintf(Expr::buffer(), "_kids[1]->_cost[%s]", rchild_to_upper);
+    snprintf_checked(Expr::buffer(), STRING_BUFFER_LENGTH, "_kids[1]->_cost[%s]", rchild_to_upper);
     c->add(Expr::buffer());
     delete[] rchild_to_upper;
   }
@@ -236,7 +233,8 @@ Expr *ArchDesc::calc_cost(FILE *fp, const char *spaces, MatchList &mList, Produc
 
 
 //---------------------------gen_match-----------------------------------------
-void ArchDesc::gen_match(FILE *fp, MatchList &mList, ProductionState &status, Dict &operands_chained_from) {
+void ArchDesc::gen_match(FILE *fp, MatchList &mList, ProductionState &status,
+                         Dict &operands_chained_from, bool is_vector_unary_op) {
   const char *spaces4 = "    ";
   const char *spaces6 = "      ";
 
@@ -248,7 +246,7 @@ void ArchDesc::gen_match(FILE *fp, MatchList &mList, ProductionState &status, Di
     // Open the child-and-predicate-test braces
     fprintf(fp, "if( ");
     status.set_constraint(hasConstraint);
-    child_test(fp, mList);
+    child_test(fp, mList, is_vector_unary_op);
     // Only generate predicate test if one exists for this match
     if (predicate_test) {
       if (has_child_constraints) {
@@ -276,7 +274,7 @@ void ArchDesc::gen_match(FILE *fp, MatchList &mList, ProductionState &status, Di
 
   // Check if this rule should be used to generate the chains as well.
   const char *rule = /* set rule to "Invalid" for internal operands */
-    strcmp(mList._opcode,mList._resultStr) ? mList._opcode : "Invalid";
+    strcmp(mList._opcode, mList._resultStr) ? mList._opcode : "Invalid";
 
   // If this rule produces an operand which has associated chain rules,
   // update the operands with the chain rule + this rule cost & this rule.
@@ -293,14 +291,14 @@ void ArchDesc::gen_match(FILE *fp, MatchList &mList, ProductionState &status, Di
 void ArchDesc::expand_opclass(FILE *fp, const char *indent, const Expr *cost,
                               const char *result_type, ProductionState &status) {
   const Form *form = _globalNames[result_type];
-  OperandForm *op = form ? form->is_operand() : NULL;
+  OperandForm *op = form ? form->is_operand() : nullptr;
   if( op && op->_classes.count() > 0 ) {
     if( debug_output ) { fprintf(fp, "// expand operand classes for operand: %s \n", (char *)op->_ident  ); } // %%%%% Explanation
     // Iterate through all operand classes which include this operand
     op->_classes.reset();
     const char *oclass;
     // Expr *cCost = new Expr(cost);
-    while( (oclass = op->_classes.iter()) != NULL )
+    while( (oclass = op->_classes.iter()) != nullptr )
       // Check against other match costs, and update cost & rule vectors
       cost_check(fp, indent, ArchDesc::getMachOperEnum(oclass), cost, result_type, status);
   }
@@ -312,7 +310,7 @@ void ArchDesc::chain_rule(FILE *fp, const char *indent, const char *operand,
      const Expr *icost, const char *irule, Dict &operands_chained_from,  ProductionState &status) {
 
   // Check if we have already generated chains from this starting point
-  if( operands_chained_from[operand] != NULL ) {
+  if( operands_chained_from[operand] != nullptr ) {
     return;
   } else {
     operands_chained_from.Insert( operand, operand);
@@ -325,7 +323,7 @@ void ArchDesc::chain_rule(FILE *fp, const char *indent, const char *operand,
     const char *result, *cost, *rule;
     for(lst->reset(); (lst->iter(result,cost,rule)) == true; ) {
       // Do not generate operands that are already available
-      if( operands_chained_from[result] != NULL ) {
+      if( operands_chained_from[result] != nullptr ) {
         continue;
       } else {
         // Compute the cost for previous match + chain_rule_cost
@@ -396,16 +394,8 @@ void ArchDesc::buildDFA(FILE* fp) {
   _attributes.output(fp);
   fprintf(fp, "\n");
   fprintf(fp, "//------------------------- Macros -----------------------------------------\n");
-  // #define DFA_PRODUCTION(result, rule, cost)\
-  //   _cost[ (result) ] = cost; _rule[ (result) ] = rule;
-  fprintf(fp, "#define %s(result, rule, cost)\\\n", dfa_production);
-  fprintf(fp, "  _cost[ (result) ] = cost; _rule[ (result) ] = rule;\n");
-  fprintf(fp, "\n");
-
-  // #define DFA_PRODUCTION__SET_VALID(result, rule, cost)\
-  //     DFA_PRODUCTION( (result), (rule), (cost) ); STATE__SET_VALID( (result) );
-  fprintf(fp, "#define %s(result, rule, cost)\\\n", dfa_production_set_valid);
-  fprintf(fp, "  %s( (result), (rule), (cost) ); STATE__SET_VALID( (result) );\n", dfa_production);
+  fprintf(fp, "#define DFA_PRODUCTION(result, rule, cost)\\\n");
+  fprintf(fp, "  assert(rule < (1 << 15), \"too many rules\"); _cost[ (result) ] = cost; _rule[ (result) ] = (rule << 1) | 0x1;\n");
   fprintf(fp, "\n");
 
   fprintf(fp, "//------------------------- DFA --------------------------------------------\n");
@@ -425,7 +415,7 @@ void ArchDesc::buildDFA(FILE* fp) {
     // Now build the individual routines just like the switch entries in large version
     // Iterate over the table of MatchLists, start at first valid opcode of 1
     for (i = 1; i < _last_opcode; i++) {
-      if (_mlistab[i] == NULL) continue;
+      if (_mlistab[i] == nullptr) continue;
       // Generate the routine header statement for this opcode
       fprintf(fp, "void  State::_sub_Op_%s(const Node *n){\n", NodeClassNames[i]);
       // Generate body. Shared for both inline and out-of-line version
@@ -440,7 +430,7 @@ void ArchDesc::buildDFA(FILE* fp) {
 
   // Iterate over the table of MatchLists, start at first valid opcode of 1
   for (i = 1; i < _last_opcode; i++) {
-    if (_mlistab[i] == NULL) continue;
+    if (_mlistab[i] == nullptr) continue;
     // Generate the case statement for this opcode
     if (_dfa_small) {
       fprintf(fp, "  case Op_%s: { _sub_Op_%s(n);\n", NodeClassNames[i], NodeClassNames[i]);
@@ -471,7 +461,7 @@ void ArchDesc::buildDFA(FILE* fp) {
 
 
 class dfa_shared_preds {
-  enum { count = 4 };
+  enum { count = 3 IA32_ONLY( + 1 ) };
 
   static bool        _found[count];
   static const char* _type [count];
@@ -528,10 +518,10 @@ public:
 
   // Check each predicate in the MatchList for common sub-expressions
   static void cse_matchlist(MatchList *matchList) {
-    for( MatchList *mList = matchList; mList != NULL; mList = mList->get_next() ) {
+    for( MatchList *mList = matchList; mList != nullptr; mList = mList->get_next() ) {
       Predicate* predicate = mList->get_pred_obj();
       char*      pred      = mList->get_pred();
-      if( pred != NULL ) {
+      if( pred != nullptr ) {
         for(int index = 0; index < count; ++index ) {
           const char *shared_pred      = dfa_shared_preds::pred(index);
           const char *shared_pred_var  = dfa_shared_preds::var(index);
@@ -547,10 +537,10 @@ public:
   static bool cse_predicate(Predicate* predicate, const char *shared_pred, const char *shared_pred_var) {
     bool result = false;
     char *pred = predicate->_pred;
-    if( pred != NULL ) {
+    if( pred != nullptr ) {
       char *new_pred = pred;
       for( char *shared_pred_loc = strstr(new_pred, shared_pred);
-      shared_pred_loc != NULL && dfa_shared_preds::valid_loc(new_pred,shared_pred_loc);
+      shared_pred_loc != nullptr && dfa_shared_preds::valid_loc(new_pred,shared_pred_loc);
       shared_pred_loc = strstr(new_pred, shared_pred) ) {
         // Do not modify the original predicate string, it is shared
         if( new_pred == pred ) {
@@ -582,15 +572,30 @@ public:
   }
 };
 // shared predicates, _var and _pred entry should be the same length
-bool         dfa_shared_preds::_found[dfa_shared_preds::count]
-  = { false, false, false, false };
-const char*  dfa_shared_preds::_type[dfa_shared_preds::count]
-  = { "int", "jlong", "intptr_t", "bool" };
-const char*  dfa_shared_preds::_var [dfa_shared_preds::count]
-  = { "_n_get_int__", "_n_get_long__", "_n_get_intptr_t__", "Compile__current____select_24_bit_instr__" };
-const char*  dfa_shared_preds::_pred[dfa_shared_preds::count]
-  = { "n->get_int()", "n->get_long()", "n->get_intptr_t()", "Compile::current()->select_24_bit_instr()" };
+bool         dfa_shared_preds::_found[dfa_shared_preds::count] = { false,          false,           false               IA32_ONLY(COMMA false)  };
+const char*  dfa_shared_preds::_type [dfa_shared_preds::count] = { "int",          "jlong",         "intptr_t"          IA32_ONLY(COMMA "bool") };
+const char*  dfa_shared_preds::_var  [dfa_shared_preds::count] = { "_n_get_int__", "_n_get_long__", "_n_get_intptr_t__" IA32_ONLY(COMMA "Compile__current____select_24_bit_instr__") };
+const char*  dfa_shared_preds::_pred [dfa_shared_preds::count] = { "n->get_int()", "n->get_long()", "n->get_intptr_t()" IA32_ONLY(COMMA "Compile::current()->select_24_bit_instr()") };
 
+// Helper method to check whether a node is vector unary operation.
+static bool is_vector_unary_op_name(const char* op_name) {
+  static const char* vector_unary_op_list[] = {
+    "AbsVB", "AbsVS", "AbsVI", "AbsVL", "AbsVF", "AbsVD",
+    "NegVI", "NegVL", "NegVF", "NegVD",
+    "SqrtVF", "SqrtVD",
+    "PopCountVI", "PopCountVL",
+    "CountLeadingZerosV", "CountTrailingZerosV",
+    "ReverseV", "ReverseBytesV",
+    "MaskAll", "VectorLoadMask", "VectorMaskFirstTrue"
+  };
+  int cnt = sizeof(vector_unary_op_list) / sizeof(char*);
+  for (int i = 0; i < cnt; i++) {
+    if (strcmp(op_name, vector_unary_op_list[i]) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
 
 void ArchDesc::gen_dfa_state_body(FILE* fp, Dict &minimize, ProductionState &status, Dict &operands_chained_from, int i) {
   // Start the body of each Op_XXX sub-dfa with a clean state.
@@ -605,7 +610,7 @@ void ArchDesc::gen_dfa_state_body(FILE* fp, Dict &minimize, ProductionState &sta
     prune_matchlist(minimize, *mList);
     // Iterate
     mList = mList->get_next();
-  } while(mList != NULL);
+  } while(mList != nullptr);
 
   // Hoist previously specified common sub-expressions out of predicates
   dfa_shared_preds::reset_found();
@@ -613,14 +618,15 @@ void ArchDesc::gen_dfa_state_body(FILE* fp, Dict &minimize, ProductionState &sta
   dfa_shared_preds::generate_cse(fp);
 
   mList = _mlistab[i];
+  bool is_vector_unary_op = is_vector_unary_op_name(NodeClassNames[i]);
 
   // Walk the list again, generating code
   do {
     // Each match can generate its own chains
     operands_chained_from.Clear();
-    gen_match(fp, *mList, status, operands_chained_from);
+    gen_match(fp, *mList, status, operands_chained_from, is_vector_unary_op);
     mList = mList->get_next();
-  } while(mList != NULL);
+  } while(mList != nullptr);
   // Fill in any chain rules which add instructions
   // These can generate their own chains as well.
   operands_chained_from.Clear();  //
@@ -633,22 +639,22 @@ void ArchDesc::gen_dfa_state_body(FILE* fp, Dict &minimize, ProductionState &sta
 
 
 //------------------------------Expr------------------------------------------
-Expr *Expr::_unknown_expr = NULL;
+Expr *Expr::_unknown_expr = nullptr;
 char  Expr::string_buffer[STRING_BUFFER_LENGTH];
 char  Expr::external_buffer[STRING_BUFFER_LENGTH];
 bool  Expr::_init_buffers = Expr::init_buffers();
 
 Expr::Expr() {
-  _external_name = NULL;
+  _external_name = nullptr;
   _expr          = "Invalid_Expr";
   _min_value     = Expr::Max;
   _max_value     = Expr::Zero;
 }
 Expr::Expr(const char *cost) {
-  _external_name = NULL;
+  _external_name = nullptr;
 
   int intval = 0;
-  if( cost == NULL ) {
+  if( cost == nullptr ) {
     _expr = "0";
     _min_value = Expr::Zero;
     _max_value = Expr::Zero;
@@ -705,7 +711,7 @@ void Expr::add(const char *c) {
 
 void Expr::add(const char *c, ArchDesc &AD) {
   const Expr *e = AD.globalDefs()[c];
-  if( e != NULL ) {
+  if( e != nullptr ) {
     // use the value of 'c' defined in <arch>.ad
     add(e);
   } else {
@@ -715,25 +721,25 @@ void Expr::add(const char *c, ArchDesc &AD) {
 }
 
 const char *Expr::compute_external(const Expr *c1, const Expr *c2) {
-  const char * result = NULL;
+  const char * result = nullptr;
 
   // Preserve use of external name which has a zero value
-  if( c1->_external_name != NULL ) {
-    sprintf(string_buffer, "%s", c1->as_string());
-    if( !c2->is_zero() ) {
-      strncat(string_buffer, "+", STRING_BUFFER_LENGTH);
-      strncat(string_buffer, c2->as_string(), STRING_BUFFER_LENGTH);
+  if( c1->_external_name != nullptr ) {
+    if( c2->is_zero() ) {
+      snprintf(string_buffer, STRING_BUFFER_LENGTH, "%s", c1->as_string());
+    } else {
+      snprintf(string_buffer, STRING_BUFFER_LENGTH, "%s+%s", c1->as_string(), c2->as_string());
     }
+    string_buffer[STRING_BUFFER_LENGTH - 1] = '\0';
     result = strdup(string_buffer);
   }
-  else if( c2->_external_name != NULL ) {
-    if( !c1->is_zero() ) {
-      sprintf(string_buffer, "%s", c1->as_string());
-      strncat(string_buffer, " + ", STRING_BUFFER_LENGTH);
+  else if( c2->_external_name != nullptr ) {
+    if( c1->is_zero() ) {
+      snprintf(string_buffer, STRING_BUFFER_LENGTH, "%s", c2->_external_name);
     } else {
-      string_buffer[0] = '\0';
+      snprintf(string_buffer, STRING_BUFFER_LENGTH, "%s + %s", c1->as_string(), c2->as_string());
     }
-    strncat(string_buffer, c2->_external_name, STRING_BUFFER_LENGTH);
+    string_buffer[STRING_BUFFER_LENGTH - 1] = '\0';
     result = strdup(string_buffer);
   }
   return result;
@@ -741,41 +747,50 @@ const char *Expr::compute_external(const Expr *c1, const Expr *c2) {
 
 const char *Expr::compute_expr(const Expr *c1, const Expr *c2) {
   if( !c1->is_zero() ) {
-    sprintf( string_buffer, "%s", c1->_expr);
-    if( !c2->is_zero() ) {
-      strncat(string_buffer, "+", STRING_BUFFER_LENGTH);
-      strncat(string_buffer, c2->_expr, STRING_BUFFER_LENGTH);
+    if( c2->is_zero() ) {
+      snprintf(string_buffer, STRING_BUFFER_LENGTH, "%s", c1->_expr);
+    } else {
+      snprintf(string_buffer, STRING_BUFFER_LENGTH, "%s+%s", c1->_expr, c2->_expr);
     }
   }
   else if( !c2->is_zero() ) {
-    sprintf( string_buffer, "%s", c2->_expr);
+    snprintf(string_buffer, STRING_BUFFER_LENGTH, "%s", c2->_expr);
   }
   else {
-    sprintf( string_buffer, "0");
+    snprintf_checked(string_buffer, STRING_BUFFER_LENGTH, "0");
   }
+  string_buffer[STRING_BUFFER_LENGTH - 1] = '\0';
   char *cost = strdup(string_buffer);
 
   return cost;
 }
 
 int Expr::compute_min(const Expr *c1, const Expr *c2) {
-  int result = c1->_min_value + c2->_min_value;
-  assert( result >= 0, "Invalid cost computation");
+  int v1 = c1->_min_value;
+  int v2 = c2->_min_value;
+  assert(0 <= v2 && v2 <= Expr::Max, "sanity");
+  assert(v1 <= Expr::Max - v2, "Invalid cost computation");
 
-  return result;
+  return v1 + v2;
 }
 
+
 int Expr::compute_max(const Expr *c1, const Expr *c2) {
-  int result = c1->_max_value + c2->_max_value;
-  if( result < 0 ) {  // check for overflow
-    result = Expr::Max;
+  int v1 = c1->_max_value;
+  int v2 = c2->_max_value;
+
+  // Check for overflow without producing UB. If v2 is positive
+  // and not larger than Max, the subtraction cannot underflow.
+  assert(0 <= v2 && v2 <= Expr::Max, "sanity");
+  if (v1 > Expr::Max - v2) {
+    return Expr::Max;
   }
 
-  return result;
+  return v1 + v2;
 }
 
 void Expr::print() const {
-  if( _external_name != NULL ) {
+  if( _external_name != nullptr ) {
     printf("  %s == (%s) === [%d, %d]\n", _external_name, _expr, _min_value, _max_value);
   } else {
     printf("  %s === [%d, %d]\n", _expr, _min_value, _max_value);
@@ -783,20 +798,20 @@ void Expr::print() const {
 }
 
 void Expr::print_define(FILE *fp) const {
-  assert( _external_name != NULL, "definition does not have a name");
+  assert( _external_name != nullptr, "definition does not have a name");
   assert( _min_value == _max_value, "Expect user definitions to have constant value");
   fprintf(fp, "#define  %s  (%s)  \n", _external_name, _expr);
   fprintf(fp, "// value == %d \n", _min_value);
 }
 
 void Expr::print_assert(FILE *fp) const {
-  assert( _external_name != NULL, "definition does not have a name");
+  assert( _external_name != nullptr, "definition does not have a name");
   assert( _min_value == _max_value, "Expect user definitions to have constant value");
   fprintf(fp, "  assert( %s == %d, \"Expect (%s) to equal %d\");\n", _external_name, _min_value, _expr, _min_value);
 }
 
 Expr *Expr::get_unknown() {
-  if( Expr::_unknown_expr == NULL ) {
+  if( Expr::_unknown_expr == nullptr ) {
     Expr::_unknown_expr = new Expr();
   }
 
@@ -829,7 +844,7 @@ bool Expr::check_buffers() {
 
 //------------------------------ExprDict---------------------------------------
 // Constructor
-ExprDict::ExprDict( CmpKey cmp, Hash hash, Arena *arena )
+ExprDict::ExprDict( CmpKey cmp, Hash hash, AdlArena *arena )
   : _expr(cmp, hash, arena), _defines()  {
 }
 ExprDict::~ExprDict() {
@@ -844,7 +859,7 @@ int ExprDict::Size(void) const {
 // and records the name in order for later output, ...
 const Expr  *ExprDict::define(const char *name, Expr *expr) {
   const Expr *old_expr = (*this)[name];
-  assert(old_expr == NULL, "Implementation does not support redefinition");
+  assert(old_expr == nullptr, "Implementation does not support redefinition");
 
   _expr.Insert(name, expr);
   _defines.addName(name);
@@ -853,12 +868,12 @@ const Expr  *ExprDict::define(const char *name, Expr *expr) {
 }
 
 // Insert inserts the given key-value pair into the dictionary.  The prior
-// value of the key is returned; NULL if the key was not previously defined.
+// value of the key is returned; null if the key was not previously defined.
 const Expr  *ExprDict::Insert(const char *name, Expr *expr) {
   return (Expr*)_expr.Insert((void*)name, (void*)expr);
 }
 
-// Finds the value of a given key; or NULL if not found.
+// Finds the value of a given key; or null if not found.
 // The dictionary is NOT changed.
 const Expr  *ExprDict::operator [](const char *name) const {
   return (Expr*)_expr[name];
@@ -866,20 +881,20 @@ const Expr  *ExprDict::operator [](const char *name) const {
 
 void ExprDict::print_defines(FILE *fp) {
   fprintf(fp, "\n");
-  const char *name = NULL;
-  for( _defines.reset(); (name = _defines.iter()) != NULL; ) {
+  const char *name = nullptr;
+  for( _defines.reset(); (name = _defines.iter()) != nullptr; ) {
     const Expr *expr = (const Expr*)_expr[name];
-    assert( expr != NULL, "name in ExprDict without matching Expr in dictionary");
+    assert( expr != nullptr, "name in ExprDict without matching Expr in dictionary");
     expr->print_define(fp);
   }
 }
 void ExprDict::print_asserts(FILE *fp) {
   fprintf(fp, "\n");
   fprintf(fp, "  // Following assertions generated from definition section\n");
-  const char *name = NULL;
-  for( _defines.reset(); (name = _defines.iter()) != NULL; ) {
+  const char *name = nullptr;
+  for( _defines.reset(); (name = _defines.iter()) != nullptr; ) {
     const Expr *expr = (const Expr*)_expr[name];
-    assert( expr != NULL, "name in ExprDict without matching Expr in dictionary");
+    assert( expr != nullptr, "name in ExprDict without matching Expr in dictionary");
     expr->print_assert(fp);
   }
 }
@@ -924,17 +939,17 @@ Production::Production(const char *result, const char *constraint, const char *v
 }
 
 void Production::initialize() {
-  _result     = NULL;
-  _constraint = NULL;
+  _result     = nullptr;
+  _constraint = nullptr;
   _valid      = knownInvalid;
   _cost_lb    = Expr::get_unknown();
   _cost_ub    = Expr::get_unknown();
 }
 
 void Production::print() {
-  printf("%s", (_result     == NULL ? "NULL" : _result ) );
-  printf("%s", (_constraint == NULL ? "NULL" : _constraint ) );
-  printf("%s", (_valid      == NULL ? "NULL" : _valid ) );
+  printf("%s", (_result     == nullptr ? "nullptr" : _result ) );
+  printf("%s", (_constraint == nullptr ? "nullptr" : _constraint ) );
+  printf("%s", (_valid      == nullptr ? "nullptr" : _valid ) );
   _cost_lb->print();
   _cost_ub->print();
 }
@@ -946,12 +961,12 @@ void ProductionState::initialize() {
 
   // reset each Production currently in the dictionary
   DictI iter( &_production );
-  const void *x, *y = NULL;
+  const void *x, *y = nullptr;
   for( ; iter.test(); ++iter) {
     x = iter._key;
     y = iter._value;
     Production *p = (Production*)y;
-    if( p != NULL ) {
+    if( p != nullptr ) {
       p->initialize();
     }
   }
@@ -959,7 +974,7 @@ void ProductionState::initialize() {
 
 Production *ProductionState::getProduction(const char *result) {
   Production *p = (Production *)_production[result];
-  if( p == NULL ) {
+  if( p == nullptr ) {
     p = new Production(result, _constraint, knownInvalid);
     _production.Insert(result, p);
   }

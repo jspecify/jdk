@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,11 @@ import sun.swing.SwingUtilities2;
  */
 
 public class BasicBorders {
+
+    /**
+     * Constructs a {@code BasicBorders}.
+     */
+    public BasicBorders() {}
 
     /**
      * Returns a border instance for a {@code JButton}.
@@ -221,7 +226,7 @@ public class BasicBorders {
                 g.translate(x, y);
 
                 if (model.isPressed() && model.isArmed() || model.isSelected()) {
-                    // Draw the pressd button
+                    // Draw the pressed button
                     g.setColor(shade);
                     g.drawRect(0, 0, w-1, h-1);
                     g.setColor(lightHighlight);
@@ -473,6 +478,11 @@ public class BasicBorders {
      */
     @SuppressWarnings("serial") // Superclass is not serializable across versions
     public static class MarginBorder extends AbstractBorder implements UIResource {
+        /**
+         * Constructs a {@code MarginBorder}.
+         */
+        public MarginBorder() {}
+
         public Insets getBorderInsets(Component c, Insets insets)       {
             Insets margin = null;
             //

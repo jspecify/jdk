@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -32,8 +30,8 @@ import jdk.jfr.consumer.RecordedEvent;
 import jdk.test.lib.Asserts;
 import jdk.test.lib.jfr.EventNames;
 import jdk.test.lib.jfr.Events;
-import sun.hotspot.WhiteBox;
-import sun.hotspot.code.BlobType;
+import jdk.test.whitebox.WhiteBox;
+import jdk.test.whitebox.code.BlobType;
 
 /**
  * @test TestCodeCacheFull
@@ -42,8 +40,8 @@ import sun.hotspot.code.BlobType;
  * @library /test/lib
  * @modules jdk.jfr
  *          jdk.management.jfr
- * @build sun.hotspot.WhiteBox
- * @run main ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *
  * @run main/othervm -Xbootclasspath/a:.
  *     -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -69,7 +67,7 @@ public class TestCodeCacheFull {
 
         List<RecordedEvent> events = Events.fromRecording(r);
         Events.hasEvents(events);
-        RecordedEvent event = events.get(0);
+        RecordedEvent event = events.getFirst();
 
         String codeBlobType = Events.assertField(event, "codeBlobType").notNull().getValue();
         BlobType blobType = blobTypeFromName(codeBlobType);
@@ -81,6 +79,7 @@ public class TestCodeCacheFull {
         Events.assertField(event, "startAddress").notEqual(0L);
         Events.assertField(event, "commitedTopAddress").notEqual(0L);
         Events.assertField(event, "reservedTopAddress").notEqual(0L);
+        Events.assertField(event, "codeCacheMaxCapacity").notEqual(0L);
     }
 
     private static BlobType blobTypeFromName(String codeBlobTypeName) throws Exception {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,6 @@
  */
 
 package java.security.cert;
-
-import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 
@@ -64,13 +62,14 @@ import sun.security.x509.X509CertImpl;
 
 public abstract class Certificate implements java.io.Serializable {
 
+    @java.io.Serial
     private static final long serialVersionUID = -3585440601605666277L;
 
-    // the certificate type
-    private final String type;
+    /** The certificate type. */
+    private final transient String type;
 
-    /** Cache the hash code for the certiticate */
-    private int hash = -1; // Default to -1
+    /** The hash code for the certificate. */
+    private transient int hash = -1; // Default to -1
 
     /**
      * Creates a certificate of the specified type.
@@ -105,9 +104,8 @@ public abstract class Certificate implements java.io.Serializable {
      * @return true iff the encoded forms of the two certificates
      * match, false otherwise.
      */
-    
-    
-    public boolean equals(@Nullable Object other) {
+    @Override
+    public boolean equals(Object other) {
         if (this == other) {
             return true;
         }
@@ -125,11 +123,10 @@ public abstract class Certificate implements java.io.Serializable {
     }
 
     /**
-     * Returns a hashcode value for this certificate from its
-     * encoded form.
-     *
-     * @return the hashcode value.
+     * {@return the hashcode value for this certificate from its
+     * encoded form}
      */
+    @Override
     public int hashCode() {
         int h = hash;
         if (h == -1) {
@@ -151,7 +148,7 @@ public abstract class Certificate implements java.io.Serializable {
      *
      * @return the encoded form of this certificate
      *
-     * @exception CertificateEncodingException if an encoding error occurs.
+     * @throws    CertificateEncodingException if an encoding error occurs.
      */
     public abstract byte[] getEncoded()
         throws CertificateEncodingException;
@@ -162,12 +159,12 @@ public abstract class Certificate implements java.io.Serializable {
      *
      * @param key the PublicKey used to carry out the verification.
      *
-     * @exception NoSuchAlgorithmException on unsupported signature
+     * @throws    NoSuchAlgorithmException on unsupported signature
      * algorithms.
-     * @exception InvalidKeyException on incorrect key.
-     * @exception NoSuchProviderException if there's no default provider.
-     * @exception SignatureException on signature errors.
-     * @exception CertificateException on encoding errors.
+     * @throws    InvalidKeyException on incorrect key.
+     * @throws    NoSuchProviderException if there's no default provider.
+     * @throws    SignatureException on signature errors.
+     * @throws    CertificateException on encoding errors.
      */
     public abstract void verify(PublicKey key)
         throws CertificateException, NoSuchAlgorithmException,
@@ -183,12 +180,12 @@ public abstract class Certificate implements java.io.Serializable {
      * @param key the PublicKey used to carry out the verification.
      * @param sigProvider the name of the signature provider.
      *
-     * @exception NoSuchAlgorithmException on unsupported signature
+     * @throws    NoSuchAlgorithmException on unsupported signature
      * algorithms.
-     * @exception InvalidKeyException on incorrect key.
-     * @exception NoSuchProviderException on incorrect provider.
-     * @exception SignatureException on signature errors.
-     * @exception CertificateException on encoding errors.
+     * @throws    InvalidKeyException on incorrect key.
+     * @throws    NoSuchProviderException on incorrect provider.
+     * @throws    SignatureException on signature errors.
+     * @throws    CertificateException on encoding errors.
      */
     public abstract void verify(PublicKey key, String sigProvider)
         throws CertificateException, NoSuchAlgorithmException,
@@ -210,12 +207,12 @@ public abstract class Certificate implements java.io.Serializable {
      * @param key the PublicKey used to carry out the verification.
      * @param sigProvider the signature provider.
      *
-     * @exception NoSuchAlgorithmException on unsupported signature
+     * @throws    NoSuchAlgorithmException on unsupported signature
      * algorithms.
-     * @exception InvalidKeyException on incorrect key.
-     * @exception SignatureException on signature errors.
-     * @exception CertificateException on encoding errors.
-     * @exception UnsupportedOperationException if the method is not supported
+     * @throws    InvalidKeyException on incorrect key.
+     * @throws    SignatureException on signature errors.
+     * @throws    CertificateException on encoding errors.
+     * @throws    UnsupportedOperationException if the method is not supported
      * @since 1.8
      */
     public void verify(PublicKey key, Provider sigProvider)
@@ -239,23 +236,27 @@ public abstract class Certificate implements java.io.Serializable {
     public abstract PublicKey getPublicKey();
 
     /**
-     * Alternate Certificate class for serialization.
+     * Alternate {@code Certificate} class for serialization.
      * @since 1.3
      */
     protected static class CertificateRep implements java.io.Serializable {
 
+        @java.io.Serial
         private static final long serialVersionUID = -8563758940495660020L;
 
-        private String type;
-        private byte[] data;
+        /** The standard name of the certificate type. */
+        private final String type;
+
+        /** The certificate data. */
+        private final byte[] data;
 
         /**
-         * Construct the alternate Certificate class with the Certificate
-         * type and Certificate encoding bytes.
+         * Construct the alternate {@code Certificate} class with the
+         * {@code Certificate} type and {@code Certificate} encoding bytes.
          *
-         * @param type the standard name of the Certificate type.
+         * @param type the standard name of the {@code Certificate} type.
          *
-         * @param data the Certificate data.
+         * @param data the {@code Certificate} data.
          */
         protected CertificateRep(String type, byte[] data) {
             this.type = type;
@@ -263,13 +264,15 @@ public abstract class Certificate implements java.io.Serializable {
         }
 
         /**
-         * Resolve the Certificate Object.
+         * Returns a {@code Certificate} with the type and data of this
+         * {@code CertificateRep}.
          *
-         * @return the resolved Certificate Object
+         * @return the resolved {@code Certificate} object
          *
-         * @throws java.io.ObjectStreamException if the Certificate
+         * @throws java.io.ObjectStreamException if the {@code Certificate}
          *      could not be resolved
          */
+        @java.io.Serial
         protected Object readResolve() throws java.io.ObjectStreamException {
             try {
                 CertificateFactory cf = CertificateFactory.getInstance(type);
@@ -286,14 +289,18 @@ public abstract class Certificate implements java.io.Serializable {
     }
 
     /**
-     * Replace the Certificate to be serialized.
+     * Replace the {@code Certificate} to be serialized with a
+     * {@link CertificateRep CertificateRep} object containing the type and
+     * encoded bytes of the {@code Certificate}.
      *
-     * @return the alternate Certificate object to be serialized
+     * @return a {@code CertificateRep} object containing the type and encoded
+     *         bytes of the {@code Certificate}
      *
-     * @throws java.io.ObjectStreamException if a new object representing
-     * this Certificate could not be created
+     * @throws java.io.ObjectStreamException if a {@code CertificateRep} object
+     *         representing this {@code Certificate} could not be created
      * @since 1.3
      */
+    @java.io.Serial
     protected Object writeReplace() throws java.io.ObjectStreamException {
         try {
             return new CertificateRep(type, getEncoded());

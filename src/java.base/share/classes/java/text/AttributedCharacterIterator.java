@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,15 +67,15 @@ import java.util.Set;
  *
  * <p>
  * Attribute keys are instances of {@link AttributedCharacterIterator.Attribute} and its
- * subclasses, such as {@link java.awt.font.TextAttribute}.
+ * subclasses, such as {@link java.desktop/java.awt.font.TextAttribute}.
  *
  * @see AttributedCharacterIterator.Attribute
- * @see java.awt.font.TextAttribute
+ * @see java.desktop/java.awt.font.TextAttribute
  * @see AttributedString
  * @see Annotation
  * @since 1.2
  */
-
+@SuppressWarnings("doclint:reference") // cross-module links
 public interface AttributedCharacterIterator extends CharacterIterator {
 
     /**
@@ -104,6 +104,7 @@ public interface AttributedCharacterIterator extends CharacterIterator {
          *
          * @param name the name of {@code Attribute}
          */
+        @SuppressWarnings("this-escape")
         protected Attribute(String name) {
             this.name = name;
             if (this.getClass() == Attribute.class) {
@@ -153,6 +154,7 @@ public interface AttributedCharacterIterator extends CharacterIterator {
          * @throws InvalidObjectException if the object to resolve is not
          *                                an instance of {@code Attribute}
          */
+        @java.io.Serial
         protected Object readResolve() throws InvalidObjectException {
             if (this.getClass() != Attribute.class) {
                 throw new InvalidObjectException("subclass didn't correctly implement readResolve");
@@ -194,6 +196,7 @@ public interface AttributedCharacterIterator extends CharacterIterator {
         public static final Attribute INPUT_METHOD_SEGMENT = new Attribute("input_method_segment");
 
         // make sure the serial version doesn't change between compiler versions
+        @java.io.Serial
         private static final long serialVersionUID = -9142742483513960612L;
 
     };

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,7 +51,7 @@ public class CloseTimeoutChannel {
         try {
             System.out.println("Establishing connection");
             Socket socket=SocketChannel.open(
-                new InetSocketAddress("127.0.0.1", port)).socket();
+                new InetSocketAddress(InetAddress.getLoopbackAddress(), port)).socket();
             OutputStream out=socket.getOutputStream();
             InputStream in=socket.getInputStream();
 
@@ -102,7 +102,7 @@ public class CloseTimeoutChannel {
                 System.out.println(INDENT+"Listening on port "+
                     _listener.socket().getLocalPort());
                 ByteBuffer buf=ByteBuffer.allocate(5);
-                Socket client=_listener.accept().socket();;
+                Socket client=_listener.accept().socket();
                 System.out.println(INDENT+"Accepted client");
 
                 OutputStream out=client.getOutputStream();

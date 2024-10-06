@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 #include "classfile/stringTable.hpp"
 #include "code/nmethod.hpp"
 #include "gc/shared/strongRootsScope.hpp"
-#include "runtime/thread.hpp"
+#include "runtime/threads.hpp"
 
 MarkScope::MarkScope() {
   nmethod::oops_do_marking_prologue();
@@ -37,9 +37,16 @@ MarkScope::~MarkScope() {
 }
 
 StrongRootsScope::StrongRootsScope(uint n_threads) : _n_threads(n_threads) {
-  Threads::change_thread_claim_parity();
+  // No need for thread claim for statically-known sequential case (_n_threads == 0)
+  // For positive values, clients of this class often unify sequential/parallel
+  // cases, so they expect the thread claim token to be updated.
+  if (_n_threads != 0) {
+    Threads::change_thread_claim_token();
+  }
 }
 
 StrongRootsScope::~StrongRootsScope() {
-  Threads::assert_all_threads_claimed();
+  if (_n_threads != 0) {
+    Threads::assert_all_threads_claimed();
+  }
 }

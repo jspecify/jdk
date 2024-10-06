@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package sun.management;
 
 import java.lang.management.LockInfo;
+import java.util.Map;
 import javax.management.openmbean.CompositeType;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.CompositeDataSupport;
@@ -37,6 +38,7 @@ import javax.management.openmbean.OpenDataException;
  * construction of a CompositeData use in the local case.
  */
 public class LockInfoCompositeData extends LazyCompositeData {
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private final LockInfo lock;
 
     private LockInfoCompositeData(LockInfo li) {
@@ -57,20 +59,16 @@ public class LockInfoCompositeData extends LazyCompositeData {
     }
 
     protected CompositeData getCompositeData() {
-        // CONTENTS OF THIS ARRAY MUST BE SYNCHRONIZED WITH
-        // LOCK_INFO_ATTRIBUTES!
-        final Object[] lockInfoItemValues = {
-            new String(lock.getClassName()),
-            lock.getIdentityHashCode(),
-        };
+        Map<String,Object> items = Map.of(
+            CLASS_NAME,         lock.getClassName(),
+            IDENTITY_HASH_CODE, lock.getIdentityHashCode()
+        );
 
         try {
-            return new CompositeDataSupport(LOCK_INFO_COMPOSITE_TYPE,
-                                            LOCK_INFO_ATTRIBUTES,
-                                            lockInfoItemValues);
+            return new CompositeDataSupport(LOCK_INFO_COMPOSITE_TYPE, items);
         } catch (OpenDataException e) {
             // Should never reach here
-            throw Util.newException(e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -81,7 +79,7 @@ public class LockInfoCompositeData extends LazyCompositeData {
                 MappedMXBeanType.toOpenType(LockInfo.class);
         } catch (OpenDataException e) {
             // Should never reach here
-            throw Util.newException(e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -91,10 +89,6 @@ public class LockInfoCompositeData extends LazyCompositeData {
 
     private static final String CLASS_NAME         = "className";
     private static final String IDENTITY_HASH_CODE = "identityHashCode";
-    private static final String[] LOCK_INFO_ATTRIBUTES = {
-        CLASS_NAME,
-        IDENTITY_HASH_CODE,
-    };
 
     /*
      * Returns a LockInfo object mapped from the given CompositeData.

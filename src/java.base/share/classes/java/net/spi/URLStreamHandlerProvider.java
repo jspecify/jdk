@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@ import java.net.URLStreamHandlerFactory;
 /**
  * URL stream handler service-provider class.
  *
- *<p> A URL stream handler provider is a concrete subclass of this class that
+ * <p> A URL stream handler provider is a concrete subclass of this class that
  * has a zero-argument constructor. URL stream handler providers may be
  * installed in an instance of the Java platform by adding them to the
  * application class path.
@@ -50,6 +50,7 @@ public abstract class URLStreamHandlerProvider
     implements URLStreamHandlerFactory
 {
     private static Void checkPermission() {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null)
             sm.checkPermission(new RuntimePermission("setFactory"));

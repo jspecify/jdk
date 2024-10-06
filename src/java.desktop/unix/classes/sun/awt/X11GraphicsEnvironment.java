@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,19 +27,22 @@ package sun.awt;
 
 import java.awt.AWTError;
 import java.awt.GraphicsDevice;
-import java.awt.Point;
-import java.awt.Rectangle;
+import java.lang.ref.WeakReference;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
 
-import java.util.*;
-
+import sun.awt.X11.XToolkit;
 import sun.java2d.SunGraphicsEnvironment;
 import sun.java2d.SurfaceManagerFactory;
 import sun.java2d.UnixSurfaceManagerFactory;
-import sun.util.logging.PlatformLogger;
 import sun.java2d.xr.XRSurfaceData;
 
 /**
@@ -52,19 +55,19 @@ import sun.java2d.xr.XRSurfaceData;
  */
 public final class X11GraphicsEnvironment extends SunGraphicsEnvironment {
 
-    private static final PlatformLogger log = PlatformLogger.getLogger("sun.awt.X11GraphicsEnvironment");
-    private static final PlatformLogger screenLog = PlatformLogger.getLogger("sun.awt.screen.X11GraphicsEnvironment");
-
-    private static Boolean xinerState;
-
     static {
+        initStatic();
+    }
+
+    @SuppressWarnings({"removal", "restricted"})
+    private static void initStatic() {
         java.security.AccessController.doPrivileged(
                           new java.security.PrivilegedAction<Object>() {
             public Object run() {
                 System.loadLibrary("awt");
 
                 /*
-                 * Note: The MToolkit object depends on the static initializer
+                 * Note: The XToolkit object depends on the static initializer
                  * of X11GraphicsEnvironment to initialize the connection to
                  * the X11 server.
                  */
@@ -172,32 +175,109 @@ public final class X11GraphicsEnvironment extends SunGraphicsEnvironment {
     private static  native String getDisplayString();
     private Boolean isDisplayLocal;
 
+    /** Available X11 screens. */
+    private final Map<Integer, X11GraphicsDevice> devices = new HashMap<>(5);
+
+    /**
+     * The key in the {@link #devices} for the main screen.
+     */
+    private int mainScreen;
+
+    // list of invalidated graphics devices (those which were removed)
+    private List<WeakReference<X11GraphicsDevice>> oldDevices = new ArrayList<>();
+
     /**
      * This should only be called from the static initializer, so no need for
      * the synchronized keyword.
      */
     private static native void initDisplay(boolean glxRequested);
 
-    public X11GraphicsEnvironment() {
-    }
-
     protected native int getNumScreens();
 
-    protected GraphicsDevice makeScreenDevice(int screennum) {
-        return new X11GraphicsDevice(screennum);
+    private native int getDefaultScreenNum();
+
+    public X11GraphicsEnvironment() {
+        if (isHeadless()) {
+            return;
+        }
+
+        /* Populate the device table */
+        rebuildDevices();
     }
 
-    private native int getDefaultScreenNum();
     /**
-     * Returns the default screen graphics device.
+     * Initialize the native list of devices.
      */
-    public GraphicsDevice getDefaultScreenDevice() {
-        GraphicsDevice[] screens = getScreenDevices();
-        if (screens.length == 0) {
+    private static native void initNativeData();
+
+    /**
+     * Updates the list of devices and notify listeners.
+     */
+    public void rebuildDevices() {
+        XToolkit.awtLock();
+        try {
+            initNativeData();
+            initDevices();
+        } finally {
+            XToolkit.awtUnlock();
+        }
+        displayChanged();
+    }
+
+    /**
+     * (Re)create all X11GraphicsDevices, reuses a devices if it is possible.
+     */
+    private synchronized void initDevices() {
+        Map<Integer, X11GraphicsDevice> old = new HashMap<>(devices);
+        devices.clear();
+
+        int numScreens = getNumScreens();
+        if (numScreens == 0) {
             throw new AWTError("no screen devices");
         }
         int index = getDefaultScreenNum();
-        return screens[0 < index && index < screens.length ? index : 0];
+        mainScreen = 0 < index && index < numScreens ? index : 0;
+
+        for (int id = 0; id < numScreens; ++id) {
+            devices.put(id, old.containsKey(id) ? old.remove(id) :
+                                                  new X11GraphicsDevice(id));
+        }
+        // if a device was not reused it should be invalidated
+        for (X11GraphicsDevice gd : old.values()) {
+            oldDevices.add(new WeakReference<>(gd));
+        }
+        // Need to notify old devices, in case the user hold the reference to it
+        for (ListIterator<WeakReference<X11GraphicsDevice>> it =
+             oldDevices.listIterator(); it.hasNext(); ) {
+            X11GraphicsDevice gd = it.next().get();
+            if (gd != null) {
+                gd.invalidate(devices.get(mainScreen));
+                gd.displayChanged();
+            } else {
+                // no more references to this device, remove it
+                it.remove();
+            }
+        }
+    }
+
+    @Override
+    public synchronized GraphicsDevice getDefaultScreenDevice() {
+        return devices.get(mainScreen);
+    }
+
+    @Override
+    public synchronized GraphicsDevice[] getScreenDevices() {
+        return devices.values().toArray(new X11GraphicsDevice[0]);
+    }
+
+    public synchronized GraphicsDevice getScreenDevice(int screen) {
+        return devices.get(screen);
+    }
+
+    @Override
+    protected GraphicsDevice makeScreenDevice(int screennum) {
+        throw new UnsupportedOperationException("This method is unused and" +
+                "should not be called in this implementation");
     }
 
     public boolean isDisplayLocal() {
@@ -219,6 +299,7 @@ public final class X11GraphicsEnvironment extends SunGraphicsEnvironment {
             return true;
         }
 
+        @SuppressWarnings("removal")
         String isRemote = java.security.AccessController.doPrivileged(
             new sun.security.action.GetPropertyAction("sun.java2d.remote"));
         if (isRemote != null) {
@@ -241,10 +322,11 @@ public final class X11GraphicsEnvironment extends SunGraphicsEnvironment {
             return true;
         }
 
+        @SuppressWarnings("removal")
         Boolean result = java.security.AccessController.doPrivileged(
             new java.security.PrivilegedAction<Boolean>() {
             public Boolean run() {
-                InetAddress remAddr[] = null;
+                InetAddress[] remAddr = null;
                 Enumeration<InetAddress> locals = null;
                 Enumeration<NetworkInterface> interfaces = null;
                 try {
@@ -290,142 +372,9 @@ public final class X11GraphicsEnvironment extends SunGraphicsEnvironment {
     }
 
     private static native boolean pRunningXinerama();
-    private static native Point getXineramaCenterPoint();
-
-    /**
-     * Override for Xinerama case: call new Solaris API for getting the correct
-     * centering point from the windowing system.
-     */
-    public Point getCenterPoint() {
-        if (runningXinerama()) {
-            Point p = getXineramaCenterPoint();
-            if (p != null) {
-                return p;
-            }
-        }
-        return super.getCenterPoint();
-    }
-
-    /**
-     * Override for Xinerama case
-     */
-    public Rectangle getMaximumWindowBounds() {
-        if (runningXinerama()) {
-            return getXineramaWindowBounds();
-        } else {
-            return super.getMaximumWindowBounds();
-        }
-    }
 
     public boolean runningXinerama() {
-        if (xinerState == null) {
-            // pRunningXinerama() simply returns a global boolean variable,
-            // so there is no need to synchronize here
-            xinerState = Boolean.valueOf(pRunningXinerama());
-            if (screenLog.isLoggable(PlatformLogger.Level.FINER)) {
-                screenLog.finer("Running Xinerama: " + xinerState);
-            }
-        }
-        return xinerState.booleanValue();
-    }
-
-    /**
-     * Return the bounds for a centered Window on a system running in Xinerama
-     * mode.
-     *
-     * Calculations are based on the assumption of a perfectly rectangular
-     * display area (display edges line up with one another, and displays
-     * have consistent width and/or height).
-     *
-     * The bounds to return depend on the arrangement of displays and on where
-     * Windows are to be centered.  There are two common situations:
-     *
-     * 1) The center point lies at the center of the combined area of all the
-     *    displays.  In this case, the combined area of all displays is
-     *    returned.
-     *
-     * 2) The center point lies at the center of a single display.  In this case
-     *    the user most likely wants centered Windows to be constrained to that
-     *    single display.  The boundaries of the one display are returned.
-     *
-     * It is possible for the center point to be at both the center of the
-     * entire display space AND at the center of a single monitor (a square of
-     * 9 monitors, for instance).  In this case, the entire display area is
-     * returned.
-     *
-     * Because the center point is arbitrarily settable by the user, it could
-     * fit neither of the cases above.  The fallback case is to simply return
-     * the combined area for all screens.
-     */
-    protected Rectangle getXineramaWindowBounds() {
-        Point center = getCenterPoint();
-        Rectangle unionRect, tempRect;
-        GraphicsDevice[] gds = getScreenDevices();
-        Rectangle centerMonitorRect = null;
-        int i;
-
-        // if center point is at the center of all monitors
-        // return union of all bounds
-        //
-        //  MM*MM     MMM       M
-        //            M*M       *
-        //            MMM       M
-
-        // if center point is at center of a single monitor (but not of all
-        // monitors)
-        // return bounds of single monitor
-        //
-        // MMM         MM
-        // MM*         *M
-
-        // else, center is in some strange spot (such as on the border between
-        // monitors), and we should just return the union of all monitors
-        //
-        // MM          MMM
-        // MM          MMM
-
-        unionRect = getUsableBounds(gds[0]);
-
-        for (i = 0; i < gds.length; i++) {
-            tempRect = getUsableBounds(gds[i]);
-            if (centerMonitorRect == null &&
-                // add a pixel or two for fudge-factor
-                (tempRect.width / 2) + tempRect.x > center.x - 1 &&
-                (tempRect.height / 2) + tempRect.y > center.y - 1 &&
-                (tempRect.width / 2) + tempRect.x < center.x + 1 &&
-                (tempRect.height / 2) + tempRect.y < center.y + 1) {
-                centerMonitorRect = tempRect;
-            }
-            unionRect = unionRect.union(tempRect);
-        }
-
-        // first: check for center of all monitors (video wall)
-        // add a pixel or two for fudge-factor
-        if ((unionRect.width / 2) + unionRect.x > center.x - 1 &&
-            (unionRect.height / 2) + unionRect.y > center.y - 1 &&
-            (unionRect.width / 2) + unionRect.x < center.x + 1 &&
-            (unionRect.height / 2) + unionRect.y < center.y + 1) {
-
-            if (screenLog.isLoggable(PlatformLogger.Level.FINER)) {
-                screenLog.finer("Video Wall: center point is at center of all displays.");
-            }
-            return unionRect;
-        }
-
-        // next, check if at center of one monitor
-        if (centerMonitorRect != null) {
-            if (screenLog.isLoggable(PlatformLogger.Level.FINER)) {
-                screenLog.finer("Center point at center of a particular " +
-                                "monitor, but not of the entire virtual display.");
-            }
-            return centerMonitorRect;
-        }
-
-        // otherwise, the center is at some weird spot: return unionRect
-        if (screenLog.isLoggable(PlatformLogger.Level.FINER)) {
-            screenLog.finer("Center point is somewhere strange - return union of all bounds.");
-        }
-        return unionRect;
+        return pRunningXinerama();
     }
 
     /**

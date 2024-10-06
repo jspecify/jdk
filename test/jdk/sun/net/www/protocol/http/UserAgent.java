@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,15 +24,18 @@
 /**
  * @test
  * @bug 4512200
- * @modules java.base/sun.net.www
+ * @library /test/lib
  * @run main/othervm -Dhttp.agent=foo UserAgent
+ * @run main/othervm -Dhttp.agent=foo -Djava.net.preferIPv6Addresses=true UserAgent
  * @summary  HTTP header "User-Agent" format incorrect
  */
 
 import java.io.*;
 import java.util.*;
 import java.net.*;
-import sun.net.www.MessageHeader;
+
+import jdk.test.lib.net.HttpHeaderParser;
+import jdk.test.lib.net.URIBuilder;
 
 class Server extends Thread {
     Server (ServerSocket server) {
@@ -43,8 +46,8 @@ class Server extends Thread {
             String version = System.getProperty ("java.version");
             String expected = "foo Java/"+version;
             Socket s = server.accept ();
-            MessageHeader header = new MessageHeader (s.getInputStream());
-            String v = header.findValue ("User-Agent");
+            HttpHeaderParser header = new HttpHeaderParser (s.getInputStream());
+            String v = header.getHeaderValue ("User-Agent").get(0);
             if (!expected.equals (v)) {
                 error ("Got unexpected User-Agent: " + v);
             } else {
@@ -85,12 +88,19 @@ class Server extends Thread {
 public class UserAgent {
 
     public static void main(String[] args) throws Exception {
-        ServerSocket server = new ServerSocket (0);
+        InetAddress loopback = InetAddress.getLoopbackAddress();
+        ServerSocket server = new ServerSocket ();
+        server.bind(new InetSocketAddress(loopback, 0));
         Server s = new Server (server);
         s.start ();
         int port = server.getLocalPort ();
-        URL url = new URL ("http://127.0.0.1:"+port);
-        URLConnection urlc = url.openConnection ();
+        URL url = URIBuilder.newBuilder()
+            .scheme("http")
+            .loopback()
+            .port(port)
+            .toURL();
+        System.out.println("URL: " + url);
+        URLConnection urlc = url.openConnection (Proxy.NO_PROXY);
         urlc.getInputStream ();
         s.join ();
         if (!s.succeeded()) {

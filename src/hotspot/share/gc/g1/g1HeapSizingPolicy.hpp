@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1HEAPSIZINGPOLICY_HPP
-#define SHARE_VM_GC_G1_G1HEAPSIZINGPOLICY_HPP
+#ifndef SHARE_GC_G1_G1HEAPSIZINGPOLICY_HPP
+#define SHARE_GC_G1_G1HEAPSIZINGPOLICY_HPP
 
 #include "memory/allocation.hpp"
 
@@ -45,19 +45,24 @@ class G1HeapSizingPolicy: public CHeapObj<mtGC> {
   double _ratio_over_threshold_sum;
   uint _pauses_since_start;
 
+  // Scale "full" gc pause time threshold with heap size as we want to resize more
+  // eagerly at small heap sizes.
+  double scale_with_heap(double pause_time_threshold);
 
-protected:
   G1HeapSizingPolicy(const G1CollectedHeap* g1h, const G1Analytics* analytics);
 public:
 
   // If an expansion would be appropriate, because recent GC overhead had
   // exceeded the desired limit, return an amount to expand by.
-  virtual size_t expansion_amount();
+  size_t young_collection_expansion_amount();
 
+  // Returns the amount of bytes to resize the heap; if expand is set, the heap
+  // should by expanded by that amount, shrunk otherwise.
+  size_t full_collection_resize_amount(bool& expand);
   // Clear ratio tracking data used by expansion_amount().
   void clear_ratio_check_data();
 
   static G1HeapSizingPolicy* create(const G1CollectedHeap* g1h, const G1Analytics* analytics);
 };
 
-#endif // SRC_SHARE_VM_GC_G1_G1HEAPSIZINGPOLICY_HPP
+#endif // SHARE_GC_G1_G1HEAPSIZINGPOLICY_HPP

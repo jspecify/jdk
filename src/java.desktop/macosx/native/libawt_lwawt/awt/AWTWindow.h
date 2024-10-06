@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,11 +32,10 @@
 #import "LWCToolkit.h"
 
 @class AWTView;
-@class JNFWeakJObjectWrapper;
 
 @interface AWTWindow : NSObject <NSWindowDelegate> {
 @private
-    JNFWeakJObjectWrapper *javaPlatformWindow;
+    jobject javaPlatformWindow; /* This is a weak ref. Always copy to a local ref before using */
     CMenuBar *javaMenuBar;
     NSSize javaMinSize;
     NSSize javaMaxSize;
@@ -47,12 +46,13 @@
     jint preFullScreenLevel;
     NSRect standardFrame;
     BOOL isMinimizing;
+    BOOL keyNotificationRecd;
 }
 
 // An instance of either AWTWindow_Normal or AWTWindow_Panel
 @property (nonatomic, retain) NSWindow *nsWindow;
 
-@property (nonatomic, retain) JNFWeakJObjectWrapper *javaPlatformWindow;
+@property (nonatomic) jobject javaPlatformWindow;
 @property (nonatomic, retain) CMenuBar *javaMenuBar;
 @property (nonatomic, retain) AWTWindow *ownerWindow;
 @property (nonatomic) NSSize javaMinSize;
@@ -62,8 +62,9 @@
 @property (nonatomic) jint preFullScreenLevel;
 @property (nonatomic) NSRect standardFrame;
 @property (nonatomic) BOOL isMinimizing;
+@property (nonatomic) BOOL keyNotificationRecd;
 
-- (id) initWithPlatformWindow:(JNFWeakJObjectWrapper *)javaPlatformWindow
+- (id) initWithPlatformWindow:(jobject)javaPlatformWindow
                   ownerWindow:owner
                     styleBits:(jint)styleBits
                     frameRect:(NSRect)frameRect

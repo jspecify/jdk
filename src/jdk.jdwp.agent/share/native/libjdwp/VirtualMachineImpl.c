@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,8 +35,6 @@
 #include "FrameID.h"
 
 static char *versionName = "Java Debug Wire Protocol (Reference Implementation)";
-static int majorVersion = 11;  /* JDWP major version */
-static int minorVersion = 0;  /* JDWP minor version */
 
 static jboolean
 version(PacketInputStream *in, PacketOutputStream *out)
@@ -45,6 +43,10 @@ version(PacketInputStream *in, PacketOutputStream *out)
     char *vmName;
     char *vmVersion;
     char *vmInfo;
+
+    /* Now the JDWP versions are the same as JVMTI versions */
+    int majorVersion = jvmtiMajorVersion();
+    int minorVersion = 0;
 
     if (gdata->vmDead) {
         outStream_setError(out, JDWP_ERROR(VM_DEAD));
@@ -162,7 +164,7 @@ classesForSignature(PacketInputStream *in, PacketOutputStream *out)
             }
 
             /* At this point matching prepared classes occupy
-             * indicies 0 thru matchCount-1 of theClasses.
+             * indices 0 thru matchCount-1 of theClasses.
              */
 
             if ( error ==  JVMTI_ERROR_NONE ) {
@@ -275,7 +277,7 @@ allClasses1(PacketInputStream *in, PacketOutputStream *out, int outputGenerics)
             }
 
             /* At this point prepared classes occupy
-             * indicies 0 thru prepCount-1 of theClasses.
+             * indices 0 thru prepCount-1 of theClasses.
              */
 
             (void)outStream_writeInt(out, prepCount);
@@ -535,22 +537,35 @@ getAllThreads(PacketInputStream *in, PacketOutputStream *out)
 
         int i;
         jint threadCount;
+        jint vthreadCount;
         jthread *theThreads;
+        jthread *theVThreads;
 
         theThreads = allThreads(&threadCount);
-        if (theThreads == NULL) {
+        if (gdata->includeVThreads) {
+            theVThreads = threadControl_allVThreads(&vthreadCount);
+        } else {
+            theVThreads = NULL;
+            vthreadCount = 0;
+        }
+
+        if (theThreads == NULL || (theVThreads == NULL && vthreadCount != 0)) {
             outStream_setError(out, JDWP_ERROR(OUT_OF_MEMORY));
         } else {
             /* Squish out all of the debugger-spawned threads */
             threadCount = filterDebugThreads(theThreads, threadCount);
 
-            (void)outStream_writeInt(out, threadCount);
-            for (i = 0; i <threadCount; i++) {
+            (void)outStream_writeInt(out, threadCount + vthreadCount);
+            for (i = 0; i < vthreadCount; i++) {
+                (void)outStream_writeObjectRef(env, out, theVThreads[i]);
+            }
+            for (i = 0; i < threadCount; i++) {
                 (void)outStream_writeObjectRef(env, out, theThreads[i]);
             }
-
-            jvmtiDeallocate(theThreads);
         }
+
+        jvmtiDeallocate(theThreads);
+        jvmtiDeallocate(theVThreads);
 
     } END_WITH_LOCAL_REFS(env);
 
@@ -925,27 +940,29 @@ releaseEvents(PacketInputStream *in, PacketOutputStream *out)
     return JNI_TRUE;
 }
 
-void *VirtualMachine_Cmds[] = { (void *)22
-    ,(void *)version
-    ,(void *)classesForSignature
-    ,(void *)allClasses
-    ,(void *)getAllThreads
-    ,(void *)topLevelThreadGroups
-    ,(void *)dispose
-    ,(void *)idSizes
-    ,(void *)suspend
-    ,(void *)resume
-    ,(void *)doExit
-    ,(void *)createString
-    ,(void *)capabilities
-    ,(void *)classPaths
-    ,(void *)disposeObjects
-    ,(void *)holdEvents
-    ,(void *)releaseEvents
-    ,(void *)capabilitiesNew
-    ,(void *)redefineClasses
-    ,(void *)setDefaultStratum
-    ,(void *)allClassesWithGeneric
-    ,(void *)instanceCounts
-    ,(void *)allModules
+Command VirtualMachine_Commands[] = {
+    {version, "Version"},
+    {classesForSignature, "ClassesForSignature"},
+    {allClasses, "AllClasses"},
+    {getAllThreads, "GetAllThreads"},
+    {topLevelThreadGroups, "TopLevelThreadGroups"},
+    {dispose, "Dispose"},
+    {idSizes, "IDSizes"},
+    {suspend, "Suspend"},
+    {resume, "Resume"},
+    {doExit, "DoExit"},
+    {createString, "CreateString"},
+    {capabilities, "Capabilities"},
+    {classPaths, "ClassPaths"},
+    {disposeObjects, "DisposeObjects"},
+    {holdEvents, "HoldEvents"},
+    {releaseEvents, "ReleaseEvents"},
+    {capabilitiesNew, "CapabilitiesNew"},
+    {redefineClasses, "RedefineClasses"},
+    {setDefaultStratum, "SetDefaultStratum"},
+    {allClassesWithGeneric, "AllClassesWithGeneric"},
+    {instanceCounts, "InstanceCounts"},
+    {allModules, "AllModules"}
 };
+
+DEBUG_DISPATCH_DEFINE_CMDSET(VirtualMachine)

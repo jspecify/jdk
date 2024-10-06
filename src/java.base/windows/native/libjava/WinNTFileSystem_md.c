@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,6 @@
  * questions.
  */
 
-/* Access APIs for WinXP and above */
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0501
-#endif
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,12 +31,13 @@
 #include <windows.h>
 #include <io.h>
 #include <limits.h>
+#include <wchar.h>
+#include <Winioctl.h>
 
 #include "jni.h"
 #include "io_util.h"
 #include "jlong.h"
 #include "io_util_md.h"
-#include "dirent_md.h"
 #include "java_io_FileSystem.h"
 
 #define MAX_PATH_LENGTH 1024
@@ -50,31 +46,15 @@ static struct {
     jfieldID path;
 } ids;
 
-/**
- * GetFinalPathNameByHandle is available on Windows Vista and newer
- */
-typedef BOOL (WINAPI* GetFinalPathNameByHandleProc) (HANDLE, LPWSTR, DWORD, DWORD);
-static GetFinalPathNameByHandleProc GetFinalPathNameByHandle_func;
-
 JNIEXPORT void JNICALL
 Java_java_io_WinNTFileSystem_initIDs(JNIEnv *env, jclass cls)
 {
-    HMODULE handle;
     jclass fileClass;
 
     fileClass = (*env)->FindClass(env, "java/io/File");
     CHECK_NULL(fileClass);
     ids.path = (*env)->GetFieldID(env, fileClass, "path", "Ljava/lang/String;");
     CHECK_NULL(ids.path);
-
-    // GetFinalPathNameByHandle requires Windows Vista or newer
-    if (GetModuleHandleExW((GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                            GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT),
-                           (LPCWSTR)&CreateFileW, &handle) != 0)
-    {
-        GetFinalPathNameByHandle_func = (GetFinalPathNameByHandleProc)
-            GetProcAddress(handle, "GetFinalPathNameByHandleW");
-    }
 }
 
 /* -- Path operations -- */
@@ -91,10 +71,6 @@ static WCHAR* getFinalPath(JNIEnv *env, const WCHAR *path)
     HANDLE h;
     WCHAR *result;
     DWORD error;
-
-    /* Need Windows Vista or newer to get the final path */
-    if (GetFinalPathNameByHandle_func == NULL)
-        return NULL;
 
     h = CreateFileW(path,
                     FILE_READ_ATTRIBUTES,
@@ -113,13 +89,13 @@ static WCHAR* getFinalPath(JNIEnv *env, const WCHAR *path)
      */
     result = (WCHAR*)malloc(MAX_PATH * sizeof(WCHAR));
     if (result != NULL) {
-        DWORD len = (*GetFinalPathNameByHandle_func)(h, result, MAX_PATH, 0);
+        DWORD len = GetFinalPathNameByHandleW(h, result, MAX_PATH, 0);
         if (len >= MAX_PATH) {
             /* retry with a buffer of the right size */
             WCHAR* newResult = (WCHAR*)realloc(result, (len+1) * sizeof(WCHAR));
             if (newResult != NULL) {
                 result = newResult;
-                len = (*GetFinalPathNameByHandle_func)(h, result, len, 0);
+                len = GetFinalPathNameByHandleW(h, result, len, 0);
             } else {
                 len = 0;
                 JNU_ThrowOutOfMemoryError(env, "native memory allocation failed");
@@ -137,28 +113,10 @@ static WCHAR* getFinalPath(JNIEnv *env, const WCHAR *path)
                              result[5] == L'N' &&
                              result[6] == L'C');
                 int prefixLen = (isUnc) ? 7 : 4;
-                /* actual result length (includes terminator) */
-                int resultLen = len - prefixLen + (isUnc ? 1 : 0) + 1;
-
-                /* copy result without prefix into new buffer */
-                WCHAR *tmp = (WCHAR*)malloc(resultLen * sizeof(WCHAR));
-                if (tmp == NULL) {
-                    JNU_ThrowOutOfMemoryError(env, "native memory allocation failed");
-                    len = 0;
-                } else {
-                    WCHAR *p = result;
-                    p += prefixLen;
-                    if (isUnc) {
-                        WCHAR *p2 = tmp;
-                        p2[0] = L'\\';
-                        p2++;
-                        wcscpy(p2, p);
-                    } else {
-                        wcscpy(tmp, p);
-                    }
-                    free(result);
-                    result = tmp;
-                }
+                int prefixToKeep = (isUnc) ? 1 : 0;
+                // the amount to copy includes terminator
+                int amountToCopy = len - prefixLen + 1;
+                wmemmove(result + prefixToKeep, result + prefixLen, amountToCopy);
             }
         }
 
@@ -205,6 +163,60 @@ static BOOL getFileInformation(const WCHAR *path,
 }
 
 /**
+ * path is likely to be a Unix domain socket.
+ * Verify and if it is return its attributes
+ */
+static DWORD getFinalAttributesUnixSocket(const WCHAR *path)
+{
+    DWORD result;
+    BY_HANDLE_FILE_INFORMATION finfo;
+    REPARSE_GUID_DATA_BUFFER reparse;
+
+    HANDLE h = CreateFileW(path,
+                           FILE_READ_ATTRIBUTES,
+                           FILE_SHARE_DELETE |
+                               FILE_SHARE_READ | FILE_SHARE_WRITE,
+                           NULL,
+                           OPEN_EXISTING,
+                           FILE_FLAG_BACKUP_SEMANTICS |
+                               FILE_FLAG_OPEN_REPARSE_POINT,
+                           NULL);
+
+    if (h == INVALID_HANDLE_VALUE)
+        return INVALID_FILE_ATTRIBUTES;
+
+
+    if (!GetFileInformationByHandle(h, &finfo)) {
+        DWORD error = GetLastError();
+        if (CloseHandle(h)) {
+            SetLastError(error);
+        }
+        return INVALID_FILE_ATTRIBUTES;
+    }
+
+    if ((finfo.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0) {
+        CloseHandle(h);
+        return INVALID_FILE_ATTRIBUTES;
+    }
+
+    /* check the reparse tag */
+
+    if (DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, NULL, 0, &reparse,
+                (DWORD)sizeof(reparse), &result, NULL) == 0) {
+        CloseHandle(h);
+        return INVALID_FILE_ATTRIBUTES;
+    }
+
+    if (reparse.ReparseTag != IO_REPARSE_TAG_AF_UNIX) {
+        CloseHandle(h);
+        return INVALID_FILE_ATTRIBUTES;
+    }
+
+    CloseHandle(h);
+    return finfo.dwFileAttributes;
+}
+
+/**
  * If the given attributes are the attributes of a reparse point, then
  * read and return the attributes of the special cases.
  */
@@ -234,6 +246,11 @@ DWORD getFinalAttributes(WCHAR *path)
 
     if (GetFileAttributesExW(path, GetFileExInfoStandard, &wfad)) {
         attr = getFinalAttributesIfReparsePoint(path, wfad.dwFileAttributes);
+        if (attr == INVALID_FILE_ATTRIBUTES) {
+            if (GetLastError() == ERROR_CANT_ACCESS_FILE) {
+                attr = getFinalAttributesUnixSocket(path);
+            }
+        }
     } else {
         DWORD lerr = GetLastError();
         if ((lerr == ERROR_SHARING_VIOLATION || lerr == ERROR_ACCESS_DENIED) &&
@@ -314,6 +331,25 @@ Java_java_io_WinNTFileSystem_canonicalizeWithPrefix0(JNIEnv *env, jobject this,
     return rv;
 }
 
+JNIEXPORT jstring JNICALL
+Java_java_io_WinNTFileSystem_getFinalPath0(JNIEnv* env, jobject this, jstring pathname) {
+    jstring rv = NULL;
+
+    WITH_UNICODE_STRING(env, pathname, path) {
+        WCHAR* finalPath = getFinalPath(env, path);
+        if (finalPath != NULL) {
+            rv = (*env)->NewString(env, finalPath, (jsize)wcslen(finalPath));
+            free(finalPath);
+        }
+    } END_UNICODE_STRING(env, path);
+
+    if (rv == NULL && !(*env)->ExceptionCheck(env)) {
+        JNU_ThrowIOExceptionWithLastError(env, "Bad pathname");
+    }
+
+    return rv;
+}
+
 /* -- Attribute accessors -- */
 
 /* Check whether or not the file name in "path" is a Windows reserved
@@ -368,8 +404,8 @@ static BOOL isReservedDeviceNameW(WCHAR* path) {
 }
 
 JNIEXPORT jint JNICALL
-Java_java_io_WinNTFileSystem_getBooleanAttributes(JNIEnv *env, jobject this,
-                                                  jobject file)
+Java_java_io_WinNTFileSystem_getBooleanAttributes0(JNIEnv *env, jobject this,
+                                                   jobject file)
 {
     jint rv = 0;
 
@@ -393,8 +429,8 @@ Java_java_io_WinNTFileSystem_getBooleanAttributes(JNIEnv *env, jobject this,
 
 
 JNIEXPORT jboolean
-JNICALL Java_java_io_WinNTFileSystem_checkAccess(JNIEnv *env, jobject this,
-                                                 jobject file, jint access)
+JNICALL Java_java_io_WinNTFileSystem_checkAccess0(JNIEnv *env, jobject this,
+                                                  jobject file, jint access)
 {
     DWORD attr;
     WCHAR *pathbuf = fileToNTPath(env, file, ids.path);
@@ -423,11 +459,11 @@ JNICALL Java_java_io_WinNTFileSystem_checkAccess(JNIEnv *env, jobject this,
 }
 
 JNIEXPORT jboolean JNICALL
-Java_java_io_WinNTFileSystem_setPermission(JNIEnv *env, jobject this,
-                                           jobject file,
-                                           jint access,
-                                           jboolean enable,
-                                           jboolean owneronly)
+Java_java_io_WinNTFileSystem_setPermission0(JNIEnv *env, jobject this,
+                                            jobject file,
+                                            jint access,
+                                            jboolean enable,
+                                            jboolean owneronly)
 {
     jboolean rv = JNI_FALSE;
     WCHAR *pathbuf;
@@ -469,8 +505,8 @@ Java_java_io_WinNTFileSystem_setPermission(JNIEnv *env, jobject this,
 }
 
 JNIEXPORT jlong JNICALL
-Java_java_io_WinNTFileSystem_getLastModifiedTime(JNIEnv *env, jobject this,
-                                                 jobject file)
+Java_java_io_WinNTFileSystem_getLastModifiedTime0(JNIEnv *env, jobject this,
+                                                  jobject file)
 {
     jlong rv = 0;
     ULARGE_INTEGER modTime;
@@ -506,7 +542,7 @@ Java_java_io_WinNTFileSystem_getLastModifiedTime(JNIEnv *env, jobject this,
 }
 
 JNIEXPORT jlong JNICALL
-Java_java_io_WinNTFileSystem_getLength(JNIEnv *env, jobject this, jobject file)
+Java_java_io_WinNTFileSystem_getLength0(JNIEnv *env, jobject this, jobject file)
 {
     jlong rv = 0;
     WIN32_FILE_ATTRIBUTE_DATA wfad;
@@ -572,8 +608,8 @@ Java_java_io_WinNTFileSystem_getLength(JNIEnv *env, jobject this, jobject file)
 /* -- File operations -- */
 
 JNIEXPORT jboolean JNICALL
-Java_java_io_WinNTFileSystem_createFileExclusively(JNIEnv *env, jclass cls,
-                                                   jstring path)
+Java_java_io_WinNTFileSystem_createFileExclusively0(JNIEnv *env, jclass cls,
+                                                    jstring path)
 {
     HANDLE h = NULL;
     WCHAR *pathbuf = pathToNTPath(env, path, JNI_FALSE);
@@ -645,7 +681,7 @@ Java_java_io_WinNTFileSystem_delete0(JNIEnv *env, jobject this, jobject file)
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_java_io_WinNTFileSystem_list(JNIEnv *env, jobject this, jobject file)
+Java_java_io_WinNTFileSystem_list0(JNIEnv *env, jobject this, jobject file)
 {
     WCHAR *search_path;
     HANDLE handle;
@@ -656,6 +692,7 @@ Java_java_io_WinNTFileSystem_list(JNIEnv *env, jobject this, jobject file)
     jstring name;
     jclass str_class;
     WCHAR *pathbuf;
+    DWORD err;
 
     str_class = JNU_ClassString(env);
     CHECK_NULL_RETURN(str_class, NULL);
@@ -717,8 +754,10 @@ Java_java_io_WinNTFileSystem_list(JNIEnv *env, jobject this, jobject file)
     len = 0;
     maxlen = 16;
     rv = (*env)->NewObjectArray(env, maxlen, str_class, NULL);
-    if (rv == NULL) // Couldn't allocate an array
+    if (rv == NULL) { // Couldn't allocate an array
+        FindClose(handle);
         return NULL;
+    }
     /* Scan the directory */
     do {
         if (!wcscmp(find_data.cFileName, L".")
@@ -726,13 +765,17 @@ Java_java_io_WinNTFileSystem_list(JNIEnv *env, jobject this, jobject file)
            continue;
         name = (*env)->NewString(env, find_data.cFileName,
                                  (jsize)wcslen(find_data.cFileName));
-        if (name == NULL)
-            return NULL; // error;
+        if (name == NULL) {
+            FindClose(handle);
+            return NULL; // error
+        }
         if (len == maxlen) {
             old = rv;
             rv = (*env)->NewObjectArray(env, maxlen <<= 1, str_class, NULL);
-            if (rv == NULL || JNU_CopyObjectArray(env, rv, old, len) < 0)
+            if (rv == NULL || JNU_CopyObjectArray(env, rv, old, len) < 0) {
+                FindClose(handle);
                 return NULL; // error
+            }
             (*env)->DeleteLocalRef(env, old);
         }
         (*env)->SetObjectArrayElement(env, rv, len++, name);
@@ -740,9 +783,11 @@ Java_java_io_WinNTFileSystem_list(JNIEnv *env, jobject this, jobject file)
 
     } while (FindNextFileW(handle, &find_data));
 
-    if (GetLastError() != ERROR_NO_MORE_FILES)
-        return NULL; // error
+    err = GetLastError();
     FindClose(handle);
+    if (err != ERROR_NO_MORE_FILES) {
+        return NULL; // error
+    }
 
     if (len < maxlen) {
         /* Copy the final results into an appropriately-sized array */
@@ -758,8 +803,8 @@ Java_java_io_WinNTFileSystem_list(JNIEnv *env, jobject this, jobject file)
 
 
 JNIEXPORT jboolean JNICALL
-Java_java_io_WinNTFileSystem_createDirectory(JNIEnv *env, jobject this,
-                                             jobject file)
+Java_java_io_WinNTFileSystem_createDirectory0(JNIEnv *env, jobject this,
+                                              jobject file)
 {
     BOOL h = FALSE;
     WCHAR *pathbuf = fileToNTPath(env, file, ids.path);
@@ -796,8 +841,8 @@ Java_java_io_WinNTFileSystem_rename0(JNIEnv *env, jobject this, jobject from,
 
 
 JNIEXPORT jboolean JNICALL
-Java_java_io_WinNTFileSystem_setLastModifiedTime(JNIEnv *env, jobject this,
-                                                 jobject file, jlong time)
+Java_java_io_WinNTFileSystem_setLastModifiedTime0(JNIEnv *env, jobject this,
+                                                  jobject file, jlong time)
 {
     jboolean rv = JNI_FALSE;
     WCHAR *pathbuf = fileToNTPath(env, file, ids.path);
@@ -829,8 +874,8 @@ Java_java_io_WinNTFileSystem_setLastModifiedTime(JNIEnv *env, jobject this,
 
 
 JNIEXPORT jboolean JNICALL
-Java_java_io_WinNTFileSystem_setReadOnly(JNIEnv *env, jobject this,
-                                         jobject file)
+Java_java_io_WinNTFileSystem_setReadOnly0(JNIEnv *env, jobject this,
+                                          jobject file)
 {
     jboolean rv = JNI_FALSE;
     DWORD a;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,6 @@
  */
 
 package javax.naming;
-
-import org.jspecify.annotations.Nullable;
 
 /**
   * This class represents the binary form of the address of
@@ -122,11 +120,8 @@ public class BinaryRefAddr extends RefAddr {
       * @param obj      The possibly null object to check.
       * @return true if the object is equal; false otherwise.
       */
-    
-    
-    public boolean equals(@Nullable Object obj) {
-        if ((obj != null) && (obj instanceof BinaryRefAddr)) {
-            BinaryRefAddr target = (BinaryRefAddr)obj;
+    public boolean equals(Object obj) {
+        if (obj instanceof BinaryRefAddr target) {
             if (addrType.compareTo(target.addrType) == 0) {
                 if (buf == null && target.buf == null)
                     return true;

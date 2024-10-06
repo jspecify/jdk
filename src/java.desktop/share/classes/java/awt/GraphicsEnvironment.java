@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
  * questions.
  */
 
-
 package java.awt;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
@@ -34,11 +33,11 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Locale;
 
+import sun.awt.PlatformGraphicsInfo;
 import sun.font.FontManager;
 import sun.font.FontManagerFactory;
 import sun.java2d.HeadlessGraphicsEnvironment;
 import sun.java2d.SunGraphicsEnvironment;
-import sun.security.action.GetPropertyAction;
 
 /**
  *
@@ -88,38 +87,14 @@ public abstract @UsesObjectEquals class GraphicsEnvironment {
 
         /**
          * Creates and returns the GraphicsEnvironment, according to the
-         * system property 'java.awt.graphicsenv'.
+         * platform-specific proxy class.
          *
          * @return the graphics environment
          */
         private static GraphicsEnvironment createGE() {
-            GraphicsEnvironment ge;
-            String nm = AccessController.doPrivileged(new GetPropertyAction("java.awt.graphicsenv", null));
-            try {
-//              long t0 = System.currentTimeMillis();
-                Class<?> geCls;
-                try {
-                    // First we try if the bootstrap class loader finds the
-                    // requested class. This way we can avoid to run in a privileged
-                    // block.
-                    geCls = Class.forName(nm);
-                } catch (ClassNotFoundException ex) {
-                    // If the bootstrap class loader fails, we try again with the
-                    // application class loader.
-                    ClassLoader cl = ClassLoader.getSystemClassLoader();
-                    geCls = Class.forName(nm, true, cl);
-                }
-                ge = (GraphicsEnvironment)geCls.getConstructor().newInstance();
-//              long t1 = System.currentTimeMillis();
-//              System.out.println("GE creation took " + (t1-t0)+ "ms.");
-                if (isHeadless()) {
-                    ge = new HeadlessGraphicsEnvironment(ge);
-                }
-            } catch (ClassNotFoundException e) {
-                throw new Error("Could not find class: "+nm);
-            } catch (ReflectiveOperationException | IllegalArgumentException e) {
-                throw new Error("Could not instantiate Graphics Environment: "
-                        + nm);
+            GraphicsEnvironment ge = PlatformGraphicsInfo.createGE();
+            if (isHeadless()) {
+                ge = new HeadlessGraphicsEnvironment(ge);
             }
             return ge;
         }
@@ -159,41 +134,22 @@ public abstract @UsesObjectEquals class GraphicsEnvironment {
             getHeadlessProperty(); // initialize the values
         }
         return defaultHeadless != Boolean.TRUE ? null :
-            "\nNo X11 DISPLAY variable was set, " +
-            "but this program performed an operation which requires it.";
+            PlatformGraphicsInfo.getDefaultHeadlessMessage();
     }
 
     /**
      * @return the value of the property "java.awt.headless"
      * @since 1.4
      */
+    @SuppressWarnings("removal")
     private static boolean getHeadlessProperty() {
         if (headless == null) {
             AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
                 String nm = System.getProperty("java.awt.headless");
 
                 if (nm == null) {
-                    /* No need to ask for DISPLAY when run in a browser */
-                    if (System.getProperty("javaplugin.version") != null) {
-                        headless = defaultHeadless = Boolean.FALSE;
-                    } else {
-                        String osName = System.getProperty("os.name");
-                        if (osName.contains("OS X") && "sun.awt.HToolkit".equals(
-                                System.getProperty("awt.toolkit")))
-                        {
-                            headless = defaultHeadless = Boolean.TRUE;
-                        } else {
-                            final String display = System.getenv("DISPLAY");
-                            headless = defaultHeadless =
-                                ("Linux".equals(osName) ||
-                                 "SunOS".equals(osName) ||
-                                 "FreeBSD".equals(osName) ||
-                                 "NetBSD".equals(osName) ||
-                                 "OpenBSD".equals(osName) ||
-                                 "AIX".equals(osName)) &&
-                                 (display == null || display.trim().isEmpty());
-                        }
-                    }
+                    headless = defaultHeadless =
+                        PlatformGraphicsInfo.getDefaultHeadlessProperty();
                 } else {
                     headless = Boolean.valueOf(nm);
                 }
@@ -237,7 +193,7 @@ public abstract @UsesObjectEquals class GraphicsEnvironment {
      * objects.
      * @return an array containing all the {@code GraphicsDevice}
      * objects that represent screen devices
-     * @exception HeadlessException if isHeadless() returns true
+     * @throws HeadlessException if isHeadless() returns true
      * @see #isHeadless()
      */
     public abstract GraphicsDevice[] getScreenDevices()
@@ -247,7 +203,7 @@ public abstract @UsesObjectEquals class GraphicsEnvironment {
      * Returns the default screen {@code GraphicsDevice}.
      * @return the {@code GraphicsDevice} that represents the
      * default screen device
-     * @exception HeadlessException if isHeadless() returns true
+     * @throws HeadlessException if isHeadless() returns true
      * @see #isHeadless()
      */
     public abstract GraphicsDevice getDefaultScreenDevice()
@@ -403,9 +359,9 @@ public abstract @UsesObjectEquals class GraphicsEnvironment {
     }
 
     /**
-     * Indicates a preference for proportional over non-proportional (e.g.
-     * dual-spaced CJK fonts) fonts in the mapping of logical fonts to
-     * physical fonts. If the default mapping contains fonts for which
+     * Indicates a preference for proportional over non-proportional (for
+     * example dual-spaced CJK fonts) fonts in the mapping of logical fonts
+     * to physical fonts. If the default mapping contains fonts for which
      * proportional and non-proportional variants exist, then calling
      * this method indicates the mapping should use a proportional variant.
      * <p>
@@ -429,7 +385,7 @@ public abstract @UsesObjectEquals class GraphicsEnvironment {
      * within the available display area using getMaximumWindowBounds().
      * @return the point where Windows should be centered
      *
-     * @exception HeadlessException if isHeadless() returns true
+     * @throws HeadlessException if isHeadless() returns true
      * @see #getMaximumWindowBounds
      * @since 1.4
      */
@@ -455,7 +411,7 @@ public abstract @UsesObjectEquals class GraphicsEnvironment {
      * {@code Toolkit.getScreenInsets()}.
      * @return  the maximum bounds for centered Windows
      *
-     * @exception HeadlessException if isHeadless() returns true
+     * @throws HeadlessException if isHeadless() returns true
      * @see #getCenterPoint
      * @see GraphicsConfiguration#getBounds
      * @see Toolkit#getScreenInsets

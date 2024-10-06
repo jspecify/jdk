@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,17 @@ package java.lang.reflect;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.invoke.WrongMethodTypeException;
 import java.lang.module.ModuleDescriptor;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -40,24 +46,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.function.BooleanSupplier;
 
-import jdk.internal.loader.BootLoader;
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.module.Modules;
-import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.loader.ClassLoaderValue;
+import jdk.internal.vm.annotation.Stable;
 import sun.reflect.misc.ReflectUtil;
 import sun.security.action.GetPropertyAction;
 import sun.security.util.SecurityConstants;
 
+import static java.lang.invoke.MethodType.methodType;
 import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
-
 
 /**
  *
@@ -103,7 +110,7 @@ import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
  * <li>A proxy class extends {@code java.lang.reflect.Proxy}.
  *
  * <li>A proxy class implements exactly the interfaces specified at its
- * creation, in the same order. Invoking {@link Class#getInterfaces getInterfaces}
+ * creation, in the same order. Invoking {@link Class#getInterfaces() getInterfaces}
  * on its {@code Class} object will return an array containing the same
  * list of interfaces (in the order specified at its creation), invoking
  * {@link Class#getMethods getMethods} on its {@code Class} object will return
@@ -147,6 +154,12 @@ import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
  * InvocationHandler#invoke invoke} method as described in the
  * documentation for that method.
  *
+ * <li>A proxy interface may define a default method or inherit
+ * a default method from its superinterface directly or indirectly.
+ * An invocation handler can invoke a default method of a proxy interface
+ * by calling {@link InvocationHandler#invokeDefault(Object, Method, Object...)
+ * InvocationHandler::invokeDefault}.
+ *
  * <li>An invocation of the {@code hashCode},
  * {@code equals}, or {@code toString} methods declared in
  * {@code java.lang.Object} on a proxy instance will be encoded and
@@ -160,7 +173,7 @@ import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
  * like they do for instances of {@code java.lang.Object}.
  * </ul>
  *
- * <h3><a id="membership">Package and Module Membership of Proxy Class</a></h3>
+ * <h2><a id="membership">Package and Module Membership of Proxy Class</a></h2>
  *
  * The package and module to which a proxy class belongs are chosen such that
  * the accessibility of the proxy class is in line with the accessibility of
@@ -175,9 +188,8 @@ import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
  *     packages:
  * <ol type="a">
  * <li>if all the proxy interfaces are <em>public</em>, then the proxy class is
- *     <em>public</em> in a package exported by the
- *     {@linkplain ClassLoader#getUnnamedModule() unnamed module} of the specified
- *     loader. The name of the package is unspecified.</li>
+ *     <em>public</em> in an unconditionally exported but non-open package.
+ *     The name of the package and the module are unspecified.</li>
  *
  * <li>if at least one of all the proxy interfaces is <em>non-public</em>, then
  *     the proxy class is <em>non-public</em> in the package and module of the
@@ -231,10 +243,11 @@ import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
  *
  * <p>
  * A dynamic module can read the modules of all of the superinterfaces of a proxy
- * class and the modules of the types referenced by all public method signatures
- * of a proxy class.  If a superinterface or a referenced type, say {@code T},
- * is in a non-exported package, the {@linkplain Module module} of {@code T} is
- * updated to export the package of {@code T} to the dynamic module.
+ * class and the modules of the classes and interfaces referenced by
+ * all public method signatures of a proxy class.  If a superinterface or
+ * a referenced class or interface, say {@code T}, is in a non-exported package,
+ * the {@linkplain Module module} of {@code T} is updated to export the
+ * package of {@code T} to the dynamic module.
  *
  * <h3>Methods Duplicated in Multiple Proxy Interfaces</h3>
  *
@@ -282,11 +295,10 @@ import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
  * @author      Peter Jones
  * @see         InvocationHandler
  * @since       1.3
- * @revised 9
- * @spec JPMS
  */
 @NullMarked
 public class Proxy implements java.io.Serializable {
+    @java.io.Serial
     private static final long serialVersionUID = -2222568056686623797L;
 
     /** parameter types of a proxy class constructor */
@@ -304,6 +316,7 @@ public class Proxy implements java.io.Serializable {
      * the invocation handler for this proxy instance.
      * @serial
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     protected InvocationHandler h;
 
     /**
@@ -372,8 +385,6 @@ public class Proxy implements java.io.Serializable {
      *      to create a proxy instance instead.
      *
      * @see <a href="#membership">Package and Module Membership of Proxy Class</a>
-     * @revised 9
-     * @spec JPMS
      */
     @Deprecated
     @CallerSensitive
@@ -381,6 +392,7 @@ public class Proxy implements java.io.Serializable {
                                          Class<?>... interfaces)
         throws IllegalArgumentException
     {
+        @SuppressWarnings("removal")
         Class<?> caller = System.getSecurityManager() == null
                               ? null
                               : Reflection.getCallerClass();
@@ -454,6 +466,7 @@ public class Proxy implements java.io.Serializable {
                                          ClassLoader loader,
                                          Class<?> ... interfaces)
     {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             ClassLoader ccl = caller.getClassLoader();
@@ -472,7 +485,7 @@ public class Proxy implements java.io.Serializable {
      * in which the proxy class will be defined.
      */
     private static final class ProxyBuilder {
-        private static final Unsafe UNSAFE = Unsafe.getUnsafe();
+        private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
 
         // prefix for all proxy class names
         private static final String proxyClassNamePrefix = "$Proxy";
@@ -484,64 +497,57 @@ public class Proxy implements java.io.Serializable {
         private static final ClassLoaderValue<Boolean> reverseProxyCache =
             new ClassLoaderValue<>();
 
-        private static Class<?> defineProxyClass(Module m, List<Class<?>> interfaces) {
-            String proxyPkg = null;     // package to define proxy class in
-            int accessFlags = Modifier.PUBLIC | Modifier.FINAL;
+        private record ProxyClassContext(Module module, String packageName, int accessFlags) {
+            private ProxyClassContext {
+                if (module.isNamed()) {
+                    if (packageName.isEmpty()) {
+                        // Per JLS 7.4.2, unnamed package can only exist in unnamed modules.
+                        // This means a package-private superinterface exist in the unnamed
+                        // package of a named module.
+                        throw new InternalError("Unnamed package cannot be added to " + module);
+                    }
 
-            /*
-             * Record the package of a non-public proxy interface so that the
-             * proxy class will be defined in the same package.  Verify that
-             * all non-public proxy interfaces are in the same package.
-             */
-            for (Class<?> intf : interfaces) {
-                int flags = intf.getModifiers();
-                if (!Modifier.isPublic(flags)) {
-                    accessFlags = Modifier.FINAL;  // non-public, final
-                    String pkg = intf.getPackageName();
-                    if (proxyPkg == null) {
-                        proxyPkg = pkg;
-                    } else if (!pkg.equals(proxyPkg)) {
-                        throw new IllegalArgumentException(
-                                "non-public interfaces from different packages");
+                    if (!module.getDescriptor().packages().contains(packageName)) {
+                        throw new InternalError(packageName + " not exist in " + module.getName());
+                    }
+
+                    if (!module.isOpen(packageName, Proxy.class.getModule())) {
+                        // Required for default method invocation
+                        throw new InternalError(packageName + " not open to " + Proxy.class.getModule());
+                    }
+                } else {
+                    if (Modifier.isPublic(accessFlags)) {
+                        // All proxy superinterfaces are public, must be in named dynamic module
+                        throw new InternalError("public proxy in unnamed module: " + module);
                     }
                 }
-            }
 
-            if (proxyPkg == null) {
-                // all proxy interfaces are public
-                proxyPkg = m.isNamed() ? PROXY_PACKAGE_PREFIX + "." + m.getName()
-                                       : PROXY_PACKAGE_PREFIX;
-            } else if (proxyPkg.isEmpty() && m.isNamed()) {
-                throw new IllegalArgumentException(
-                        "Unnamed package cannot be added to " + m);
-            }
-
-            if (m.isNamed()) {
-                if (!m.getDescriptor().packages().contains(proxyPkg)) {
-                    throw new InternalError(proxyPkg + " not exist in " + m.getName());
+                if ((accessFlags & ~Modifier.PUBLIC) != 0) {
+                    throw new InternalError("proxy access flags must be Modifier.PUBLIC or 0");
                 }
             }
+        }
 
+        private static Class<?> defineProxyClass(ProxyClassContext context, List<Class<?>> interfaces) {
             /*
              * Choose a name for the proxy class to generate.
              */
             long num = nextUniqueNumber.getAndIncrement();
-            String proxyName = proxyPkg.isEmpty()
+            String proxyName = context.packageName().isEmpty()
                                     ? proxyClassNamePrefix + num
-                                    : proxyPkg + "." + proxyClassNamePrefix + num;
+                                    : context.packageName() + "." + proxyClassNamePrefix + num;
 
-            ClassLoader loader = getLoader(m);
-            trace(proxyName, m, loader, interfaces);
+            ClassLoader loader = getLoader(context.module());
+            trace(proxyName, context.module(), loader, interfaces);
 
             /*
              * Generate the specified proxy class.
              */
-            byte[] proxyClassFile = ProxyGenerator.generateProxyClass(
-                    proxyName, interfaces.toArray(EMPTY_CLASS_ARRAY), accessFlags);
+            byte[] proxyClassFile = ProxyGenerator.generateProxyClass(loader, proxyName, interfaces,
+                                                                      context.accessFlags() | Modifier.FINAL);
             try {
-                Class<?> pc = UNSAFE.defineClass(proxyName, proxyClassFile,
-                                                 0, proxyClassFile.length,
-                                                 loader, null);
+                Class<?> pc = JLA.defineClass(loader, proxyName, proxyClassFile,
+                                              null, "__dynamic_proxy__");
                 reverseProxyCache.sub(pc).putIfAbsent(loader, Boolean.TRUE);
                 return pc;
             } catch (ClassFormatError e) {
@@ -558,7 +564,7 @@ public class Proxy implements java.io.Serializable {
 
         /**
          * Test if given class is a class defined by
-         * {@link #defineProxyClass(Module, List)}
+         * {@link #defineProxyClass(ProxyClassContext, List)}
          */
         static boolean isProxyClass(Class<?> c) {
             return Objects.equals(reverseProxyCache.sub(c).get(c.getClassLoader()),
@@ -614,8 +620,9 @@ public class Proxy implements java.io.Serializable {
         // ProxyBuilder instance members start here....
 
         private final List<Class<?>> interfaces;
-        private final Module module;
+        private final ProxyClassContext context;
         ProxyBuilder(ClassLoader loader, List<Class<?>> interfaces) {
+            Objects.requireNonNull(interfaces);
             if (!VM.isModuleSystemInited()) {
                 throw new InternalError("Proxy is not supported until "
                         + "module system is fully initialized");
@@ -631,8 +638,8 @@ public class Proxy implements java.io.Serializable {
             validateProxyInterfaces(loader, interfaces, refTypes);
 
             this.interfaces = interfaces;
-            this.module = mapToModule(loader, interfaces, refTypes);
-            assert getLoader(module) == loader;
+            this.context = proxyClassContext(loader, interfaces, refTypes);
+            assert getLoader(context.module()) == loader;
         }
 
         ProxyBuilder(ClassLoader loader, Class<?> intf) {
@@ -648,8 +655,10 @@ public class Proxy implements java.io.Serializable {
          * Must call the checkProxyAccess method to perform permission checks
          * before calling this.
          */
+        @SuppressWarnings("removal")
         Constructor<?> build() {
-            Class<?> proxyClass = defineProxyClass(module, interfaces);
+            Class<?> proxyClass = defineProxyClass(context, interfaces);
+
             final Constructor<?> cons;
             try {
                 cons = proxyClass.getConstructor(constructorParams);
@@ -679,18 +688,26 @@ public class Proxy implements java.io.Serializable {
             Map<Class<?>, Boolean> interfaceSet = new IdentityHashMap<>(interfaces.size());
             for (Class<?> intf : interfaces) {
                 /*
-                 * Verify that the class loader resolves the name of this
-                 * interface to the same Class object.
-                 */
-                ensureVisible(loader, intf);
-
-                /*
                  * Verify that the Class object actually represents an
                  * interface.
                  */
                 if (!intf.isInterface()) {
                     throw new IllegalArgumentException(intf.getName() + " is not an interface");
                 }
+
+                if (intf.isHidden()) {
+                    throw new IllegalArgumentException(intf.getName() + " is a hidden interface");
+                }
+
+                if (intf.isSealed()) {
+                    throw new IllegalArgumentException(intf.getName() + " is a sealed interface");
+                }
+
+                /*
+                 * Verify that the class loader resolves the name of this
+                 * interface to the same Class object.
+                 */
+                ensureVisible(loader, intf);
 
                 /*
                  * Verify that this interface is not a duplicate.
@@ -740,42 +757,40 @@ public class Proxy implements java.io.Serializable {
         }
 
         /**
-         * Returns the module that the generated proxy class belongs to.
-         *
-         * If all proxy interfaces are public and in exported packages,
-         * then the proxy class is in unnamed module.
+         * Returns the context for the generated proxy class, including the
+         * module and the package it belongs to and whether it is package-private.
          *
          * If any of proxy interface is package-private, then the proxy class
-         * is in the same module of the package-private interface.
+         * is in the same package and module as the package-private interface.
+         *
+         * If all proxy interfaces are public and in exported packages,
+         * then the proxy class is in a dynamic module in an unconditionally
+         * exported package.
          *
          * If all proxy interfaces are public and at least one in a non-exported
          * package, then the proxy class is in a dynamic module in a
-         * non-exported package.  Reads edge and qualified exports are added
-         * for dynamic module to access.
+         * non-exported package.
+         *
+         * The package of proxy class is open to java.base for deep reflective access.
+         *
+         * Reads edge and qualified exports are added for dynamic module to access.
          */
-        private static Module mapToModule(ClassLoader loader,
-                                          List<Class<?>> interfaces,
-                                          Set<Class<?>> refTypes) {
-            Map<Class<?>, Module> modulePrivateTypes = new HashMap<>();
+        private static ProxyClassContext proxyClassContext(ClassLoader loader,
+                                                           List<Class<?>> interfaces,
+                                                           Set<Class<?>> refTypes) {
             Map<Class<?>, Module> packagePrivateTypes = new HashMap<>();
+            boolean nonExported = false;
+
             for (Class<?> intf : interfaces) {
                 Module m = intf.getModule();
-                if (Modifier.isPublic(intf.getModifiers())) {
-                    // module-private types
-                    if (!m.isExported(intf.getPackageName())) {
-                        modulePrivateTypes.put(intf, m);
-                    }
-                } else {
+                if (!Modifier.isPublic(intf.getModifiers())) {
                     packagePrivateTypes.put(intf, m);
+                } else {
+                    if (!intf.getModule().isExported(intf.getPackageName())) {
+                        // module-private types
+                        nonExported = true;
+                    }
                 }
-            }
-
-            // all proxy interfaces are public and exported, the proxy class
-            // is in unnamed module.  Such proxy class is accessible to
-            // any unnamed module and named module that can read unnamed module
-            if (packagePrivateTypes.isEmpty() && modulePrivateTypes.isEmpty()) {
-                return loader != null ? loader.getUnnamedModule()
-                                      : BootLoader.getUnnamedModule();
             }
 
             if (packagePrivateTypes.size() > 0) {
@@ -784,54 +799,60 @@ public class Proxy implements java.io.Serializable {
                 //
                 // Configuration will fail if M1 and in M2 defined by the same loader
                 // and both have the same package p (so no need to check class loader)
-                if (packagePrivateTypes.size() > 1 &&
-                        (packagePrivateTypes.keySet().stream()  // more than one package
-                                 .map(Class::getPackageName).distinct().count() > 1 ||
-                         packagePrivateTypes.values().stream()  // or more than one module
-                                 .distinct().count() > 1)) {
-                    throw new IllegalArgumentException(
-                            "non-public interfaces from different packages");
-                }
-
-                // all package-private types are in the same module (named or unnamed)
-                Module target = null;
-                for (Module m : packagePrivateTypes.values()) {
+                Module targetModule = null;
+                String targetPackageName = null;
+                for (Map.Entry<Class<?>, Module> e : packagePrivateTypes.entrySet()) {
+                    Class<?> intf = e.getKey();
+                    Module m = e.getValue();
+                    if ((targetModule != null && targetModule != m) ||
+                        (targetPackageName != null && targetPackageName != intf.getPackageName())) {
+                        throw new IllegalArgumentException(
+                                "cannot have non-public interfaces in different packages");
+                    }
                     if (getLoader(m) != loader) {
                         // the specified loader is not the same class loader
                         // of the non-public interface
                         throw new IllegalArgumentException(
                                 "non-public interface is not defined by the given loader");
                     }
-                    target = m;
+
+                    targetModule = m;
+                    targetPackageName = e.getKey().getPackageName();
                 }
 
                 // validate if the target module can access all other interfaces
                 for (Class<?> intf : interfaces) {
                     Module m = intf.getModule();
-                    if (m == target) continue;
+                    if (m == targetModule) continue;
 
-                    if (!target.canRead(m) || !m.isExported(intf.getPackageName(), target)) {
-                        throw new IllegalArgumentException(target + " can't access " + intf.getName());
+                    if (!targetModule.canRead(m) || !m.isExported(intf.getPackageName(), targetModule)) {
+                        throw new IllegalArgumentException(targetModule + " can't access " + intf.getName());
                     }
                 }
 
+                // opens the package of the non-public proxy class for java.base to access
+                if (targetModule.isNamed()) {
+                    Modules.addOpens(targetModule, targetPackageName, Proxy.class.getModule());
+                }
                 // return the module of the package-private interface
-                return target;
+                return new ProxyClassContext(targetModule, targetPackageName, 0);
             }
 
-            // All proxy interfaces are public and at least one in a non-exported
-            // package.  So maps to a dynamic proxy module and add reads edge
-            // and qualified exports, if necessary
-            Module target = getDynamicModule(loader);
+            // All proxy interfaces are public.  So maps to a dynamic proxy module
+            // and add reads edge and qualified exports, if necessary
+            Module targetModule = getDynamicModule(loader);
 
             // set up proxy class access to proxy interfaces and types
             // referenced in the method signature
             Set<Class<?>> types = new HashSet<>(interfaces);
             types.addAll(refTypes);
             for (Class<?> c : types) {
-                ensureAccess(target, c);
+                ensureAccess(targetModule, c);
             }
-            return target;
+
+            var pkgName = nonExported ? PROXY_PACKAGE_PREFIX + '.' + targetModule.getName()
+                                      : targetModule.getName();
+            return new ProxyClassContext(targetModule, pkgName, Modifier.PUBLIC);
         }
 
         /*
@@ -839,6 +860,8 @@ public class Proxy implements java.io.Serializable {
          */
         private static void ensureAccess(Module target, Class<?> c) {
             Module m = c.getModule();
+            if (target == m) return;
+
             // add read edge and qualified export for the target module to access
             if (!target.canRead(m)) {
                 Modules.addReads(target, m);
@@ -860,7 +883,7 @@ public class Proxy implements java.io.Serializable {
             }
             if (type != c) {
                 throw new IllegalArgumentException(c.getName() +
-                        " referenced from a method is not visible from class loader");
+                        " referenced from a method is not visible from class loader: " + JLA.getLoaderNameID(ld));
             }
         }
 
@@ -877,8 +900,9 @@ public class Proxy implements java.io.Serializable {
         private static final AtomicInteger counter = new AtomicInteger();
 
         /*
-         * Define a dynamic module for the generated proxy classes in
-         * a non-exported package named com.sun.proxy.$MODULE.
+         * Define a dynamic module with a package named $MODULE which
+         * is unconditionally exported and another package named
+         * com.sun.proxy.$MODULE which is encapsulated.
          *
          * Each class loader will have one dynamic module.
          */
@@ -888,13 +912,16 @@ public class Proxy implements java.io.Serializable {
                 String mn = "jdk.proxy" + counter.incrementAndGet();
                 String pn = PROXY_PACKAGE_PREFIX + "." + mn;
                 ModuleDescriptor descriptor =
-                    ModuleDescriptor.newModule(mn, Set.of(SYNTHETIC))
-                                    .packages(Set.of(pn))
-                                    .build();
+                        ModuleDescriptor.newModule(mn, Set.of(SYNTHETIC))
+                                        .packages(Set.of(pn, mn))
+                                        .exports(mn)
+                                        .build();
                 Module m = Modules.defineModule(ld, descriptor, null);
                 Modules.addReads(m, Proxy.class.getModule());
-                // java.base to create proxy instance
-                Modules.addExports(m, pn, Object.class.getModule());
+                Modules.addExports(m, mn);
+                // java.base to create proxy instance and access its Lookup instance
+                Modules.addOpens(m, pn, Proxy.class.getModule());
+                Modules.addOpens(m, mn, Proxy.class.getModule());
                 return m;
             });
         }
@@ -909,7 +936,9 @@ public class Proxy implements java.io.Serializable {
      * if any of the following restrictions is violated:</a>
      * <ul>
      * <li>All of {@code Class} objects in the given {@code interfaces} array
-     * must represent interfaces, not classes or primitive types.
+     * must represent {@linkplain Class#isHidden() non-hidden} and
+     * {@linkplain Class#isSealed() non-sealed} interfaces,
+     * not classes or primitive types.
      *
      * <li>No two elements in the {@code interfaces} array may
      * refer to identical {@code Class} objects.
@@ -991,8 +1020,6 @@ public class Proxy implements java.io.Serializable {
      *          {@code null}
      *
      * @see <a href="#membership">Package and Module Membership of Proxy Class</a>
-     * @revised 9
-     * @spec JPMS
      */
     @CallerSensitive
     public static Object newProxyInstance(@Nullable ClassLoader loader,
@@ -1000,6 +1027,7 @@ public class Proxy implements java.io.Serializable {
                                           InvocationHandler h) {
         Objects.requireNonNull(h);
 
+        @SuppressWarnings("removal")
         final Class<?> caller = System.getSecurityManager() == null
                                     ? null
                                     : Reflection.getCallerClass();
@@ -1028,8 +1056,8 @@ public class Proxy implements java.io.Serializable {
             throw new InternalError(e.toString(), e);
         } catch (InvocationTargetException e) {
             Throwable t = e.getCause();
-            if (t instanceof RuntimeException) {
-                throw (RuntimeException) t;
+            if (t instanceof RuntimeException re) {
+                throw re;
             } else {
                 throw new InternalError(t.toString(), t);
             }
@@ -1037,6 +1065,7 @@ public class Proxy implements java.io.Serializable {
     }
 
     private static void checkNewProxyPermission(Class<?> caller, Class<?> proxyClass) {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             if (ReflectUtil.isNonPublicProxyClass(proxyClass)) {
@@ -1058,6 +1087,7 @@ public class Proxy implements java.io.Serializable {
     /**
      * Returns the class loader for the given module.
      */
+    @SuppressWarnings("removal")
     private static ClassLoader getLoader(Module m) {
         PrivilegedAction<ClassLoader> pa = m::getClassLoader;
         return AccessController.doPrivileged(pa);
@@ -1074,9 +1104,6 @@ public class Proxy implements java.io.Serializable {
      * @return  {@code true} if the class is a proxy class and
      *          {@code false} otherwise
      * @throws  NullPointerException if {@code cl} is {@code null}
-     *
-     * @revised 9
-     * @spec JPMS
      */
     public static boolean isProxyClass(Class<?> cl) {
         return Proxy.class.isAssignableFrom(cl) && ProxyBuilder.isProxyClass(cl);
@@ -1096,6 +1123,7 @@ public class Proxy implements java.io.Serializable {
      *          s.checkPackageAccess()} denies access to the invocation
      *          handler's class.
      */
+    @SuppressWarnings("removal")
     @CallerSensitive
     public static InvocationHandler getInvocationHandler(Object proxy)
         throws IllegalArgumentException
@@ -1122,6 +1150,247 @@ public class Proxy implements java.io.Serializable {
         return ih;
     }
 
-    private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class<?>[0];
     private static final String PROXY_PACKAGE_PREFIX = ReflectUtil.PROXY_PACKAGE;
+
+    /**
+     * A cache of Method -> MethodHandle for default methods.
+     */
+    private static final ClassValue<ConcurrentHashMap<Method, MethodHandle>>
+            DEFAULT_METHODS_MAP = new ClassValue<>() {
+        @Override
+        protected ConcurrentHashMap<Method, MethodHandle> computeValue(Class<?> type) {
+            return new ConcurrentHashMap<>(4);
+        }
+    };
+
+    private static ConcurrentHashMap<Method, MethodHandle> defaultMethodMap(Class<?> proxyClass) {
+        assert isProxyClass(proxyClass);
+        return DEFAULT_METHODS_MAP.get(proxyClass);
+    }
+
+    static final Object[] EMPTY_ARGS = new Object[0];
+
+    static MethodHandle defaultMethodHandle(Class<? extends Proxy> proxyClass, Method method) {
+        // lookup the cached method handle
+        ConcurrentHashMap<Method, MethodHandle> methods = defaultMethodMap(proxyClass);
+        MethodHandle superMH = methods.get(method);
+        if (superMH == null) {
+            MethodType type = methodType(method.getReturnType(), method.getParameterTypes());
+            MethodHandles.Lookup lookup = MethodHandles.lookup();
+            Class<?> proxyInterface = findProxyInterfaceOrElseThrow(proxyClass, method);
+            MethodHandle dmh;
+            try {
+                dmh = proxyClassLookup(lookup, proxyClass)
+                        .findSpecial(proxyInterface, method.getName(), type, proxyClass)
+                        .withVarargs(false);
+            } catch (IllegalAccessException | NoSuchMethodException e) {
+                // should not reach here
+                throw new InternalError(e);
+            }
+            // this check can be turned into assertion as it is guaranteed to succeed by the virtue of
+            // looking up a default (instance) method declared or inherited by proxyInterface
+            // while proxyClass implements (is a subtype of) proxyInterface ...
+            assert ((BooleanSupplier) () -> {
+                try {
+                    // make sure that the method type matches
+                    dmh.asType(type.insertParameterTypes(0, proxyClass));
+                    return true;
+                } catch (WrongMethodTypeException e) {
+                    return false;
+                }
+            }).getAsBoolean() : "Wrong method type";
+            // change return type to Object
+            MethodHandle mh = dmh.asType(dmh.type().changeReturnType(Object.class));
+            // wrap any exception thrown with InvocationTargetException
+            mh = MethodHandles.catchException(mh, Throwable.class, InvocationException.wrapMH());
+            // spread array of arguments among parameters (skipping 1st parameter - target)
+            mh = mh.asSpreader(1, Object[].class, type.parameterCount());
+            // change target type to Object
+            mh = mh.asType(MethodType.methodType(Object.class, Object.class, Object[].class));
+
+            // push MH into cache
+            MethodHandle cached = methods.putIfAbsent(method, mh);
+            if (cached != null) {
+                superMH = cached;
+            } else {
+                superMH = mh;
+            }
+        }
+        return superMH;
+    }
+
+    /**
+     * Finds the first proxy interface that declares the given method
+     * directly or indirectly.
+     *
+     * @throws IllegalArgumentException if not found
+     */
+    private static Class<?> findProxyInterfaceOrElseThrow(Class<?> proxyClass, Method method) {
+        Class<?> declaringClass = method.getDeclaringClass();
+        if (!declaringClass.isInterface()) {
+            throw new IllegalArgumentException("\"" + method +
+                    "\" is not a method declared in the proxy class");
+        }
+
+        List<Class<?>> proxyInterfaces = Arrays.asList(proxyClass.getInterfaces());
+        // the method's declaring class is a proxy interface
+        if (proxyInterfaces.contains(declaringClass))
+            return declaringClass;
+
+        // find the first proxy interface that inherits the default method
+        // i.e. the declaring class of the default method is a superinterface
+        // of the proxy interface
+        Deque<Class<?>> deque = new ArrayDeque<>();
+        Set<Class<?>> visited = new HashSet<>();
+        boolean indirectMethodRef = false;
+        for (Class<?> proxyIntf : proxyInterfaces) {
+            assert proxyIntf != declaringClass;
+            visited.add(proxyIntf);
+            deque.add(proxyIntf);
+
+            // for each proxy interface, traverse its subinterfaces with
+            // breadth-first search to find a subinterface declaring the
+            // default method
+            Class<?> c;
+            while ((c = deque.poll()) != null) {
+                if (c == declaringClass) {
+                    try {
+                        // check if this method is the resolved method if referenced from
+                        // this proxy interface (i.e. this method is not implemented
+                        // by any other superinterface)
+                        Method m = proxyIntf.getMethod(method.getName(), method.getSharedParameterTypes());
+                        if (m.getDeclaringClass() == declaringClass) {
+                            return proxyIntf;
+                        }
+                        indirectMethodRef = true;
+                    } catch (NoSuchMethodException e) {}
+
+                    // skip traversing its superinterfaces
+                    // another proxy interface may extend it and so
+                    // the method's declaring class is left unvisited.
+                    continue;
+                }
+                // visit all superinterfaces of one proxy interface to find if
+                // this proxy interface inherits the method directly or indirectly
+                visited.add(c);
+                for (Class<?> superIntf : c.getInterfaces()) {
+                    if (!visited.contains(superIntf) && !deque.contains(superIntf)) {
+                        if (superIntf == declaringClass) {
+                            // fast-path as the matching subinterface is found
+                            deque.addFirst(superIntf);
+                        } else {
+                            deque.add(superIntf);
+                        }
+                    }
+                }
+            }
+        }
+
+        throw new IllegalArgumentException("\"" + method + (indirectMethodRef
+                ? "\" is overridden directly or indirectly by the proxy interfaces"
+                : "\" is not a method declared in the proxy class"));
+    }
+
+    /**
+     * This method invokes the proxy's proxyClassLookup method to get a
+     * Lookup on the proxy class.
+     *
+     * @return a lookup for proxy class of this proxy instance
+     */
+    @SuppressWarnings("removal")
+    private static MethodHandles.Lookup proxyClassLookup(MethodHandles.Lookup caller, Class<?> proxyClass) {
+        return AccessController.doPrivileged(new PrivilegedAction<>() {
+            @Override
+            public MethodHandles.Lookup run() {
+                try {
+                    Method m = proxyClass.getDeclaredMethod("proxyClassLookup", MethodHandles.Lookup.class);
+                    m.setAccessible(true);
+                    return (MethodHandles.Lookup) m.invoke(null, caller);
+                } catch (ReflectiveOperationException e) {
+                    throw new InternalError(e);
+                }
+            }
+        });
+    }
+
+    /*
+     * Invoke the default method of the given proxy with an explicit caller class.
+     *
+     * @throws IllegalAccessException if the proxy interface is inaccessible to the caller
+     *         if caller is non-null
+     */
+    static Object invokeDefault(Object proxy, Method method, Object[] args, Class<?> caller)
+            throws Throwable {
+        // verify that the object is actually a proxy instance
+        if (!Proxy.isProxyClass(proxy.getClass())) {
+            throw new IllegalArgumentException("'proxy' is not a proxy instance");
+        }
+        if (!method.isDefault()) {
+            throw new IllegalArgumentException("\"" + method + "\" is not a default method");
+        }
+        @SuppressWarnings("unchecked")
+        Class<? extends Proxy> proxyClass = (Class<? extends Proxy>)proxy.getClass();
+
+        // skip access check if caller is null
+        if (caller != null) {
+            Class<?> intf = method.getDeclaringClass();
+            // access check on the default method
+            method.checkAccess(caller, intf, proxyClass, method.getModifiers());
+        }
+
+        MethodHandle mh = Proxy.defaultMethodHandle(proxyClass, method);
+        // invoke the super method
+        try {
+            // the args array can be null if the number of formal parameters required by
+            // the method is zero (consistent with Method::invoke)
+            Object[] params = args != null ? args : Proxy.EMPTY_ARGS;
+            return mh.invokeExact(proxy, params);
+        } catch (ClassCastException | NullPointerException e) {
+            throw new IllegalArgumentException(e.getMessage(), e);
+        } catch (Proxy.InvocationException e) {
+            // unwrap and throw the exception thrown by the default method
+            throw e.getCause();
+        }
+    }
+
+    /**
+     * Internal exception type to wrap the exception thrown by the default method
+     * so that it can distinguish CCE and NPE thrown due to the arguments
+     * incompatible with the method signature.
+     */
+    static class InvocationException extends ReflectiveOperationException {
+        @java.io.Serial
+        private static final long serialVersionUID = 0L;
+
+        InvocationException(Throwable cause) {
+            super(cause);
+        }
+
+        /**
+         * Wraps given cause with InvocationException and throws it.
+         */
+        static Object wrap(Throwable cause) throws InvocationException {
+            throw new InvocationException(cause);
+        }
+
+        @Stable
+        static MethodHandle wrapMethodHandle;
+
+        static MethodHandle wrapMH() {
+            MethodHandle mh = wrapMethodHandle;
+            if (mh == null) {
+                try {
+                    wrapMethodHandle = mh = MethodHandles.lookup().findStatic(
+                            InvocationException.class,
+                            "wrap",
+                            MethodType.methodType(Object.class, Throwable.class)
+                    );
+                } catch (NoSuchMethodException | IllegalAccessException e) {
+                    throw new InternalError(e);
+                }
+            }
+            return mh;
+        }
+    }
+
 }

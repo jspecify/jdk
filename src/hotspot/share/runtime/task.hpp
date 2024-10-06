@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_TASK_HPP
-#define SHARE_VM_RUNTIME_TASK_HPP
+#ifndef SHARE_RUNTIME_TASK_HPP
+#define SHARE_RUNTIME_TASK_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/timer.hpp"
@@ -58,25 +58,18 @@ class PeriodicTask: public CHeapObj<mtInternal> {
   // Can only be called by the WatcherThread
   static void real_time_tick(int delay_time);
 
-#ifndef PRODUCT
-  static elapsedTimer _timer;                      // measures time between ticks
-  static int _ticks;                               // total number of ticks
-  static int _intervalHistogram[max_interval];     // to check spacing of timer interrupts
- public:
-  static void print_intervals();
-#endif
   // Only the WatcherThread can cause us to execute PeriodicTasks
   friend class WatcherThread;
  public:
   PeriodicTask(size_t interval_time); // interval is in milliseconds of elapsed time
-  ~PeriodicTask();
+  virtual ~PeriodicTask();
 
   // Make the task active
   // For dynamic enrollment at the time T, the task will execute somewhere
   // between T and T + interval_time.
   void enroll();
 
-  // Make the task deactive
+  // Make the task inactivate
   void disenroll();
 
   void execute_if_pending(int delay_time) {
@@ -107,4 +100,4 @@ class PeriodicTask: public CHeapObj<mtInternal> {
   virtual void task() = 0;
 };
 
-#endif // SHARE_VM_RUNTIME_TASK_HPP
+#endif // SHARE_RUNTIME_TASK_HPP

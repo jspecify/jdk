@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,12 @@ package com.sun.management;
 /**
  * Platform-specific management interface for the operating system
  * on which the Java virtual machine is running.
+ *
+ * <p>
+ * This interface provides information about the operating environment
+ * on which the Java virtual machine is running. That might be a native
+ * operating system, a virtualized operating system environment, or a
+ * container-managed environment.
  *
  * <p>
  * The {@code OperatingSystemMXBean} object returned by
@@ -82,44 +88,125 @@ public interface OperatingSystemMXBean extends
     /**
      * Returns the amount of free physical memory in bytes.
      *
+     * @deprecated Use {@link #getFreeMemorySize()} instead of
+     * this historically named method.
+     *
+     * @implSpec This implementation must return the same value
+     * as {@link #getFreeMemorySize()}.
+     *
      * @return the amount of free physical memory in bytes.
      */
-    public long getFreePhysicalMemorySize();
+    @Deprecated(since="14")
+    public default long getFreePhysicalMemorySize() { return getFreeMemorySize(); }
+
+    /**
+     * Returns the amount of free memory in bytes.
+     *
+     * @return the amount of free memory in bytes.
+     * @since 14
+     */
+    public long getFreeMemorySize();
 
     /**
      * Returns the total amount of physical memory in bytes.
      *
+     * @deprecated Use {@link #getTotalMemorySize()} instead of
+     * this historically named method.
+     *
+     * @implSpec This implementation must return the same value
+     * as {@link #getTotalMemorySize()}.
+     *
      * @return the total amount of physical memory in  bytes.
      */
-    public long getTotalPhysicalMemorySize();
+    @Deprecated(since="14")
+    public default long getTotalPhysicalMemorySize() { return getTotalMemorySize(); }
 
     /**
-     * Returns the "recent cpu usage" for the whole system. This value is a
+     * Returns the total amount of memory in bytes.
+     *
+     * @return the total amount of memory in  bytes.
+     * @since 14
+     */
+    public long getTotalMemorySize();
+
+    /**
+     * Returns the "recent CPU usage" for the whole system. This value is a
      * double in the [0.0,1.0] interval. A value of 0.0 means that all CPUs
      * were idle during the recent period of time observed, while a value
      * of 1.0 means that all CPUs were actively running 100% of the time
-     * during the recent period being observed. All values betweens 0.0 and
-     * 1.0 are possible depending of the activities going on in the system.
-     * If the system recent cpu usage is not available, the method returns a
+     * during the recent period being observed.
+     *
+     * The recent period of observation is implementation-specific, and
+     * typically relates to the duration since the last call made to this
+     * method, or {@link #getCpuLoad()}. For the very first invocation, the
+     * recent period of observation is undefined.
+     *
+     * All values between 0.0 and 1.0 are possible dependent on the activities
+     * going on. If the recent CPU usage is not available, the method returns a
      * negative value.
+     *
+     * @deprecated Use {@link #getCpuLoad()} instead of
+     * this historically named method.
+     *
+     * @apiNote Callers should be aware of the possibility of other callers
+     * affecting the observation period and the result.
+     *
+     * @implSpec This implementation must return the same value
+     * as {@link #getCpuLoad()}.
      *
      * @return the "recent cpu usage" for the whole system; a negative
      * value if not available.
      * @since   1.7
      */
-    public double getSystemCpuLoad();
+    @Deprecated(since="14")
+    public default double getSystemCpuLoad() { return getCpuLoad(); }
 
     /**
-     * Returns the "recent cpu usage" for the Java Virtual Machine process.
+     * Returns the "recent CPU usage" for the operating environment. This value
+     * is a double in the [0.0,1.0] interval. A value of 0.0 means that all CPUs
+     * were idle during the recent period of time observed, while a value
+     * of 1.0 means that all CPUs were actively running 100% of the time
+     * during the recent period being observed.
+     *
+     * The recent period of observation is implementation-specific, and
+     * typically relates to the duration since the last call made to this
+     * method, or {@link #getSystemCpuLoad()}. For the very first invocation,
+     * the recent period of observation is undefined.
+     *
+     * All values between 0.0 and 1.0 are possible dependent on the activities
+     * going on. If the recent CPU usage is not available, the method returns a
+     * negative value.
+     *
+     * @apiNote Callers should be aware of the possibility of other callers
+     * affecting the observation period and the result.
+     *
+     * @return the "recent cpu usage" for the whole operating environment;
+     * a negative value if not available.
+     * @since 14
+     */
+    public double getCpuLoad();
+
+    /**
+     * Returns the "recent CPU usage" for the Java Virtual Machine process.
      * This value is a double in the [0.0,1.0] interval. A value of 0.0 means
      * that none of the CPUs were running threads from the JVM process during
      * the recent period of time observed, while a value of 1.0 means that all
      * CPUs were actively running threads from the JVM 100% of the time
      * during the recent period being observed. Threads from the JVM include
-     * the application threads as well as the JVM internal threads. All values
-     * betweens 0.0 and 1.0 are possible depending of the activities going on
-     * in the JVM process and the whole system. If the Java Virtual Machine
-     * recent CPU usage is not available, the method returns a negative value.
+     * the application threads as well as the JVM internal threads.
+     *
+     * The recent period of observation is implementation-specific, and
+     * typically relates to the duration since the last call made to this
+     * method. For the very first invocation, the recent period of observation
+     * is undefined.
+     *
+     * All values between 0.0 and 1.0 are possible dependent on the activities
+     * going on in the JVM process and the whole system. If the Java Virtual
+     * Machine recent CPU usage is not available, the method returns a negative
+     * value.
+     *
+     * @apiNote Callers should be aware of the possibility of other callers
+     * affecting the observation period and the result.
      *
      * @return the "recent cpu usage" for the Java Virtual Machine process;
      * a negative value if not available.

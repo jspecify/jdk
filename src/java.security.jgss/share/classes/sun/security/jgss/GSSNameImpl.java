@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 package sun.security.jgss;
 
-import org.jspecify.annotations.Nullable;
-
 import org.ietf.jgss.*;
 import sun.security.jgss.spi.*;
 import java.util.Set;
@@ -34,10 +32,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Arrays;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import sun.security.util.ObjectIdentifier;
 import sun.security.util.DerInputStream;
 import sun.security.util.DerOutputStream;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * This is the implementation class for GSSName. Conceptually the
@@ -55,7 +54,7 @@ import sun.security.util.DerOutputStream;
  * mechanisms are required to be handed out. (Generally, other GSS
  * classes like GSSContext and GSSCredential request specific
  * elements depending on the mechanisms that they are dealing with.)
- * Assume that getting a mechanism to parse the applciation specified
+ * Assume that getting a mechanism to parse the application specified
  * bytes is an expensive call.
  *
  * When a GSSName is canonicalized wrt some mechanism, it is supposed
@@ -81,7 +80,7 @@ import sun.security.util.DerOutputStream;
  * @since 1.4
  */
 
-public class GSSNameImpl implements GSSName {
+public final class GSSNameImpl implements GSSName {
 
     /**
      * The old Oid used in RFC 2853. Now supported as
@@ -94,7 +93,7 @@ public class GSSNameImpl implements GSSName {
      * its internal name type and getStringNameType() output are
      * always the new value.
      */
-    final static Oid oldHostbasedServiceName;
+    static final Oid oldHostbasedServiceName;
 
     static {
         Oid tmp = null;
@@ -226,16 +225,13 @@ public class GSSNameImpl implements GSSName {
         throws GSSException {
 
         int pos = 0;
-        byte[] bytes = null;
+        byte[] bytes;
 
         if (appName instanceof String) {
-            try {
-                bytes = ((String) appName).getBytes("UTF-8");
-            } catch (UnsupportedEncodingException e) {
-                // Won't happen
-            }
-        } else
+            bytes = ((String) appName).getBytes(UTF_8);
+        } else {
             bytes = (byte[]) appName;
+        }
 
         if ((bytes[pos++] != 0x04) ||
             (bytes[pos++] != 0x01))
@@ -244,7 +240,7 @@ public class GSSNameImpl implements GSSName {
 
         int oidLen  = (((0xFF & bytes[pos++]) << 8) |
                        (0xFF & bytes[pos++]));
-        ObjectIdentifier temp = null;
+        ObjectIdentifier temp;
         try {
             DerInputStream din = new DerInputStream(bytes, pos,
                                                     oidLen);
@@ -289,7 +285,7 @@ public class GSSNameImpl implements GSSName {
         if (other == this)
             return true;
 
-        if (! (other instanceof GSSNameImpl))
+        if (! (other instanceof GSSNameImpl that))
             return equals(gssManager.createName(other.toString(),
                                                 other.getStringNameType()));
 
@@ -297,8 +293,6 @@ public class GSSNameImpl implements GSSName {
          * XXX Do a comparison of the appNameStr/appNameBytes if
          * available. If that fails, then proceed with this test.
          */
-
-        GSSNameImpl that = (GSSNameImpl) other;
 
         GSSNameSpi myElement = this.mechElement;
         GSSNameSpi element = that.mechElement;
@@ -322,21 +316,14 @@ public class GSSNameImpl implements GSSName {
             if (!this.appNameType.equals(that.appNameType)) {
                 return false;
             }
-            byte[] myBytes = null;
-            byte[] bytes = null;
-            try {
-                myBytes =
+            byte[] myBytes =
                     (this.appNameStr != null ?
-                     this.appNameStr.getBytes("UTF-8") :
+                     this.appNameStr.getBytes(UTF_8) :
                      this.appNameBytes);
-                bytes =
+            byte[] bytes =
                     (that.appNameStr != null ?
-                     that.appNameStr.getBytes("UTF-8") :
+                     that.appNameStr.getBytes(UTF_8) :
                      that.appNameBytes);
-            } catch (UnsupportedEncodingException e) {
-                // Won't happen
-            }
-
             return Arrays.equals(myBytes, bytes);
         }
 
@@ -345,10 +332,9 @@ public class GSSNameImpl implements GSSName {
     }
 
     /**
-     * Returns a hashcode value for this GSSName.
-     *
-     * @return a hashCode value
+     * {@return a hashcode value for this GSSName}
      */
+    @Override
     public int hashCode() {
         /*
          * XXX
@@ -363,9 +349,8 @@ public class GSSNameImpl implements GSSName {
         return 1;
     }
 
-    
-    
-    public boolean equals(@Nullable Object another) {
+    @Override
+    public boolean equals(Object another) {
 
         try {
             // XXX This can lead to an infinite loop. Extract info
@@ -412,24 +397,18 @@ public class GSSNameImpl implements GSSName {
         }
 
         byte[] mechPortion = mechElement.export();
-        byte[] oidBytes = null;
-        ObjectIdentifier oid = null;
+        byte[] oidBytes;
+        ObjectIdentifier oid;
 
         try {
-            oid = new ObjectIdentifier
+            oid = ObjectIdentifier.of
                 (mechElement.getMechanism().toString());
         } catch (IOException e) {
             throw new GSSExceptionImpl(GSSException.FAILURE,
                                        "Invalid OID String ");
         }
         DerOutputStream dout = new DerOutputStream();
-        try {
-            dout.putOID(oid);
-        } catch (IOException e) {
-            throw new GSSExceptionImpl(GSSException.FAILURE,
-                                   "Could not ASN.1 Encode "
-                                   + oid.toString());
-        }
+        dout.putOID(oid);
         oidBytes = dout.toByteArray();
 
         byte[] retVal = new byte[2

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,6 @@ import static org.testng.Assert.*;
 
 @Test
 public class PrivateLookupInTests {
-
     /**
      * A public and non-public types in the test module but in a different
      * package to the test class.
@@ -74,7 +73,8 @@ public class PrivateLookupInTests {
     public void testAllAccessCallerSameModule() throws Throwable {
         Lookup lookup = MethodHandles.privateLookupIn(nonPublicType, MethodHandles.lookup());
         assertTrue(lookup.lookupClass() == nonPublicType);
-        assertTrue(lookup.hasPrivateAccess());
+        assertTrue(lookup.hasFullPrivilegeAccess());
+        assertTrue((lookup.lookupModes() & ORIGINAL) == 0);
 
         // get obj field
         MethodHandle mh = lookup.findStaticGetter(nonPublicType, "obj", Object.class);
@@ -82,19 +82,15 @@ public class PrivateLookupInTests {
     }
 
     // Invoke MethodHandles.privateLookupIn with a reduced-power caller
+    @Test(expectedExceptions = {IllegalAccessException.class})
     public void testReducedAccessCallerSameModule() throws Throwable {
         Lookup caller = MethodHandles.lookup().dropLookupMode(PACKAGE);
         assertTrue((caller.lookupModes() & PRIVATE) == 0);
         assertTrue((caller.lookupModes() & PACKAGE) == 0);
         assertTrue((caller.lookupModes() & MODULE) != 0);
+        assertTrue((caller.lookupModes() & ORIGINAL) == 0);
 
         Lookup lookup = MethodHandles.privateLookupIn(nonPublicType, caller);
-        assertTrue(lookup.lookupClass() == nonPublicType);
-        assertTrue(lookup.hasPrivateAccess());
-
-        // use it
-        MethodHandle mh = lookup.findStaticGetter(nonPublicType, "obj", Object.class);
-        Object obj = mh.invokeExact();
     }
 
     // Invoke MethodHandles.privateLookupIn with the public lookup as caller
@@ -118,7 +114,8 @@ public class PrivateLookupInTests {
 
         Lookup lookup = MethodHandles.privateLookupIn(clazz, MethodHandles.lookup());
         assertTrue(lookup.lookupClass() == clazz);
-        assertTrue(lookup.hasPrivateAccess());
+        assertTrue((lookup.lookupModes() & PRIVATE) == PRIVATE);
+        assertTrue((lookup.lookupModes() & MODULE) == 0);
 
         // get obj field
         MethodHandle mh = lookup.findStaticGetter(clazz, "obj", Object.class);
@@ -142,7 +139,8 @@ public class PrivateLookupInTests {
         thisModule.addReads(clazz.getModule());
         Lookup lookup = MethodHandles.privateLookupIn(clazz, MethodHandles.lookup());
         assertTrue(lookup.lookupClass() == clazz);
-        assertTrue(lookup.hasPrivateAccess());
+        assertTrue((lookup.lookupModes() & PRIVATE) == PRIVATE);
+        assertTrue((lookup.lookupModes() & MODULE) == 0);
     }
 
     // test does not read m2, m2 opens p2 to test

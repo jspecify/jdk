@@ -54,7 +54,7 @@ import java.util.EventListener;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -71,6 +71,11 @@ public abstract class AbstractTableModel implements TableModel, Serializable
 
     /** List of listeners */
     protected EventListenerList listenerList = new EventListenerList();
+
+    /**
+     * Constructor for subclasses to call.
+     */
+    protected AbstractTableModel() {}
 
 //
 // Default Implementation of the Interface
@@ -331,7 +336,7 @@ public abstract class AbstractTableModel implements TableModel, Serializable
      *          <code><em>Foo</em>Listener</code>s on this component,
      *          or an empty array if no such
      *          listeners have been added
-     * @exception ClassCastException if <code>listenerType</code>
+     * @throws ClassCastException if <code>listenerType</code>
      *          doesn't specify a class or interface that implements
      *          <code>java.util.EventListener</code>
      *

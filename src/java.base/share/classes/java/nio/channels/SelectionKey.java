@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,13 @@
 
 package java.nio.channels;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import jdk.internal.invoke.MhUtil;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 
 /**
  * A token representing the registration of a {@link SelectableChannel} with a
@@ -76,7 +78,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  *
  * <p> This class defines all known operation-set bits, but precisely which
  * bits are supported by a given channel depends upon the type of the channel.
- * Each subclass of {@link SelectableChannel} defines an {@link
+ * Each subclass of {@link SelectableChannel} defines a {@link
  * SelectableChannel#validOps() validOps()} method which returns a set
  * identifying just those operations that are supported by the channel.  An
  * attempt to set or test an operation-set bit that is not supported by a key's
@@ -104,7 +106,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  */
 
 @NullMarked
-public abstract @UsesObjectEquals class SelectionKey {
+public abstract class SelectionKey {
 
     /**
      * Constructs an instance of this class.
@@ -294,7 +296,7 @@ public abstract @UsesObjectEquals class SelectionKey {
      * {@code OP_READ} at the start of a <a
      * href="Selector.html#selop">selection operation</a>.  If the selector
      * detects that the corresponding channel is ready for reading, has reached
-     * end-of-stream, has been remotely shut down for further reading, or has
+     * end-of-stream, has been remotely shut down for further writing, or has
      * an error pending, then it will add {@code OP_READ} to the key's
      * ready-operation set.  </p>
      */
@@ -307,7 +309,7 @@ public abstract @UsesObjectEquals class SelectionKey {
      * {@code OP_WRITE} at the start of a <a
      * href="Selector.html#selop">selection operation</a>.  If the selector
      * detects that the corresponding channel is ready for writing, has been
-     * remotely shut down for further writing, or has an error pending, then it
+     * remotely shut down for further reading, or has an error pending, then it
      * will add {@code OP_WRITE} to the key's ready set.  </p>
      */
     public static final int OP_WRITE = 1 << 2;
@@ -342,15 +344,15 @@ public abstract @UsesObjectEquals class SelectionKey {
      * <p> An invocation of this method of the form {@code k.isReadable()}
      * behaves in exactly the same way as the expression
      *
-     * <blockquote><pre>{@code
-     * k.readyOps() & OP_READ != 0
-     * }</pre></blockquote>
+     * {@snippet lang=java :
+     *     k.readyOps() & OP_READ != 0
+     * }
      *
      * <p> If this key's channel does not support read operations then this
      * method always returns {@code false}.  </p>
      *
      * @return  {@code true} if, and only if,
-                {@code readyOps() & OP_READ} is nonzero
+     *          {@code readyOps() & OP_READ} is nonzero
      *
      * @throws  CancelledKeyException
      *          If this key has been cancelled
@@ -365,9 +367,9 @@ public abstract @UsesObjectEquals class SelectionKey {
      * <p> An invocation of this method of the form {@code k.isWritable()}
      * behaves in exactly the same way as the expression
      *
-     * <blockquote><pre>{@code
-     * k.readyOps() & OP_WRITE != 0
-     * }</pre></blockquote>
+     * {@snippet lang=java :
+     *     k.readyOps() & OP_WRITE != 0
+     * }
      *
      * <p> If this key's channel does not support write operations then this
      * method always returns {@code false}.  </p>
@@ -389,9 +391,9 @@ public abstract @UsesObjectEquals class SelectionKey {
      * <p> An invocation of this method of the form {@code k.isConnectable()}
      * behaves in exactly the same way as the expression
      *
-     * <blockquote><pre>{@code
-     * k.readyOps() & OP_CONNECT != 0
-     * }</pre></blockquote>
+     * {@snippet lang=java :
+     *     k.readyOps() & OP_CONNECT != 0
+     * }
      *
      * <p> If this key's channel does not support socket-connect operations
      * then this method always returns {@code false}.  </p>
@@ -413,9 +415,9 @@ public abstract @UsesObjectEquals class SelectionKey {
      * <p> An invocation of this method of the form {@code k.isAcceptable()}
      * behaves in exactly the same way as the expression
      *
-     * <blockquote><pre>{@code
-     * k.readyOps() & OP_ACCEPT != 0
-     * }</pre></blockquote>
+     * {@snippet lang=java :
+     *     k.readyOps() & OP_ACCEPT != 0
+     * }
      *
      * <p> If this key's channel does not support socket-accept operations then
      * this method always returns {@code false}.  </p>
@@ -433,12 +435,10 @@ public abstract @UsesObjectEquals class SelectionKey {
 
     // -- Attachments --
 
-    private volatile Object attachment;
+    private static final VarHandle ATTACHMENT = MhUtil.findVarHandle(
+            MethodHandles.lookup(), "attachment", Object.class);
 
-    private static final AtomicReferenceFieldUpdater<SelectionKey,Object>
-        attachmentUpdater = AtomicReferenceFieldUpdater.newUpdater(
-            SelectionKey.class, Object.class, "attachment"
-        );
+    private volatile Object attachment;
 
     /**
      * Attaches the given object to this key.
@@ -455,7 +455,7 @@ public abstract @UsesObjectEquals class SelectionKey {
      *          otherwise {@code null}
      */
     public final @Nullable Object attach(@Nullable Object ob) {
-        return attachmentUpdater.getAndSet(this, ob);
+        return ATTACHMENT.getAndSet(this, ob);
     }
 
     /**

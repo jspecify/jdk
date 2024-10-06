@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,7 +87,7 @@ final class SunX509KeyManagerImpl extends X509ExtendedKeyManager {
      * The credentials from the KeyStore as
      * Map: String(alias) -> X509Credentials(credentials)
      */
-    private Map<String,X509Credentials> credentialsMap;
+    private final Map<String,X509Credentials> credentialsMap;
 
     /*
      * Cached server aliases for the case issuers == null.
@@ -102,25 +102,21 @@ final class SunX509KeyManagerImpl extends X509ExtendedKeyManager {
      * Basic container for credentials implemented as an inner class.
      */
     private static class X509Credentials {
-        PrivateKey privateKey;
-        X509Certificate[] certificates;
-        private Set<X500Principal> issuerX500Principals;
+        final PrivateKey privateKey;
+        final X509Certificate[] certificates;
+        private final Set<X500Principal> issuerX500Principals;
 
         X509Credentials(PrivateKey privateKey, X509Certificate[] certificates) {
             // assert privateKey and certificates != null
             this.privateKey = privateKey;
             this.certificates = certificates;
+            this.issuerX500Principals = HashSet.newHashSet(certificates.length);
+            for (X509Certificate certificate : certificates) {
+                issuerX500Principals.add(certificate.getIssuerX500Principal());
+            }
         }
 
-        synchronized Set<X500Principal> getIssuerX500Principals() {
-            // lazy initialization
-            if (issuerX500Principals == null) {
-                issuerX500Principals = new HashSet<X500Principal>();
-                for (int i = 0; i < certificates.length; i++) {
-                    issuerX500Principals.add(
-                                certificates[i].getIssuerX500Principal());
-                }
-            }
+        Set<X500Principal> getIssuerX500Principals() {
             return issuerX500Principals;
         }
     }
@@ -129,9 +125,9 @@ final class SunX509KeyManagerImpl extends X509ExtendedKeyManager {
             throws KeyStoreException,
             NoSuchAlgorithmException, UnrecoverableKeyException {
 
-        credentialsMap = new HashMap<String,X509Credentials>();
+        credentialsMap = new HashMap<>();
         serverAliasCache = Collections.synchronizedMap(
-                            new HashMap<String,String[]>());
+                new HashMap<>());
         if (ks == null) {
             return;
         }
@@ -143,7 +139,7 @@ final class SunX509KeyManagerImpl extends X509ExtendedKeyManager {
                 continue;
             }
             Key key = ks.getKey(alias, password);
-            if (key instanceof PrivateKey == false) {
+            if (!(key instanceof PrivateKey)) {
                 continue;
             }
             Certificate[] certs = ks.getCertificateChain(alias);
@@ -329,7 +325,7 @@ final class SunX509KeyManagerImpl extends X509ExtendedKeyManager {
      * socket given the public key type and the list of
      * certificate issuer authorities recognized by the peer (if any).
      *
-     * Issuers comes to us in the form of X500Principal[].
+     * Issuers come to us in the form of X500Principal[].
      */
     private String[] getAliases(String keyType, Principal[] issuers) {
         if (keyType == null) {
@@ -338,7 +334,7 @@ final class SunX509KeyManagerImpl extends X509ExtendedKeyManager {
         if (issuers == null) {
             issuers = new X500Principal[0];
         }
-        if (issuers instanceof X500Principal[] == false) {
+        if (!(issuers instanceof X500Principal[])) {
             // normally, this will never happen but try to recover if it does
             issuers = convertPrincipals(issuers);
         }
@@ -379,7 +375,7 @@ final class SunX509KeyManagerImpl extends X509ExtendedKeyManager {
                         certs[0].getSigAlgName().toUpperCase(Locale.ENGLISH);
                     String pattern = "WITH" +
                         sigType.toUpperCase(Locale.ENGLISH);
-                    if (sigAlgName.contains(pattern) == false) {
+                    if (!sigAlgName.contains(pattern)) {
                         continue;
                     }
                 }
@@ -428,6 +424,6 @@ final class SunX509KeyManagerImpl extends X509ExtendedKeyManager {
                 }
             }
         }
-        return list.toArray(new X500Principal[list.size()]);
+        return list.toArray(new X500Principal[0]);
     }
 }

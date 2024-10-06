@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,10 +85,12 @@ import org.jspecify.annotations.Nullable;
  * passed to a static factory method result in {@code IllegalArgumentException}.
  * <li>The iteration order of set elements is unspecified and is subject to change.
  * <li>They are <a href="../lang/doc-files/ValueBased.html">value-based</a>.
- * Callers should make no assumptions about the identity of the returned instances.
- * Factories are free to create new instances or reuse existing ones. Therefore,
- * identity-sensitive operations on these instances (reference equality ({@code ==}),
- * identity hash code, and synchronization) are unreliable and should be avoided.
+ * Programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use them for synchronization, or
+ * unpredictable behavior may occur. For example, in a future release,
+ * synchronization may fail. Callers should make no assumptions
+ * about the identity of the returned instances. Factories are free to
+ * create new instances or reuse existing ones.
  * <li>They are serialized as specified on the
  * <a href="{@docRoot}/serialized-form.html#java.util.CollSer">Serialized Form</a>
  * page.
@@ -462,8 +464,9 @@ public interface Set<E extends @Nullable Object> extends Collection<E> {
      *
      * @since 9
      */
+    @SuppressWarnings("unchecked")
     static <E extends @Nullable Object> Set<E> of() {
-        return ImmutableCollections.emptySet();
+        return (Set<E>) ImmutableCollections.EMPTY_SET;
     }
 
     /**
@@ -706,7 +709,9 @@ public interface Set<E extends @Nullable Object> extends Collection<E> {
     static <E> Set<E> of(E... elements) {
         switch (elements.length) { // implicit null check of elements
             case 0:
-                return ImmutableCollections.emptySet();
+                @SuppressWarnings("unchecked")
+                var set = (Set<E>) ImmutableCollections.EMPTY_SET;
+                return set;
             case 1:
                 return new ImmutableCollections.Set12<>(elements[0]);
             case 2:
@@ -737,6 +742,8 @@ public interface Set<E extends @Nullable Object> extends Collection<E> {
     static <E> Set<E> copyOf(Collection<? extends E> coll) {
         if (coll instanceof ImmutableCollections.AbstractImmutableSet) {
             return (Set<E>)coll;
+        } else if (coll.isEmpty()) { // Implicit nullcheck of coll
+            return Set.of();
         } else {
             return (Set<E>)Set.of(new HashSet<>(coll).toArray());
         }

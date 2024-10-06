@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,7 +44,8 @@ public class SoTimeout implements Runnable {
 
     public static void main(String[] args) throws Exception {
         addr = InetAddress.getLocalHost();
-        serverSocket = new ServerSocket(0);
+        serverSocket = new ServerSocket();
+        serverSocket.bind(new InetSocketAddress(addr, 0));
         port = serverSocket.getLocalPort();
 
         byte[] b = new byte[12];
@@ -63,7 +64,7 @@ public class SoTimeout implements Runnable {
         long waited = System.currentTimeMillis() - timeWritten;
 
         // this sequence should complete fairly quickly and if it
-        // takes something resembling the the SoTimeout value then
+        // takes something resembling the SoTimeout value then
         // we are probably incorrectly blocking and not waking up
         if (waited > 2000) {
             throw new Exception("shouldn't take " + waited + " to complete");

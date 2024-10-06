@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,9 @@
 
 package java.math;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import static java.math.BigDecimal.INFLATED;
+import static java.math.BigInteger.LONG_MASK;
+import java.util.Arrays;
 
 /**
  * A class used to represent multiprecision integers that makes efficient
@@ -45,12 +46,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since   1.3
  */
 
-import static java.math.BigDecimal.INFLATED;
-import static java.math.BigInteger.LONG_MASK;
-import java.util.Arrays;
-
-@AnnotatedFor({"interning"})
-@UsesObjectEquals class MutableBigInteger {
+class MutableBigInteger {
     /**
      * Holds the magnitude of this MutableBigInteger in big endian order.
      * The magnitude may start at an offset into the value array, and it may
@@ -113,9 +109,26 @@ import java.util.Arrays;
      * the int val.
      */
     MutableBigInteger(int val) {
-        value = new int[1];
-        intLen = 1;
-        value[0] = val;
+        init(val);
+    }
+
+    /**
+     * Construct a new MutableBigInteger with a magnitude specified by
+     * the long val.
+     */
+    MutableBigInteger(long val) {
+        int hi = (int) (val >>> 32);
+        if (hi == 0) {
+            init((int) val);
+        } else {
+            value = new int[] { hi, (int) val };
+            intLen = 2;
+        }
+    }
+
+    private void init(int val) {
+        value = new int[] { val };
+        intLen = val != 0 ? 1 : 0;
     }
 
     /**
@@ -149,7 +162,6 @@ import java.util.Arrays;
      * Makes this number an {@code n}-int number all of whose bits are ones.
      * Used by Burnikel-Ziegler division.
      * @param n number of ints in the {@code value} array
-     * @return a number equal to {@code ((1<<(32*n)))-1}
      */
     private void ones(int n) {
         if (n > value.length)
@@ -164,8 +176,14 @@ import java.util.Arrays;
      * supposed to modify the returned array.
      */
     private int[] getMagnitudeArray() {
-        if (offset > 0 || value.length != intLen)
-            return Arrays.copyOfRange(value, offset, offset + intLen);
+        if (offset > 0 || value.length != intLen) {
+            // Shrink value to be the total magnitude
+            int[] tmp = Arrays.copyOfRange(value, offset, offset + intLen);
+            Arrays.fill(value, 0);
+            offset = 0;
+            intLen = tmp.length;
+            value = tmp;
+        }
         return value;
     }
 
@@ -259,6 +277,7 @@ import java.util.Arrays;
      * Compare the magnitude of two MutableBigIntegers. Returns -1, 0 or 1
      * as this MutableBigInteger is numerically less than, equal to, or
      * greater than {@code b}.
+     * Assumes no leading unnecessary zeros.
      */
     final int compare(MutableBigInteger b) {
         int blen = b.intLen;
@@ -284,6 +303,7 @@ import java.util.Arrays;
     /**
      * Returns a value equal to what {@code b.leftShift(32*ints); return compare(b);}
      * would return, but doesn't change the value of {@code b}.
+     * Assumes no leading unnecessary zeros.
      */
     private int compareShifted(MutableBigInteger b, int ints) {
         int blen = b.intLen;
@@ -537,6 +557,7 @@ import java.util.Arrays;
     /**
      * Right shift this MutableBigInteger n bits. The MutableBigInteger is left
      * in normal form.
+     * Assumes {@code Math.ceilDiv(n, 32) <= intLen || intLen == 0}
      */
     void rightShift(int n) {
         if (intLen == 0)
@@ -911,6 +932,58 @@ import java.util.Arrays;
     }
 
     /**
+     * Shifts {@code this} of {@code n} ints to the left and adds {@code addend}.
+     * Assumes {@code n > 0} for speed.
+     */
+    void shiftAdd(MutableBigInteger addend, int n) {
+        // Fast cases
+        if (addend.intLen <= n) {
+            shiftAddDisjoint(addend, n);
+        } else if (intLen == 0) {
+            copyValue(addend);
+        } else {
+            leftShift(n << 5);
+            add(addend);
+        }
+    }
+
+    /**
+     * Shifts {@code this} of {@code n} ints to the left and adds {@code addend}.
+     * Assumes {@code addend.intLen <= n}.
+     */
+    void shiftAddDisjoint(MutableBigInteger addend, int n) {
+        if (intLen == 0) { // Avoid unnormal values
+            copyValue(addend);
+            return;
+        }
+
+        int[] res;
+        final int resLen = intLen + n, resOffset;
+        if (resLen > value.length) {
+            res = new int[resLen];
+            System.arraycopy(value, offset, res, 0, intLen);
+            resOffset = 0;
+        } else {
+            res = value;
+            if (offset + resLen > value.length) {
+                System.arraycopy(value, offset, res, 0, intLen);
+                resOffset = 0;
+            } else {
+                resOffset = offset;
+            }
+            // Clear words where necessary
+            if (addend.intLen < n)
+                Arrays.fill(res, resOffset + intLen, resOffset + resLen - addend.intLen, 0);
+        }
+
+        System.arraycopy(addend.value, addend.offset, res, resOffset + resLen - addend.intLen, addend.intLen);
+
+        value = res;
+        offset = resOffset;
+        intLen = resLen;
+    }
+
+    /**
      * Subtracts the smaller of this and b from the larger and places the
      * result into this MutableBigInteger.
      */
@@ -944,13 +1017,13 @@ import java.util.Arrays;
             x--; y--;
 
             diff = (a.value[x+a.offset] & LONG_MASK) -
-                   (b.value[y+b.offset] & LONG_MASK) - ((int)-(diff>>32));
+                   (b.value[y+b.offset] & LONG_MASK) + (diff >> 32);
             result[rstart--] = (int)diff;
         }
         // Subtract remainder of longer number
         while (x > 0) {
             x--;
-            diff = (a.value[x+a.offset] & LONG_MASK) - ((int)-(diff>>32));
+            diff = (a.value[x+a.offset] & LONG_MASK) + (diff >> 32);
             result[rstart--] = (int)diff;
         }
 
@@ -985,13 +1058,13 @@ import java.util.Arrays;
         while (y > 0) {
             x--; y--;
             diff = (a.value[a.offset+ x] & LONG_MASK) -
-                (b.value[b.offset+ y] & LONG_MASK) - ((int)-(diff>>32));
+                (b.value[b.offset+ y] & LONG_MASK) + (diff >> 32);
             a.value[a.offset+x] = (int)diff;
         }
         // Subtract remainder of longer number
-        while (x > 0) {
+        while (diff < 0 && x > 0) {
             x--;
-            diff = (a.value[a.offset+ x] & LONG_MASK) - ((int)-(diff>>32));
+            diff = (a.value[a.offset+ x] & LONG_MASK) + (diff >> 32);
             a.value[a.offset+x] = (int)diff;
         }
 
@@ -1002,6 +1075,7 @@ import java.util.Arrays;
     /**
      * Multiply the contents of two MutableBigInteger objects. The result is
      * placed into MutableBigInteger z. The contents of y are not changed.
+     * Assume {@code intLen > 0}
      */
     void multiply(MutableBigInteger y, MutableBigInteger z) {
         int xLen = intLen;
@@ -1078,7 +1152,7 @@ import java.util.Arrays;
         z.value = zval;
     }
 
-     /**
+    /**
      * This method is used for division of an n word dividend by a one word
      * divisor. The quotient is placed into quotient. The one word divisor is
      * specified by divisor.
@@ -1091,9 +1165,9 @@ import java.util.Arrays;
 
         // Special case of one word dividend
         if (intLen == 1) {
-            long dividendValue = value[offset] & LONG_MASK;
-            int q = (int) (dividendValue / divisorLong);
-            int r = (int) (dividendValue - q * divisorLong);
+            int dividendValue = value[offset];
+            int q = Integer.divideUnsigned(dividendValue, divisor);
+            int r = Integer.remainderUnsigned(dividendValue, divisor);
             quotient.value[0] = q;
             quotient.intLen = (q == 0) ? 0 : 1;
             quotient.offset = 0;
@@ -1105,41 +1179,17 @@ import java.util.Arrays;
         quotient.offset = 0;
         quotient.intLen = intLen;
 
-        // Normalize the divisor
-        int shift = Integer.numberOfLeadingZeros(divisor);
-
-        int rem = value[offset];
-        long remLong = rem & LONG_MASK;
-        if (remLong < divisorLong) {
-            quotient.value[0] = 0;
-        } else {
-            quotient.value[0] = (int)(remLong / divisorLong);
-            rem = (int) (remLong - (quotient.value[0] * divisorLong));
-            remLong = rem & LONG_MASK;
-        }
-        int xlen = intLen;
-        while (--xlen > 0) {
-            long dividendEstimate = (remLong << 32) |
+        long rem = 0;
+        for (int xlen = intLen; xlen > 0; xlen--) {
+            long dividendEstimate = (rem << 32) |
                     (value[offset + intLen - xlen] & LONG_MASK);
-            int q;
-            if (dividendEstimate >= 0) {
-                q = (int) (dividendEstimate / divisorLong);
-                rem = (int) (dividendEstimate - q * divisorLong);
-            } else {
-                long tmp = divWord(dividendEstimate, divisor);
-                q = (int) (tmp & LONG_MASK);
-                rem = (int) (tmp >>> 32);
-            }
+            int q = (int) Long.divideUnsigned(dividendEstimate, divisorLong);
+            rem = Long.remainderUnsigned(dividendEstimate, divisorLong);
             quotient.value[intLen - xlen] = q;
-            remLong = rem & LONG_MASK;
         }
 
         quotient.normalize();
-        // Unnormalize
-        if (shift > 0)
-            return rem % divisor;
-        else
-            return rem;
+        return (int)rem;
     }
 
     /**
@@ -1171,7 +1221,7 @@ import java.util.Arrays;
      * Calculates the quotient of this div b and places the quotient in the
      * provided MutableBigInteger objects and the remainder object is returned.
      *
-     * Uses Algorithm D in Knuth section 4.3.1.
+     * Uses Algorithm D from Knuth TAOCP Vol. 2, 3rd edition, section 4.3.1.
      * Many optimizations to that algorithm have been adapted from the Colin
      * Plumb C library.
      * It special cases one word divisors for speed. The content of b is not
@@ -1530,13 +1580,10 @@ import java.util.Arrays;
         quotient.intLen = limit;
         int[] q = quotient.value;
 
-
-        // Must insert leading 0 in rem if its length did not change
-        if (rem.intLen == nlen) {
-            rem.offset = 0;
-            rem.value[0] = 0;
-            rem.intLen++;
-        }
+        // Insert leading 0 in rem
+        rem.offset = 0;
+        rem.value[0] = 0;
+        rem.intLen++;
 
         int dh = divisor[0];
         long dhLong = dh & LONG_MASK;
@@ -1559,14 +1606,8 @@ import java.util.Arrays;
                 skipCorrection = qrem + 0x80000000 < nh2;
             } else {
                 long nChunk = (((long)nh) << 32) | (nm & LONG_MASK);
-                if (nChunk >= 0) {
-                    qhat = (int) (nChunk / dhLong);
-                    qrem = (int) (nChunk - (qhat * dhLong));
-                } else {
-                    long tmp = divWord(nChunk, dh);
-                    qhat = (int) (tmp & LONG_MASK);
-                    qrem = (int) (tmp >>> 32);
-                }
+                qhat = (int) Long.divideUnsigned(nChunk, dhLong);
+                qrem = (int) Long.remainderUnsigned(nChunk, dhLong);
             }
 
             if (qhat == 0)
@@ -1618,14 +1659,8 @@ import java.util.Arrays;
             skipCorrection = qrem + 0x80000000 < nh2;
         } else {
             long nChunk = (((long) nh) << 32) | (nm & LONG_MASK);
-            if (nChunk >= 0) {
-                qhat = (int) (nChunk / dhLong);
-                qrem = (int) (nChunk - (qhat * dhLong));
-            } else {
-                long tmp = divWord(nChunk, dh);
-                qhat = (int) (tmp & LONG_MASK);
-                qrem = (int) (tmp >>> 32);
-            }
+            qhat = (int) Long.divideUnsigned(nChunk, dhLong);
+            qrem = (int) Long.remainderUnsigned(nChunk, dhLong);
         }
         if (qhat != 0) {
             if (!skipCorrection) { // Correct qhat
@@ -1734,14 +1769,8 @@ import java.util.Arrays;
                 skipCorrection = qrem + 0x80000000 < nh2;
             } else {
                 long nChunk = (((long) nh) << 32) | (nm & LONG_MASK);
-                if (nChunk >= 0) {
-                    qhat = (int) (nChunk / dhLong);
-                    qrem = (int) (nChunk - (qhat * dhLong));
-                } else {
-                    long tmp = divWord(nChunk, dh);
-                    qhat =(int)(tmp & LONG_MASK);
-                    qrem = (int)(tmp>>>32);
-                }
+                qhat = (int) Long.divideUnsigned(nChunk, dhLong);
+                qrem = (int) Long.remainderUnsigned(nChunk, dhLong);
             }
 
             if (qhat == 0)
@@ -1837,127 +1866,169 @@ import java.util.Arrays;
     }
 
     /**
-     * This method divides a long quantity by an int to estimate
-     * qhat for two multi precision numbers. It is used when
-     * the signed value of n is less than zero.
-     * Returns long value where high 32 bits contain remainder value and
-     * low 32 bits contain quotient value.
+     * Calculate the integer square root {@code floor(sqrt(this))} and the remainder
+     * if needed, where {@code sqrt(.)} denotes the mathematical square root.
+     * The contents of {@code this} are <em>not</em> changed.
+     * The value of {@code this} is assumed to be non-negative.
+     *
+     * @return the integer square root of {@code this} and the remainder if needed
      */
-    static long divWord(long n, int d) {
-        long dLong = d & LONG_MASK;
-        long r;
-        long q;
-        if (dLong == 1) {
-            q = (int)n;
-            r = 0;
-            return (r << 32) | (q & LONG_MASK);
+    MutableBigInteger[] sqrtRem(boolean needRemainder) {
+        // Special cases.
+        if (this.intLen <= 2) {
+            final long x = this.toLong(); // unsigned
+            long s = unsignedLongSqrt(x);
+
+            return new MutableBigInteger[] {
+                    new MutableBigInteger((int) s),
+                    needRemainder ? new MutableBigInteger(x - s * s) : null
+            };
         }
 
-        // Approximate the quotient and remainder
-        q = (n >>> 1) / (dLong >>> 1);
-        r = n - q*dLong;
+        // Normalize
+        MutableBigInteger x = this;
+        final int shift = (Integer.numberOfLeadingZeros(x.value[x.offset]) & ~1) // shift must be even
+                + ((x.intLen & 1) << 5); // x.intLen must be even
 
-        // Correct the approximation
-        while (r < 0) {
-            r += dLong;
-            q--;
+        if (shift != 0) {
+            x = new MutableBigInteger(x);
+            x.leftShift(shift);
         }
-        while (r >= dLong) {
-            r -= dLong;
-            q++;
+
+        // Compute sqrt and remainder
+        MutableBigInteger[] sqrtRem = x.sqrtRemKaratsuba(x.intLen, needRemainder);
+
+        // Unnormalize
+        if (shift != 0) {
+            final int halfShift = shift >> 1;
+            if (needRemainder) {
+                // shift <= 62, so s0 is at most 31 bit long
+                final long s0 = sqrtRem[0].value[sqrtRem[0].offset + sqrtRem[0].intLen - 1]
+                        & (-1 >>> -halfShift); // Remove excess bits
+                if (s0 != 0L) { // An optimization
+                    MutableBigInteger doubleProd = new MutableBigInteger();
+                    sqrtRem[0].mul((int) (s0 << 1), doubleProd);
+
+                    sqrtRem[1].add(doubleProd);
+                    sqrtRem[1].subtract(new MutableBigInteger(s0 * s0));
+                }
+                sqrtRem[1].rightShift(shift);
+            }
+            sqrtRem[0].primitiveRightShift(halfShift);
         }
-        // n - q*dlong == r && 0 <= r <dLong, hence we're done.
-        return (r << 32) | (q & LONG_MASK);
+        return sqrtRem;
+    }
+
+    private static long unsignedLongSqrt(long x) {
+        /* For every long value s in [0, 2^32) such that x == s * s,
+         * it is true that s - 1 <= (long) Math.sqrt(x >= 0 ? x : x + 0x1p64) <= s,
+         * and if x == 2^64 - 1, then (long) Math.sqrt(x >= 0 ? x : x + 0x1p64) == 2^32.
+         * Since both cast to long and `Math.sqrt()` are (weakly) increasing,
+         * this means that the value returned by Math.sqrt()
+         * for a long value in the range [0, 2^64) is either correct,
+         * or rounded up/down by one if the value is too high
+         * and too close to a perfect square.
+         */
+        long s = (long) Math.sqrt(x >= 0 ? x : x + 0x1p64);
+        long s2 = s * s;  // overflows iff s == 2^32
+        return Long.compareUnsigned(x, s2) < 0 || s > LONG_MASK
+                ? s - 1
+                : (Long.compareUnsigned(x, s2 + (s << 1)) <= 0 // x <= (s + 1)^2 - 1, does not overflow
+                        ? s
+                        : s + 1);
     }
 
     /**
-     * Calculate the integer square root {@code floor(sqrt(this))} where
-     * {@code sqrt(.)} denotes the mathematical square root. The contents of
-     * {@code this} are <b>not</b> changed. The value of {@code this} is assumed
-     * to be non-negative.
-     *
-     * @implNote The implementation is based on the material in Henry S. Warren,
-     * Jr., <i>Hacker's Delight (2nd ed.)</i> (Addison Wesley, 2013), 279-282.
-     *
-     * @throws ArithmeticException if the value returned by {@code bitLength()}
-     * overflows the range of {@code int}.
-     * @return the integer square root of {@code this}
-     * @since 9
+     * Assumes {@code 2 <= len <= intLen && len % 2 == 0
+     * && Integer.numberOfLeadingZeros(value[offset]) <= 1}
+     * @implNote The implementation is based on Zimmermann's works available
+     * <a href="https://inria.hal.science/inria-00072854v1/document">  here</a> and
+     * <a href="https://inria.hal.science/inria-00072113/document">  here</a>
      */
-    MutableBigInteger sqrt() {
-        // Special cases.
-        if (this.isZero()) {
-            return new MutableBigInteger(0);
-        } else if (this.value.length == 1
-                && (this.value[0] & LONG_MASK) < 4) { // result is unity
-            return ONE;
+    private MutableBigInteger[] sqrtRemKaratsuba(int len, boolean needRemainder) {
+        if (len == 2) { // Base case
+            long x = ((value[offset] & LONG_MASK) << 32) | (value[offset + 1] & LONG_MASK);
+            long s = unsignedLongSqrt(x);
+
+            // Allocate sufficient space to hold the final square root, assuming intLen % 2 == 0
+            MutableBigInteger sqrt = new MutableBigInteger(new int[intLen >> 1]);
+
+            // Place the partial square root
+            sqrt.intLen = 1;
+            sqrt.value[0] = (int) s;
+
+            return new MutableBigInteger[] { sqrt, new MutableBigInteger(x - s * s) };
         }
 
-        if (bitLength() <= 63) {
-            // Initial estimate is the square root of the positive long value.
-            long v = new BigInteger(this.value, 1).longValueExact();
-            long xk = (long)Math.floor(Math.sqrt(v));
+        // Recursive step (len >= 4)
 
-            // Refine the estimate.
-            do {
-                long xk1 = (xk + v/xk)/2;
+        final int halfLen = len >> 1;
+        // Recursive invocation
+        MutableBigInteger[] sr = sqrtRemKaratsuba(halfLen + (halfLen & 1), true);
 
-                // Terminate when non-decreasing.
-                if (xk1 >= xk) {
-                    return new MutableBigInteger(new int[] {
-                        (int)(xk >>> 32), (int)(xk & LONG_MASK)
-                    });
-                }
+        final int blockLen = halfLen >> 1;
+        MutableBigInteger dividend = sr[1];
+        dividend.shiftAddDisjoint(getBlockForSqrt(1, len, blockLen), blockLen);
 
-                xk = xk1;
-            } while (true);
+        // Compute dividend / (2*sqrt)
+        MutableBigInteger sqrt = sr[0];
+        MutableBigInteger q = new MutableBigInteger();
+        MutableBigInteger u = dividend.divide(sqrt, q);
+        if (q.isOdd())
+            u.add(sqrt);
+        q.rightShift(1);
+
+        sqrt.shiftAdd(q, blockLen);
+        // Corresponds to ub + a_0 in the paper
+        u.shiftAddDisjoint(getBlockForSqrt(0, len, blockLen), blockLen);
+        BigInteger qBig = q.toBigInteger(); // Cast to BigInteger to use fast multiplication
+        MutableBigInteger qSqr = new MutableBigInteger(qBig.multiply(qBig).mag);
+
+        MutableBigInteger rem;
+        if (needRemainder) {
+            rem = u;
+            if (rem.subtract(qSqr) < 0) {
+                MutableBigInteger twiceSqrt = new MutableBigInteger(sqrt);
+                twiceSqrt.leftShift(1);
+
+                // Since subtract() performs an absolute difference, to get the correct algebraic sum
+                // we must first add the sum of absolute values of addends concordant with the sign of rem
+                // and then subtract the sum of absolute values of addends that are discordant
+                rem.add(ONE);
+                rem.subtract(twiceSqrt);
+                sqrt.subtract(ONE);
+            }
         } else {
-            // Set up the initial estimate of the iteration.
-
-            // Obtain the bitLength > 63.
-            int bitLength = (int) this.bitLength();
-            if (bitLength != this.bitLength()) {
-                throw new ArithmeticException("bitLength() integer overflow");
-            }
-
-            // Determine an even valued right shift into positive long range.
-            int shift = bitLength - 63;
-            if (shift % 2 == 1) {
-                shift++;
-            }
-
-            // Shift the value into positive long range.
-            MutableBigInteger xk = new MutableBigInteger(this);
-            xk.rightShift(shift);
-            xk.normalize();
-
-            // Use the square root of the shifted value as an approximation.
-            double d = new BigInteger(xk.value, 1).doubleValue();
-            BigInteger bi = BigInteger.valueOf((long)Math.ceil(Math.sqrt(d)));
-            xk = new MutableBigInteger(bi.mag);
-
-            // Shift the approximate square root back into the original range.
-            xk.leftShift(shift / 2);
-
-            // Refine the estimate.
-            MutableBigInteger xk1 = new MutableBigInteger();
-            do {
-                // xk1 = (xk + n/xk)/2
-                this.divide(xk, xk1, false);
-                xk1.add(xk);
-                xk1.rightShift(1);
-
-                // Terminate when non-decreasing.
-                if (xk1.compare(xk) >= 0) {
-                    return xk;
-                }
-
-                // xk = xk1
-                xk.copyValue(xk1);
-
-                xk1.reset();
-            } while (true);
+            rem = null;
+            if (u.compare(qSqr) < 0)
+                sqrt.subtract(ONE);
         }
+
+        sr[1] = rem;
+        return sr;
+    }
+
+    /**
+     * Returns a {@code MutableBigInteger} obtained by taking {@code blockLen} ints from
+     * {@code this} number, ending at {@code blockIndex*blockLen} (exclusive).<br/>
+     * Used in Karatsuba square root.
+     * @param blockIndex the block index, starting from the lowest
+     * @param len the logical length of the input value in units of 32 bits
+     * @param blockLen the length of the block in units of 32 bits
+     *
+     * @return a {@code MutableBigInteger} obtained by taking {@code blockLen} ints from
+     * {@code this} number, ending at {@code blockIndex*blockLen} (exclusive).
+     */
+    private MutableBigInteger getBlockForSqrt(int blockIndex, int len, int blockLen) {
+        final int to = offset + len - blockIndex * blockLen;
+
+        // Skip leading zeros
+        int from;
+        for (from = to - blockLen; from < to && value[from] == 0; from++);
+
+        return from == to
+                ? new MutableBigInteger()
+                : new MutableBigInteger(Arrays.copyOfRange(value, from, to));
     }
 
     /**
@@ -1985,7 +2056,7 @@ import java.util.Arrays;
      * Assumes that this and v are not zero.
      */
     private MutableBigInteger binaryGCD(MutableBigInteger v) {
-        // Algorithm B from Knuth section 4.5.2
+        // Algorithm B from Knuth TAOCP Vol. 2, 3rd edition, section 4.5.2
         MutableBigInteger u = this;
         MutableBigInteger r = new MutableBigInteger();
 
@@ -2105,6 +2176,7 @@ import java.util.Arrays;
 
         oddPart.leftShift(powersOf2);
         oddPart.multiply(y1, result);
+        oddPart.clear();
 
         evenPart.multiply(oddMod, temp1);
         temp1.multiply(y2, temp2);
@@ -2182,8 +2254,8 @@ import java.util.Arrays;
     }
 
     /**
-     * Calculate the multiplicative inverse of this mod mod, where mod is odd.
-     * This and mod are not changed by the calculation.
+     * Calculate the multiplicative inverse of this modulo mod, where the mod
+     * argument is odd.  This and mod are not changed by the calculation.
      *
      * This method implements an algorithm due to Richard Schroeppel, that uses
      * the same intermediate representation as Montgomery Reduction
@@ -2237,8 +2309,18 @@ import java.util.Arrays;
             k += trailingZeros;
         }
 
-        while (c.sign < 0)
-           c.signedAdd(p);
+        if (c.compare(p) >= 0) { // c has a larger magnitude than p
+            MutableBigInteger remainder = c.divide(p,
+                new MutableBigInteger());
+            // The previous line ignores the sign so we copy the data back
+            // into c which will restore the sign as needed (and converts
+            // it back to a SignedMutableBigInteger)
+            c.copyValue(remainder);
+        }
+
+        if (c.sign < 0) {
+            c.signedAdd(p);
+        }
 
         return fixup(c, p, k);
     }
@@ -2276,8 +2358,8 @@ import java.util.Arrays;
         }
 
         // In theory, c may be greater than p at this point (Very rare!)
-        while (c.compare(p) >= 0)
-            c.subtract(p);
+        if (c.compare(p) >= 0)
+            c = c.divide(p, new MutableBigInteger());
 
         return c;
     }

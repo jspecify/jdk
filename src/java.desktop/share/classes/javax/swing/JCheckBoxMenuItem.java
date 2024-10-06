@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,18 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package javax.swing;
 
-import java.beans.JavaBean;
 import java.beans.BeanProperty;
-
-import java.io.ObjectOutputStream;
+import java.beans.JavaBean;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
 
-import javax.accessibility.*;
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleRole;
 
 /**
  * A menu item that can be selected or deselected. If selected, the menu
@@ -53,7 +56,7 @@ import javax.accessibility.*;
  * configuring a menu item.  Refer to <a href="Action.html#buttonActions">
  * Swing Components Supporting <code>Action</code></a> for more
  * details, and you can find more information in <a
- * href="http://docs.oracle.com/javase/tutorial/uiswing/misc/action.html">How
+ * href="https://docs.oracle.com/javase/tutorial/uiswing/misc/action.html">How
  * to Use Actions</a>, a section in <em>The Java Tutorial</em>.
  * <p>
  * Some times it is required to select several check box menu items from a menu.
@@ -70,7 +73,7 @@ import javax.accessibility.*;
  * <p>
  * For further information and examples of using check box menu items,
  * see <a
- href="http://docs.oracle.com/javase/tutorial/uiswing/components/menu.html">How to Use Menus</a>,
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/menu.html">How to Use Menus</a>,
  * a section in <em>The Java Tutorial.</em>
  * <p>
  * <strong>Warning:</strong> Swing is not thread safe. For more
@@ -83,7 +86,7 @@ import javax.accessibility.*;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -178,7 +181,7 @@ public class JCheckBoxMenuItem extends JMenuItem implements SwingConstants,
      * Returns the name of the L&amp;F class
      * that renders this component.
      *
-     * @return "CheckBoxMenuItemUI"
+     * @return the string "CheckBoxMenuItemUI"
      * @see JComponent#getUIClassID
      * @see UIDefaults#getUI
      */
@@ -233,6 +236,7 @@ public class JCheckBoxMenuItem extends JMenuItem implements SwingConstants,
      * See readObject() and writeObject() in JComponent for more
      * information about serialization in Swing.
      */
+    @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         s.defaultWriteObject();
         if (getUIClassID().equals(uiClassID)) {
@@ -259,7 +263,7 @@ public class JCheckBoxMenuItem extends JMenuItem implements SwingConstants,
     }
 
     /**
-     * Overriden to return true, JCheckBoxMenuItem supports
+     * Overridden to return true, JCheckBoxMenuItem supports
      * the selected state.
      */
     boolean shouldUpdateSelectedStateFromAction() {
@@ -298,12 +302,18 @@ public class JCheckBoxMenuItem extends JMenuItem implements SwingConstants,
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
     @SuppressWarnings("serial") // Same-version serialization only
     protected class AccessibleJCheckBoxMenuItem extends AccessibleJMenuItem {
+
+        /**
+         * Constructs an {@code AccessibleJCheckBoxMenuItem}.
+         */
+        protected AccessibleJCheckBoxMenuItem() {}
+
         /**
          * Get the role of this object.
          *

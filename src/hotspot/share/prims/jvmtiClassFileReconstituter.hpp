@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,17 +22,18 @@
  *
  */
 
-#ifndef SHARE_VM_PRIMS_JVMTICLASSFILERECONSTITUTER_HPP
-#define SHARE_VM_PRIMS_JVMTICLASSFILERECONSTITUTER_HPP
+#ifndef SHARE_PRIMS_JVMTICLASSFILERECONSTITUTER_HPP
+#define SHARE_PRIMS_JVMTICLASSFILERECONSTITUTER_HPP
 
 #include "jvmtifiles/jvmtiEnv.hpp"
+#include "oops/constantPool.hpp"
 
 
 class JvmtiConstantPoolReconstituter : public StackObj {
  private:
   int                  _cpool_size;
-  SymbolHashMap*       _symmap;
-  SymbolHashMap*       _classmap;
+  ConstantPool::SymbolHash*  _symmap;
+  ConstantPool::SymbolHash*  _classmap;
   constantPoolHandle   _cpool;
   InstanceKlass*       _ik;
   jvmtiError           _err;
@@ -55,13 +56,13 @@ class JvmtiConstantPoolReconstituter : public StackObj {
   JvmtiConstantPoolReconstituter(InstanceKlass* ik);
 
   ~JvmtiConstantPoolReconstituter() {
-    if (_symmap != NULL) {
+    if (_symmap != nullptr) {
       delete _symmap;
-      _symmap = NULL;
+      _symmap = nullptr;
     }
-    if (_classmap != NULL) {
+    if (_classmap != nullptr) {
       delete _classmap;
-      _classmap = NULL;
+      _classmap = nullptr;
     }
   }
 
@@ -72,8 +73,8 @@ class JvmtiConstantPoolReconstituter : public StackObj {
   int cpool_size()                        { return _cpool_size; }
 
   void copy_cpool_bytes(unsigned char *cpool_bytes) {
-    if (cpool_bytes == NULL) {
-      assert(cpool_bytes != NULL, "cpool_bytes pointer must not be NULL");
+    if (cpool_bytes == nullptr) {
+      assert(cpool_bytes != nullptr, "cpool_bytes pointer must not be null");
       return;
     }
     cpool()->copy_cpool_bytes(cpool_size(), _symmap, cpool_bytes);
@@ -101,6 +102,7 @@ class JvmtiClassFileReconstituter : public JvmtiConstantPoolReconstituter {
   void write_method_info(const methodHandle& method);
   void write_code_attribute(const methodHandle& method);
   void write_exceptions_attribute(ConstMethod* const_method);
+  void write_method_parameter_attribute(const ConstMethod* const_method);
   void write_synthetic_attribute();
   void write_class_attributes();
   void write_source_file_attribute();
@@ -118,6 +120,8 @@ class JvmtiClassFileReconstituter : public JvmtiConstantPoolReconstituter {
   void write_bootstrapmethod_attribute();
   void write_nest_host_attribute();
   void write_nest_members_attribute();
+  void write_permitted_subclasses_attribute();
+  void write_record_attribute();
 
   address writeable_address(size_t size);
   void write_u1(u1 x);
@@ -143,4 +147,4 @@ class JvmtiClassFileReconstituter : public JvmtiConstantPoolReconstituter {
   static void copy_bytecodes(const methodHandle& method, unsigned char* bytecodes);
 };
 
-#endif // SHARE_VM_PRIMS_JVMTICLASSFILERECONSTITUTER_HPP
+#endif // SHARE_PRIMS_JVMTICLASSFILERECONSTITUTER_HPP

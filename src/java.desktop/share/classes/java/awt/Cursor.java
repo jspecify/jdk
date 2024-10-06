@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package java.awt;
 
 import org.checkerframework.checker.interning.qual.UsesObjectEquals;
@@ -29,6 +30,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.beans.ConstructorProperties;
 import java.io.InputStream;
+import java.io.Serial;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedExceptionAction;
@@ -123,7 +125,7 @@ public @UsesObjectEquals class Cursor implements java.io.Serializable {
       * method should be used instead.
       */
     @Deprecated
-    protected static Cursor predefined[] = new Cursor[14];
+    protected static Cursor[] predefined = new Cursor[14];
 
     /**
      * This field is a private replacement for 'predefined' array.
@@ -177,9 +179,10 @@ public @UsesObjectEquals class Cursor implements java.io.Serializable {
     private static final String DOT_HOTSPOT_SUFFIX = ".HotSpot";
     private static final String DOT_NAME_SUFFIX = ".Name";
 
-    /*
-     * JDK 1.1 serialVersionUID
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = 8028237497568985504L;
 
     private static final PlatformLogger log = PlatformLogger.getLogger("java.awt.Cursor");
@@ -286,9 +289,9 @@ public @UsesObjectEquals class Cursor implements java.io.Serializable {
      *
      * @param name a string describing the desired system-specific custom cursor
      * @return the system specific custom cursor named
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      * {@code GraphicsEnvironment.isHeadless} returns true
-     * @exception AWTException in case of erroneous retrieving of the cursor
+     * @throws AWTException in case of erroneous retrieving of the cursor
      */
     public static Cursor getSystemCustomCursor(final String name)
         throws AWTException, HeadlessException {
@@ -296,10 +299,7 @@ public @UsesObjectEquals class Cursor implements java.io.Serializable {
         Cursor cursor = systemCustomCursors.get(name);
 
         if (cursor == null) {
-            synchronized(systemCustomCursors) {
-                if (systemCustomCursorProperties == null)
-                    loadSystemCustomCursorProperties();
-            }
+            loadSystemCustomCursorProperties();
 
             String prefix = CURSOR_DOT_PREFIX + name;
             String key    = prefix + DOT_FILE_SUFFIX;
@@ -336,6 +336,7 @@ public @UsesObjectEquals class Cursor implements java.io.Serializable {
             }
             final Toolkit toolkit = Toolkit.getDefaultToolkit();
             final String file = RESOURCE_PREFIX + fileName;
+            @SuppressWarnings("removal")
             final InputStream in = AccessController.doPrivileged(
                     (PrivilegedAction<InputStream>) () -> {
                         return Cursor.class.getResourceAsStream(file);
@@ -431,8 +432,12 @@ public @UsesObjectEquals class Cursor implements java.io.Serializable {
     /*
      * load the cursor.properties file
      */
+    @SuppressWarnings("removal")
     private static void loadSystemCustomCursorProperties() throws AWTException {
-        synchronized(systemCustomCursors) {
+        synchronized (systemCustomCursors) {
+            if (systemCustomCursorProperties != null) {
+                return;
+            }
             systemCustomCursorProperties = new Properties();
 
             try {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_INSTANCEOOP_HPP
-#define SHARE_VM_OOPS_INSTANCEOOP_HPP
+#ifndef SHARE_OOPS_INSTANCEOOP_HPP
+#define SHARE_OOPS_INSTANCEOOP_HPP
 
 #include "oops/oop.hpp"
+#include <type_traits>
 
 // An instanceOop is an instance of a Java Class
 // Evaluating "new HashTable()" will create an instanceOop.
@@ -37,18 +38,14 @@ class instanceOopDesc : public oopDesc {
 
   // If compressed, the offset of the fields of the instance may not be aligned.
   static int base_offset_in_bytes() {
-    // offset computation code breaks if UseCompressedClassPointers
-    // only is true
-    return (UseCompressedOops && UseCompressedClassPointers) ?
-             klass_gap_offset_in_bytes() :
-             sizeof(instanceOopDesc);
-  }
+    return (UseCompressedClassPointers) ?
+            klass_gap_offset_in_bytes() :
+            sizeof(instanceOopDesc);
 
-  static bool contains_field_offset(int offset, int nonstatic_field_size) {
-    int base_in_bytes = base_offset_in_bytes();
-    return (offset >= base_in_bytes &&
-            (offset-base_in_bytes) < nonstatic_field_size * heapOopSize);
   }
 };
 
-#endif // SHARE_VM_OOPS_INSTANCEOOP_HPP
+// See similar requirement for oopDesc.
+static_assert(std::is_trivially_default_constructible<instanceOopDesc>::value, "required");
+
+#endif // SHARE_OOPS_INSTANCEOOP_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,49 +22,34 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_ADAPTIVESIZEPOLICY_HPP
-#define SHARE_VM_GC_SHARED_ADAPTIVESIZEPOLICY_HPP
+#ifndef SHARE_GC_SHARED_ADAPTIVESIZEPOLICY_HPP
+#define SHARE_GC_SHARED_ADAPTIVESIZEPOLICY_HPP
 
-#include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/gcCause.hpp"
+#include "gc/shared/gcOverheadChecker.hpp"
 #include "gc/shared/gcUtil.hpp"
-#include "logging/log.hpp"
 #include "memory/allocation.hpp"
-#include "memory/universe.hpp"
 
 // This class keeps statistical information and computes the
 // size of the heap.
 
 // Forward decls
 class elapsedTimer;
-class SoftRefPolicy;
 
 class AdaptiveSizePolicy : public CHeapObj<mtGC> {
  friend class GCAdaptivePolicyCounters;
  friend class PSGCAdaptivePolicyCounters;
- friend class CMSGCAdaptivePolicyCounters;
  protected:
 
   enum GCPolicyKind {
     _gc_adaptive_size_policy,
-    _gc_ps_adaptive_size_policy,
-    _gc_cms_adaptive_size_policy
+    _gc_ps_adaptive_size_policy
   };
   virtual GCPolicyKind kind() const { return _gc_adaptive_size_policy; }
 
   enum SizePolicyTrueValues {
-    decrease_old_gen_for_throughput_true = -7,
-    decrease_young_gen_for_througput_true = -6,
-
-    increase_old_gen_for_min_pauses_true = -5,
-    decrease_old_gen_for_min_pauses_true = -4,
-    decrease_young_gen_for_maj_pauses_true = -3,
-    increase_young_gen_for_min_pauses_true = -2,
-    increase_old_gen_for_maj_pauses_true = -1,
-
     decrease_young_gen_for_min_pauses_true = 1,
     decrease_old_gen_for_maj_pauses_true = 2,
-    increase_young_gen_for_maj_pauses_true = 3,
 
     increase_old_gen_for_throughput_true = 4,
     increase_young_gen_for_througput_true = 5,
@@ -80,22 +65,12 @@ class AdaptiveSizePolicy : public CHeapObj<mtGC> {
 
   // Last calculated sizes, in bytes, and aligned
   size_t _eden_size;        // calculated eden free space in bytes
-  size_t _promo_size;       // calculated cms gen free space in bytes
+  size_t _promo_size;       // calculated promoted free space in bytes
 
   size_t _survivor_size;    // calculated survivor size in bytes
 
-  // This is a hint for the heap:  we've detected that GC times
-  // are taking longer than GCTimeLimit allows.
-  bool _gc_overhead_limit_exceeded;
-  // Use for diagnostics only.  If UseGCOverheadLimit is false,
-  // this variable is still set.
-  bool _print_gc_overhead_limit_would_be_exceeded;
-  // Count of consecutive GC that have exceeded the
-  // GC time limit criterion
-  uint _gc_overhead_limit_count;
-  // This flag signals that GCTimeLimit is being exceeded
-  // but may not have done so for the required number of consecutive
-  // collections
+  // Support for UseGCOverheadLimit
+  GCOverheadChecker _overhead_checker;
 
   // Minor collection timers used to determine both
   // pause and interval times for collections
@@ -135,7 +110,7 @@ class AdaptiveSizePolicy : public CHeapObj<mtGC> {
   // Variables for estimating the major and minor collection costs
   //   minor collection time vs. young gen size
   LinearLeastSquareFit* _minor_collection_estimator;
-  //   major collection time vs. cms gen size
+  //   major collection time vs. old gen size
   LinearLeastSquareFit* _major_collection_estimator;
 
   // These record the most recent collection times.  They
@@ -168,7 +143,7 @@ class AdaptiveSizePolicy : public CHeapObj<mtGC> {
   //   increase the tenuring threshold because of the total major GC cost
   //   is greater than the total minor GC cost
   bool _increment_tenuring_threshold_for_gc_cost;
-  //   decrease the tenuring threshold because of the the total minor GC
+  //   decrease the tenuring threshold because of the total minor GC
   //   cost is greater than the total major GC cost
   bool _decrement_tenuring_threshold_for_gc_cost;
   //   decrease due to survivor size limit
@@ -187,8 +162,6 @@ class AdaptiveSizePolicy : public CHeapObj<mtGC> {
   // for reliable data.
   julong _young_gen_change_for_minor_throughput;
   julong _old_gen_change_for_major_throughput;
-
-  static const uint GCWorkersPerJavaThread  = 2;
 
   // Accessors
 
@@ -284,12 +257,12 @@ class AdaptiveSizePolicy : public CHeapObj<mtGC> {
     // to use minor_collection_end() in its current form.
   }
 
-  virtual size_t eden_increment(size_t cur_eden);
-  virtual size_t eden_increment(size_t cur_eden, uint percent_change);
-  virtual size_t eden_decrement(size_t cur_eden);
-  virtual size_t promo_increment(size_t cur_eden);
-  virtual size_t promo_increment(size_t cur_eden, uint percent_change);
-  virtual size_t promo_decrement(size_t cur_eden);
+  size_t eden_increment(size_t cur_eden);
+  size_t eden_increment(size_t cur_eden, uint percent_change);
+  size_t eden_decrement(size_t cur_eden);
+  size_t promo_increment(size_t cur_eden);
+  size_t promo_increment(size_t cur_eden, uint percent_change);
+  size_t promo_decrement(size_t cur_eden);
 
   virtual void clear_generation_free_space_flags();
 
@@ -334,8 +307,6 @@ class AdaptiveSizePolicy : public CHeapObj<mtGC> {
   // Return true if the policy suggested a change.
   bool tenuring_threshold_change() const;
 
-  static bool _debug_perturbation;
-
  public:
   AdaptiveSizePolicy(size_t init_eden_size,
                      size_t init_promo_size,
@@ -343,35 +314,6 @@ class AdaptiveSizePolicy : public CHeapObj<mtGC> {
                      double gc_pause_goal_sec,
                      uint gc_cost_ratio);
 
-  // Return number default  GC threads to use in the next GC.
-  static uint calc_default_active_workers(uintx total_workers,
-                                          const uintx min_workers,
-                                          uintx active_workers,
-                                          uintx application_workers);
-
-  // Return number of GC threads to use in the next GC.
-  // This is called sparingly so as not to change the
-  // number of GC workers gratuitously.
-  //   For ParNew collections
-  //   For PS scavenge and ParOld collections
-  //   For G1 evacuation pauses (subject to update)
-  //   For G1 Full GCs (subject to update)
-  // Other collection phases inherit the number of
-  // GC workers from the calls above.  For example,
-  // a CMS parallel remark uses the same number of GC
-  // workers as the most recent ParNew collection.
-  static uint calc_active_workers(uintx total_workers,
-                                  uintx active_workers,
-                                  uintx application_workers);
-
-  // Return number of GC threads to use in the next concurrent GC phase.
-  static uint calc_active_conc_workers(uintx total_workers,
-                                       uintx active_workers,
-                                       uintx application_workers);
-
-  bool is_gc_cms_adaptive_size_policy() {
-    return kind() == _gc_cms_adaptive_size_policy;
-  }
   bool is_gc_ps_adaptive_size_policy() {
     return kind() == _gc_ps_adaptive_size_policy;
   }
@@ -392,17 +334,11 @@ class AdaptiveSizePolicy : public CHeapObj<mtGC> {
   AdaptiveWeightedAverage* avg_eden_live() const { return _avg_eden_live; }
   AdaptiveWeightedAverage* avg_old_live() const { return _avg_old_live; }
 
-  AdaptivePaddedAverage*  avg_survived() const { return _avg_survived; }
-  AdaptivePaddedNoZeroDevAverage*  avg_pretenured() { return _avg_pretenured; }
-
   // Methods indicating events of interest to the adaptive size policy,
   // called by GC algorithms. It is the responsibility of users of this
   // policy to call these methods at the correct times!
   virtual void minor_collection_begin();
   virtual void minor_collection_end(GCCause::Cause gc_cause);
-  virtual LinearLeastSquareFit* minor_pause_old_estimator() const {
-    return _minor_pause_old_estimator;
-  }
 
   LinearLeastSquareFit* minor_pause_young_estimator() {
     return _minor_pause_young_estimator;
@@ -415,14 +351,14 @@ class AdaptiveSizePolicy : public CHeapObj<mtGC> {
     return _major_collection_estimator;
   }
 
-  float minor_pause_young_slope() {
+  double minor_pause_young_slope() {
     return _minor_pause_young_estimator->slope();
   }
 
-  float minor_collection_slope() { return _minor_collection_estimator->slope();}
-  float major_collection_slope() { return _major_collection_estimator->slope();}
+  double minor_collection_slope() { return _minor_collection_estimator->slope();}
+  double major_collection_slope() { return _major_collection_estimator->slope();}
 
-  float minor_pause_old_slope() {
+  double minor_pause_old_slope() {
     return _minor_pause_old_estimator->slope();
   }
 
@@ -445,26 +381,16 @@ class AdaptiveSizePolicy : public CHeapObj<mtGC> {
     return _survivor_size;
   }
 
-  // This is a hint for the heap:  we've detected that gc times
-  // are taking longer than GCTimeLimit allows.
-  // Most heaps will choose to throw an OutOfMemoryError when
-  // this occurs but it is up to the heap to request this information
-  // of the policy
   bool gc_overhead_limit_exceeded() {
-    return _gc_overhead_limit_exceeded;
+    return _overhead_checker.gc_overhead_limit_exceeded();
   }
   void set_gc_overhead_limit_exceeded(bool v) {
-    _gc_overhead_limit_exceeded = v;
+    _overhead_checker.set_gc_overhead_limit_exceeded(v);
   }
 
-  // Tests conditions indicate the GC overhead limit is being approached.
-  bool gc_overhead_limit_near() {
-    return gc_overhead_limit_count() >=
-        (AdaptiveSizePolicyGCTimeLimitThreshold - 1);
+  void reset_gc_overhead_limit_count() {
+    _overhead_checker.reset_gc_overhead_limit_count();
   }
-  uint gc_overhead_limit_count() { return _gc_overhead_limit_count; }
-  void reset_gc_overhead_limit_count() { _gc_overhead_limit_count = 0; }
-  void inc_gc_overhead_limit_count() { _gc_overhead_limit_count++; }
   // accessors for flags recording the decisions to resize the
   // generations to meet the pause goal.
 
@@ -481,8 +407,7 @@ class AdaptiveSizePolicy : public CHeapObj<mtGC> {
 
   // Check the conditions for an out-of-memory due to excessive GC time.
   // Set _gc_overhead_limit_exceeded if all the conditions have been met.
-  void check_gc_overhead_limit(size_t young_live,
-                               size_t eden_live,
+  void check_gc_overhead_limit(size_t eden_live,
                                size_t max_old_gen_size,
                                size_t max_eden_size,
                                bool   is_full_gc,
@@ -506,4 +431,4 @@ class AdaptiveSizePolicy : public CHeapObj<mtGC> {
   void print_tenuring_threshold(uint new_tenuring_threshold) const;
 };
 
-#endif // SHARE_VM_GC_SHARED_ADAPTIVESIZEPOLICY_HPP
+#endif // SHARE_GC_SHARED_ADAPTIVESIZEPOLICY_HPP

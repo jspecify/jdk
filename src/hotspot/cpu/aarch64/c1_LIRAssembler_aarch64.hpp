@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_C1_LIRASSEMBLER_AARCH64_HPP
-#define CPU_AARCH64_VM_C1_LIRASSEMBLER_AARCH64_HPP
+#ifndef CPU_AARCH64_C1_LIRASSEMBLER_AARCH64_HPP
+#define CPU_AARCH64_C1_LIRASSEMBLER_AARCH64_HPP
 
 // ArrayCopyStub needs access to bailout
 friend class ArrayCopyStub;
@@ -45,9 +45,11 @@ friend class ArrayCopyStub;
 
   bool is_literal_address(LIR_Address* addr);
 
-  // When we need to use something other than rscratch1 use this
-  // method.
+  // When we need to use something other than rscratch1 use this method.
   Address as_Address(LIR_Address* addr, Register tmp);
+
+  // Ensure we have a valid Address (base+offset) to a stack-slot.
+  Address stack_slot_address(int index, uint shift, Register tmp, int adjust = 0);
 
   // Record the type of the receiver in ReceiverTypeData
   void type_profile_helper(Register mdo,
@@ -58,8 +60,6 @@ friend class ArrayCopyStub;
   void casw(Register addr, Register newval, Register cmpval);
   void casl(Register addr, Register newval, Register cmpval);
 
-  void poll_for_safepoint(relocInfo::relocType rtype, CodeEmitInfo* info = NULL);
-
   static const int max_tableswitches = 20;
   struct tableswitch switches[max_tableswitches];
   int tableswitch_count;
@@ -69,13 +69,12 @@ friend class ArrayCopyStub;
   void deoptimize_trap(CodeEmitInfo *info);
 
   enum {
-    _call_stub_size = 12 * NativeInstruction::instruction_size,
-    _call_aot_stub_size = 0,
+    // call stub: CompiledDirectCall::to_interp_stub_size() +
+    //            CompiledDirectCall::to_trampoline_stub_size()
+    _call_stub_size = 13 * NativeInstruction::instruction_size,
     _exception_handler_size = DEBUG_ONLY(1*K) NOT_DEBUG(175),
     _deopt_handler_size = 7 * NativeInstruction::instruction_size
   };
-
-  void arithmetic_idiv(LIR_Op3* op, bool is_irem);
 
 public:
 
@@ -83,4 +82,4 @@ public:
   void store_parameter(jint c,     int offset_from_esp_in_words);
   void store_parameter(jobject c,  int offset_from_esp_in_words);
 
-#endif // CPU_AARCH64_VM_C1_LIRASSEMBLER_AARCH64_HPP
+#endif // CPU_AARCH64_C1_LIRASSEMBLER_AARCH64_HPP

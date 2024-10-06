@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,20 +25,22 @@
 package sun.jvm.hotspot.gc.z;
 
 import java.io.PrintStream;
+import java.util.Iterator;
 
 import sun.jvm.hotspot.debugger.Address;
 import sun.jvm.hotspot.debugger.OopHandle;
 import sun.jvm.hotspot.gc.shared.CollectedHeap;
 import sun.jvm.hotspot.gc.shared.CollectedHeapName;
+import sun.jvm.hotspot.gc.shared.LiveRegionsClosure;
 import sun.jvm.hotspot.runtime.VM;
 import sun.jvm.hotspot.runtime.VMObjectFactory;
 import sun.jvm.hotspot.types.Type;
 import sun.jvm.hotspot.types.TypeDataBase;
+import sun.jvm.hotspot.utilities.BitMapInterface;
 
 // Mirror class for ZCollectedHeap.
 
 public class ZCollectedHeap extends CollectedHeap {
-
     private static long zHeapFieldOffset;
 
     static {
@@ -53,7 +55,7 @@ public class ZCollectedHeap extends CollectedHeap {
 
     public ZHeap heap() {
         Address heapAddr = addr.addOffsetTo(zHeapFieldOffset);
-        return (ZHeap)VMObjectFactory.newObject(ZHeap.class, heapAddr);
+        return VMObjectFactory.newObject(ZHeap.class, heapAddr);
     }
 
     @Override
@@ -70,26 +72,52 @@ public class ZCollectedHeap extends CollectedHeap {
         super(addr);
     }
 
+    @Override
+    public long capacity() {
+        return heap().capacity();
+    }
+
+    @Override
+    public long used() {
+        return heap().used();
+    }
+
+    @Override
+    public boolean isInReserved(Address a) {
+        throw new RuntimeException("ZCollectedHeap.isInReserved not implemented");
+    }
+
+    private OopHandle oop_load_barrier(Address oopAddress) {
+        throw new RuntimeException("ZCollectedHeap.oop_load_barrier not implemented");
+    }
+
+    @Override
     public OopHandle oop_load_at(OopHandle handle, long offset) {
         assert(!VM.getVM().isCompressedOopsEnabled());
 
         Address oopAddress = handle.getAddressAt(offset);
 
-        oopAddress = ZBarrier.weak_barrier(oopAddress);
-        if (oopAddress == null) {
-            return null;
-        }
+        return oop_load_barrier(oopAddress);
+    }
 
-        return oopAddress.addOffsetToAsOopHandle(0);
+    // addr can be either in heap or in native
+    @Override
+    public OopHandle oop_load_in_native(Address addr) {
+        Address oopAddress = addr.getAddressAt(0);
+        return oop_load_barrier(oopAddress);
     }
 
     public String oopAddressDescription(OopHandle handle) {
-        Address origOop = ZOop.to_address(handle);
-        Address loadBarrieredOop = ZBarrier.weak_barrier(origOop);
-        if (!origOop.equals(loadBarrieredOop)) {
-            return origOop + " (" + loadBarrieredOop.toString() + ")";
-        } else {
-            return handle.toString();
-        }
+        return handle.toString();
+    }
+
+    @Override
+    public void liveRegionsIterate(LiveRegionsClosure closure) {
+        throw new RuntimeException("ZCollectedHeap.liveRegionsIterate not implemented");
+    }
+
+    @Override
+    public BitMapInterface createBitMap(long size) {
+        throw new RuntimeException("ZCollectedHeap.createBitMap not implemented");
     }
 }

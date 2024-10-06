@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,9 @@ import javax.lang.model.element.Name;
  *   <em>expression</em> . <em>identifier</em>
  * </pre>
  *
- * @jls sections 6.5, 15.11,and 15.12
+ * @jls 6.5 Determining the Meaning of a Name
+ * @jls 15.11 Field Access Expressions
+ * @jls 15.12 Method Invocation Expressions
  *
  * @author Peter von der Ah&eacute;
  * @author Jonathan Gibbons
@@ -44,7 +46,7 @@ import javax.lang.model.element.Name;
 public interface MemberSelectTree extends ExpressionTree {
     /**
      * Returns the expression for which a member is to be selected.
-     * @return the expression.
+     * @return the expression
      */
     ExpressionTree getExpression();
 

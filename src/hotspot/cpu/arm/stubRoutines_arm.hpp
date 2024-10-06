@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,19 @@
  *
  */
 
-#ifndef CPU_ARM_VM_STUBROUTINES_ARM_HPP
-#define CPU_ARM_VM_STUBROUTINES_ARM_HPP
+#ifndef CPU_ARM_STUBROUTINES_ARM_HPP
+#define CPU_ARM_STUBROUTINES_ARM_HPP
 
 // This file holds the platform specific parts of the StubRoutines
 // definition. See stubRoutines.hpp for a description on how to
 // extend it.
 
 enum platform_dependent_constants {
-  code_size1 =  9000,           // simply increase if too small (assembler will crash if too small)
-  code_size2 = 22000            // simply increase if too small (assembler will crash if too small)
+  // simply increase sizes if too small (assembler will crash if too small)
+  _initial_stubs_code_size      =  9000,
+  _continuation_stubs_code_size =  2000,
+  _compiler_stubs_code_size     = 22000,
+  _final_stubs_code_size        = 22000
 };
 
 class Arm {
@@ -40,16 +43,12 @@ class Arm {
 
  private:
 
-#ifndef AARCH64
   static address _idiv_irem_entry;
-#endif
   static address _partial_subtype_check;
 
  public:
 
-#ifndef AARCH64
   static address idiv_irem_entry() { return _idiv_irem_entry; }
-#endif
   static address partial_subtype_check() { return _partial_subtype_check; }
 };
 
@@ -57,13 +56,11 @@ class Arm {
     return return_pc == _call_stub_return_address;
   }
 
-#ifndef AARCH64
   static address _atomic_load_long_entry;
   static address _atomic_store_long_entry;
 
   static address atomic_load_long_entry()                  { return _atomic_load_long_entry; }
   static address atomic_store_long_entry()                 { return _atomic_store_long_entry; }
-#endif
 
 
-#endif // CPU_ARM_VM_STUBROUTINES_ARM_HPP
+#endif // CPU_ARM_STUBROUTINES_ARM_HPP

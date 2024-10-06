@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,15 @@
 package sun.security.jgss.krb5;
 
 import org.ietf.jgss.*;
+import sun.security.jgss.GSSCaller;
 import sun.security.jgss.spi.*;
-import java.util.Date;
-import sun.security.krb5.internal.Ticket;
+
+import java.io.IOException;
+
+import sun.security.krb5.Credentials;
+import sun.security.krb5.KrbException;
+
+import javax.security.auth.kerberos.KerberosTicket;
 
 /**
  * Implements the krb5 proxy credential element used in constrained
@@ -39,27 +45,27 @@ import sun.security.krb5.internal.Ticket;
  * @since 1.8
  */
 
-public class Krb5ProxyCredential
+final class Krb5ProxyCredential
     implements Krb5CredElement {
 
     public final Krb5InitCredential self;   // the middle server
-    private final Krb5NameElement client;     // the client
+    private final Krb5NameElement user;     // the user
 
-    // The ticket with cname=client and sname=self. This can be a normal
-    // service ticket or an S4U2self ticket.
-    public final Ticket tkt;
+    // The creds with cname=user and sname=self. The ticket inside can
+    // be either a normal service ticket or an S4U2self ticket.
+    public final Credentials userCreds;
 
-    Krb5ProxyCredential(Krb5InitCredential self, Krb5NameElement client,
-            Ticket tkt) {
+    Krb5ProxyCredential(Krb5InitCredential self, Krb5NameElement user,
+            Credentials userCreds) {
         this.self = self;
-        this.tkt = tkt;
-        this.client = client;
+        this.userCreds = userCreds;
+        this.user = user;
     }
 
-    // The client name behind the proxy
+    // The user name behind the proxy
     @Override
     public final Krb5NameElement getName() throws GSSException {
-        return client;
+        return user;
     }
 
     @Override
@@ -111,5 +117,25 @@ public class Krb5ProxyCredential
         // Cannot impersonate multiple levels without the impersonatee's TGT.
         throw new GSSException(GSSException.FAILURE, -1,
                 "Only an initiate credentials can impersonate");
+    }
+
+    // Try to see if a default credential should act as an impersonator.
+    static Krb5CredElement tryImpersonation(GSSCaller caller,
+            Krb5InitCredential initiator) throws GSSException {
+
+        try {
+            KerberosTicket proxy = initiator.proxyTicket;
+            if (proxy != null) {
+                Credentials proxyCreds = Krb5Util.ticketToCreds(proxy);
+                return new Krb5ProxyCredential(initiator,
+                        Krb5NameElement.getInstance(proxyCreds.getClient()),
+                        proxyCreds);
+            } else {
+                return initiator;
+            }
+        } catch (KrbException | IOException e) {
+            throw new GSSException(GSSException.DEFECTIVE_CREDENTIAL, -1,
+                    "Cannot create proxy credential");
+        }
     }
 }

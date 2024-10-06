@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,17 +87,20 @@ import sun.rmi.transport.TransportConstants;
 public class TCPTransport extends Transport {
 
     /* tcp package log */
+    @SuppressWarnings("removal")
     static final Log tcpLog = Log.getLog("sun.rmi.transport.tcp", "tcp",
         LogStream.parseLevel(AccessController.doPrivileged(
             (PrivilegedAction<String>) () -> System.getProperty("sun.rmi.transport.tcp.logLevel"))));
 
     /** maximum number of connection handler threads */
+    @SuppressWarnings("removal")
     private static final int maxConnectionThreads =     // default no limit
         AccessController.doPrivileged((PrivilegedAction<Integer>) () ->
             Integer.getInteger("sun.rmi.transport.tcp.maxConnectionThreads",
                                Integer.MAX_VALUE));
 
     /** keep alive time for idle connection handler threads */
+    @SuppressWarnings("removal")
     private static final long threadKeepAliveTime =     // default 1 minute
         AccessController.doPrivileged((PrivilegedAction<Long>) () ->
             Long.getLong("sun.rmi.transport.tcp.threadKeepAliveTime", 60000));
@@ -108,6 +111,7 @@ public class TCPTransport extends Transport {
             threadKeepAliveTime, TimeUnit.MILLISECONDS,
             new SynchronousQueue<Runnable>(),
             new ThreadFactory() {
+                @SuppressWarnings("removal")
                 public Thread newThread(Runnable runnable) {
                     return AccessController.doPrivileged(new NewThreadAction(
                         runnable, "TCP Connection(idle)", true, true));
@@ -115,18 +119,21 @@ public class TCPTransport extends Transport {
             });
 
     /** total connections handled */
-    private static final AtomicInteger connectionCount = new AtomicInteger(0);
+    private static final AtomicInteger connectionCount = new AtomicInteger();
 
     /** client host for the current thread's connection */
     private static final ThreadLocal<ConnectionHandler>
         threadConnectionHandler = new ThreadLocal<>();
 
     /** an AccessControlContext with no permissions */
-    private static final AccessControlContext NOPERMS_ACC;
-    static {
+    @SuppressWarnings("removal")
+    private static final AccessControlContext NOPERMS_ACC = createNopermsAcc();
+
+    @SuppressWarnings("removal")
+    private static AccessControlContext createNopermsAcc() {
         Permissions perms = new Permissions();
         ProtectionDomain[] pd = { new ProtectionDomain(null, perms) };
-        NOPERMS_ACC = new AccessControlContext(pd);
+        return new AccessControlContext(pd);
     }
 
     /** endpoints for this transport */
@@ -148,6 +155,7 @@ public class TCPTransport extends Transport {
      * The maximum representable value is slightly more than 24 days
      * and 20 hours.
      */
+    @SuppressWarnings("removal")
     private static final int connectionReadTimeout =    // default 2 hours
         AccessController.doPrivileged((PrivilegedAction<Integer>) () ->
             Integer.getInteger("sun.rmi.transport.tcp.readTimeout", 2 * 3600 * 1000));
@@ -273,12 +281,23 @@ public class TCPTransport extends Transport {
     private void decrementExportCount() {
         assert Thread.holdsLock(this);
         exportCount--;
+        if (tcpLog.isLoggable(Log.VERBOSE)) {
+            tcpLog.log(Log.VERBOSE,
+                    "server socket: " + server + ", exportCount: " + exportCount);
+        }
         if (exportCount == 0 && getEndpoint().getListenPort() != 0) {
             ServerSocket ss = server;
             server = null;
             try {
+                if (tcpLog.isLoggable(Log.BRIEF)) {
+                    tcpLog.log(Log.BRIEF, "server socket close: " + ss);
+                }
                 ss.close();
             } catch (IOException e) {
+                if (tcpLog.isLoggable(Log.BRIEF)) {
+                    tcpLog.log(Log.BRIEF,
+                            "server socket close throws: " + e);
+                }
             }
         }
     }
@@ -287,7 +306,8 @@ public class TCPTransport extends Transport {
      * Verify that the current access control context has permission to
      * accept the connection being dispatched by the current thread.
      */
-    protected void checkAcceptPermission(AccessControlContext acc) {
+    protected void checkAcceptPermission(@SuppressWarnings("removal") AccessControlContext acc) {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm == null) {
             return;
@@ -327,6 +347,7 @@ public class TCPTransport extends Transport {
                  * "port in use" will cause export to hang if an
                  * RMIFailureHandler is not installed.
                  */
+                @SuppressWarnings("removal")
                 Thread t = AccessController.doPrivileged(
                     new NewThreadAction(new AcceptLoop(server),
                                         "TCP Accept-" + port, true));
@@ -339,6 +360,7 @@ public class TCPTransport extends Transport {
 
         } else {
             // otherwise verify security access to existing server socket
+            @SuppressWarnings("removal")
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 sm.checkListen(port);
@@ -366,6 +388,10 @@ public class TCPTransport extends Transport {
                 executeAcceptLoop();
             } finally {
                 try {
+                    if (tcpLog.isLoggable(Log.BRIEF)) {
+                        tcpLog.log(Log.BRIEF,
+                                "server socket close: " + serverSocket);
+                    }
                     /*
                      * Only one accept loop is started per server
                      * socket, so after no more connections will be
@@ -374,6 +400,10 @@ public class TCPTransport extends Transport {
                      */
                     serverSocket.close();
                 } catch (IOException e) {
+                    if (tcpLog.isLoggable(Log.BRIEF)) {
+                        tcpLog.log(Log.BRIEF,
+                                "server socket close throws: " + e);
+                    }
                 }
             }
         }
@@ -524,9 +554,15 @@ public class TCPTransport extends Transport {
     /** close socket and eat exception */
     private static void closeSocket(Socket sock) {
         try {
+            if (tcpLog.isLoggable(Log.BRIEF)) {
+                tcpLog.log(Log.BRIEF, "socket close: " + sock);
+            }
             sock.close();
         } catch (IOException ex) {
             // eat exception
+            if (tcpLog.isLoggable(Log.BRIEF)) {
+                tcpLog.log(Log.BRIEF, "socket close throws: " + ex);
+            }
         }
     }
 
@@ -591,6 +627,9 @@ public class TCPTransport extends Transport {
                 conn.close();
             } catch (IOException ex) {
                 // eat exception
+                if (tcpLog.isLoggable(Log.BRIEF)) {
+                    tcpLog.log(Log.BRIEF, "Connection close throws " + ex);
+                }
             }
         }
     }
@@ -618,11 +657,14 @@ public class TCPTransport extends Transport {
         private static final int POST = 0x504f5354;
 
         /** most recently accept-authorized AccessControlContext */
+        @SuppressWarnings("removal")
         private AccessControlContext okContext;
         /** cache of accept-authorized AccessControlContexts */
+        @SuppressWarnings("removal")
         private Map<AccessControlContext,
                     Reference<AccessControlContext>> authCache;
         /** security manager which authorized contexts in authCache */
+        @SuppressWarnings("removal")
         private SecurityManager cacheSecurityManager = null;
 
         private Socket socket;
@@ -641,6 +683,7 @@ public class TCPTransport extends Transport {
          * Verify that the given AccessControlContext has permission to
          * accept this connection.
          */
+        @SuppressWarnings("removal")
         void checkAcceptPermission(SecurityManager sm,
                                    AccessControlContext acc)
         {
@@ -666,6 +709,7 @@ public class TCPTransport extends Transport {
             okContext = acc;
         }
 
+        @SuppressWarnings("removal")
         public void run() {
             Thread t = Thread.currentThread();
             String name = t.getName();
@@ -723,6 +767,10 @@ public class TCPTransport extends Transport {
                     // just close socket: this would recurse if we marshal an
                     // exception to the client and the protocol at other end
                     // doesn't match.
+                    if (tcpLog.isLoggable(Log.BRIEF)) {
+                        tcpLog.log(Log.BRIEF, "magic or version not match: "
+                                                  + magic + ", " + version);
+                    }
                     closeSocket(socket);
                     return;
                 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,6 @@
 #include "precompiled.hpp"
 #include "gc/parallel/psGCAdaptivePolicyCounters.hpp"
 #include "memory/resourceArea.hpp"
-#include "runtime/arguments.hpp"
-
-
 
 PSGCAdaptivePolicyCounters::PSGCAdaptivePolicyCounters(const char* name_arg,
                                       int collectors,
@@ -54,10 +51,6 @@ PSGCAdaptivePolicyCounters::PSGCAdaptivePolicyCounters(const char* name_arg,
     cname = PerfDataManager::counter_name(name_space(), "oldCapacity");
     _old_capacity = PerfDataManager::create_variable(SUN_GC, cname,
       PerfData::U_Bytes, (jlong) InitialHeapSize, CHECK);
-
-    cname = PerfDataManager::counter_name(name_space(), "boundaryMoved");
-    _boundary_moved = PerfDataManager::create_variable(SUN_GC, cname,
-      PerfData::U_Bytes, (jlong) 0, CHECK);
 
     cname = PerfDataManager::counter_name(name_space(), "avgPromotedAvg");
     _avg_promoted_avg_counter =
@@ -114,15 +107,6 @@ PSGCAdaptivePolicyCounters::PSGCAdaptivePolicyCounters(const char* name_arg,
     _free_space = PerfDataManager::create_variable(SUN_GC, cname,
       PerfData::U_Bytes, ps_size_policy()->free_space(), CHECK);
 
-    cname = PerfDataManager::counter_name(name_space(), "avgBaseFootprint");
-    _avg_base_footprint = PerfDataManager::create_variable(SUN_GC, cname,
-      PerfData::U_Bytes, (jlong) ps_size_policy()->avg_base_footprint()->average(), CHECK);
-
-    cname = PerfDataManager::counter_name(name_space(), "gcTimeLimitExceeded");
-    _gc_overhead_limit_exceeded_counter =
-      PerfDataManager::create_variable(SUN_GC, cname,
-      PerfData::U_Events, ps_size_policy()->gc_overhead_limit_exceeded(), CHECK);
-
     cname = PerfDataManager::counter_name(name_space(), "liveAtLastFullGc");
     _live_at_last_full_gc_counter =
       PerfDataManager::create_variable(SUN_GC, cname,
@@ -139,14 +123,6 @@ PSGCAdaptivePolicyCounters::PSGCAdaptivePolicyCounters(const char* name_arg,
     cname = PerfDataManager::counter_name(name_space(), "majorPauseYoungSlope");
     _major_pause_young_slope = PerfDataManager::create_variable(SUN_GC, cname,
       PerfData::U_None, (jlong) 0, CHECK);
-
-    cname = PerfDataManager::counter_name(name_space(), "scavengeSkipped");
-    _scavenge_skipped = PerfDataManager::create_variable(SUN_GC, cname,
-      PerfData::U_Bytes, (jlong) 0, CHECK);
-
-    cname = PerfDataManager::counter_name(name_space(), "fullFollowsScavenge");
-    _full_follows_scavenge = PerfDataManager::create_variable(SUN_GC, cname,
-      PerfData::U_Bytes, (jlong) 0, CHECK);
 
     _counter_time_stamp.update();
   }
@@ -177,7 +153,6 @@ void PSGCAdaptivePolicyCounters::update_counters_from_policy() {
     update_decrement_tenuring_threshold_for_survivor_limit();
     update_live_space();
     update_free_space();
-    update_avg_base_footprint();
 
     update_change_old_gen_for_maj_pauses();
     update_change_young_gen_for_maj_pauses();

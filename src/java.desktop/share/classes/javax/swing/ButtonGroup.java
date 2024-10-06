@@ -51,7 +51,7 @@ import java.io.Serializable;
  * Initially, all buttons in the group are unselected.
  * <p>
  * For examples and further information on using button groups see
- * <a href="http://docs.oracle.com/javase/tutorial/uiswing/components/button.html#radiobutton">How to Use Radio Buttons</a>,
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/button.html#radiobutton">How to Use Radio Buttons</a>,
  * a section in <em>The Java Tutorial</em>.
  * <p>
  * <strong>Warning:</strong>
@@ -59,7 +59,7 @@ import java.io.Serializable;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -172,7 +172,7 @@ public class ButtonGroup implements Serializable {
     /**
      * Returns whether a {@code ButtonModel} is selected.
      *
-     * @param m an isntance of {@code ButtonModel}
+     * @param m an instance of {@code ButtonModel}
      * @return {@code true} if the button is selected,
      *   otherwise returns {@code false}
      */

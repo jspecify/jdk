@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,7 @@ import java.text.DateFormat;
 import java.text.Format;
 import java.text.NumberFormat;
 import java.util.Date;
+
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JCheckBox;
@@ -45,7 +46,9 @@ import javax.swing.JLabel;
 import javax.swing.JTable;
 import javax.swing.LookAndFeel;
 import javax.swing.border.Border;
-import javax.swing.plaf.*;
+import javax.swing.plaf.ColorUIResource;
+import javax.swing.plaf.ComponentUI;
+import javax.swing.plaf.UIResource;
 import javax.swing.plaf.basic.BasicTableUI;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
@@ -83,9 +86,17 @@ public class SynthTableUI extends BasicTableUI
     private TableCellRenderer booleanRenderer;
     private TableCellRenderer objectRenderer;
 
+    private boolean showHorizLines;
+    private boolean showVertLines;
 //
 //  The installation/uninstall procedures and support
 //
+
+    /**
+     *
+     * Constructs a {@code SynthTableUI}.
+     */
+    public SynthTableUI() {}
 
     /**
      * Creates a new UI object for the given component.
@@ -169,10 +180,10 @@ public class SynthTableUI extends BasicTableUI
             if (rowHeight != null) {
                 LookAndFeel.installProperty(table, "rowHeight", rowHeight);
             }
+            showHorizLines = table.getShowHorizontalLines();
+            showVertLines = table.getShowVerticalLines();
             boolean showGrid = style.getBoolean(context, "Table.showGrid", true);
-            if (!showGrid) {
-                table.setShowGrid(false);
-            }
+            table.setShowGrid(showGrid);
             Dimension d = table.getIntercellSpacing();
 //            if (d == null || d instanceof UIResource) {
             if (d != null) {
@@ -218,6 +229,8 @@ public class SynthTableUI extends BasicTableUI
             table.setTransferHandler(null);
         }
         SynthContext context = getContext(table, ENABLED);
+        table.setShowHorizontalLines(showHorizLines);
+        table.setShowVerticalLines(showVertLines);
         style.uninstallDefaults(context);
         style = null;
     }
@@ -313,10 +326,7 @@ public class SynthTableUI extends BasicTableUI
         // into the table's bounds
         bounds.x = bounds.y = 0;
 
-        if (table.getRowCount() <= 0 || table.getColumnCount() <= 0 ||
-                // this check prevents us from painting the entire table
-                // when the clip doesn't intersect our bounds at all
-                !bounds.intersects(clip)) {
+        if (table.getRowCount() <= 0 || table.getColumnCount() <= 0) {
 
             paintDropLines(context, g);
             return;
@@ -700,8 +710,11 @@ public class SynthTableUI extends BasicTableUI
         }
     }
 
+    /**
+     * The renderer installed by the UI to render the boolean data.
+     */
     @SuppressWarnings("serial") // Superclass is not serializable across versions
-    private class SynthBooleanTableCellRenderer extends JCheckBox implements
+    private static class SynthBooleanTableCellRenderer extends JCheckBox implements
                       TableCellRenderer {
         private boolean isRowSelected;
 
@@ -739,6 +752,9 @@ public class SynthTableUI extends BasicTableUI
         }
     }
 
+    /**
+     * The {@code DefaultTableCellRenderer} installed by the UI.
+     */
     @SuppressWarnings("serial") // Superclass is not serializable across versions
     private class SynthTableCellRenderer extends DefaultTableCellRenderer {
         private Object numberFormat;

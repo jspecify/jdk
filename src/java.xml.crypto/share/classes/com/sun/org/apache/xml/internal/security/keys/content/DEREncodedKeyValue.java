@@ -41,7 +41,7 @@ import org.w3c.dom.Element;
 public class DEREncodedKeyValue extends Signature11ElementProxy implements KeyInfoContent {
 
     /** JCA algorithm key types supported by this implementation. */
-    private static final String supportedKeyTypes[] = { "RSA", "DSA", "EC"};
+    private static final String[] supportedKeyTypes = { "RSA", "DSA", "EC"};
 
     /**
      * Constructor DEREncodedKeyValue
@@ -98,6 +98,7 @@ public class DEREncodedKeyValue extends Signature11ElementProxy implements KeyIn
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getBaseLocalName() {
         return Constants._TAG_DERENCODEDKEYVALUE;
     }
@@ -120,9 +121,7 @@ public class DEREncodedKeyValue extends Signature11ElementProxy implements KeyIn
                 if (publicKey != null) {
                     return publicKey;
                 }
-            } catch (NoSuchAlgorithmException e) { //NOPMD
-                // Do nothing, try the next type
-            } catch (InvalidKeySpecException e) { //NOPMD
+            } catch (NoSuchAlgorithmException | InvalidKeySpecException e) { //NOPMD
                 // Do nothing, try the next type
             }
         }
@@ -140,11 +139,8 @@ public class DEREncodedKeyValue extends Signature11ElementProxy implements KeyIn
             KeyFactory keyFactory = KeyFactory.getInstance(publicKey.getAlgorithm());
             X509EncodedKeySpec keySpec = keyFactory.getKeySpec(publicKey, X509EncodedKeySpec.class);
             return keySpec.getEncoded();
-        } catch (NoSuchAlgorithmException e) {
-            Object exArgs[] = { publicKey.getAlgorithm(), publicKey.getFormat(), publicKey.getClass().getName() };
-            throw new XMLSecurityException(e, "DEREncodedKeyValue.UnsupportedPublicKey", exArgs);
-        } catch (InvalidKeySpecException e) {
-            Object exArgs[] = { publicKey.getAlgorithm(), publicKey.getFormat(), publicKey.getClass().getName() };
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            Object[] exArgs = { publicKey.getAlgorithm(), publicKey.getFormat(), publicKey.getClass().getName() };
             throw new XMLSecurityException(e, "DEREncodedKeyValue.UnsupportedPublicKey", exArgs);
         }
     }

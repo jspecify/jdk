@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,25 +22,31 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package javax.swing;
 
 import java.awt.Component;
 import java.awt.Graphics;
 import java.awt.Insets;
 import java.awt.Toolkit;
-import java.awt.event.*;
-import java.beans.JavaBean;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
 import java.beans.BeanProperty;
+import java.beans.JavaBean;
 import java.beans.Transient;
-import java.util.Vector;
-
-import java.io.Serializable;
-import java.io.ObjectOutputStream;
-import java.io.ObjectInputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.ArrayList;
 
-import javax.swing.plaf.*;
-import javax.accessibility.*;
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleRole;
+import javax.accessibility.AccessibleSelection;
+import javax.accessibility.AccessibleStateSet;
+import javax.swing.plaf.MenuBarUI;
 
 import sun.awt.SunToolkit;
 
@@ -52,7 +58,7 @@ import sun.awt.SunToolkit;
  * <p>
  * For information and examples of using menu bars see
  * <a
- href="http://docs.oracle.com/javase/tutorial/uiswing/components/menu.html">How to Use Menus</a>,
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/menu.html">How to Use Menus</a>,
  * a section in <em>The Java Tutorial.</em>
  * <p>
  * <strong>Warning:</strong> Swing is not thread safe. For more
@@ -65,7 +71,7 @@ import sun.awt.SunToolkit;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  * <p>
@@ -391,7 +397,7 @@ public class JMenuBar extends JComponent implements Accessible,MenuElement
      *
      * @see #getSubElements
      */
-    public void processMouseEvent(MouseEvent event,MenuElement path[],MenuSelectionManager manager) {
+    public void processMouseEvent(MouseEvent event,MenuElement[] path,MenuSelectionManager manager) {
     }
 
     /**
@@ -399,7 +405,7 @@ public class JMenuBar extends JComponent implements Accessible,MenuElement
      *
      * @see #getSubElements
      */
-    public void processKeyEvent(KeyEvent e,MenuElement path[],MenuSelectionManager manager) {
+    public void processKeyEvent(KeyEvent e,MenuElement[] path,MenuSelectionManager manager) {
     }
 
     /**
@@ -420,8 +426,8 @@ public class JMenuBar extends JComponent implements Accessible,MenuElement
      */
     @BeanProperty(bound = false)
     public MenuElement[] getSubElements() {
-        MenuElement result[];
-        Vector<MenuElement> tmp = new Vector<MenuElement>();
+        MenuElement[] result;
+        ArrayList<MenuElement> tmp = new ArrayList<MenuElement>();
         int c = getComponentCount();
         int i;
         Component m;
@@ -429,12 +435,12 @@ public class JMenuBar extends JComponent implements Accessible,MenuElement
         for(i=0 ; i < c ; i++) {
             m = getComponent(i);
             if(m instanceof MenuElement)
-                tmp.addElement((MenuElement) m);
+                tmp.add((MenuElement) m);
         }
 
         result = new MenuElement[tmp.size()];
         for(i=0,c=tmp.size() ; i < c ; i++)
-            result[i] = tmp.elementAt(i);
+            result[i] = tmp.get(i);
         return result;
     }
 
@@ -502,13 +508,18 @@ public class JMenuBar extends JComponent implements Accessible,MenuElement
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
     @SuppressWarnings("serial")
     protected class AccessibleJMenuBar extends AccessibleJComponent
         implements AccessibleSelection {
+
+        /**
+         * Constructs an {@code AccessibleJMenuBar}.
+         */
+        protected AccessibleJMenuBar() {}
 
         /**
          * Get the accessible state set of this object.
@@ -610,7 +621,7 @@ public class JMenuBar extends JComponent implements Accessible,MenuElement
             getSelectionModel().setSelectedIndex(i);
             JMenu menu = getMenu(i);
             if (menu != null) {
-                MenuElement me[] = new MenuElement[3];
+                MenuElement[] me = new MenuElement[3];
                 me[0] = JMenuBar.this;
                 me[1] = menu;
                 me[2] = menu.getPopupMenu();
@@ -695,9 +706,7 @@ public class JMenuBar extends JComponent implements Accessible,MenuElement
             return false;
         }
 
-        if (c != null && c instanceof JComponent &&
-            ((JComponent)c).processKeyBinding(ks, e, condition, pressed)) {
-
+        if (c instanceof JComponent jc && jc.processKeyBinding(ks, e, condition, pressed)) {
             return true;
         }
 
@@ -730,6 +739,7 @@ public class JMenuBar extends JComponent implements Accessible,MenuElement
     }
 
 
+    @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         s.defaultWriteObject();
         if (getUIClassID().equals(uiClassID)) {
@@ -756,6 +766,7 @@ public class JMenuBar extends JComponent implements Accessible,MenuElement
      * See JComponent.readObject() for information about serialization
      * in Swing.
      */
+    @Serial
     private void readObject(ObjectInputStream s) throws IOException, ClassNotFoundException
     {
         s.defaultReadObject();

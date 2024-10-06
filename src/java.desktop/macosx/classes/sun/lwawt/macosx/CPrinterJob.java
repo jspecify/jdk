@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,18 +30,24 @@ import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.print.*;
+import java.net.URI;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.print.*;
 import javax.print.attribute.PrintRequestAttributeSet;
 import javax.print.attribute.HashPrintRequestAttributeSet;
 import javax.print.attribute.standard.Copies;
+import javax.print.attribute.standard.Destination;
 import javax.print.attribute.standard.Media;
 import javax.print.attribute.standard.MediaPrintableArea;
 import javax.print.attribute.standard.MediaSize;
 import javax.print.attribute.standard.MediaSizeName;
+import javax.print.attribute.standard.OutputBin;
 import javax.print.attribute.standard.PageRanges;
+import javax.print.attribute.standard.Sides;
+import javax.print.attribute.Attribute;
 
 import sun.java2d.*;
 import sun.print.*;
@@ -57,10 +63,15 @@ public final class CPrinterJob extends RasterPrinterJob {
     private static String sShouldNotReachHere = "Should not reach here.";
 
     private volatile SecondaryLoop printingLoop;
+    private AtomicReference<Throwable> printErrorRef = new AtomicReference<>();
 
     private boolean noDefaultPrinter = false;
 
     private static Font defaultFont;
+
+    private String tray = null;
+
+    private String outputBin = null;
 
     // This is the NSPrintInfo for this PrinterJob. Protect multi thread
     //  access to it. It is used by the pageDialog, jobDialog, and printLoop.
@@ -177,6 +188,13 @@ public final class CPrinterJob extends RasterPrinterJob {
         if (attributes == null) {
             return;
         }
+        Attribute attr = attributes.get(Media.class);
+        if (attr instanceof CustomMediaTray) {
+            CustomMediaTray customTray = (CustomMediaTray) attr;
+            tray = customTray.getChoiceName();
+        }
+
+        outputBin = getOutputBinValue(attributes.get(OutputBin.class));
 
         PageRanges pageRangesAttr =  (PageRanges)attributes.get(PageRanges.class);
         if (isSupportedValue(pageRangesAttr, attributes)) {
@@ -246,10 +264,30 @@ public final class CPrinterJob extends RasterPrinterJob {
         }
     }
 
+    boolean isPrintToFile = false;
+    private void setPrintToFile(boolean printToFile) {
+        isPrintToFile = printToFile;
+    }
+
+    private void setDestinationFile(String dest) {
+        if (attributes != null && dest != null) {
+            try {
+               URI destURI = new URI(dest);
+               attributes.add(new Destination(destURI));
+               destinationAttr = "" + destURI.getSchemeSpecificPart();
+            } catch (Exception e) {
+            }
+        }
+    }
+
+    private String getDestinationFile() {
+        return destinationAttr;
+    }
+
+    @SuppressWarnings("removal")
     @Override
     public void print(PrintRequestAttributeSet attributes) throws PrinterException {
         // NOTE: Some of this code is copied from RasterPrinterJob.
-
 
         // this code uses javax.print APIs
         // this will make it print directly to the printer
@@ -257,7 +295,7 @@ public final class CPrinterJob extends RasterPrinterJob {
         // However if the printer is a StreamPrintService, its the right path.
         PrintService psvc = getPrintService();
 
-        if (psvc == null) {
+        if (psvc == null && !isPrintToFile) {
             throw new PrinterException("No print service found.");
         }
 
@@ -293,6 +331,7 @@ public final class CPrinterJob extends RasterPrinterJob {
                 performingPrinting = true;
                 userCancelled = false;
             }
+            printErrorRef.set(null);
 
             //Add support for PageRange
             PageRanges pr = (attributes == null) ?  null
@@ -350,6 +389,15 @@ public final class CPrinterJob extends RasterPrinterJob {
             }
             if (printingLoop != null) {
                 printingLoop.exit();
+            }
+
+            Throwable printError = printErrorRef.getAndSet(null);
+            if (printError != null) {
+                if (printError instanceof PrinterException) {
+                    throw (PrinterException) printError;
+                }
+                throw (PrinterException)
+                    new PrinterException().initCause(printError);
             }
         }
 
@@ -556,7 +604,7 @@ public final class CPrinterJob extends RasterPrinterJob {
     // The following methods are CPrinterJob specific.
 
     @Override
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal")
     protected void finalize() {
         synchronized (fNSPrintInfoLock) {
             if (fNSPrintInfo != -1) {
@@ -589,7 +637,8 @@ public final class CPrinterJob extends RasterPrinterJob {
         } catch (Exception e) {
             return null;
         }
-        return page;
+
+        return FlipPageFormat.flipPage(page);
     }
 
     private Printable getPrintable(int pageIndex) {
@@ -608,6 +657,45 @@ public final class CPrinterJob extends RasterPrinterJob {
         PrintService service = getPrintService();
         if (service == null) return null;
         return service.getName();
+    }
+
+    private String getPrinterTray() {
+        return tray;
+    }
+
+    private String getOutputBin() {
+        return outputBin;
+    }
+
+    private void setOutputBin(String outputBinName) {
+
+        OutputBin outputBin = toOutputBin(outputBinName);
+        if (outputBin != null) {
+            attributes.add(outputBin);
+        }
+    }
+
+    private OutputBin toOutputBin(String outputBinName) {
+
+        PrintService ps = getPrintService();
+        if (ps == null) {
+            return null;
+        }
+
+        OutputBin[] supportedBins = (OutputBin[]) ps.getSupportedAttributeValues(OutputBin.class, null, null);
+        if (supportedBins == null || supportedBins.length == 0) {
+            return null;
+        }
+
+        for (OutputBin bin : supportedBins) {
+            if (bin instanceof CustomOutputBin customBin){
+                if (customBin.getChoiceName().equals(outputBinName)) {
+                    return customBin;
+                }
+            }
+        }
+
+        return null;
     }
 
     private void setPrinterServiceFromNative(String printerName) {
@@ -635,6 +723,24 @@ public final class CPrinterJob extends RasterPrinterJob {
                     page.getImageableWidth(),
                     page.getImageableHeight());
         return pageFormatArea;
+    }
+
+    private int getSides() {
+        return (this.sidesAttr == null) ? -1 : this.sidesAttr.getValue();
+    }
+
+    private void setSides(int sides) {
+        if (attributes == null) {
+            return;
+        }
+
+        final Sides[] sidesTable = new Sides[] {Sides.ONE_SIDED, Sides.TWO_SIDED_LONG_EDGE, Sides.TWO_SIDED_SHORT_EDGE};
+
+        if (sides >= 0 && sides < sidesTable.length) {
+            Sides s = sidesTable[sides];
+            attributes.add(s);
+            this.sidesAttr = s;
+        }
     }
 
     private boolean cancelCheck() {
@@ -685,7 +791,7 @@ public final class CPrinterJob extends RasterPrinterJob {
                 Graphics2D pathGraphics = new CPrinterGraphics(delegate, printerJob); // Just stores delegate into an ivar
                 Rectangle2D pageFormatArea = getPageFormatArea(page);
                 initPrinterGraphics(pathGraphics, pageFormatArea);
-                painter.print(pathGraphics, page, pageIndex);
+                painter.print(pathGraphics, FlipPageFormat.getOriginal(page), pageIndex);
                 delegate.dispose();
                 delegate = null;
         } catch (PrinterException pe) { throw new java.lang.reflect.UndeclaredThrowableException(pe); }
@@ -712,7 +818,7 @@ public final class CPrinterJob extends RasterPrinterJob {
         Runnable r = new Runnable() { public void run() { synchronized(ret) {
             try {
                 Pageable pageable = getPageable();
-                PageFormat pageFormat = pageable.getPageFormat(pageIndex);
+                PageFormat pageFormat = getPageFormat(pageIndex);
                 if (pageFormat != null) {
                     Printable printable = pageable.getPrintable(pageIndex);
                     if (printable != null) {
@@ -752,22 +858,40 @@ public final class CPrinterJob extends RasterPrinterJob {
     private Rectangle2D printAndGetPageFormatArea(final Printable printable, final Graphics graphics, final PageFormat pageFormat, final int pageIndex) {
         final Rectangle2D[] ret = new Rectangle2D[1];
 
-        Runnable r = new Runnable() { public void run() { synchronized(ret) {
-            try {
-                int pageResult = printable.print(graphics, pageFormat, pageIndex);
-                if (pageResult != Printable.NO_SUCH_PAGE) {
-                    ret[0] = getPageFormatArea(pageFormat);
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                synchronized (ret) {
+                    try {
+                        Paper paper = pageFormat.getPaper();
+                        double width = Math.rint(paper.getWidth());
+                        double height = Math.rint(paper.getHeight());
+                        setGraphicsConfigInfo(((Graphics2D)graphics).getTransform(), width, height);
+                        int pageResult = printable.print(
+                            graphics, pageFormat, pageIndex);
+                        if (pageResult != Printable.NO_SUCH_PAGE) {
+                            ret[0] = getPageFormatArea(pageFormat);
+                        }
+                    } catch (Throwable t) {
+                        printErrorRef.compareAndSet(null, t);
+                    }
                 }
-            } catch (Exception e) {} // Original code bailed on any exception
-        }}};
+            }
+        };
 
         if (onEventThread) {
-            try { EventQueue.invokeAndWait(r); } catch (Exception e) { e.printStackTrace(); }
+            try {
+                EventQueue.invokeAndWait(r);
+            } catch (Throwable t) {
+                printErrorRef.compareAndSet(null, t);
+            }
         } else {
             r.run();
         }
 
-        synchronized(ret) { return ret[0]; }
+        synchronized (ret) {
+            return ret[0];
+        }
     }
 
     // upcall from native
@@ -785,10 +909,10 @@ public final class CPrinterJob extends RasterPrinterJob {
     @Override
     protected MediaSize getMediaSize(Media media, PrintService service,
             PageFormat page) {
-        if (media == null || !(media instanceof MediaSizeName)) {
+        if (!(media instanceof MediaSizeName msn)) {
             return getDefaultMediaSize(page);
         }
-        MediaSize size = MediaSize.getMediaSizeForName((MediaSizeName) media);
+        MediaSize size = MediaSize.getMediaSizeForName(msn);
         return size != null ? size : getDefaultMediaSize(page);
     }
 
@@ -810,5 +934,76 @@ public final class CPrinterJob extends RasterPrinterJob {
                 (float) (paper.getImageableWidth() / dpi),
                 (float) (paper.getImageableHeight() / dpi),
                 MediaPrintableArea.INCH);
+    }
+
+    // MacOS NSPrintInfo class has one to one correspondence
+    // between a paper size and its orientation.
+    // NSPrintInfo with paper width less than height
+    // has portrait orientation.
+    // NSPrintInfo with paper width greater than height
+    // has landscape orientation.
+    // (w < h) <-> portrait
+    // (w > h) <-> landscape
+    //
+    // Java PageFormat class has the following relation with NSPrintInfo:
+    // 1. PageFormat:
+    //      page size: width < height
+    //      orientation: portrait
+    //    NSPrintInfo: width < height (portrait orientation)
+    // 2. PageFormat:
+    //      page size: width < height
+    //      orientation: landscape
+    //    NSPrintInfo: width > height (landscape orientation)
+    //
+    // FlipPageFormat class establishes correspondence between
+    // Java PageFormat class which page width is greater than height
+    // with NSPrintInfo in the following way:
+    // 3. PageFormat:
+    //      page size: width > height
+    //      orientation: portrait
+    //    FlipPageFormat
+    //      page size: width < height
+    //      orientation: landscape
+    //    NSPrintInfo: width > height (landscape orientation)
+    // 4. PageFormat:
+    //      page size: width > height
+    //      orientation: landscape
+    //    FlipPageFormat
+    //      page size: width < height
+    //      orientation: portrait
+    //    NSPrintInfo: width < height (portrait orientation)
+    //
+    // FlipPageFormat preserves the original PageFormat class
+    // to pass it to Printable.print(Graphics, PageFormat, int)
+    // method overridden by a user.
+    private static class FlipPageFormat extends PageFormat {
+
+        private final PageFormat original;
+
+        private FlipPageFormat(PageFormat original) {
+            this.original = original;
+            Paper paper = original.getPaper();
+            Paper copyPaper = this.getPaper();
+            copyPaper.setSize(paper.getHeight(), paper.getWidth());
+            copyPaper.setImageableArea(
+                    paper.getImageableY(), paper.getImageableX(),
+                    paper.getImageableHeight(), paper.getImageableWidth());
+            this.setPaper(copyPaper);
+            this.setOrientation((original.getOrientation() == PageFormat.PORTRAIT)
+                    ? PageFormat.LANDSCAPE
+                    : PageFormat.PORTRAIT);
+        }
+
+        private static PageFormat getOriginal(PageFormat page) {
+            return (page instanceof FlipPageFormat) ? ((FlipPageFormat) page).original : page;
+        }
+
+        private static PageFormat flipPage(PageFormat page) {
+            if (page == null) {
+                return null;
+            }
+            Paper paper = page.getPaper();
+            return (paper.getWidth() > paper.getHeight()) ? new FlipPageFormat(page) : page;
+        }
     }
 }

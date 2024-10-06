@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2017, SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_S390_VM_STUBROUTINES_ZARCH_64_64_HPP
-#define CPU_S390_VM_STUBROUTINES_ZARCH_64_64_HPP
+#ifndef CPU_S390_STUBROUTINES_S390_HPP
+#define CPU_S390_STUBROUTINES_S390_HPP
 
 // This file holds the platform specific parts of the StubRoutines
 // definition. See stubRoutines.hpp for a description on how to extend it.
@@ -32,9 +32,11 @@
 static bool returns_to_call_stub(address return_pc) { return return_pc == _call_stub_return_address; }
 
 enum { // Platform dependent constants.
-  // TODO: May be able to shrink this a lot
-  code_size1 = 20000,      // Simply increase if too small (assembler will crash if too small).
-  code_size2 = 20000       // Simply increase if too small (assembler will crash if too small).
+  // simply increase sizes if too small (assembler will crash if too small)
+  _initial_stubs_code_size      = 20000,
+  _continuation_stubs_code_size =  2000,
+  _compiler_stubs_code_size     = 20000,
+  _final_stubs_code_size        = 20000
 };
 
 // MethodHandles adapters
@@ -100,4 +102,4 @@ class zarch {
   static void generate_load_trot_table_addr(MacroAssembler* masm, Register table);
 };
 
-#endif // CPU_S390_VM_STUBROUTINES_ZARCH_64_64_HPP
+#endif // CPU_S390_STUBROUTINES_S390_HPP

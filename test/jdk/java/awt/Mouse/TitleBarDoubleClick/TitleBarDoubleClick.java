@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,26 @@
  */
 
 /*
-  test
+  @test
+  @key headful
   @bug 4664415
-  @summary REGRESSION: double click jframe titlebar generating mouse events in panel
-  @author Andrei Dmitriev: area=awt.mouse
-  @run applet TitleBarDoubleClick.html
+  @summary Test that double clicking the titlebar does not send RELEASE/CLICKED
+  @run main TitleBarDoubleClick
 */
-import java.applet.Applet;
-import java.awt.*;
-import java.awt.event.*;
-import test.java.awt.regtesthelpers.Util;
 
-public class TitleBarDoubleClick extends Applet implements MouseListener,
- WindowListener
+import java.awt.AWTError;
+import java.awt.AWTException;
+import java.awt.Frame;
+import java.awt.Rectangle;
+import java.awt.Robot;
+import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
+
+public class TitleBarDoubleClick implements MouseListener,
+        WindowListener
 {
     //Declare things used in the test, like buttons and labels here
     private final static Rectangle BOUNDS = new Rectangle(300, 300, 300, 300);
@@ -43,80 +50,85 @@ public class TitleBarDoubleClick extends Applet implements MouseListener,
     Frame frame;
     Robot robot;
 
-    public void init()
-    {
-        this.setLayout (new BorderLayout ());
+    private volatile boolean failed = false;
 
-    }//End  init()
-
-    public void start ()
-    {
-        //Get things going.  Request focus, set size, et cetera
-        setSize (200,200);
-        setVisible(true);
-        validate();
-
-        //What would normally go into main() will probably go here.
-        //Use System.out.println for diagnostic messages that you want
-        //to read after the test is done.
-        //Use Sysout.println for messages you want the tester to read.
-
-            robot = Util.createRobot();
-            robot.setAutoDelay(100);
-            robot.mouseMove(BOUNDS.x + (BOUNDS.width / 2),
-                            BOUNDS.y + (BOUNDS.height/ 2));
-
-            frame = new Frame("TitleBarDoubleClick");
-            frame.setBounds(BOUNDS);
-            frame.addMouseListener(this);
-            frame.addWindowListener(this);
-            frame.setVisible(true);
-    }// start()
-
-    // Move the mouse into the title bar and double click to maximize the
-    // Frame
-    static boolean hasRun = false;
-
-    private void doTest() {
-        if (hasRun) return;
-        hasRun = true;
-
-        System.out.println("doing test");
-            robot.mouseMove(BOUNDS.x + (BOUNDS.width / 2),
-                            BOUNDS.y + TITLE_BAR_OFFSET);
-            robot.delay(50);
-            // Util.waitForIdle(robot) seem always hangs here.
-            // Need to use it instead robot.delay() when the bug become fixed.
-            System.out.println("1st press:   currentTimeMillis: " + System.currentTimeMillis());
-            robot.mousePress(InputEvent.BUTTON1_MASK);
-            robot.delay(50);
-            System.out.println("1st release: currentTimeMillis: " + System.currentTimeMillis());
-            robot.mouseRelease(InputEvent.BUTTON1_MASK);
-            robot.delay(50);
-            System.out.println("2nd press:   currentTimeMillis: " + System.currentTimeMillis());
-            robot.mousePress(InputEvent.BUTTON1_MASK);
-            robot.delay(50);
-            System.out.println("2nd release: currentTimeMillis: " + System.currentTimeMillis());
-            robot.mouseRelease(InputEvent.BUTTON1_MASK);
-            System.out.println("done:        currentTimeMillis: " + System.currentTimeMillis());
+    public static void main(final String[] args) throws AWTException {
+        new TitleBarDoubleClick().doTest();
     }
 
-    private void fail() {
-        throw new AWTError("Test failed");
+    public TitleBarDoubleClick() throws AWTException {
+        robot = new Robot();
+        robot.setAutoDelay(100);
+
+        robot.mouseMove(
+                BOUNDS.x + (BOUNDS.width / 2),
+                BOUNDS.y + (BOUNDS.height/ 2)
+        );
+
+        frame = new Frame("TitleBarDoubleClick");
+        frame.setBounds(BOUNDS);
+        frame.addMouseListener(this);
+        frame.addWindowListener(this);
+        frame.setVisible(true);
+
+        robot.waitForIdle();
+        robot.delay(1000);
+    }
+
+    public void doTest() throws AWTException {
+        System.out.println("doing test");
+        robot.mouseMove(
+                BOUNDS.x + (BOUNDS.width / 2),
+                BOUNDS.y + TITLE_BAR_OFFSET
+        );
+        robot.waitForIdle();
+
+        System.out.println("1st press:   currentTimeMillis: "
+                + System.currentTimeMillis());
+        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+
+        System.out.println("1st release: currentTimeMillis: "
+                + System.currentTimeMillis());
+        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+
+        System.out.println("2nd press:   currentTimeMillis: "
+                + System.currentTimeMillis());
+        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+
+        System.out.println("2nd release: currentTimeMillis: "
+                + System.currentTimeMillis());
+        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+
+        System.out.println("done:        currentTimeMillis: "
+                + System.currentTimeMillis());
+
+        robot.waitForIdle();
+        robot.delay(500);
+
+        frame.dispose();
+
+        if (failed) {
+            throw new AWTError("Test failed");
+        }
+    }
+
+    private void fail(MouseEvent e) {
+        System.err.println("Failed: " + e);
+        failed = true;
     }
 
     public void mouseEntered(MouseEvent e) {}
     public void mouseExited(MouseEvent e) {}
-    public void mousePressed(MouseEvent e) {fail();}
-    public void mouseReleased(MouseEvent e) {fail();}
-    public void mouseClicked(MouseEvent e) {fail();}
+    public void mousePressed(MouseEvent e) { fail(e); }
+    public void mouseReleased(MouseEvent e) { fail(e); }
+    public void mouseClicked(MouseEvent e) { fail(e); }
 
-    public void windowActivated(WindowEvent  e) {doTest();}
-    public void windowClosed(WindowEvent  e) {}
-    public void windowClosing(WindowEvent  e) {}
-    public void windowDeactivated(WindowEvent  e) {}
-    public void windowDeiconified(WindowEvent  e) {}
-    public void windowIconified(WindowEvent  e) {}
-    public void windowOpened(WindowEvent  e) {}
+    public void windowActivated(WindowEvent e) {}
+    public void windowClosed(WindowEvent e) {}
+    public void windowClosing(WindowEvent e) {}
+    public void windowDeactivated(WindowEvent e) {}
+    public void windowDeiconified(WindowEvent e) {}
+    public void windowIconified(WindowEvent e) {}
+    public void windowOpened(WindowEvent e) {}
 
 }// class TitleBarDoubleClick

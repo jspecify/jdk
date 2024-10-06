@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,17 +37,16 @@
  * @requires !vm.graal.enabled
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @build nsk.jdi.VMOutOfMemoryException.VMOutOfMemoryException001.VMOutOfMemoryException001
  *        nsk.jdi.VMOutOfMemoryException.VMOutOfMemoryException001.VMOutOfMemoryException001t
- * @run main/othervm PropertyResolvingWrapper
+ * @run driver
  *      nsk.jdi.VMOutOfMemoryException.VMOutOfMemoryException001.VMOutOfMemoryException001
  *      -verbose
  *      -arch=${os.family}-${os.simpleArch}
  *      -waittime=5
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
- *      "-debugee.vmkeys=-Xmx256M ${test.vm.opts} ${test.java.opts}"
+ *      -debugee.vmkeys="-Xmx256M ${test.vm.opts} ${test.java.opts}"
  */
 
 package nsk.jdi.VMOutOfMemoryException.VMOutOfMemoryException001;
@@ -60,7 +59,10 @@ import nsk.share.jdi.*;
 
 public class VMOutOfMemoryException001 extends TestDebuggerType2 {
     public static void main(String argv[]) {
-        System.exit(run(argv, System.out) + Consts.JCK_STATUS_BASE);
+        int result = run(argv,System.out);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run(String argv[], PrintStream out) {
@@ -80,7 +82,14 @@ public class VMOutOfMemoryException001 extends TestDebuggerType2 {
             // create array in debuggee VM till VMOutOfMemoryException
             while (true) {
                 ArrayReference array = referenceType.newInstance(100000);
-                array.disableCollection();
+                try {
+                    // Since the VM is not suspended, the object may have been collected
+                    // before disableCollection() could be called on it. Just ignore and
+                    // continue doing allocations until we run out of memory.
+                    array.disableCollection();
+                } catch (ObjectCollectedException e) {
+                    continue;
+                }
                 objects.add(array);
             }
         } catch (VMOutOfMemoryException e) {

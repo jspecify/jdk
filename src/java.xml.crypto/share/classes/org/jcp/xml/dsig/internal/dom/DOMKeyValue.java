@@ -21,18 +21,9 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
- */
-/*
- * $Id: DOMKeyValue.java 1788465 2017-03-24 15:10:51Z coheigea $
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  */
 package org.jcp.xml.dsig.internal.dom;
-
-import org.jspecify.annotations.Nullable;
-
-import javax.xml.crypto.*;
-import javax.xml.crypto.dsig.*;
-import javax.xml.crypto.dsig.keyinfo.KeyValue;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -55,16 +46,22 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.Arrays;
-import java.util.Base64;
+
+import javax.xml.crypto.MarshalException;
+import javax.xml.crypto.dom.DOMCryptoContext;
+import javax.xml.crypto.dsig.XMLSignature;
+import javax.xml.crypto.dsig.keyinfo.KeyValue;
 
 import com.sun.org.apache.xml.internal.security.utils.XMLUtils;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 /**
  * DOM-based implementation of KeyValue.
  *
  */
-public abstract class DOMKeyValue<K extends PublicKey> extends BaseStructure implements KeyValue {
+public abstract class DOMKeyValue<K extends PublicKey> extends DOMStructure implements KeyValue {
 
     private static final String XMLDSIG_11_XMLNS
         = "http://www.w3.org/2009/xmldsig11#";
@@ -93,11 +90,11 @@ public abstract class DOMKeyValue<K extends PublicKey> extends BaseStructure imp
         }
 
         String namespace = kvtElem.getNamespaceURI();
-        if (kvtElem.getLocalName().equals("DSAKeyValue") && XMLSignature.XMLNS.equals(namespace)) {
+        if ("DSAKeyValue".equals(kvtElem.getLocalName()) && XMLSignature.XMLNS.equals(namespace)) {
             return new DSA(kvtElem);
-        } else if (kvtElem.getLocalName().equals("RSAKeyValue") && XMLSignature.XMLNS.equals(namespace)) {
+        } else if ("RSAKeyValue".equals(kvtElem.getLocalName()) && XMLSignature.XMLNS.equals(namespace)) {
             return new RSA(kvtElem);
-        } else if (kvtElem.getLocalName().equals("ECKeyValue") && XMLDSIG_11_XMLNS.equals(namespace)) {
+        } else if ("ECKeyValue".equals(kvtElem.getLocalName()) && XMLDSIG_11_XMLNS.equals(namespace)) {
             return new EC(kvtElem);
         } else {
             return new Unknown(kvtElem);
@@ -113,17 +110,22 @@ public abstract class DOMKeyValue<K extends PublicKey> extends BaseStructure imp
         }
     }
 
-    public void marshal(XmlWriter xwriter, String dsPrefix, XMLCryptoContext context)
+    @Override
+    public void marshal(Node parent, String dsPrefix, DOMCryptoContext context)
         throws MarshalException
     {
+        Document ownerDoc = DOMUtils.getOwnerDocument(parent);
+
         // create KeyValue element
-        xwriter.writeStartElement(dsPrefix, "KeyValue", XMLSignature.XMLNS);
-        marshalPublicKey(xwriter, publicKey, dsPrefix, context);
-        xwriter.writeEndElement(); // "KeyValue"
+        Element kvElem = DOMUtils.createElement(ownerDoc, "KeyValue",
+                                                XMLSignature.XMLNS, dsPrefix);
+        marshalPublicKey(kvElem, ownerDoc, dsPrefix, context);
+
+        parent.appendChild(kvElem);
     }
 
-    abstract void marshalPublicKey(XmlWriter xwriter, K key, String dsPrefix,
-        XMLCryptoContext context) throws MarshalException;
+    abstract void marshalPublicKey(Node parent, Document doc, String dsPrefix,
+        DOMCryptoContext context) throws MarshalException;
 
     abstract K unmarshalKeyValue(Element kvtElem)
         throws MarshalException;
@@ -138,9 +140,7 @@ public abstract class DOMKeyValue<K extends PublicKey> extends BaseStructure imp
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }
@@ -166,23 +166,11 @@ public abstract class DOMKeyValue<K extends PublicKey> extends BaseStructure imp
 
     public static BigInteger decode(Element elem) throws MarshalException {
         try {
-            String base64str = BaseStructure.textOfNode(elem);
-            return new BigInteger(1, Base64.getMimeDecoder().decode(base64str));
+            String base64str = elem.getFirstChild().getNodeValue();
+            return new BigInteger(1, XMLUtils.decode(base64str));
         } catch (Exception ex) {
             throw new MarshalException(ex);
         }
-    }
-
-    public static void writeBase64BigIntegerElement(
-        XmlWriter xwriter, String prefix, String localName, String namespaceURI, BigInteger value
-    ) {
-        byte[] bytes = XMLUtils.getBytes(value, value.bitLength());
-        xwriter.writeTextElement(prefix, localName, namespaceURI, Base64.getMimeEncoder().encodeToString(bytes));
-    }
-
-    public static void marshal(XmlWriter xwriter, BigInteger bigNum) {
-        byte[] bytes = XMLUtils.getBytes(bigNum, bigNum.bitLength());
-        xwriter.writeCharacters(Base64.getMimeEncoder().encodeToString(bytes));
     }
 
     @Override
@@ -197,10 +185,14 @@ public abstract class DOMKeyValue<K extends PublicKey> extends BaseStructure imp
 
     static final class RSA extends DOMKeyValue<RSAPublicKey> {
         // RSAKeyValue CryptoBinaries
+        private DOMCryptoBinary modulus, exponent;
         private KeyFactory rsakf;
 
         RSA(RSAPublicKey key) throws KeyException {
             super(key);
+            RSAPublicKey rkey = key;
+            exponent = new DOMCryptoBinary(rkey.getPublicExponent());
+            modulus = new DOMCryptoBinary(rkey.getModulus());
         }
 
         RSA(Element elem) throws MarshalException {
@@ -208,14 +200,22 @@ public abstract class DOMKeyValue<K extends PublicKey> extends BaseStructure imp
         }
 
         @Override
-        void marshalPublicKey(XmlWriter xwriter, RSAPublicKey publicKey, String dsPrefix,
-            XMLCryptoContext context) throws MarshalException {
-            xwriter.writeStartElement(dsPrefix, "RSAKeyValue", XMLSignature.XMLNS);
-
-            writeBase64BigIntegerElement(xwriter, dsPrefix, "Modulus", XMLSignature.XMLNS, publicKey.getModulus());
-            writeBase64BigIntegerElement(xwriter, dsPrefix, "Exponent", XMLSignature.XMLNS, publicKey.getPublicExponent());
-
-            xwriter.writeEndElement(); // "RSAKeyValue"
+        void marshalPublicKey(Node parent, Document doc, String dsPrefix,
+            DOMCryptoContext context) throws MarshalException {
+            Element rsaElem = DOMUtils.createElement(doc, "RSAKeyValue",
+                                                     XMLSignature.XMLNS,
+                                                     dsPrefix);
+            Element modulusElem = DOMUtils.createElement(doc, "Modulus",
+                                                         XMLSignature.XMLNS,
+                                                         dsPrefix);
+            Element exponentElem = DOMUtils.createElement(doc, "Exponent",
+                                                          XMLSignature.XMLNS,
+                                                          dsPrefix);
+            modulus.marshal(modulusElem, dsPrefix, context);
+            exponent.marshal(exponentElem, dsPrefix, context);
+            rsaElem.appendChild(modulusElem);
+            rsaElem.appendChild(exponentElem);
+            parent.appendChild(rsaElem);
         }
 
         @Override
@@ -245,10 +245,17 @@ public abstract class DOMKeyValue<K extends PublicKey> extends BaseStructure imp
 
     static final class DSA extends DOMKeyValue<DSAPublicKey> {
         // DSAKeyValue CryptoBinaries
+        private DOMCryptoBinary p, q, g, y; //, seed, pgen;
         private KeyFactory dsakf;
 
         DSA(DSAPublicKey key) throws KeyException {
             super(key);
+            DSAPublicKey dkey = key;
+            DSAParams params = dkey.getParams();
+            p = new DOMCryptoBinary(params.getP());
+            q = new DOMCryptoBinary(params.getQ());
+            g = new DOMCryptoBinary(params.getG());
+            y = new DOMCryptoBinary(dkey.getY());
         }
 
         DSA(Element elem) throws MarshalException {
@@ -256,21 +263,31 @@ public abstract class DOMKeyValue<K extends PublicKey> extends BaseStructure imp
         }
 
         @Override
-        void marshalPublicKey(XmlWriter xwriter, DSAPublicKey publicKey, String dsPrefix,
-                XMLCryptoContext context)
+        void marshalPublicKey(Node parent, Document doc, String dsPrefix,
+                              DOMCryptoContext context)
             throws MarshalException
         {
-            DSAParams params = publicKey.getParams();
-
-            xwriter.writeStartElement(dsPrefix, "DSAKeyValue", XMLSignature.XMLNS);
-
+            Element dsaElem = DOMUtils.createElement(doc, "DSAKeyValue",
+                                                     XMLSignature.XMLNS,
+                                                     dsPrefix);
             // parameters J, Seed & PgenCounter are not included
-            writeBase64BigIntegerElement(xwriter, dsPrefix, "P", XMLSignature.XMLNS, params.getP());
-            writeBase64BigIntegerElement(xwriter, dsPrefix, "Q", XMLSignature.XMLNS, params.getQ());
-            writeBase64BigIntegerElement(xwriter, dsPrefix, "G", XMLSignature.XMLNS, params.getG());
-            writeBase64BigIntegerElement(xwriter, dsPrefix, "Y", XMLSignature.XMLNS, publicKey.getY() );
-
-            xwriter.writeEndElement(); // "DSAKeyValue"
+            Element pElem = DOMUtils.createElement(doc, "P", XMLSignature.XMLNS,
+                                                   dsPrefix);
+            Element qElem = DOMUtils.createElement(doc, "Q", XMLSignature.XMLNS,
+                                                   dsPrefix);
+            Element gElem = DOMUtils.createElement(doc, "G", XMLSignature.XMLNS,
+                                                   dsPrefix);
+            Element yElem = DOMUtils.createElement(doc, "Y", XMLSignature.XMLNS,
+                                                   dsPrefix);
+            p.marshal(pElem, dsPrefix, context);
+            q.marshal(qElem, dsPrefix, context);
+            g.marshal(gElem, dsPrefix, context);
+            y.marshal(yElem, dsPrefix, context);
+            dsaElem.appendChild(pElem);
+            dsaElem.appendChild(qElem);
+            dsaElem.appendChild(gElem);
+            dsaElem.appendChild(yElem);
+            parent.appendChild(dsaElem);
         }
 
         @Override
@@ -285,43 +302,30 @@ public abstract class DOMKeyValue<K extends PublicKey> extends BaseStructure imp
                         ("unable to create DSA KeyFactory: " + e.getMessage());
                 }
             }
-            Element curElem = DOMUtils.getFirstChildElement(kvtElem);
-            if (curElem == null) {
-                throw new MarshalException("KeyValue must contain at least one type");
-            }
-            // check for P and Q
-            BigInteger p = null;
-            BigInteger q = null;
-            if (curElem.getLocalName().equals("P") && XMLSignature.XMLNS.equals(curElem.getNamespaceURI())) {
-                p = decode(curElem);
-                curElem = DOMUtils.getNextSiblingElement(curElem, "Q", XMLSignature.XMLNS);
-                q = decode(curElem);
-                curElem = DOMUtils.getNextSiblingElement(curElem);
-            }
-            BigInteger g = null;
-            if (curElem != null
-                && curElem.getLocalName().equals("G") && XMLSignature.XMLNS.equals(curElem.getNamespaceURI())) {
-                g = decode(curElem);
-                curElem = DOMUtils.getNextSiblingElement(curElem, "Y", XMLSignature.XMLNS);
-            }
-            BigInteger y = null;
-            if (curElem != null) {
-                y = decode(curElem);
-                curElem = DOMUtils.getNextSiblingElement(curElem);
-            }
-            //if (curElem != null && curElem.getLocalName().equals("J")) {
-                //j = new DOMCryptoBinary(curElem.getFirstChild());
-                // curElem = DOMUtils.getNextSiblingElement(curElem);
-            //}
-            //@@@ do we care about j, pgenCounter or seed?
+            // P, Q, and G are optional according to the XML Signature
+            // Recommendation as they might be known from application context,
+            // but this implementation does not provide a mechanism or API for
+            // an application to supply the missing parameters, so they are
+            // required to be specified.
+            Element curElem =
+                DOMUtils.getFirstChildElement(kvtElem, "P", XMLSignature.XMLNS);
+            BigInteger p = decode(curElem);
+            curElem =
+                DOMUtils.getNextSiblingElement(curElem, "Q", XMLSignature.XMLNS);
+            BigInteger q = decode(curElem);
+            curElem =
+                DOMUtils.getNextSiblingElement(curElem, "G", XMLSignature.XMLNS);
+            BigInteger g = decode(curElem);
+            curElem =
+                DOMUtils.getNextSiblingElement(curElem, "Y", XMLSignature.XMLNS);
+            BigInteger y = decode(curElem);
             DSAPublicKeySpec spec = new DSAPublicKeySpec(y, p, q, g);
             return (DSAPublicKey) generatePublicKey(dsakf, spec);
         }
     }
 
     static final class EC extends DOMKeyValue<ECPublicKey> {
-
-        // ECKeyValue CryptoBinaries
+     // ECKeyValue CryptoBinaries
         private byte[] ecPublicKey;
         private KeyFactory eckf;
         private ECParameterSpec ecParams;
@@ -452,39 +456,43 @@ public abstract class DOMKeyValue<K extends PublicKey> extends BaseStructure imp
 
         private static boolean matchCurve(ECParameterSpec params, Curve curve) {
             int fieldSize = params.getCurve().getField().getFieldSize();
-            if (curve.getCurve().getField().getFieldSize() == fieldSize
+            return curve.getCurve().getField().getFieldSize() == fieldSize
                 && curve.getCurve().equals(params.getCurve())
                 && curve.getGenerator().equals(params.getGenerator())
                 && curve.getOrder().equals(params.getOrder())
-                && curve.getCofactor() == params.getCofactor()) {
-                return true;
-            } else {
-                return false;
-            }
+                && curve.getCofactor() == params.getCofactor();
         }
 
         @Override
-        void marshalPublicKey(XmlWriter xwriter, ECPublicKey publicKey, String dsPrefix,
-                XMLCryptoContext context)
+        void marshalPublicKey(Node parent, Document doc, String dsPrefix,
+                              DOMCryptoContext context)
             throws MarshalException
         {
             String prefix = DOMUtils.getNSPrefix(context, XMLDSIG_11_XMLNS);
-            xwriter.writeStartElement(prefix, "ECKeyValue", XMLDSIG_11_XMLNS);
-
-            xwriter.writeStartElement(prefix, "NamedCurve", XMLDSIG_11_XMLNS);
-            xwriter.writeNamespace(prefix, XMLDSIG_11_XMLNS);
+            Element ecKeyValueElem = DOMUtils.createElement(doc, "ECKeyValue",
+                                                            XMLDSIG_11_XMLNS,
+                                                            prefix);
+            Element namedCurveElem = DOMUtils.createElement(doc, "NamedCurve",
+                                                            XMLDSIG_11_XMLNS,
+                                                            prefix);
+            Element publicKeyElem = DOMUtils.createElement(doc, "PublicKey",
+                                                           XMLDSIG_11_XMLNS,
+                                                           prefix);
             String oid = getCurveOid(ecParams);
             if (oid == null) {
                 throw new MarshalException("Invalid ECParameterSpec");
             }
-            xwriter.writeAttribute("", "", "URI", "urn:oid:" + oid);
-            xwriter.writeEndElement();
-
-            xwriter.writeStartElement(prefix, "PublicKey", XMLDSIG_11_XMLNS);
-            String encoded = Base64.getMimeEncoder().encodeToString(ecPublicKey);
-            xwriter.writeCharacters(encoded);
-            xwriter.writeEndElement(); // "PublicKey"
-            xwriter.writeEndElement(); // "ECKeyValue"
+            DOMUtils.setAttribute(namedCurveElem, "URI", "urn:oid:" + oid);
+            String qname = (prefix == null || prefix.length() == 0)
+                       ? "xmlns" : "xmlns:" + prefix;
+            namedCurveElem.setAttributeNS("http://www.w3.org/2000/xmlns/",
+                                          qname, XMLDSIG_11_XMLNS);
+            ecKeyValueElem.appendChild(namedCurveElem);
+            String encoded = XMLUtils.encodeToString(ecPublicKey);
+            publicKeyElem.appendChild
+                (DOMUtils.getOwnerDocument(publicKeyElem).createTextNode(encoded));
+            ecKeyValueElem.appendChild(publicKeyElem);
+            parent.appendChild(ecKeyValueElem);
         }
 
         @Override
@@ -505,11 +513,11 @@ public abstract class DOMKeyValue<K extends PublicKey> extends BaseStructure imp
                 throw new MarshalException("KeyValue must contain at least one type");
             }
 
-            if (curElem.getLocalName().equals("ECParameters")
+            if ("ECParameters".equals(curElem.getLocalName())
                 && XMLDSIG_11_XMLNS.equals(curElem.getNamespaceURI())) {
                 throw new UnsupportedOperationException
                     ("ECParameters not supported");
-            } else if (curElem.getLocalName().equals("NamedCurve")
+            } else if ("NamedCurve".equals(curElem.getLocalName())
                 && XMLDSIG_11_XMLNS.equals(curElem.getNamespaceURI())) {
                 String uri = DOMUtils.getAttributeValue(curElem, "URI");
                 // strip off "urn:oid"
@@ -529,8 +537,8 @@ public abstract class DOMKeyValue<K extends PublicKey> extends BaseStructure imp
             ECPoint ecPoint = null;
 
             try {
-                String content = XMLUtils.getFullTextChildrenFromElement(curElem);
-                ecPoint = decodePoint(Base64.getMimeDecoder().decode(content),
+                String content = XMLUtils.getFullTextChildrenFromNode(curElem);
+                ecPoint = decodePoint(XMLUtils.decode(content),
                                       ecParams.getCurve());
             } catch (IOException ioe) {
                 throw new MarshalException("Invalid EC Point", ioe);
@@ -578,21 +586,23 @@ public abstract class DOMKeyValue<K extends PublicKey> extends BaseStructure imp
     }
 
     static final class Unknown extends DOMKeyValue<PublicKey> {
-        private XMLStructure externalPublicKey;
+        private javax.xml.crypto.dom.DOMStructure externalPublicKey;
         Unknown(Element elem) throws MarshalException {
             super(elem);
         }
+
         @Override
         PublicKey unmarshalKeyValue(Element kvElem) throws MarshalException {
             externalPublicKey = new javax.xml.crypto.dom.DOMStructure(kvElem);
             return null;
         }
+
         @Override
-        void marshalPublicKey(XmlWriter xwriter, PublicKey publicKey, String dsPrefix,
-                XMLCryptoContext context)
+        void marshalPublicKey(Node parent, Document doc, String dsPrefix,
+                              DOMCryptoContext context)
             throws MarshalException
         {
-            xwriter.marshalStructure(externalPublicKey, dsPrefix, context);
+            parent.appendChild(externalPublicKey.getNode());
         }
     }
 }

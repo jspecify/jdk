@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,83 +23,118 @@
 
 /*
  * @test
- * @bug      8002304 8024096 8193671 8196201
+ * @bug      8002304 8024096 8193671 8196201 8203791 8184205
  * @summary  Test for various method type tabs in the method summary table
- * @author   Bhavesh Patel
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestMethodTypes
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestMethodTypes extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestMethodTypes tester = new TestMethodTypes();
+        var tester = new TestMethodTypes();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "pkg1");
         checkExit(Exit.OK);
 
         checkOutput("pkg1/A.html", true,
-                "var data = {",
-                "<caption><span id=\"t0\" class=\"activeTableTab\"><span>All "
-                + "Methods</span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t1\" class=\"tableTab\"><span><a href=\"javascript:show(1);\">"
-                + "Static Methods</a></span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t2\" class=\"tableTab\"><span><a href=\"javascript:show(2);\">"
-                + "Instance Methods</a></span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t4\" class=\"tableTab\"><span><a href=\"javascript:show(8);\">"
-                + "Concrete Methods</a></span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t6\" class=\"tableTab\"><span><a href=\"javascript:show(32);\">"
-                + "Deprecated Methods</a></span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "</caption>",
-                "<tr id=\"i0\" class=\"altColor\">");
+                """
+                    <div class="table-tabs" role="tablist" aria-orientation="horizontal">\
+                    <button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-cont\
+                    rols="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" o\
+                    nclick="show('method-summary-table', 'method-summary-table', 3)" class="active-t\
+                    able-tab">All Methods</button>\
+                    <button id="method-summary-table-tab1" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab1', 3)" class="t\
+                    able-tab">Static Methods</button>\
+                    <button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="t\
+                    able-tab">Instance Methods</button>\
+                    <button id="method-summary-table-tab4" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab4', 3)" class="t\
+                    able-tab">Concrete Methods</button>\
+                    <button id="method-summary-table-tab6" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab6', 3)" class="t\
+                    able-tab">Deprecated Methods</button>\
+                    </div>""",
+                """
+                    <div class="col-first even-row-color method-summary-table method-summary-table-t\
+                    ab2 method-summary-table-tab4">""");
 
         checkOutput("pkg1/B.html", true,
-                "var data = {\"i0\":6,\"i1\":18,\"i2\":18,\"i3\":1,\"i4\":1,"
-                + "\"i5\":6,\"i6\":6,\"i7\":6,\"i8\":6};\n",
-                "<caption><span id=\"t0\" class=\"activeTableTab\"><span>All Methods</span>"
-                + "<span class=\"tabEnd\">&nbsp;</span></span><span id=\"t1\" class=\"tableTab\">"
-                + "<span><a href=\"javascript:show(1);\">Static Methods</a></span>"
-                + "<span class=\"tabEnd\">&nbsp;</span></span><span id=\"t2\" class=\"tableTab\">"
-                + "<span><a href=\"javascript:show(2);\">Instance Methods</a></span>"
-                + "<span class=\"tabEnd\">&nbsp;</span></span><span id=\"t3\" class=\"tableTab\">"
-                + "<span><a href=\"javascript:show(4);\">Abstract Methods</a></span>"
-                + "<span class=\"tabEnd\">&nbsp;</span></span><span id=\"t5\" class=\"tableTab\">"
-                + "<span><a href=\"javascript:show(16);\">Default Methods</a></span>"
-                + "<span class=\"tabEnd\">&nbsp;</span></span></caption>\n");
+                """
+                    <div class="table-tabs" role="tablist" aria-orientation="horizontal">\
+                    <button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-cont\
+                    rols="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" o\
+                    nclick="show('method-summary-table', 'method-summary-table', 3)" class="active-t\
+                    able-tab">All Methods</button>\
+                    <button id="method-summary-table-tab1" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab1', 3)" class="t\
+                    able-tab">Static Methods</button>\
+                    <button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="t\
+                    able-tab">Instance Methods</button>\
+                    <button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="t\
+                    able-tab">Abstract Methods</button>\
+                    <button id="method-summary-table-tab5" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab5', 3)" class="t\
+                    able-tab">Default Methods</button>\
+                    </div>""");
 
         checkOutput("pkg1/D.html", true,
-                "var data = {",
-                "<caption><span id=\"t0\" class=\"activeTableTab\"><span>All "
-                + "Methods</span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t2\" class=\"tableTab\"><span><a href=\"javascript:show(2);\">"
-                + "Instance Methods</a></span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t3\" class=\"tableTab\"><span><a href=\"javascript:show(4);\">"
-                + "Abstract Methods</a></span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t4\" class=\"tableTab\"><span><a href=\"javascript:show(8);\">"
-                + "Concrete Methods</a></span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t6\" class=\"tableTab\"><span><a href=\"javascript:show(32);\">"
-                + "Deprecated Methods</a></span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "</caption>",
-                "<tr id=\"i0\" class=\"altColor\">");
+                """
+                    <div class="table-tabs" role="tablist" aria-orientation="horizontal">\
+                    <button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-cont\
+                    rols="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" o\
+                    nclick="show('method-summary-table', 'method-summary-table', 3)" class="active-t\
+                    able-tab">All Methods</button>\
+                    <button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="t\
+                    able-tab">Instance Methods</button>\
+                    <button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="t\
+                    able-tab">Abstract Methods</button>\
+                    <button id="method-summary-table-tab4" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab4', 3)" class="t\
+                    able-tab">Concrete Methods</button>\
+                    <button id="method-summary-table-tab6" role="tab" aria-selected="false" aria-con\
+                    trols="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)"\
+                     onclick="show('method-summary-table', 'method-summary-table-tab6', 3)" class="t\
+                    able-tab">Deprecated Methods</button>\
+                    </div>""",
+                """
+                    <div class="col-first even-row-color method-summary-table method-summary-table-t\
+                    ab2 method-summary-table-tab4 method-summary-table-tab6">""");
 
         checkOutput("pkg1/A.html", false,
-                "<caption><span>Methods</span><span class=\"tabEnd\">&nbsp;</span>"
-                + "</caption>");
+                "<div class=\"caption\"><span>Methods</span></div>");
 
         checkOutput("pkg1/B.html", false,
-                "<caption><span>Methods</span><span class=\"tabEnd\">&nbsp;</span>"
-                + "</caption>");
+                "<div class=\"caption\"><span>Methods</span></div>");
 
         checkOutput("pkg1/D.html", false,
-                "<caption><span>Methods</span><span class=\"tabEnd\">&nbsp;</span>"
-                + "</caption>");
+                "<div class=\"caption\"><span>Methods</span></div>");
     }
 }

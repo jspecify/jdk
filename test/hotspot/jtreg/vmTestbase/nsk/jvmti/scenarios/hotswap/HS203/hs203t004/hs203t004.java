@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@
  * Description ::
  *     The test would redefine a class during method compilation, pops currently executing frame.
  *     The Test starts a Thread (MyThread). On preparing of MyThread compiled_method_load event is enabled.
- *     While running the thread, it calls a method (doTask2() ) for number of times (1000).
+ *     While running the thread, it calls a method (doTask2() ) for number of times (10000).
  *     That would cause this method to be compiled, which causes a jvmti callback for compiled method load.
  *     (Hint : to force method compilation -XX:CompileThreshold=900 is used).
  *     The class which holds this method is redefined with ./newclass/MyThread.java, Once the redefine
@@ -39,27 +39,23 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @build nsk.jvmti.scenarios.hotswap.HS203.hs203t004.hs203t004
  *
  * @comment compile newclassXX to bin/newclassXX
  * @run driver nsk.share.ExtraClassesBuilder
  *      newclass00
  *
- * @build ExecDriver
- * @run main/othervm/native PropertyResolvingWrapper ExecDriver --java
+ * @run main/othervm/native
  *      -XX:-Inline
  *      -XX:CompileThreshold=900
  *      -Xbatch
  *      -XX:-TieredCompilation
- *      "-agentlib:hs203t004=pathToNewByteCode=./bin -waittime=5 package=nsk samples=100 mode=compiled"
+ *      -agentlib:hs203t004=pathToNewByteCode=./bin,-waittime=5,package=nsk,samples=100,mode=compiled
  *      nsk.jvmti.scenarios.hotswap.HS203.hs203t004.hs203t004
  */
 
 package nsk.jvmti.scenarios.hotswap.HS203.hs203t004;
 
-import vm.share.VMRuntimeEnvUtils;
-import nsk.share.Consts;
 import nsk.share.jvmti.RedefineAgent;
 
 public class hs203t004 extends RedefineAgent {
@@ -70,13 +66,6 @@ public class hs203t004 extends RedefineAgent {
 
     public static void main(String[] arg) {
         arg = nsk.share.jvmti.JVMTITest.commonInit(arg);
-
-        if (!VMRuntimeEnvUtils.isJITEnabled()) {
-            System.out.println("WARNING: test isn't valid if JIT compilation is disabled");
-            System.out.println("Exiting with 'PASSED' status");
-            System.exit(Consts.JCK_STATUS_BASE + Consts.TEST_PASSED);
-        }
-
         hs203t004 hsCase = new hs203t004(arg);
         System.exit(hsCase.runAgent());
     }

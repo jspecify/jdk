@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,19 +21,20 @@
  * questions.
  */
 
-/**
+/*
  * @test
- * @bug 8178077
+ * @bug 8178077 8232856
  * @summary Check the UI behavior of editing history.
  * @modules
  *     jdk.compiler/com.sun.tools.javac.api
  *     jdk.compiler/com.sun.tools.javac.main
+ *     jdk.jshell/jdk.internal.jshell.tool:open
  *     jdk.jshell/jdk.internal.jshell.tool.resources:open
  *     jdk.jshell/jdk.jshell:open
  * @library /tools/lib
  * @build toolbox.ToolBox toolbox.JarTask toolbox.JavacTask
  * @build Compiler UITesting
- * @build HistoryUITest
+ * @compile HistoryUITest.java
  * @run testng HistoryUITest
  */
 
@@ -42,43 +43,51 @@ import org.testng.annotations.Test;
 @Test
 public class HistoryUITest extends UITesting {
 
+    public HistoryUITest() {
+        super(true);
+    }
+
     public void testPrevNextSnippet() throws Exception {
         doRunTest((inputSink, out) -> {
             inputSink.write("void test1() {\nSystem.err.println(1);\n}\n");
             waitOutput(out, PROMPT);
             inputSink.write("void test2() {\nSystem.err.println(2);\n}\n");
             waitOutput(out, PROMPT);
-            inputSink.write(CTRL_UP);
-            waitOutput(out, "^void test2\\(\\) \\{");
-            inputSink.write(CTRL_UP);
-            waitOutput(out, "^" + clearOut("2() {") + "1\\(\\) \\{");
-            inputSink.write(CTRL_DOWN);
-            waitOutput(out, "^" + clearOut("1() {") + "2\\(\\) \\{");
-            inputSink.write(ENTER);
-            waitOutput(out, "^\n\u0006");
             inputSink.write(UP);
-            waitOutput(out, "^}");
+            waitOutput(out, "^void test2\\(\\) \\{\n" +
+                            CONTINUATION_PROMPT + "    System.err.println\\(2\\);\n" +
+                            CONTINUATION_PROMPT + "\\}");
             inputSink.write(UP);
-            waitOutput(out, "^" + clearOut("}") + "System.err.println\\(2\\);");
+            waitOutput(out, "^\u001b\\[A");
             inputSink.write(UP);
-            waitOutput(out, "^" + clearOut("System.err.println(2);") + "void test2\\(\\) \\{");
+            waitOutput(out, "^\u001b\\[A");
             inputSink.write(UP);
-            waitOutput(out, "^" + BELL);
+            waitOutput(out, "^\u001b\\[8C1\n" +
+                            "\u001b\\[23C1\n\u001b\\[C");
             inputSink.write(DOWN);
-            waitOutput(out, "^" + clearOut("void test2() {") + "System.err.println\\(2\\);");
-            inputSink.write(DOWN);
-            waitOutput(out, "^" + clearOut("System.err.println(2);") + "}");
-            inputSink.write(DOWN);
-            waitOutput(out, "^" + clearOut("}"));
-            inputSink.write(DOWN);
-            waitOutput(out, "^" + BELL);
+            waitOutput(out, "^\u001B\\[2A\u001b\\[8C2\n" +
+                            "\u001b\\[23C2\n\u001b\\[C");
+            inputSink.write(UP);
+            waitOutput(out, "^\u001b\\[A");
+            for (int i = 0; i < 23; i++) inputSink.write("\033[C");
+            waitOutput(out, "C");
+            inputSink.write("\u0008\"Modified!\"\n");
+            waitOutput(out, PROMPT);
+            inputSink.write("test2()\n");
+            waitOutput(out, "\\u001B\\[\\?2004lModified!\n\\u001B\\[\\?2004h" + PROMPT);
         });
     }
-    //where:
-        private static final String CTRL_UP = "\033[1;5A";
-        private static final String CTRL_DOWN = "\033[1;5B";
-        private static final String UP = "\033[A";
-        private static final String DOWN = "\033[B";
-        private static final String ENTER = "\n";
+
+    public void testReRun() throws Exception {
+        doRunTest((inputSink, out) -> {
+            inputSink.write("System.err.println(\"RAN\");\n");
+            waitOutput(out, "RAN.*" + PROMPT);
+            inputSink.write("/!\n");
+            waitOutput(out, "RAN.*" + PROMPT);
+            inputSink.write(UP);
+            inputSink.write("\n");
+            waitOutput(out, "RAN.*" + PROMPT);
+        });
+    }
 
 }

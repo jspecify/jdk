@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -56,6 +56,7 @@ import com.sun.org.apache.xerces.internal.xs.ElementPSVI;
 import com.sun.org.apache.xerces.internal.xs.XSTypeDefinition;
 import java.util.Locale;
 import java.util.Stack;
+import jdk.xml.internal.JdkXmlUtils;
 import org.w3c.dom.Attr;
 import org.w3c.dom.CDATASection;
 import org.w3c.dom.Comment;
@@ -84,7 +85,7 @@ import org.xml.sax.SAXException;
  * @author Andy Clark, IBM
  * @author Elena Litani, IBM
  *
- * @LastModified: Nov 2017
+ * @LastModified: July 2021
  */
 public class AbstractDOMParser extends AbstractXMLDocumentParser {
 
@@ -491,8 +492,10 @@ public class AbstractDOMParser extends AbstractXMLDocumentParser {
         if (DEBUG_EVENTS) {
             System.out.println ("==>startGeneralEntity ("+name+")");
             if (DEBUG_BASEURI) {
-                System.out.println ("   expandedSystemId( **baseURI): "+identifier.getExpandedSystemId ());
-                System.out.println ("   baseURI:"+ identifier.getBaseSystemId ());
+                System.out.println ("   expandedSystemId( **baseURI): " +
+                        identifier == null ? null : identifier.getExpandedSystemId());
+                System.out.println ("   baseURI:" +
+                        identifier == null ? null : identifier.getBaseSystemId());
             }
         }
 
@@ -512,7 +515,7 @@ public class AbstractDOMParser extends AbstractXMLDocumentParser {
                 EntityReferenceImpl erImpl =(EntityReferenceImpl)er;
 
                 // set base uri
-                erImpl.setBaseURI (identifier.getExpandedSystemId ());
+                erImpl.setBaseURI (identifier == null ? null : identifier.getExpandedSystemId());
                 if (fDocumentType != null) {
                     // set actual encoding
                     NamedNodeMap entities = fDocumentType.getEntities ();
@@ -528,12 +531,17 @@ public class AbstractDOMParser extends AbstractXMLDocumentParser {
             }
             fInEntityRef = true;
             fCurrentNode.appendChild (er);
-            fCurrentNode = er;
+
+            if (!fCreateEntityRefNodes) {
+                fCurrentNode = er;
+            } else {
+                ((NodeImpl)er).setReadOnly (true, true);
+            }
         }
         else {
 
-            int er =
-            fDeferredDocumentImpl.createDeferredEntityReference (name, identifier.getExpandedSystemId ());
+            int er = fDeferredDocumentImpl.createDeferredEntityReference (name,
+                    identifier == null ? null : identifier.getExpandedSystemId ());
             if (fDocumentTypeIndex != -1) {
                 // find corresponding Entity decl
                 int node = fDeferredDocumentImpl.getLastChild (fDocumentTypeIndex, false);
@@ -552,7 +560,10 @@ public class AbstractDOMParser extends AbstractXMLDocumentParser {
                 }
             }
             fDeferredDocumentImpl.appendChild (fCurrentNodeIndex, er);
-            fCurrentNodeIndex = er;
+
+            if (!fCreateEntityRefNodes) {
+                fCurrentNodeIndex = er;
+            }
         }
 
     } // startGeneralEntity(String,XMLResourceIdentifier, Augmentations)
@@ -2031,17 +2042,8 @@ public class AbstractDOMParser extends AbstractXMLDocumentParser {
             else {
                 fInternalSubset.append (name);
             }
-            fInternalSubset.append (' ');
-            if (publicId != null) {
-                fInternalSubset.append ("PUBLIC '");
-                fInternalSubset.append (publicId);
-                fInternalSubset.append ("' '");
-            }
-            else {
-                fInternalSubset.append ("SYSTEM '");
-            }
-            fInternalSubset.append (literalSystemId);
-            fInternalSubset.append ("'>\n");
+            fInternalSubset.append (JdkXmlUtils.getDTDExternalDecl(publicId, literalSystemId));
+            fInternalSubset.append (">\n");
         }
 
         // NOTE: We only know how to create these nodes for the Xerces
@@ -2171,20 +2173,8 @@ public class AbstractDOMParser extends AbstractXMLDocumentParser {
         if (fInternalSubset != null && !fInDTDExternalSubset) {
             fInternalSubset.append ("<!ENTITY ");
             fInternalSubset.append (name);
-            fInternalSubset.append (' ');
-            if (publicId != null) {
-                fInternalSubset.append ("PUBLIC '");
-                fInternalSubset.append (publicId);
-                if (literalSystemId != null) {
-                    fInternalSubset.append ("' '");
-                    fInternalSubset.append (literalSystemId);
-                }
-            }
-            else {
-                fInternalSubset.append ("SYSTEM '");
-                fInternalSubset.append (literalSystemId);
-            }
-            fInternalSubset.append ("' NDATA ");
+            fInternalSubset.append (JdkXmlUtils.getDTDExternalDecl(publicId, literalSystemId));
+            fInternalSubset.append (" NDATA ");
             fInternalSubset.append (notation);
             fInternalSubset.append (">\n");
         }
@@ -2251,19 +2241,8 @@ public class AbstractDOMParser extends AbstractXMLDocumentParser {
         if (fInternalSubset != null && !fInDTDExternalSubset) {
             fInternalSubset.append ("<!NOTATION ");
             fInternalSubset.append (name);
-            if (publicId != null) {
-                fInternalSubset.append (" PUBLIC '");
-                fInternalSubset.append (publicId);
-                if (literalSystemId != null) {
-                    fInternalSubset.append ("' '");
-                    fInternalSubset.append (literalSystemId);
-                }
-            }
-            else {
-                fInternalSubset.append (" SYSTEM '");
-                fInternalSubset.append (literalSystemId);
-            }
-            fInternalSubset.append ("'>\n");
+            fInternalSubset.append (JdkXmlUtils.getDTDExternalDecl(publicId, literalSystemId));
+            fInternalSubset.append (">\n");
         }
 
         // NOTE: We only know how to create these nodes for the Xerces

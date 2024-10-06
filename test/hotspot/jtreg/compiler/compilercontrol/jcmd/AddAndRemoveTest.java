@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,14 +23,14 @@
 
 /*
  * @test
+ * @key randomness
  * @bug 8137167
  * @summary Tests directives to be able to add and remove directives
  * @modules java.base/jdk.internal.misc
  * @library /test/lib /
  *
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run driver compiler.compilercontrol.jcmd.AddAndRemoveTest
  */
 
@@ -61,16 +61,15 @@ public class AddAndRemoveTest extends AbstractTestBase {
         for (int i = 0; i < AMOUNT; i++) {
             Executable exec = Utils.getRandomElement(METHODS).first;
             MethodDescriptor md = getValidMethodDescriptor(exec);
-            CompileCommand compileCommand = new JcmdCommand(Command.COMPILEONLY,
+            CompileCommand compileCommand = new JcmdCommand(Command.COMPILEONLY, true,
                     md, null, Scenario.Type.JCMD, Scenario.JcmdType.ADD);
-            compileCommand.print();
             builder.add(compileCommand);
         }
         // Remove half of them
         for (int i = 0; i < AMOUNT / 2; i++) {
             /* remove jcmd command doesn't need method, compiler etc.
                command will be ignored */
-            builder.add(new JcmdCommand(Command.NONEXISTENT, null, null,
+            builder.add(new JcmdCommand(Command.NONEXISTENT, true, null, null,
                     Scenario.Type.JCMD, Scenario.JcmdType.REMOVE));
         }
         Scenario scenario = builder.build();

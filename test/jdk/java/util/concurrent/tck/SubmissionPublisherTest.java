@@ -682,7 +682,7 @@ public class SubmissionPublisherTest extends JSR166TestCase {
         return false;
     }
 
-    static boolean reqHandle(AtomicInteger count, Subscriber s) {
+    static boolean reqHandle(AtomicInteger count, Subscriber<?> s) {
         count.getAndIncrement();
         ((TestSubscriber)s).sn.request(Long.MAX_VALUE);
         return true;
@@ -985,7 +985,7 @@ public class SubmissionPublisherTest extends JSR166TestCase {
     public void testConsumeNPE() {
         SubmissionPublisher<Integer> p = basicPublisher();
         try {
-            CompletableFuture<Void> f = p.consume(null);
+            CompletableFuture<Void> unused = p.consume(null);
             shouldThrow();
         } catch (NullPointerException success) {}
     }
@@ -1011,7 +1011,11 @@ public class SubmissionPublisherTest extends JSR166TestCase {
      */
     public void testMissedSignal_8187947() throws Exception {
         if (!atLeastJava9()) return; // backport to jdk8 too hard
-        final int N = expensiveTests ? (1 << 20) : (1 << 10);
+        final int N =
+            ((ForkJoinPool.getCommonPoolParallelism() < 2) // JDK-8212899
+             ? (1 << 5)
+             : (1 << 10))
+            * (expensiveTests ? (1 << 10) : 1);
         final CountDownLatch finished = new CountDownLatch(1);
         final SubmissionPublisher<Boolean> pub = new SubmissionPublisher<>();
         class Sub implements Subscriber<Boolean> {
@@ -1029,7 +1033,9 @@ public class SubmissionPublisherTest extends JSR166TestCase {
             public void onComplete() {}
         }
         pub.subscribe(new Sub());
-        CompletableFuture.runAsync(() -> pub.submit(Boolean.TRUE));
+        checkTimedGet(
+            CompletableFuture.runAsync(() -> pub.submit(Boolean.TRUE)),
+            null);
         await(finished);
     }
 }

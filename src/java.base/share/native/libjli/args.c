@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -130,6 +130,8 @@ static void checkArg(const char *arg) {
             }
         } else if (JLI_StrCmp(arg, "--disable-@files") == 0) {
             stopExpansion = JNI_TRUE;
+        } else if (JLI_StrCCmp(arg, "--module=") == 0) {
+            idx = argsCount;
         }
     } else {
         if (!expectingNoDashArg) {
@@ -216,11 +218,12 @@ static char* nextToken(__ctx_args *pctx) {
         } else if (pctx->state == IN_COMMENT) {
             while (ch != '\n' && ch != '\r') {
                 nextc++;
-                if (nextc > eob) {
+                if (nextc >= eob) {
                     return NULL;
                 }
                 ch = *nextc;
             }
+            anchor = nextc + 1;
             pctx->state = FIND_NEXT;
             continue;
         }
@@ -256,6 +259,7 @@ static char* nextToken(__ctx_args *pctx) {
                     continue;
                 }
                 pctx->state = IN_COMMENT;
+                anchor = nextc + 1;
                 break;
             case '\\':
                 if (pctx->state != IN_QUOTE) {
@@ -263,6 +267,8 @@ static char* nextToken(__ctx_args *pctx) {
                 }
                 JLI_List_addSubstring(pctx->parts, anchor, nextc - anchor);
                 pctx->state = IN_ESCAPE;
+                // anchor after backslash character
+                anchor = nextc + 1;
                 break;
             case '\'':
             case '"':
@@ -289,9 +295,12 @@ static char* nextToken(__ctx_args *pctx) {
     }
 
     assert(nextc == eob);
-    if (anchor != nextc) {
-        // not yet return until end of stream, we have part of a token.
-        JLI_List_addSubstring(pctx->parts, anchor, nextc - anchor);
+    // Only need partial token, not comment or whitespaces
+    if (pctx->state == IN_TOKEN || pctx->state == IN_QUOTE) {
+        if (anchor < nextc) {
+            // not yet return until end of stream, we have part of a token.
+            JLI_List_addSubstring(pctx->parts, anchor, nextc - anchor);
+        }
     }
     return NULL;
 }
@@ -335,7 +344,9 @@ static JLI_List readArgFile(FILE *file) {
     // remaining partial token
     if (ctx.state == IN_TOKEN || ctx.state == IN_QUOTE) {
         if (ctx.parts->size != 0) {
-            JLI_List_add(rv, JLI_List_combine(ctx.parts));
+            token = JLI_List_combine(ctx.parts);
+            checkArg(token);
+            JLI_List_add(rv, token);
         }
     }
     JLI_List_free(ctx.parts);
@@ -349,36 +360,29 @@ static JLI_List readArgFile(FILE *file) {
  * otherwise, return NULL.
  */
 static JLI_List expandArgFile(const char *arg) {
-    FILE *fptr;
-    struct stat st;
     JLI_List rv;
+    struct stat st;
+    FILE *fptr = fopen(arg, "r");
 
-    /* failed to access the file */
-    if (stat(arg, &st) != 0) {
+    /* arg file cannot be opened */
+    if (fptr == NULL || fstat(fileno(fptr), &st) != 0) {
         JLI_ReportMessage(CFG_ERROR6, arg);
         exit(1);
-    }
-
-    if (st.st_size > MAX_ARGF_SIZE) {
-        JLI_ReportMessage(CFG_ERROR10, MAX_ARGF_SIZE);
-        exit(1);
-    }
-
-    fptr = fopen(arg, "r");
-    /* arg file cannot be openned */
-    if (fptr == NULL) {
-        JLI_ReportMessage(CFG_ERROR6, arg);
-        exit(1);
+    } else {
+        if (st.st_size > MAX_ARGF_SIZE) {
+            JLI_ReportMessage(CFG_ERROR10, MAX_ARGF_SIZE);
+            exit(1);
+        }
     }
 
     rv = readArgFile(fptr);
-    fclose(fptr);
 
     /* error occurred reading the file */
     if (rv == NULL) {
-        JLI_ReportMessage(DLL_ERROR4, arg);
+        JLI_ReportMessage(ARG_ERROR18, arg);
         exit(1);
     }
+    fclose(fptr);
 
     return rv;
 }
@@ -445,6 +449,7 @@ int isTerminalOpt(char *arg) {
     return JLI_StrCmp(arg, "-jar") == 0 ||
            JLI_StrCmp(arg, "-m") == 0 ||
            JLI_StrCmp(arg, "--module") == 0 ||
+           JLI_StrCCmp(arg, "--module=") == 0 ||
            JLI_StrCmp(arg, "--dry-run") == 0 ||
            JLI_StrCmp(arg, "-h") == 0 ||
            JLI_StrCmp(arg, "-?") == 0 ||
@@ -496,7 +501,7 @@ static jboolean expand(JLI_List args, const char *str, const char *var_name) {
     // This is retained until the process terminates as it is saved as the args
     p = JLI_MemAlloc(JLI_StrLen(str) + 1);
     while (*str != '\0') {
-        while (*str != '\0' && isspace(*str)) {
+        while (*str != '\0' && isspace((unsigned char) *str)) {
             str++;
         }
 
@@ -506,7 +511,7 @@ static jboolean expand(JLI_List args, const char *str, const char *var_name) {
         }
 
         arg = p;
-        while (*str != '\0' && !isspace(*str)) {
+        while (*str != '\0' && !isspace((unsigned char) *str)) {
             if (inEnvVar && (*str == '"' || *str == '\'')) {
                 quote = *str++;
                 while (*str != quote && *str != '\0') {
@@ -572,7 +577,7 @@ static jboolean expand(JLI_List args, const char *str, const char *var_name) {
             exit(1);
         }
 
-        assert (*str == '\0' || isspace(*str));
+        assert (*str == '\0' || isspace((unsigned char) *str));
     }
 
     return JNI_TRUE;

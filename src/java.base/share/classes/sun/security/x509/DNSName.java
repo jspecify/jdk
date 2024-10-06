@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 package sun.security.x509;
 
-import org.jspecify.annotations.Nullable;
-
 import java.io.IOException;
 import java.util.Locale;
 
@@ -36,26 +34,26 @@ import sun.security.util.*;
  * This class implements the DNSName as required by the GeneralNames
  * ASN.1 object.
  * <p>
- * [RFC2459] When the subjectAltName extension contains a domain name service
+ * [RFC5280] When the subjectAltName extension contains a domain name system
  * label, the domain name MUST be stored in the dNSName (an IA5String).
- * The name MUST be in the "preferred name syntax," as specified by RFC
- * 1034 [RFC 1034]. Note that while upper and lower case letters are
- * allowed in domain names, no signifigance is attached to the case.  In
+ * The name MUST be in the "preferred name syntax", as specified by
+ * Section 3.5 of [RFC1034] and as modified by Section 2.1 of
+ * [RFC1123].  Note that while uppercase and lowercase letters are
+ * allowed in domain names, no significance is attached to the case. In
  * addition, while the string " " is a legal domain name, subjectAltName
- * extensions with a dNSName " " are not permitted.  Finally, the use of
- * the DNS representation for Internet mail addresses (wpolk.nist.gov
- * instead of wpolk@nist.gov) is not permitted; such identities are to
- * be encoded as rfc822Name.
+ * extensions with a dNSName of " " MUST NOT be used.  Finally, the use
+ * of the DNS representation for Internet mail addresses
+ * (subscriber.example.com instead of subscriber@example.com) MUST NOT
+ * be used; such identities are to be encoded as rfc822Name.
  *
  * @author Amit Kapoor
  * @author Hemma Prafullchandra
  */
 public class DNSName implements GeneralNameInterface {
-    private String name;
+    private final String name;
 
-    private static final String alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    private static final String digitsAndHyphen = "0123456789-";
-    private static final String alphaDigitsAndHyphen = alpha + digitsAndHyphen;
+    private static final String alphaDigits =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
     /**
      * Create the DNSName object from the passed encoded Der value.
@@ -71,37 +69,67 @@ public class DNSName implements GeneralNameInterface {
      * Create the DNSName object with the specified name.
      *
      * @param name the DNSName.
-     * @throws IOException if the name is not a valid DNSName subjectAltName
+     * @param allowWildcard the flag for wildcard checking.
+     * @throws IOException if the name is not a valid DNSName
      */
-    public DNSName(String name) throws IOException {
-        if (name == null || name.length() == 0)
-            throw new IOException("DNS name must not be null");
-        if (name.indexOf(' ') != -1)
-            throw new IOException("DNS names or NameConstraints with blank components are not permitted");
-        if (name.charAt(0) == '.' || name.charAt(name.length() -1) == '.')
-            throw new IOException("DNS names or NameConstraints may not begin or end with a .");
-        //Name will consist of label components separated by "."
-        //startIndex is the index of the first character of a component
-        //endIndex is the index of the last character of a component plus 1
-        for (int endIndex,startIndex=0; startIndex < name.length(); startIndex = endIndex+1) {
+    public DNSName(String name, boolean allowWildcard) throws IOException {
+        if (name == null || name.isEmpty())
+            throw new IOException("DNSName must not be null or empty");
+        if (name.contains(" "))
+            throw new IOException("DNSName with blank components is not permitted");
+        if (name.startsWith(".") || name.endsWith("."))
+            throw new IOException("DNSName may not begin or end with a .");
+        /*
+         * Name will consist of label components separated by "."
+         * startIndex is the index of the first character of a component
+         * endIndex is the index of the last character of a component plus 1
+         */
+        for (int endIndex,startIndex = 0; startIndex < name.length(); startIndex = endIndex+1) {
             endIndex = name.indexOf('.', startIndex);
             if (endIndex < 0) {
                 endIndex = name.length();
             }
-            if ((endIndex-startIndex) < 1)
-                throw new IOException("DNSName SubjectAltNames with empty components are not permitted");
+            if (endIndex - startIndex < 1)
+                throw new IOException("DNSName with empty components are not permitted");
 
-            //DNSName components must begin with a letter A-Z or a-z
-            if (alpha.indexOf(name.charAt(startIndex)) < 0)
-                throw new IOException("DNSName components must begin with a letter");
+            if (allowWildcard) {
+                // RFC 1123: DNSName components must begin with a letter or digit
+                // or RFC 4592: the first component of a DNSName can have only a wildcard
+                // character * (asterisk), i.e. *.example.com. Asterisks at other components
+                // will not be allowed as a wildcard.
+                if (alphaDigits.indexOf(name.charAt(startIndex)) < 0) {
+                    // Checking to make sure the wildcard only appears in the first component,
+                    // and it has to be at least 3-char long with the form of *.[alphaDigit]
+                    if ((name.length() < 3) || (name.indexOf('*') != 0) ||
+                        (name.charAt(startIndex+1) != '.') ||
+                        (alphaDigits.indexOf(name.charAt(startIndex+2)) < 0))
+                        throw new IOException("DNSName components must begin with a letter, digit, "
+                            + "or the first component can have only a wildcard character *");
+                }
+            } else {
+                // RFC 1123: DNSName components must begin with a letter or digit
+                if (alphaDigits.indexOf(name.charAt(startIndex)) < 0)
+                    throw new IOException("DNSName components must begin with a letter or digit");
+            }
+
             //nonStartIndex: index for characters in the component beyond the first one
             for (int nonStartIndex=startIndex+1; nonStartIndex < endIndex; nonStartIndex++) {
                 char x = name.charAt(nonStartIndex);
-                if ((alphaDigitsAndHyphen).indexOf(x) < 0)
+                if ((alphaDigits).indexOf(x) < 0 && x != '-')
                     throw new IOException("DNSName components must consist of letters, digits, and hyphens");
             }
         }
         this.name = name;
+    }
+
+    /**
+     * Create the DNSName object with the specified name.
+     *
+     * @param name the DNSName.
+     * @throws IOException if the name is not a valid DNSName
+     */
+    public DNSName(String name) throws IOException {
+        this(name, false);
     }
 
     /**
@@ -119,12 +147,12 @@ public class DNSName implements GeneralNameInterface {
     }
 
     /**
-     * Encode the DNS name into the DerOutputStream.
+     * Encode the DNSName into the DerOutputStream.
      *
      * @param out the DER stream to encode the DNSName to.
-     * @exception IOException on encoding errors.
      */
-    public void encode(DerOutputStream out) throws IOException {
+    @Override
+    public void encode(DerOutputStream out) {
         out.putIA5String(name);
     }
 
@@ -139,29 +167,25 @@ public class DNSName implements GeneralNameInterface {
      * Compares this name with another, for equality.
      *
      * @return true iff the names are equivalent
-     * according to RFC2459.
+     * according to RFC5280.
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (this == obj)
             return true;
 
-        if (!(obj instanceof DNSName))
+        if (!(obj instanceof DNSName other))
             return false;
 
-        DNSName other = (DNSName)obj;
-
-        // RFC2459 mandates that these names are
+        // RFC5280 mandates that these names are
         // not case-sensitive
         return name.equalsIgnoreCase(other.name);
     }
 
     /**
-     * Returns the hash code value for this object.
-     *
-     * @return a hash code value for this object.
+     * {@return the hash code value for this object}
      */
+    @Override
     public int hashCode() {
         return name.toUpperCase(Locale.ENGLISH).hashCode();
     }
@@ -176,15 +200,11 @@ public class DNSName implements GeneralNameInterface {
      * </ul>.  These results are used in checking NameConstraints during
      * certification path verification.
      * <p>
-     * RFC2459: DNS name restrictions are expressed as foo.bar.com. Any subdomain
-     * satisfies the name constraint. For example, www.foo.bar.com would
-     * satisfy the constraint but bigfoo.bar.com would not.
-     * <p>
-     * draft-ietf-pkix-new-part1-00.txt:  DNS name restrictions are expressed as foo.bar.com.
-     * Any DNS name that
-     * can be constructed by simply adding to the left hand side of the name
-     * satisfies the name constraint. For example, www.foo.bar.com would
-     * satisfy the constraint but foo1.bar.com would not.
+     * RFC5280: For DNS names, restrictions MUST use the DNSName syntax in Section 4.2.1.6.
+     * Any DNS name that can be constructed by simply adding zero or more
+     * labels to the left-hand side of the name satisfies the name constraint.
+     * For example, www.host.example.com would satisfy the constraint but
+     * host1.example.com would not.
      * <p>
      * RFC1034: By convention, domain names can be stored with arbitrary case, but
      * domain name comparisons for all present domain functions are done in a
@@ -210,13 +230,13 @@ public class DNSName implements GeneralNameInterface {
                 constraintType = NAME_MATCH;
             else if (thisName.endsWith(inName)) {
                 int inNdx = thisName.lastIndexOf(inName);
-                if (thisName.charAt(inNdx-1) == '.' )
+                if (thisName.charAt(inNdx-1) == '.' ^ inName.charAt(0) == '.')
                     constraintType = NAME_WIDENS;
                 else
                     constraintType = NAME_SAME_TYPE;
             } else if (inName.endsWith(thisName)) {
                 int ndx = inName.lastIndexOf(thisName);
-                if (inName.charAt(ndx-1) == '.' )
+                if (inName.charAt(ndx-1) == '.' ^ thisName.charAt(0) == '.')
                     constraintType = NAME_NARROWS;
                 else
                     constraintType = NAME_SAME_TYPE;

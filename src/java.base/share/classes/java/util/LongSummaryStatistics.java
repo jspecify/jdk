@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,10 +63,11 @@ import java.util.stream.Collector;
  * provides the necessary partitioning, isolation, and merging of results for
  * safe and efficient parallel execution.
  *
- * <p>This implementation does not check for overflow of the sum.
+ * <p>This implementation does not check for overflow of the count or the sum.
  * @since 1.8
  */
 @NullMarked
+@SuppressWarnings("overloads")
 public class LongSummaryStatistics implements LongConsumer, IntConsumer {
     private long count;
     private long sum;

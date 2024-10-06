@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,12 +59,12 @@ import java.awt.font.TextLayout;
 
 public class OutlineTextRenderer implements TextPipe {
 
-    // Text with a height greater than the threshhold will be
+    // Text with a height greater than the threshold will be
     // drawn via this pipe.
     public static final int THRESHHOLD = 100;
 
     public void drawChars(SunGraphics2D g2d,
-                          char data[], int offset, int length,
+                          char[] data, int offset, int length,
                           int x, int y) {
 
         String s = new String(data, offset, length);

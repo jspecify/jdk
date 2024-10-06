@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,9 +93,10 @@ public class ServerNotifForwarder {
                 connectionId, name, getSubject());
         }
         try {
+            @SuppressWarnings("removal")
             boolean instanceOf =
             AccessController.doPrivileged(
-                    new PrivilegedExceptionAction<Boolean>() {
+                    new PrivilegedExceptionAction<>() {
                         public Boolean run() throws InstanceNotFoundException {
                             return mbeanServer.isInstanceOf(name, broadcasterClass);
                         }
@@ -114,15 +115,13 @@ public class ServerNotifForwarder {
 
         // 6238731: set the default domain if no domain is set.
         ObjectName nn = name;
-        if (name.getDomain() == null || name.getDomain().equals("")) {
+        if (name.getDomain() == null || name.getDomain().isEmpty()) {
             try {
                 nn = ObjectName.getInstance(mbeanServer.getDefaultDomain(),
                                             name.getKeyPropertyList());
             } catch (MalformedObjectNameException mfoe) {
                 // impossible, but...
-                IOException ioe = new IOException(mfoe.getMessage());
-                ioe.initCause(mfoe);
-                throw ioe;
+                throw new IOException(mfoe.getMessage(), mfoe);
             }
         }
 
@@ -135,7 +134,7 @@ public class ServerNotifForwarder {
                 set = Collections.singleton(idaf);
             else {
                 if (set.size() == 1)
-                    set = new HashSet<IdAndFilter>(set);
+                    set = new HashSet<>(set);
                 set.add(idaf);
             }
             listenerMap.put(nn, set);
@@ -344,9 +343,9 @@ public class ServerNotifForwarder {
     //----------------
     // PRIVATE METHODS
     //----------------
-
+    @SuppressWarnings("removal")
     private Subject getSubject() {
-        return Subject.getSubject(AccessController.getContext());
+        return Subject.current();
     }
 
     private void checkState() throws IOException {
@@ -373,6 +372,7 @@ public class ServerNotifForwarder {
         checkMBeanPermission(mbeanServer,name,actions);
     }
 
+    @SuppressWarnings("removal")
     static void checkMBeanPermission(
             final MBeanServer mbs, final ObjectName name, final String actions)
             throws InstanceNotFoundException, SecurityException {
@@ -383,7 +383,7 @@ public class ServerNotifForwarder {
             ObjectInstance oi;
             try {
                 oi = AccessController.doPrivileged(
-                    new PrivilegedExceptionAction<ObjectInstance>() {
+                    new PrivilegedExceptionAction<>() {
                         public ObjectInstance run()
                         throws InstanceNotFoundException {
                             return mbs.getObjectInstance(name);
@@ -485,11 +485,11 @@ public class ServerNotifForwarder {
     private final long connectionTimeout;
 
     private static int listenerCounter = 0;
-    private final static int[] listenerCounterLock = new int[0];
+    private static final int[] listenerCounterLock = new int[0];
 
     private NotificationBuffer notifBuffer;
     private final Map<ObjectName, Set<IdAndFilter>> listenerMap =
-            new HashMap<ObjectName, Set<IdAndFilter>>();
+            new HashMap<>();
 
     private boolean terminated = false;
     private final int[] terminationLock = new int[0];

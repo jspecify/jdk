@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,8 @@ import java.util.*;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class PerfMemory {
     private static AddressField  startField;
@@ -77,7 +79,7 @@ public class PerfMemory {
     }
 
     public static PerfDataPrologue prologue() {
-        return (PerfDataPrologue) VMObjectFactory.newObject(
+        return VMObjectFactory.newObject(
                    PerfDataPrologue.class, prologueField.getValue());
     }
 
@@ -100,7 +102,7 @@ public class PerfMemory {
         Address addr = header.getAddress();
 
         for (int i = 0; i < num; i++) {
-            PerfDataEntry pde = (PerfDataEntry) VMObjectFactory.newObject(
+            PerfDataEntry pde = VMObjectFactory.newObject(
                                PerfDataEntry.class, addr.addOffsetTo(off));
             off += pde.entryLength();
             if (visitor.visit(pde) == false) return;

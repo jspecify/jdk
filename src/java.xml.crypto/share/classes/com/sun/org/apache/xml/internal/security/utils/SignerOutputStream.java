@@ -22,9 +22,6 @@
  */
 package com.sun.org.apache.xml.internal.security.utils;
 
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.ByteArrayOutputStream;
 
 import com.sun.org.apache.xml.internal.security.algorithms.SignatureAlgorithm;
@@ -33,7 +30,6 @@ import com.sun.org.apache.xml.internal.security.signature.XMLSignatureException;
 /**
  *
  */
-@AnnotatedFor("signedness")
 public class SignerOutputStream extends ByteArrayOutputStream {
     private static final com.sun.org.slf4j.internal.Logger LOG =
         com.sun.org.slf4j.internal.LoggerFactory.getLogger(SignerOutputStream.class);
@@ -48,6 +44,7 @@ public class SignerOutputStream extends ByteArrayOutputStream {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void write(byte[] arg0)  {
         try {
             sa.update(arg0);
@@ -57,7 +54,8 @@ public class SignerOutputStream extends ByteArrayOutputStream {
     }
 
     /** {@inheritDoc} */
-    public void write(@PolySigned int arg0) {
+    @Override
+    public void write(int arg0) {
         try {
             sa.update((byte)arg0);
         } catch (XMLSignatureException e) {
@@ -66,7 +64,8 @@ public class SignerOutputStream extends ByteArrayOutputStream {
     }
 
     /** {@inheritDoc} */
-    public void write(@PolySigned byte[] arg0, int arg1, int arg2) {
+    @Override
+    public void write(byte[] arg0, int arg1, int arg2) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Canonicalized SignedInfo:");
             StringBuilder sb = new StringBuilder(arg2);

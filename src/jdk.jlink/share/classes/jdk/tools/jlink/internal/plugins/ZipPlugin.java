@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,19 +36,20 @@ import jdk.tools.jlink.internal.ResourcePoolManager.ResourcePoolImpl;
 import jdk.tools.jlink.plugin.ResourcePool;
 import jdk.tools.jlink.plugin.ResourcePoolBuilder;
 import jdk.tools.jlink.plugin.ResourcePoolEntry;
-import jdk.tools.jlink.plugin.Plugin;
 
 /**
  *
  * ZIP Compression plugin
  */
-public final class ZipPlugin implements Plugin {
+public final class ZipPlugin extends AbstractPlugin {
 
-    public static final String NAME = "zip";
     private Predicate<String> predicate;
 
-    public ZipPlugin() {
+    private static final int DEFAULT_COMPRESSION = 6;
+    private final int compressionLevel;
 
+    public ZipPlugin() {
+        this((Predicate<String>) null);
     }
 
     ZipPlugin(String[] patterns) {
@@ -56,12 +57,13 @@ public final class ZipPlugin implements Plugin {
     }
 
     ZipPlugin(Predicate<String> predicate) {
-        this.predicate = predicate;
+        this(predicate, DEFAULT_COMPRESSION);
     }
 
-    @Override
-    public String getName() {
-        return NAME;
+    ZipPlugin(Predicate<String> predicate, int compressionLevel) {
+        super("zip");
+        this.predicate = predicate;
+        this.compressionLevel = compressionLevel;
     }
 
     @Override
@@ -70,27 +72,17 @@ public final class ZipPlugin implements Plugin {
     }
 
     @Override
-    public String getDescription() {
-        return PluginsResourceBundle.getDescription(NAME);
-    }
-
-    @Override
     public boolean hasArguments() {
         return false;
     }
 
     @Override
-    public String getArgumentsDescription() {
-        return PluginsResourceBundle.getArgument(NAME);
-    }
-
-    @Override
     public void configure(Map<String, String> config) {
-        predicate = ResourceFilter.includeFilter(config.get(NAME));
+        predicate = ResourceFilter.includeFilter(config.get(getName()));
     }
 
-    static byte[] compress(byte[] bytesIn) {
-        Deflater deflater = new Deflater();
+    static byte[] compress(byte[] bytesIn, int compressionLevel) {
+        Deflater deflater = new Deflater(compressionLevel);
         deflater.setInput(bytesIn);
         ByteArrayOutputStream stream = new ByteArrayOutputStream(bytesIn.length);
         byte[] buffer = new byte[1024];
@@ -120,9 +112,9 @@ public final class ZipPlugin implements Plugin {
             if (resource.type().equals(ResourcePoolEntry.Type.CLASS_OR_RESOURCE)
                     && predicate.test(resource.path())) {
                 byte[] compressed;
-                compressed = compress(resource.contentBytes());
+                compressed = compress(resource.contentBytes(), this.compressionLevel);
                 res = ResourcePoolManager.newCompressedResource(resource,
-                        ByteBuffer.wrap(compressed), getName(), null,
+                        ByteBuffer.wrap(compressed), getName(),
                         ((ResourcePoolImpl)in).getStringTable(), in.byteOrder());
             }
             return res;

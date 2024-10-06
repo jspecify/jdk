@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,7 +44,11 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+
 import sun.security.krb5.internal.util.KerberosString;
+
+import static sun.security.krb5.internal.Krb5.DEBUG;
 /**
  * Implements the ASN.1 KRBError type.
  *
@@ -79,7 +83,9 @@ import sun.security.krb5.internal.util.KerberosString;
  * <a href="http://www.ietf.org/rfc/rfc4120.txt">
  * http://www.ietf.org/rfc/rfc4120.txt</a>.
  */
-
+// The instance fields not statically typed as Serializable are ASN.1
+// encoded and written by the writeObject method.
+@SuppressWarnings("serial")
 public class KRBError implements java.io.Serializable {
     static final long serialVersionUID = 3643809337475284503L;
 
@@ -90,6 +96,7 @@ public class KRBError implements java.io.Serializable {
     private KerberosTime sTime;
     private Integer suSec;
     private int errorCode;
+    private Realm crealm; //optional
     private PrincipalName cname; //optional
     private PrincipalName sname;
     private String eText; //optional
@@ -97,8 +104,6 @@ public class KRBError implements java.io.Serializable {
     private Checksum eCksum; //optional
 
     private PAData[] pa;    // PA-DATA in eData
-
-    private static boolean DEBUG = Krb5.DEBUG;
 
     private void readObject(ObjectInputStream is)
             throws IOException, ClassNotFoundException {
@@ -138,6 +143,7 @@ public class KRBError implements java.io.Serializable {
         sTime = new_sTime;
         suSec = new_suSec;
         errorCode = new_errorCode;
+        crealm = new_cname != null ? new_cname.getRealm() : null;
         cname = new_cname;
         sname = new_sname;
         eText = new_eText;
@@ -166,6 +172,7 @@ public class KRBError implements java.io.Serializable {
         sTime = new_sTime;
         suSec = new_suSec;
         errorCode = new_errorCode;
+        crealm = new_cname != null ? new_cname.getRealm() : null;
         cname = new_cname;
         sname = new_sname;
         eText = new_eText;
@@ -225,18 +232,16 @@ public class KRBError implements java.io.Serializable {
                 // may fail.
                 parsePAData(data);
             } catch (Exception e) {
-                if (DEBUG) {
-                    System.out.println("Unable to parse eData field of KRB-ERROR:\n" +
+                if (DEBUG != null) {
+                    DEBUG.println("Unable to parse eData field of KRB-ERROR:\n" +
                             new sun.security.util.HexDumpEncoder().encodeBuffer(data));
                 }
-                IOException ioe = new IOException(
-                        "Unable to parse eData field of KRB-ERROR");
-                ioe.initCause(e);
-                throw ioe;
+                throw new IOException(
+                        "Unable to parse eData field of KRB-ERROR", e);
             }
         } else {
-            if (DEBUG) {
-                System.out.println("Unknown eData field of KRB-ERROR:\n" +
+            if (DEBUG != null) {
+                DEBUG.println("Unknown eData field of KRB-ERROR:\n" +
                         new sun.security.util.HexDumpEncoder().encodeBuffer(data));
             }
         }
@@ -255,11 +260,15 @@ public class KRBError implements java.io.Serializable {
             DerValue tmp = derPA.data.getDerValue();
             PAData pa_data = new PAData(tmp);
             paList.add(pa_data);
-            if (DEBUG) {
-                System.out.println(pa_data);
+            if (DEBUG != null) {
+                DEBUG.println(pa_data.toString());
             }
         }
         pa = paList.toArray(new PAData[paList.size()]);
+    }
+
+    public final Realm getClientRealm() {
+        return crealm;
     }
 
     public final KerberosTime getServerTime() {
@@ -349,7 +358,7 @@ public class KRBError implements java.io.Serializable {
             errorCode = subDer.getData().getBigInteger().intValue();
         }
         else  throw new Asn1Exception(Krb5.ASN1_BAD_ID);
-        Realm crealm = Realm.parse(der.getData(), (byte)0x07, true);
+        crealm = Realm.parse(der.getData(), (byte)0x07, true);
         cname = PrincipalName.parse(der.getData(), (byte)0x08, true, crealm);
         Realm realm = Realm.parse(der.getData(), (byte)0x09, false);
         sname = PrincipalName.parse(der.getData(), (byte)0x0A, false, realm);
@@ -380,32 +389,35 @@ public class KRBError implements java.io.Serializable {
      * For debug use only
      */
     private void showDebug() {
-        if (DEBUG) {
-            System.out.println(">>>KRBError:");
+        if (DEBUG != null) {
+            DEBUG.println(">>>KRBError:");
             if (cTime != null)
-                System.out.println("\t cTime is " + cTime.toDate().toString() + " " + cTime.toDate().getTime());
+                DEBUG.println("\t cTime is " + cTime.toDate().toString() + " " + cTime.toDate().getTime());
             if (cuSec != null) {
-                System.out.println("\t cuSec is " + cuSec.intValue());
+                DEBUG.println("\t cuSec is " + cuSec.intValue());
             }
 
-            System.out.println("\t sTime is " + sTime.toDate().toString
+            DEBUG.println("\t sTime is " + sTime.toDate().toString
                                () + " " + sTime.toDate().getTime());
-            System.out.println("\t suSec is " + suSec);
-            System.out.println("\t error code is " + errorCode);
-            System.out.println("\t error Message is " + Krb5.getErrorMessage(errorCode));
+            DEBUG.println("\t suSec is " + suSec);
+            DEBUG.println("\t error code is " + errorCode);
+            DEBUG.println("\t error Message is " + Krb5.getErrorMessage(errorCode));
+            if (crealm != null) {
+                DEBUG.println("\t crealm is " + crealm.toString());
+            }
             if (cname != null) {
-                System.out.println("\t cname is " + cname.toString());
+                DEBUG.println("\t cname is " + cname.toString());
             }
             if (sname != null) {
-                System.out.println("\t sname is " + sname.toString());
+                DEBUG.println("\t sname is " + sname.toString());
             }
             if (eData != null) {
-                System.out.println("\t eData provided.");
+                DEBUG.println("\t eData provided.");
             }
             if (eCksum != null) {
-                System.out.println("\t checksum provided.");
+                DEBUG.println("\t checksum provided.");
             }
-            System.out.println("\t msgType is " + msgType);
+            DEBUG.println("\t msgType is " + msgType);
         }
     }
 
@@ -442,8 +454,10 @@ public class KRBError implements java.io.Serializable {
         temp.putInteger(BigInteger.valueOf(errorCode));
         bytes.write(DerValue.createTag(DerValue.TAG_CONTEXT, true, (byte)0x06), temp);
 
+        if (crealm != null) {
+            bytes.write(DerValue.createTag(DerValue.TAG_CONTEXT, true, (byte)0x07), crealm.asn1Encode());
+        }
         if (cname != null) {
-            bytes.write(DerValue.createTag(DerValue.TAG_CONTEXT, true, (byte)0x07), cname.getRealm().asn1Encode());
             bytes.write(DerValue.createTag(DerValue.TAG_CONTEXT, true, (byte)0x08), cname.asn1Encode());
         }
 
@@ -476,38 +490,35 @@ public class KRBError implements java.io.Serializable {
             return true;
         }
 
-        if (!(obj instanceof KRBError)) {
+        if (!(obj instanceof KRBError other)) {
             return false;
         }
 
-        KRBError other = (KRBError)obj;
         return  pvno == other.pvno &&
                 msgType == other.msgType &&
-                isEqual(cTime, other.cTime) &&
-                isEqual(cuSec, other.cuSec) &&
-                isEqual(sTime, other.sTime) &&
-                isEqual(suSec, other.suSec) &&
                 errorCode == other.errorCode &&
-                isEqual(cname, other.cname) &&
-                isEqual(sname, other.sname) &&
-                isEqual(eText, other.eText) &&
-                java.util.Arrays.equals(eData, other.eData) &&
-                isEqual(eCksum, other.eCksum);
-    }
-
-    private static boolean isEqual(Object a, Object b) {
-        return (a == null)?(b == null):(a.equals(b));
+                Objects.equals(cTime, other.cTime) &&
+                Objects.equals(cuSec, other.cuSec) &&
+                Objects.equals(sTime, other.sTime) &&
+                Objects.equals(suSec, other.suSec) &&
+                Objects.equals(crealm, other.crealm) &&
+                Objects.equals(cname, other.cname) &&
+                Objects.equals(sname, other.sname) &&
+                Objects.equals(eText, other.eText) &&
+                Arrays.equals(eData, other.eData) &&
+                Objects.equals(eCksum, other.eCksum);
     }
 
     @Override public int hashCode() {
         int result = 17;
         result = 37 * result + pvno;
         result = 37 * result + msgType;
+        result = 37 * result + errorCode;
         if (cTime != null) result = 37 * result + cTime.hashCode();
         if (cuSec != null) result = 37 * result + cuSec.hashCode();
         if (sTime != null) result = 37 * result + sTime.hashCode();
         if (suSec != null) result = 37 * result + suSec.hashCode();
-        result = 37 * result + errorCode;
+        if (crealm != null) result = 37 * result + crealm.hashCode();
         if (cname != null) result = 37 * result + cname.hashCode();
         if (sname != null) result = 37 * result + sname.hashCode();
         if (eText != null) result = 37 * result + eText.hashCode();

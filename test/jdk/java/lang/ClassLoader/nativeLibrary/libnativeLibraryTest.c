@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,10 @@
 #include <stdlib.h>
 
 #include "jni.h"
-#include "jni_util.h"
 
 static jint count = 0;
 static jclass test_class;
-static jint current_jni_version = JNI_VERSION_10;
+static jint current_jni_version = JNI_VERSION_19;
 
 JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM *vm, void *reserved) {

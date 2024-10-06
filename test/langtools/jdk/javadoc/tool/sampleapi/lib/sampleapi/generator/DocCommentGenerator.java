@@ -23,17 +23,23 @@
 
 package sampleapi.generator;
 
-import java.io.File;
-import java.io.BufferedInputStream;
-import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
+
 import javax.lang.model.element.Modifier;
 
 import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.*;
+import com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import com.sun.tools.javac.tree.JCTree.JCExpression;
+import com.sun.tools.javac.tree.JCTree.JCIdent;
+import com.sun.tools.javac.tree.JCTree.JCLiteral;
+import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
+import com.sun.tools.javac.tree.JCTree.JCNewArray;
+import com.sun.tools.javac.tree.JCTree.JCNewClass;
+import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
+import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.util.List;
-import java.util.HashMap;
-import java.util.Map;
 
 class DocCommentGenerator {
 
@@ -67,8 +73,6 @@ class DocCommentGenerator {
         SERIAL("@serial", ""),
         SERIALDATA("@serialData", "The types and order of data could be here."),
         SERIALFIELD("@serialField", "\n        Serial field in special array"),
-        FX_PROPSETTER("@propertySetter", "Set the property"),
-        FX_PROPGETTER("@propertyGetter", "Get the property"),
         FX_PROPDESC("@propertyDescription", ""),
         FX_DEFVALUE("@defaultValue", ""),
         FX_TREATASPRIVATE("@treatAsPrivate", "");
@@ -384,10 +388,7 @@ class DocCommentGenerator {
 
         if (isFxStyle) {
             // @propertySetter/Getter + Description
-            if ("void".equals(retType.toString())) {
-                buildComment += Tag.FX_PROPSETTER + "\n";
-            } else {
-                buildComment += Tag.FX_PROPGETTER + "\n";
+            if (!"void".equals(retType.toString())) {
                 buildComment += Tag.FX_DEFVALUE.value(defValue(retType.toString()))
                                 + "\n";
             }

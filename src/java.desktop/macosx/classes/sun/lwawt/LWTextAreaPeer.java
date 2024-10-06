@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,10 @@ import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.TransferHandler;
 import javax.swing.text.Document;
+
+import sun.awt.AWTAccessor;
 
 /**
  * Lightweight implementation of {@link TextAreaPeer}. Delegates most of the
@@ -219,12 +222,6 @@ final class LWTextAreaPeer
 
         private final class JTextAreaDelegate extends JTextArea {
 
-            // Empty non private constructor was added because access to this
-            // class shouldn't be emulated by a synthetic accessor method.
-            JTextAreaDelegate() {
-                super();
-            }
-
             @Override
             public void replaceSelection(String content) {
                 getDocument().removeDocumentListener(LWTextAreaPeer.this);
@@ -242,6 +239,17 @@ final class LWTextAreaPeer
             @Override
             public Point getLocationOnScreen() {
                 return LWTextAreaPeer.this.getLocationOnScreen();
+            }
+
+            @Override
+            public void setTransferHandler(final TransferHandler newHandler) {
+                // override the default implementation to avoid loading
+                // SystemFlavorMap and associated classes
+                Object key = AWTAccessor.getClientPropertyKeyAccessor()
+                                        .getJComponent_TRANSFER_HANDLER();
+                Object oldHandler = getClientProperty(key);
+                putClientProperty(key, newHandler);
+                firePropertyChange("transferHandler", oldHandler, newHandler);
             }
         }
     }

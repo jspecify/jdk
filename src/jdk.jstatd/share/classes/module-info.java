@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,14 +27,12 @@
  * Defines the <em>{@index jstatd jstatd tool}</em> tool for starting a daemon
  * for the jstat tool to monitor JVM statistics remotely.
  *
- * <dl style="font-family:'DejaVu Sans', Arial, Helvetica, sans serif">
- * <dt class="simpleTagLabel">Tool Guides:
- * <dd>{@extLink jstatd_tool_reference jstatd}
- * </dl>
+ * @toolGuide jstatd
  *
  * @moduleGraph
  * @since 9
  */
+@Deprecated(since="24", forRemoval=true)
 module jdk.jstatd {
     requires java.rmi;
     requires jdk.internal.jvmstat;

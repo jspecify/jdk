@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,14 +23,14 @@
 
 /*
  * @test
- * @key regression
  * @bug 8020675
  * @summary make sure there is no fatal error if a class is loaded from an invalid jar file which is in the bootclasspath
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
  * @build TestForName
- * @run main LoadClassNegative
+ * @run driver LoadClassNegative
  */
 
 import java.io.File;
@@ -42,7 +42,7 @@ public class LoadClassNegative {
   public static void main(String args[]) throws Exception {
     String bootCP = "-Xbootclasspath/a:" + System.getProperty("test.src")
                        + File.separator + "dummy.jar";
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+    ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(
         bootCP,
         "TestForName");
 

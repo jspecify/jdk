@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,5 +47,23 @@ public class SubClass extends BaseClass {
    */
   public void privateMethod() {}
 
-  public void overridenMethodWithDocsToCopy() {}
+  public void overriddenMethodWithDocsToCopy() {}
+
+  /**
+   * {@inheritDoc}
+   */
+  @Deprecated
+  public void func1() {}
+
+  /**
+   * deprecated with comments
+   */
+  @Deprecated
+  public void func2() {}
+
+  /**
+   * {@inheritDoc}
+   */
+  public void func3() {}
+
 }

@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -44,17 +42,16 @@ import jdk.test.lib.jfr.SimpleEvent;
 public class TestRecordedInstantEventTimestamp {
 
     public static void main(String[] args) throws Throwable {
-        Recording r = new Recording();
-        r.start();
-        SimpleEvent s = new SimpleEvent();
-        s.commit();
-        r.stop();
+        try (Recording r = new Recording()) {
+            r.start();
+            SimpleEvent s = new SimpleEvent();
+            s.commit();
+            r.stop();
 
-        List<RecordedEvent> events = Events.fromRecording(r);
-        Events.hasEvents(events);
-        RecordedEvent event = events.get(0);
-        Asserts.assertEquals(event.getStartTime(), event.getEndTime());
-
-        r.close();
+            List<RecordedEvent> events = Events.fromRecording(r);
+            Events.hasEvents(events);
+            RecordedEvent event = events.getFirst();
+            Asserts.assertEquals(event.getStartTime(), event.getEndTime());
+        }
     }
 }

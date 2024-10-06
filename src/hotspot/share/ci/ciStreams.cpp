@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,12 @@
  */
 
 #include "precompiled.hpp"
-#include "ci/ciCallSite.hpp"
 #include "ci/ciConstant.hpp"
 #include "ci/ciField.hpp"
+#include "ci/ciKlass.hpp"
+#include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciStreams.hpp"
+#include "ci/ciSymbols.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "runtime/handles.inline.hpp"
 
@@ -133,7 +135,7 @@ Bytecodes::Code ciBytecodeStream::next_wide_or_table(Bytecodes::Code bc) {
 // ------------------------------------------------------------------
 // ciBytecodeStream::reset_to_bci
 void ciBytecodeStream::reset_to_bci( int bci ) {
-  _bc_start=_was_wide=0;
+  _bc_start = _was_wide = nullptr;
   _pc = _start+bci;
 }
 
@@ -186,8 +188,23 @@ int ciBytecodeStream::get_klass_index() const {
 // or checkcast, get the referenced klass.
 ciKlass* ciBytecodeStream::get_klass(bool& will_link) {
   VM_ENTRY_MARK;
-  constantPoolHandle cpool(_method->get_Method()->constants());
+  constantPoolHandle cpool(THREAD, _method->get_Method()->constants());
   return CURRENT_ENV->get_klass_by_index(cpool, get_klass_index(), will_link, _holder);
+}
+
+// ciBytecodeStream::get_klass
+//
+// If this bytecode is a new, newarray, multianewarray, instanceof,
+// or checkcast, get the referenced klass. Retuns an unloaded ciKlass
+// if the referenced klass is not accessible.
+ciKlass* ciBytecodeStream::get_klass() {
+  bool will_link;
+  ciKlass* klass = get_klass(will_link);
+  if (!will_link && klass->is_loaded()) { // klass not accessible
+    VM_ENTRY_MARK;
+    klass = CURRENT_ENV->get_unloaded_klass(_holder, klass->name());
+  }
+  return klass;
 }
 
 // ------------------------------------------------------------------
@@ -217,18 +234,10 @@ int ciBytecodeStream::get_constant_pool_index() const {
   int index = get_constant_raw_index();
   if (has_cache_index()) {
     VM_ENTRY_MARK;
-    constantPoolHandle cpool(_method->get_Method()->constants());
+    constantPoolHandle cpool(THREAD, _method->get_Method()->constants());
     return cpool->object_to_cp_index(index);
   }
   return index;
-}
-
-// ------------------------------------------------------------------
-// ciBytecodeStream::get_constant_cache_index
-// Return the CP cache index, or -1 if there isn't any.
-int ciBytecodeStream::get_constant_cache_index() const {
-  // work-alike for Bytecode_loadconstant::cache_index()
-  return has_cache_index() ? get_constant_raw_index() : -1;
 }
 
 // ------------------------------------------------------------------
@@ -237,14 +246,19 @@ int ciBytecodeStream::get_constant_cache_index() const {
 // If this bytecode is one of the ldc variants, get the referenced
 // constant.
 ciConstant ciBytecodeStream::get_constant() {
+  VM_ENTRY_MARK;
+  constantPoolHandle cpool(THREAD, _method->get_Method()->constants());
   int pool_index = get_constant_raw_index();
   int cache_index = -1;
   if (has_cache_index()) {
     cache_index = pool_index;
-    pool_index = -1;
+    pool_index = cpool->object_to_cp_index(cache_index);
+  } else if (cpool->tag_at(pool_index).is_dynamic_constant() ||
+             cpool->tag_at(pool_index).is_dynamic_constant_in_error()) {
+    // Condy with primitive type is not quickened, so the index into resolved reference cache should be reconstructed.
+    assert(is_java_primitive(cpool->basic_type_for_constant_at(pool_index)), "not quickened");
+    cache_index = cpool->cp_to_object_index(pool_index);
   }
-  VM_ENTRY_MARK;
-  constantPoolHandle cpool(_method->get_Method()->constants());
   return CURRENT_ENV->get_constant_by_index(cpool, pool_index, cache_index, _holder);
 }
 
@@ -253,9 +267,25 @@ ciConstant ciBytecodeStream::get_constant() {
 //
 // If this bytecode is one of the ldc variants, get the referenced
 // constant.
-constantTag ciBytecodeStream::get_constant_pool_tag(int index) const {
+constantTag ciBytecodeStream::get_constant_pool_tag(int cp_index) const {
   VM_ENTRY_MARK;
-  return _method->get_Method()->constants()->constant_tag_at(index);
+  return _method->get_Method()->constants()->constant_tag_at(cp_index);
+}
+
+// ------------------------------------------------------------------
+// ciBytecodeStream::get_raw_pool_tag
+//
+constantTag ciBytecodeStream::get_raw_pool_tag_at(int index) const {
+  VM_ENTRY_MARK;
+  return _method->get_Method()->constants()->tag_at(index);
+}
+
+// ------------------------------------------------------------------
+// ciBytecodeStream::get_basic_type_for_constant_at
+//
+BasicType ciBytecodeStream::get_basic_type_for_constant_at(int cp_index) const {
+  VM_ENTRY_MARK;
+  return _method->get_Method()->constants()->basic_type_for_constant_at(cp_index);
 }
 
 // ------------------------------------------------------------------
@@ -268,7 +298,7 @@ int ciBytecodeStream::get_field_index() {
          cur_bc() == Bytecodes::_putfield ||
          cur_bc() == Bytecodes::_getstatic ||
          cur_bc() == Bytecodes::_putstatic, "wrong bc");
-  return get_index_u2_cpcache();
+  return get_index_u2();
 }
 
 
@@ -278,7 +308,7 @@ int ciBytecodeStream::get_field_index() {
 // If this bytecode is one of get_field, get_static, put_field,
 // or put_static, get the referenced field.
 ciField* ciBytecodeStream::get_field(bool& will_link) {
-  ciField* f = CURRENT_ENV->get_field_by_index(_holder, get_field_index());
+  ciField* f = CURRENT_ENV->get_field_by_index(_holder, get_field_index(), _bc);
   will_link = f->will_link(_method, _bc);
   return f;
 }
@@ -297,7 +327,7 @@ ciField* ciBytecodeStream::get_field(bool& will_link) {
 // for checking linkability when retrieving the associated field.
 ciInstanceKlass* ciBytecodeStream::get_declared_field_holder() {
   VM_ENTRY_MARK;
-  constantPoolHandle cpool(_method->get_Method()->constants());
+  constantPoolHandle cpool(THREAD, _method->get_Method()->constants());
   int holder_index = get_field_holder_index();
   bool ignore;
   return CURRENT_ENV->get_klass_by_index(cpool, holder_index, ignore, _holder)
@@ -313,21 +343,8 @@ ciInstanceKlass* ciBytecodeStream::get_declared_field_holder() {
 int ciBytecodeStream::get_field_holder_index() {
   GUARDED_VM_ENTRY(
     ConstantPool* cpool = _holder->get_instanceKlass()->constants();
-    return cpool->klass_ref_index_at(get_field_index());
+    return cpool->klass_ref_index_at(get_field_index(), _bc);
   )
-}
-
-// ------------------------------------------------------------------
-// ciBytecodeStream::get_field_signature_index
-//
-// Get the constant pool index of the signature of the field
-// referenced by the current bytecode.  Used for generating
-// deoptimization information.
-int ciBytecodeStream::get_field_signature_index() {
-  VM_ENTRY_MARK;
-  ConstantPool* cpool = _holder->get_instanceKlass()->constants();
-  int nt_index = cpool->name_and_type_ref_index_at(get_field_index());
-  return cpool->signature_ref_index_at(nt_index);
 }
 
 // ------------------------------------------------------------------
@@ -336,21 +353,10 @@ int ciBytecodeStream::get_field_signature_index() {
 // If this is a method invocation bytecode, get the constant pool
 // index of the invoked method.
 int ciBytecodeStream::get_method_index() {
-#ifdef ASSERT
-  switch (cur_bc()) {
-  case Bytecodes::_invokeinterface:
-  case Bytecodes::_invokevirtual:
-  case Bytecodes::_invokespecial:
-  case Bytecodes::_invokestatic:
-  case Bytecodes::_invokedynamic:
-    break;
-  default:
-    ShouldNotReachHere();
-  }
-#endif
+  assert(Bytecodes::is_invoke(cur_bc()), "invalid bytecode: %s", Bytecodes::name(cur_bc()));
   if (has_index_u4())
     return get_index_u4();  // invokedynamic
-  return get_index_u2_cpcache();
+  return get_index_u2();
 }
 
 // ------------------------------------------------------------------
@@ -366,15 +372,91 @@ ciMethod* ciBytecodeStream::get_method(bool& will_link, ciSignature* *declared_s
   ciMethod* m = env->get_method_by_index(cpool, get_method_index(), cur_bc(), _holder);
   will_link = m->is_loaded();
 
-  // Use the MethodType stored in the CP cache to create a signature
+  // Use the signature stored in the CP cache to create a signature
   // with correct types (in respect to class loaders).
-  if (has_method_type()) {
-    ciSymbol*     sig_sym     = env->get_symbol(cpool->symbol_at(get_method_signature_index(cpool)));
-    ciKlass*      pool_holder = env->get_klass(cpool->pool_holder());
-    ciMethodType* method_type = get_method_type();
-    ciSignature* declared_signature = new (env->arena()) ciSignature(pool_holder, sig_sym, method_type);
-    (*declared_signature_result) = declared_signature;
+  //
+  // In classic Java (before Java 7) there is never the slightest
+  // difference between the signature at the call site and that of the
+  // method.  Such a difference would have been a type error in the
+  // JVM.
+  //
+  // Now there are a few circumstances where the signature of a call
+  // site (which controls the outgoing stacked arguments) can differ
+  // from the signature of the method (which controls the receipt of
+  // those arguments at the method entry point).
+  //
+  // A. The signatures can differ if the callee is a static method and
+  // the caller thinks it is calling a non-static method (VH.get).
+  // This requires the method signature to have an explicit leading
+  // argument for the implicit 'this', not present at the call site.
+  //
+  // B. The call site can have less specific parameter types than the
+  // method, allowing loosely-typed code to handle strongly-typed
+  // methods.  This happens with linkToStatic and related linker
+  // commands.  Obviously the loosely-typed code has to ensure that
+  // the strongly typed method's invariants are respected, and this is
+  // done by issuing dynamic casts.
+  //
+  // C. The call site can have more specific parameter types than the
+  // method, allowing loosely-typed methods to handle strongly-typed
+  // requests.
+  //
+  // D. There are corresponding effects with return values, such as
+  // boolean method returning an int to an int-receiving call site,
+  // even though the method thought it returned just a boolean.
+  //
+  // E. The calling sequence at a particular call site may add an
+  // "appendix" argument not mentioned in the call site signature.  It
+  // is expected by the method signature, though, and this adds to the
+  // method's arity, even after 'this' parameter effects (A) are
+  // discounted.  Appendixes are used by invokehandle and
+  // invokedynamic instructions.
+  //
+  // F. A linker method (linkToStatic, etc.) can also take an extra
+  // argument, a MemberName which routes the call to a concrete
+  // strongly-typed method.  In this case the linker method may also
+  // differ in any of the ways A-D.  The eventual method will ignore
+  // the presence of the extra argument.
+  //
+  // None of these changes to calling sequences requires an argument
+  // to be moved or reformatted in any way.  This works because all
+  // references look alike to the JVM, as do all primitives (except
+  // float/long/double).  Another required property of the JVM is
+  // that, if a trailing argument is added or dropped, the placement
+  // of other arguments does not change.  This allows cases E and F to
+  // work smoothly, against without any moving or reformatting,
+  // despite the arity change.
+  //
+  if (has_local_signature()) {
+    Symbol* local_signature = cpool->symbol_at(get_method_signature_index(cpool));
+    ciSymbol* sig_sym  = env->get_symbol(local_signature);
+    ciKlass* pool_holder = env->get_klass(cpool->pool_holder());
+    ciSignature* call_site_sig = new (env->arena()) ciSignature(pool_holder, cpool, sig_sym);
+    // Examples of how the call site signature can differ from the method's own signature:
+    //
+    //  meth = static jboolean java.lang.invoke.VarHandleGuards.guard_LII_Z(jobject, jobject, jint, jint, jobject)
+    //  msig = (Ljava/lang/invoke/VarHandle;Ljava/lang/Object;IILjava/lang/invoke/VarHandle$AccessDescriptor;)Z
+    //  call = (Ljava/util/concurrent/locks/AbstractQueuedSynchronizer;II)Z
+    //
+    //  meth = static jobject java.lang.invoke.LambdaForm$MH/0x0000000800066840.linkToTargetMethod(jobject, jobject)
+    //  msig = (Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+    //  call = (Ljava/lang/String;)Ljava/util/function/Predicate;
+    //
+    (*declared_signature_result) = call_site_sig;
+
   } else {
+    // We can just use the method's own signature.  It may differ from the call site, but not by much.
+    //
+    // Examples of how the call site signature can differ from the method's signature:
+    //
+    // meth = static final native jint java.lang.invoke.MethodHandle.linkToStatic(jobject, jobject, jint, jint, jobject)
+    // msig = (Ljava/lang/Object;Ljava/lang/Object;IILjava/lang/invoke/MemberName;)I
+    // call = (Ljava/lang/invoke/VarHandle;Ljava/lang/Object;IILjava/lang/invoke/MemberName;)Z
+    //
+    // meth = final native jint java.lang.invoke.MethodHandle.invokeBasic(jobject, jobject, jint, jint)
+    // msig = (Ljava/lang/Object;Ljava/lang/Object;II)I
+    // call = (Ljava/lang/invoke/VarHandle;Ljava/lang/Object;II)Z
+    //
     (*declared_signature_result) = m->signature();
   }
   return m;
@@ -387,8 +469,8 @@ ciMethod* ciBytecodeStream::get_method(bool& will_link, ciSignature* *declared_s
 // constant pool cache at the current bci.
 bool ciBytecodeStream::has_appendix() {
   VM_ENTRY_MARK;
-  constantPoolHandle cpool(_method->get_Method()->constants());
-  return ConstantPool::has_appendix_at_if_loaded(cpool, get_method_index());
+  constantPoolHandle cpool(THREAD, _method->get_Method()->constants());
+  return ConstantPool::has_appendix_at_if_loaded(cpool, get_method_index(), cur_bc());
 }
 
 // ------------------------------------------------------------------
@@ -398,33 +480,20 @@ bool ciBytecodeStream::has_appendix() {
 // the current bci.
 ciObject* ciBytecodeStream::get_appendix() {
   VM_ENTRY_MARK;
-  constantPoolHandle cpool(_method->get_Method()->constants());
-  oop appendix_oop = ConstantPool::appendix_at_if_loaded(cpool, get_method_index());
+  constantPoolHandle cpool(THREAD, _method->get_Method()->constants());
+  oop appendix_oop = ConstantPool::appendix_at_if_loaded(cpool, get_method_index(), cur_bc());
   return CURRENT_ENV->get_object(appendix_oop);
 }
 
 // ------------------------------------------------------------------
-// ciBytecodeStream::has_method_type
+// ciBytecodeStream::has_local_signature
 //
-// Returns true if there is a MethodType argument stored in the
-// constant pool cache at the current bci.
-bool ciBytecodeStream::has_method_type() {
+// Returns true if the method stored in the constant
+// pool cache at the current bci has a local signature.
+bool ciBytecodeStream::has_local_signature() {
   GUARDED_VM_ENTRY(
-    constantPoolHandle cpool(_method->get_Method()->constants());
-    return ConstantPool::has_method_type_at_if_loaded(cpool, get_method_index());
-  )
-}
-
-// ------------------------------------------------------------------
-// ciBytecodeStream::get_method_type
-//
-// Return the MethodType stored in the constant pool cache at
-// the current bci.
-ciMethodType* ciBytecodeStream::get_method_type() {
-  GUARDED_VM_ENTRY(
-    constantPoolHandle cpool(_method->get_Method()->constants());
-    oop method_type_oop = ConstantPool::method_type_at_if_loaded(cpool, get_method_index());
-    return CURRENT_ENV->get_object(method_type_oop)->as_method_type();
+    constantPoolHandle cpool(Thread::current(), _method->get_Method()->constants());
+    return ConstantPool::has_local_signature_at_if_loaded(cpool, get_method_index(), cur_bc());
   )
 }
 
@@ -441,11 +510,12 @@ ciMethodType* ciBytecodeStream::get_method_type() {
 // for checking linkability when retrieving the associated method.
 ciKlass* ciBytecodeStream::get_declared_method_holder() {
   VM_ENTRY_MARK;
-  constantPoolHandle cpool(_method->get_Method()->constants());
+  constantPoolHandle cpool(THREAD, _method->get_Method()->constants());
   bool ignore;
   // report as MethodHandle for invokedynamic, which is syntactically classless
-  if (cur_bc() == Bytecodes::_invokedynamic)
-    return CURRENT_ENV->get_klass_by_name(_holder, ciSymbol::java_lang_invoke_MethodHandle(), false);
+  if (cur_bc() == Bytecodes::_invokedynamic) {
+    return CURRENT_ENV->MethodHandle_klass();
+  }
   return CURRENT_ENV->get_klass_by_index(cpool, get_method_holder_index(), ignore, _holder);
 }
 
@@ -457,7 +527,7 @@ ciKlass* ciBytecodeStream::get_declared_method_holder() {
 // deoptimization information.
 int ciBytecodeStream::get_method_holder_index() {
   ConstantPool* cpool = _method->get_Method()->constants();
-  return cpool->klass_ref_index_at(get_method_index());
+  return cpool->klass_ref_index_at(get_method_index(), _bc);
 }
 
 // ------------------------------------------------------------------
@@ -469,18 +539,7 @@ int ciBytecodeStream::get_method_holder_index() {
 int ciBytecodeStream::get_method_signature_index(const constantPoolHandle& cpool) {
   GUARDED_VM_ENTRY(
     const int method_index = get_method_index();
-    const int name_and_type_index = cpool->name_and_type_ref_index_at(method_index);
+    const int name_and_type_index = cpool->name_and_type_ref_index_at(method_index, _bc);
     return cpool->signature_ref_index_at(name_and_type_index);
   )
 }
-
-// ------------------------------------------------------------------
-// ciBytecodeStream::get_resolved_references
-ciObjArray* ciBytecodeStream::get_resolved_references() {
-    VM_ENTRY_MARK;
-    // Get the constant pool.
-  ConstantPool*        cpool   = _holder->get_instanceKlass()->constants();
-
-  // Create a resolved references array and return it.
-  return CURRENT_ENV->get_object(cpool->resolved_references())->as_obj_array();
-  }

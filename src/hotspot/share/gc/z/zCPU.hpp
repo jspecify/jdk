@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,9 @@
 #ifndef SHARE_GC_Z_ZCPU_HPP
 #define SHARE_GC_Z_ZCPU_HPP
 
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 #include "memory/padded.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 class Thread;
 
@@ -36,8 +37,10 @@ private:
   };
 
   static PaddedEnd<ZCPUAffinity>* _affinity;
-  static __thread Thread*         _self;
-  static __thread uint32_t        _cpu;
+  static THREAD_LOCAL Thread*     _self;
+  static THREAD_LOCAL uint32_t    _cpu;
+
+  static uint32_t id_slow();
 
 public:
   static void initialize();

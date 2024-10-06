@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,87 +25,123 @@
 #define SHARE_GC_Z_ZARRAY_INLINE_HPP
 
 #include "gc/z/zArray.hpp"
-#include "memory/allocation.inline.hpp"
+
+#include "gc/z/zLock.inline.hpp"
 #include "runtime/atomic.hpp"
 
-template <typename T>
-inline ZArray<T>::ZArray() :
-    _array(NULL),
-    _size(0),
-    _capacity(0) {}
+template <typename T, bool Parallel>
+inline bool ZArrayIteratorImpl<T, Parallel>::next_serial(size_t* index) {
+  if (_next == _end) {
+    return false;
+  }
 
-template <typename T>
-inline ZArray<T>::~ZArray() {
-  if (_array != NULL) {
-    FREE_C_HEAP_ARRAY(T, _array);
+  *index = _next;
+  _next++;
+
+  return true;
+}
+
+template <typename T, bool Parallel>
+inline bool ZArrayIteratorImpl<T, Parallel>::next_parallel(size_t* index) {
+  const size_t claimed_index = Atomic::fetch_then_add(&_next, 1u, memory_order_relaxed);
+
+  if (claimed_index < _end) {
+    *index = claimed_index;
+    return true;
+  }
+
+  return false;
+}
+
+template <typename T, bool Parallel>
+inline ZArrayIteratorImpl<T, Parallel>::ZArrayIteratorImpl(const T* array, size_t length)
+  : _next(0),
+    _end(length),
+    _array(array) {}
+
+template <typename T, bool Parallel>
+inline ZArrayIteratorImpl<T, Parallel>::ZArrayIteratorImpl(const ZArray<T>* array)
+  : ZArrayIteratorImpl<T, Parallel>(array->is_empty() ? nullptr : array->adr_at(0), (size_t)array->length()) {}
+
+template <typename T, bool Parallel>
+inline bool ZArrayIteratorImpl<T, Parallel>::next(T* elem) {
+  size_t index;
+  if (next_index(&index)) {
+    *elem = index_to_elem(index);
+    return true;
+  }
+
+  return false;
+}
+
+template <typename T, bool Parallel>
+inline bool ZArrayIteratorImpl<T, Parallel>::next_index(size_t* index) {
+  if (Parallel) {
+    return next_parallel(index);
+  } else {
+    return next_serial(index);
   }
 }
 
-template <typename T>
-inline size_t ZArray<T>::size() const {
-  return _size;
-}
-
-template <typename T>
-inline bool ZArray<T>::is_empty() const {
-  return size() == 0;
-}
-
-template <typename T>
-inline T ZArray<T>::at(size_t index) const {
-  assert(index < _size, "Index out of bounds");
+template <typename T, bool Parallel>
+inline T ZArrayIteratorImpl<T, Parallel>::index_to_elem(size_t index) {
+  assert(index < _end, "Out of bounds");
   return _array[index];
 }
 
 template <typename T>
-inline void ZArray<T>::expand(size_t new_capacity) {
-  T* new_array = NEW_C_HEAP_ARRAY(T, new_capacity, mtGC);
-  if (_array != NULL) {
-    memcpy(new_array, _array, sizeof(T) * _capacity);
-    FREE_C_HEAP_ARRAY(T, _array);
-  }
+ZActivatedArray<T>::ZActivatedArray(bool locked)
+  : _lock(locked ? new ZLock() : nullptr),
+    _count(0),
+    _array() {}
 
-  _array = new_array;
-  _capacity = new_capacity;
+template <typename T>
+ZActivatedArray<T>::~ZActivatedArray() {
+  FreeHeap(_lock);
 }
 
 template <typename T>
-inline void ZArray<T>::add(T value) {
-  if (_size == _capacity) {
-    const size_t new_capacity = (_capacity > 0) ? _capacity * 2 : initial_capacity;
-    expand(new_capacity);
-  }
-
-  _array[_size++] = value;
+bool ZActivatedArray<T>::is_activated() const {
+  ZLocker<ZLock> locker(_lock);
+  return _count > 0;
 }
 
 template <typename T>
-inline void ZArray<T>::clear() {
-  _size = 0;
-}
-
-template <typename T, bool parallel>
-inline ZArrayIteratorImpl<T, parallel>::ZArrayIteratorImpl(ZArray<T>* array) :
-    _array(array),
-    _next(0) {}
-
-template <typename T, bool parallel>
-inline bool ZArrayIteratorImpl<T, parallel>::next(T* elem) {
-  if (parallel) {
-    const size_t next = Atomic::add(1u, &_next) - 1u;
-    if (next < _array->size()) {
-      *elem = _array->at(next);
-      return true;
-    }
-  } else {
-    if (_next < _array->size()) {
-      *elem = _array->at(_next++);
-      return true;
-    }
+bool ZActivatedArray<T>::add_if_activated(ItemT* item) {
+  ZLocker<ZLock> locker(_lock);
+  if (_count > 0) {
+    _array.append(item);
+    return true;
   }
 
-  // No more elements
   return false;
+}
+
+template <typename T>
+void ZActivatedArray<T>::activate() {
+  ZLocker<ZLock> locker(_lock);
+  _count++;
+}
+
+template <typename T>
+template <typename Function>
+void ZActivatedArray<T>::deactivate_and_apply(Function function) {
+  ZArray<ItemT*> array;
+
+  {
+    ZLocker<ZLock> locker(_lock);
+    assert(_count > 0, "Invalid state");
+    if (--_count == 0u) {
+      // Fully deactivated - remove all elements
+      array.swap(&_array);
+    }
+  }
+
+  // Apply function to all elements - if fully deactivated
+  ZArrayIterator<ItemT*> iter(&array);
+  for (ItemT* item; iter.next(&item);) {
+    function(item);
+  }
 }
 
 #endif // SHARE_GC_Z_ZARRAY_INLINE_HPP

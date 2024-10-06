@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,28 +26,30 @@
  * @bug 4745855
  * @summary Test to ensure that the doclet does not print out bad
  * warning messages about duplicate param tags.
- * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestDupParamWarn
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestDupParamWarn extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        JavadocTester tester = new TestDupParamWarn();
+        var tester = new TestDupParamWarn();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
 
         checkOutput(Output.OUT, false,
-            "Parameter \"a\" is documented more than once.");
+            """
+                Parameter "a" is documented more than once.""");
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,14 +29,17 @@ package sun.jvm.hotspot.debugger;
 public class DebuggerUtilities {
   protected long addressSize;
   protected boolean isBigEndian;
+  protected boolean supports32bitAlignmentOf64bitTypes;
 
-  public DebuggerUtilities(long addressSize, boolean isBigEndian) {
+    public DebuggerUtilities(long addressSize, boolean isBigEndian,
+                             boolean supports32bitAlignmentOf64bitTypes) {
     this.addressSize = addressSize;
     this.isBigEndian = isBigEndian;
+    this.supports32bitAlignmentOf64bitTypes = supports32bitAlignmentOf64bitTypes;
   }
 
   public String addressValueToString(long address) {
-    StringBuffer buf = new StringBuffer();
+    StringBuilder buf = new StringBuilder();
     buf.append("0x");
     String val;
     // Make negative addresses have the correct size
@@ -53,6 +56,13 @@ public class DebuggerUtilities {
   }
 
   public void checkAlignment(long address, long alignment) {
+    // Allow 32-bit alignment for 64-bit types on some hosts.
+    if (supports32bitAlignmentOf64bitTypes) {
+      if (address % 4 == 0) {
+        return;
+      }
+    }
+
     if (address % alignment != 0) {
       throw new UnalignedAddressException("Trying to read at address: " +
                                            addressValueToString(address) +
@@ -83,7 +93,7 @@ public class DebuggerUtilities {
     } else if (ascii >= 'a' && ascii <= 'f') {
       return 10 + ascii - 'a';
     }
-    throw new NumberFormatException(new Character(ascii).toString());
+    throw new NumberFormatException(Character.toString(ascii));
   }
 
   public boolean dataToJBoolean(byte[] data, long jbooleanSize) {

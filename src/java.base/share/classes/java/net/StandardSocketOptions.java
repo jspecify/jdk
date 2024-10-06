@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,6 +61,8 @@ public final @UsesObjectEquals class StandardSocketOptions {
      * require that the Java virtual machine be started with implementation
      * specific privileges to enable this option or send broadcast datagrams.
      *
+     * @spec https://www.rfc-editor.org/info/rfc919
+     *      RFC 919: Broadcasting Internet Datagrams
      * @see <a href="http://www.ietf.org/rfc/rfc919.txt">RFC&nbsp;929:
      * Broadcasting Internet Datagrams</a>
      * @see DatagramSocket#setBroadcast
@@ -81,6 +83,8 @@ public final @UsesObjectEquals class StandardSocketOptions {
      * <p> The initial value of this socket option is {@code FALSE}. The socket
      * option may be enabled or disabled at any time.
      *
+     * @spec https://www.rfc-editor.org/info/rfc1122
+     *      RFC 1122: Requirements for Internet Hosts - Communication Layers
      * @see <a href="http://www.ietf.org/rfc/rfc1122.txt">RFC&nbsp;1122
      * Requirements for Internet Hosts -- Communication Layers</a>
      * @see Socket#setKeepAlive
@@ -151,6 +155,8 @@ public final @UsesObjectEquals class StandardSocketOptions {
      * socket receive buffer to be changed after the socket is bound is system
      * dependent.
      *
+     * @spec https://www.rfc-editor.org/info/rfc1323
+     *      RFC 1323: TCP Extensions for High Performance
      * @see <a href="http://www.ietf.org/rfc/rfc1323.txt">RFC&nbsp;1323: TCP
      * Extensions for High Performance</a>
      * @see Socket#setReceiveBufferSize
@@ -183,6 +189,8 @@ public final @UsesObjectEquals class StandardSocketOptions {
      * after the socket is bound has no effect. The default value of this
      * socket option is system dependent.
      *
+     * @spec https://www.rfc-editor.org/info/rfc793
+     *      RFC 793: Transmission Control Protocol
      * @see <a href="http://www.ietf.org/rfc/rfc793.txt">RFC&nbsp;793: Transmission
      * Control Protocol</a>
      * @see ServerSocket#setReuseAddress
@@ -272,6 +280,10 @@ public final @UsesObjectEquals class StandardSocketOptions {
      * {@link StandardProtocolFamily#INET6 IPv6} socket, is not defined in this
      * release.
      *
+     * @spec https://www.rfc-editor.org/info/rfc1349
+     *      RFC 1349: Type of Service in the Internet Protocol Suite
+     * @spec https://www.rfc-editor.org/info/rfc2474
+     *      RFC 2474: Definition of the Differentiated Services Field (DS Field) in the IPv4 and IPv6 Headers
      * @see DatagramSocket#setTrafficClass
      */
     public static final SocketOption<Integer> IP_TOS =
@@ -295,7 +307,6 @@ public final @UsesObjectEquals class StandardSocketOptions {
      * is system dependent.
      *
      * @see java.nio.channels.MulticastChannel
-     * @see MulticastSocket#setInterface
      */
     public static final SocketOption<NetworkInterface> IP_MULTICAST_IF =
         new StdSocketOption<NetworkInterface>("IP_MULTICAST_IF", NetworkInterface.class);
@@ -347,7 +358,6 @@ public final @UsesObjectEquals class StandardSocketOptions {
      * binding the socket is system dependent.
      *
      * @see java.nio.channels.MulticastChannel
-     *  @see MulticastSocket#setLoopbackMode
      */
     public static final SocketOption<Boolean> IP_MULTICAST_LOOP =
         new StdSocketOption<Boolean>("IP_MULTICAST_LOOP", Boolean.class);
@@ -372,6 +382,8 @@ public final @UsesObjectEquals class StandardSocketOptions {
      * disabled. If it cannot, then invoking the {@code setOption} method to
      * disable the option has no effect.
      *
+     * @spec https://www.rfc-editor.org/info/rfc1122
+     *      RFC 1122: Requirements for Internet Hosts - Communication Layers
      * @see <a href="http://www.ietf.org/rfc/rfc1122.txt">RFC&nbsp;1122:
      * Requirements for Internet Hosts -- Communication Layers</a>
      * @see Socket#setTcpNoDelay

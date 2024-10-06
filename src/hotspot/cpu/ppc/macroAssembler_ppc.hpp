@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2018, SAP SE. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,21 +23,29 @@
  *
  */
 
-#ifndef CPU_PPC_VM_MACROASSEMBLER_PPC_HPP
-#define CPU_PPC_VM_MACROASSEMBLER_PPC_HPP
+#ifndef CPU_PPC_MACROASSEMBLER_PPC_HPP
+#define CPU_PPC_MACROASSEMBLER_PPC_HPP
 
 #include "asm/assembler.hpp"
 #include "oops/accessDecorators.hpp"
-#include "runtime/rtmLocking.hpp"
 #include "utilities/macros.hpp"
 
 // MacroAssembler extends Assembler by a few frequently used macros.
 
 class ciTypeArray;
+class OopMap;
 
 class MacroAssembler: public Assembler {
  public:
   MacroAssembler(CodeBuffer* code) : Assembler(code) {}
+
+  // Indicates whether and, if so, which registers must be preserved when calling runtime code.
+  enum PreservationLevel {
+    PRESERVATION_NONE,
+    PRESERVATION_FRAME_LR,
+    PRESERVATION_FRAME_LR_GP_REGS,
+    PRESERVATION_FRAME_LR_GP_FP_REGS
+  };
 
   //
   // Optimized instruction emitters
@@ -79,6 +87,16 @@ class MacroAssembler: public Assembler {
 
   // nop padding
   void align(int modulus, int max = 252, int rem = 0);
+
+  // Align prefix opcode to make sure it's not on the last word of a
+  // 64-byte block.
+  //
+  // Note: do not call align_prefix() in a .ad file (e.g. ppc.ad).  Instead
+  // add ins_alignment(2) to the instruct definition and implement the
+  // compute_padding() method of the instruct node to use
+  // compute_prefix_padding().  See loadConI32Node::compute_padding() in
+  // ppc.ad for an example.
+  void align_prefix();
 
   //
   // Constants, loading constants, TOC support
@@ -152,17 +170,18 @@ class MacroAssembler: public Assembler {
   // Same as load_address.
   inline void set_oop         (AddressLiteral obj_addr, Register d);
 
-  // Read runtime constant:  Issue load if constant not yet established,
-  // else use real constant.
-  virtual RegisterOrConstant delayed_value_impl(intptr_t* delayed_value_addr,
-                                                Register tmp,
-                                                int offset);
-
   //
   // branch, jump
   //
+  // set dst to -1, 0, +1 as follows: if CCR0bi is "greater than", dst is set to 1,
+  // if CCR0bi is "equal", dst is set to 0, otherwise it's set to -1.
+  void inline set_cmp3(Register dst);
+  // set dst to (treat_unordered_like_less ? -1 : +1)
+  void inline set_cmpu3(Register dst, bool treat_unordered_like_less);
+  // Branch-free implementation to convert !=0 to 1.
+  void inline normalize_bool(Register dst, Register temp = R0, bool is_64bit = false);
 
-  inline void pd_patch_instruction(address branch, address target);
+  inline void pd_patch_instruction(address branch, address target, const char* file, int line);
   NOT_PRODUCT(static void pd_print_patched_instruction(address branch);)
 
   // Conditional far branch for destinations encodable in 24+2 bits.
@@ -261,12 +280,29 @@ class MacroAssembler: public Assembler {
   //
 
   // some ABI-related functions
+
+  // Clobbers all volatile, (non-floating-point) general-purpose registers for debugging purposes.
+  // This is especially useful for making calls to the JRT in places in which this hasn't been done before;
+  // e.g. with the introduction of LRBs (load reference barriers) for concurrent garbage collection.
+  void clobber_volatile_gprs(Register excluded_register = noreg);
+  void clobber_carg_stack_slots(Register tmp);
+
   void save_nonvolatile_gprs(   Register dst_base, int offset);
   void restore_nonvolatile_gprs(Register src_base, int offset);
-  enum { num_volatile_regs = 11 + 14 }; // GPR + FPR
-  void save_volatile_gprs(   Register dst_base, int offset);
-  void restore_volatile_gprs(Register src_base, int offset);
-  void save_LR_CR(   Register tmp);     // tmp contains LR on return.
+
+  enum {
+    num_volatile_gp_regs = 11,
+    num_volatile_fp_regs = 14,
+    num_volatile_regs = num_volatile_gp_regs + num_volatile_fp_regs
+  };
+
+  void save_volatile_gprs(   Register dst_base, int offset,
+                             bool include_fp_regs = true, bool include_R3_RET_reg = true);
+  void restore_volatile_gprs(Register src_base, int offset,
+                             bool include_fp_regs = true, bool include_R3_RET_reg = true);
+  void save_LR(Register tmp);
+  void restore_LR(Register tmp);
+  void save_LR_CR(Register tmp);     // tmp contains LR on return.
   void restore_LR_CR(Register tmp);
 
   // Get current PC using bl-next-instruction trick.
@@ -283,7 +319,7 @@ class MacroAssembler: public Assembler {
   // Push a frame of size `bytes'. No abi space provided.
   void push_frame(unsigned int bytes, Register tmp);
 
-  // Push a frame of size `bytes' plus abi_reg_args on top.
+  // Push a frame of size `bytes' plus native_abi_reg_args on top.
   void push_frame_reg_args(unsigned int bytes, Register tmp);
 
   // Setup up a new C frame with a spill area for non-volatile GPRs and additional
@@ -323,7 +359,7 @@ class MacroAssembler: public Assembler {
   address call_c(Register function_entry);
   // For tail calls: only branch, don't link, so callee returns to caller of this function.
   address call_c_and_return_to_caller(Register function_entry);
-  address call_c(address function_entry, relocInfo::relocType rt);
+  address call_c(address function_entry, relocInfo::relocType rt = relocInfo::none);
 #else
   // Call a C function via a function descriptor and use full C
   // calling conventions. Updates and returns _last_calls_return_pc.
@@ -331,9 +367,15 @@ class MacroAssembler: public Assembler {
   // For tail calls: only branch, don't link, so callee returns to caller of this function.
   address call_c_and_return_to_caller(Register function_descriptor);
   address call_c(const FunctionDescriptor* function_descriptor, relocInfo::relocType rt);
+  address call_c(address function_entry, relocInfo::relocType rt = relocInfo::none) {
+    return call_c((const FunctionDescriptor*)function_entry, rt);
+  }
   address call_c_using_toc(const FunctionDescriptor* function_descriptor, relocInfo::relocType rt,
                            Register toc);
 #endif
+
+  static int ic_check_size();
+  int ic_check(int end_alignment);
 
  protected:
 
@@ -384,6 +426,14 @@ class MacroAssembler: public Assembler {
   inline address call_stub(Register function_entry);
   inline void call_stub_and_return_to(Register function_entry, Register return_pc);
 
+  void post_call_nop();
+  static bool is_post_call_nop(int instr_bits) {
+    const uint32_t nineth_bit = opp_u_field(1, 9, 9);
+    const uint32_t opcode_mask = 0b111110 << OPCODE_SHIFT;
+    const uint32_t pcn_mask = opcode_mask | nineth_bit;
+    return (instr_bits & pcn_mask) == (Assembler::CMPLI_OPCODE | nineth_bit);
+  }
+
   //
   // Java utilities
   //
@@ -392,17 +442,12 @@ class MacroAssembler: public Assembler {
   inline void load_from_polling_page(Register polling_page_address, int offset = 0);
   // Check whether instruction is a read access to the polling page
   // which was emitted by load_from_polling_page(..).
-  static bool is_load_from_polling_page(int instruction, void* ucontext/*may be NULL*/,
-                                        address* polling_address_ptr = NULL);
+  static bool is_load_from_polling_page(int instruction, void* ucontext/*may be nullptr*/,
+                                        address* polling_address_ptr = nullptr);
 
-  // Check whether instruction is a write access to the memory
-  // serialization page realized by one of the instructions stw, stwu,
-  // stwx, or stwux.
-  static bool is_memory_serialization(int instruction, JavaThread* thread, void* ucontext);
-
-  // Support for NULL-checks
+  // Support for null-checks
   //
-  // Generates code that causes a NULL OS exception if the content of reg is NULL.
+  // Generates code that causes a null OS exception if the content of reg is null.
   // If the accessed location is M[reg + offset] and the offset is known, provide the
   // offset. No explicit code generation is needed if the offset is within a certain
   // range (0 <= offset <= page_size).
@@ -440,13 +485,14 @@ class MacroAssembler: public Assembler {
                                      Register addr_base, Register tmp1, Register tmp2, Register tmp3,
                                      bool cmpxchgx_hint, bool is_add, int size);
   void cmpxchg_loop_body(ConditionRegister flag, Register dest_current_value,
-                         Register compare_value, Register exchange_value,
+                         RegisterOrConstant compare_value, Register exchange_value,
                          Register addr_base, Register tmp1, Register tmp2,
                          Label &retry, Label &failed, bool cmpxchgx_hint, int size);
-  void cmpxchg_generic(ConditionRegister flag,
-                       Register dest_current_value, Register compare_value, Register exchange_value, Register addr_base,
-                       Register tmp1, Register tmp2,
-                       int semantics, bool cmpxchgx_hint, Register int_flag_success, bool contention_hint, bool weak, int size);
+  void cmpxchg_generic(ConditionRegister flag, Register dest_current_value,
+                       RegisterOrConstant compare_value, Register exchange_value,
+                       Register addr_base, Register tmp1, Register tmp2,
+                       int semantics, bool cmpxchgx_hint, Register int_flag_success,
+                       Label* failed_ext, bool contention_hint, bool weak, int size);
  public:
   // Temps and addr_base are killed if processor does not support Power 8 instructions.
   // Result will be sign extended.
@@ -486,33 +532,37 @@ class MacroAssembler: public Assembler {
                   Register tmp, bool cmpxchgx_hint);
   // Temps, addr_base and exchange_value are killed if processor does not support Power 8 instructions.
   // compare_value must be at least 32 bit sign extended. Result will be sign extended.
-  void cmpxchgb(ConditionRegister flag,
-                Register dest_current_value, Register compare_value, Register exchange_value, Register addr_base,
-                Register tmp1, Register tmp2, int semantics, bool cmpxchgx_hint = false,
-                Register int_flag_success = noreg, bool contention_hint = false, bool weak = false) {
+  void cmpxchgb(ConditionRegister flag, Register dest_current_value,
+                RegisterOrConstant compare_value, Register exchange_value,
+                Register addr_base, Register tmp1, Register tmp2,
+                int semantics, bool cmpxchgx_hint = false, Register int_flag_success = noreg,
+                Label* failed = nullptr, bool contention_hint = false, bool weak = false) {
     cmpxchg_generic(flag, dest_current_value, compare_value, exchange_value, addr_base, tmp1, tmp2,
-                    semantics, cmpxchgx_hint, int_flag_success, contention_hint, weak, 1);
+                    semantics, cmpxchgx_hint, int_flag_success, failed, contention_hint, weak, 1);
   }
   // Temps, addr_base and exchange_value are killed if processor does not support Power 8 instructions.
   // compare_value must be at least 32 bit sign extended. Result will be sign extended.
-  void cmpxchgh(ConditionRegister flag,
-                Register dest_current_value, Register compare_value, Register exchange_value, Register addr_base,
-                Register tmp1, Register tmp2, int semantics, bool cmpxchgx_hint = false,
-                Register int_flag_success = noreg, bool contention_hint = false, bool weak = false) {
+  void cmpxchgh(ConditionRegister flag, Register dest_current_value,
+                RegisterOrConstant compare_value, Register exchange_value,
+                Register addr_base, Register tmp1, Register tmp2,
+                int semantics, bool cmpxchgx_hint = false, Register int_flag_success = noreg,
+                Label* failed = nullptr, bool contention_hint = false, bool weak = false) {
     cmpxchg_generic(flag, dest_current_value, compare_value, exchange_value, addr_base, tmp1, tmp2,
-                    semantics, cmpxchgx_hint, int_flag_success, contention_hint, weak, 2);
+                    semantics, cmpxchgx_hint, int_flag_success, failed, contention_hint, weak, 2);
   }
-  void cmpxchgw(ConditionRegister flag,
-                Register dest_current_value, Register compare_value, Register exchange_value, Register addr_base,
-                int semantics, bool cmpxchgx_hint = false,
-                Register int_flag_success = noreg, bool contention_hint = false, bool weak = false) {
+  void cmpxchgw(ConditionRegister flag, Register dest_current_value,
+                RegisterOrConstant compare_value, Register exchange_value,
+                Register addr_base,
+                int semantics, bool cmpxchgx_hint = false, Register int_flag_success = noreg,
+                Label* failed = nullptr, bool contention_hint = false, bool weak = false) {
     cmpxchg_generic(flag, dest_current_value, compare_value, exchange_value, addr_base, noreg, noreg,
-                    semantics, cmpxchgx_hint, int_flag_success, contention_hint, weak, 4);
+                    semantics, cmpxchgx_hint, int_flag_success, failed, contention_hint, weak, 4);
   }
-  void cmpxchgd(ConditionRegister flag,
-                Register dest_current_value, RegisterOrConstant compare_value, Register exchange_value,
-                Register addr_base, int semantics, bool cmpxchgx_hint = false,
-                Register int_flag_success = noreg, Label* failed = NULL, bool contention_hint = false, bool weak = false);
+  void cmpxchgd(ConditionRegister flag, Register dest_current_value,
+                RegisterOrConstant compare_value, Register exchange_value,
+                Register addr_base,
+                int semantics, bool cmpxchgx_hint = false, Register int_flag_success = noreg,
+                Label* failed = nullptr, bool contention_hint = false, bool weak = false);
 
   // interface method calling
   void lookup_interface_method(Register recv_klass,
@@ -531,7 +581,7 @@ class MacroAssembler: public Assembler {
   // Test sub_klass against super_klass, with fast and slow paths.
 
   // The fast path produces a tri-state answer: yes / no / maybe-slow.
-  // One of the three labels can be NULL, meaning take the fall-through.
+  // One of the three labels can be null, meaning take the fall-through.
   // If super_check_offset is -1, the value is loaded up from super_klass.
   // No registers are killed, except temp_reg and temp2_reg.
   // If super_check_offset is not -1, temp2_reg is not used and can be noreg.
@@ -541,7 +591,7 @@ class MacroAssembler: public Assembler {
                                      Register temp2_reg,
                                      Label* L_success,
                                      Label* L_failure,
-                                     Label* L_slow_path = NULL, // default fall through
+                                     Label* L_slow_path = nullptr, // default fall through
                                      RegisterOrConstant super_check_offset = RegisterOrConstant(-1));
 
   // The rest of the type check; must be wired to a corresponding fast path.
@@ -553,7 +603,7 @@ class MacroAssembler: public Assembler {
                                      Register super_klass,
                                      Register temp1_reg,
                                      Register temp2_reg,
-                                     Label* L_success = NULL,
+                                     Label* L_success = nullptr,
                                      Register result_reg = noreg);
 
   // Simplified, combined version, good for typical uses.
@@ -564,38 +614,50 @@ class MacroAssembler: public Assembler {
                            Register temp2_reg,
                            Label& L_success);
 
-  // Method handle support (JSR 292).
-  void check_method_handle_type(Register mtype_reg, Register mh_reg, Register temp_reg, Label& wrong_method_type);
+  void repne_scan(Register addr, Register value, Register count, Register scratch);
 
+  // As above, but with a constant super_klass.
+  // The result is in Register result, not the condition codes.
+  void lookup_secondary_supers_table(Register r_sub_klass,
+                                     Register r_super_klass,
+                                     Register temp1,
+                                     Register temp2,
+                                     Register temp3,
+                                     Register temp4,
+                                     Register result,
+                                     u1 super_klass_slot);
+
+  void verify_secondary_supers_table(Register r_sub_klass,
+                                     Register r_super_klass,
+                                     Register result,
+                                     Register temp1,
+                                     Register temp2,
+                                     Register temp3);
+
+  void lookup_secondary_supers_table_slow_path(Register r_super_klass,
+                                               Register r_array_base,
+                                               Register r_array_index,
+                                               Register r_bitmap,
+                                               Register result,
+                                               Register temp1);
+
+  void clinit_barrier(Register klass,
+                      Register thread,
+                      Label* L_fast_path = nullptr,
+                      Label* L_slow_path = nullptr);
+
+  // Method handle support (JSR 292).
   RegisterOrConstant argument_offset(RegisterOrConstant arg_slot, Register temp_reg, int extra_slot_offset = 0);
 
-  // Biased locking support
-  // Upon entry,obj_reg must contain the target object, and mark_reg
-  // must contain the target object's header.
-  // Destroys mark_reg if an attempt is made to bias an anonymously
-  // biased lock. In this case a failure will go either to the slow
-  // case or fall through with the notEqual condition code set with
-  // the expectation that the slow case in the runtime will be called.
-  // In the fall-through case where the CAS-based lock is done,
-  // mark_reg is not destroyed.
-  void biased_locking_enter(ConditionRegister cr_reg, Register obj_reg, Register mark_reg, Register temp_reg,
-                            Register temp2_reg, Label& done, Label* slow_case = NULL);
-  // Upon entry, the base register of mark_addr must contain the oop.
-  // Destroys temp_reg.
-  // If allow_delay_slot_filling is set to true, the next instruction
-  // emitted after this one will go in an annulled delay slot if the
-  // biased locking exit case failed.
-  void biased_locking_exit(ConditionRegister cr_reg, Register mark_addr, Register temp_reg, Label& done);
+  void push_cont_fastpath();
+  void pop_cont_fastpath();
+  void inc_held_monitor_count(Register tmp);
+  void dec_held_monitor_count(Register tmp);
+  void atomically_flip_locked_state(bool is_unlock, Register obj, Register tmp, Label& failed, int semantics);
+  void lightweight_lock(Register box, Register obj, Register t1, Register t2, Label& slow);
+  void lightweight_unlock(Register obj, Register t1, Label& slow);
 
   // allocation (for C1)
-  void eden_allocate(
-    Register obj,                      // result: pointer to object after successful allocation
-    Register var_size_in_bytes,        // object size in bytes if unknown at compile time; invalid otherwise
-    int      con_size_in_bytes,        // object size in bytes if   known at compile time
-    Register t1,                       // temp register
-    Register t2,                       // temp register
-    Label&   slow_case                 // continuation point if fast allocation fails
-  );
   void tlab_allocate(
     Register obj,                      // result: pointer to object after successful allocation
     Register var_size_in_bytes,        // object size in bytes if unknown at compile time; invalid otherwise
@@ -603,55 +665,29 @@ class MacroAssembler: public Assembler {
     Register t1,                       // temp register
     Label&   slow_case                 // continuation point if fast allocation fails
   );
-  void incr_allocated_bytes(RegisterOrConstant size_in_bytes, Register t1, Register t2);
 
   enum { trampoline_stub_size = 6 * 4 };
   address emit_trampoline_stub(int destination_toc_offset, int insts_call_instruction_offset, Register Rtoc = noreg);
 
-  void atomic_inc_ptr(Register addr, Register result, int simm16 = 1);
-  void atomic_ori_int(Register addr, Register result, int uimm16);
-
-#if INCLUDE_RTM_OPT
-  void rtm_counters_update(Register abort_status, Register rtm_counters);
-  void branch_on_random_using_tb(Register tmp, int count, Label& brLabel);
-  void rtm_abort_ratio_calculation(Register rtm_counters_reg, RTMLockingCounters* rtm_counters,
-                                   Metadata* method_data);
-  void rtm_profiling(Register abort_status_Reg, Register temp_Reg,
-                     RTMLockingCounters* rtm_counters, Metadata* method_data, bool profile_rtm);
-  void rtm_retry_lock_on_abort(Register retry_count, Register abort_status,
-                               Label& retryLabel, Label* checkRetry = NULL);
-  void rtm_retry_lock_on_busy(Register retry_count, Register owner_addr, Label& retryLabel);
-  void rtm_stack_locking(ConditionRegister flag, Register obj, Register mark_word, Register tmp,
-                         Register retry_on_abort_count,
-                         RTMLockingCounters* stack_rtm_counters,
-                         Metadata* method_data, bool profile_rtm,
-                         Label& DONE_LABEL, Label& IsInflated);
-  void rtm_inflated_locking(ConditionRegister flag, Register obj, Register mark_word, Register box,
-                            Register retry_on_busy_count, Register retry_on_abort_count,
-                            RTMLockingCounters* rtm_counters,
-                            Metadata* method_data, bool profile_rtm,
-                            Label& DONE_LABEL);
-#endif
-
   void compiler_fast_lock_object(ConditionRegister flag, Register oop, Register box,
-                                 Register tmp1, Register tmp2, Register tmp3,
-                                 bool try_bias = UseBiasedLocking,
-                                 RTMLockingCounters* rtm_counters = NULL,
-                                 RTMLockingCounters* stack_rtm_counters = NULL,
-                                 Metadata* method_data = NULL,
-                                 bool use_rtm = false, bool profile_rtm = false);
+                                 Register tmp1, Register tmp2, Register tmp3);
 
   void compiler_fast_unlock_object(ConditionRegister flag, Register oop, Register box,
-                                   Register tmp1, Register tmp2, Register tmp3,
-                                   bool try_bias = UseBiasedLocking, bool use_rtm = false);
+                                   Register tmp1, Register tmp2, Register tmp3);
 
-  // Support for serializing memory accesses between threads
-  void serialize_memory(Register thread, Register tmp1, Register tmp2);
+  void compiler_fast_lock_lightweight_object(ConditionRegister flag, Register oop, Register box,
+                                             Register tmp1, Register tmp2, Register tmp3);
+
+  void compiler_fast_unlock_lightweight_object(ConditionRegister flag, Register oop, Register box,
+                                               Register tmp1, Register tmp2, Register tmp3);
 
   // Check if safepoint requested and if so branch
-  void safepoint_poll(Label& slow_path, Register temp_reg);
+  void safepoint_poll(Label& slow_path, Register temp, bool at_return, bool in_nmethod);
 
-  void resolve_jobject(Register value, Register tmp1, Register tmp2, bool needs_frame);
+  void resolve_jobject(Register value, Register tmp1, Register tmp2,
+                       MacroAssembler::PreservationLevel preservation_level);
+  void resolve_global_jobject(Register value, Register tmp1, Register tmp2,
+                              MacroAssembler::PreservationLevel preservation_level);
 
   // Support for managing the JavaThread pointer (i.e.; the reference to
   // thread-local information).
@@ -667,6 +703,7 @@ class MacroAssembler: public Assembler {
   void get_vm_result_2(Register metadata_result);
 
   static bool needs_explicit_null_check(intptr_t offset);
+  static bool uses_implicit_null_check(void* address);
 
   // Trap-instruction-based checks.
   // Range checks can be distinguished from zero checks as they check 32 bit,
@@ -676,12 +713,6 @@ class MacroAssembler: public Assembler {
     return is_tdi(x, traptoEqual,               -1/*any reg*/, 0) ||
            is_tdi(x, traptoGreaterThanUnsigned, -1/*any reg*/, 0);
   }
-
-  inline void trap_zombie_not_entrant();
-  static bool is_trap_zombie_not_entrant(int x) { return is_tdi(x, traptoUnconditional, 0/*reg 0*/, 1); }
-
-  inline void trap_should_not_reach_here();
-  static bool is_trap_should_not_reach_here(int x) { return is_tdi(x, traptoUnconditional, 0/*reg 0*/, 2); }
 
   inline void trap_ic_miss_check(Register a, Register b);
   static bool is_trap_ic_miss_check(int x) {
@@ -694,24 +725,26 @@ class MacroAssembler: public Assembler {
 
   // Access heap oop, handle encoding and GC barriers.
   // Some GC barriers call C so use needs_frame = true if an extra frame is needed at the current call site.
- private:
   inline void access_store_at(BasicType type, DecoratorSet decorators,
                               Register base, RegisterOrConstant ind_or_offs, Register val,
-                              Register tmp1, Register tmp2, Register tmp3, bool needs_frame);
+                              Register tmp1, Register tmp2, Register tmp3,
+                              MacroAssembler::PreservationLevel preservation_level);
   inline void access_load_at(BasicType type, DecoratorSet decorators,
                              Register base, RegisterOrConstant ind_or_offs, Register dst,
-                             Register tmp1, Register tmp2, bool needs_frame, Label *L_handle_null = NULL);
+                             Register tmp1, Register tmp2,
+                             MacroAssembler::PreservationLevel preservation_level, Label *L_handle_null = nullptr);
 
  public:
   // Specify tmp1 for better code in certain compressed oops cases. Specify Label to bail out on null oop.
   // tmp1, tmp2 and needs_frame are used with decorators ON_PHANTOM_OOP_REF or ON_WEAK_OOP_REF.
   inline void load_heap_oop(Register d, RegisterOrConstant offs, Register s1,
-                            Register tmp1, Register tmp2, bool needs_frame,
-                            DecoratorSet decorators = 0, Label *L_handle_null = NULL);
+                            Register tmp1, Register tmp2,
+                            MacroAssembler::PreservationLevel preservation_level,
+                            DecoratorSet decorators = 0, Label *L_handle_null = nullptr);
 
   inline void store_heap_oop(Register d, RegisterOrConstant offs, Register s1,
-                             Register tmp1, Register tmp2, Register tmp3, bool needs_frame,
-                             DecoratorSet decorators = 0);
+                             Register tmp1, Register tmp2, Register tmp3,
+                             MacroAssembler::PreservationLevel preservation_level, DecoratorSet decorators = 0);
 
   // Encode/decode heap oop. Oop may not be null, else en/decoding goes wrong.
   // src == d allowed.
@@ -724,11 +757,15 @@ class MacroAssembler: public Assembler {
 
   // Load/Store klass oop from klass field. Compress.
   void load_klass(Register dst, Register src);
+  void load_klass_check_null(Register dst, Register src, Label* is_null = nullptr);
   void store_klass(Register dst_oop, Register klass, Register tmp = R0);
   void store_klass_gap(Register dst_oop, Register val = noreg); // Will store 0 if val not specified.
 
-  void resolve_oop_handle(Register result);
-  void load_mirror_from_const_method(Register mirror, Register const_method);
+  void resolve_oop_handle(Register result, Register tmp1, Register tmp2,
+                          MacroAssembler::PreservationLevel preservation_level);
+  void resolve_weak_handle(Register result, Register tmp1, Register tmp2,
+                           MacroAssembler::PreservationLevel preservation_level);
+  void load_method_holder(Register holder, Register method);
 
   static int instr_size_for_decode_klass_not_null();
   void decode_klass_not_null(Register dst, Register src = noreg);
@@ -764,39 +801,6 @@ class MacroAssembler: public Assembler {
   void clear_memory_constlen(Register base_ptr, int cnt_dwords, Register tmp = R0);
   void clear_memory_doubleword(Register base_ptr, Register cnt_dwords, Register tmp = R0, long const_cnt = -1);
 
-#ifdef COMPILER2
-  // Intrinsics for CompactStrings
-  // Compress char[] to byte[] by compressing 16 bytes at once.
-  void string_compress_16(Register src, Register dst, Register cnt,
-                          Register tmp1, Register tmp2, Register tmp3, Register tmp4, Register tmp5,
-                          Label& Lfailure);
-
-  // Compress char[] to byte[]. cnt must be positive int.
-  void string_compress(Register src, Register dst, Register cnt, Register tmp, Label& Lfailure);
-
-  // Inflate byte[] to char[] by inflating 16 bytes at once.
-  void string_inflate_16(Register src, Register dst, Register cnt,
-                         Register tmp1, Register tmp2, Register tmp3, Register tmp4, Register tmp5);
-
-  // Inflate byte[] to char[]. cnt must be positive int.
-  void string_inflate(Register src, Register dst, Register cnt, Register tmp);
-
-  void string_compare(Register str1, Register str2, Register cnt1, Register cnt2,
-                      Register tmp1, Register result, int ae);
-
-  void array_equals(bool is_array_equ, Register ary1, Register ary2,
-                    Register limit, Register tmp1, Register result, bool is_byte);
-
-  void string_indexof(Register result, Register haystack, Register haycnt,
-                      Register needle, ciTypeArray* needle_values, Register needlecnt, int needlecntval,
-                      Register tmp1, Register tmp2, Register tmp3, Register tmp4, int ae);
-
-  void string_indexof_char(Register result, Register haystack, Register haycnt,
-                           Register needle, jchar needleChar, Register tmp1, Register tmp2, bool is_byte);
-
-  void has_negatives(Register src, Register cnt, Register result, Register tmp1, Register tmp2);
-#endif
-
   // Emitters for BigInteger.multiplyToLen intrinsic.
   inline void multiply64(Register dest_hi, Register dest_lo,
                          Register x, Register y);
@@ -819,7 +823,7 @@ class MacroAssembler: public Assembler {
               Register tmp1, Register tmp2, Register carry);
   void multiply_to_len(Register x, Register xlen,
                        Register y, Register ylen,
-                       Register z, Register zlen,
+                       Register z,
                        Register tmp1, Register tmp2, Register tmp3, Register tmp4, Register tmp5,
                        Register tmp6, Register tmp7, Register tmp8, Register tmp9, Register tmp10,
                        Register tmp11, Register tmp12, Register tmp13);
@@ -835,34 +839,26 @@ class MacroAssembler: public Assembler {
   void load_reverse_32(Register dst, Register src);
   int  crc32_table_columns(Register table, Register tc0, Register tc1, Register tc2, Register tc3);
   void fold_byte_crc32(Register crc, Register val, Register table, Register tmp);
-  void fold_8bit_crc32(Register crc, Register table, Register tmp);
   void update_byte_crc32(Register crc, Register val, Register table);
   void update_byteLoop_crc32(Register crc, Register buf, Register len, Register table,
                              Register data, bool loopAlignment);
   void update_1word_crc32(Register crc, Register buf, Register table, int bufDisp, int bufInc,
                           Register t0,  Register t1,  Register t2,  Register t3,
                           Register tc0, Register tc1, Register tc2, Register tc3);
-  void kernel_crc32_2word(Register crc, Register buf, Register len, Register table,
-                          Register t0,  Register t1,  Register t2,  Register t3,
-                          Register tc0, Register tc1, Register tc2, Register tc3,
-                          bool invertCRC);
   void kernel_crc32_1word(Register crc, Register buf, Register len, Register table,
                           Register t0,  Register t1,  Register t2,  Register t3,
                           Register tc0, Register tc1, Register tc2, Register tc3,
                           bool invertCRC);
-  void kernel_crc32_1byte(Register crc, Register buf, Register len, Register table,
-                          Register t0,  Register t1,  Register t2,  Register t3,
-                          bool invertCRC);
-  void kernel_crc32_1word_vpmsum(Register crc, Register buf, Register len, Register table,
-                          Register constants, Register barretConstants,
-                          Register t0,  Register t1, Register t2, Register t3, Register t4,
-                          bool invertCRC);
-  void kernel_crc32_1word_aligned(Register crc, Register buf, Register len,
-                          Register constants, Register barretConstants,
-                          Register t0, Register t1, Register t2, Register t3, Register t4);
+  void kernel_crc32_vpmsum(Register crc, Register buf, Register len, Register constants,
+                           Register t0, Register t1, Register t2, Register t3, Register t4,
+                           Register t5, Register t6, bool invertCRC);
+  void kernel_crc32_vpmsum_aligned(Register crc, Register buf, Register len, Register constants,
+                                   Register t0, Register t1, Register t2, Register t3, Register t4,
+                                   Register t5, Register t6);
+  // Version which internally decides what to use.
+  void crc32(Register crc, Register buf, Register len, Register t0, Register t1, Register t2,
+             Register t3, Register t4, Register t5, Register t6, Register t7, bool is_crc32c);
 
-  void kernel_crc32_singleByte(Register crc, Register buf, Register len, Register table, Register tmp,
-                               bool invertCRC);
   void kernel_crc32_singleByteReg(Register crc, Register val, Register table,
                                   bool invertCRC);
 
@@ -899,32 +895,34 @@ class MacroAssembler: public Assembler {
   void sha256(bool multi_block);
   void sha512(bool multi_block);
 
+  void cache_wb(Address line);
+  void cache_wbsync(bool is_presync);
 
   //
   // Debugging
   //
 
   // assert on cr0
-  void asm_assert(bool check_equal, const char* msg, int id);
-  void asm_assert_eq(const char* msg, int id) { asm_assert(true, msg, id); }
-  void asm_assert_ne(const char* msg, int id) { asm_assert(false, msg, id); }
+  void asm_assert(bool check_equal, const char* msg);
+  void asm_assert_eq(const char* msg) { asm_assert(true, msg); }
+  void asm_assert_ne(const char* msg) { asm_assert(false, msg); }
 
  private:
   void asm_assert_mems_zero(bool check_equal, int size, int mem_offset, Register mem_base,
-                            const char* msg, int id);
+                            const char* msg);
 
  public:
 
-  void asm_assert_mem8_is_zero(int mem_offset, Register mem_base, const char* msg, int id) {
-    asm_assert_mems_zero(true,  8, mem_offset, mem_base, msg, id);
+  void asm_assert_mem8_is_zero(int mem_offset, Register mem_base, const char* msg) {
+    asm_assert_mems_zero(true,  8, mem_offset, mem_base, msg);
   }
-  void asm_assert_mem8_isnot_zero(int mem_offset, Register mem_base, const char* msg, int id) {
-    asm_assert_mems_zero(false, 8, mem_offset, mem_base, msg, id);
+  void asm_assert_mem8_isnot_zero(int mem_offset, Register mem_base, const char* msg) {
+    asm_assert_mems_zero(false, 8, mem_offset, mem_base, msg);
   }
 
-  // Verify R16_thread contents.
-  void verify_thread();
-
+  // Calls verify_oop. If UseCompressedOops is on, decodes the oop.
+  // Preserves reg.
+  void verify_coop(Register reg, const char*);
   // Emit code to verify that reg contains a valid oop if +VerifyOops is set.
   void verify_oop(Register reg, const char* s = "broken oop");
   void verify_oop_addr(RegisterOrConstant offs, Register base, const char* s = "contains broken oop");
@@ -934,7 +932,7 @@ class MacroAssembler: public Assembler {
   void _verify_klass_ptr(Register reg, const char * msg, const char * file, int line) {}
 
   // Convenience method returning function entry. For the ELFv1 case
-  // creates function descriptor at the current address and returs
+  // creates function descriptor at the current address and returns
   // the pointer to it. For the ELFv2 case returns the current address.
   inline address function_entry();
 
@@ -942,22 +940,22 @@ class MacroAssembler: public Assembler {
 #define verify_klass_ptr(reg) _verify_klass_ptr(reg, "broken klass " #reg, __FILE__, __LINE__)
 
  private:
-
-  enum {
-    stop_stop                = 0,
-    stop_untested            = 1,
-    stop_unimplemented       = 2,
-    stop_shouldnotreachhere  = 3,
-    stop_end                 = 4
-  };
-  void stop(int type, const char* msg, int id);
+  void stop(int type, const char* msg);
 
  public:
+  enum {
+    stop_stop               = 0,
+    stop_untested           = 1,
+    stop_unimplemented      = 2,
+    stop_shouldnotreachhere = 3,
+    stop_msg_present        = -0x8000
+  };
+
   // Prints msg, dumps registers and stops execution.
-  void stop         (const char* msg = "", int id = 0) { stop(stop_stop,               msg, id); }
-  void untested     (const char* msg = "", int id = 0) { stop(stop_untested,           msg, id); }
-  void unimplemented(const char* msg = "", int id = 0) { stop(stop_unimplemented,      msg, id); }
-  void should_not_reach_here()                         { stop(stop_shouldnotreachhere,  "", -1); }
+  void stop                 (const char* msg = nullptr) { stop(stop_stop,               msg); }
+  void untested             (const char* msg = nullptr) { stop(stop_untested,           msg); }
+  void unimplemented        (const char* msg = nullptr) { stop(stop_unimplemented,      msg); }
+  void should_not_reach_here(const char* msg = nullptr) { stop(stop_shouldnotreachhere, msg); }
 
   void zap_from_to(Register low, int before, Register high, int after, Register val, Register addr) PRODUCT_RETURN;
 };
@@ -981,4 +979,4 @@ class SkipIfEqualZero : public StackObj {
    ~SkipIfEqualZero();
 };
 
-#endif // CPU_PPC_VM_MACROASSEMBLER_PPC_HPP
+#endif // CPU_PPC_MACROASSEMBLER_PPC_HPP

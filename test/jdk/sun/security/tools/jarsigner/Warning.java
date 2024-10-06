@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,10 @@
  * questions.
  */
 
-import jdk.testlibrary.JDKToolLauncher;
+import jdk.test.lib.JDKToolLauncher;
 import jdk.test.lib.util.JarUtils;
-import jdk.testlibrary.OutputAnalyzer;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -32,11 +32,11 @@ import java.util.Arrays;
 
 /**
  * @test
- * @bug 8024302 8026037 8130132
+ * @bug 8024302 8026037 8130132 8243585
  * @summary warnings, errors and -strict
  * @library /lib/testlibrary /test/lib
  * @build jdk.test.lib.util.JarUtils
- * @run main Warning
+ * @run main/othervm/timeout=400 Warning
  */
 public class Warning {
 
@@ -44,7 +44,7 @@ public class Warning {
 
         Files.deleteIfExists(Paths.get("ks"));
 
-        newCert("ca", "-validity 365000");
+        newCert("ca", "-validity 365000", "-ext bc:c");
 
         recreateJar();
 
@@ -74,16 +74,16 @@ public class Warning {
                 .shouldNotContain("is self-signed");
 
         run("jarsigner", "a.jar b -digestalg MD5")
-                .shouldContain("-digestalg option is considered a security risk.");
+                .shouldContain("-digestalg option is considered a security risk and is disabled.");
         run("jarsigner", "a.jar b -digestalg MD5 -strict")
                 .shouldHaveExitValue(4)
-                .shouldContain("-digestalg option is considered a security risk.");
+                .shouldContain("-digestalg option is considered a security risk and is disabled.");
         run("jarsigner", "a.jar b -sigalg MD5withRSA")
-                .shouldContain("-sigalg option is considered a security risk");
+                .shouldContain("-sigalg option is considered a security risk and is disabled.");
 
         issueCert("b", "-sigalg MD5withRSA");
         run("jarsigner", "a.jar b")
-                .shouldMatch("chain is invalid. Reason:.*MD5withRSA");
+                .shouldMatch("chain is invalid. Reason:.*MD5.*");
 
         recreateJar();
 
@@ -175,6 +175,18 @@ public class Warning {
                 .shouldHaveExitValue(4)
                 .shouldContain("with signer errors")
                 .shouldMatch("(?s).*Error:.*has expired.*Warning:.*");
+
+        // Sign jar with Trust Anchor that has a 512 bit key. Make sure
+        // the error message indicates the key size is restricted.
+        recreateJar();
+        run("keytool", "-delete -alias ca");
+        newCert("ca", "-keysize 512", "-validity 365000", "-ext bc:c");
+        newCert("d");
+        issueCert("d");
+        run("jarsigner", "a.jar d")
+                .shouldContain("chain is invalid. " +
+                        "Reason: Algorithm constraints check failed on " +
+                        "keysize limits: RSA 512 bit key.");
     }
 
     // Creates a new jar without signature

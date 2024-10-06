@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,11 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_LOGGING_LOGLEVEL_HPP
-#define SHARE_VM_LOGGING_LOGLEVEL_HPP
+#ifndef SHARE_LOGGING_LOGLEVEL_HPP
+#define SHARE_LOGGING_LOGLEVEL_HPP
 
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/macros.hpp"
 
 // The list of log levels:
@@ -79,4 +80,4 @@ class LogLevel : public AllStatic {
 
 typedef LogLevel::type LogLevelType;
 
-#endif // SHARE_VM_LOGGING_LOGLEVEL_HPP
+#endif // SHARE_LOGGING_LOGLEVEL_HPP

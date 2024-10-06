@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,15 +25,9 @@
 
 package java.security;
 
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.io.IOException;
-import java.io.EOFException;
-import java.io.OutputStream;
 import java.io.FilterOutputStream;
-import java.io.PrintStream;
-import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 
 /**
  * A transparent stream that updates the associated message digest using
@@ -56,7 +50,6 @@ import java.io.ByteArrayOutputStream;
  * @author Benjamin Renaud
  * @since 1.2
  */
-@AnnotatedFor({"signedness"})
 public class DigestOutputStream extends FilterOutputStream {
 
     private boolean on = true;
@@ -74,6 +67,7 @@ public class DigestOutputStream extends FilterOutputStream {
      *
      * @param digest the message digest to associate with this stream.
      */
+    @SuppressWarnings("this-escape")
     public DigestOutputStream(OutputStream stream, MessageDigest digest) {
         super(stream);
         setMessageDigest(digest);
@@ -112,7 +106,7 @@ public class DigestOutputStream extends FilterOutputStream {
      * @param b the byte to be used for updating and writing to the
      * output stream.
      *
-     * @exception IOException if an I/O error occurs.
+     * @throws    IOException if an I/O error occurs.
      *
      * @see MessageDigest#update(byte)
      */
@@ -142,11 +136,11 @@ public class DigestOutputStream extends FilterOutputStream {
      * @param len the number of bytes of data to be updated and written
      * from {@code b}, starting at offset {@code off}.
      *
-     * @exception IOException if an I/O error occurs.
+     * @throws    IOException if an I/O error occurs.
      *
      * @see MessageDigest#update(byte[], int, int)
      */
-    public void write(@PolySigned byte[] b, int off, int len) throws IOException {
+    public void write(byte[] b, int off, int len) throws IOException {
         out.write(b, off, len);
         if (on) {
             digest.update(b, off, len);
@@ -159,8 +153,8 @@ public class DigestOutputStream extends FilterOutputStream {
      * update on the message digest.  But when it is off, the message
      * digest is not updated.
      *
-     * @param on true to turn the digest function on, false to turn it
-     * off.
+     * @param on {@code true} to turn the digest function on,
+     * {@code false} to turn it off.
      */
     public void on(boolean on) {
         this.on = on;

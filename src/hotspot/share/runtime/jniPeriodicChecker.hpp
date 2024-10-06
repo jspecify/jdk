@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_JNIPERIODICCHECKER_HPP
-#define SHARE_VM_RUNTIME_JNIPERIODICCHECKER_HPP
+#ifndef SHARE_RUNTIME_JNIPERIODICCHECKER_HPP
+#define SHARE_RUNTIME_JNIPERIODICCHECKER_HPP
 
 class JniPeriodicCheckerTask;
 
@@ -44,14 +44,7 @@ class JniPeriodicChecker : AllStatic {
   public:
     // Start/stop task
     static void engage();
-    static void disengage();
-
-    static bool is_active() { return _task != NULL; }
-
-    static void initialize();
-    static void destroy();
+    static bool is_active() { return _task != nullptr; }
 };
 
-void jniPeriodicChecker_exit();
-
-#endif // SHARE_VM_RUNTIME_JNIPERIODICCHECKER_HPP
+#endif // SHARE_RUNTIME_JNIPERIODICCHECKER_HPP

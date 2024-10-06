@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -150,16 +150,25 @@ public class HtmlSection {
                 path, name);
     }
 
+    /**
+     * Creates a {@code <a href></a>} link with {@code targetAddress} being the value for {@code href}
+     * and the {@code linkText} being the text for the link.
+     *
+     * @param targetAddress the target address
+     * @param linkText      the text for the link
+     */
+    public void createLink(String targetAddress, String linkText) {
+        pw.printf("<a href=\"%1$s\">%2$s</a>%n", targetAddress, linkText);
+    }
+
     public HtmlSection createChildren(String[] sections) {
         int i = 0;
         int n = sections.length;
-        HtmlSection current = rootSection;
-        if (current != null) {
-            for (; i < n && current.child != null;
-                    ++i, current = current.child) {
-                if (!sections[i].equals(current.child.name)) {
-                    break;
-                }
+        HtmlSection current = this;
+        for (; i < n && current.child != null;
+                ++i, current = current.child) {
+            if (!sections[i].equals(current.child.name)) {
+                break;
             }
         }
         for (; i < n; ++i) {

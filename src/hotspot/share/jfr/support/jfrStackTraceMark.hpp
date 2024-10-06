@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_SUPPORT_JFRSTACKTRACEMARK_HPP
-#define SHARE_VM_JFR_SUPPORT_JFRSTACKTRACEMARK_HPP
+#ifndef SHARE_JFR_SUPPORT_JFRSTACKTRACEMARK_HPP
+#define SHARE_JFR_SUPPORT_JFRSTACKTRACEMARK_HPP
 
 #include "memory/allocation.hpp"
 #include "jfrfiles/jfrEventIds.hpp"
@@ -35,7 +35,7 @@ class JfrStackTraceMark {
  private:
   Thread* _t;
   traceid _previous_id;
-  unsigned int _previous_hash;
+  traceid _previous_hash;
  public:
   JfrStackTraceMark();
   JfrStackTraceMark(Thread* t);
@@ -44,4 +44,4 @@ class JfrStackTraceMark {
   ~JfrStackTraceMark();
 };
 
-#endif // SHARE_VM_JFR_SUPPORT_JFRSTACKTRACEMARK_HPP
+#endif // SHARE_JFR_SUPPORT_JFRSTACKTRACEMARK_HPP

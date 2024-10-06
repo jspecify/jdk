@@ -25,8 +25,6 @@
 
 package sun.font;
 
-import org.jspecify.annotations.Nullable;
-
 import java.awt.FontFormatException;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
@@ -42,15 +40,20 @@ public abstract class PhysicalFont extends Font2D {
     // nativeNames is a String or a (possibly null) String[].
     protected Object nativeNames;
 
-    
-    
-    public boolean equals(@Nullable Object o) {
-        return (o != null && o.getClass() == this.getClass() &&
-                ((Font2D)o).fullName.equals(this.fullName));
+    public boolean equals(Object o) {
+        if (o == null || o.getClass() != this.getClass()) {
+            return false;
+        }
+        PhysicalFont other = (PhysicalFont)o;
+        return
+           (this.fullName.equals(other.fullName)) &&
+            ((this.platName == null && other.platName == null) ||
+             (this.platName != null && this.platName.equals(other.platName)));
     }
 
     public int hashCode() {
-        return fullName.hashCode();
+        return fullName.hashCode() +
+               (platName != null ? platName.hashCode() : 0);
     }
 
     /**

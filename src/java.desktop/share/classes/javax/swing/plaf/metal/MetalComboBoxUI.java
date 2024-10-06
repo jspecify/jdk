@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ import java.beans.*;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -53,6 +53,11 @@ import java.beans.*;
  */
 @SuppressWarnings("serial") // Same-version serialization only
 public class MetalComboBoxUI extends BasicComboBoxUI {
+
+    /**
+     * Constructs a {@code MetalComboBoxUI}.
+     */
+    public MetalComboBoxUI() {}
 
     /**
      * Constructs an instance of {@code MetalComboBoxUI}.
@@ -210,6 +215,11 @@ public class MetalComboBoxUI extends BasicComboBoxUI {
      * Instantiate it only within subclasses of {@code MetalComboBoxUI}.
      */
     public class MetalPropertyChangeListener extends BasicComboBoxUI.PropertyChangeHandler {
+        /**
+         * Constructs a {@code MetalPropertyChangeListener}.
+         */
+        public MetalPropertyChangeListener() {}
+
         public void propertyChange(PropertyChangeEvent e) {
             super.propertyChange( e );
             String propertyName = e.getPropertyName();
@@ -255,6 +265,11 @@ public class MetalComboBoxUI extends BasicComboBoxUI {
      * Instantiate it only within subclasses of {@code MetalComboBoxUI}.
      */
     public class MetalComboBoxLayoutManager extends BasicComboBoxUI.ComboBoxLayoutManager {
+        /**
+         * Constructs a {@code MetalComboBoxLayoutManager}.
+         */
+        public MetalComboBoxLayoutManager() {}
+
         public void layoutContainer( Container parent ) {
             layoutComboBox( parent, this );
         }
@@ -323,10 +338,10 @@ public class MetalComboBoxUI extends BasicComboBoxUI {
         }
     }
 
-    // These two methods were overloaded and made public. This was probably a
-    // mistake in the implementation. The functionality that they used to
+    // These two methods were overridden and made public. This was probably
+    // a mistake in the implementation. The functionality that they used to
     // provide is no longer necessary and should be removed. However,
-    // removing them will create an uncompatible API change.
+    // removing them will create an incompatible API change.
 
     public void configureEditor() {
         super.configureEditor();
@@ -395,10 +410,10 @@ public class MetalComboBoxUI extends BasicComboBoxUI {
             super( cBox );
         }
 
-        // This method was overloaded and made public. This was probably
-        // mistake in the implementation. The functionality that they used to
+        // This method was overridden and made public. This was probably
+        // a mistake in the implementation. The functionality that it used to
         // provide is no longer necessary and should be removed. However,
-        // removing them will create an uncompatible API change.
+        // removing it will create an incompatible API change.
 
         public void delegateFocus(MouseEvent e) {
             super.delegateFocus(e);

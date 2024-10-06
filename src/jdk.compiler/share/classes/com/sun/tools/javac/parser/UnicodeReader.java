@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,241 +25,618 @@
 
 package com.sun.tools.javac.parser;
 
-import java.nio.CharBuffer;
 import java.util.Arrays;
 
-import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
-import com.sun.tools.javac.util.ArrayUtils;
 import com.sun.tools.javac.util.Log;
-import com.sun.tools.javac.util.Name;
-import com.sun.tools.javac.util.Names;
 
-import static com.sun.tools.javac.util.LayoutCharacters.*;
+import static com.sun.tools.javac.util.LayoutCharacters.EOI;
+import static com.sun.tools.javac.util.LayoutCharacters.tabulate;
 
-/** The char reader used by the javac lexer/tokenizer. Returns the sequence of
- * characters contained in the input stream, handling unicode escape accordingly.
- * Additionally, it provides features for saving chars into a buffer and to retrieve
- * them at a later stage.
+/**
+ * The unicode character reader used by the javac/javadoc lexer/tokenizer, returns characters
+ * one by one as contained in the input stream, handling unicode escape sequences accordingly.
  *
  *  <p><b>This is NOT part of any supported API.
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
- *  deletion without notice.</b>
+ *  deletion without notice.</b></p>
  */
 public class UnicodeReader {
-
-    /** The input buffer, index of next character to be read,
-     *  index of one past last character in buffer.
+    /**
+     * Buffer containing characters from source file. May contain extraneous characters
+     * beyond this.length.
      */
-    protected char[] buf;
-    protected int bp;
-    protected final int buflen;
-
-    /** The current character.
-     */
-    protected char ch;
-
-    /** The buffer index of the last converted unicode character
-     */
-    protected int unicodeConversionBp = -1;
-
-    protected Log log;
-    protected Names names;
-
-    /** A character buffer for saved chars.
-     */
-    protected char[] sbuf = new char[128];
-    protected int sp;
+    private final char[] buffer;
 
     /**
-     * Create a scanner from the input array.  This method might
-     * modify the array.  To avoid copying the input array, ensure
-     * that {@code inputLength < input.length} or
-     * {@code input[input.length -1]} is a white space character.
+     * Length of meaningful content in buffer.
+     */
+    private final int length;
+
+    /**
+     * Virtual position offset in the original buffer.
+     */
+    private final int offset;
+
+    /**
+     * Character buffer index of character currently being observed.
+     */
+    private int position;
+
+    /**
+     * Number of characters combined to provide character currently being observed. Typically
+     * one, but may be more when combinations of surrogate pairs and unicode escape sequences
+     * are read.
+     */
+    private int width;
+
+    /**
+     * Character currently being observed. If a surrogate pair is read then will be the high
+     * member of the pair.
+     */
+    private char character;
+
+    /**
+     * Codepoint of character currently being observed. Typically equivalent to the character
+     * but will have a value greater that 0xFFFF when a surrogate pair.
+     */
+    private int codepoint;
+
+    /**
+     * true if the last character was a backslash. This is used to handle the special case
+     * when a backslash precedes an unicode escape. In that case, the second backslash
+     * is treated as a backslash and not part of an unicode escape.
+     */
+    private boolean wasBackslash;
+
+    /**
+     * true if the last character was derived from an unicode escape sequence.
+     */
+    private boolean wasUnicodeEscape;
+
+    /**
+     * Log for error reporting.
+     */
+    private final Log log;
+
+    /**
+     * Constructor.
      *
-     * @param sf the factory which created this Scanner
-     * @param buffer the input, might be modified
-     * Must be positive and less than or equal to input.length.
+     * @param sf      scan factory.
+     * @param array   array containing contents of source.
+     * @param length  length of meaningful content in buffer.
      */
-    protected UnicodeReader(ScannerFactory sf, CharBuffer buffer) {
-        this(sf, JavacFileManager.toArray(buffer), buffer.limit());
+    @SuppressWarnings("this-escape")
+    protected UnicodeReader(ScannerFactory sf, char[] array, int length) {
+        this(sf.log, array, length);
     }
 
-    protected UnicodeReader(ScannerFactory sf, char[] input, int inputLength) {
-        log = sf.log;
-        names = sf.names;
-        if (inputLength == input.length) {
-            if (input.length > 0 && Character.isWhitespace(input[input.length - 1])) {
-                inputLength--;
-            } else {
-                input = Arrays.copyOf(input, inputLength + 1);
-            }
+    /**
+     * Constructor.
+     *
+     * @param log     Log for error reporting.
+     * @param array   array containing contents of source.
+     * @param length  length of meaningful content in buffer.
+     */
+    protected UnicodeReader(Log log, char[] array, int length) {
+        this(log, array, 0, 0, length);
+    }
+
+    /**
+      * Constructor.
+      *
+      * @param log     Log for error reporting.
+      * @param array   array containing contents of source.
+      * @param pos     start of meaningful content in buffer.
+      * @param endPos  end of meaningful content in buffer.
+      */
+    @SuppressWarnings("this-escape")
+    protected UnicodeReader(Log log, char[] array, int offset, int pos, int endPos) {
+        this.buffer = array;
+        this.length = endPos;
+        this.offset = offset;
+        this.position = pos;
+        this.width = 0;
+        this.character = '\0';
+        this.codepoint = 0;
+        this.wasBackslash = false;
+        this.wasUnicodeEscape = false;
+        this.log = log;
+
+        nextCodePoint();
+    }
+
+    /**
+     * Returns the character buffer.
+     *
+     * @return character buffer.
+     */
+    protected char[] buffer() {
+        return buffer;
+    }
+
+    /**
+     * Returns the length of the buffer. This is length of meaningful content in buffer and
+     * not the length of the buffer array.
+     *
+     * @return length of the buffer.
+     */
+    protected int length() {
+        return length;
+    }
+
+    /**
+     * Return true if current position is within the meaningful part of the buffer.
+     *
+     * @return true if current position is within the meaningful part of the buffer.
+     */
+    protected boolean isAvailable() {
+        return position < length;
+    }
+
+    /**
+     * Fetches the next 16-bit character from the buffer and places it in this.character.
+     */
+    private void nextCodeUnit() {
+        // Index of next character in buffer.
+        int index = position + width;
+
+        // If past end of buffer.
+        if (length <= index) {
+            // End of file is marked with EOI.
+            character = EOI;
+        } else {
+            // Next character in buffer.
+            character = buffer[index];
+            // Increment length of codepoint.
+            width++;
         }
-        buf = input;
-        buflen = inputLength;
-        buf[buflen] = EOI;
-        bp = -1;
-        scanChar();
     }
 
-    /** Read next character.
+    /**
+     * Fetches the next 16-bit character from the buffer. If an unicode escape
+     * is detected then converts the unicode escape to a character.
      */
-    protected void scanChar() {
-        if (bp < buflen) {
-            ch = buf[++bp];
-            if (ch == '\\') {
-                convertUnicode();
-            }
-        }
-    }
+    private void nextUnicodeInputCharacter() {
+        // Position to next codepoint.
+        position += width;
+        // Codepoint has no characters yet.
+        width = 0;
 
-    /** Read next character in comment, skipping over double '\' characters.
-     */
-    protected void scanCommentChar() {
-        scanChar();
-        if (ch == '\\') {
-            if (peekChar() == '\\' && !isUnicode()) {
-                skipChar();
-            } else {
-                convertUnicode();
-            }
-        }
-    }
+        // Fetch next character.
+        nextCodeUnit();
 
-    /** Append a character to sbuf.
-     */
-    protected void putChar(char ch, boolean scan) {
-        sbuf = ArrayUtils.ensureCapacity(sbuf, sp);
-        sbuf[sp++] = ch;
-        if (scan)
-            scanChar();
-    }
-
-    protected void putChar(char ch) {
-        putChar(ch, false);
-    }
-
-    protected void putChar(boolean scan) {
-        putChar(ch, scan);
-    }
-
-    Name name() {
-        return names.fromChars(sbuf, 0, sp);
-    }
-
-    String chars() {
-        return new String(sbuf, 0, sp);
-    }
-
-    /** Convert unicode escape; bp points to initial '\' character
-     *  (Spec 3.3).
-     */
-    protected void convertUnicode() {
-        if (ch == '\\' && unicodeConversionBp != bp) {
-            bp++; ch = buf[bp];
-            if (ch == 'u') {
-                do {
-                    bp++; ch = buf[bp];
-                } while (ch == 'u');
-                int limit = bp + 3;
-                if (limit < buflen) {
-                    int d = digit(bp, 16);
-                    int code = d;
-                    while (bp < limit && d >= 0) {
-                        bp++; ch = buf[bp];
-                        d = digit(bp, 16);
-                        code = (code << 4) + d;
-                    }
-                    if (d >= 0) {
-                        ch = (char)code;
-                        unicodeConversionBp = bp;
-                        return;
-                    }
+        if (character == '\\' && (!wasBackslash || wasUnicodeEscape)) {
+            // Is a backslash and may be an unicode escape.
+            switch (unicodeEscape()) {
+                case BACKSLASH -> {
+                    wasUnicodeEscape = false;
+                    wasBackslash = !wasBackslash;
                 }
-                log.error(bp, Errors.IllegalUnicodeEsc);
-            } else {
-                bp--;
-                ch = '\\';
+                case VALID_ESCAPE -> {
+                    wasUnicodeEscape = true;
+                    wasBackslash = character == '\\' && !wasBackslash;
+                }
+                case BROKEN_ESCAPE -> nextUnicodeInputCharacter(); //skip broken unicode escapes
             }
+        } else {
+            wasBackslash = false;
+            wasUnicodeEscape = false;
+        }
+
+        // Codepoint and character match if not surrogate.
+        codepoint = (int)character;
+    }
+
+    /**
+     * Fetches the nextcode point from the buffer. If an unicode escape is recognized
+     * then converts unicode escape to a character. If two characters are a surrogate pair
+     * then converts to a codepoint.
+     */
+    private void nextCodePoint() {
+        // Next unicode character.
+        nextUnicodeInputCharacter();
+
+        // Return early if ASCII or not a surrogate pair.
+        if (isASCII() || !Character.isHighSurrogate(character)) {
+            return;
+        }
+
+        // Capture high surrogate and position.
+        char hi = character;
+        int savePosition = position;
+        int saveWidth = width;
+
+        // Get potential low surrogate.
+        nextUnicodeInputCharacter();
+        char lo = character;
+
+        if (Character.isLowSurrogate(lo)) {
+            // Start codepoint at start of high surrogate.
+            position = savePosition;
+            width += saveWidth;
+            // Compute codepoint.
+            codepoint = Character.toCodePoint(hi, lo);
+        } else {
+            // Restore to treat high surrogate as just a character.
+            position = savePosition;
+            width = saveWidth;
+            character = hi;
+            codepoint = (int)hi;
+            // Could potential report an error here (old code did not.)
         }
     }
 
-    /** Are surrogates supported?
+    /**
+     * Converts an unicode escape into a character.
+     *
+     * @return true if was an unicode escape.
      */
-    final static boolean surrogatesSupported = surrogatesSupported();
-    private static boolean surrogatesSupported() {
-        try {
-            Character.isHighSurrogate('a');
+    private UnicodeEscapeResult unicodeEscape() {
+        // Start of unicode escape (past backslash.)
+        int start = position + width;
+
+        // Default to backslash result, unless proven otherwise.
+        character = '\\';
+        width = 1;
+
+        // Skip multiple 'u'.
+        int index;
+        for (index = start; index < length; index++) {
+            if (buffer[index] != 'u') {
+                break;
+            }
+        }
+
+        // Needs to have been at least one u.
+        if (index == start) {
+            return UnicodeEscapeResult.BACKSLASH;
+        }
+
+        int code = 0;
+
+        for (int i = 0; i < 4; i++) {
+            // Translate and merge digit.
+            int digit = index < length ? Character.digit(buffer[index], 16) : -1;
+            code = code << 4 | digit;
+
+            // If invalid digit.
+            if (code < 0) {
+                break;
+            }
+
+            // On to next character.
+            index++;
+        }
+
+        // Skip digits even if error.
+        width = index - position;
+
+        // If all digits are good.
+        if (code >= 0) {
+            character = (char)code;
+            return UnicodeEscapeResult.VALID_ESCAPE;
+        } else {
+            log.error(index, Errors.IllegalUnicodeEsc);
+            return UnicodeEscapeResult.BROKEN_ESCAPE;
+        }
+    }
+
+    private enum UnicodeEscapeResult {
+        BACKSLASH,
+        VALID_ESCAPE,
+        BROKEN_ESCAPE;
+    }
+
+    /**
+     * Return the virtual position in the character buffer.
+     *
+     * @return  virtual position in the character buffer.
+     */
+    protected int position() {
+        return offset + position;
+    }
+
+
+    /**
+     * Reset the reader to the specified virtual position.
+     * Warning: Do not use when previous character was an ASCII or unicode backslash.
+     * @param pos
+     */
+    protected void reset(int pos) {
+        position = pos - offset;
+        width = 0;
+        wasBackslash = false;
+        wasUnicodeEscape = false;
+        nextCodePoint();
+    }
+
+    /**
+     * Return the current character in at the current position.
+     *
+     * @return current character in at the current position.
+     */
+    protected char get() {
+        return character;
+    }
+
+    /**
+     * Return the current codepoint in at the current position.
+     *
+     * @return current codepoint in at the current position.
+     */
+    protected int getCodepoint() {
+        return codepoint;
+    }
+
+    /**
+     * Returns true if the current codepoint is a surrogate.
+     *
+     * @return true if the current codepoint is a surrogate.
+     */
+    protected boolean isSurrogate() {
+        return 0xFFFF < codepoint;
+    }
+
+    /**
+     * Returns true if the current character is ASCII.
+     *
+     * @return true if the current character is ASCII.
+     */
+    protected boolean isASCII() {
+        return character <= 0x7F;
+    }
+
+    /**
+     * Advances the current character to the next character.
+     *
+     * @return next character.
+     */
+    protected char next() {
+        nextCodePoint();
+
+        return character;
+    }
+
+    /**
+     * Compare character. Returns true if a match.
+     *
+     * @param ch  character to match.
+     *
+     * @return true if a match.
+     */
+    protected boolean is(char ch) {
+        return character == ch;
+    }
+
+    /**
+     * Match one of the arguments. Returns true if a match.
+     */
+    protected boolean isOneOf(char ch1, char ch2) {
+        return is(ch1) || is(ch2);
+    }
+    protected boolean isOneOf(char ch1, char ch2, char ch3) {
+        return is(ch1) || is(ch2) || is(ch3);
+    }
+    protected boolean isOneOf(char ch1, char ch2, char ch3, char ch4) {
+        return is(ch1) || is(ch2) || is(ch3) || is(ch4);
+    }
+    protected boolean isOneOf(char ch1, char ch2, char ch3, char ch4, char ch5, char ch6) {
+        return is(ch1) || is(ch2) || is(ch3) || is(ch4) || is(ch5) || is(ch6);
+    }
+
+    /**
+     * Tests to see if current character is in the range of lo to hi characters (inclusive).
+     *
+     * @param lo  lowest character in range.
+     * @param hi  highest character in range.
+     *
+     * @return true if the current character is in range.
+     */
+    protected boolean inRange(char lo, char hi) {
+        return lo <= character && character <= hi;
+    }
+
+    /**
+     * Compare character and advance if a match. Returns true if a match.
+     *
+     * @param ch  character to match.
+     *
+     * @return true if a match.
+     */
+    protected boolean accept(char ch) {
+        if (is(ch)) {
+            next();
+
             return true;
-        } catch (NoSuchMethodError ex) {
+        }
+
+        return false;
+    }
+
+    /**
+     * Match one of the arguments and advance if a match. Returns true if a match.
+     */
+    protected boolean acceptOneOf(char ch1, char ch2) {
+        if (isOneOf(ch1, ch2)) {
+            next();
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Match one of the arguments and advance if a match. Returns true if a match.
+     */
+    protected boolean acceptOneOf(char ch1, char ch2, char ch3) {
+        if (isOneOf(ch1, ch2, ch3)) {
+            next();
+
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Return a reader which is bracketed by the currect position
+     * and the next line terminator.
+     *
+     * @return a new reader
+     */
+    protected UnicodeReader lineReader() {
+        int pos = position;
+        skipToEOLN();
+        int endPos = position;
+        accept('\r');
+        accept('\n');
+        return new UnicodeReader(log, buffer, offset, pos, endPos);
+    }
+
+    /**
+     * Return a reader which is bracketed by the {@code pos}
+     * and {@code endPos}.
+     *
+     * @param pos     initial position
+     * @param endPos  end position
+     *
+     * @return a new reader
+     */
+    protected UnicodeReader lineReader(int pos, int endPos) {
+        return new UnicodeReader(log, buffer, offset, pos - offset, endPos - offset);
+    }
+
+    /**
+     * Skip over all occurrences of character.
+     *
+     * @param ch character to accept.
+     *
+     * @return number of characters skipped
+     */
+    protected int skip(char ch) {
+        int count = 0;
+        while (accept(ch)) {
+            count++;
+        }
+        return count;
+    }
+
+    /**
+     * Is ASCII white space character.
+     *
+     * @return true if is ASCII white space character
+     */
+    protected boolean isWhitespace() {
+        return isOneOf(' ', '\t', '\f');
+    }
+
+    /**
+     * Skip over ASCII white space characters.
+     */
+    protected void skipWhitespace() {
+        while (acceptOneOf(' ', '\t', '\f')) {
+            // next
+        }
+    }
+
+    /**
+     * Is ASCII line terminator.
+     *
+     * @return true if is ASCII line terminator.
+     */
+    protected boolean isEOLN() {
+        return isOneOf('\r', '\n');
+    }
+
+    /**
+     * Skip to end of line.
+     */
+    protected void skipToEOLN() {
+        while (isAvailable()) {
+            if (isEOLN()) {
+                break;
+            }
+
+            next();
+        }
+    }
+
+    /**
+     * Compare string and advance if a match. Returns true if a match.
+     * Warning: Do not use when previous character was a backslash
+     * (confuses state of wasBackslash.)
+     *
+     * @param string string to match character for character.
+     *
+     * @return true if a match.
+     */
+    protected boolean accept(String string) {
+        // Quick test.
+        if (string.length() == 0 || !is(string.charAt(0))) {
             return false;
         }
-    }
 
-    /** Scan surrogate pairs.  If 'ch' is a high surrogate and
-     *  the next character is a low surrogate, returns the code point
-     *  constructed from these surrogates. Otherwise, returns -1.
-     *  This method will not consume any of the characters.
-     */
-    protected int peekSurrogates() {
-        if (surrogatesSupported && Character.isHighSurrogate(ch)) {
-            char high = ch;
-            int prevBP = bp;
+        // Be prepared to retreat if not a match.
+        int savedPosition = position();
 
-            scanChar();
+        nextCodePoint();
 
-            char low = ch;
+        // Check each character.
+        for (int i = 1; i < string.length(); i++) {
+            if (!is(string.charAt(i))) {
+                // Restart if not a match.
+                reset(savedPosition);
 
-            ch = high;
-            bp = prevBP;
-
-            if (Character.isLowSurrogate(low)) {
-                return Character.toCodePoint(high, low);
+                return false;
             }
+
+            nextCodePoint();
         }
 
-        return -1;
+        return true;
     }
 
-    /** Convert an ASCII digit from its base (8, 10, or 16)
-     *  to its value.
+    /**
+     * Convert an ASCII digit from its base (8, 10, or 16) to its value. Does not
+     * advance character.
+     *
+     * @param pos         starting position.
+     * @param digitRadix  base of number being converted.
+     *
+     * @return value of digit.
      */
-    protected int digit(int pos, int base) {
-        char c = ch;
-        if ('0' <= c && c <= '9')
-            return Character.digit(c, base); //a fast common case
-        int codePoint = peekSurrogates();
-        int result = codePoint >= 0 ? Character.digit(codePoint, base) : Character.digit(c, base);
-        if (result >= 0 && c > 0x7f) {
-            log.error(pos + 1, Errors.IllegalNonasciiDigit);
-            if (codePoint >= 0)
-                scanChar();
-            ch = "0123456789abcdef".charAt(result);
+    protected int digit(int pos, int digitRadix) {
+        int result;
+
+        // Just an ASCII digit.
+        if (inRange('0', '9')) {
+            // Fast common case.
+            result = character - '0';
+
+            return result < digitRadix ? result : -1;
         }
+
+        // Handle other digits.
+        result = isSurrogate() ? Character.digit(codepoint, digitRadix) :
+                                 Character.digit(character, digitRadix);
+
+        if (result >= 0 && !isASCII()) {
+            log.error(position(), Errors.IllegalNonasciiDigit);
+            character = "0123456789abcdef".charAt(result);
+        }
+
         return result;
     }
 
-    protected boolean isUnicode() {
-        return unicodeConversionBp == bp;
-    }
-
-    protected void skipChar() {
-        bp++;
-    }
-
-    protected char peekChar() {
-        return buf[bp + 1];
-    }
-
     /**
-     * Returns a copy of the input buffer, up to its inputLength.
-     * Unicode escape sequences are not translated.
+     * Returns the input buffer. Unicode escape sequences are not translated.
+     *
+     * @return the input buffer.
      */
     public char[] getRawCharacters() {
-        char[] chars = new char[buflen];
-        System.arraycopy(buf, 0, chars, 0, buflen);
-        return chars;
+        return length == buffer.length ? buffer : Arrays.copyOf(buffer, length);
     }
 
     /**
@@ -271,15 +648,103 @@ public class UnicodeReader {
      * {@code String.substring(beginIndex, endIndex)}.
      * Unicode escape sequences are not translated.
      *
-     * @param beginIndex the beginning index, inclusive.
-     * @param endIndex the ending index, exclusive.
+     * @param  beginIndex the beginning index, inclusive.
+     * @param  endIndex the ending index, exclusive.
+     *
      * @throws ArrayIndexOutOfBoundsException if either offset is outside of the
      *         array bounds
      */
     public char[] getRawCharacters(int beginIndex, int endIndex) {
-        int length = endIndex - beginIndex;
-        char[] chars = new char[length];
-        System.arraycopy(buf, beginIndex, chars, 0, length);
-        return chars;
+        return Arrays.copyOfRange(buffer, beginIndex, endIndex);
     }
+
+    /**
+     * Returns a string subset of the input buffer.
+     * The returned string begins at the {@code beginIndex} and
+     * extends to the character at index {@code endIndex - 1}.
+     * Thus the length of the substring is {@code endIndex-beginIndex}.
+     * This behavior is like
+     * {@code String.substring(beginIndex, endIndex)}.
+     * Unicode escape sequences are not translated.
+     *
+     * @param  beginIndex the beginning index, inclusive.
+     * @param  endIndex the ending index, exclusive.
+     *
+     * @throws ArrayIndexOutOfBoundsException if either offset is outside of the
+     *         array bounds
+     */
+    public String getRawString(int beginIndex, int endIndex) {
+        return new String(buffer, beginIndex, endIndex - beginIndex);
+    }
+
+    /**
+     * Returns a string subset of the input buffer.
+     * The returned string begins at the {@code position} and
+     * extends to the character at index {@code length - 1}.
+     * Thus the length of the substring is {@code length-position}.
+     * This behavior is like
+     * {@code String.substring(position, length)}.
+     * Unicode escape sequences are not translated.
+     *
+     * @throws ArrayIndexOutOfBoundsException if either offset is outside of the
+     *         array bounds
+     */
+    public String getRawString() {
+        return getRawString(position, length);
+    }
+
+    /**
+     * This is a specialized version of UnicodeReader that keeps track of the
+     * column position within a given character stream. Used for Javadoc
+     * processing to build a table for mapping positions in the comment string
+     * to positions in the source file.
+     */
+    static class PositionTrackingReader extends UnicodeReader {
+        /**
+         * Current column in the comment.
+         */
+        private int column;
+
+        /**
+         * Constructor.
+         *
+         * @param reader  existing reader
+         * @param pos     start of meaningful content in buffer.
+         * @param endPos  end of meaningful content in buffer.
+         */
+        protected PositionTrackingReader(UnicodeReader reader, int pos, int endPos) {
+            super(reader.log, reader.getRawCharacters(pos, endPos), reader.offset + pos, 0, endPos - pos);
+            this.column = 0;
+        }
+
+        /**
+         * Advances the current character to the next character. Tracks column.
+         *
+         * @return next character.
+         */
+        @Override
+        protected char next() {
+            super.next();
+
+            if (isOneOf('\n', '\r', '\f')) {
+                column = 0;
+            } else if (is('\t')) {
+                column = tabulate(column);
+            } else {
+                column++;
+            }
+
+            return get();
+        }
+
+        /**
+         * Returns the current column.
+         *
+         * @return  the current column.
+         */
+        protected int column() {
+            return column;
+        }
+    }
+
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -90,6 +90,11 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 
 @AnnotatedFor({"interning"})
 public abstract @UsesObjectEquals class PersistenceDelegate {
+
+    /**
+     * Constructs a {@code PersistenceDelegate}.
+     */
+    protected PersistenceDelegate() {}
 
     /**
      * The {@code writeObject} is a single entry point to the persistence

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,13 +29,14 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.io.Writer;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.Locale;
 import java.util.concurrent.Callable;
 import javax.annotation.processing.Processor;
 
 /**
- * Interface to invoke Java&trade; programming language compilers from
+ * Interface to invoke Java programming language compilers from
  * programs.
  *
  * <p>The compiler might generate diagnostics during compilation (for
@@ -59,9 +60,9 @@ import javax.annotation.processing.Processor;
  * #getStandardFileManager getStandardFileManager}.
  *
  * <p>An instance implementing this interface must conform to
- * <cite>The Java&trade; Language Specification</cite>
+ * <cite>The Java Language Specification</cite>
  * and generate class files conforming to
- * <cite>The Java&trade; Virtual Machine Specification</cite>.
+ * <cite>The Java Virtual Machine Specification</cite>.
  * The versions of these
  * specifications are defined in the {@linkplain Tool} interface.
  *
@@ -109,42 +110,45 @@ import javax.annotation.processing.Processor;
  *     work with multiple sequential compilations making the following
  *     example a recommended coding pattern:
  *
- *     <pre>
- *       File[] files1 = ... ; // input for first compilation task
- *       File[] files2 = ... ; // input for second compilation task
+ *     {@snippet id="use-sjfm" lang=java :
+ *       File[] files1 = null ; // input for first compilation task     // @replace substring=null replacement="..."
+ *       File[] files2 = null ; // input for second compilation task    // @replace substring=null replacement="..."
  *
  *       JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
  *       StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
  *
- *       {@code Iterable<? extends JavaFileObject>} compilationUnits1 =
- *           fileManager.getJavaFileObjectsFromFiles({@linkplain java.util.Arrays#asList Arrays.asList}(files1));
+ *       Iterable<? extends JavaFileObject> compilationUnits1 =
+ *           fileManager.getJavaFileObjectsFromFiles(Arrays.asList(files1));  // @link substring=Arrays.asList target="java.util.Arrays#asList"
  *       compiler.getTask(null, fileManager, null, null, null, compilationUnits1).call();
  *
- *       {@code Iterable<? extends JavaFileObject>} compilationUnits2 =
+ *       Iterable<? extends JavaFileObject> compilationUnits2 =
  *           fileManager.getJavaFileObjects(files2); // use alternative method
  *       // reuse the same file manager to allow caching of jar files
  *       compiler.getTask(null, fileManager, null, null, null, compilationUnits2).call();
  *
- *       fileManager.close();</pre>
+ *       fileManager.close();
+ *       }
  *
  *   </dd>
  *
  *   <dt>{@link DiagnosticCollector}</dt>
  *   <dd>
  *     Used to collect diagnostics in a list, for example:
- *     <pre>
- *       {@code Iterable<? extends JavaFileObject>} compilationUnits = ...;
+ *     {@snippet id="use-diag-collector" lang=java :
+ *       Iterable<? extends JavaFileObject> compilationUnits = null;        // @replace substring=null replacement="..."
  *       JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
- *       {@code DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();}
+ *       DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
  *       StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
  *       compiler.getTask(null, fileManager, diagnostics, null, null, compilationUnits).call();
  *
- *       for ({@code Diagnostic<? extends JavaFileObject>} diagnostic : diagnostics.getDiagnostics())
+ *       for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
  *           System.out.format("Error on line %d in %s%n",
  *                             diagnostic.getLineNumber(),
  *                             diagnostic.getSource().toUri());
+ *       }
  *
- *       fileManager.close();</pre>
+ *       fileManager.close();
+ *       }
  *   </dd>
  *
  *   <dt>
@@ -161,19 +165,21 @@ import javax.annotation.processing.Processor;
  *     allowing customizing behavior.  For example, consider how to
  *     log all calls to {@linkplain JavaFileManager#flush}:
  *
- *     <pre>
- *       final  Logger logger = ...;
- *       {@code Iterable<? extends JavaFileObject>} compilationUnits = ...;
+ *     {@snippet id="forward-fm" lang=java :
+ *       final  Logger logger = null;                                       // @replace substring=null replacement="..."
+ *       Iterable<? extends JavaFileObject> compilationUnits = null;        // @replace substring=null replacement="..."
  *       JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
  *       StandardJavaFileManager stdFileManager = compiler.getStandardFileManager(null, null, null);
  *       JavaFileManager fileManager = new ForwardingJavaFileManager(stdFileManager) {
+ *           @Override
  *           public void flush() throws IOException {
  *               logger.entering(StandardJavaFileManager.class.getName(), "flush");
  *               super.flush();
  *               logger.exiting(StandardJavaFileManager.class.getName(), "flush");
  *           }
  *       };
- *       compiler.getTask(null, fileManager, null, null, null, compilationUnits).call();</pre>
+ *       compiler.getTask(null, fileManager, null, null, null, compilationUnits).call();
+ *       }
  *   </dd>
  *
  *   <dt>{@link SimpleJavaFileObject}</dt>
@@ -184,37 +190,10 @@ import javax.annotation.processing.Processor;
  *     example, here is how to define a file object which represent
  *     source code stored in a string:
  *
- *     <pre>
- *       /**
- *        * A file object used to represent source coming from a string.
- *        {@code *}/
- *       public class JavaSourceFromString extends SimpleJavaFileObject {
- *           /**
- *            * The source code of this "file".
- *            {@code *}/
- *           final String code;
- *
- *           /**
- *            * Constructs a new JavaSourceFromString.
- *            * {@code @}param name the name of the compilation unit represented by this file object
- *            * {@code @}param code the source code for the compilation unit represented by this file object
- *            {@code *}/
- *           JavaSourceFromString(String name, String code) {
- *               super({@linkplain java.net.URI#create URI.create}("string:///" + name.replace('.','/') + Kind.SOURCE.extension),
- *                     Kind.SOURCE);
- *               this.code = code;
- *           }
- *
- *           {@code @}Override
- *           public CharSequence getCharContent(boolean ignoreEncodingErrors) {
- *               return code;
- *           }
- *       }</pre>
+ *     {@snippet id=fileObject class=JavaSourceFromString }
  *   </dd>
  * </dl>
  *
- * @author Peter von der Ah&eacute;
- * @author Jonathan Gibbons
  * @see DiagnosticListener
  * @see Diagnostic
  * @see JavaFileManager
@@ -240,7 +219,7 @@ public interface JavaCompiler extends Tool, OptionChecker {
      * @param out a Writer for additional output from the compiler;
      * use {@code System.err} if {@code null}
      * @param fileManager a file manager; if {@code null} use the
-     * compiler's standard filemanager
+     * compiler's standard file manager
      * @param diagnosticListener a diagnostic listener; if {@code
      * null} use the compiler's default method for reporting
      * diagnostics
@@ -294,7 +273,7 @@ public interface JavaCompiler extends Tool, OptionChecker {
      * compilation task has not yet started.  To start the task, call
      * the {@linkplain #call call} method.
      *
-     * <p>Before calling the call method, additional aspects of the
+     * <p>Before calling the {@code call} method, additional aspects of the
      * task can be configured, for example, by calling the
      * {@linkplain #setProcessors setProcessors} method.
      */
@@ -335,7 +314,7 @@ public interface JavaCompiler extends Tool, OptionChecker {
         /**
          * Performs this compilation task.  The compilation may only
          * be performed once.  Subsequent calls to this method throw
-         * IllegalStateException.
+         * {@code IllegalStateException}.
          *
          * @return true if and only all the files compiled without errors;
          * false otherwise

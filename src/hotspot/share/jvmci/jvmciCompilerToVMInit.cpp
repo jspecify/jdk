@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,38 @@
  */
 
 // no precompiled headers
+#ifdef COMPILER1
+#include "c1/c1_Compiler.hpp"
+#endif
 #include "ci/ciUtilities.hpp"
+#include "compiler/compiler_globals.hpp"
+#include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSet.hpp"
-#include "memory/oopFactory.hpp"
-#include "oops/objArrayOop.inline.hpp"
-#include "jvmci/jvmciRuntime.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
+#include "gc/shared/barrierSetNMethod.hpp"
+#include "gc/shared/cardTable.hpp"
+#include "gc/shared/collectedHeap.hpp"
+#include "gc/shared/gc_globals.hpp"
+#include "gc/shared/tlab_globals.hpp"
+#if INCLUDE_ZGC
+#include "gc/x/xBarrierSetRuntime.hpp"
+#include "gc/x/xThreadLocalData.hpp"
+#include "gc/z/zBarrierSetRuntime.hpp"
+#include "gc/z/zThreadLocalData.hpp"
+#endif
 #include "jvmci/jvmciCompilerToVM.hpp"
+#include "jvmci/jvmciEnv.hpp"
 #include "jvmci/vmStructs_jvmci.hpp"
+#include "memory/universe.hpp"
+#include "oops/compressedOops.hpp"
+#include "oops/klass.inline.hpp"
+#include "prims/jvmtiExport.hpp"
+#ifdef COMPILER2
+#include "opto/c2compiler.hpp"
+#endif
 #include "runtime/flags/jvmFlag.hpp"
-#include "runtime/handles.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/stubRoutines.hpp"
 #include "utilities/resourceHash.hpp"
 
 
@@ -43,7 +65,34 @@ int CompilerToVM::Data::Method_extra_stack_entries;
 address CompilerToVM::Data::SharedRuntime_ic_miss_stub;
 address CompilerToVM::Data::SharedRuntime_handle_wrong_method_stub;
 address CompilerToVM::Data::SharedRuntime_deopt_blob_unpack;
+address CompilerToVM::Data::SharedRuntime_deopt_blob_unpack_with_exception_in_tls;
 address CompilerToVM::Data::SharedRuntime_deopt_blob_uncommon_trap;
+address CompilerToVM::Data::SharedRuntime_polling_page_return_handler;
+address CompilerToVM::Data::SharedRuntime_throw_delayed_StackOverflowError_entry;
+
+address CompilerToVM::Data::nmethod_entry_barrier;
+int CompilerToVM::Data::thread_disarmed_guard_value_offset;
+int CompilerToVM::Data::thread_address_bad_mask_offset;
+
+address CompilerToVM::Data::ZBarrierSetRuntime_load_barrier_on_oop_field_preloaded;
+address CompilerToVM::Data::ZBarrierSetRuntime_load_barrier_on_weak_oop_field_preloaded;
+address CompilerToVM::Data::ZBarrierSetRuntime_load_barrier_on_phantom_oop_field_preloaded;
+address CompilerToVM::Data::ZBarrierSetRuntime_weak_load_barrier_on_oop_field_preloaded;
+address CompilerToVM::Data::ZBarrierSetRuntime_weak_load_barrier_on_weak_oop_field_preloaded;
+address CompilerToVM::Data::ZBarrierSetRuntime_weak_load_barrier_on_phantom_oop_field_preloaded;
+address CompilerToVM::Data::ZBarrierSetRuntime_load_barrier_on_oop_array;
+address CompilerToVM::Data::ZBarrierSetRuntime_clone;
+
+address CompilerToVM::Data::ZPointerVectorLoadBadMask_address;
+address CompilerToVM::Data::ZPointerVectorStoreBadMask_address;
+address CompilerToVM::Data::ZPointerVectorStoreGoodMask_address;
+
+bool CompilerToVM::Data::continuations_enabled;
+
+#ifdef AARCH64
+int CompilerToVM::Data::BarrierSetAssembler_nmethod_patching_type;
+address CompilerToVM::Data::BarrierSetAssembler_patching_epoch_addr;
+#endif
 
 size_t CompilerToVM::Data::ThreadLocalAllocBuffer_alignment_reserve;
 
@@ -61,24 +110,32 @@ bool       CompilerToVM::Data::_supports_inline_contig_alloc;
 HeapWord** CompilerToVM::Data::_heap_end_addr;
 HeapWord* volatile* CompilerToVM::Data::_heap_top_addr;
 int CompilerToVM::Data::_max_oop_map_stack_offset;
+int CompilerToVM::Data::_fields_annotations_base_offset;
 
-jbyte* CompilerToVM::Data::cardtable_start_address;
+CardTable::CardValue* CompilerToVM::Data::cardtable_start_address;
 int CompilerToVM::Data::cardtable_shift;
 
-int CompilerToVM::Data::vm_page_size;
+#ifdef X86
+int CompilerToVM::Data::L1_line_size;
+#endif
+
+size_t CompilerToVM::Data::vm_page_size;
 
 int CompilerToVM::Data::sizeof_vtableEntry = sizeof(vtableEntry);
 int CompilerToVM::Data::sizeof_ExceptionTableElement = sizeof(ExceptionTableElement);
 int CompilerToVM::Data::sizeof_LocalVariableTableElement = sizeof(LocalVariableTableElement);
 int CompilerToVM::Data::sizeof_ConstantPool = sizeof(ConstantPool);
-int CompilerToVM::Data::sizeof_SymbolPointer = sizeof(Symbol*);
 int CompilerToVM::Data::sizeof_narrowKlass = sizeof(narrowKlass);
 int CompilerToVM::Data::sizeof_arrayOopDesc = sizeof(arrayOopDesc);
 int CompilerToVM::Data::sizeof_BasicLock = sizeof(BasicLock);
+#if INCLUDE_ZGC
+int CompilerToVM::Data::sizeof_ZStoreBarrierEntry = sizeof(ZStoreBarrierEntry);
+#endif
 
 address CompilerToVM::Data::dsin;
 address CompilerToVM::Data::dcos;
 address CompilerToVM::Data::dtan;
+address CompilerToVM::Data::dtanh;
 address CompilerToVM::Data::dexp;
 address CompilerToVM::Data::dlog;
 address CompilerToVM::Data::dlog10;
@@ -87,7 +144,11 @@ address CompilerToVM::Data::dpow;
 address CompilerToVM::Data::symbol_init;
 address CompilerToVM::Data::symbol_clinit;
 
-void CompilerToVM::Data::initialize(TRAPS) {
+int CompilerToVM::Data::data_section_item_alignment;
+
+JVMTI_ONLY( int* CompilerToVM::Data::_should_notify_object_alloc; )
+
+void CompilerToVM::Data::initialize(JVMCI_TRAPS) {
   Klass_vtable_start_offset = in_bytes(Klass::vtable_start_offset());
   Klass_vtable_length_offset = in_bytes(Klass::vtable_length_offset());
 
@@ -96,23 +157,69 @@ void CompilerToVM::Data::initialize(TRAPS) {
   SharedRuntime_ic_miss_stub = SharedRuntime::get_ic_miss_stub();
   SharedRuntime_handle_wrong_method_stub = SharedRuntime::get_handle_wrong_method_stub();
   SharedRuntime_deopt_blob_unpack = SharedRuntime::deopt_blob()->unpack();
+  SharedRuntime_deopt_blob_unpack_with_exception_in_tls = SharedRuntime::deopt_blob()->unpack_with_exception_in_tls();
   SharedRuntime_deopt_blob_uncommon_trap = SharedRuntime::deopt_blob()->uncommon_trap();
+  SharedRuntime_polling_page_return_handler = SharedRuntime::polling_page_return_handler_blob()->entry_point();
+  SharedRuntime_throw_delayed_StackOverflowError_entry = SharedRuntime::throw_delayed_StackOverflowError_entry();
+
+  BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
+  if (bs_nm != nullptr) {
+    thread_disarmed_guard_value_offset = in_bytes(bs_nm->thread_disarmed_guard_value_offset());
+    nmethod_entry_barrier = StubRoutines::method_entry_barrier();
+    BarrierSetAssembler* bs_asm = BarrierSet::barrier_set()->barrier_set_assembler();
+    AARCH64_ONLY(BarrierSetAssembler_nmethod_patching_type = (int) bs_asm->nmethod_patching_type());
+    AARCH64_ONLY(BarrierSetAssembler_patching_epoch_addr = bs_asm->patching_epoch_addr());
+  }
+
+#if INCLUDE_ZGC
+  if (UseZGC) {
+    if (ZGenerational) {
+      ZPointerVectorLoadBadMask_address   = (address) &ZPointerVectorLoadBadMask;
+      ZPointerVectorStoreBadMask_address  = (address) &ZPointerVectorStoreBadMask;
+      ZPointerVectorStoreGoodMask_address = (address) &ZPointerVectorStoreGoodMask;
+    } else {
+      thread_address_bad_mask_offset = in_bytes(XThreadLocalData::address_bad_mask_offset());
+      // Initialize the old names for compatibility.  The proper XBarrierSetRuntime names are
+      // exported as addresses in vmStructs_jvmci.cpp as are the new ZBarrierSetRuntime names.
+      ZBarrierSetRuntime_load_barrier_on_oop_field_preloaded              = XBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr();
+      ZBarrierSetRuntime_load_barrier_on_weak_oop_field_preloaded         = XBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded_addr();
+      ZBarrierSetRuntime_load_barrier_on_phantom_oop_field_preloaded      = XBarrierSetRuntime::load_barrier_on_phantom_oop_field_preloaded_addr();
+      ZBarrierSetRuntime_weak_load_barrier_on_oop_field_preloaded         = XBarrierSetRuntime::weak_load_barrier_on_oop_field_preloaded_addr();
+      ZBarrierSetRuntime_weak_load_barrier_on_weak_oop_field_preloaded    = XBarrierSetRuntime::weak_load_barrier_on_weak_oop_field_preloaded_addr();
+      ZBarrierSetRuntime_weak_load_barrier_on_phantom_oop_field_preloaded = XBarrierSetRuntime::weak_load_barrier_on_phantom_oop_field_preloaded_addr();
+      ZBarrierSetRuntime_load_barrier_on_oop_array                        = XBarrierSetRuntime::load_barrier_on_oop_array_addr();
+      ZBarrierSetRuntime_clone                                            = XBarrierSetRuntime::clone_addr();
+    }
+  }
+#endif
+
+  continuations_enabled = Continuations::enabled();
 
   ThreadLocalAllocBuffer_alignment_reserve = ThreadLocalAllocBuffer::alignment_reserve();
 
   Universe_collectedHeap = Universe::heap();
   Universe_base_vtable_size = Universe::base_vtable_size();
-  Universe_narrow_oop_base = Universe::narrow_oop_base();
-  Universe_narrow_oop_shift = Universe::narrow_oop_shift();
-  Universe_narrow_klass_base = Universe::narrow_klass_base();
-  Universe_narrow_klass_shift = Universe::narrow_klass_shift();
+  if (UseCompressedOops) {
+    Universe_narrow_oop_base = CompressedOops::base();
+    Universe_narrow_oop_shift = CompressedOops::shift();
+  } else {
+    Universe_narrow_oop_base = nullptr;
+    Universe_narrow_oop_shift = 0;
+  }
+  if (UseCompressedClassPointers) {
+    Universe_narrow_klass_base = CompressedKlassPointers::base();
+    Universe_narrow_klass_shift = CompressedKlassPointers::shift();
+  } else {
+    Universe_narrow_klass_base = nullptr;
+    Universe_narrow_klass_shift = 0;
+  }
   Universe_non_oop_bits = Universe::non_oop_word();
   Universe_verify_oop_mask = Universe::verify_oop_mask();
   Universe_verify_oop_bits = Universe::verify_oop_bits();
 
-  _supports_inline_contig_alloc = Universe::heap()->supports_inline_contig_alloc();
-  _heap_end_addr = _supports_inline_contig_alloc ? Universe::heap()->end_addr() : (HeapWord**) -1;
-  _heap_top_addr = _supports_inline_contig_alloc ? Universe::heap()->top_addr() : (HeapWord* volatile*) -1;
+  _supports_inline_contig_alloc = false;
+  _heap_end_addr = (HeapWord**) -1;
+  _heap_top_addr = (HeapWord* volatile*) -1;
 
   _max_oop_map_stack_offset = (OopMapValue::register_mask - VMRegImpl::stack2reg(0)->value()) * VMRegImpl::stack_slot_size;
   int max_oop_map_stack_index = _max_oop_map_stack_offset / VMRegImpl::stack_slot_size;
@@ -122,22 +229,32 @@ void CompilerToVM::Data::initialize(TRAPS) {
   symbol_init = (address) vmSymbols::object_initializer_name();
   symbol_clinit = (address) vmSymbols::class_initializer_name();
 
+  _fields_annotations_base_offset = Array<AnnotationArray*>::base_offset_in_bytes();
+
+  data_section_item_alignment = relocInfo::addr_unit();
+
+  JVMTI_ONLY( _should_notify_object_alloc = &JvmtiExport::_should_notify_object_alloc; )
+
   BarrierSet* bs = BarrierSet::barrier_set();
   if (bs->is_a(BarrierSet::CardTableBarrierSet)) {
-    jbyte* base = ci_card_table_address();
-    assert(base != NULL, "unexpected byte_map_base");
+    CardTable::CardValue* base = ci_card_table_address();
+    assert(base != nullptr, "unexpected byte_map_base");
     cardtable_start_address = base;
-    cardtable_shift = CardTable::card_shift;
+    cardtable_shift = CardTable::card_shift();
   } else {
     // No card mark barriers
-    cardtable_start_address = 0;
+    cardtable_start_address = nullptr;
     cardtable_shift = 0;
   }
+
+#ifdef X86
+  L1_line_size = VM_Version::L1_line_size();
+#endif
 
   vm_page_size = os::vm_page_size();
 
 #define SET_TRIGFUNC(name)                                      \
-  if (StubRoutines::name() != NULL) {                           \
+  if (StubRoutines::name() != nullptr) {                        \
     name = StubRoutines::name();                                \
   } else {                                                      \
     name = CAST_FROM_FN_PTR(address, SharedRuntime::name);      \
@@ -152,94 +269,110 @@ void CompilerToVM::Data::initialize(TRAPS) {
   SET_TRIGFUNC(dpow);
 
 #undef SET_TRIGFUNC
-}
 
-objArrayHandle CompilerToVM::initialize_intrinsics(TRAPS) {
-  objArrayHandle vmIntrinsics = oopFactory::new_objArray_handle(VMIntrinsicMethod::klass(), (vmIntrinsics::ID_LIMIT - 1), CHECK_(objArrayHandle()));
-  int index = 0;
-  // The intrinsics for a class are usually adjacent to each other.
-  // When they are, the string for the class name can be reused.
-  vmSymbols::SID kls_sid = vmSymbols::NO_SID;
-  Handle kls_str;
-#define VM_SYMBOL_TO_STRING(s) \
-  java_lang_String::create_from_symbol(vmSymbols::symbol_at(vmSymbols::VM_SYMBOL_ENUM_NAME(s)), CHECK_(objArrayHandle()))
-#define VM_INTRINSIC_INFO(id, kls, name, sig, ignore_fcode) {             \
-    instanceHandle vmIntrinsicMethod = InstanceKlass::cast(VMIntrinsicMethod::klass())->allocate_instance_handle(CHECK_(objArrayHandle())); \
-    vmSymbols::SID sid = vmSymbols::VM_SYMBOL_ENUM_NAME(kls);             \
-    if (kls_sid != sid) {                                                 \
-      kls_str = VM_SYMBOL_TO_STRING(kls);                                 \
-      kls_sid = sid;                                                      \
-    }                                                                     \
-    Handle name_str = VM_SYMBOL_TO_STRING(name);                          \
-    Handle sig_str = VM_SYMBOL_TO_STRING(sig);                            \
-    VMIntrinsicMethod::set_declaringClass(vmIntrinsicMethod, kls_str());  \
-    VMIntrinsicMethod::set_name(vmIntrinsicMethod, name_str());           \
-    VMIntrinsicMethod::set_descriptor(vmIntrinsicMethod, sig_str());      \
-    VMIntrinsicMethod::set_id(vmIntrinsicMethod, vmIntrinsics::id);       \
-      vmIntrinsics->obj_at_put(index++, vmIntrinsicMethod());             \
+#define SET_TRIGFUNC_OR_NULL(name)                              \
+  if (StubRoutines::name() != nullptr) {                        \
+    name = StubRoutines::name();                                \
+  } else {                                                      \
+    name = nullptr;                                             \
   }
 
+  SET_TRIGFUNC_OR_NULL(dtanh);
+
+#undef SET_TRIGFUNC_OR_NULL
+
+
+}
+
+static jboolean is_c1_supported(vmIntrinsics::ID id){
+    jboolean supported = false;
+#ifdef COMPILER1
+    supported = (jboolean) Compiler::is_intrinsic_supported(id);
+#endif
+    return supported;
+}
+
+static jboolean is_c2_supported(vmIntrinsics::ID id){
+    jboolean supported = false;
+#ifdef COMPILER2
+    supported = (jboolean) C2Compiler::is_intrinsic_supported(id);
+#endif
+    return supported;
+}
+
+JVMCIObjectArray CompilerToVM::initialize_intrinsics(JVMCI_TRAPS) {
+  int len = vmIntrinsics::number_of_intrinsics() - 1; // Exclude vmIntrinsics::_none, which is 0
+  JVMCIObjectArray vmIntrinsics = JVMCIENV->new_VMIntrinsicMethod_array(len, JVMCI_CHECK_NULL);
+  int index = 0;
+  vmSymbolID kls_sid = vmSymbolID::NO_SID;
+  JVMCIObject kls_str;
+#define VM_SYMBOL_TO_STRING(s) \
+  JVMCIENV->create_string(vmSymbols::symbol_at(VM_SYMBOL_ENUM_NAME(s)), JVMCI_CHECK_NULL)
+#define VM_INTRINSIC_INFO(id, kls, name, sig, ignore_fcode) {            \
+    vmSymbolID sid = VM_SYMBOL_ENUM_NAME(kls);                           \
+    if (kls_sid != sid) {                                                \
+      kls_str = VM_SYMBOL_TO_STRING(kls);                                \
+      kls_sid = sid;                                                     \
+    }                                                                    \
+    JVMCIObject name_str = VM_SYMBOL_TO_STRING(name);                    \
+    JVMCIObject sig_str = VM_SYMBOL_TO_STRING(sig);                      \
+    JVMCIObject vmIntrinsicMethod = JVMCIENV->new_VMIntrinsicMethod(kls_str, name_str, sig_str, (jint) vmIntrinsics::id, \
+                                    (jboolean) vmIntrinsics::is_intrinsic_available(vmIntrinsics::id),                   \
+                                    is_c1_supported(vmIntrinsics::id),                       \
+                                    is_c2_supported(vmIntrinsics::id), JVMCI_CHECK_NULL);    \
+    JVMCIENV->put_object_at(vmIntrinsics, index++, vmIntrinsicMethod);   \
+  }
+
+  // VM_INTRINSICS_DO does *not* iterate over vmIntrinsics::_none
   VM_INTRINSICS_DO(VM_INTRINSIC_INFO, VM_SYMBOL_IGNORE, VM_SYMBOL_IGNORE, VM_SYMBOL_IGNORE, VM_ALIAS_IGNORE)
 #undef VM_SYMBOL_TO_STRING
 #undef VM_INTRINSIC_INFO
-  assert(index == vmIntrinsics::ID_LIMIT - 1, "must be");
 
+  assert(index == len, "must be");
   return vmIntrinsics;
 }
 
-/**
- * The set of VM flags known to be used.
- */
-#define PREDEFINED_CONFIG_FLAGS(do_bool_flag, do_intx_flag, do_uintx_flag) \
-  do_intx_flag(AllocateInstancePrefetchLines)                              \
-  do_intx_flag(AllocatePrefetchDistance)                                   \
+#define PREDEFINED_CONFIG_FLAGS(do_bool_flag, do_int_flag, do_intx_flag, do_uintx_flag) \
+  do_int_flag(AllocateInstancePrefetchLines)                               \
+  do_int_flag(AllocatePrefetchDistance)                                    \
   do_intx_flag(AllocatePrefetchInstr)                                      \
-  do_intx_flag(AllocatePrefetchLines)                                      \
-  do_intx_flag(AllocatePrefetchStepSize)                                   \
-  do_intx_flag(AllocatePrefetchStyle)                                      \
+  do_int_flag(AllocatePrefetchLines)                                       \
+  do_int_flag(AllocatePrefetchStepSize)                                    \
+  do_int_flag(AllocatePrefetchStyle)                                       \
   do_intx_flag(BciProfileWidth)                                            \
   do_bool_flag(BootstrapJVMCI)                                             \
   do_bool_flag(CITime)                                                     \
   do_bool_flag(CITimeEach)                                                 \
   do_uintx_flag(CodeCacheSegmentSize)                                      \
   do_intx_flag(CodeEntryAlignment)                                         \
-  do_bool_flag(CompactFields)                                              \
-  NOT_PRODUCT(do_intx_flag(CompileTheWorldStartAt))                        \
-  NOT_PRODUCT(do_intx_flag(CompileTheWorldStopAt))                         \
-  do_intx_flag(ContendedPaddingWidth)                                      \
+  do_int_flag(ContendedPaddingWidth)                                       \
   do_bool_flag(DontCompileHugeMethods)                                     \
   do_bool_flag(EagerJVMCI)                                                 \
   do_bool_flag(EnableContended)                                            \
-  do_intx_flag(FieldsAllocationStyle)                                      \
   do_bool_flag(FoldStableValues)                                           \
   do_bool_flag(ForceUnreachable)                                           \
   do_intx_flag(HugeMethodLimit)                                            \
   do_bool_flag(Inline)                                                     \
   do_intx_flag(JVMCICounterSize)                                           \
   do_bool_flag(JVMCIPrintProperties)                                       \
-  do_bool_flag(JVMCIUseFastLocking)                                        \
-  do_intx_flag(MethodProfileWidth)                                         \
-  do_intx_flag(ObjectAlignmentInBytes)                                     \
+  do_int_flag(ObjectAlignmentInBytes)                                      \
   do_bool_flag(PrintInlining)                                              \
   do_bool_flag(ReduceInitialCardMarks)                                     \
   do_bool_flag(RestrictContended)                                          \
   do_intx_flag(StackReservedPages)                                         \
   do_intx_flag(StackShadowPages)                                           \
-  do_bool_flag(TLABStats)                                                  \
   do_uintx_flag(TLABWasteIncrement)                                        \
   do_intx_flag(TypeProfileWidth)                                           \
   do_bool_flag(UseAESIntrinsics)                                           \
-  X86_ONLY(do_intx_flag(UseAVX))                                           \
-  do_bool_flag(UseBiasedLocking)                                           \
+  X86_ONLY(do_int_flag(UseAVX))                                            \
   do_bool_flag(UseCRC32Intrinsics)                                         \
+  do_bool_flag(UseAdler32Intrinsics)                                       \
   do_bool_flag(UseCompressedClassPointers)                                 \
   do_bool_flag(UseCompressedOops)                                          \
   X86_ONLY(do_bool_flag(UseCountLeadingZerosInstruction))                  \
   X86_ONLY(do_bool_flag(UseCountTrailingZerosInstruction))                 \
-  do_bool_flag(UseConcMarkSweepGC)                                         \
   do_bool_flag(UseG1GC)                                                    \
   do_bool_flag(UseParallelGC)                                              \
-  do_bool_flag(UseParallelOldGC)                                           \
   do_bool_flag(UseSerialGC)                                                \
   do_bool_flag(UseZGC)                                                     \
   do_bool_flag(UseEpsilonGC)                                               \
@@ -251,36 +384,33 @@ objArrayHandle CompilerToVM::initialize_intrinsics(TRAPS) {
   do_bool_flag(UseSHA1Intrinsics)                                          \
   do_bool_flag(UseSHA256Intrinsics)                                        \
   do_bool_flag(UseSHA512Intrinsics)                                        \
-  do_intx_flag(UseSSE)                                                     \
+  X86_ONLY(do_int_flag(UseSSE))                                            \
   COMPILER2_PRESENT(do_bool_flag(UseSquareToLenIntrinsic))                 \
-  do_bool_flag(UseStackBanging)                                            \
   do_bool_flag(UseTLAB)                                                    \
   do_bool_flag(VerifyOops)                                                 \
 
-#define BOXED_BOOLEAN(name, value) oop name = ((jboolean)(value) ? boxedTrue() : boxedFalse())
-#define BOXED_DOUBLE(name, value) oop name; do { jvalue p; p.d = (jdouble) (value); name = java_lang_boxing_object::create(T_DOUBLE, &p, CHECK_NULL);} while(0)
+#define BOXED_BOOLEAN(name, value) name = ((jboolean)(value) ? boxedTrue : boxedFalse)
+#define BOXED_DOUBLE(name, value) do { jvalue p; p.d = (jdouble) (value); name = JVMCIENV->create_box(T_DOUBLE, &p, JVMCI_CHECK_NULL);} while(0)
 #define BOXED_LONG(name, value) \
-  oop name; \
   do { \
     jvalue p; p.j = (jlong) (value); \
-    Handle* e = longs.get(p.j); \
-    if (e == NULL) { \
-      oop o = java_lang_boxing_object::create(T_LONG, &p, CHECK_NULL); \
-      Handle h(THREAD, o); \
+    JVMCIObject* e = longs.get(p.j); \
+    if (e == nullptr) { \
+      JVMCIObject h = JVMCIENV->create_box(T_LONG, &p, JVMCI_CHECK_NULL); \
       longs.put(p.j, h); \
-      name = h(); \
+      name = h; \
     } else { \
-      name = (*e)(); \
+      name = (*e); \
     } \
   } while (0)
 
 #define CSTRING_TO_JSTRING(name, value) \
-  Handle name; \
+  JVMCIObject name; \
   do { \
-    if (value != NULL) { \
-      Handle* e = strings.get(value); \
-      if (e == NULL) { \
-        Handle h = java_lang_String::create_from_str(value, CHECK_NULL); \
+    if (value != nullptr) { \
+      JVMCIObject* e = strings.get(value); \
+      if (e == nullptr) { \
+        JVMCIObject h = JVMCIENV->create_string(value, JVMCI_CHECK_NULL); \
         strings.put(value, h); \
         name = h; \
       } else { \
@@ -289,51 +419,46 @@ objArrayHandle CompilerToVM::initialize_intrinsics(TRAPS) {
     } \
   } while (0)
 
-jobjectArray readConfiguration0(JNIEnv *env, TRAPS) {
-  ResourceMark rm;
-  HandleMark hm;
-
-  // Used to canonicalize Long and String values.
-  ResourceHashtable<jlong, Handle> longs;
-  ResourceHashtable<const char*, Handle, &CompilerToVM::cstring_hash, &CompilerToVM::cstring_equals> strings;
+jobjectArray readConfiguration0(JNIEnv *env, JVMCI_TRAPS) {
+  JavaThread* THREAD = JavaThread::current(); // For exception macros.
+  ResourceHashtable<jlong, JVMCIObject> longs;
+  ResourceHashtable<const char*, JVMCIObject,
+                    256, AnyObj::RESOURCE_AREA, mtInternal,
+                    &CompilerToVM::cstring_hash, &CompilerToVM::cstring_equals> strings;
 
   jvalue prim;
-  prim.z = true;  oop boxedTrueOop =  java_lang_boxing_object::create(T_BOOLEAN, &prim, CHECK_NULL);
-  Handle boxedTrue(THREAD, boxedTrueOop);
-  prim.z = false; oop boxedFalseOop = java_lang_boxing_object::create(T_BOOLEAN, &prim, CHECK_NULL);
-  Handle boxedFalse(THREAD, boxedFalseOop);
+  prim.z = true;  JVMCIObject boxedTrue =  JVMCIENV->create_box(T_BOOLEAN, &prim, JVMCI_CHECK_NULL);
+  prim.z = false; JVMCIObject boxedFalse = JVMCIENV->create_box(T_BOOLEAN, &prim, JVMCI_CHECK_NULL);
 
-  CompilerToVM::Data::initialize(CHECK_NULL);
+  CompilerToVM::Data::initialize(JVMCI_CHECK_NULL);
 
-  VMField::klass()->initialize(CHECK_NULL);
-  VMFlag::klass()->initialize(CHECK_NULL);
-  VMIntrinsicMethod::klass()->initialize(CHECK_NULL);
+  JVMCIENV->VMField_initialize(JVMCI_CHECK_NULL);
+  JVMCIENV->VMFlag_initialize(JVMCI_CHECK_NULL);
+  JVMCIENV->VMIntrinsicMethod_initialize(JVMCI_CHECK_NULL);
 
   int len = JVMCIVMStructs::localHotSpotVMStructs_count();
-  objArrayHandle vmFields = oopFactory::new_objArray_handle(VMField::klass(), len, CHECK_NULL);
+  JVMCIObjectArray vmFields = JVMCIENV->new_VMField_array(len, JVMCI_CHECK_NULL);
   for (int i = 0; i < len ; i++) {
     VMStructEntry vmField = JVMCIVMStructs::localHotSpotVMStructs[i];
-    instanceHandle vmFieldObj = InstanceKlass::cast(VMField::klass())->allocate_instance_handle(CHECK_NULL);
-    size_t name_buf_len = strlen(vmField.typeName) + strlen(vmField.fieldName) + 2 /* "::" */;
-    char* name_buf = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, name_buf_len + 1);
-    sprintf(name_buf, "%s::%s", vmField.typeName, vmField.fieldName);
+    const size_t name_buf_size = strlen(vmField.typeName) + strlen(vmField.fieldName) + 2 + 1 /* "::" */;
+    char* name_buf = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, name_buf_size);
+    os::snprintf_checked(name_buf, name_buf_size, "%s::%s", vmField.typeName, vmField.fieldName);
     CSTRING_TO_JSTRING(name, name_buf);
     CSTRING_TO_JSTRING(type, vmField.typeString);
-    VMField::set_name(vmFieldObj, name());
-    VMField::set_type(vmFieldObj, type());
-    VMField::set_offset(vmFieldObj, vmField.offset);
-    VMField::set_address(vmFieldObj, (jlong) vmField.address);
-    if (vmField.isStatic && vmField.typeString != NULL) {
+    JVMCIObject box;
+    if (vmField.isStatic && vmField.typeString != nullptr) {
       if (strcmp(vmField.typeString, "bool") == 0) {
         BOXED_BOOLEAN(box, *(jbyte*) vmField.address);
-        VMField::set_value(vmFieldObj, box);
+        assert(box.is_non_null(), "must have a box");
       } else if (strcmp(vmField.typeString, "int") == 0 ||
-                 strcmp(vmField.typeString, "jint") == 0) {
+                 strcmp(vmField.typeString, "jint") == 0 ||
+                 strcmp(vmField.typeString, "uint") == 0 ||
+                 strcmp(vmField.typeString, "uint32_t") == 0) {
         BOXED_LONG(box, *(jint*) vmField.address);
-        VMField::set_value(vmFieldObj, box);
+        assert(box.is_non_null(), "must have a box");
       } else if (strcmp(vmField.typeString, "uint64_t") == 0) {
         BOXED_LONG(box, *(uint64_t*) vmField.address);
-        VMField::set_value(vmFieldObj, box);
+        assert(box.is_non_null(), "must have a box");
       } else if (strcmp(vmField.typeString, "address") == 0 ||
                  strcmp(vmField.typeString, "intptr_t") == 0 ||
                  strcmp(vmField.typeString, "uintptr_t") == 0 ||
@@ -342,90 +467,87 @@ jobjectArray readConfiguration0(JNIEnv *env, TRAPS) {
                  // All foo* types are addresses.
                  vmField.typeString[strlen(vmField.typeString) - 1] == '*') {
         BOXED_LONG(box, *((address*) vmField.address));
-        VMField::set_value(vmFieldObj, box);
+        assert(box.is_non_null(), "must have a box");
       } else {
         JVMCI_ERROR_NULL("VM field %s has unsupported type %s", name_buf, vmField.typeString);
       }
     }
-    vmFields->obj_at_put(i, vmFieldObj());
+    JVMCIObject vmFieldObj = JVMCIENV->new_VMField(name, type, vmField.offset, (jlong) vmField.address, box, JVMCI_CHECK_NULL);
+    JVMCIENV->put_object_at(vmFields, i, vmFieldObj);
   }
 
   int ints_len = JVMCIVMStructs::localHotSpotVMIntConstants_count();
   int longs_len = JVMCIVMStructs::localHotSpotVMLongConstants_count();
   len = ints_len + longs_len;
-  objArrayHandle vmConstants = oopFactory::new_objArray_handle(SystemDictionary::Object_klass(), len * 2, CHECK_NULL);
+  JVMCIObjectArray vmConstants = JVMCIENV->new_Object_array(len * 2, JVMCI_CHECK_NULL);
   int insert = 0;
   for (int i = 0; i < ints_len ; i++) {
     VMIntConstantEntry c = JVMCIVMStructs::localHotSpotVMIntConstants[i];
     CSTRING_TO_JSTRING(name, c.name);
+    JVMCIObject value;
     BOXED_LONG(value, c.value);
-    vmConstants->obj_at_put(insert++, name());
-    vmConstants->obj_at_put(insert++, value);
+    JVMCIENV->put_object_at(vmConstants, insert++, name);
+    JVMCIENV->put_object_at(vmConstants, insert++, value);
   }
   for (int i = 0; i < longs_len ; i++) {
     VMLongConstantEntry c = JVMCIVMStructs::localHotSpotVMLongConstants[i];
     CSTRING_TO_JSTRING(name, c.name);
+    JVMCIObject value;
     BOXED_LONG(value, c.value);
-    vmConstants->obj_at_put(insert++, name());
-    vmConstants->obj_at_put(insert++, value);
+    JVMCIENV->put_object_at(vmConstants, insert++, name);
+    JVMCIENV->put_object_at(vmConstants, insert++, value);
   }
   assert(insert == len * 2, "must be");
 
   len = JVMCIVMStructs::localHotSpotVMAddresses_count();
-  objArrayHandle vmAddresses = oopFactory::new_objArray_handle(SystemDictionary::Object_klass(), len * 2, CHECK_NULL);
+  JVMCIObjectArray vmAddresses = JVMCIENV->new_Object_array(len * 2, JVMCI_CHECK_NULL);
   for (int i = 0; i < len ; i++) {
     VMAddressEntry a = JVMCIVMStructs::localHotSpotVMAddresses[i];
     CSTRING_TO_JSTRING(name, a.name);
+    JVMCIObject value;
     BOXED_LONG(value, a.value);
-    vmAddresses->obj_at_put(i * 2, name());
-    vmAddresses->obj_at_put(i * 2 + 1, value);
+    JVMCIENV->put_object_at(vmAddresses, i * 2, name);
+    JVMCIENV->put_object_at(vmAddresses, i * 2 + 1, value);
   }
 
 #define COUNT_FLAG(ignore) +1
 #ifdef ASSERT
 #define CHECK_FLAG(type, name) { \
-  JVMFlag* flag = JVMFlag::find_flag(#name, strlen(#name), /*allow_locked*/ true, /* return_flag */ true); \
-  assert(flag != NULL, "No such flag named " #name); \
+  const JVMFlag* flag = JVMFlag::find_declared_flag(#name); \
+  assert(flag != nullptr, "No such flag named " #name); \
   assert(flag->is_##type(), "JVMFlag " #name " is not of type " #type); \
 }
 #else
 #define CHECK_FLAG(type, name)
 #endif
 
-#define ADD_FLAG(type, name, convert) { \
-  CHECK_FLAG(type, name) \
-  instanceHandle vmFlagObj = InstanceKlass::cast(VMFlag::klass())->allocate_instance_handle(CHECK_NULL); \
-  CSTRING_TO_JSTRING(fname, #name); \
-  CSTRING_TO_JSTRING(ftype, #type); \
-  VMFlag::set_name(vmFlagObj, fname()); \
-  VMFlag::set_type(vmFlagObj, ftype()); \
-  convert(value, name); \
-  VMFlag::set_value(vmFlagObj, value); \
-  vmFlags->obj_at_put(i++, vmFlagObj()); \
+#define ADD_FLAG(type, name, convert) {                                                \
+  CHECK_FLAG(type, name)                                                               \
+  CSTRING_TO_JSTRING(fname, #name);                                                    \
+  CSTRING_TO_JSTRING(ftype, #type);                                                    \
+  convert(value, name);                                                                \
+  JVMCIObject vmFlagObj = JVMCIENV->new_VMFlag(fname, ftype, value, JVMCI_CHECK_NULL); \
+  JVMCIENV->put_object_at(vmFlags, i++, vmFlagObj);                                    \
 }
 #define ADD_BOOL_FLAG(name)  ADD_FLAG(bool, name, BOXED_BOOLEAN)
+#define ADD_INT_FLAG(name)   ADD_FLAG(int, name, BOXED_LONG)
 #define ADD_INTX_FLAG(name)  ADD_FLAG(intx, name, BOXED_LONG)
 #define ADD_UINTX_FLAG(name) ADD_FLAG(uintx, name, BOXED_LONG)
 
-  len = 0 + PREDEFINED_CONFIG_FLAGS(COUNT_FLAG, COUNT_FLAG, COUNT_FLAG);
-  objArrayHandle vmFlags = oopFactory::new_objArray_handle(VMFlag::klass(), len, CHECK_NULL);
+  len = 0 + PREDEFINED_CONFIG_FLAGS(COUNT_FLAG, COUNT_FLAG, COUNT_FLAG, COUNT_FLAG);
+  JVMCIObjectArray vmFlags = JVMCIENV->new_VMFlag_array(len, JVMCI_CHECK_NULL);
   int i = 0;
-  PREDEFINED_CONFIG_FLAGS(ADD_BOOL_FLAG, ADD_INTX_FLAG, ADD_UINTX_FLAG)
+  JVMCIObject value;
+  PREDEFINED_CONFIG_FLAGS(ADD_BOOL_FLAG, ADD_INT_FLAG, ADD_INTX_FLAG, ADD_UINTX_FLAG)
 
-  objArrayHandle vmIntrinsics = CompilerToVM::initialize_intrinsics(CHECK_NULL);
+  JVMCIObjectArray vmIntrinsics = CompilerToVM::initialize_intrinsics(JVMCI_CHECK_NULL);
 
-  objArrayOop data = oopFactory::new_objArray(SystemDictionary::Object_klass(), 5, CHECK_NULL);
-  data->obj_at_put(0, vmFields());
-  data->obj_at_put(1, vmConstants());
-  data->obj_at_put(2, vmAddresses());
-  data->obj_at_put(3, vmFlags());
-  data->obj_at_put(4, vmIntrinsics());
+  JVMCIObjectArray data = JVMCIENV->new_Object_array(5, JVMCI_CHECK_NULL);
+  JVMCIENV->put_object_at(data, 0, vmFields);
+  JVMCIENV->put_object_at(data, 1, vmConstants);
+  JVMCIENV->put_object_at(data, 2, vmAddresses);
+  JVMCIENV->put_object_at(data, 3, vmFlags);
+  JVMCIENV->put_object_at(data, 4, vmIntrinsics);
 
-  return (jobjectArray) JNIHandles::make_local(THREAD, data);
-#undef COUNT_FLAG
-#undef ADD_FLAG
-#undef ADD_BOOL_FLAG
-#undef ADD_INTX_FLAG
-#undef ADD_UINTX_FLAG
-#undef CHECK_FLAG
+  return JVMCIENV->get_jobjectArray(data);
 }

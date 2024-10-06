@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,12 @@
 
 package java.awt.geom;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.awt.Shape;
 import java.awt.Rectangle;
-import java.util.Arrays;
+import java.awt.Shape;
+import java.io.Serial;
 import java.io.Serializable;
+import java.util.Arrays;
+
 import sun.awt.geom.Curve;
 
 import static java.lang.Math.abs;
@@ -50,8 +49,7 @@ import static java.lang.Math.ulp;
  * @author      Jim Graham
  * @since 1.2
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class CubicCurve2D implements Shape, Cloneable {
+public abstract class CubicCurve2D implements Shape, Cloneable {
 
     /**
      * A cubic parametric curve segment specified with
@@ -314,25 +312,9 @@ public abstract @UsesObjectEquals class CubicCurve2D implements Shape, Cloneable
         }
 
         /**
-         * {@inheritDoc}
-         * @since 1.2
+         * Use serialVersionUID from JDK 1.6 for interoperability.
          */
-        public Rectangle2D getBounds2D() {
-            float left   = Math.min(Math.min(x1, x2),
-                                    Math.min(ctrlx1, ctrlx2));
-            float top    = Math.min(Math.min(y1, y2),
-                                    Math.min(ctrly1, ctrly2));
-            float right  = Math.max(Math.max(x1, x2),
-                                    Math.max(ctrlx1, ctrlx2));
-            float bottom = Math.max(Math.max(y1, y2),
-                                    Math.max(ctrly1, ctrly2));
-            return new Rectangle2D.Float(left, top,
-                                         right - left, bottom - top);
-        }
-
-        /*
-         * JDK 1.6 serialVersionUID
-         */
+        @Serial
         private static final long serialVersionUID = -1272015596714244385L;
     }
 
@@ -560,25 +542,9 @@ public abstract @UsesObjectEquals class CubicCurve2D implements Shape, Cloneable
         }
 
         /**
-         * {@inheritDoc}
-         * @since 1.2
+         * Use serialVersionUID from JDK 1.6 for interoperability.
          */
-        public Rectangle2D getBounds2D() {
-            double left   = Math.min(Math.min(x1, x2),
-                                     Math.min(ctrlx1, ctrlx2));
-            double top    = Math.min(Math.min(y1, y2),
-                                     Math.min(ctrly1, ctrly2));
-            double right  = Math.max(Math.max(x1, x2),
-                                     Math.max(ctrlx1, ctrlx2));
-            double bottom = Math.max(Math.max(y1, y2),
-                                     Math.max(ctrly1, ctrly2));
-            return new Rectangle2D.Double(left, top,
-                                          right - left, bottom - top);
-        }
-
-        /*
-         * JDK 1.6 serialVersionUID
-         */
+        @Serial
         private static final long serialVersionUID = -4202960122839707295L;
     }
 
@@ -864,7 +830,7 @@ public abstract @UsesObjectEquals class CubicCurve2D implements Shape, Cloneable
      *          the specified offset.
      * @since 1.2
      */
-    public static double getFlatnessSq(double coords[], int offset) {
+    public static double getFlatnessSq(double[] coords, int offset) {
         return getFlatnessSq(coords[offset + 0], coords[offset + 1],
                              coords[offset + 2], coords[offset + 3],
                              coords[offset + 4], coords[offset + 5],
@@ -884,7 +850,7 @@ public abstract @UsesObjectEquals class CubicCurve2D implements Shape, Cloneable
      *          the specified offset.
      * @since 1.2
      */
-    public static double getFlatness(double coords[], int offset) {
+    public static double getFlatness(double[] coords, int offset) {
         return getFlatness(coords[offset + 0], coords[offset + 1],
                            coords[offset + 2], coords[offset + 3],
                            coords[offset + 4], coords[offset + 5],
@@ -1004,9 +970,9 @@ public abstract @UsesObjectEquals class CubicCurve2D implements Shape, Cloneable
      * the 6 right coordinates
      * @since 1.2
      */
-    public static void subdivide(double src[], int srcoff,
-                                 double left[], int leftoff,
-                                 double right[], int rightoff) {
+    public static void subdivide(double[] src, int srcoff,
+                                 double[] left, int leftoff,
+                                 double[] right, int rightoff) {
         double x1 = src[srcoff + 0];
         double y1 = src[srcoff + 1];
         double ctrlx1 = src[srcoff + 2];
@@ -1069,7 +1035,7 @@ public abstract @UsesObjectEquals class CubicCurve2D implements Shape, Cloneable
      * @return the number of roots, or -1 if the equation is a constant.
      * @since 1.2
      */
-    public static int solveCubic(double eqn[]) {
+    public static int solveCubic(double[] eqn) {
         return solveCubic(eqn, eqn);
     }
 
@@ -1090,7 +1056,7 @@ public abstract @UsesObjectEquals class CubicCurve2D implements Shape, Cloneable
      * @return the number of roots, or -1 if the equation is a constant
      * @since 1.3
      */
-    public static int solveCubic(double eqn[], double res[]) {
+    public static int solveCubic(double[] eqn, double[] res) {
         // From Graphics Gems:
         // http://tog.acm.org/resources/GraphicsGems/gems/Roots3And4.c
         final double d = eqn[3];
@@ -1373,7 +1339,7 @@ public abstract @UsesObjectEquals class CubicCurve2D implements Shape, Cloneable
         return (x1 < 0 && x2 > 0) || (x1 > 0 && x2 < 0);
     }
 
-    private static double solveEqn(double eqn[], int order, double t) {
+    private static double solveEqn(double[] eqn, int order, double t) {
         double v = eqn[order];
         while (--order >= 0) {
             v = v * t + eqn[order];
@@ -1443,7 +1409,7 @@ public abstract @UsesObjectEquals class CubicCurve2D implements Shape, Cloneable
      * @since 1.2
      */
     public boolean intersects(double x, double y, double w, double h) {
-        // Trivially reject non-existant rectangles
+        // Trivially reject non-existent rectangles
         if (w <= 0 || h <= 0) {
             return false;
         }
@@ -1509,6 +1475,15 @@ public abstract @UsesObjectEquals class CubicCurve2D implements Shape, Cloneable
         return contains(r.getX(), r.getY(), r.getWidth(), r.getHeight());
     }
 
+
+    /**
+     * {@inheritDoc}
+     * @since 1.2
+     */
+    public Rectangle2D getBounds2D() {
+        return Path2D.getBounds2D(getPathIterator(null));
+    }
+
     /**
      * {@inheritDoc}
      * @since 1.2
@@ -1564,7 +1539,7 @@ public abstract @UsesObjectEquals class CubicCurve2D implements Shape, Cloneable
      * Creates a new object of the same class as this object.
      *
      * @return     a clone of this instance.
-     * @exception  OutOfMemoryError            if there is not enough memory.
+     * @throws  OutOfMemoryError            if there is not enough memory.
      * @see        java.lang.Cloneable
      * @since      1.2
      */

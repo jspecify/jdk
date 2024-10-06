@@ -23,9 +23,8 @@
 package com.sun.org.apache.xml.internal.security.utils;
 
 import java.math.BigInteger;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.Base64;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.sun.org.apache.xml.internal.security.exceptions.XMLSecurityException;
 import org.w3c.dom.Attr;
@@ -56,7 +55,7 @@ public abstract class ElementProxy {
     private Document wrappedDoc;
 
     /** Field prefixMappings */
-    private static Map<String, String> prefixMappings = new ConcurrentHashMap<String, String>();
+    private static Map<String, String> prefixMappings = new ConcurrentHashMap<>();
 
     /**
      * Constructor ElementProxy
@@ -211,7 +210,7 @@ public abstract class ElementProxy {
     }
 
     protected Text createText(String text) {
-        return this.wrappedDoc.createTextNode(text);
+        return getDocument().createTextNode(text);
     }
 
     /**
@@ -250,7 +249,7 @@ public abstract class ElementProxy {
 
         if(!expectedNamespaceUri.equals(actualNamespaceUri)
             && !expectedLocalName.equals(actualLocalName)) {
-            Object exArgs[] = { actualNamespaceUri + ":" + actualLocalName,
+            Object[] exArgs = { actualNamespaceUri + ":" + actualLocalName,
                                 expectedNamespaceUri + ":" + expectedLocalName};
             throw new XMLSecurityException("xml.WrongElement", exArgs);
         }
@@ -267,7 +266,7 @@ public abstract class ElementProxy {
             Element e = XMLUtils.createElementInSignatureSpace(getDocument(), localname);
 
             byte[] bytes = XMLUtils.getBytes(bi, bi.bitLength());
-            String encodedInt = Base64.getMimeEncoder().encodeToString(bytes);
+            String encodedInt = XMLUtils.encodeToString(bytes);
 
             Document doc = e.getOwnerDocument();
             Text text = doc.createTextNode(encodedInt);
@@ -291,15 +290,7 @@ public abstract class ElementProxy {
      */
     public void addBase64Element(byte[] bytes, String localname) {
         if (bytes != null) {
-            Element el = XMLUtils.createElementInSignatureSpace(getDocument(), localname);
-            Text text = getDocument().createTextNode(Base64.getMimeEncoder().encodeToString(bytes));
-
-            el.appendChild(text);
-
-            appendSelf(el);
-            if (!XMLUtils.ignoreLineBreaks()) {
-                appendSelf(createText("\n"));
-            }
+            addTextElement(XMLUtils.encodeToString(bytes), localname);
         }
     }
 
@@ -326,8 +317,8 @@ public abstract class ElementProxy {
     public void addBase64Text(byte[] bytes) {
         if (bytes != null) {
             Text t = XMLUtils.ignoreLineBreaks()
-                ? createText(Base64.getMimeEncoder().encodeToString(bytes))
-                : createText("\n" + Base64.getMimeEncoder().encodeToString(bytes) + "\n");
+                ? createText(XMLUtils.encodeToString(bytes))
+                : createText("\n" + XMLUtils.encodeToString(bytes) + "\n");
             appendSelf(t);
         }
     }
@@ -367,11 +358,11 @@ public abstract class ElementProxy {
     public BigInteger getBigIntegerFromChildElement(
         String localname, String namespace
     ) {
-        return new BigInteger(1, Base64.getMimeDecoder().decode(
-            XMLUtils.selectNodeText(
-                getFirstChild(), namespace, localname, 0
-            ).getNodeValue()
-        ));
+        Node n = XMLUtils.selectNode(getFirstChild(), namespace, localname, 0);
+        if (n != null) {
+            return new BigInteger(1, XMLUtils.decode(XMLUtils.getFullTextChildrenFromNode(n)));
+        }
+        return null;
     }
 
     /**
@@ -396,7 +387,7 @@ public abstract class ElementProxy {
      * @throws XMLSecurityException
      */
     public byte[] getBytesFromTextChild() throws XMLSecurityException {
-        return Base64.getMimeDecoder().decode(getTextFromTextChild());
+        return XMLUtils.decode(getTextFromTextChild());
     }
 
     /**
@@ -406,7 +397,7 @@ public abstract class ElementProxy {
      *    element
      */
     public String getTextFromTextChild() {
-        return XMLUtils.getFullTextChildrenFromElement(getElement());
+        return XMLUtils.getFullTextChildrenFromNode(getElement());
     }
 
     /**
@@ -460,7 +451,7 @@ public abstract class ElementProxy {
 
         if (a != null) {
             if (!a.getNodeValue().equals(uri)) {
-                Object exArgs[] = { ns, getElement().getAttributeNS(null, ns) };
+                Object[] exArgs = { ns, getElement().getAttributeNS(null, ns) };
 
                 throw new XMLSecurityException("namespacePrefixAlreadyUsedByOtherURI", exArgs);
             }
@@ -490,7 +481,7 @@ public abstract class ElementProxy {
         if (prefixMappings.containsValue(prefix)) {
             String storedPrefix = prefixMappings.get(namespace);
             if (!storedPrefix.equals(prefix)) {
-                Object exArgs[] = { prefix, namespace, storedPrefix };
+                Object[] exArgs = { prefix, namespace, storedPrefix };
 
                 throw new XMLSecurityException("prefix.AlreadyAssigned", exArgs);
             }
@@ -498,8 +489,9 @@ public abstract class ElementProxy {
 
         if (Constants.SignatureSpecNS.equals(namespace)) {
             XMLUtils.setDsPrefix(prefix);
-        }
-        if (EncryptionConstants.EncryptionSpecNS.equals(namespace)) {
+        } else if (Constants.SignatureSpec11NS.equals(namespace)) {
+            XMLUtils.setDs11Prefix(prefix);
+        } else if (EncryptionConstants.EncryptionSpecNS.equals(namespace)) {
             XMLUtils.setXencPrefix(prefix);
         }
         prefixMappings.put(namespace, prefix);
@@ -519,6 +511,7 @@ public abstract class ElementProxy {
         setNamespacePrefix(
             "http://www.nue.et-inf.uni-siegen.de/~geuer-pollmann/#xpathFilter", "xx"
         );
+        setNamespacePrefix("http://www.w3.org/2009/xmldsig11#", "dsig11");
     }
 
     /**

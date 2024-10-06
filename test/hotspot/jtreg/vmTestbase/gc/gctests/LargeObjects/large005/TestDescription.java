@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @key stress gc
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/gctests/LargeObjects/large005.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent]
@@ -60,12 +60,11 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  *
  * @comment generate and compile nsk.share.gc.newclass.* classes
  * @run driver nsk.share.gc.GenClassesBuilder
  *
- * @run main/othervm
+ * @run main/othervm/timeout=300
  *      -XX:-UseGCOverheadLimit
  *      gc.gctests.LargeObjects.large001.large001
  *      -largeClassesPath classes
@@ -73,4 +72,3 @@
  *      -aggregationDepth 3
  *      -t 1
  */
-

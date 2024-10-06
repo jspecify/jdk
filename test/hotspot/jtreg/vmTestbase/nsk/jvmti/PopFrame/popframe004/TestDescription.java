@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@
  * VM Testbase keywords: [quick, jpda, jvmti, noras]
  * VM Testbase readme:
  * DESCRIPTION
- *     This test checks that a method's frame can be popped by
+ *     This test checks that a method's frame can not be popped by
  *     the JVMTI function PopFrame():
  *      - with intermediate native frames, and a thread, from which
  *        the PopFrame() was called, is different than the current thread;
@@ -43,7 +43,6 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm/native -agentlib:popframe004 nsk.jvmti.PopFrame.popframe004
  */
 

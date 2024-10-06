@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -119,10 +119,24 @@ public class StreamHandler extends Handler {
      * Then the output stream is replaced with the new output stream.
      *
      * @param out   New output stream.  May not be null.
-     * @exception  SecurityException  if a security manager exists and if
+     * @throws  SecurityException  if a security manager exists and if
      *             the caller does not have {@code LoggingPermission("control")}.
      */
-    protected synchronized void setOutputStream(OutputStream out) throws SecurityException {
+    protected void setOutputStream(OutputStream out) throws SecurityException {
+        if (tryUseLock()) {
+            try {
+                setOutputStream0(out);
+            } finally {
+                unlock();
+            }
+        } else {
+            synchronized (this) {
+                setOutputStream0(out);
+            }
+        }
+    }
+
+    private void setOutputStream0(OutputStream out) throws SecurityException {
         if (out == null) {
             throw new NullPointerException();
         }
@@ -151,13 +165,27 @@ public class StreamHandler extends Handler {
      *
      * @param encoding  The name of a supported character encoding.
      *        May be null, to indicate the default platform encoding.
-     * @exception  SecurityException  if a security manager exists and if
+     * @throws  SecurityException  if a security manager exists and if
      *             the caller does not have {@code LoggingPermission("control")}.
-     * @exception  UnsupportedEncodingException if the named encoding is
+     * @throws  UnsupportedEncodingException if the named encoding is
      *          not supported.
      */
     @Override
-    public synchronized void setEncoding(String encoding)
+    public void setEncoding(String encoding)
+                        throws SecurityException, java.io.UnsupportedEncodingException {
+        if (tryUseLock()) {
+            try {
+                setEncoding0(encoding);
+            } finally {
+                unlock();
+            }
+        } else {
+            synchronized (this) {
+                setEncoding0(encoding);
+            }
+        }
+    }
+    private void setEncoding0(String encoding)
                         throws SecurityException, java.io.UnsupportedEncodingException {
         super.setEncoding(encoding);
         if (output == null) {
@@ -190,7 +218,21 @@ public class StreamHandler extends Handler {
      *                 silently ignored and is not published
      */
     @Override
-    public synchronized void publish(LogRecord record) {
+    public void publish(LogRecord record) {
+        if (tryUseLock()) {
+            try {
+                publish0(record);
+            } finally {
+                unlock();
+            }
+        } else {
+            synchronized (this) {
+                publish0(record);
+            }
+        }
+    }
+
+    private void publish0(LogRecord record) {
         if (!isLoggable(record)) {
             return;
         }
@@ -205,6 +247,7 @@ public class StreamHandler extends Handler {
         }
 
         try {
+            Writer writer = this.writer;
             if (!doneHeader) {
                 writer.write(getFormatter().getHead(this));
                 doneHeader = true;
@@ -225,7 +268,7 @@ public class StreamHandler extends Handler {
      * whether it satisfies any {@code Filter}.  It will also return false if
      * no output stream has been assigned yet or the LogRecord is null.
      *
-     * @param record  a {@code LogRecord}
+     * @param record  a {@code LogRecord} (may be null).
      * @return true if the {@code LogRecord} would be logged.
      *
      */
@@ -241,7 +284,22 @@ public class StreamHandler extends Handler {
      * Flush any buffered messages.
      */
     @Override
-    public synchronized void flush() {
+    public void flush() {
+        if (tryUseLock()) {
+            try {
+                flush0();
+            } finally {
+                unlock();
+            }
+        } else {
+            synchronized (this) {
+                flush0();
+            }
+        }
+    }
+
+    private void flush0() {
+        Writer writer = this.writer;
         if (writer != null) {
             try {
                 writer.flush();
@@ -253,8 +311,9 @@ public class StreamHandler extends Handler {
         }
     }
 
-    private synchronized void flushAndClose() throws SecurityException {
+    private void flushAndClose() throws SecurityException {
         checkPermission();
+        Writer writer = this.writer;
         if (writer != null) {
             try {
                 if (!doneHeader) {
@@ -269,8 +328,8 @@ public class StreamHandler extends Handler {
                 // report the exception to any registered ErrorManager.
                 reportError(null, ex, ErrorManager.CLOSE_FAILURE);
             }
-            writer = null;
             output = null;
+            this.writer = null;
         }
     }
 
@@ -282,16 +341,27 @@ public class StreamHandler extends Handler {
      * yet been written to the stream, it will be written before the
      * "tail" string.
      *
-     * @exception  SecurityException  if a security manager exists and if
+     * @throws  SecurityException  if a security manager exists and if
      *             the caller does not have LoggingPermission("control").
      */
     @Override
-    public synchronized void close() throws SecurityException {
-        flushAndClose();
+    public void close() throws SecurityException {
+        if (tryUseLock()) {
+            try {
+                flushAndClose();
+            } finally {
+                unlock();
+            }
+        } else {
+            synchronized (this) {
+                flushAndClose();
+            }
+        }
     }
 
     // Package-private support for setting OutputStream
     // with elevated privilege.
+    @SuppressWarnings("removal")
     final void setOutputStreamPrivileged(final OutputStream out) {
         AccessController.doPrivileged(new PrivilegedAction<Void>() {
             @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,7 @@
 
 package com.sun.tools.jdeps;
 
-import org.jspecify.annotations.Nullable;
-
-import com.sun.tools.classfile.Dependency.Location;
+import com.sun.tools.jdeps.Dependency.Location;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -39,9 +37,12 @@ import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
+
+import static com.sun.tools.jdeps.Module.trace;
 
 /**
  * Represents the source of the class files.
@@ -134,15 +135,17 @@ public class Archive implements Closeable {
         return path != null ? path.toString() : filename;
     }
 
+    public Optional<Path> path() {
+        return Optional.ofNullable(path);
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(this.filename, this.path);
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object o) {
+    public boolean equals(Object o) {
         if (o instanceof Archive) {
             Archive other = (Archive)o;
             if (path == other.path || isSameLocation(this, other))
@@ -156,9 +159,6 @@ public class Archive implements Closeable {
         return filename;
     }
 
-    public Path path() {
-        return path;
-    }
 
     public static boolean isSameLocation(Archive archive, Archive other) {
         if (archive.path == null || other.path == null)
@@ -186,6 +186,7 @@ public class Archive implements Closeable {
 
     @Override
     public void close() throws IOException {
+        trace("closing %s %n", getPathName());
         if (reader != null)
             reader.close();
     }

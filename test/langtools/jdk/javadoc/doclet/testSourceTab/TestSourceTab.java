@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,24 +26,25 @@
  * @bug 4510979
  * @summary Test to make sure that the source documentation is indented properly
  * when -linksourcetab is used.
- * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestSourceTab
  */
 
 import java.io.*;
 
+import javadoc.tester.JavadocTester;
+
 public class TestSourceTab extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestSourceTab tester = new TestSourceTab();
+        var tester = new TestSourceTab();
         tester.runTests();
     }
 
     @Test
-    void test() throws Exception {
+    public void test() throws Exception {
         String tmpSrcDir = "tmpSrc";
         String outdir1 = "out-tabLengthEight";
         String outdir2 = "out-tabLengthFour";

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
  * @test
  * @bug 6997010 7191662
  * @summary Consolidate java.security files into one file with modifications
- * @run main/othervm CheckSecurityProvider
+ * @run main/othervm -Djava.security.manager=allow CheckSecurityProvider
  */
 
 import java.security.Provider;
@@ -51,24 +51,17 @@ public class CheckSecurityProvider {
         String os = System.getProperty("os.name");
         /*
          * This array should be updated whenever new security providers
-         * are added to the the java.security file.
+         * are added to the java.security file.
          * NOTE: it should be in the same order as the java.security file
          */
 
         List<String> expected = new ArrayList<>();
 
         // NOTE: the ordering must match what's defined inside java.security
-        if (os.equals("SunOS")) {
-            layer.findModule("jdk.crypto.ucrypto")
-                .ifPresent(m -> expected.add("com.oracle.security.ucrypto.UcryptoProvider"));
-            layer.findModule("jdk.crypto.cryptoki")
-                .ifPresent(m -> expected.add("sun.security.pkcs11.SunPKCS11"));
-        }
         expected.add("sun.security.provider.Sun");
         expected.add("sun.security.rsa.SunRsaSign");
-        layer.findModule("jdk.crypto.ec")
-            .ifPresent(m -> expected.add("sun.security.ec.SunEC"));
-        expected.add("com.sun.net.ssl.internal.ssl.Provider");
+        expected.add("sun.security.ec.SunEC");
+        expected.add("sun.security.ssl.SunJSSE");
         expected.add("com.sun.crypto.provider.SunJCE");
         layer.findModule("jdk.security.jgss")
             .ifPresent(m -> expected.add("sun.security.jgss.SunProvider"));
@@ -89,10 +82,8 @@ public class CheckSecurityProvider {
         if (os.contains("OS X")) {
             expected.add("apple.security.AppleProvider");
         }
-        if (!os.equals("SunOS")) {
-            layer.findModule("jdk.crypto.cryptoki")
-                .ifPresent(m -> expected.add("sun.security.pkcs11.SunPKCS11"));
-        }
+        layer.findModule("jdk.crypto.cryptoki")
+            .ifPresent(m -> expected.add("sun.security.pkcs11.SunPKCS11"));
 
         List<String> actual = Stream.of(Security.getProviders())
             .map(p -> p.getClass().getName())

@@ -1,4 +1,5 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,15 +22,17 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_INSTANCEMIRRORKLASS_INLINE_HPP
-#define SHARE_VM_OOPS_INSTANCEMIRRORKLASS_INLINE_HPP
+#ifndef SHARE_OOPS_INSTANCEMIRRORKLASS_INLINE_HPP
+#define SHARE_OOPS_INSTANCEMIRRORKLASS_INLINE_HPP
+
+#include "oops/instanceMirrorKlass.hpp"
 
 #include "classfile/javaClasses.hpp"
 #include "oops/instanceKlass.inline.hpp"
-#include "oops/instanceMirrorKlass.hpp"
 #include "oops/klass.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/debug.hpp"
+#include "utilities/devirtualizer.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
@@ -49,20 +52,23 @@ void InstanceMirrorKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
 
   if (Devirtualizer::do_metadata(closure)) {
     Klass* klass = java_lang_Class::as_Klass(obj);
-    // We'll get NULL for primitive mirrors.
-    if (klass != NULL) {
-      if (klass->is_instance_klass() && InstanceKlass::cast(klass)->is_anonymous()) {
-        // An anonymous class doesn't have its own class loader, so when handling
-        // the java mirror for an anonymous class we need to make sure its class
+    // We'll get null for primitive mirrors.
+    if (klass != nullptr) {
+      if (klass->class_loader_data() == nullptr) {
+        // This is a mirror that belongs to a shared class that has not be loaded yet.
+        assert(klass->is_shared(), "must be");
+      } else if (klass->is_instance_klass() && klass->class_loader_data()->has_class_mirror_holder()) {
+        // A non-strong hidden class doesn't have its own class loader,
+        // so when handling the java mirror for the class we need to make sure its class
         // loader data is claimed, this is done by calling do_cld explicitly.
-        // For non-anonymous classes the call to do_cld is made when the class
+        // For non-strong hidden classes the call to do_cld is made when the class
         // loader itself is handled.
         Devirtualizer::do_cld(closure, klass->class_loader_data());
       } else {
         Devirtualizer::do_klass(closure, klass);
       }
     } else {
-      // We would like to assert here (as below) that if klass has been NULL, then
+      // We would like to assert here (as below) that if klass has been null, then
       // this has been a mirror for a primitive type that we do not need to follow
       // as they are always strong roots.
       // However, we might get across a klass that just changed during CMS concurrent
@@ -116,8 +122,8 @@ void InstanceMirrorKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closu
   if (Devirtualizer::do_metadata(closure)) {
     if (mr.contains(obj)) {
       Klass* klass = java_lang_Class::as_Klass(obj);
-      // We'll get NULL for primitive mirrors.
-      if (klass != NULL) {
+      // We'll get null for primitive mirrors.
+      if (klass != nullptr) {
         Devirtualizer::do_klass(closure, klass);
       }
     }
@@ -126,4 +132,4 @@ void InstanceMirrorKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closu
   oop_oop_iterate_statics_bounded<T>(obj, closure, mr);
 }
 
-#endif // SHARE_VM_OOPS_INSTANCEMIRRORKLASS_INLINE_HPP
+#endif // SHARE_OOPS_INSTANCEMIRRORKLASS_INLINE_HPP

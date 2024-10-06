@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,8 +45,12 @@ import java.util.*;
 import java.io.*;
 
 class Commands {
+    /**
+     * Number of lines to show before the target line during {@code list}.
+     */
+    protected static final int LIST_LINE_LOOKBEHIND = 4;
 
-    abstract class AsyncExecution {
+    abstract static class AsyncExecution {
         abstract void action();
 
         AsyncExecution() {
@@ -362,6 +366,8 @@ class Commands {
         ThreadIterator threadIter = new ThreadIterator(tg);
 
         MessageOutput.println("Thread Group:", tg.name());
+
+        // Iterate over all the threads to figure out the max field widths needed
         int maxIdLength = 0;
         int maxNameLength = 0;
         while (threadIter.hasNext()) {
@@ -372,6 +378,7 @@ class Commands {
                                      thr.name().length());
         }
 
+        // Iterate over all threads in the threadgroup.
         threadIter = new ThreadIterator(tg);
         while (threadIter.hasNext()) {
             ThreadReference thr = threadIter.next();
@@ -459,7 +466,7 @@ class Commands {
 
     void commandThreads(StringTokenizer t) {
         if (!t.hasMoreTokens()) {
-            printThreadGroup(ThreadInfo.group());
+            printThreadGroup(ThreadInfo.group()); // print threads in the current threadgroup
             return;
         }
         String name = t.nextToken();
@@ -467,7 +474,7 @@ class Commands {
         if (tg == null) {
             MessageOutput.println("is not a valid threadgroup name", name);
         } else {
-            printThreadGroup(tg);
+            printThreadGroup(tg); // print threads in specified group (and its subgroups)
         }
     }
 
@@ -497,7 +504,7 @@ class Commands {
 
     void commandThreadGroup(StringTokenizer t) {
         if (!t.hasMoreTokens()) {
-            MessageOutput.println("Threadgroup name not specified.");
+            ThreadInfo.setThreadGroup(null); // reset to default (top level ThreadGroup)
             return;
         }
         String name = t.nextToken();
@@ -511,8 +518,8 @@ class Commands {
 
     void commandRun(StringTokenizer t) {
         /*
-         * The 'run' command makes little sense in a
-         * that doesn't support restarts or multiple VMs. However,
+         * The 'run' command makes little sense in
+         * that it doesn't support restarts or multiple VMs. However,
          * this is an attempt to emulate the behavior of the old
          * JDB as much as possible. For new users and implementations
          * it is much more straightforward to launch immedidately
@@ -564,6 +571,7 @@ class Commands {
         MessageOutput.println("The load command is no longer supported.");
     }
 
+    /* Note: no longer used, but kept around as sample code. */
     private List<ThreadReference> allThreads(ThreadGroupReference group) {
         List<ThreadReference> list = new ArrayList<ThreadReference>();
         list.addAll(group.threads());
@@ -704,12 +712,20 @@ class Commands {
         }
         String expr = t.nextToken("");
         Value val = evaluate(expr);
-        if ((val != null) && (val instanceof ObjectReference)) {
+        if (val instanceof ObjectReference object) {
             try {
-                thread.stop((ObjectReference)val);
+                thread.stop(object);
                 MessageOutput.println("killed", thread.toString());
             } catch (InvalidTypeException e) {
                 MessageOutput.println("Invalid exception object");
+            } catch (IllegalThreadStateException its) {
+                if (!thread.isSuspended() && thread.isVirtual()) {
+                    MessageOutput.println("Illegal thread state (virtual thread not suspended)");
+                } else {
+                    MessageOutput.println("Illegal thread state");
+                }
+            } catch (OpaqueFrameException ope) {
+                MessageOutput.println("Operation is not supported on the current frame");
             }
         } else {
             MessageOutput.println("Expression must evaluate to an object");
@@ -1037,16 +1053,16 @@ class Commands {
     }
 
 
-    private void printBreakpointCommandUsage(String atForm, String inForm) {
-        MessageOutput.println("printbreakpointcommandusage",
-                              new Object [] {atForm, inForm});
+    private void printBreakpointCommandUsage(String usageMessage) {
+        MessageOutput.println(usageMessage);
     }
 
-    protected BreakpointSpec parseBreakpointSpec(StringTokenizer t,
-                                             String atForm, String inForm) {
+    protected BreakpointSpec parseBreakpointSpec(StringTokenizer t, String next_token,
+                                                 ThreadReference threadFilter,
+                                                 String usageMessage) {
         BreakpointSpec breakpoint = null;
         try {
-            String token = t.nextToken(":( \t\n\r");
+            String token = next_token;
 
             // We can't use hasMoreTokens here because it will cause any leading
             // paren to be lost.
@@ -1064,16 +1080,24 @@ class Commands {
 
                 NumberFormat nf = NumberFormat.getNumberInstance();
                 nf.setParseIntegerOnly(true);
-                Number n = nf.parse(lineToken);
+                Number n;
+                try {
+                    n = nf.parse(lineToken);
+                } catch (java.text.ParseException pe) {
+                    MessageOutput.println("Invalid line number specified");
+                    printBreakpointCommandUsage(usageMessage);
+                    return null;
+                }
                 int lineNumber = n.intValue();
 
                 if (t.hasMoreTokens()) {
-                    printBreakpointCommandUsage(atForm, inForm);
+                    MessageOutput.println("Extra tokens after breakpoint location");
+                    printBreakpointCommandUsage(usageMessage);
                     return null;
                 }
                 try {
                     breakpoint = Env.specList.createBreakpoint(classId,
-                                                               lineNumber);
+                                                               lineNumber, threadFilter);
                 } catch (ClassNotFoundException exc) {
                     MessageOutput.println("is not a valid class name", classId);
                 }
@@ -1082,7 +1106,8 @@ class Commands {
                 int idot = token.lastIndexOf('.');
                 if ( (idot <= 0) ||                     /* No dot or dot in first char */
                      (idot >= token.length() - 1) ) { /* dot in last char */
-                    printBreakpointCommandUsage(atForm, inForm);
+                    MessageOutput.println("Invalid <class>.<method_name> specification");
+                    printBreakpointCommandUsage(usageMessage);
                     return null;
                 }
                 String methodName = token.substring(idot + 1);
@@ -1090,9 +1115,9 @@ class Commands {
                 List<String> argumentList = null;
                 if (rest != null) {
                     if (!rest.startsWith("(") || !rest.endsWith(")")) {
-                        MessageOutput.println("Invalid method specification:",
+                        MessageOutput.println("Invalid <method_name> specification:",
                                               methodName + rest);
-                        printBreakpointCommandUsage(atForm, inForm);
+                        printBreakpointCommandUsage(usageMessage);
                         return null;
                     }
                     // Trim the parens
@@ -1107,6 +1132,7 @@ class Commands {
                 try {
                     breakpoint = Env.specList.createBreakpoint(classId,
                                                                methodName,
+                                                               threadFilter,
                                                                argumentList);
                 } catch (MalformedMemberNameException exc) {
                     MessageOutput.println("is not a valid method name", methodName);
@@ -1115,7 +1141,7 @@ class Commands {
                 }
             }
         } catch (Exception e) {
-            printBreakpointCommandUsage(atForm, inForm);
+            printBreakpointCommandUsage(usageMessage);
             return null;
         }
         return breakpoint;
@@ -1128,34 +1154,91 @@ class Commands {
         }
     }
 
-    void commandStop(StringTokenizer t) {
-        String atIn;
-        byte suspendPolicy = EventRequest.SUSPEND_ALL;
-
+    void commandDbgTrace(StringTokenizer t) {
+        int traceFlags;
         if (t.hasMoreTokens()) {
-            atIn = t.nextToken();
-            if (atIn.equals("go") && t.hasMoreTokens()) {
-                suspendPolicy = EventRequest.SUSPEND_NONE;
-                atIn = t.nextToken();
-            } else if (atIn.equals("thread") && t.hasMoreTokens()) {
-                suspendPolicy = EventRequest.SUSPEND_EVENT_THREAD;
-                atIn = t.nextToken();
+            String flagStr = t.nextToken();
+            try {
+                traceFlags = Integer.decode(flagStr).intValue();
+            } catch (NumberFormatException nfe) {
+                MessageOutput.println("dbgtrace command value must be an integer:", flagStr);
+                return;
             }
         } else {
+            traceFlags = VirtualMachine.TRACE_ALL;
+        }
+        Env.setTraceFlags(traceFlags);
+    }
+
+    void commandStop(StringTokenizer t) {
+        byte suspendPolicy = EventRequest.SUSPEND_ALL;
+        ThreadReference threadFilter = null;
+
+        /*
+         * Allowed syntax:
+         *    stop [go|thread] [<thread_id>] <at|in> <location>
+         * If no options are given, the current list of breakpoints is printed.
+         * If "go" is specified, then immediately resume after stopping. No threads are suspended.
+         * If "thread" is specified, then only suspend the thread we stop in.
+         * If neither "go" nor "thread" are specified, then suspend all threads.
+         * If an integer <thread_id> is specified, then only stop in the specified thread.
+         * <location> can either be a line number or a method:
+         *    - <class id>:<line>
+         *    - <class id>.<method>[(argument_type,...)]
+         */
+
+        if (!t.hasMoreTokens()) {
             listBreakpoints();
             return;
         }
 
-        BreakpointSpec spec = parseBreakpointSpec(t, "stop at", "stop in");
-        if (spec != null) {
-            // Enforcement of "at" vs. "in". The distinction is really
-            // unnecessary and we should consider not checking for this
-            // (and making "at" and "in" optional).
-            if (atIn.equals("at") && spec.isMethodBreakpoint()) {
-                MessageOutput.println("Use stop at to set a breakpoint at a line number");
-                printBreakpointCommandUsage("stop at", "stop in");
+        String token = t.nextToken();
+
+        /* Check for "go" or "thread" modifiers. */
+        if (token.equals("go") && t.hasMoreTokens()) {
+            suspendPolicy = EventRequest.SUSPEND_NONE;
+            token = t.nextToken();
+        } else if (token.equals("thread") && t.hasMoreTokens()) {
+            suspendPolicy = EventRequest.SUSPEND_EVENT_THREAD;
+            token = t.nextToken();
+        }
+
+        /* Handle <thread_id> modifier. */
+        if (!token.equals("at") && !token.equals("in")) {
+            Long threadid;
+            try {
+                threadid = Long.decode(token);
+            } catch (NumberFormatException nfe) {
+                MessageOutput.println("Expected at, in, or an integer <thread_id>:", token);
+                printBreakpointCommandUsage("printstopcommandusage");
                 return;
             }
+            try {
+                ThreadInfo threadInfo = ThreadInfo.getThreadInfo(token);
+                if (threadInfo == null) {
+                    MessageOutput.println("Invalid <thread_id>:", token);
+                    return;
+                }
+                threadFilter = threadInfo.getThread();
+                token = t.nextToken(BreakpointSpec.locationTokenDelimiter);
+            } catch (VMNotConnectedException vmnce) {
+                MessageOutput.println("<thread_id> option not valid until the VM is started with the run command");
+                return;
+            }
+
+        }
+
+        /* Make sure "at" or "in" comes next. */
+        if (!token.equals("at") && !token.equals("in")) {
+            MessageOutput.println("Missing at or in");
+            printBreakpointCommandUsage("printstopcommandusage");
+            return;
+        }
+
+        token = t.nextToken(BreakpointSpec.locationTokenDelimiter);
+
+        BreakpointSpec spec = parseBreakpointSpec(t, token, threadFilter, "printstopcommandusage");
+        if (spec != null) {
             spec.suspendPolicy = suspendPolicy;
             resolveNow(spec);
         }
@@ -1167,7 +1250,8 @@ class Commands {
             return;
         }
 
-        BreakpointSpec spec = parseBreakpointSpec(t, "clear", "clear");
+        String token = t.nextToken(BreakpointSpec.locationTokenDelimiter);
+        BreakpointSpec spec = parseBreakpointSpec(t, token, null, "printclearcommandusage");
         if (spec != null) {
             if (Env.specList.delete(spec)) {
                 MessageOutput.println("Removed:", spec.toString());
@@ -1404,29 +1488,33 @@ class Commands {
         }
     }
 
-    void commandList(StringTokenizer t) {
+    /**
+     * @param lineHint source line number to target by default, or {@code null} to use the execution point
+     * @return line hint to be used in a subsequent {@code list} command, if any
+     */
+    Integer commandList(StringTokenizer t, Integer lineHint) {
         StackFrame frame = null;
         ThreadInfo threadInfo = ThreadInfo.getCurrentThreadInfo();
         if (threadInfo == null) {
             MessageOutput.println("No thread specified.");
-            return;
+            return null;
         }
         try {
             frame = threadInfo.getCurrentFrame();
         } catch (IncompatibleThreadStateException e) {
             MessageOutput.println("Current thread isnt suspended.");
-            return;
+            return null;
         }
 
         if (frame == null) {
             MessageOutput.println("No frames on the current call stack");
-            return;
+            return null;
         }
 
         Location loc = frame.location();
         if (loc.method().isNative()) {
             MessageOutput.println("Current method is native");
-            return;
+            return null;
         }
 
         String sourceFileName = null;
@@ -1434,9 +1522,12 @@ class Commands {
             sourceFileName = loc.sourceName();
 
             ReferenceType refType = loc.declaringType();
-            int lineno = loc.lineNumber();
 
-            if (t.hasMoreTokens()) {
+            int lineno;
+            var useDefault = !t.hasMoreTokens();
+            if (useDefault) {
+                lineno = lineHint == null ? loc.lineNumber() : lineHint;
+            } else {
                 String id = t.nextToken();
 
                 // See if token is a line number.
@@ -1447,35 +1538,48 @@ class Commands {
                     lineno = n.intValue();
                 } catch (java.text.ParseException jtpe) {
                     // It isn't -- see if it's a method name.
-                        List<Method> meths = refType.methodsByName(id);
-                        if (meths == null || meths.size() == 0) {
-                            MessageOutput.println("is not a valid line number or method name for",
-                                                  new Object [] {id, refType.name()});
-                            return;
-                        } else if (meths.size() > 1) {
-                            MessageOutput.println("is an ambiguous method name in",
-                                                  new Object [] {id, refType.name()});
-                            return;
-                        }
-                        loc = meths.get(0).location();
-                        lineno = loc.lineNumber();
+                    List<Method> meths = refType.methodsByName(id);
+                    if (meths == null || meths.size() == 0) {
+                        MessageOutput.println("is not a valid line number or method name for",
+                                              new Object [] {id, refType.name()});
+                        return null;
+                    } else if (meths.size() > 1) {
+                        MessageOutput.println("is an ambiguous method name in",
+                                              new Object [] {id, refType.name()});
+                        return null;
+                    }
+                    loc = meths.get(0).location();
+                    lineno = loc.lineNumber();
                 }
             }
-            int startLine = Math.max(lineno - 4, 1);
-            int endLine = startLine + 9;
+            int startLine = Math.max(lineno - LIST_LINE_LOOKBEHIND, 1);
+            int endLine = startLine + 10;
             if (lineno < 0) {
                 MessageOutput.println("Line number information not available for");
-            } else if (Env.sourceLine(loc, lineno) == null) {
-                MessageOutput.println("is an invalid line number for",
-                                      new Object [] {Integer.valueOf(lineno),
-                                                     refType.name()});
+            } else if (useDefault && Env.sourceLine(loc, startLine) == null) {
+                /*
+                 * If we're out of range with a default line number then we've hit EOF on auto-advance.  Stay at this
+                 * position until a different source location is requested, as in GDB.
+                 */
+                MessageOutput.println("EOF");
+                return lineno;
+            } else if (!useDefault && Env.sourceLine(loc, lineno) == null) {
+                MessageOutput.println(
+                    "is an invalid line number for",
+                    new Object[] {
+                        Integer.valueOf(lineno),
+                        refType.name()
+                    }
+                );
+                return null;
             } else {
-                for (int i = startLine; i <= endLine; i++) {
+                for (int i = startLine; i < endLine; i++) {
                     String sourceLine = Env.sourceLine(loc, i);
                     if (sourceLine == null) {
-                        break;
+                        // Next listing will start just out of range, triggering an EOF message.
+                        return i + LIST_LINE_LOOKBEHIND;
                     }
-                    if (i == lineno) {
+                    if (i == loc.lineNumber()) {
                         MessageOutput.println("source line number current line and line",
                                               new Object [] {Integer.valueOf(i),
                                                              sourceLine});
@@ -1485,6 +1589,7 @@ class Commands {
                                                              sourceLine});
                     }
                 }
+                return endLine + LIST_LINE_LOOKBEHIND;  // start next listing with `endLine'
             }
         } catch (AbsentInformationException e) {
             MessageOutput.println("No source information available for:", loc.toString());
@@ -1493,6 +1598,7 @@ class Commands {
         } catch(IOException exc) {
             MessageOutput.println("I/O exception occurred:", exc.toString());
         }
+        return null;
     }
 
     void commandLines(StringTokenizer t) { // Undocumented command: useful for testing
@@ -1710,8 +1816,7 @@ class Commands {
         Value val = evaluate(expr);
 
         try {
-            if ((val != null) && (val instanceof ObjectReference)) {
-                ObjectReference object = (ObjectReference)val;
+            if (val instanceof ObjectReference object) {
                 String strVal = getStringValue();
                 if (strVal != null) {
                     MessageOutput.println("Monitor information for expr",
@@ -1806,8 +1911,7 @@ class Commands {
 
         String expr = t.nextToken("");
         Value val = evaluate(expr);
-        if ((val != null) && (val instanceof ObjectReference)) {
-            ObjectReference object = (ObjectReference)val;
+        if (val instanceof ObjectReference object) {
             object.disableCollection();
             String strVal = getStringValue();
             if (strVal != null) {
@@ -1835,8 +1939,7 @@ class Commands {
 
         String expr = t.nextToken("");
         Value val = evaluate(expr);
-        if ((val != null) && (val instanceof ObjectReference)) {
-            ObjectReference object = (ObjectReference)val;
+        if (val instanceof ObjectReference object) {
             object.enableCollection();
             String strVal = getStringValue();
             if (strVal != null) {

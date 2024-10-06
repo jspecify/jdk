@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_ZERO_VM_COPY_ZERO_HPP
-#define CPU_ZERO_VM_COPY_ZERO_HPP
+#ifndef CPU_ZERO_COPY_ZERO_HPP
+#define CPU_ZERO_COPY_ZERO_HPP
 
 // Inline functions for memory copy and fill.
 
@@ -52,22 +52,7 @@ static void pd_disjoint_words(const HeapWord* from, HeapWord* to, size_t count) 
 static void pd_disjoint_words_atomic(const HeapWord* from,
                                      HeapWord* to,
                                      size_t count) {
-  switch (count) {
-  case 8:  to[7] = from[7];
-  case 7:  to[6] = from[6];
-  case 6:  to[5] = from[5];
-  case 5:  to[4] = from[4];
-  case 4:  to[3] = from[3];
-  case 3:  to[2] = from[2];
-  case 2:  to[1] = from[1];
-  case 1:  to[0] = from[0];
-  case 0:  break;
-  default:
-    while (count-- > 0) {
-      *to++ = *from++;
-    }
-    break;
-  }
+  shared_disjoint_words_atomic(from, to, count);
 }
 
 static void pd_aligned_conjoint_words(const HeapWord* from,
@@ -180,4 +165,4 @@ static void pd_zero_to_bytes(void* to, size_t count) {
   memset(to, 0, count);
 }
 
-#endif // CPU_ZERO_VM_COPY_ZERO_HPP
+#endif // CPU_ZERO_COPY_ZERO_HPP

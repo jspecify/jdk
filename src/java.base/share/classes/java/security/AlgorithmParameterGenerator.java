@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.Objects;
+import sun.security.jca.JCAUtil;
 
 /**
  * The {@code AlgorithmParameterGenerator} class is used to generate a
@@ -64,7 +65,7 @@ import java.util.Objects;
  * </ul>
  *
  * <P>In case the client does not explicitly initialize the
- * AlgorithmParameterGenerator (via a call to an {@code init} method),
+ * {@code AlgorithmParameterGenerator} (via a call to an {@code init} method),
  * each provider must supply (and document) a default initialization.
  * See the Keysize Restriction sections of the
  * {@extLink security_guide_jdk_providers JDK Providers}
@@ -73,7 +74,8 @@ import java.util.Objects;
  * However, note that defaults may vary across different providers.
  * Additionally, the default value for a provider may change in a future
  * version. Therefore, it is recommended to explicitly initialize the
- * AlgorithmParameterGenerator instead of relying on provider-specific defaults.
+ * {@code AlgorithmParameterGenerator} instead of relying on provider-specific
+ * defaults.
  *
  * <p> Every implementation of the Java platform is required to support the
  * following standard {@code AlgorithmParameterGenerator} algorithms and
@@ -102,16 +104,16 @@ import java.util.Objects;
 public @UsesObjectEquals class AlgorithmParameterGenerator {
 
     // The provider
-    private Provider provider;
+    private final Provider provider;
 
     // The provider implementation (delegate)
-    private AlgorithmParameterGeneratorSpi paramGenSpi;
+    private final AlgorithmParameterGeneratorSpi paramGenSpi;
 
     // The algorithm
-    private String algorithm;
+    private final String algorithm;
 
     /**
-     * Creates an AlgorithmParameterGenerator object.
+     * Creates an {@code AlgorithmParameterGenerator} object.
      *
      * @param paramGenSpi the delegate
      * @param provider the provider
@@ -136,14 +138,14 @@ public @UsesObjectEquals class AlgorithmParameterGenerator {
     }
 
     /**
-     * Returns an AlgorithmParameterGenerator object for generating
+     * Returns an {@code AlgorithmParameterGenerator} object for generating
      * a set of parameters to be used with the specified algorithm.
      *
-     * <p> This method traverses the list of registered security Providers,
-     * starting with the most preferred Provider.
-     * A new AlgorithmParameterGenerator object encapsulating the
-     * AlgorithmParameterGeneratorSpi implementation from the first
-     * Provider that supports the specified algorithm is returned.
+     * <p> This method traverses the list of registered security providers,
+     * starting with the most preferred provider.
+     * A new {@code AlgorithmParameterGenerator} object encapsulating the
+     * {@code AlgorithmParameterGeneratorSpi} implementation from the first
+     * provider that supports the specified algorithm is returned.
      *
      * <p> Note that the list of registered providers may be retrieved via
      * the {@link Security#getProviders() Security.getProviders()} method.
@@ -153,7 +155,7 @@ public @UsesObjectEquals class AlgorithmParameterGenerator {
      * {@code jdk.security.provider.preferred}
      * {@link Security#getProperty(String) Security} property to determine
      * the preferred provider order for the specified algorithm. This
-     * may be different than the order of providers returned by
+     * may be different from the order of providers returned by
      * {@link Security#getProviders() Security.getProviders()}.
      *
      * @param algorithm the name of the algorithm this
@@ -190,13 +192,13 @@ public @UsesObjectEquals class AlgorithmParameterGenerator {
     }
 
     /**
-     * Returns an AlgorithmParameterGenerator object for generating
+     * Returns an {@code AlgorithmParameterGenerator} object for generating
      * a set of parameters to be used with the specified algorithm.
      *
-     * <p> A new AlgorithmParameterGenerator object encapsulating the
-     * AlgorithmParameterGeneratorSpi implementation from the specified provider
-     * is returned.  The specified provider must be registered
-     * in the security provider list.
+     * <p> A new {@code AlgorithmParameterGenerator} object encapsulating the
+     * {@code AlgorithmParameterGeneratorSpi} implementation from the
+     * specified provider is returned.  The specified provider must be
+     * registered in the security provider list.
      *
      * <p> Note that the list of registered providers may be retrieved via
      * the {@link Security#getProviders() Security.getProviders()} method.
@@ -208,7 +210,7 @@ public @UsesObjectEquals class AlgorithmParameterGenerator {
      * Java Security Standard Algorithm Names Specification</a>
      * for information about standard algorithm names.
      *
-     * @param provider the string name of the Provider.
+     * @param provider the string name of the {@code Provider}.
      *
      * @return the new {@code AlgorithmParameterGenerator} object
      *
@@ -232,7 +234,7 @@ public @UsesObjectEquals class AlgorithmParameterGenerator {
         throws NoSuchAlgorithmException, NoSuchProviderException
     {
         Objects.requireNonNull(algorithm, "null algorithm name");
-        if (provider == null || provider.length() == 0)
+        if (provider == null || provider.isEmpty())
             throw new IllegalArgumentException("missing provider");
         Object[] objs = Security.getImpl(algorithm,
                                          "AlgorithmParameterGenerator",
@@ -243,13 +245,13 @@ public @UsesObjectEquals class AlgorithmParameterGenerator {
     }
 
     /**
-     * Returns an AlgorithmParameterGenerator object for generating
+     * Returns an {@code AlgorithmParameterGenerator} object for generating
      * a set of parameters to be used with the specified algorithm.
      *
-     * <p> A new AlgorithmParameterGenerator object encapsulating the
-     * AlgorithmParameterGeneratorSpi implementation from the specified Provider
-     * object is returned.  Note that the specified Provider object
-     * does not have to be registered in the provider list.
+     * <p> A new {@code AlgorithmParameterGenerator} object encapsulating the
+     * {@code AlgorithmParameterGeneratorSpi} implementation from the specified
+     * provider is returned.  Note that the specified provider does not
+     * have to be registered in the provider list.
      *
      * @param algorithm the string name of the algorithm this
      * parameter generator is associated with.
@@ -312,7 +314,7 @@ public @UsesObjectEquals class AlgorithmParameterGenerator {
      * @param size the size (number of bits).
      */
     public final void init(int size) {
-        paramGenSpi.engineInit(size, new SecureRandom());
+        paramGenSpi.engineInit(size, JCAUtil.getDefSecureRandom());
     }
 
     /**
@@ -338,12 +340,12 @@ public @UsesObjectEquals class AlgorithmParameterGenerator {
      *
      * @param genParamSpec the set of algorithm-specific parameter generation values.
      *
-     * @exception InvalidAlgorithmParameterException if the given parameter
+     * @throws    InvalidAlgorithmParameterException if the given parameter
      * generation values are inappropriate for this parameter generator.
      */
     public final void init(AlgorithmParameterSpec genParamSpec)
         throws InvalidAlgorithmParameterException {
-            paramGenSpi.engineInit(genParamSpec, new SecureRandom());
+            paramGenSpi.engineInit(genParamSpec, JCAUtil.getDefSecureRandom());
     }
 
     /**
@@ -353,7 +355,7 @@ public @UsesObjectEquals class AlgorithmParameterGenerator {
      * @param genParamSpec the set of algorithm-specific parameter generation values.
      * @param random the source of randomness.
      *
-     * @exception InvalidAlgorithmParameterException if the given parameter
+     * @throws    InvalidAlgorithmParameterException if the given parameter
      * generation values are inappropriate for this parameter generator.
      */
     public final void init(AlgorithmParameterSpec genParamSpec,
@@ -365,7 +367,7 @@ public @UsesObjectEquals class AlgorithmParameterGenerator {
     /**
      * Generates the parameters.
      *
-     * @return the new AlgorithmParameters object.
+     * @return the new {@code AlgorithmParameters} object.
      */
     public final AlgorithmParameters generateParameters() {
         return paramGenSpi.engineGenerateParameters();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.nio.file.Files;
-import java.util.Vector;
+import java.util.ArrayList;
 
 import javax.print.CancelablePrintJob;
 import javax.print.Doc;
@@ -90,9 +90,9 @@ import java.awt.print.PrinterException;
 public class UnixPrintJob implements CancelablePrintJob {
     private static String debugPrefix = "UnixPrintJob>> ";
 
-    private transient Vector<PrintJobListener> jobListeners;
-    private transient Vector<PrintJobAttributeListener> attrListeners;
-    private transient Vector<PrintJobAttributeSet> listenedAttributeSets;
+    private transient ArrayList<PrintJobListener> jobListeners;
+    private transient ArrayList<PrintJobAttributeListener> attrListeners;
+    private transient ArrayList<PrintJobAttributeSet> listenedAttributeSets;
 
     private PrintService service;
     private boolean fidelity;
@@ -128,7 +128,7 @@ public class UnixPrintJob implements CancelablePrintJob {
         mDestType = UnixPrintJob.DESTPRINTER;
         JobSheets js = (JobSheets)(service.
                                       getDefaultAttributeValue(JobSheets.class));
-        if (js != null && js.equals(JobSheets.NONE)) {
+        if (JobSheets.NONE.equals(js)) {
             mNoJobSheet = true;
         }
     }
@@ -155,7 +155,7 @@ public class UnixPrintJob implements CancelablePrintJob {
                 return;
             }
             if (jobListeners == null) {
-                jobListeners = new Vector<>();
+                jobListeners = new ArrayList<>();
             }
             jobListeners.add(listener);
         }
@@ -243,7 +243,7 @@ public class UnixPrintJob implements CancelablePrintJob {
                 PrintJobListener listener;
                 PrintJobEvent event = new PrintJobEvent(this, reason);
                 for (int i = 0; i < jobListeners.size(); i++) {
-                    listener = jobListeners.elementAt(i);
+                    listener = jobListeners.get(i);
                     switch (reason) {
 
                         case PrintJobEvent.JOB_CANCELED :
@@ -278,8 +278,8 @@ public class UnixPrintJob implements CancelablePrintJob {
                 return;
             }
             if (attrListeners == null) {
-                attrListeners = new Vector<>();
-                listenedAttributeSets = new Vector<>();
+                attrListeners = new ArrayList<>();
+                listenedAttributeSets = new ArrayList<>();
             }
             attrListeners.add(listener);
             if (attributes == null) {
@@ -366,8 +366,7 @@ public class UnixPrintJob implements CancelablePrintJob {
                  }
              }
 
-             if (customTray != null &&
-                 customTray instanceof CustomMediaTray) {
+             if (customTray != null) {
                  String choice = customTray.getChoiceName();
                  if (choice != null) {
                      mOptions += " InputSlot="+choice;
@@ -394,7 +393,7 @@ public class UnixPrintJob implements CancelablePrintJob {
         String repClassName = flavor.getRepresentationClassName();
         String val = flavor.getParameter("charset");
         String encoding = "us-ascii";
-        if (val != null && !val.equals("")) {
+        if (val != null && !val.isEmpty()) {
             encoding = val;
         }
 
@@ -421,12 +420,9 @@ public class UnixPrintJob implements CancelablePrintJob {
                     }
                     return;
                 }
-            } catch (ClassCastException cce) {
+            } catch (ClassCastException | IOException e) {
                 notifyEvent(PrintJobEvent.JOB_FAILED);
-                throw new PrintException(cce);
-            } catch (IOException ioe) {
-                notifyEvent(PrintJobEvent.JOB_FAILED);
-                throw new PrintException(ioe);
+                throw new PrintException(e);
             }
         } else if (flavor.equals(DocFlavor.URL.GIF) ||
                    flavor.equals(DocFlavor.URL.JPEG) ||
@@ -505,12 +501,9 @@ public class UnixPrintJob implements CancelablePrintJob {
                     ((UnixPrintService)service).wakeNotifier();
                 }
                 return;
-            } catch (ClassCastException cce) {
+            } catch (ClassCastException | IOException e) {
                 notifyEvent(PrintJobEvent.JOB_FAILED);
-                throw new PrintException(cce);
-            } catch (IOException ioe) {
-                notifyEvent(PrintJobEvent.JOB_FAILED);
-                throw new PrintException(ioe);
+                throw new PrintException(e);
             }
         } else if (repClassName.equals("java.awt.print.Printable")) {
             try {
@@ -521,12 +514,9 @@ public class UnixPrintJob implements CancelablePrintJob {
                     ((UnixPrintService)service).wakeNotifier();
                 }
                 return;
-            } catch (ClassCastException cce) {
+            } catch (ClassCastException | IOException e) {
                 notifyEvent(PrintJobEvent.JOB_FAILED);
-                throw new PrintException(cce);
-            } catch (IOException ioe) {
-                notifyEvent(PrintJobEvent.JOB_FAILED);
-                throw new PrintException(ioe);
+                throw new PrintException(e);
             }
         } else {
             notifyEvent(PrintJobEvent.JOB_FAILED);
@@ -535,7 +525,8 @@ public class UnixPrintJob implements CancelablePrintJob {
 
         // now spool the print data.
         PrinterOpener po = new PrinterOpener();
-        java.security.AccessController.doPrivileged(po);
+        @SuppressWarnings("removal")
+        var dummy = java.security.AccessController.doPrivileged(po);
         if (po.pex != null) {
             throw po.pex;
         }
@@ -596,28 +587,20 @@ public class UnixPrintJob implements CancelablePrintJob {
                 }
             }
         } else if (instream != null) {
-            BufferedInputStream bin = new BufferedInputStream(instream);
-            BufferedOutputStream bout = new BufferedOutputStream(output);
-            byte[] buffer = new byte[1024];
-            int bread = 0;
-
-            try {
-                while ((bread = bin.read(buffer)) >= 0) {
-                    bout.write(buffer, 0, bread);
-                }
-                bin.close();
-                bout.flush();
-                bout.close();
+            try (BufferedInputStream bin = new BufferedInputStream(instream);
+                 BufferedOutputStream bout = new BufferedOutputStream(output)) {
+                bin.transferTo(bout);
             } catch (IOException e) {
                 notifyEvent(PrintJobEvent.JOB_FAILED);
-                throw new PrintException (e);
+                throw new PrintException(e);
             }
         }
         notifyEvent(PrintJobEvent.DATA_TRANSFER_COMPLETE);
 
         if (mDestType == UnixPrintJob.DESTPRINTER) {
             PrinterSpooler spooler = new PrinterSpooler();
-            java.security.AccessController.doPrivileged(spooler);
+            @SuppressWarnings("removal")
+            var dummy2 = java.security.AccessController.doPrivileged(spooler);
             if (spooler.pex != null) {
                 throw spooler.pex;
             }
@@ -733,7 +716,7 @@ public class UnixPrintJob implements CancelablePrintJob {
         } catch (SecurityException se) {
         }
 
-        if (userName == null || userName.equals("")) {
+        if (userName == null || userName.isEmpty()) {
             RequestingUserName ruName =
                 (RequestingUserName)reqSet.get(RequestingUserName.class);
             if (ruName != null) {
@@ -812,6 +795,7 @@ public class UnixPrintJob implements CancelablePrintJob {
                         throw new PrintException(e);
                     }
                     // check write access
+                    @SuppressWarnings("removal")
                     SecurityManager security = System.getSecurityManager();
                     if (security != null) {
                       try {
@@ -860,20 +844,20 @@ public class UnixPrintJob implements CancelablePrintJob {
         int COPIES  = 0x8;
         int NOSHEET  = 0x10;
         int pFlags = 0;
-        String execCmd[];
+        String[] execCmd;
         int ncomps = 2; // minimum number of print args
         int n = 0;
 
         // conveniently "lp" is the default destination for both lp and lpr.
-        if (printer != null && !printer.equals("") && !printer.equals("lp")) {
+        if (printer != null && !printer.isEmpty() && !printer.equals("lp")) {
             pFlags |= PRINTER;
             ncomps+=1;
         }
-        if (options != null && !options.equals("")) {
+        if (options != null && !options.isEmpty()) {
             pFlags |= OPTIONS;
             ncomps+=1;
         }
-        if (jobTitle != null && !jobTitle.equals("")) {
+        if (jobTitle != null && !jobTitle.isEmpty()) {
             pFlags |= JOBTITLE;
             ncomps+=1;
         }
@@ -888,51 +872,25 @@ public class UnixPrintJob implements CancelablePrintJob {
                         isAttributeCategorySupported(JobSheets.class)) {
             ncomps+=1;
         }
-        if (PrintServiceLookupProvider.osname.equals("SunOS")) {
-            ncomps+=1; // lp uses 1 more arg than lpr (make a copy)
-            execCmd = new String[ncomps];
-            execCmd[n++] = "/usr/bin/lp";
-            execCmd[n++] = "-c";           // make a copy of the spool file
-            if ((pFlags & PRINTER) != 0) {
-                execCmd[n++] = "-d" + printer;
-            }
-            if ((pFlags & JOBTITLE) != 0) {
-                String quoteChar = "\"";
-                execCmd[n++] = "-t "  + quoteChar+jobTitle+quoteChar;
-            }
-            if ((pFlags & COPIES) != 0) {
-                execCmd[n++] = "-n " + copies;
-            }
-            if ((pFlags & NOSHEET) != 0) {
-                execCmd[n++] = "-o nobanner";
-            } else if (getPrintService().
-                        isAttributeCategorySupported(JobSheets.class)) {
-                execCmd[n++] = "-o job-sheets=standard";
-            }
-            if ((pFlags & OPTIONS) != 0) {
-                execCmd[n++] = "-o " + options;
-            }
-        } else {
-            execCmd = new String[ncomps];
-            execCmd[n++] = "/usr/bin/lpr";
-            if ((pFlags & PRINTER) != 0) {
-                execCmd[n++] = "-P" + printer;
-            }
-            if ((pFlags & JOBTITLE) != 0) {
-                execCmd[n++] = "-J "  + jobTitle;
-            }
-            if ((pFlags & COPIES) != 0) {
-                execCmd[n++] = "-#" + copies;
-            }
-            if ((pFlags & NOSHEET) != 0) {
-                execCmd[n++] = "-h";
-            } else if (getPrintService().
-                        isAttributeCategorySupported(JobSheets.class)) {
-                execCmd[n++] = "-o job-sheets=standard";
-            }
-            if ((pFlags & OPTIONS) != 0) {
-                execCmd[n++] = "-o" + options;
-            }
+        execCmd = new String[ncomps];
+        execCmd[n++] = "/usr/bin/lpr";
+        if ((pFlags & PRINTER) != 0) {
+            execCmd[n++] = "-P" + printer;
+        }
+        if ((pFlags & JOBTITLE) != 0) {
+            execCmd[n++] = "-J "  + jobTitle;
+        }
+        if ((pFlags & COPIES) != 0) {
+            execCmd[n++] = "-#" + copies;
+        }
+        if ((pFlags & NOSHEET) != 0) {
+            execCmd[n++] = "-h";
+        } else if (getPrintService().
+                   isAttributeCategorySupported(JobSheets.class)) {
+            execCmd[n++] = "-o job-sheets=standard";
+        }
+        if ((pFlags & OPTIONS) != 0) {
+            execCmd[n++] = "-o" + options;
         }
         execCmd[n++] = spoolFile;
         if (IPPPrintService.debugPrint) {
@@ -1022,7 +980,7 @@ public class UnixPrintJob implements CancelablePrintJob {
                  * Spool to the printer.
                  */
                 String fileName = spoolFile.getAbsolutePath();
-                String execCmd[] = printExecCmd(mDestination, mOptions,
+                String[] execCmd = printExecCmd(mDestination, mOptions,
                                mNoJobSheet, jobName, copies, fileName);
 
                 Process process = Runtime.getRuntime().exec(execCmd);

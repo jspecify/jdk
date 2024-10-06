@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 package sun.security.ssl;
 
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.checker.signedness.qual.UnknownSignedness;
 import java.math.BigInteger;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -38,10 +36,11 @@ import sun.security.action.GetPropertyAction;
  * A utility class to share the static methods.
  */
 final class Utilities {
-    static final char[] hexDigits = "0123456789ABCDEF".toCharArray();
     private static final String indent = "  ";
     private static final Pattern lineBreakPatern =
                 Pattern.compile("\\r\\n|\\n|\\r");
+    private static final HexFormat HEX_FORMATTER =
+            HexFormat.of().withUpperCase();
 
     /**
      * Puts {@code hostname} into the {@code serverNames} list.
@@ -63,8 +62,8 @@ final class Utilities {
 
         int size = serverNames.size();
         List<SNIServerName> sniList = (size != 0) ?
-                new ArrayList<SNIServerName>(serverNames) :
-                new ArrayList<SNIServerName>(1);
+                new ArrayList<>(serverNames) :
+                new ArrayList<>(1);
 
         boolean reset = false;
         for (int i = 0; i < size; i++) {
@@ -85,7 +84,7 @@ final class Utilities {
             sniList.add(sniHostName);
         }
 
-        return Collections.<SNIServerName>unmodifiableList(sniList);
+        return Collections.unmodifiableList(sniList);
     }
 
     /**
@@ -102,14 +101,19 @@ final class Utilities {
      *         not look like a FQDN
      */
     private static SNIHostName rawToSNIHostName(String hostname) {
-        SNIHostName sniHostName = null;
+        // Is it a Fully-Qualified Domain Names (FQDN) ending with a dot?
+        if (hostname != null && hostname.endsWith(".")) {
+            // Remove the ending dot, which is not allowed in SNIHostName.
+            hostname = hostname.substring(0, hostname.length() - 1);
+        }
+
         if (hostname != null && hostname.indexOf('.') > 0 &&
                 !hostname.endsWith(".") &&
                 !IPAddressUtil.isIPv4LiteralAddress(hostname) &&
                 !IPAddressUtil.isIPv6LiteralAddress(hostname)) {
 
             try {
-                sniHostName = new SNIHostName(hostname);
+                return new SNIHostName(hostname);
             } catch (IllegalArgumentException iae) {
                 // don't bother to handle illegal host_name
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
@@ -119,7 +123,7 @@ final class Utilities {
             }
         }
 
-        return sniHostName;
+        return null;
     }
 
     /**
@@ -149,7 +153,7 @@ final class Utilities {
     static String indent(String source, String prefix) {
         StringBuilder builder = new StringBuilder();
         if (source == null) {
-             builder.append("\n" + prefix + "<blank message>");
+             builder.append("\n").append(prefix).append("<blank message>");
         } else {
             String[] lines = lineBreakPatern.split(source);
             boolean isFirst = true;
@@ -166,38 +170,19 @@ final class Utilities {
         return builder.toString();
     }
 
-    static String toHexString(@UnknownSignedness byte b) {
-        return String.valueOf(hexDigits[(b >> 4) & 0x0F]) +
-                String.valueOf(hexDigits[b & 0x0F]);
-    }
-
     static String byte16HexString(int id) {
-        return "0x" +
-                hexDigits[(id >> 12) & 0x0F] + hexDigits[(id >> 8) & 0x0F] +
-                hexDigits[(id >> 4) & 0x0F] + hexDigits[id & 0x0F];
+        return "0x" + HEX_FORMATTER.toHexDigits((short)id);
     }
 
-    static String toHexString(@PolySigned byte[] bytes) {
+    static String toHexString(byte[] bytes) {
         if (bytes == null || bytes.length == 0) {
             return "";
         }
 
-        StringBuilder builder = new StringBuilder(bytes.length * 3);
-        boolean isFirst = true;
-        for (byte b : bytes) {
-            if (isFirst) {
-                isFirst = false;
-            } else {
-                builder.append(' ');
-            }
-
-            builder.append(hexDigits[(b >> 4) & 0x0F]);
-            builder.append(hexDigits[b & 0x0F]);
-        }
-        return builder.toString();
+        return HEX_FORMATTER.formatHex(bytes);
     }
 
-    static String toHexString(@UnknownSignedness long lv) {
+    static String toHexString(long lv) {
         StringBuilder builder = new StringBuilder(128);
 
         boolean isFirst = true;
@@ -208,10 +193,8 @@ final class Utilities {
                 builder.append(' ');
             }
 
-            builder.append(hexDigits[(int)(lv & 0x0F)]);
-            lv >>>= 4;
-            builder.append(hexDigits[(int)(lv & 0x0F)]);
-            lv >>>= 4;
+            HEX_FORMATTER.toHexDigits(builder, (byte)lv);
+            lv >>>= 8;
         } while (lv != 0);
         builder.reverse();
 
@@ -233,5 +216,32 @@ final class Utilities {
             b = newarray;
         }
         return b;
+    }
+
+    static void reverseBytes(byte[] arr) {
+        int i = 0;
+        int j = arr.length - 1;
+
+        while (i < j) {
+            swap(arr, i, j);
+            i++;
+            j--;
+        }
+    }
+
+    static <T> boolean contains(T[] array, T item) {
+        for (T t : array) {
+            if (item.equals(t)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void swap(byte[] arr, int i, int j) {
+        byte tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
     }
 }

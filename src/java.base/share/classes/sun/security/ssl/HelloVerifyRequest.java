@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,7 +73,7 @@ final class HelloVerifyRequest {
             //      opaque cookie<0..2^8-1>;
             //  } HelloVerifyRequest;
             if (m.remaining() < 3) {
-                chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "Invalid HelloVerifyRequest: no sufficient data");
             }
 
@@ -104,10 +104,11 @@ final class HelloVerifyRequest {
         @Override
         public String toString() {
             MessageFormat messageFormat = new MessageFormat(
-                "\"HelloVerifyRequest\": '{'\n" +
-                "  \"server version\"      : \"{0}\",\n" +
-                "  \"cookie\"              : \"{1}\",\n" +
-                "'}'",
+                    """
+                            "HelloVerifyRequest": '{'
+                              "server version"      : "{0}",
+                              "cookie"              : "{1}",
+                            '}'""",
                 Locale.ENGLISH);
             Object[] messageFields = {
                 ProtocolVersion.nameOf(serverVersion),
@@ -186,7 +187,7 @@ final class HelloVerifyRequest {
                 chc.handshakeConsumers.remove(SSLHandshake.SERVER_HELLO.id);
             }
             if (!chc.handshakeConsumers.isEmpty()) {
-                chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                throw chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                         "No more message expected before " +
                         "HelloVerifyRequest is processed");
             }
@@ -203,7 +204,7 @@ final class HelloVerifyRequest {
 
             // Note that HelloVerifyRequest.server_version is used solely to
             // indicate packet formatting, and not as part of version
-            // negotiation.  Need not to check version values match for
+            // negotiation.  Need not check version values match for
             // HelloVerifyRequest message.
             chc.initialClientHelloMsg.setHelloCookie(hvrm.cookie);
 

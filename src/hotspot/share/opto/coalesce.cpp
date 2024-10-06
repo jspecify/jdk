@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "memory/allocation.inline.hpp"
 #include "opto/block.hpp"
+#include "opto/c2compiler.hpp"
 #include "opto/cfgnode.hpp"
 #include "opto/chaitin.hpp"
 #include "opto/coalesce.hpp"
@@ -259,7 +260,7 @@ void PhaseAggressiveCoalesce::insert_copies( Matcher &matcher ) {
         Node *def = n->in(cidx);
         if (_phc._lrg_map.find(n) == _phc._lrg_map.find(def)) {
           n->replace_by(def);
-          n->set_req(cidx,NULL);
+          n->set_req(cidx,nullptr);
           b->remove_node(l);
           l--;
           continue;
@@ -294,9 +295,13 @@ void PhaseAggressiveCoalesce::insert_copies( Matcher &matcher ) {
             } else {
               uint ireg = m->ideal_reg();
               if (ireg == 0 || ireg == Op_RegFlags) {
-                assert(false, "attempted to spill a non-spillable item: %d: %s, ireg = %u, spill_type: %s",
-                       m->_idx, m->Name(), ireg, MachSpillCopyNode::spill_type(MachSpillCopyNode::PhiInput));
-                C->record_method_not_compilable("attempted to spill a non-spillable item");
+                if (C->subsume_loads()) {
+                  C->record_failure(C2Compiler::retry_no_subsuming_loads());
+                } else {
+                  assert(false, "attempted to spill a non-spillable item: %d: %s, ireg = %u, spill_type: %s",
+                         m->_idx, m->Name(), ireg, MachSpillCopyNode::spill_type(MachSpillCopyNode::PhiInput));
+                  C->record_method_not_compilable("attempted to spill a non-spillable item");
+                }
                 return;
               }
               const RegMask *rm = C->matcher()->idealreg2spillmask[ireg];
@@ -319,7 +324,7 @@ void PhaseAggressiveCoalesce::insert_copies( Matcher &matcher ) {
           // Get the chosen name for the Node
           uint name = _phc._lrg_map.find(n);
           assert (name, "no 2-address specials");
-          // Check for name mis-match on the 2-address input
+          // Check for name mismatch on the 2-address input
           Node *m = n->in(idx);
           if (_phc._lrg_map.find(m) != name) {
             Node *copy;
@@ -498,7 +503,7 @@ void PhaseConservativeCoalesce::union_helper( Node *lr1_node, Node *lr2_node, ui
   lrgs(lr1)._def = (lrgs(lr1).is_multidef() ||
                         lrgs(lr2).is_multidef() )
     ? NodeSentinel : src_def;
-  lrgs(lr2)._def = NULL;    // No def for lrg 2
+  lrgs(lr2)._def = nullptr;    // No def for lrg 2
   lrgs(lr2).Clear();        // Force empty mask for LRG 2
   //lrgs(lr2)._size = 0;      // Live-range 2 goes dead
   lrgs(lr1)._is_oop |= lrgs(lr2)._is_oop;
@@ -515,7 +520,7 @@ void PhaseConservativeCoalesce::union_helper( Node *lr1_node, Node *lr2_node, ui
   // _phc.free_spillcopy(b->_nodes[bindex]);
   assert( b->get_node(bindex) == dst_copy, "" );
   dst_copy->replace_by( dst_copy->in(didx) );
-  dst_copy->set_req( didx, NULL);
+  dst_copy->set_req( didx, nullptr);
   b->remove_node(bindex);
   if( bindex < b->_ihrp_index ) b->_ihrp_index--;
   if( bindex < b->_fhrp_index ) b->_fhrp_index--;
@@ -530,7 +535,7 @@ void PhaseConservativeCoalesce::union_helper( Node *lr1_node, Node *lr2_node, ui
 
 // Factored code from copy_copy that computes extra interferences from
 // lengthening a live range by double-coalescing.
-uint PhaseConservativeCoalesce::compute_separating_interferences(Node *dst_copy, Node *src_copy, Block *b, uint bindex, RegMask &rm, uint reg_degree, uint rm_size, uint lr1, uint lr2 ) {
+uint PhaseConservativeCoalesce::compute_separating_interferences(Node *dst_copy, Node *src_copy, Block *b, uint bindex, RegMask &rm, uint rm_size, uint reg_degree, uint lr1, uint lr2 ) {
 
   assert(!lrgs(lr1)._fat_proj, "cannot coalesce fat_proj");
   assert(!lrgs(lr2)._fat_proj, "cannot coalesce fat_proj");
@@ -597,29 +602,42 @@ void PhaseConservativeCoalesce::update_ifg(uint lr1, uint lr2, IndexSet *n_lr1, 
   // Some original neighbors of lr1 might have gone away
   // because the constrained register mask prevented them.
   // Remove lr1 from such neighbors.
-  IndexSetIterator one(n_lr1);
-  uint neighbor;
+  uint neighbor = 0;
   LRG &lrg1 = lrgs(lr1);
-  while ((neighbor = one.next()) != 0)
-    if( !_ulr.member(neighbor) )
-      if( _phc._ifg->neighbors(neighbor)->remove(lr1) )
-        lrgs(neighbor).inc_degree( -lrg1.compute_degree(lrgs(neighbor)) );
+  if (!n_lr1->is_empty()) {
+    IndexSetIterator one(n_lr1);
+    while ((neighbor = one.next()) != 0) {
+      if (!_ulr.member(neighbor)) {
+        if (_phc._ifg->neighbors(neighbor)->remove(lr1)) {
+          lrgs(neighbor).inc_degree(-lrg1.compute_degree(lrgs(neighbor)));
+        }
+      }
+    }
+  }
 
 
   // lr2 is now called (coalesced into) lr1.
   // Remove lr2 from the IFG.
-  IndexSetIterator two(n_lr2);
   LRG &lrg2 = lrgs(lr2);
-  while ((neighbor = two.next()) != 0)
-    if( _phc._ifg->neighbors(neighbor)->remove(lr2) )
-      lrgs(neighbor).inc_degree( -lrg2.compute_degree(lrgs(neighbor)) );
+  if (!n_lr2->is_empty()) {
+    IndexSetIterator two(n_lr2);
+    while ((neighbor = two.next()) != 0) {
+      if (_phc._ifg->neighbors(neighbor)->remove(lr2)) {
+        lrgs(neighbor).inc_degree(-lrg2.compute_degree(lrgs(neighbor)));
+      }
+    }
+  }
 
   // Some neighbors of intermediate copies now interfere with the
   // combined live range.
-  IndexSetIterator three(&_ulr);
-  while ((neighbor = three.next()) != 0)
-    if( _phc._ifg->neighbors(neighbor)->insert(lr1) )
-      lrgs(neighbor).inc_degree( lrg1.compute_degree(lrgs(neighbor)) );
+  if (!_ulr.is_empty()) {
+    IndexSetIterator three(&_ulr);
+    while ((neighbor = three.next()) != 0) {
+      if (_phc._ifg->neighbors(neighbor)->insert(lr1)) {
+        lrgs(neighbor).inc_degree(lrg1.compute_degree(lrgs(neighbor)));
+      }
+    }
+  }
 }
 
 static void record_bias( const PhaseIFG *ifg, int lr1, int lr2 ) {

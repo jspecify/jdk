@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,18 +25,13 @@
 
 package sun.security.x509;
 
-import org.jspecify.annotations.Nullable;
-
-import java.lang.reflect.*;
 import java.io.IOException;
-import java.security.PrivilegedExceptionAction;
-import java.security.AccessController;
 import java.security.Principal;
 import java.util.*;
-import java.util.StringJoiner;
-
-import sun.security.util.*;
 import javax.security.auth.x500.X500Principal;
+
+import jdk.internal.access.SharedSecrets;
+import sun.security.util.*;
 
 /**
  * Note:  As of 1.4, the public class,
@@ -150,7 +145,7 @@ public class X500Name implements GeneralNameInterface, Principal {
      * @param dname the X.500 Distinguished Name
      */
     public X500Name(String dname) throws IOException {
-        this(dname, Collections.<String, String>emptyMap());
+        this(dname, Collections.emptyMap());
     }
 
     /**
@@ -183,7 +178,7 @@ public class X500Name implements GeneralNameInterface, Principal {
         if (format.equalsIgnoreCase("RFC2253")) {
             parseRFC2253DN(dname);
         } else if (format.equalsIgnoreCase("DEFAULT")) {
-            parseDN(dname, Collections.<String, String>emptyMap());
+            parseDN(dname, Collections.emptyMap());
         } else {
             throw new IOException("Unsupported format " + format);
         }
@@ -200,7 +195,7 @@ public class X500Name implements GeneralNameInterface, Principal {
      * @param commonName common name of a person, e.g. "Vivette Davis"
      * @param organizationUnit small organization name, e.g. "Purchasing"
      * @param organizationName large organization name, e.g. "Onizuka, Inc."
-     * @param country two letter country code, e.g. "CH"
+     * @param country two-letter country code, e.g. "CH"
      */
     public X500Name(String commonName, String organizationUnit,
                      String organizationName, String country)
@@ -237,35 +232,51 @@ public class X500Name implements GeneralNameInterface, Principal {
      * @param organizationName large organization name, e.g. "Onizuka, Inc."
      * @param localityName locality (city) name, e.g. "Palo Alto"
      * @param stateName state name, e.g. "California"
-     * @param country two letter country code, e.g. "CH"
+     * @param country two-letter country code, e.g. "CH"
      */
     public X500Name(String commonName, String organizationUnit,
                     String organizationName, String localityName,
                     String stateName, String country)
     throws IOException {
-        names = new RDN[6];
-        /*
-         * NOTE:  it's only on output that little-endian
-         * ordering is used.
-         */
-        names[5] = new RDN(1);
-        names[5].assertion[0] = new AVA(commonName_oid,
-                new DerValue(commonName));
-        names[4] = new RDN(1);
-        names[4].assertion[0] = new AVA(orgUnitName_oid,
-                new DerValue(organizationUnit));
-        names[3] = new RDN(1);
-        names[3].assertion[0] = new AVA(orgName_oid,
-                new DerValue(organizationName));
-        names[2] = new RDN(1);
-        names[2].assertion[0] = new AVA(localityName_oid,
-                new DerValue(localityName));
-        names[1] = new RDN(1);
-        names[1].assertion[0] = new AVA(stateName_oid,
-                new DerValue(stateName));
-        names[0] = new RDN(1);
-        names[0].assertion[0] = new AVA(countryName_oid,
-                new DerValue(country));
+        RDN name;
+        List<RDN> list = new ArrayList<>(6);
+        if (country != null) {
+            name = new RDN(1);
+            name.assertion[0] = new AVA(countryName_oid,
+                    new DerValue(country));
+            list.add(name);
+        }
+        if (stateName != null) {
+            name = new RDN(1);
+            name.assertion[0] = new AVA(stateName_oid,
+                    new DerValue(stateName));
+            list.add(name);
+        }
+        if (localityName != null) {
+            name = new RDN(1);
+            name.assertion[0] = new AVA(localityName_oid,
+                    new DerValue(localityName));
+            list.add(name);
+        }
+        if (organizationName != null) {
+            name = new RDN(1);
+            name.assertion[0] = new AVA(orgName_oid,
+                    new DerValue(organizationName));
+            list.add(name);
+        }
+        if (organizationUnit != null) {
+            name = new RDN(1);
+            name.assertion[0] = new AVA(orgUnitName_oid,
+                    new DerValue(organizationUnit));
+            list.add(name);
+        }
+        if (commonName != null) {
+            name = new RDN(1);
+            name.assertion[0] = new AVA(commonName_oid,
+                    new DerValue(commonName));
+            list.add(name);
+        }
+        names = list.toArray(new RDN[0]);
     }
 
     /**
@@ -381,6 +392,7 @@ public class X500Name implements GeneralNameInterface, Principal {
      * Calculates a hash code value for the object.  Objects
      * which are equal will also have the same hashcode.
      */
+    @Override
     public int hashCode() {
         return getRFC2253CanonicalName().hashCode();
     }
@@ -390,16 +402,14 @@ public class X500Name implements GeneralNameInterface, Principal {
      *
      * @return true iff the names are identical.
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }
-        if (obj instanceof X500Name == false) {
+        if (!(obj instanceof X500Name other)) {
             return false;
         }
-        X500Name other = (X500Name)obj;
         // if we already have the canonical forms, compare now
         if ((this.canonicalDn != null) && (other.canonicalDn != null)) {
             return this.canonicalDn.equals(other.canonicalDn);
@@ -624,7 +634,7 @@ public class X500Name implements GeneralNameInterface, Principal {
      * keywords defined in RFC 1779 are emitted.
      */
     public String getRFC1779Name() {
-        return getRFC1779Name(Collections.<String, String>emptyMap());
+        return getRFC1779Name(Collections.emptyMap());
     }
 
     /**
@@ -637,12 +647,10 @@ public class X500Name implements GeneralNameInterface, Principal {
         throws IllegalArgumentException {
         if (oidMap.isEmpty()) {
             // return cached result
-            if (rfc1779Dn != null) {
-                return rfc1779Dn;
-            } else {
+            if (rfc1779Dn == null) {
                 rfc1779Dn = generateRFC1779DN(oidMap);
-                return rfc1779Dn;
             }
+            return rfc1779Dn;
         }
         return generateRFC1779DN(oidMap);
     }
@@ -653,7 +661,7 @@ public class X500Name implements GeneralNameInterface, Principal {
      * keywords defined in RFC 2253 are emitted.
      */
     public String getRFC2253Name() {
-        return getRFC2253Name(Collections.<String, String>emptyMap());
+        return getRFC2253Name(Collections.emptyMap());
     }
 
     /**
@@ -665,12 +673,10 @@ public class X500Name implements GeneralNameInterface, Principal {
     public String getRFC2253Name(Map<String, String> oidMap) {
         /* check for and return cached name */
         if (oidMap.isEmpty()) {
-            if (rfc2253Dn != null) {
-                return rfc2253Dn;
-            } else {
+            if (rfc2253Dn == null) {
                 rfc2253Dn = generateRFC2253DN(oidMap);
-                return rfc2253Dn;
             }
+            return rfc2253Dn;
         }
         return generateRFC2253DN(oidMap);
     }
@@ -777,7 +783,7 @@ public class X500Name implements GeneralNameInterface, Principal {
         // more and order matters.  We scan them in order, which
         // conventionally is big-endian.
         //
-        DerValue[] nameseq = null;
+        DerValue[] nameseq;
         byte[] derBytes = in.toByteArray();
 
         try {
@@ -819,7 +825,8 @@ public class X500Name implements GeneralNameInterface, Principal {
      *
      * @param out where to put the DER-encoded X.500 name
      */
-    public void encode(DerOutputStream out) throws IOException {
+    @Override
+    public void encode(DerOutputStream out) {
         DerOutputStream tmp = new DerOutputStream();
         for (int i = 0; i < names.length; i++) {
             names[i].encode(tmp);
@@ -869,7 +876,7 @@ public class X500Name implements GeneralNameInterface, Principal {
      */
     private void parseDN(String input, Map<String, String> keywordMap)
         throws IOException {
-        if (input == null || input.length() == 0) {
+        if (input == null || input.isEmpty()) {
             names = new RDN[0];
             return;
         }
@@ -937,11 +944,11 @@ public class X500Name implements GeneralNameInterface, Principal {
          * NOTE: It's only on output that little-endian ordering is used.
          */
         Collections.reverse(dnVector);
-        names = dnVector.toArray(new RDN[dnVector.size()]);
+        names = dnVector.toArray(new RDN[0]);
     }
 
     private void parseRFC2253DN(String dnString) throws IOException {
-        if (dnString.length() == 0) {
+        if (dnString.isEmpty()) {
             names = new RDN[0];
             return;
          }
@@ -988,7 +995,7 @@ public class X500Name implements GeneralNameInterface, Principal {
           * NOTE: It's only on output that little-endian ordering is used.
           */
          Collections.reverse(dnVector);
-         names = dnVector.toArray(new RDN[dnVector.size()]);
+         names = dnVector.toArray(new RDN[0]);
     }
 
     /*
@@ -1011,7 +1018,7 @@ public class X500Name implements GeneralNameInterface, Principal {
     private static boolean escaped
                 (int rdnEnd, int searchOffset, String dnString) {
 
-        if (rdnEnd == 1 && dnString.charAt(rdnEnd - 1) == '\\') {
+        if (rdnEnd == 1 && dnString.charAt(0) == '\\') {
 
             //  case 1:
             //  \,
@@ -1042,7 +1049,7 @@ public class X500Name implements GeneralNameInterface, Principal {
             }
 
             // if count is odd, then rdnEnd is escaped
-            return (count % 2) != 0 ? true : false;
+            return (count % 2) != 0;
 
         } else {
             return false;
@@ -1059,11 +1066,6 @@ public class X500Name implements GeneralNameInterface, Principal {
     private void generateDN() {
         if (names.length == 1) {
             dn = names[0].toString();
-            return;
-        }
-
-        if (names == null) {
-            dn = "";
             return;
         }
 
@@ -1088,10 +1090,6 @@ public class X500Name implements GeneralNameInterface, Principal {
             return names[0].toRFC1779String(oidMap);
         }
 
-        if (names == null) {
-            return "";
-        }
-
         StringJoiner sj = new StringJoiner(", ");
         for (int i = names.length - 1; i >= 0; i--) {
             sj.add(names[i].toRFC1779String(oidMap));
@@ -1102,130 +1100,87 @@ public class X500Name implements GeneralNameInterface, Principal {
     /****************************************************************/
 
     /*
-     * Maybe return a preallocated OID, to reduce storage costs
-     * and speed recognition of common X.500 attributes.
-     */
-    static ObjectIdentifier intern(ObjectIdentifier oid) {
-        ObjectIdentifier interned = internedOIDs.putIfAbsent(oid, oid);
-        return (interned == null) ? oid : interned;
-    }
-
-    private static final Map<ObjectIdentifier,ObjectIdentifier> internedOIDs
-                        = new HashMap<ObjectIdentifier,ObjectIdentifier>();
-
-    /*
      * Selected OIDs from X.520
      * Includes all those specified in RFC 5280 as MUST or SHOULD
      * be recognized
      */
-    private static final int[] commonName_data = { 2, 5, 4, 3 };
-    private static final int[] SURNAME_DATA = { 2, 5, 4, 4 };
-    private static final int[] SERIALNUMBER_DATA = { 2, 5, 4, 5 };
-    private static final int[] countryName_data = { 2, 5, 4, 6 };
-    private static final int[] localityName_data = { 2, 5, 4, 7 };
-    private static final int[] stateName_data = { 2, 5, 4, 8 };
-    private static final int[] streetAddress_data = { 2, 5, 4, 9 };
-    private static final int[] orgName_data = { 2, 5, 4, 10 };
-    private static final int[] orgUnitName_data = { 2, 5, 4, 11 };
-    private static final int[] title_data = { 2, 5, 4, 12 };
-    private static final int[] GIVENNAME_DATA = { 2, 5, 4, 42 };
-    private static final int[] INITIALS_DATA = { 2, 5, 4, 43 };
-    private static final int[] GENERATIONQUALIFIER_DATA = { 2, 5, 4, 44 };
-    private static final int[] DNQUALIFIER_DATA = { 2, 5, 4, 46 };
 
-    private static final int[] ipAddress_data = { 1, 3, 6, 1, 4, 1, 42, 2, 11, 2, 1 };
-    private static final int[] DOMAIN_COMPONENT_DATA =
-        { 0, 9, 2342, 19200300, 100, 1, 25 };
-    private static final int[] userid_data =
-        { 0, 9, 2342, 19200300, 100, 1, 1 };
+    // OID for the "CN=" attribute, denoting a person's common name.
+    public static final ObjectIdentifier commonName_oid =
+            ObjectIdentifier.of(KnownOIDs.CommonName);
 
+    // OID for the "SURNAME=" attribute, denoting a person's surname.
+    public static final ObjectIdentifier SURNAME_OID =
+            ObjectIdentifier.of(KnownOIDs.Surname);
 
-    public static final ObjectIdentifier commonName_oid;
-    public static final ObjectIdentifier countryName_oid;
-    public static final ObjectIdentifier localityName_oid;
-    public static final ObjectIdentifier orgName_oid;
-    public static final ObjectIdentifier orgUnitName_oid;
-    public static final ObjectIdentifier stateName_oid;
-    public static final ObjectIdentifier streetAddress_oid;
-    public static final ObjectIdentifier title_oid;
-    public static final ObjectIdentifier DNQUALIFIER_OID;
-    public static final ObjectIdentifier SURNAME_OID;
-    public static final ObjectIdentifier GIVENNAME_OID;
-    public static final ObjectIdentifier INITIALS_OID;
-    public static final ObjectIdentifier GENERATIONQUALIFIER_OID;
-    public static final ObjectIdentifier ipAddress_oid;
-    public static final ObjectIdentifier DOMAIN_COMPONENT_OID;
-    public static final ObjectIdentifier userid_oid;
-    public static final ObjectIdentifier SERIALNUMBER_OID;
+    // OID for the "SERIALNUMBER=" attribute, denoting a serial number for.
+    // a name. Do not confuse with PKCS#9 issuerAndSerialNumber or the
+    // certificate serial number.
+    public static final ObjectIdentifier SERIALNUMBER_OID =
+            ObjectIdentifier.of(KnownOIDs.SerialNumber);
 
-    static {
-    /** OID for the "CN=" attribute, denoting a person's common name. */
-        commonName_oid = intern(ObjectIdentifier.newInternal(commonName_data));
+    // OID for the "C=" attribute, denoting a country.
+    public static final ObjectIdentifier countryName_oid =
+            ObjectIdentifier.of(KnownOIDs.CountryName);
 
-    /** OID for the "SERIALNUMBER=" attribute, denoting a serial number for.
-        a name. Do not confuse with PKCS#9 issuerAndSerialNumber or the
-        certificate serial number. */
-        SERIALNUMBER_OID = intern(ObjectIdentifier.newInternal(SERIALNUMBER_DATA));
+    // OID for the "L=" attribute, denoting a locality (such as a city).
+    public static final ObjectIdentifier localityName_oid =
+            ObjectIdentifier.of(KnownOIDs.LocalityName);
 
-    /** OID for the "C=" attribute, denoting a country. */
-        countryName_oid = intern(ObjectIdentifier.newInternal(countryName_data));
+    // OID for the "S=" attribute, denoting a state (such as Delaware).
+    public static final ObjectIdentifier stateName_oid =
+            ObjectIdentifier.of(KnownOIDs.StateName);
 
-    /** OID for the "L=" attribute, denoting a locality (such as a city) */
-        localityName_oid = intern(ObjectIdentifier.newInternal(localityName_data));
+    // OID for the "STREET=" attribute, denoting a street address.
+    public static final ObjectIdentifier streetAddress_oid =
+            ObjectIdentifier.of(KnownOIDs.StreetAddress);
 
-    /** OID for the "O=" attribute, denoting an organization name */
-        orgName_oid = intern(ObjectIdentifier.newInternal(orgName_data));
+    // OID for the "O=" attribute, denoting an organization name.
+    public static final ObjectIdentifier orgName_oid =
+            ObjectIdentifier.of(KnownOIDs.OrgName);
 
-    /** OID for the "OU=" attribute, denoting an organizational unit name */
-        orgUnitName_oid = intern(ObjectIdentifier.newInternal(orgUnitName_data));
+    // OID for the "OU=" attribute, denoting an organizational unit name.
+    public static final ObjectIdentifier orgUnitName_oid =
+            ObjectIdentifier.of(KnownOIDs.OrgUnitName);
 
-    /** OID for the "S=" attribute, denoting a state (such as Delaware) */
-        stateName_oid = intern(ObjectIdentifier.newInternal(stateName_data));
+    // OID for the "T=" attribute, denoting a person's title.
+    public static final ObjectIdentifier title_oid =
+            ObjectIdentifier.of(KnownOIDs.Title);
 
-    /** OID for the "STREET=" attribute, denoting a street address. */
-        streetAddress_oid = intern(ObjectIdentifier.newInternal(streetAddress_data));
+    // OID for the "GIVENNAME=" attribute, denoting a person's given name.
+    public static final ObjectIdentifier GIVENNAME_OID =
+            ObjectIdentifier.of(KnownOIDs.GivenName);
 
-    /** OID for the "T=" attribute, denoting a person's title. */
-        title_oid = intern(ObjectIdentifier.newInternal(title_data));
+    // OID for the "INITIALS=" attribute, denoting a person's initials.
+    public static final ObjectIdentifier INITIALS_OID =
+            ObjectIdentifier.of(KnownOIDs.Initials);
 
-    /** OID for the "DNQUALIFIER=" or "DNQ=" attribute, denoting DN
-        disambiguating information.*/
-        DNQUALIFIER_OID = intern(ObjectIdentifier.newInternal(DNQUALIFIER_DATA));
+    // OID for the "GENERATION=" attribute, denoting Jr., II, etc.
+    public static final ObjectIdentifier GENERATIONQUALIFIER_OID =
+            ObjectIdentifier.of(KnownOIDs.GenerationQualifier);
 
-    /** OID for the "SURNAME=" attribute, denoting a person's surname.*/
-        SURNAME_OID = intern(ObjectIdentifier.newInternal(SURNAME_DATA));
+    // OID for the "DNQUALIFIER=" or "DNQ=" attribute, denoting DN
+    // disambiguating information.
+    public static final ObjectIdentifier DNQUALIFIER_OID =
+            ObjectIdentifier.of(KnownOIDs.DNQualifier);
 
-    /** OID for the "GIVENNAME=" attribute, denoting a person's given name.*/
-        GIVENNAME_OID = intern(ObjectIdentifier.newInternal(GIVENNAME_DATA));
+    // OIDs from other sources which show up in X.500 names we
+    // expect to deal with often.
+    //
+    // OID for "IP=" IP address attributes, used with SKIP.
+    public static final ObjectIdentifier ipAddress_oid =
+            ObjectIdentifier.of(KnownOIDs.SkipIPAddress);
 
-    /** OID for the "INITIALS=" attribute, denoting a person's initials.*/
-        INITIALS_OID = intern(ObjectIdentifier.newInternal(INITIALS_DATA));
+    // Domain component OID from RFC 1274, RFC 2247, RFC 5280.
+    //
+    // OID for "DC=" domain component attributes.used with DNSNames in DN
+    // format.
+    public static final ObjectIdentifier DOMAIN_COMPONENT_OID =
+            ObjectIdentifier.of(KnownOIDs.UCL_DomainComponent);
 
-    /** OID for the "GENERATION=" attribute, denoting Jr., II, etc.*/
-        GENERATIONQUALIFIER_OID =
-            intern(ObjectIdentifier.newInternal(GENERATIONQUALIFIER_DATA));
-
-    /*
-     * OIDs from other sources which show up in X.500 names we
-     * expect to deal with often
-     */
-    /** OID for "IP=" IP address attributes, used with SKIP. */
-        ipAddress_oid = intern(ObjectIdentifier.newInternal(ipAddress_data));
-
-    /*
-     * Domain component OID from RFC 1274, RFC 2247, RFC 5280
-     */
-
-    /*
-     * OID for "DC=" domain component attributes, used with DNS names in DN
-     * format
-     */
-        DOMAIN_COMPONENT_OID =
-            intern(ObjectIdentifier.newInternal(DOMAIN_COMPONENT_DATA));
-
-    /** OID for "UID=" denoting a user id, defined in RFCs 1274 & 2798. */
-        userid_oid = intern(ObjectIdentifier.newInternal(userid_data));
-    }
+    // OID for "UID=" denoting a user id, defined in RFCs 1274 & 2798.
+    public static final ObjectIdentifier userid_oid =
+            ObjectIdentifier.of(KnownOIDs.UCL_UserID);
 
     /**
      * Return constraint type:<ul>
@@ -1315,121 +1270,21 @@ public class X500Name implements GeneralNameInterface, Principal {
     }
 
     /**
-     * Return lowest common ancestor of this name and other name
-     *
-     * @param other another X500Name
-     * @return X500Name of lowest common ancestor; null if none
-     */
-    public X500Name commonAncestor(X500Name other) {
-
-        if (other == null) {
-            return null;
-        }
-        int otherLen = other.names.length;
-        int thisLen = this.names.length;
-        if (thisLen == 0 || otherLen == 0) {
-            return null;
-        }
-        int minLen = (thisLen < otherLen) ? thisLen: otherLen;
-
-        //Compare names from highest RDN down the naming tree
-        //Note that these are stored in RDN[0]...
-        int i=0;
-        for (; i < minLen; i++) {
-            if (!names[i].equals(other.names[i])) {
-                if (i == 0) {
-                    return null;
-                } else {
-                    break;
-                }
-            }
-        }
-
-        //Copy matching RDNs into new RDN array
-        RDN[] ancestor = new RDN[i];
-        for (int j=0; j < i; j++) {
-            ancestor[j] = names[j];
-        }
-
-        X500Name commonAncestor = null;
-        try {
-            commonAncestor = new X500Name(ancestor);
-        } catch (IOException ioe) {
-            return null;
-        }
-        return commonAncestor;
-    }
-
-    /**
-     * Constructor object for use by asX500Principal().
-     */
-    private static final Constructor<X500Principal> principalConstructor;
-
-    /**
-     * Field object for use by asX500Name().
-     */
-    private static final Field principalField;
-
-    /**
-     * Retrieve the Constructor and Field we need for reflective access
-     * and make them accessible.
-     */
-    static {
-        PrivilegedExceptionAction<Object[]> pa =
-                new PrivilegedExceptionAction<>() {
-            public Object[] run() throws Exception {
-                Class<X500Principal> pClass = X500Principal.class;
-                Class<?>[] args = new Class<?>[] { X500Name.class };
-                Constructor<X500Principal> cons = pClass.getDeclaredConstructor(args);
-                cons.setAccessible(true);
-                Field field = pClass.getDeclaredField("thisX500Name");
-                field.setAccessible(true);
-                return new Object[] {cons, field};
-            }
-        };
-        try {
-            Object[] result = AccessController.doPrivileged(pa);
-            @SuppressWarnings("unchecked")
-            Constructor<X500Principal> constr =
-                    (Constructor<X500Principal>)result[0];
-            principalConstructor = constr;
-            principalField = (Field)result[1];
-        } catch (Exception e) {
-            throw new InternalError("Could not obtain X500Principal access", e);
-        }
-    }
-
-    /**
      * Get an X500Principal backed by this X500Name.
-     *
-     * Note that we are using privileged reflection to access the hidden
-     * package private constructor in X500Principal.
      */
     public X500Principal asX500Principal() {
         if (x500Principal == null) {
-            try {
-                Object[] args = new Object[] {this};
-                x500Principal = principalConstructor.newInstance(args);
-            } catch (Exception e) {
-                throw new RuntimeException("Unexpected exception", e);
-            }
+            x500Principal =
+                SharedSecrets.getJavaxSecurityAccess().asX500Principal(this);
         }
         return x500Principal;
     }
 
     /**
      * Get the X500Name contained in the given X500Principal.
-     *
-     * Note that the X500Name is retrieved using reflection.
      */
     public static X500Name asX500Name(X500Principal p) {
-        try {
-            X500Name name = (X500Name)principalField.get(p);
-            name.x500Principal = p;
-            return name;
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected exception", e);
-        }
+        return SharedSecrets.getJavaxSecurityAccess().asX500Name(p);
     }
 
 }

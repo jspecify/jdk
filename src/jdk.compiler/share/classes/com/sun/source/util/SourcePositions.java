@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,46 +40,46 @@ public interface SourcePositions {
     /**
      * Returns the starting position of tree within file.  If tree is not found within
      * file, or if the starting position is not available,
-     * return {@link javax.tools.Diagnostic#NOPOS}.
+     * returns {@link javax.tools.Diagnostic#NOPOS}.
      * The returned position must be at the start of the yield of this tree, that
      * is for any sub-tree of this tree, the following must hold:
      *
      * <p>
-     * {@code tree.getStartPosition() <= subtree.getStartPosition()} or <br>
-     * {@code tree.getStartPosition() == NOPOS} or <br>
-     * {@code subtree.getStartPosition() == NOPOS}
+     * {@code getStartPosition(file, tree) <= getStartPosition(file, subtree)} or <br>
+     * {@code getStartPosition(file, tree) == NOPOS} or <br>
+     * {@code getStartPosition(file, subtree) == NOPOS}
      * </p>
      *
-     * @param file CompilationUnit in which to find tree.
-     * @param tree tree for which a position is sought.
-     * @return the start position of tree.
+     * @param file CompilationUnit in which to find tree
+     * @param tree tree for which a position is sought
+     * @return the start position of tree
      */
      long getStartPosition(CompilationUnitTree file, Tree tree);
 
     /**
      * Returns the ending position of tree within file.  If tree is not found within
      * file, or if the ending position is not available,
-     * return {@link javax.tools.Diagnostic#NOPOS}.
+     * returns {@link javax.tools.Diagnostic#NOPOS}.
      * The returned position must be at the end of the yield of this tree,
      * that is for any sub-tree of this tree, the following must hold:
      *
      * <p>
-     * {@code tree.getEndPosition() >= subtree.getEndPosition()} or <br>
-     * {@code tree.getEndPosition() == NOPOS} or <br>
-     * {@code subtree.getEndPosition() == NOPOS}
+     * {@code getEndPosition(file, tree) >= getEndPosition(file, subtree)} or <br>
+     * {@code getEndPosition(file, tree) == NOPOS} or <br>
+     * {@code getEndPosition(file, subtree) == NOPOS}
      * </p>
      *
      * In addition, the following must hold:
      *
      * <p>
-     * {@code tree.getStartPosition() <= tree.getEndPosition()}  or <br>
-     * {@code tree.getStartPosition() == NOPOS} or <br>
-     * {@code tree.getEndPosition() == NOPOS}
+     * {@code getStartPosition(file, tree) <= getEndPosition(file, tree)} or <br>
+     * {@code getStartPosition(file, tree) == NOPOS} or <br>
+     * {@code getEndPosition(file, tree) == NOPOS}
      * </p>
      *
-     * @param file CompilationUnit in which to find tree.
-     * @param tree tree for which a position is sought.
-     * @return the end position of tree.
+     * @param file CompilationUnit in which to find tree
+     * @param tree tree for which a position is sought
+     * @return the end position of tree
      */
      long getEndPosition(CompilationUnitTree file, Tree tree);
 

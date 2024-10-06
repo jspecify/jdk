@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,14 +21,13 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_LOGGING_LOG_HPP
-#define SHARE_VM_LOGGING_LOG_HPP
+#ifndef SHARE_LOGGING_LOG_HPP
+#define SHARE_LOGGING_LOG_HPP
 
 #include "logging/logLevel.hpp"
 #include "logging/logPrefix.hpp"
 #include "logging/logTagSet.hpp"
 #include "logging/logTag.hpp"
-#include "runtime/os.hpp"
 #include "utilities/debug.hpp"
 
 class LogMessageBuffer;
@@ -72,16 +71,16 @@ class LogMessageBuffer;
 // Log class for more advanced logging scenarios.
 // Has printf-style member functions for each log level (trace(), debug(), etc).
 //
-// Also has outputStream compatible API for the different log-levels.
-// The streams are resource allocated when requested and are accessed through
-// calls to <level>_stream() functions (trace_stream(), debug_stream(), etc).
+// The (trace(), debug(), etc) functions can also be used along with the LogStream
+// class to obtain an outputStream object, to be passed to various printing
+// functions that accept an outputStream:
 //
 // Example usage:
-//   Log(logging) log;
+//   Log(codecache, sweep) log;
 //   if (log.is_debug()) {
-//     ...
 //     log.debug("result = %d", result).trace(" tracing info");
-//     obj->print_on(log.debug_stream());
+//     LogStream ls(log.debug());
+//     CodeCache::print_summary(&ls, false);
 //   }
 //
 #define Log(...)  LogImpl<LOG_TAGS(__VA_ARGS__)>
@@ -93,13 +92,11 @@ class LogMessageBuffer;
 // so that redundant specification of tags or levels can be avoided.
 //
 // Example usage:
-//   LogTarget(Debug, gc) out;
+//   LogTarget(Debug, codecache, sweep) out;
 //   if (out.is_enabled()) {
-//     ...
-//     out.print("Worker: %u", i);
-//     out.print(" data: %d", x);
-//     ...
-//     print_stats(out.stream());
+//     out.print("result = %d", result);
+//     LogStream ls(out);
+//     CodeCache::print_summary(&ls, false);
 //   }
 //
 #define LogTarget(level, ...) LogTargetImpl<LogLevel::level, LOG_TAGS(__VA_ARGS__)>
@@ -110,8 +107,6 @@ class LogTargetImpl;
 template <LogTagType T0, LogTagType T1 = LogTag::__NO_TAG, LogTagType T2 = LogTag::__NO_TAG, LogTagType T3 = LogTag::__NO_TAG,
           LogTagType T4 = LogTag::__NO_TAG, LogTagType GuardTag = LogTag::__NO_TAG>
 class LogImpl {
- private:
-  static const size_t LogBufferSize = 512;
  public:
   // Make sure no more than the maximum number of tags have been given.
   // The GuardTag allows this to be detected if/when it happens. If the GuardTag
@@ -169,7 +164,7 @@ class LogImpl {
     return is_level(LogLevel::level); \
   } \
   static LogTargetImpl<LogLevel::level, T0, T1, T2, T3, T4, GuardTag>* name() { \
-    return (LogTargetImpl<LogLevel::level, T0, T1, T2, T3, T4, GuardTag>*)NULL; \
+    return (LogTargetImpl<LogLevel::level, T0, T1, T2, T3, T4, GuardTag>*)nullptr; \
   }
   LOG_LEVEL_LIST
 #undef LOG_LEVEL
@@ -186,16 +181,21 @@ public:
   }
 
   static bool is_enabled() {
-    return LogImpl<T0, T1, T2, T3, T4, GuardTag>::is_level(level);
+    return LogTagSetMapping<T0, T1, T2, T3, T4, GuardTag>::tagset().is_level(level);
+  }
+
+  static bool develop_is_enabled() {
+    NOT_PRODUCT(return is_enabled());
+    PRODUCT_ONLY(return false);
   }
 
   static void print(const char* fmt, ...) ATTRIBUTE_PRINTF(1, 2) {
     va_list args;
     va_start(args, fmt);
-    LogImpl<T0, T1, T2, T3, T4, GuardTag>::vwrite(level, fmt, args);
+    LogTagSetMapping<T0, T1, T2, T3, T4, GuardTag>::tagset().vwrite(level, fmt, args);
     va_end(args);
   }
 
 };
 
-#endif // SHARE_VM_LOGGING_LOG_HPP
+#endif // SHARE_LOGGING_LOG_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_GENERATIONCOUNTERS_HPP
-#define SHARE_VM_GC_SHARED_GENERATIONCOUNTERS_HPP
+#ifndef SHARE_GC_SHARED_GENERATIONCOUNTERS_HPP
+#define SHARE_GC_SHARED_GENERATIONCOUNTERS_HPP
 
 #include "memory/virtualspace.hpp"
-#include "runtime/perfData.hpp"
+#include "runtime/perfDataTypes.hpp"
 
 // A GenerationCounter is a holder class for performance counters
 // that track a generation
@@ -56,7 +56,7 @@ private:
   // constructor. The need for such an constructor should be eliminated
   // when VirtualSpace and PSVirtualSpace are unified.
   GenerationCounters()
-             : _name_space(NULL), _current_size(NULL), _virtual_space(NULL) {}
+             : _current_size(nullptr), _virtual_space(nullptr), _name_space(nullptr) {}
 
   // This constructor is used for subclasses that do not have a space
   // associated with them (e.g, in G1).
@@ -75,4 +75,4 @@ private:
   const char* name_space() const        { return _name_space; }
 
 };
-#endif // SHARE_VM_GC_SHARED_GENERATIONCOUNTERS_HPP
+#endif // SHARE_GC_SHARED_GENERATIONCOUNTERS_HPP

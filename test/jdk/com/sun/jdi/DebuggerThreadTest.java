@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -77,7 +77,13 @@ public class DebuggerThreadTest extends TestScaffold {
         int gotThreads = tg.enumerate(list, true);
         for (int i = 0; i < Math.min(gotThreads, list.length); i++){
             Thread t = list[i];
-            String groupName = t.getThreadGroup().getName();
+            ThreadGroup tga = t.getThreadGroup();
+            String groupName;
+            if (tga == null) {
+                groupName = "<completed>";
+            } else {
+                groupName = tga.getName();
+            }
 
             System.out.println("Thread [" + i + "] group = '" +
                                groupName +
@@ -89,7 +95,6 @@ public class DebuggerThreadTest extends TestScaffold {
                 failure("FAIL: non-daemon thread '" + t.getName() +
                         "' found in ThreadGroup '" + groupName + "'");
             }
-
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,13 @@
  *
  */
 
-#ifndef SHARE_VM_INTERPRETER_INTERPRETER_HPP
-#define SHARE_VM_INTERPRETER_INTERPRETER_HPP
+#ifndef SHARE_INTERPRETER_INTERPRETER_HPP
+#define SHARE_INTERPRETER_INTERPRETER_HPP
 
 #include "code/stubs.hpp"
-#include "interpreter/cppInterpreter.hpp"
+#include "interpreter/interp_masm.hpp"
 #include "interpreter/templateInterpreter.hpp"
+#include "interpreter/zero/zeroInterpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "utilities/align.hpp"
 
@@ -45,39 +46,50 @@ class InterpreterCodelet: public Stub {
   friend class VMStructs;
   friend class CodeCacheDumper; // possible extension [do not remove]
  private:
-  int         _size;                             // the size in bytes
-  const char* _description;                      // a description of the codelet, for debugging & printing
-  Bytecodes::Code _bytecode;                     // associated bytecode if any
-  DEBUG_ONLY(CodeStrings _strings;)              // Comments for annotating assembler output.
+  NOT_PRODUCT(AsmRemarks _asm_remarks;)   // Comments for annotating assembler output.
+  NOT_PRODUCT(DbgStrings _dbg_strings;)   // Debug strings used in generated code.
+  const char*     _description;           // A description of the codelet, for debugging & printing
+  int             _size;                  // The codelet size in bytes
+  Bytecodes::Code _bytecode;              // Associated bytecode, if any
 
  public:
   // Initialization/finalization
-  void    initialize(int size,
-                     CodeStrings& strings)       { _size = size;
-                                                   DEBUG_ONLY(::new(&_strings) CodeStrings();)
-                                                   DEBUG_ONLY(_strings.assign(strings);) }
+  void    initialize(int size)                   { _size = size; }
   void    finalize()                             { ShouldNotCallThis(); }
 
   // General info/converters
   int     size() const                           { return _size; }
-  static  int code_size_to_size(int code_size)   { return align_up((int)sizeof(InterpreterCodelet), CodeEntryAlignment) + code_size; }
+  static  int alignment()                        { return HeapWordSize; }
+  static  int code_alignment()                   { return CodeEntryAlignment; }
 
   // Code info
-  address code_begin() const                     { return (address)this + align_up(sizeof(InterpreterCodelet), CodeEntryAlignment); }
+  address code_begin() const                     { return align_up((address)this + sizeof(InterpreterCodelet), code_alignment()); }
   address code_end() const                       { return (address)this + size(); }
 
   // Debugging
   void    verify();
   void    print_on(outputStream* st) const;
-  void    print() const { print_on(tty); }
+  void    print() const;
 
   // Interpreter-specific initialization
   void    initialize(const char* description, Bytecodes::Code bytecode);
 
   // Interpreter-specific attributes
-  int         code_size() const                  { return code_end() - code_begin(); }
+  int         code_size() const                  { return (int)(code_end() - code_begin()); }
   const char* description() const                { return _description; }
   Bytecodes::Code bytecode() const               { return _bytecode; }
+#ifndef PRODUCT
+ ~InterpreterCodelet() {
+    // InterpreterCodelets reside in the StubQueue and should not be deleted,
+    // nor are they ever finalized (see above).
+    ShouldNotCallThis();
+  }
+  void use_remarks(AsmRemarks &remarks) { _asm_remarks.share(remarks); }
+  void use_strings(DbgStrings &strings) { _dbg_strings.share(strings); }
+
+  void clear_remarks() { _asm_remarks.clear(); }
+  void clear_strings() { _dbg_strings.clear(); }
+#endif
 };
 
 // Define a prototype interface
@@ -98,7 +110,7 @@ class CodeletMark: ResourceMark {
   int codelet_size() {
     // Request the whole code buffer (minus a little for alignment).
     // The commit call below trims it back for each codelet.
-    int codelet_size = AbstractInterpreter::code()->available_space() - 2*K;
+    int codelet_size = AbstractInterpreter::code()->available_space() - (int)(2*K);
 
     // Guarantee there's a little bit of code space left.
     guarantee(codelet_size > 0 && (size_t)codelet_size > 2*K,
@@ -115,8 +127,8 @@ class CodeletMark: ResourceMark {
 };
 
 // Wrapper typedef to use the name Interpreter to mean either
-// the c++ interpreter or the template interpreter.
+// the Zero interpreter or the template interpreter.
 
-typedef CC_INTERP_ONLY(CppInterpreter) NOT_CC_INTERP(TemplateInterpreter) Interpreter;
+typedef ZERO_ONLY(ZeroInterpreter) NOT_ZERO(TemplateInterpreter) Interpreter;
 
-#endif // SHARE_VM_INTERPRETER_INTERPRETER_HPP
+#endif // SHARE_INTERPRETER_INTERPRETER_HPP

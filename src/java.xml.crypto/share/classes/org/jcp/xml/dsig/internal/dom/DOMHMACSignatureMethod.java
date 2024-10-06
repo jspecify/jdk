@@ -21,36 +21,42 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
- */
-/*
- * $Id: DOMHMACSignatureMethod.java 1788465 2017-03-24 15:10:51Z coheigea $
+ * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
  */
 package org.jcp.xml.dsig.internal.dom;
-
-import javax.xml.crypto.*;
-import javax.xml.crypto.dsig.*;
-import javax.xml.crypto.dsig.spec.HMACParameterSpec;
-import javax.xml.crypto.dsig.spec.SignatureMethodParameterSpec;
 
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.Provider;
 import java.security.SignatureException;
 import java.security.spec.AlgorithmParameterSpec;
+
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
-import org.w3c.dom.Element;
+import javax.xml.crypto.MarshalException;
+import javax.xml.crypto.dsig.SignatureMethod;
+import javax.xml.crypto.dsig.SignedInfo;
+import javax.xml.crypto.dsig.XMLSignContext;
+import javax.xml.crypto.dsig.XMLSignature;
+import javax.xml.crypto.dsig.XMLSignatureException;
+import javax.xml.crypto.dsig.XMLValidateContext;
+import javax.xml.crypto.dsig.spec.HMACParameterSpec;
+import javax.xml.crypto.dsig.spec.SignatureMethodParameterSpec;
 
 import org.jcp.xml.dsig.internal.MacOutputStream;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 /**
  * DOM-based implementation of HMAC SignatureMethod.
  *
  */
 public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod {
+
+    private static final String DOM_SIGNATURE_PROVIDER = "org.jcp.xml.dsig.internal.dom.MacProvider";
 
     private static final com.sun.org.slf4j.internal.Logger LOG =
         com.sun.org.slf4j.internal.LoggerFactory.getLogger(DOMHMACSignatureMethod.class);
@@ -126,21 +132,31 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
     SignatureMethodParameterSpec unmarshalParams(Element paramsElem)
         throws MarshalException
     {
-        outputLength = Integer.parseInt(textOfNode(paramsElem));
+        try {
+            outputLength = Integer.parseInt(paramsElem.getFirstChild().getNodeValue());
+        } catch (NumberFormatException ex) {
+            throw new MarshalException("Invalid output length supplied: " + paramsElem.getFirstChild().getNodeValue());
+        }
         outputLengthSet = true;
         LOG.debug("unmarshalled outputLength: {}", outputLength);
         return new HMACParameterSpec(outputLength);
     }
 
     @Override
-    void marshalParams(XmlWriter xwriter, String prefix)
+    void marshalParams(Element parent, String prefix)
         throws MarshalException
     {
-        xwriter.writeTextElement(prefix, "HMACOutputLength", XMLSignature.XMLNS, String.valueOf(outputLength));
+        Document ownerDoc = DOMUtils.getOwnerDocument(parent);
+        Element hmacElem = DOMUtils.createElement(ownerDoc, "HMACOutputLength",
+                                                  XMLSignature.XMLNS, prefix);
+        hmacElem.appendChild(ownerDoc.createTextNode
+           (String.valueOf(outputLength)));
+
+        parent.appendChild(hmacElem);
     }
 
     @Override
-    boolean verify(Key key, DOMSignedInfo si, byte[] sig,
+    boolean verify(Key key, SignedInfo si, byte[] sig,
                    XMLValidateContext context)
         throws InvalidKeyException, SignatureException, XMLSignatureException
     {
@@ -152,7 +168,10 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
         }
         if (hmac == null) {
             try {
-                hmac = Mac.getInstance(getJCAAlgorithm());
+                Provider p = (Provider)context.getProperty(DOM_SIGNATURE_PROVIDER);
+                hmac = (p == null)
+                    ? Mac.getInstance(getJCAAlgorithm())
+                    : Mac.getInstance(getJCAAlgorithm(), p);
             } catch (NoSuchAlgorithmException nsae) {
                 throw new XMLSignatureException(nsae);
             }
@@ -162,14 +181,14 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
                 ("HMACOutputLength must not be less than " + getDigestLength());
         }
         hmac.init(key);
-        si.canonicalize(context, new MacOutputStream(hmac));
+        ((DOMSignedInfo)si).canonicalize(context, new MacOutputStream(hmac));
         byte[] result = hmac.doFinal();
 
         return MessageDigest.isEqual(sig, result);
     }
 
     @Override
-    byte[] sign(Key key, DOMSignedInfo si, XMLSignContext context)
+    byte[] sign(Key key, SignedInfo si, XMLSignContext context)
         throws InvalidKeyException, XMLSignatureException
     {
         if (key == null || si == null) {
@@ -180,7 +199,10 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
         }
         if (hmac == null) {
             try {
-                hmac = Mac.getInstance(getJCAAlgorithm());
+                Provider p = (Provider)context.getProperty(DOM_SIGNATURE_PROVIDER);
+                hmac = (p == null)
+                    ? Mac.getInstance(getJCAAlgorithm())
+                    : Mac.getInstance(getJCAAlgorithm(), p);
             } catch (NoSuchAlgorithmException nsae) {
                 throw new XMLSignatureException(nsae);
             }
@@ -190,7 +212,7 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
                 ("HMACOutputLength must not be less than " + getDigestLength());
         }
         hmac.init(key);
-        si.canonicalize(context, new MacOutputStream(hmac));
+        ((DOMSignedInfo)si).canonicalize(context, new MacOutputStream(hmac));
         return hmac.doFinal();
     }
 

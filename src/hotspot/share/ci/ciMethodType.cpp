@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 #include "ci/ciInstance.hpp"
 #include "ci/ciMethodType.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "classfile/javaClasses.hpp"
+#include "classfile/javaClasses.inline.hpp"
 
 ciType* ciMethodType::class_to_citype(oop klass_oop) const {
   if (java_lang_Class::is_primitive(klass_oop)) {
@@ -51,11 +51,4 @@ int ciMethodType::ptype_count() const {
 
 int ciMethodType::ptype_slot_count() const {
   GUARDED_VM_ENTRY(return java_lang_invoke_MethodType::ptype_slot_count(get_oop());)
-}
-
-ciType* ciMethodType::ptype_at(int index) const {
-  GUARDED_VM_ENTRY(
-    oop ptype = java_lang_invoke_MethodType::ptype(get_oop(), index);
-    return class_to_citype(ptype);
-  )
 }

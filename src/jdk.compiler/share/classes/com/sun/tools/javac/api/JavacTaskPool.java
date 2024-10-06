@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,20 +26,36 @@
 package com.sun.tools.javac.api;
 
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.io.Writer;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticListener;
+import javax.tools.JavaFileManager;
+import javax.tools.JavaFileObject;
+import javax.tools.StandardLocation;
 
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.Tree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskEvent.Kind;
 import com.sun.source.util.TaskListener;
 import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.code.Kinds;
+import com.sun.tools.javac.code.Preview;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
@@ -53,25 +69,15 @@ import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.comp.Modules;
 import com.sun.tools.javac.main.Arguments;
 import com.sun.tools.javac.main.JavaCompiler;
-import com.sun.tools.javac.tree.JCTree.JCClassDecl;
-
-import javax.tools.Diagnostic;
-import javax.tools.DiagnosticListener;
-import javax.tools.JavaFileManager;
-import javax.tools.JavaFileObject;
-
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
 import com.sun.tools.javac.model.JavacElements;
+import com.sun.tools.javac.platform.PlatformDescription;
+import com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import com.sun.tools.javac.tree.JCTree.LetExpr;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.Log;
+import com.sun.tools.javac.util.Options;
 
 /**
  * A pool of reusable JavacTasks. When a task is no valid anymore, it is returned to the pool,
@@ -82,7 +88,7 @@ import com.sun.tools.javac.util.Log;
  * For each combination of options, a separate task/context is created and kept, as most option
  * values are cached inside components themselves.
  * <p>
- * When the compilation redefines sensitive classes (e.g. classes in the the java.* packages), the
+ * When the compilation redefines sensitive classes (e.g. classes in the java.* packages), the
  * task/context is not reused.
  * <p>
  * When the task is reused, then packages that were already listed won't be listed again.
@@ -101,9 +107,10 @@ import com.sun.tools.javac.util.Log;
 public class JavacTaskPool {
 
     private static final JavacTool systemProvider = JavacTool.create();
+    private static final Queue<ReusableContext> EMPTY_QUEUE = new ArrayDeque<>(0);
 
     private final int maxPoolSize;
-    private final Map<List<String>, List<ReusableContext>> options2Contexts = new HashMap<>();
+    private final Map<List<String>, Queue<ReusableContext>> options2Contexts = new HashMap<>();
     private int id;
 
     private int statReused = 0;
@@ -126,7 +133,7 @@ public class JavacTaskPool {
      * @param out a Writer for additional output from the compiler;
      * use {@code System.err} if {@code null}
      * @param fileManager a file manager; if {@code null} use the
-     * compiler's standard filemanager
+     * compiler's standard file manager
      * @param diagnosticListener a diagnostic listener; if {@code
      * null} use the compiler's default method for reporting
      * diagnostics
@@ -159,14 +166,14 @@ public class JavacTaskPool {
         ReusableContext ctx;
 
         synchronized (this) {
-            List<ReusableContext> cached =
-                    options2Contexts.getOrDefault(opts, Collections.emptyList());
+            Queue<ReusableContext> cached =
+                    options2Contexts.getOrDefault(opts, EMPTY_QUEUE);
 
             if (cached.isEmpty()) {
                 ctx = new ReusableContext(opts);
                 statNew++;
             } else {
-                ctx = cached.remove(0);
+                ctx = cached.remove();
                 statReused++;
             }
         }
@@ -178,6 +185,10 @@ public class JavacTaskPool {
                                                        opts, classes, compilationUnits, ctx);
 
         task.addTaskListener(ctx);
+
+        if (out != null) {
+            Log.instance(ctx).setWriters(new PrintWriter(out, true));
+        }
 
         Z result = worker.withTask(task);
 
@@ -200,7 +211,7 @@ public class JavacTaskPool {
                     options2Contexts.get(toRemove.arguments).remove(toRemove);
                     statRemoved++;
                 }
-                options2Contexts.computeIfAbsent(ctx.arguments, x -> new ArrayList<>()).add(ctx);
+                options2Contexts.computeIfAbsent(ctx.arguments, x -> new ArrayDeque<>()).add(ctx);
                 ctx.timeStamp = id++;
             }
         }
@@ -241,6 +252,9 @@ public class JavacTaskPool {
         }
 
         void clear() {
+            //when patching modules (esp. java.base), it may be impossible to
+            //clear the symbols read from the patch path:
+            polluted |= get(JavaFileManager.class).hasLocation(StandardLocation.PATCH_MODULE_PATH);
             drop(Arguments.argsKey);
             drop(DiagnosticListener.class);
             drop(Log.outKey);
@@ -249,6 +263,7 @@ public class JavacTaskPool {
             drop(JavacTask.class);
             drop(JavacTrees.class);
             drop(JavacElements.class);
+            drop(PlatformDescription.class);
 
             if (ht.get(Log.logKey) instanceof ReusableLog) {
                 //log already inited - not first round
@@ -257,10 +272,13 @@ public class JavacTaskPool {
                 ((ReusableJavaCompiler)ReusableJavaCompiler.instance(this)).clear();
                 Types.instance(this).newRound();
                 Check.instance(this).newRound();
+                Check.instance(this).clear(); //clear mandatory warning handlers
+                Preview.instance(this).clear(); //clear mandatory warning handlers
                 Modules.instance(this).newRound();
                 Annotate.instance(this).newRound();
                 CompileStates.instance(this).clear();
                 MultiTaskListener.instance(this).clear();
+                Options.instance(this).clear();
 
                 //find if any of the roots have redefined java.* classes
                 Symtab syms = Symtab.instance(this);
@@ -275,6 +293,17 @@ public class JavacTaskPool {
          * (typically because of cyclic inheritance) the symbol kind of a core class has been touched.
          */
         TreeScanner<Void, Symtab> pollutionScanner = new TreeScanner<Void, Symtab>() {
+            @Override @DefinedBy(Api.COMPILER_TREE)
+            public Void scan(Tree tree, Symtab syms) {
+                if (tree instanceof LetExpr letExpr) {
+                    scan(letExpr.defs, syms);
+                    scan(letExpr.expr, syms);
+                    return null;
+                } else {
+                    return super.scan(tree, syms);
+                }
+            }
+
             @Override @DefinedBy(Api.COMPILER_TREE)
             public Void visitClass(ClassTree node, Symtab syms) {
                 Symbol sym = ((JCClassDecl)node).sym;
@@ -330,7 +359,7 @@ public class JavacTaskPool {
          */
         static class ReusableJavaCompiler extends JavaCompiler {
 
-            final static Factory<JavaCompiler> factory = ReusableJavaCompiler::new;
+            static final Factory<JavaCompiler> factory = ReusableJavaCompiler::new;
 
             ReusableJavaCompiler(Context context) {
                 super(context);
@@ -357,7 +386,7 @@ public class JavacTaskPool {
          */
         static class ReusableLog extends Log {
 
-            final static Factory<Log> factory = ReusableLog::new;
+            static final Factory<Log> factory = ReusableLog::new;
 
             Context context;
 

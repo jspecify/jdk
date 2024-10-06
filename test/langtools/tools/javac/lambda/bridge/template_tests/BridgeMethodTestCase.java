@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,12 +31,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import tools.javac.combo.*;
 
-import static org.testng.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * BridgeMethodTestCase -- used for asserting linkage to bridges under separate compilation.
@@ -56,7 +56,6 @@ import static org.testng.Assert.fail;
  * @author Brian Goetz
  */
 
-@Test
 public abstract class BridgeMethodTestCase extends JavacTemplateTestBase {
 
     private static final String TYPE_LETTERS = "ABCDIJK";
@@ -111,11 +110,11 @@ public abstract class BridgeMethodTestCase extends JavacTemplateTestBase {
         ClassModel cm = new Parser(spec).parseClassModel();
         for (int i = 0; i <= cm.maxIndex() ; i++) {
             if (debug) System.out.println(indexClass(i));
-            addSourceFile(String.format("C%d.java", i), new StringTemplate(indexClass(i)));
+            addSourceFile(String.format("C%d.java", i), indexClass(i));
         }
         for (Map.Entry<String, ClassModel> e : classes(cm).entrySet()) {
             if (debug) System.out.println(e.getValue().toSource());
-            addSourceFile(e.getKey() + ".java", new StringTemplate(e.getValue().toSource()));
+            addSourceFile(e.getKey() + ".java", e.getValue().toSource());
         }
         compileDirs.add(compile(true));
         resetSourceFiles();
@@ -133,11 +132,11 @@ public abstract class BridgeMethodTestCase extends JavacTemplateTestBase {
         List<String> nameList = Arrays.asList(names);
         ClassModel cm = new Parser(spec).parseClassModel();
         for (int i = 0; i <= cm.maxIndex() ; i++) {
-            addSourceFile(String.format("C%d.java", i), new StringTemplate(indexClass(i)));
+            addSourceFile(String.format("C%d.java", i), indexClass(i));
         }
         for (Map.Entry<String, ClassModel> e : classes(cm).entrySet())
             if (nameList.contains(e.getKey()))
-                addSourceFile(e.getKey() + ".java", new StringTemplate(e.getValue().toSource()));
+                addSourceFile(e.getKey() + ".java", e.getValue().toSource());
         compileDirs.add(compile(Arrays.asList(classPaths()), true));
         resetSourceFiles();
         assertCompileSucceeded();
@@ -229,7 +228,7 @@ public abstract class BridgeMethodTestCase extends JavacTemplateTestBase {
         return files;
     }
 
-    @BeforeMethod
+    @BeforeEach
     @Override
     public void reset() {
         compileDirs.clear();

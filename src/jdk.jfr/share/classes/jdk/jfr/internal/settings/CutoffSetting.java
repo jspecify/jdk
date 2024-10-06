@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,58 +25,55 @@
 
 package jdk.jfr.internal.settings;
 
+import static jdk.jfr.internal.util.ValueParser.MISSING;
+
 import java.util.Objects;
 import java.util.Set;
 
-import jdk.jfr.BooleanFlag;
 import jdk.jfr.Description;
 import jdk.jfr.Label;
 import jdk.jfr.MetadataDefinition;
 import jdk.jfr.Name;
-import jdk.jfr.internal.Control;
+import jdk.jfr.Timespan;
 import jdk.jfr.internal.PlatformEventType;
 import jdk.jfr.internal.Type;
-import jdk.jfr.internal.Utils;
+import jdk.jfr.internal.util.ValueParser;
 
 @MetadataDefinition
 @Label("Cutoff")
 @Description("Limit running time of event")
 @Name(Type.SETTINGS_PREFIX + "Cutoff")
-@BooleanFlag
-public final class CutoffSetting extends Control {
-    private final static long typeId = Type.getTypeId(CutoffSetting.class);
-
-    private String value = "0 ns";
+@Timespan
+public final class CutoffSetting extends JDKSettingControl {
+    public static final String DEFAULT_VALUE = ValueParser.INFINITY;
+    private String value = DEFAULT_VALUE;
     private final PlatformEventType eventType;
 
-    public CutoffSetting(PlatformEventType eventType, String defaultValue) {
-       super(defaultValue);
+    public CutoffSetting(PlatformEventType eventType) {
        this.eventType = Objects.requireNonNull(eventType);
     }
 
     @Override
     public String combine(Set<String> values) {
         long max = 0;
-        String text = "0 ns";
+        String text = null;
         for (String value : values) {
-            long l = parseValue(value);
-            if (l > max) {
+            long nanos = ValueParser.parseTimespanWithInfinity(value, MISSING);
+            if (nanos != MISSING && nanos > max) {
                 text = value;
-                max = l;
+                max = nanos;
             }
         }
-        return text;
+        return Objects.requireNonNullElse(text, DEFAULT_VALUE);
     }
 
     @Override
     public void setValue(String value) {
-        long l = parseValue(value);
-        this.value = value;
-        eventType.setCutoff(l);
-    }
-
-    private long parseValue(String value) {
-        return isInfinity(value) ? Long.MAX_VALUE : Utils.parseTimespan(value);
+        long nanos = ValueParser.parseTimespanWithInfinity(value, MISSING);
+        if (nanos != MISSING) {
+            eventType.setCutoff(nanos);
+            this.value = value;
+        }
     }
 
     @Override
@@ -84,22 +81,10 @@ public final class CutoffSetting extends Control {
         return value;
     }
 
-    public static boolean isType(long typeId) {
-        return CutoffSetting.typeId == typeId;
-    }
-
-    private static boolean isInfinity(String s) {
-        return s.equals("infinity");
-    }
-
     public static long parseValueSafe(String value) {
         if (value == null) {
             return 0L;
         }
-        try {
-            return isInfinity(value) ? Long.MAX_VALUE : Utils.parseTimespan(value);
-        } catch (NumberFormatException nfe) {
-            return 0L;
-        }
+        return ValueParser.parseTimespanWithInfinity(value, 0L);
     }
 }

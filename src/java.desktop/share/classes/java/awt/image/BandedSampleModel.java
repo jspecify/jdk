@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -78,8 +78,13 @@ public final class BandedSampleModel extends ComponentSampleModel
      * @param h         The height (in pixels) of the region of image
      *                  data described.
      * @param numBands  The number of bands for the image data.
+     * @throws IllegalArgumentException if {@code w} and {@code h}
+     *         are not both greater than 0
+     * @throws IllegalArgumentException if the product of {@code w}
+     *         and {@code h} is greater than {@code Integer.MAX_VALUE}
+     * @throws IllegalArgumentException if {@code numBands} is not > 0
      * @throws IllegalArgumentException if {@code dataType} is not
-     *         one of the supported data types
+     *         one of the supported data types for this sample model.
      */
     public BandedSampleModel(int dataType, int w, int h, int numBands) {
         super(dataType, w, h, 1, w,
@@ -100,14 +105,27 @@ public final class BandedSampleModel extends ComponentSampleModel
      * @param scanlineStride The line stride of the of the image data.
      * @param bankIndices The bank index for each band.
      * @param bandOffsets The band offset for each band.
+     * @throws IllegalArgumentException if {@code w} and {@code h}
+     *         are not both greater than 0
+     * @throws IllegalArgumentException if the product of {@code w}
+     *         and {@code h} is greater than {@code Integer.MAX_VALUE}
+     * @throws IllegalArgumentException if {@code scanlineStride} is less than 0
+     * @throws NullPointerException if {@code bankIndices} is {@code null}
+     * @throws NullPointerException if {@code bandOffsets} is {@code null}
+     * @throws IllegalArgumentException if {@code bandOffsets.length} is 0
+     * @throws IllegalArgumentException if the length of
+     *         {@code bankIndices} does not equal the length of
+     *         {@code bandOffsets}
+     * @throws IllegalArgumentException if any of the bank indices
+     *         of {@code bandIndices} is less than 0
      * @throws IllegalArgumentException if {@code dataType} is not
-     *         one of the supported data types
+     *         one of the supported data types for this sample model
      */
     public BandedSampleModel(int dataType,
                              int w, int h,
                              int scanlineStride,
-                             int bankIndices[],
-                             int bandOffsets[]) {
+                             int[] bankIndices,
+                             int[] bandOffsets) {
 
         super(dataType, w, h, 1,scanlineStride, bankIndices, bandOffsets);
     }
@@ -157,13 +175,13 @@ public final class BandedSampleModel extends ComponentSampleModel
      * @throws IllegalArgumentException if {@code dataType} is not
      *         one of the supported data types
      */
-    public SampleModel createSubsetSampleModel(int bands[]) {
+    public SampleModel createSubsetSampleModel(int[] bands) {
         if (bands.length > bankIndices.length)
             throw new RasterFormatException("There are only " +
                                             bankIndices.length +
                                             " bands");
-        int newBankIndices[] = new int[bands.length];
-        int newBandOffsets[] = new int[bands.length];
+        int[] newBankIndices = new int[bands.length];
+        int[] newBandOffsets = new int[bands.length];
 
         for (int i=0; i<bands.length; i++) {
             newBankIndices[i] = bankIndices[bands[i]];
@@ -396,7 +414,7 @@ public final class BandedSampleModel extends ComponentSampleModel
      * @return the samples for the specified pixel.
      * @see #setPixel(int, int, int[], DataBuffer)
      */
-    public int[] getPixel(int x, int y, int iArray[], DataBuffer data) {
+    public int[] getPixel(int x, int y, int[] iArray, DataBuffer data) {
         if ((x < 0) || (y < 0) || (x >= width) || (y >= height)) {
             throw new ArrayIndexOutOfBoundsException
                 ("Coordinate out of bounds!");
@@ -433,7 +451,7 @@ public final class BandedSampleModel extends ComponentSampleModel
      * @see #setPixels(int, int, int, int, int[], DataBuffer)
      */
     public int[] getPixels(int x, int y, int w, int h,
-                           int iArray[], DataBuffer data) {
+                           int[] iArray, DataBuffer data) {
         int x1 = x + w;
         int y1 = y + h;
 
@@ -557,13 +575,13 @@ public final class BandedSampleModel extends ComponentSampleModel
      * @see #setSamples(int, int, int, int, int, int[], DataBuffer)
      */
     public int[] getSamples(int x, int y, int w, int h, int b,
-                            int iArray[], DataBuffer data) {
+                            int[] iArray, DataBuffer data) {
         // Bounds check for 'b' will be performed automatically
         if ((x < 0) || (y < 0) || (x + w > width) || (y + h > height)) {
             throw new ArrayIndexOutOfBoundsException
                 ("Coordinate out of bounds!");
         }
-        int samples[];
+        int[] samples;
         if (iArray != null) {
            samples = iArray;
         } else {
@@ -694,7 +712,7 @@ public final class BandedSampleModel extends ComponentSampleModel
      * @param data      The DataBuffer containing the image data
      * @see #getPixel(int, int, int[], DataBuffer)
      */
-    public void setPixel(int x, int y, int iArray[], DataBuffer data) {
+    public void setPixel(int x, int y, int[] iArray, DataBuffer data) {
         if ((x < 0) || (y < 0) || (x >= width) || (y >= height)) {
             throw new ArrayIndexOutOfBoundsException
                 ("Coordinate out of bounds!");
@@ -720,7 +738,7 @@ public final class BandedSampleModel extends ComponentSampleModel
      * @see #getPixels(int, int, int, int, int[], DataBuffer)
      */
     public void setPixels(int x, int y, int w, int h,
-                          int iArray[], DataBuffer data) {
+                          int[] iArray, DataBuffer data) {
         int x1 = x + w;
         int y1 = y + h;
 
@@ -833,7 +851,7 @@ public final class BandedSampleModel extends ComponentSampleModel
      * @see #getSamples(int, int, int, int, int, int[], DataBuffer)
      */
     public void setSamples(int x, int y, int w, int h, int b,
-                           int iArray[], DataBuffer data) {
+                           int[] iArray, DataBuffer data) {
         // Bounds check for 'b' will be performed automatically
         if ((x < 0) || (y < 0) || (x + w > width) || (y + h > height)) {
             throw new ArrayIndexOutOfBoundsException
@@ -853,14 +871,16 @@ public final class BandedSampleModel extends ComponentSampleModel
     }
 
     private static int[] createOffsetArray(int numBands) {
-        int[] bandOffsets = new int[numBands];
-        for (int i=0; i < numBands; i++) {
-            bandOffsets[i] = 0;
+        if (numBands <= 0) {
+            throw new IllegalArgumentException("numBands must be > 0");
         }
-        return bandOffsets;
+        return new int[numBands];
     }
 
     private static int[] createIndicesArray(int numBands) {
+        if (numBands <= 0) {
+            throw new IllegalArgumentException("numBands must be > 0");
+        }
         int[] bankIndices = new int[numBands];
         for (int i=0; i < numBands; i++) {
             bankIndices[i] = i;

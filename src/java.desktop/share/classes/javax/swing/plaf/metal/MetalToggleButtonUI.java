@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,7 @@ import java.io.Serializable;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -82,10 +82,15 @@ public class MetalToggleButtonUI extends BasicToggleButtonUI {
     // ********************************
 
     /**
-     * Constructs the {@code MetalToogleButtonUI}.
+     * Constructs a {@code MetalToggleButtonUI}.
+     */
+    public MetalToggleButtonUI() {}
+
+    /**
+     * Constructs the {@code MetalToggleButtonUI}.
      *
      * @param b a component
-     * @return the {@code MetalToogleButtonUI}.
+     * @return the {@code MetalToggleButtonUI}.
      */
     public static ComponentUI createUI(JComponent b) {
         AppContext appContext = AppContext.getAppContext();
@@ -224,7 +229,7 @@ public class MetalToggleButtonUI extends BasicToggleButtonUI {
         boolean isIcon = b.getIcon() != null;
 
         // If there is text
-        if ( text != null && !text.equals( "" ) ) {
+        if ( text != null && !text.isEmpty()) {
             if ( !isIcon ) {
                 focusRect.setBounds( textRect );
             }

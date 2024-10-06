@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -222,7 +222,8 @@ public final class BaselineTIFFTagSet extends TIFFTagSet {
      * A value to be used with the "Compression" tag.
      *
      * @see #TAG_COMPRESSION
-     * @see <a href="https://tools.ietf.org/html/rfc1951">DEFLATE specification</a>
+     * @spec https://www.rfc-editor.org/info/rfc1951
+     *      RFC 1951: DEFLATE Compressed Data Format Specification version 1.3
      */
     public static final int COMPRESSION_DEFLATE = 32946;
 
@@ -892,9 +893,8 @@ public final class BaselineTIFFTagSet extends TIFFTagSet {
     public static final int TAG_TRANSFER_RANGE = 342;
 
     /**
-     * Constant specifying the "JPEGTables" tag.
-     *
-     * @see <a href="ftp://ftp.sgi.com/graphics/tiff/TTN2.draft.txt">JPEG-in-TIFF compression</a>
+     * Constant specifying the "JPEGTables" tag for
+     * "New style" JPEG-in-TIFF compression.
      */
     public static final int TAG_JPEG_TABLES = 347;
 
@@ -1008,7 +1008,7 @@ public final class BaselineTIFFTagSet extends TIFFTagSet {
     /**
      * Constant specifying the "ICC Profile" tag.
      *
-     * @see <a href="http://www.color.org/ICC1V42.pdf">ICC Specification, section B.4: Embedding ICC profiles in TIFF files</a>
+     * @see <a href="https://www.color.org/ICC1V42.pdf">ICC Specification, section B.4: Embedding ICC profiles in TIFF files</a>
      */
     public static final int TAG_ICC_PROFILE = 34675;
 
@@ -2174,7 +2174,7 @@ public final class BaselineTIFFTagSet extends TIFFTagSet {
      *
      * @return a {@code BaselineTIFFTagSet} instance.
      */
-    public synchronized static BaselineTIFFTagSet getInstance() {
+    public static synchronized BaselineTIFFTagSet getInstance() {
         if (theInstance == null) {
             initTags();
             theInstance = new BaselineTIFFTagSet();

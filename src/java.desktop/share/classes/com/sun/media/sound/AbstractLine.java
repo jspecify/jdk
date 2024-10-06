@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -156,17 +156,12 @@ abstract class AbstractLine implements Line {
      * events if it changes.
      */
     final void setOpen(boolean open) {
-
-        if (Printer.trace) Printer.trace("> "+getClass().getName()+" (AbstractLine): setOpen(" + open + ")  this.open: " + this.open);
-
         boolean sendEvents = false;
         long position = getLongFramePosition();
 
-        synchronized (this) {
-            if (this.open != open) {
-                this.open = open;
-                sendEvents = true;
-            }
+        if (this.open != open) {
+            this.open = open;
+            sendEvents = true;
         }
 
         if (sendEvents) {
@@ -176,7 +171,6 @@ abstract class AbstractLine implements Line {
                 sendEvents(new LineEvent(this, LineEvent.Type.CLOSE, position));
             }
         }
-        if (Printer.trace) Printer.trace("< "+getClass().getName()+" (AbstractLine): setOpen(" + open + ")  this.open: " + this.open);
     }
 
     /**

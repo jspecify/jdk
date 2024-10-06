@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.MessageFormat;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import javax.net.ssl.SSLProtocolException;
@@ -82,21 +81,25 @@ final class SignatureAlgorithmsExtension {
             }
         }
 
-        SignatureSchemesSpec(ByteBuffer buffer) throws IOException {
+        SignatureSchemesSpec(HandshakeContext hc,
+                ByteBuffer buffer) throws IOException {
             if (buffer.remaining() < 2) {      // 2: the length of the list
-                throw new SSLProtocolException(
-                    "Invalid signature_algorithms: insufficient data");
+                throw hc.conContext.fatal(Alert.DECODE_ERROR,
+                        new SSLProtocolException(
+                    "Invalid signature_algorithms: insufficient data"));
             }
 
             byte[] algs = Record.getBytes16(buffer);
             if (buffer.hasRemaining()) {
-                throw new SSLProtocolException(
-                    "Invalid signature_algorithms: unknown extra data");
+                throw hc.conContext.fatal(Alert.DECODE_ERROR,
+                        new SSLProtocolException(
+                    "Invalid signature_algorithms: unknown extra data"));
             }
 
-            if (algs == null || algs.length == 0 || (algs.length & 0x01) != 0) {
-                throw new SSLProtocolException(
-                    "Invalid signature_algorithms: incomplete data");
+            if (algs.length == 0 || (algs.length & 0x01) != 0) {
+                throw hc.conContext.fatal(Alert.DECODE_ERROR,
+                        new SSLProtocolException(
+                    "Invalid signature_algorithms: incomplete data"));
             }
 
             int[] schemes = new int[algs.length / 2];
@@ -144,9 +147,9 @@ final class SignatureAlgorithmsExtension {
     private static final
             class SignatureSchemesStringizer implements SSLStringizer {
         @Override
-        public String toString(ByteBuffer buffer) {
+        public String toString(HandshakeContext hc, ByteBuffer buffer) {
             try {
-                return (new SignatureSchemesSpec(buffer)).toString();
+                return (new SignatureSchemesSpec(hc, buffer)).toString();
             } catch (IOException ioe) {
                 // For debug logging only, so please swallow exceptions.
                 return ioe.getMessage();
@@ -185,6 +188,7 @@ final class SignatureAlgorithmsExtension {
             if (chc.localSupportedSignAlgs == null) {
                 chc.localSupportedSignAlgs =
                     SignatureScheme.getSupportedAlgorithms(
+                            chc.sslConfig,
                             chc.algorithmConstraints, chc.activeProtocols);
             }
 
@@ -234,13 +238,7 @@ final class SignatureAlgorithmsExtension {
             }
 
             // Parse the extension.
-            SignatureSchemesSpec spec;
-            try {
-                spec = new SignatureSchemesSpec(buffer);
-            } catch (IOException ioe) {
-                shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
-                return;     // fatal() always throws, make the compiler happy.
-            }
+            SignatureSchemesSpec spec = new SignatureSchemesSpec(shc, buffer);
 
             // Update the context.
             shc.handshakeExtensions.put(
@@ -278,8 +276,13 @@ final class SignatureAlgorithmsExtension {
             // update the context
             List<SignatureScheme> sss =
                     SignatureScheme.getSupportedAlgorithms(
+                            shc.sslConfig,
                             shc.algorithmConstraints, shc.negotiatedProtocol,
                             spec.signatureSchemes);
+            if (sss == null || sss.isEmpty()) {
+                throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                        "No supported signature algorithm");
+            }
             shc.peerRequestedSignatureSchemes = sss;
 
             // If no "signature_algorithms_cert" extension is present, then
@@ -329,9 +332,9 @@ final class SignatureAlgorithmsExtension {
             // We may support the server authentication other than X.509
             // certificate later.
             if (shc.negotiatedProtocol.useTLS13PlusSpec()) {
-                shc.conContext.fatal(Alert.MISSING_EXTENSION,
+                throw shc.conContext.fatal(Alert.MISSING_EXTENSION,
                     "No mandatory signature_algorithms extension in the " +
-                    "received CertificateRequest handshake message");
+                    "received ClientHello handshake message");
             }
         }
     }
@@ -403,25 +406,23 @@ final class SignatureAlgorithmsExtension {
             // handshake message in TLS 1.3.
             if (!shc.sslConfig.isAvailable(
                     SSLExtension.CR_SIGNATURE_ALGORITHMS)) {
-                shc.conContext.fatal(Alert.MISSING_EXTENSION,
+                throw shc.conContext.fatal(Alert.MISSING_EXTENSION,
                         "No available signature_algorithms extension " +
                         "for client certificate authentication");
-                return null;    // make the compiler happy
             }
 
             // Produce the extension.
-            if (shc.localSupportedSignAlgs == null) {
-                shc.localSupportedSignAlgs =
+            List<SignatureScheme> sigAlgs =
                     SignatureScheme.getSupportedAlgorithms(
-                            shc.algorithmConstraints, shc.activeProtocols);
-            }
+                            shc.sslConfig,
+                            shc.algorithmConstraints,
+                            List.of(shc.negotiatedProtocol));
 
-            int vectorLen = SignatureScheme.sizeInRecord() *
-                    shc.localSupportedSignAlgs.size();
+            int vectorLen = SignatureScheme.sizeInRecord() * sigAlgs.size();
             byte[] extData = new byte[vectorLen + 2];
             ByteBuffer m = ByteBuffer.wrap(extData);
             Record.putInt16(m, vectorLen);
-            for (SignatureScheme ss : shc.localSupportedSignAlgs) {
+            for (SignatureScheme ss : sigAlgs) {
                 Record.putInt16(m, ss.id);
             }
 
@@ -456,31 +457,18 @@ final class SignatureAlgorithmsExtension {
             // handshake message in TLS 1.3.
             if (!chc.sslConfig.isAvailable(
                     SSLExtension.CR_SIGNATURE_ALGORITHMS)) {
-                chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                         "No available signature_algorithms extension " +
                         "for client certificate authentication");
-                return;     // make the compiler happy
             }
 
             // Parse the extension.
-            SignatureSchemesSpec spec;
-            try {
-                spec = new SignatureSchemesSpec(buffer);
-            } catch (IOException ioe) {
-                chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
-                return;     // fatal() always throws, make the compiler happy.
-            }
-
-            List<SignatureScheme> knownSignatureSchemes = new LinkedList<>();
-            for (int id : spec.signatureSchemes) {
-                SignatureScheme ss = SignatureScheme.valueOf(id);
-                if (ss != null) {
-                    knownSignatureSchemes.add(ss);
-                }
-            }
+            SignatureSchemesSpec spec = new SignatureSchemesSpec(chc, buffer);
 
             // Update the context.
-            // chc.peerRequestedSignatureSchemes = knownSignatureSchemes;
+            //
+            // Note: the chc.peerRequestedSignatureSchemes will be updated
+            // in the CRSignatureSchemesUpdate.consume() implementation.
             chc.handshakeExtensions.put(
                     SSLExtension.CR_SIGNATURE_ALGORITHMS, spec);
 
@@ -516,8 +504,13 @@ final class SignatureAlgorithmsExtension {
             // update the context
             List<SignatureScheme> sss =
                     SignatureScheme.getSupportedAlgorithms(
+                            chc.sslConfig,
                             chc.algorithmConstraints, chc.negotiatedProtocol,
                             spec.signatureSchemes);
+            if (sss == null || sss.isEmpty()) {
+                throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                        "No supported signature algorithm");
+            }
             chc.peerRequestedSignatureSchemes = sss;
 
             // If no "signature_algorithms_cert" extension is present, then
@@ -525,7 +518,7 @@ final class SignatureAlgorithmsExtension {
             // signatures appearing in certificates.
             SignatureSchemesSpec certSpec =
                     (SignatureSchemesSpec)chc.handshakeExtensions.get(
-                            SSLExtension.CH_SIGNATURE_ALGORITHMS_CERT);
+                            SSLExtension.CR_SIGNATURE_ALGORITHMS_CERT);
             if (certSpec == null) {
                 chc.peerRequestedCertSignSchemes = sss;
                 chc.handshakeSession.setPeerSupportedSignatureAlgorithms(sss);
@@ -547,7 +540,7 @@ final class SignatureAlgorithmsExtension {
 
             // This is a mandatory extension for CertificateRequest handshake
             // message in TLS 1.3.
-            chc.conContext.fatal(Alert.MISSING_EXTENSION,
+            throw chc.conContext.fatal(Alert.MISSING_EXTENSION,
                     "No mandatory signature_algorithms extension in the " +
                     "received CertificateRequest handshake message");
         }

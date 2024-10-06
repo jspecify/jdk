@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,12 @@
  * @test
  * @bug 8048357
  * @summary test PKCS7 data signing, encoding and verification
+ * @library /test/lib
  * @modules java.base/sun.security.pkcs
  *          java.base/sun.security.util
  *          java.base/sun.security.x509
  * @run main SignerOrder
  */
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.KeyPair;
@@ -40,7 +40,6 @@ import java.security.Signature;
 import java.security.SignatureException;
 import java.security.cert.X509Certificate;
 import java.util.Date;
-import sun.security.util.HexDumpEncoder;
 import sun.security.pkcs.ContentInfo;
 import sun.security.pkcs.PKCS7;
 import sun.security.pkcs.SignerInfo;
@@ -55,10 +54,9 @@ import sun.security.x509.X500Name;
 import sun.security.x509.X509CertImpl;
 import sun.security.x509.X509CertInfo;
 import sun.security.x509.X509Key;
+import jdk.test.lib.hexdump.HexPrinter;
 
 public class SignerOrder {
-
-    static final HexDumpEncoder hexDump = new HexDumpEncoder();
 
     //signer infos
     static final byte[] data1 = "12345".getBytes();
@@ -104,10 +102,10 @@ public class SignerOrder {
         printSignerInfos(pkcs72.getSignerInfos());
 
         System.out.println("Verified signers of original:");
-        SignerInfo[] verifs1 = pkcs71.verify();
+        SignerInfo[] verifs1 = pkcs71.verify(null);
 
         System.out.println("Verified signers of after read-in:");
-        SignerInfo[] verifs2 = pkcs72.verify();
+        SignerInfo[] verifs2 = pkcs72.verify(null);
 
         if (verifs1.length != verifs2.length) {
             throw new RuntimeException("Length or Original vs read-in "
@@ -116,22 +114,22 @@ public class SignerOrder {
     }
 
     static void printSignerInfos(SignerInfo signerInfo) throws IOException {
-        ByteArrayOutputStream strm = new ByteArrayOutputStream();
-        signerInfo.derEncode(strm);
+        DerOutputStream strm = new DerOutputStream();
+        signerInfo.encode(strm);
         System.out.println("SignerInfo, length: "
                 + strm.toByteArray().length);
-        System.out.println(hexDump.encode(strm.toByteArray()));
+        HexPrinter.simple().format(strm.toByteArray());
         System.out.println("\n");
         strm.reset();
     }
 
     static void printSignerInfos(SignerInfo[] signerInfos) throws IOException {
-        ByteArrayOutputStream strm = new ByteArrayOutputStream();
+        DerOutputStream strm = new DerOutputStream();
         for (int i = 0; i < signerInfos.length; i++) {
-            signerInfos[i].derEncode(strm);
+            signerInfos[i].encode(strm);
             System.out.println("SignerInfo[" + i + "], length: "
                     + strm.toByteArray().length);
-            System.out.println(hexDump.encode(strm.toByteArray()));
+            HexPrinter.simple().format(strm.toByteArray());
             System.out.println("\n");
             strm.reset();
         }
@@ -247,20 +245,16 @@ class SimpleSigner {
 
         X509CertInfo info = new X509CertInfo();
         // Add all mandatory attributes
-        info.set(X509CertInfo.VERSION,
-                new CertificateVersion(CertificateVersion.V1));
-        info.set(X509CertInfo.SERIAL_NUMBER,
-                new CertificateSerialNumber(
+        info.setVersion(new CertificateVersion(CertificateVersion.V1));
+        info.setSerialNumber(new CertificateSerialNumber(
                         (int) (firstDate.getTime() / 1000)));
-        info.set(X509CertInfo.ALGORITHM_ID,
-                new CertificateAlgorithmId(algId));
-        info.set(X509CertInfo.SUBJECT, agent);
-        info.set(X509CertInfo.KEY, new CertificateX509Key(publicKey));
-        info.set(X509CertInfo.VALIDITY, interval);
-        info.set(X509CertInfo.ISSUER, agent);
+        info.setAlgorithmId(new CertificateAlgorithmId(algId));
+        info.setSubject(agent);
+        info.setKey(new CertificateX509Key(publicKey));
+        info.setValidity(interval);
+        info.setIssuer(agent);
 
-        certLocal = new X509CertImpl(info);
-        certLocal.sign(privateKey, algId.getName());
+        certLocal = X509CertImpl.newSigned(info, privateKey, algId.getName());
 
         return certLocal;
     }

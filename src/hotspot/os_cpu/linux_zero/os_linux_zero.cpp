@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2009, 2010 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -24,38 +24,33 @@
  */
 
 // no precompiled headers
-#include "jvm.h"
-#include "assembler_zero.inline.hpp"
-#include "classfile/classLoader.hpp"
-#include "classfile/systemDictionary.hpp"
+#include "asm/assembler.inline.hpp"
+#include "atomic_linux_zero.hpp"
 #include "classfile/vmSymbols.hpp"
-#include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
 #include "interpreter/interpreter.hpp"
+#include "jvm.h"
 #include "memory/allocation.inline.hpp"
 #include "nativeInst_zero.hpp"
-#include "os_share_linux.hpp"
+#include "os_linux.hpp"
+#include "os_posix.hpp"
 #include "prims/jniFastGetField.hpp"
 #include "prims/jvm_misc.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/javaThread.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
-#include "runtime/thread.inline.hpp"
 #include "runtime/timer.hpp"
+#include "signals_posix.hpp"
 #include "utilities/align.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
-
-// See stubGenerator_zero.cpp
-#include <setjmp.h>
-extern sigjmp_buf* get_jmp_buf_for_continuation();
 
 address os::current_stack_pointer() {
   // return the address of the current function
@@ -64,7 +59,7 @@ address os::current_stack_pointer() {
 
 frame os::get_sender_for_C_frame(frame* fr) {
   ShouldNotCallThis();
-  return frame(NULL, NULL); // silence compile warning.
+  return frame(nullptr, nullptr); // silence compile warning.
 }
 
 frame os::current_frame() {
@@ -75,7 +70,7 @@ frame os::current_frame() {
   //     set the sp to a close approximation of the real value in
   //     order to allow this step to complete.
   //   - Step 120 (printing native stack) tries to walk the stack.
-  //     The frame we create has a NULL pc, which is ignored as an
+  //     The frame we create has a null pc, which is ignored as an
   //     invalid frame.
   frame dummy = frame();
   dummy.set_sp((intptr_t *) current_stack_pointer());
@@ -86,105 +81,155 @@ char* os::non_memory_address_word() {
   // Must never look like an address returned by reserve_memory,
   // even in its subfields (as defined by the CPU immediate fields,
   // if the CPU splits constants across multiple instructions).
-#ifdef SPARC
-  // On SPARC, 0 != %hi(any real address), because there is no
-  // allocation in the first 1Kb of the virtual address space.
-  return (char *) 0;
-#else
   // This is the value for x86; works pretty well for PPC too.
   return (char *) -1;
-#endif // SPARC
 }
 
-void os::initialize_thread(Thread * thr){
-  // Nothing to do.
+address os::Posix::ucontext_get_pc(const ucontext_t* uc) {
+  if (DecodeErrorContext) {
+#if defined(IA32)
+    return (address)uc->uc_mcontext.gregs[REG_EIP];
+#elif defined(AMD64)
+    return (address)uc->uc_mcontext.gregs[REG_RIP];
+#elif defined(ARM)
+    return (address)uc->uc_mcontext.arm_pc;
+#elif defined(AARCH64)
+    return (address)uc->uc_mcontext.pc;
+#elif defined(PPC)
+    return (address)uc->uc_mcontext.regs->nip;
+#elif defined(RISCV)
+    return (address)uc->uc_mcontext.__gregs[REG_PC];
+#elif defined(S390)
+    return (address)uc->uc_mcontext.psw.addr;
+#else
+    // Non-arch-specific Zero code does not really know the PC.
+    // If possible, add the arch-specific definition in this method.
+    fatal("Cannot handle ucontext_get_pc");
+#endif
+  }
+
+  // Answer the default and hope for the best
+  return nullptr;
 }
 
-address os::Linux::ucontext_get_pc(const ucontext_t* uc) {
+void os::Posix::ucontext_set_pc(ucontext_t* uc, address pc) {
   ShouldNotCallThis();
-  return NULL; // silence compile warnings
 }
 
-void os::Linux::ucontext_set_pc(ucontext_t * uc, address pc) {
-  ShouldNotCallThis();
+intptr_t* os::Linux::ucontext_get_sp(const ucontext_t* uc) {
+  if (DecodeErrorContext) {
+#if defined(IA32)
+    return (intptr_t*)uc->uc_mcontext.gregs[REG_UESP];
+#elif defined(AMD64)
+    return (intptr_t*)uc->uc_mcontext.gregs[REG_RSP];
+#elif defined(ARM)
+    return (intptr_t*)uc->uc_mcontext.arm_sp;
+#elif defined(AARCH64)
+    return (intptr_t*)uc->uc_mcontext.sp;
+#elif defined(PPC)
+    return (intptr_t*)uc->uc_mcontext.regs->gpr[1/*REG_SP*/];
+#elif defined(RISCV)
+    return (intptr_t*)uc->uc_mcontext.__gregs[REG_SP];
+#elif defined(S390)
+    return (intptr_t*)uc->uc_mcontext.gregs[15/*REG_SP*/];
+#else
+    // Non-arch-specific Zero code does not really know the SP.
+    // If possible, add the arch-specific definition in this method.
+    fatal("Cannot handle ucontext_get_sp");
+#endif
+  }
+
+  // Answer the default and hope for the best
+  return nullptr;
 }
 
-ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
-                                        intptr_t** ret_sp,
-                                        intptr_t** ret_fp) {
-  ShouldNotCallThis();
-  return NULL; // silence compile warnings
+intptr_t* os::Linux::ucontext_get_fp(const ucontext_t* uc) {
+  if (DecodeErrorContext) {
+#if defined(IA32)
+    return (intptr_t*)uc->uc_mcontext.gregs[REG_EBP];
+#elif defined(AMD64)
+    return (intptr_t*)uc->uc_mcontext.gregs[REG_RBP];
+#elif defined(ARM)
+    return (intptr_t*)uc->uc_mcontext.arm_fp;
+#elif defined(AARCH64)
+    return (intptr_t*)uc->uc_mcontext.regs[29 /* REG_FP */];
+#elif defined(PPC)
+    return nullptr;
+#elif defined(RISCV)
+    return (intptr_t*)uc->uc_mcontext.__gregs[8 /* REG_FP */];
+#elif defined(S390)
+    return nullptr;
+#else
+    // Non-arch-specific Zero code does not really know the FP.
+    // If possible, add the arch-specific definition in this method.
+    fatal("Cannot handle ucontext_get_fp");
+#endif
+  }
+
+  // Answer the default and hope for the best
+  return nullptr;
+}
+
+address os::fetch_frame_from_context(const void* ucVoid,
+                                     intptr_t** ret_sp,
+                                     intptr_t** ret_fp) {
+  address epc;
+  const ucontext_t* uc = (const ucontext_t*)ucVoid;
+
+  if (uc != nullptr) {
+    epc = os::Posix::ucontext_get_pc(uc);
+    if (ret_sp) {
+      *ret_sp = (intptr_t*) os::Linux::ucontext_get_sp(uc);
+    }
+    if (ret_fp) {
+      *ret_fp = (intptr_t*) os::Linux::ucontext_get_fp(uc);
+    }
+  } else {
+    epc = nullptr;
+    if (ret_sp) {
+      *ret_sp = nullptr;
+    }
+    if (ret_fp) {
+      *ret_fp = nullptr;
+    }
+  }
+
+  return epc;
 }
 
 frame os::fetch_frame_from_context(const void* ucVoid) {
-  ShouldNotCallThis();
-  return frame(NULL, NULL); // silence compile warnings
+  // This code is only called from error handler to get PC and SP.
+  // We don't have the ready ZeroFrame* at this point, so fake the
+  // frame with bare minimum.
+  if (ucVoid != nullptr) {
+    const ucontext_t* uc = (const ucontext_t*)ucVoid;
+    frame dummy = frame();
+    dummy.set_pc(os::Posix::ucontext_get_pc(uc));
+    dummy.set_sp((intptr_t*)os::Linux::ucontext_get_sp(uc));
+    return dummy;
+  } else {
+    return frame(nullptr, nullptr);
+  }
 }
 
-extern "C" JNIEXPORT int
-JVM_handle_linux_signal(int sig,
-                        siginfo_t* info,
-                        void* ucVoid,
-                        int abort_if_unrecognized) {
-  ucontext_t* uc = (ucontext_t*) ucVoid;
+bool PosixSignals::pd_hotspot_signal_handler(int sig, siginfo_t* info,
+                                             ucontext_t* uc, JavaThread* thread) {
 
-  Thread* t = Thread::current_or_null_safe();
-
-  SignalHandlerMark shm(t);
-
-  // handle SafeFetch faults
-  if (sig == SIGSEGV || sig == SIGBUS) {
-    sigjmp_buf* const pjb = get_jmp_buf_for_continuation();
-    if (pjb) {
-      siglongjmp(*pjb, 1);
-    }
-  }
-
-  // Note: it's not uncommon that JNI code uses signal/sigset to
-  // install then restore certain signal handler (e.g. to temporarily
-  // block SIGPIPE, or have a SIGILL handler when detecting CPU
-  // type). When that happens, JVM_handle_linux_signal() might be
-  // invoked with junk info/ucVoid. To avoid unnecessary crash when
-  // libjsig is not preloaded, try handle signals that do not require
-  // siginfo/ucontext first.
-
-  if (sig == SIGPIPE || sig == SIGXFSZ) {
-    // allow chained handler to go first
-    if (os::Linux::chained_handler(sig, info, ucVoid)) {
-      return true;
-    } else {
-      // Ignoring SIGPIPE/SIGXFSZ - see bugs 4229104 or 6499219
-      return true;
-    }
-  }
-
-  JavaThread* thread = NULL;
-  VMThread* vmthread = NULL;
-  if (os::Linux::signal_handlers_are_installed) {
-    if (t != NULL ){
-      if(t->is_Java_thread()) {
-        thread = (JavaThread*)t;
-      }
-      else if(t->is_VM_thread()){
-        vmthread = (VMThread *)t;
-      }
-    }
-  }
-
-  if (info != NULL && thread != NULL) {
+  if (info != nullptr && thread != nullptr) {
     // Handle ALL stack overflow variations here
     if (sig == SIGSEGV) {
       address addr = (address) info->si_addr;
 
       // check if fault address is within thread stack
-      if (thread->on_local_stack(addr)) {
+      if (thread->is_in_full_stack(addr)) {
+        StackOverflow* overflow_state = thread->stack_overflow_state();
         // stack overflow
-        if (thread->in_stack_yellow_reserved_zone(addr)) {
-          thread->disable_stack_yellow_reserved_zone();
+        if (overflow_state->in_stack_yellow_reserved_zone(addr)) {
+          overflow_state->disable_stack_yellow_reserved_zone();
           ShouldNotCallThis();
         }
-        else if (thread->in_stack_red_zone(addr)) {
-          thread->disable_stack_red_zone();
+        else if (overflow_state->in_stack_red_zone(addr)) {
+          overflow_state->disable_stack_red_zone();
           ShouldNotCallThis();
         }
         else {
@@ -211,7 +256,8 @@ JVM_handle_linux_signal(int sig,
     /*if (thread->thread_state() == _thread_in_Java) {
       ShouldNotCallThis();
     }
-    else*/ if (thread->thread_state() == _thread_in_vm &&
+    else*/ if ((thread->thread_state() == _thread_in_vm ||
+               thread->thread_state() == _thread_in_native) &&
                sig == SIGBUS && thread->doing_unsafe_access()) {
       ShouldNotCallThis();
     }
@@ -224,53 +270,10 @@ JVM_handle_linux_signal(int sig,
         stub = addr;
       }
     }*/
-
-    // Check to see if we caught the safepoint code in the process
-    // of write protecting the memory serialization page.  It write
-    // enables the page immediately after protecting it so we can
-    // just return to retry the write.
-    if (sig == SIGSEGV &&
-        os::is_memory_serialize_page(thread, (address) info->si_addr)) {
-      // Block current thread until permission is restored.
-      os::block_on_serialize_page_trap();
-      return true;
-    }
   }
 
-  // signal-chaining
-  if (os::Linux::chained_handler(sig, info, ucVoid)) {
-     return true;
-  }
+  return false; // Fatal error
 
-  if (!abort_if_unrecognized) {
-    // caller wants another chance, so give it to him
-    return false;
-  }
-
-#ifndef PRODUCT
-  if (sig == SIGSEGV) {
-    fatal("\n#"
-          "\n#    /--------------------\\"
-          "\n#    | segmentation fault |"
-          "\n#    \\---\\ /--------------/"
-          "\n#        /"
-          "\n#    [-]        |\\_/|    "
-          "\n#    (+)=C      |o o|__  "
-          "\n#    | |        =-*-=__\\ "
-          "\n#    OOO        c_c_(___)");
-  }
-#endif // !PRODUCT
-
-  char buf[64];
-
-  sprintf(buf, "caught unhandled signal %d", sig);
-
-// Silence -Wformat-security warning for fatal()
-PRAGMA_DIAG_PUSH
-PRAGMA_FORMAT_NONLITERAL_IGNORED
-  fatal(buf);
-PRAGMA_DIAG_POP
-  return true; // silence compiler warnings
 }
 
 void os::Linux::init_thread_fpu_state(void) {
@@ -286,30 +289,12 @@ void os::Linux::set_fpu_control_word(int fpu) {
   ShouldNotCallThis();
 }
 
-bool os::is_allocatable(size_t bytes) {
-#ifdef _LP64
-  return true;
-#else
-  if (bytes < 2 * G) {
-    return true;
-  }
-
-  char* addr = reserve_memory(bytes, NULL);
-
-  if (addr != NULL) {
-    release_memory(addr, bytes);
-  }
-
-  return addr != NULL;
-#endif // _LP64
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // thread stack
 
-size_t os::Posix::_compiler_thread_min_stack_allowed = 64 * K;
-size_t os::Posix::_java_thread_min_stack_allowed = 64 * K;
-size_t os::Posix::_vm_internal_thread_min_stack_allowed = 64 * K;
+size_t os::_compiler_thread_min_stack_allowed = 64 * K;
+size_t os::_java_thread_min_stack_allowed = 64 * K;
+size_t os::_vm_internal_thread_min_stack_allowed = 64 * K;
 
 size_t os::Posix::default_stack_size(os::ThreadType thr_type) {
 #ifdef _LP64
@@ -320,98 +305,94 @@ size_t os::Posix::default_stack_size(os::ThreadType thr_type) {
   return s;
 }
 
-static void current_stack_region(address *bottom, size_t *size) {
-  pthread_attr_t attr;
-  int res = pthread_getattr_np(pthread_self(), &attr);
-  if (res != 0) {
-    if (res == ENOMEM) {
-      vm_exit_out_of_memory(0, OOM_MMAP_ERROR, "pthread_getattr_np");
+void os::current_stack_base_and_size(address* base, size_t* size) {
+  address bottom;
+  if (os::is_primordial_thread()) {
+    // primordial thread needs special handling because pthread_getattr_np()
+    // may return bogus value.
+    bottom = os::Linux::initial_thread_stack_bottom();
+    *size = os::Linux::initial_thread_stack_size();
+    *base = bottom + *size;
+  } else {
+
+    pthread_attr_t attr;
+
+    int rslt = pthread_getattr_np(pthread_self(), &attr);
+
+    // JVM needs to know exact stack location, abort if it fails
+    if (rslt != 0) {
+      if (rslt == ENOMEM) {
+        vm_exit_out_of_memory(0, OOM_MMAP_ERROR, "pthread_getattr_np");
+      } else {
+        fatal("pthread_getattr_np failed with error = %d", rslt);
+      }
     }
-    else {
-      fatal("pthread_getattr_np failed with error = %d", res);
+
+    if (pthread_attr_getstack(&attr, (void **)&bottom, size) != 0) {
+      fatal("Cannot locate current stack attributes!");
     }
-  }
 
-  address stack_bottom;
-  size_t stack_bytes;
-  res = pthread_attr_getstack(&attr, (void **) &stack_bottom, &stack_bytes);
-  if (res != 0) {
-    fatal("pthread_attr_getstack failed with error = %d", res);
-  }
-  address stack_top = stack_bottom + stack_bytes;
+    *base = bottom + *size;
 
-  // The block of memory returned by pthread_attr_getstack() includes
-  // guard pages where present.  We need to trim these off.
-  size_t page_bytes = os::Linux::page_size();
-  assert(((intptr_t) stack_bottom & (page_bytes - 1)) == 0, "unaligned stack");
+    // The block of memory returned by pthread_attr_getstack() includes
+    // guard pages where present.  We need to trim these off.
+    size_t page_bytes = os::vm_page_size();
+    assert(((intptr_t) bottom & (page_bytes - 1)) == 0, "unaligned stack");
 
-  size_t guard_bytes;
-  res = pthread_attr_getguardsize(&attr, &guard_bytes);
-  if (res != 0) {
-    fatal("pthread_attr_getguardsize failed with errno = %d", res);
-  }
-  int guard_pages = align_up(guard_bytes, page_bytes) / page_bytes;
-  assert(guard_bytes == guard_pages * page_bytes, "unaligned guard");
+    size_t guard_bytes;
+    rslt = pthread_attr_getguardsize(&attr, &guard_bytes);
+    if (rslt != 0) {
+      fatal("pthread_attr_getguardsize failed with errno = %d", rslt);
+    }
+    int guard_pages = align_up(guard_bytes, page_bytes) / page_bytes;
+    assert(guard_bytes == guard_pages * page_bytes, "unaligned guard");
 
 #ifdef IA64
-  // IA64 has two stacks sharing the same area of memory, a normal
-  // stack growing downwards and a register stack growing upwards.
-  // Guard pages, if present, are in the centre.  This code splits
-  // the stack in two even without guard pages, though in theory
-  // there's nothing to stop us allocating more to the normal stack
-  // or more to the register stack if one or the other were found
-  // to grow faster.
-  int total_pages = align_down(stack_bytes, page_bytes) / page_bytes;
-  stack_bottom += (total_pages - guard_pages) / 2 * page_bytes;
+    // IA64 has two stacks sharing the same area of memory, a normal
+    // stack growing downwards and a register stack growing upwards.
+    // Guard pages, if present, are in the centre.  This code splits
+    // the stack in two even without guard pages, though in theory
+    // there's nothing to stop us allocating more to the normal stack
+    // or more to the register stack if one or the other were found
+    // to grow faster.
+    int total_pages = align_down(stack_bytes, page_bytes) / page_bytes;
+    bottom += (total_pages - guard_pages) / 2 * page_bytes;
 #endif // IA64
 
-  stack_bottom += guard_bytes;
+    bottom += guard_bytes;
+    *size = *base - bottom;
 
-  pthread_attr_destroy(&attr);
-
-  // The initial thread has a growable stack, and the size reported
-  // by pthread_attr_getstack is the maximum size it could possibly
-  // be given what currently mapped.  This can be huge, so we cap it.
-  if (os::is_primordial_thread()) {
-    stack_bytes = stack_top - stack_bottom;
-
-    if (stack_bytes > JavaThread::stack_size_at_create())
-      stack_bytes = JavaThread::stack_size_at_create();
-
-    stack_bottom = stack_top - stack_bytes;
+    pthread_attr_destroy(&attr);
   }
 
-  assert(os::current_stack_pointer() >= stack_bottom, "should do");
-  assert(os::current_stack_pointer() < stack_top, "should do");
-
-  *bottom = stack_bottom;
-  *size = stack_top - stack_bottom;
-}
-
-address os::current_stack_base() {
-  address bottom;
-  size_t size;
-  current_stack_region(&bottom, &size);
-  return bottom + size;
-}
-
-size_t os::current_stack_size() {
-  // stack size includes normal stack and HotSpot guard pages
-  address bottom;
-  size_t size;
-  current_stack_region(&bottom, &size);
-  return size;
+  assert(os::current_stack_pointer() >= bottom &&
+         os::current_stack_pointer() < *base, "just checking");
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // helper functions for fatal error handler
 
-void os::print_context(outputStream* st, const void* context) {
-  ShouldNotCallThis();
+void os::print_context(outputStream* st, const void* ucVoid) {
+  st->print_cr("No context information.");
 }
 
-void os::print_register_info(outputStream *st, const void *context) {
-  ShouldNotCallThis();
+void os::print_tos_pc(outputStream *st, const void* ucVoid) {
+  const ucontext_t* uc = (const ucontext_t*)ucVoid;
+
+  address sp = (address)os::Linux::ucontext_get_sp(uc);
+  print_tos(st, sp);
+  st->cr();
+
+  // Note: it may be unsafe to inspect memory near pc. For example, pc may
+  // point to garbage if entry point in an nmethod is corrupted. Leave
+  // this at the end, and hope for the best.
+  address pc = os::Posix::ucontext_get_pc(uc);
+  print_instructions(st, pc);
+  st->cr();
+}
+
+void os::print_register_info(outputStream *st, const void *context, int& continuation) {
+  st->print_cr("No register info.");
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -424,85 +405,70 @@ extern "C" {
   }
 
 
-  void _Copy_conjoint_jshorts_atomic(jshort* from, jshort* to, size_t count) {
+  void _Copy_conjoint_jshorts_atomic(const jshort* from, jshort* to, size_t count) {
     if (from > to) {
-      jshort *end = from + count;
+      const jshort *end = from + count;
       while (from < end)
         *(to++) = *(from++);
     }
     else if (from < to) {
-      jshort *end = from;
+      const jshort *end = from;
       from += count - 1;
       to   += count - 1;
       while (from >= end)
         *(to--) = *(from--);
     }
   }
-  void _Copy_conjoint_jints_atomic(jint* from, jint* to, size_t count) {
+  void _Copy_conjoint_jints_atomic(const jint* from, jint* to, size_t count) {
     if (from > to) {
-      jint *end = from + count;
+      const jint *end = from + count;
       while (from < end)
         *(to++) = *(from++);
     }
     else if (from < to) {
-      jint *end = from;
+      const jint *end = from;
       from += count - 1;
       to   += count - 1;
       while (from >= end)
         *(to--) = *(from--);
     }
   }
-  void _Copy_conjoint_jlongs_atomic(jlong* from, jlong* to, size_t count) {
+  void _Copy_conjoint_jlongs_atomic(const jlong* from, jlong* to, size_t count) {
     if (from > to) {
-      jlong *end = from + count;
+      const jlong *end = from + count;
       while (from < end)
-        os::atomic_copy64(from++, to++);
+        atomic_copy64(from++, to++);
     }
     else if (from < to) {
-      jlong *end = from;
+      const jlong *end = from;
       from += count - 1;
       to   += count - 1;
       while (from >= end)
-        os::atomic_copy64(from--, to--);
+        atomic_copy64(from--, to--);
     }
   }
 
-  void _Copy_arrayof_conjoint_bytes(HeapWord* from,
+  void _Copy_arrayof_conjoint_bytes(const HeapWord* from,
                                     HeapWord* to,
                                     size_t    count) {
     memmove(to, from, count);
   }
-  void _Copy_arrayof_conjoint_jshorts(HeapWord* from,
+  void _Copy_arrayof_conjoint_jshorts(const HeapWord* from,
                                       HeapWord* to,
                                       size_t    count) {
     memmove(to, from, count * 2);
   }
-  void _Copy_arrayof_conjoint_jints(HeapWord* from,
+  void _Copy_arrayof_conjoint_jints(const HeapWord* from,
                                     HeapWord* to,
                                     size_t    count) {
     memmove(to, from, count * 4);
   }
-  void _Copy_arrayof_conjoint_jlongs(HeapWord* from,
+  void _Copy_arrayof_conjoint_jlongs(const HeapWord* from,
                                      HeapWord* to,
                                      size_t    count) {
     memmove(to, from, count * 8);
   }
 };
-
-/////////////////////////////////////////////////////////////////////////////
-// Implementations of atomic operations not supported by processors.
-//  -- http://gcc.gnu.org/onlinedocs/gcc-4.2.1/gcc/Atomic-Builtins.html
-
-#ifndef _LP64
-extern "C" {
-  long long unsigned int __sync_val_compare_and_swap_8(
-    volatile void *ptr,
-    long long unsigned int oldval,
-    long long unsigned int newval) {
-    ShouldNotCallThis();
-  }
-};
-#endif // !_LP64
 
 #ifndef PRODUCT
 void os::verify_stack_alignment() {
@@ -513,3 +479,5 @@ int os::extra_bang_size_in_bytes() {
   // Zero does not require an additional stack banging.
   return 0;
 }
+
+void os::setup_fpu() {}

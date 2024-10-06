@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,10 @@ public class MakeWindowAlwaysOnTop
 {
     private static Frame f;
     private static Dialog d;
+
+    // move away from cursor
+    private final static int OFFSET_X = -20;
+    private final static int OFFSET_Y = -20;
 
     public static void main(String[] args) throws Exception
     {
@@ -101,7 +105,7 @@ public class MakeWindowAlwaysOnTop
         Util.waitForIdle(r);
 
 
-        Color c = r.getPixelColor(p.x + f.getWidth() / 2, p.y + f.getHeight() / 2);
+        Color c = r.getPixelColor(p.x + f.getWidth() / 2 - OFFSET_X, p.y + f.getHeight() / 2 - OFFSET_Y);
         System.out.println("Color = " + c);
 
         String exceptionMessage = null;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,7 +53,7 @@ import javax.sql.rowset.*;
  * the SQL type name of the SQL structured type in the database, and methods
  * for retrieving its attribute values.
  *
- * <h3> Thread safety </h3>
+ * <h2> Thread safety </h2>
  *
  * A SerialStruct is not safe for use by multiple concurrent threads.  If a
  * SerialStruct is to be used by more than one thread then access to the
@@ -82,6 +82,7 @@ public class SerialStruct implements Struct, Serializable, Cloneable {
      *
      * @serial
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private Object attribs[];
 
     /**
@@ -321,6 +322,11 @@ public class SerialStruct implements Struct, Serializable, Cloneable {
     /**
      * readObject is called to restore the state of the {@code SerialStruct} from
      * a stream.
+     * @param s the {@code ObjectInputStream} to read from.
+     *
+     * @throws  ClassNotFoundException if the class of a serialized object
+     *          could not be found.
+     * @throws  IOException if an I/O error occurs.
      */
     private void readObject(ObjectInputStream s)
             throws IOException, ClassNotFoundException {
@@ -334,9 +340,11 @@ public class SerialStruct implements Struct, Serializable, Cloneable {
     /**
      * writeObject is called to save the state of the {@code SerialStruct}
      * to a stream.
+     * @param s the {@code ObjectOutputStream} to write to.
+     * @throws  IOException if an I/O error occurs.
      */
     private void writeObject(ObjectOutputStream s)
-            throws IOException, ClassNotFoundException {
+            throws IOException {
 
         ObjectOutputStream.PutField fields = s.putFields();
         fields.put("attribs", attribs);

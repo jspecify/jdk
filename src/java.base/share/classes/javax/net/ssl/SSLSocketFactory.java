@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,31 +42,20 @@ import sun.security.action.GetPropertyAction;
  * @see SSLSocket
  * @author David Brownell
  */
-public abstract class SSLSocketFactory extends SocketFactory
-{
-    private static SSLSocketFactory theFactory;
-
-    private static boolean propertyChecked;
-
+public abstract class SSLSocketFactory extends SocketFactory {
     static final boolean DEBUG;
 
     static {
-        String s = GetPropertyAction.privilegedGetProperty("javax.net.debug", "")
-                .toLowerCase(Locale.ENGLISH);
-
+        String s = GetPropertyAction.privilegedGetProperty(
+                "javax.net.debug", "").toLowerCase(Locale.ENGLISH);
         DEBUG = s.contains("all") || s.contains("ssl");
-    }
-
-    private static void log(String msg) {
-        if (DEBUG) {
-            System.out.println(msg);
-        }
     }
 
     /**
      * Constructor is used only by subclasses.
      */
     public SSLSocketFactory() {
+        // blank
     }
 
     /**
@@ -85,60 +74,29 @@ public abstract class SSLSocketFactory extends SocketFactory
      * @return the default <code>SocketFactory</code>
      * @see SSLContext#getDefault
      */
-    public static synchronized SocketFactory getDefault() {
-        if (theFactory != null) {
-            return theFactory;
-        }
-
-        if (propertyChecked == false) {
-            propertyChecked = true;
-            String clsName = getSecurityProperty("ssl.SocketFactory.provider");
-            if (clsName != null) {
-                log("setting up default SSLSocketFactory");
-                try {
-                    Class<?> cls = null;
-                    try {
-                        cls = Class.forName(clsName);
-                    } catch (ClassNotFoundException e) {
-                        ClassLoader cl = ClassLoader.getSystemClassLoader();
-                        if (cl != null) {
-                            cls = cl.loadClass(clsName);
-                        }
-                    }
-                    log("class " + clsName + " is loaded");
-                    @SuppressWarnings("deprecation")
-                    SSLSocketFactory fac = (SSLSocketFactory)cls.newInstance();
-                    log("instantiated an instance of class " + clsName);
-                    theFactory = fac;
-                    return fac;
-                } catch (Exception e) {
-                    log("SSLSocketFactory instantiation failed: " + e.toString());
-                    theFactory = new DefaultSSLSocketFactory(e);
-                    return theFactory;
-                }
-            }
+    public static SocketFactory getDefault() {
+        if (DefaultFactoryHolder.defaultFactory != null) {
+            return DefaultFactoryHolder.defaultFactory;
         }
 
         try {
             return SSLContext.getDefault().getSocketFactory();
-        } catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException | UnsupportedOperationException e) {
             return new DefaultSSLSocketFactory(e);
         }
     }
 
+    @SuppressWarnings("removal")
     static String getSecurityProperty(final String name) {
-        return AccessController.doPrivileged(new PrivilegedAction<>() {
-            @Override
-            public String run() {
-                String s = java.security.Security.getProperty(name);
-                if (s != null) {
-                    s = s.trim();
-                    if (s.length() == 0) {
-                        s = null;
-                    }
+        return AccessController.doPrivileged((PrivilegedAction<String>) () -> {
+            String s = Security.getProperty(name);
+            if (s != null) {
+                s = s.trim();
+                if (s.isEmpty()) {
+                    s = null;
                 }
-                return s;
             }
+            return s;
         });
     }
 
@@ -152,9 +110,9 @@ public abstract class SSLSocketFactory extends SocketFactory
      * The returned array includes cipher suites from the list of standard
      * cipher suite names in the <a href=
      * "{@docRoot}/../specs/security/standard-names.html#jsse-cipher-suite-names">
-     * JSSE Cipher Suite Names</a> section of the Java Cryptography
-     * Architecture Standard Algorithm Name Documentation, and may also
-     * include other cipher suites that the provider supports.
+     * JSSE Cipher Suite Names</a> section of the Java Security Standard
+     * Algorithm Names Specification, and may also include other cipher suites
+     * that the provider supports.
      *
      * @see #getSupportedCipherSuites()
      * @return array of the cipher suites enabled by default
@@ -171,9 +129,9 @@ public abstract class SSLSocketFactory extends SocketFactory
      * The returned array includes cipher suites from the list of standard
      * cipher suite names in the <a href=
      * "{@docRoot}/../specs/security/standard-names.html#jsse-cipher-suite-names">
-     * JSSE Cipher Suite Names</a> section of the Java Cryptography
-     * Architecture Standard Algorithm Name Documentation, and may also
-     * include other cipher suites that the provider supports.
+     * JSSE Cipher Suite Names</a> section of the Java Security Standard
+     * Algorithm Names Specification, and may also include other cipher suites
+     * that the provider supports.
      *
      * @see #getDefaultCipherSuites()
      * @return an array of cipher suite names
@@ -214,7 +172,7 @@ public abstract class SSLSocketFactory extends SocketFactory
      * underlying {@link InputStream} should be loaded into the
      * {@code consumed} stream before this method is called, perhaps
      * using a {@link java.io.ByteArrayInputStream}.  When this
-     * {@link Socket} begins handshaking, it will read all of the data in
+     * {@link Socket} begins handshaking, it will read all the data in
      * {@code consumed} until it reaches {@code EOF}, then all further
      * data is read from the underlying {@link InputStream} as
      * usual.
@@ -246,21 +204,63 @@ public abstract class SSLSocketFactory extends SocketFactory
             boolean autoClose) throws IOException {
         throw new UnsupportedOperationException();
     }
+
+    // lazy initialization holder class idiom for static default factory
+    //
+    // See Effective Java Second Edition: Item 71.
+    private static final class DefaultFactoryHolder {
+        private static final SSLSocketFactory defaultFactory;
+
+        static {
+            SSLSocketFactory mediator = null;
+            String clsName = getSecurityProperty("ssl.SocketFactory.provider");
+            if (clsName != null) {
+                log("setting up default SSLSocketFactory");
+                try {
+                    Class<?> cls = null;
+                    try {
+                        cls = Class.forName(clsName);
+                    } catch (ClassNotFoundException e) {
+                        ClassLoader cl = ClassLoader.getSystemClassLoader();
+                        if (cl != null) {
+                            cls = cl.loadClass(clsName);
+                        }
+                    }
+                    log("class " + clsName + " is loaded");
+
+                    mediator = (SSLSocketFactory)cls
+                            .getDeclaredConstructor().newInstance();
+
+                    log("instantiated an instance of class " + clsName);
+                } catch (Exception e) {
+                    log("SSLSocketFactory instantiation failed: " + e);
+                    mediator = new DefaultSSLSocketFactory(e);
+                }
+            }
+
+            defaultFactory = mediator;
+        }
+
+        private static void log(String msg) {
+            if (DEBUG) {
+                System.out.println(msg);
+            }
+        }
+    }
 }
 
 
 // file private
 class DefaultSSLSocketFactory extends SSLSocketFactory
 {
-    private Exception reason;
+    private final Exception reason;
 
     DefaultSSLSocketFactory(Exception reason) {
         this.reason = reason;
     }
 
     private Socket throwException() throws SocketException {
-        throw (SocketException)
-            new SocketException(reason.toString()).initCause(reason);
+        throw new SocketException(reason.toString(), reason);
     }
 
     @Override

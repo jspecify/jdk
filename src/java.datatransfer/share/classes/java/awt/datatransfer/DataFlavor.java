@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,7 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.io.OptionalDataException;
 import java.io.Reader;
+import java.io.Serial;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
@@ -115,8 +116,11 @@ import sun.reflect.misc.ReflectUtil;
 
 public class DataFlavor implements Externalizable, Cloneable {
 
+    /**
+     * Use serialVersionUID from JDK 1.2 for interoperability.
+     */
+    @Serial
     private static final long serialVersionUID = 8367026044764648243L;
-    private static final Class<InputStream> ioInputStreamClass = InputStream.class;
 
     /**
      * Tries to load a class from: the bootstrap loader, the system loader, the
@@ -133,6 +137,7 @@ public class DataFlavor implements Externalizable, Cloneable {
     {
         ReflectUtil.checkPackageAccess(className);
         try {
+            @SuppressWarnings("removal")
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 sm.checkPermission(new RuntimePermission("getClassLoader"));
@@ -185,10 +190,10 @@ public class DataFlavor implements Externalizable, Cloneable {
     /*
      * private initializer
      */
-    private static DataFlavor initHtmlDataFlavor(String htmlFlavorType) {
+    private static DataFlavor initHtml(String htmlFlavorType) {
         try {
-            return new DataFlavor ("text/html; class=java.lang.String;document=" +
-                                       htmlFlavorType + ";charset=Unicode");
+            return new DataFlavor("text/html; class=java.lang.String;document="
+                                      + htmlFlavorType + ";charset=Unicode");
         } catch (Exception e) {
             return null;
         }
@@ -292,7 +297,7 @@ public class DataFlavor implements Externalizable, Cloneable {
      *
      * @since 1.8
      */
-    public static DataFlavor selectionHtmlFlavor = initHtmlDataFlavor("selection");
+    public static final DataFlavor selectionHtmlFlavor = initHtml("selection");
 
     /**
      * Represents a piece of an HTML markup. If possible, the markup received
@@ -306,7 +311,7 @@ public class DataFlavor implements Externalizable, Cloneable {
      *
      * @since 1.8
      */
-    public static DataFlavor fragmentHtmlFlavor = initHtmlDataFlavor("fragment");
+    public static final DataFlavor fragmentHtmlFlavor = initHtml("fragment");
 
     /**
      * Represents a piece of an HTML markup. If possible, the markup received
@@ -320,7 +325,7 @@ public class DataFlavor implements Externalizable, Cloneable {
      *
      * @since 1.8
      */
-    public static DataFlavor allHtmlFlavor = initHtmlDataFlavor("all");
+    public static final DataFlavor allHtmlFlavor = initHtml("all");
 
     /**
      * Constructs a new {@code DataFlavor}. This constructor is provided only
@@ -1145,7 +1150,7 @@ public class DataFlavor implements Externalizable, Cloneable {
      * @return the default representation class
      */
     public final Class<?> getDefaultRepresentationClass() {
-        return ioInputStreamClass;
+        return java.io.InputStream.class;
     }
 
     /**
@@ -1164,7 +1169,7 @@ public class DataFlavor implements Externalizable, Cloneable {
      *         {@code java.io.InputStream}
      */
     public boolean isRepresentationClassInputStream() {
-        return ioInputStreamClass.isAssignableFrom(representationClass);
+        return java.io.InputStream.class.isAssignableFrom(representationClass);
     }
 
     /**

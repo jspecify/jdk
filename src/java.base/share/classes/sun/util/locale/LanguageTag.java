@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,9 @@ package sun.util.locale;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IllformedLocaleException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -59,11 +61,10 @@ public class LanguageTag {
     private List<String> extlangs = Collections.emptyList();   // extlang subtags
     private List<String> variants = Collections.emptyList();   // variant subtags
     private List<String> extensions = Collections.emptyList(); // extensions
-
-    // Map contains grandfathered tags and its preferred mappings from
+    // Map contains legacy language tags and its preferred mappings from
     // http://www.ietf.org/rfc/rfc5646.txt
     // Keys are lower-case strings.
-    private static final Map<String, String[]> GRANDFATHERED = new HashMap<>();
+    private static final Map<String, String[]> LEGACY = new HashMap<>();
 
     static {
         // grandfathered = irregular           ; non-redundant tags registered
@@ -127,7 +128,7 @@ public class LanguageTag {
             {"zh-xiang",    "hsn"},
         };
         for (String[] e : entries) {
-            GRANDFATHERED.put(LocaleUtils.toLowerString(e[0]), e);
+            LEGACY.put(LocaleUtils.toLowerString(e[0]), e);
         }
     }
 
@@ -188,8 +189,8 @@ public class LanguageTag {
 
         StringTokenIterator itr;
 
-        // Check if the tag is grandfathered
-        String[] gfmap = GRANDFATHERED.get(LocaleUtils.toLowerString(languageTag));
+        // Check if the tag is a legacy language tag
+        String[] gfmap = LEGACY.get(LocaleUtils.toLowerString(languageTag));
         if (gfmap != null) {
             // use preferred mapping
             itr = new StringTokenIterator(gfmap[1], SEP);
@@ -208,17 +209,15 @@ public class LanguageTag {
             tag.parseExtensions(itr, sts);
         }
         tag.parsePrivateuse(itr, sts);
-
         if (!itr.isDone() && !sts.isError()) {
             String s = itr.current();
             sts.errorIndex = itr.currentStart();
-            if (s.length() == 0) {
+            if (s.isEmpty()) {
                 sts.errorMsg = "Empty subtag";
             } else {
                 sts.errorMsg = "Invalid subtag: " + s;
             }
         }
-
         return tag;
     }
 
@@ -414,6 +413,54 @@ public class LanguageTag {
         return found;
     }
 
+    public static String caseFoldTag(String tag) {
+        ParseStatus sts = new ParseStatus();
+        parse(tag, sts);
+        // Illegal tags
+        if (sts.errorMsg != null) {
+            throw new IllformedLocaleException(String.format("Ill formed tag:" +
+                    " %s", sts.errorMsg));
+        }
+        // Legacy tags
+        String potentialLegacy = tag.toLowerCase(Locale.ROOT);
+        if (LEGACY.containsKey(potentialLegacy)) {
+            return LEGACY.get(potentialLegacy)[0];
+        }
+        // Non-legacy tags
+        StringBuilder bldr = new StringBuilder(tag.length());
+        String[] subtags = tag.split("-");
+        boolean privateFound = false;
+        boolean singletonFound = false;
+        boolean privUseVarFound = false;
+        for (int i = 0; i < subtags.length; i++) {
+            String subtag = subtags[i];
+            if (privUseVarFound) {
+                bldr.append(subtag);
+            } else if (i > 0 && isVariant(subtag) && !singletonFound && !privateFound) {
+                bldr.append(subtag);
+            } else if (i > 0 && isRegion(subtag) && !singletonFound && !privateFound) {
+                bldr.append(canonicalizeRegion(subtag));
+            } else if (i > 0 && isScript(subtag) && !singletonFound && !privateFound) {
+                bldr.append(canonicalizeScript(subtag));
+            // If subtag is not 2 letter, 4 letter, or variant
+            // under the right conditions, then it should be lower-case
+            } else {
+                if (isPrivateusePrefix(subtag)) {
+                    privateFound = true;
+                } else if (isExtensionSingleton(subtag)) {
+                    singletonFound = true;
+                } else if (subtag.equals(PRIVUSE_VARIANT_PREFIX)) {
+                    privUseVarFound = true;
+                }
+                bldr.append(subtag.toLowerCase(Locale.ROOT));
+            }
+            if (i != subtags.length-1) {
+                bldr.append("-");
+            }
+        }
+        return bldr.substring(0);
+    }
+
     public static LanguageTag parseLocale(BaseLocale baseLocale, LocaleExtensions localeExtensions) {
         LanguageTag tag = new LanguageTag();
 
@@ -454,7 +501,7 @@ public class LanguageTag {
             variant = "";
         }
 
-        if (variant.length() > 0) {
+        if (!variant.isEmpty()) {
             List<String> variants = null;
             StringTokenIterator varitr = new StringTokenIterator(variant, BaseLocale.SEP);
             while (!varitr.isDone()) {
@@ -527,7 +574,7 @@ public class LanguageTag {
             tag.privateuse = privateuse;
         }
 
-        if (tag.language.length() == 0 && (hasSubtag || privateuse == null)) {
+        if (tag.language.isEmpty() && (hasSubtag || privateuse == null)) {
             // use lang "und" when 1) no language is available AND
             // 2) any of other subtags other than private use are available or
             // no private use tag is available
@@ -712,18 +759,18 @@ public class LanguageTag {
     public String toString() {
         StringBuilder sb = new StringBuilder();
 
-        if (language.length() > 0) {
+        if (!language.isEmpty()) {
             sb.append(language);
 
             for (String extlang : extlangs) {
                 sb.append(SEP).append(extlang);
             }
 
-            if (script.length() > 0) {
+            if (!script.isEmpty()) {
                 sb.append(SEP).append(script);
             }
 
-            if (region.length() > 0) {
+            if (!region.isEmpty()) {
                 sb.append(SEP).append(region);
             }
 
@@ -735,7 +782,7 @@ public class LanguageTag {
                 sb.append(SEP).append(extension);
             }
         }
-        if (privateuse.length() > 0) {
+        if (!privateuse.isEmpty()) {
             if (sb.length() > 0) {
                 sb.append(SEP);
             }

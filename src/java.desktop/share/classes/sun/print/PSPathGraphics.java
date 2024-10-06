@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -423,7 +423,9 @@ class PSPathGraphics extends PathGraphics {
                  * rendering just the opaque pixels.
                  */
                 boolean drawOpaque = true;
-                if (!handlingTransparency && hasTransparentPixels(img)) {
+                if (isCompositing(getComposite())) {
+                    drawOpaque = false;
+                } else if (!handlingTransparency && hasTransparentPixels(img)) {
                     drawOpaque = false;
                     if (isBitmaskTransparency(img)) {
                         if (bgcolor == null) {
@@ -448,7 +450,7 @@ class PSPathGraphics extends PathGraphics {
                     bgcolor = null;
                 }
                 // if src region extends beyond the image, the "opaque" path
-                // may blit b/g colour (including white) where it shoudn't.
+                // may blit b/g colour (including white) where it shouldn't.
                 if ((srcX+srcWidth > img.getWidth(null) ||
                      srcY+srcHeight > img.getHeight(null))
                     && canDoRedraws()) {
@@ -628,7 +630,7 @@ class PSPathGraphics extends PathGraphics {
         return true;
     }
 
-    /** Redraw a rectanglular area using a proxy graphics
+    /** Redraw a rectangular area using a proxy graphics
       * To do this we need to know the rectangular area to redraw and
       * the transform & clip in effect at the time of the original drawImage
       *

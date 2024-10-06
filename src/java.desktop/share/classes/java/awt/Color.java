@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,12 @@
 
 package java.awt;
 
-import org.jspecify.annotations.Nullable;
-
-import java.beans.ConstructorProperties;
-import java.awt.image.ColorModel;
+import java.awt.color.ColorSpace;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
-import java.awt.color.ColorSpace;
+import java.awt.image.ColorModel;
+import java.beans.ConstructorProperties;
+import java.io.Serial;
 
 /**
  * The {@code Color} class is used to encapsulate colors in the default
@@ -221,7 +220,7 @@ public class Color implements Paint, java.io.Serializable {
      * @see #getRGBColorComponents
      * @see #getRGBComponents
      */
-    private float frgbvalue[] = null;
+    private float[] frgbvalue = null;
 
     /**
      * The color value in the native {@code ColorSpace} as
@@ -233,7 +232,7 @@ public class Color implements Paint, java.io.Serializable {
      * @see #getRGBColorComponents
      * @see #getRGBComponents
      */
-    private float fvalue[] = null;
+    private float[] fvalue = null;
 
     /**
      * The alpha value as a {@code float} component.
@@ -255,30 +254,11 @@ public class Color implements Paint, java.io.Serializable {
      */
     private ColorSpace cs = null;
 
-    /*
-     * JDK 1.1 serialVersionUID
-     */
-     private static final long serialVersionUID = 118526816881161077L;
-
     /**
-     * Initialize JNI field and method IDs
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
-    private static native void initIDs();
-
-    static {
-        /** 4112352 - Calling getDefaultToolkit()
-         ** here can cause this class to be accessed before it is fully
-         ** initialized. DON'T DO IT!!!
-         **
-         ** Toolkit.getDefaultToolkit();
-         **/
-
-        /* ensure that the necessary native libraries are loaded */
-        Toolkit.loadLibraries();
-        if (!GraphicsEnvironment.isHeadless()) {
-            initIDs();
-        }
-    }
+     @Serial
+     private static final long serialVersionUID = 118526816881161077L;
 
     /**
      * Checks the color integer components supplied for validity.
@@ -516,7 +496,7 @@ public class Color implements Paint, java.io.Serializable {
      * @see #getComponents
      * @see #getColorComponents
      */
-    public Color(ColorSpace cspace, float components[], float alpha) {
+    public Color(ColorSpace cspace, float[] components, float alpha) {
         boolean rangeError = false;
         String badComponentString = "";
         int n = cspace.getNumComponents();
@@ -697,9 +677,7 @@ public class Color implements Paint, java.io.Serializable {
      *                             {@code false} otherwise.
      * @since   1.0
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         return obj instanceof Color && ((Color)obj).getRGB() == this.getRGB();
     }
 
@@ -724,7 +702,7 @@ public class Color implements Paint, java.io.Serializable {
      *                            an opaque color as a 24-bit integer
      * @return     the new {@code Color} object.
      * @see        java.lang.Integer#decode
-     * @exception  NumberFormatException  if the specified string cannot
+     * @throws  NumberFormatException  if the specified string cannot
      *                      be interpreted as a decimal,
      *                      octal, or hexadecimal integer.
      * @since      1.1
@@ -1114,7 +1092,7 @@ public class Color implements Paint, java.io.Serializable {
         if (cs == null) {
             cs = ColorSpace.getInstance(ColorSpace.CS_sRGB);
         }
-        float f[];
+        float[] f;
         if (fvalue == null) {
             f = new float[3];
             f[0] = ((float)getRed())/255f;
@@ -1123,8 +1101,8 @@ public class Color implements Paint, java.io.Serializable {
         } else {
             f = fvalue;
         }
-        float tmp[] = cs.toCIEXYZ(f);
-        float tmpout[] = cspace.fromCIEXYZ(tmp);
+        float[] tmp = cs.toCIEXYZ(f);
+        float[] tmpout = cspace.fromCIEXYZ(tmp);
         if (compArray == null) {
             compArray = new float[tmpout.length + 1];
         }
@@ -1158,7 +1136,7 @@ public class Color implements Paint, java.io.Serializable {
         if (cs == null) {
             cs = ColorSpace.getInstance(ColorSpace.CS_sRGB);
         }
-        float f[];
+        float[] f;
         if (fvalue == null) {
             f = new float[3];
             f[0] = ((float)getRed())/255f;
@@ -1167,8 +1145,8 @@ public class Color implements Paint, java.io.Serializable {
         } else {
             f = fvalue;
         }
-        float tmp[] = cs.toCIEXYZ(f);
-        float tmpout[] = cspace.fromCIEXYZ(tmp);
+        float[] tmp = cs.toCIEXYZ(f);
+        float[] tmpout = cspace.fromCIEXYZ(tmp);
         if (compArray == null) {
             return tmpout;
         }

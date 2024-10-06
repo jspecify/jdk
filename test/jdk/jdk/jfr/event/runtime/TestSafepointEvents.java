@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -36,28 +34,24 @@ import jdk.jfr.consumer.RecordedEvent;
 import jdk.test.lib.Asserts;
 import jdk.test.lib.jfr.EventNames;
 import jdk.test.lib.jfr.Events;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 /**
  * @test TestSafepointEvents
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib
- * @build sun.hotspot.WhiteBox
- * @run main ClassFileInstaller sun.hotspot.WhiteBox
- *     sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:.
- *                   -XX:+FlightRecorder -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   jdk.jfr.event.runtime.TestSafepointEvents
  */
 public class TestSafepointEvents {
 
     static final String[] EVENT_NAMES = new String[] {
         EventNames.SafepointBegin,
-        EventNames.SafepointStateSyncronization,
-        EventNames.SafepointWaitBlocked,
-        EventNames.SafepointCleanup,
-        EventNames.SafepointCleanupTask,
+        EventNames.SafepointStateSynchronization,
         EventNames.SafepointEnd
     };
 
@@ -72,9 +66,10 @@ public class TestSafepointEvents {
 
         try {
             // Verify that each event type was seen at least once
+            List<RecordedEvent> events = Events.fromRecording(recording);
             for (String name : EVENT_NAMES) {
                 boolean found = false;
-                for (RecordedEvent event : Events.fromRecording(recording)) {
+                for (RecordedEvent event : events) {
                     found = event.getEventType().getName().equals(name);
                     if (found) {
                         break;
@@ -84,9 +79,9 @@ public class TestSafepointEvents {
             }
 
             // Collect all events grouped by safepoint id
-            SortedMap<Integer, Set<String>> safepointIds = new TreeMap<>();
-            for (RecordedEvent event : Events.fromRecording(recording)) {
-                Integer safepointId = event.getValue("safepointId");
+            SortedMap<Long, Set<String>> safepointIds = new TreeMap<>();
+            for (RecordedEvent event : events) {
+                Long safepointId = event.getValue("safepointId");
                 if (!safepointIds.containsKey(safepointId)) {
                     safepointIds.put(safepointId, new HashSet<>());
                 }

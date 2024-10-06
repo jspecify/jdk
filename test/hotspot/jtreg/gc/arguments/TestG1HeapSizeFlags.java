@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,19 +21,21 @@
  * questions.
  */
 
+package gc.arguments;
+
 /*
  * @test TestG1HeapSizeFlags
- * @key gc
  * @bug 8006088
- * @requires vm.gc.G1
  * @summary Tests argument processing for initial and maximum heap size for the G1 collector
+ * @key flag-sensitive
+ * @requires vm.gc.G1 & vm.opt.MinHeapSize == null & vm.opt.MaxHeapSize == null & vm.opt.InitialHeapSize == null
  * @library /test/lib
+ * @library /
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                              sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm TestG1HeapSizeFlags
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run driver gc.arguments.TestG1HeapSizeFlags
  * @author thomas.schatzl@oracle.com
  */
 
@@ -47,4 +49,3 @@ public class TestG1HeapSizeFlags {
     TestMaxHeapSizeTools.checkGenMaxHeapErgo(gcName);
   }
 }
-

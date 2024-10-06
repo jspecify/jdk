@@ -28,6 +28,7 @@
  *
  * @modules java.base/jdk.internal.misc
  *
+ * @requires vm.flagless
  * @requires os.arch=="aarch64" & vm.debug == true &
  *           vm.flavor == "server" & !vm.graal.enabled &
  *           vm.gc.Serial
@@ -38,6 +39,9 @@
  *        compiler.c2.aarch64.TestVolatileStore
  *        compiler.c2.aarch64.TestUnsafeVolatileStore
  *        compiler.c2.aarch64.TestUnsafeVolatileCAS
+ *        compiler.c2.aarch64.TestUnsafeVolatileWeakCAS
+ *        compiler.c2.aarch64.TestUnsafeVolatileCAE
+ *        compiler.c2.aarch64.TestUnsafeVolatileGAS
  *
  * @run driver compiler.c2.aarch64.TestVolatilesSerial
  *      TestVolatileLoad Serial
@@ -53,6 +57,15 @@
  *
  * @run driver compiler.c2.aarch64.TestVolatilesSerial
  *      TestUnsafeVolatileCAS Serial
+ *
+ * @run driver compiler.c2.aarch64.TestVolatilesSerial
+ *      TestUnsafeVolatileWeakCAS Serial
+ *
+ * @run driver compiler.c2.aarch64.TestVolatilesSerial
+ *      TestUnsafeVolatileCAE Serial
+ *
+ * @run driver compiler.c2.aarch64.TestVolatilesSerial
+ *      TestUnsafeVolatileGAS Serial
  */
 
 package compiler.c2.aarch64;

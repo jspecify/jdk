@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +26,13 @@
  * @test
  * @bug 8054836
  * @summary Test to verify correctness of malloc tracking
- * @key nmt jcmd
+ * @key randomness
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:NativeMemoryTracking=detail MallocTrackingVerify
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:NativeMemoryTracking=summary MallocTrackingVerify
  *
  */
 
@@ -41,8 +42,9 @@ import java.util.Random;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.JDKToolFinder;
+import jdk.test.lib.Utils;
 
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 public class MallocTrackingVerify {
     private static int MAX_ALLOC = 4 * 1024;
@@ -52,13 +54,8 @@ public class MallocTrackingVerify {
     public static WhiteBox wb = WhiteBox.getWhiteBox();
 
     public static void main(String args[]) throws Exception {
-        OutputAnalyzer output;
 
-        // Grab my own PID
-        String pid = Long.toString(ProcessTools.getProcessId());
-        ProcessBuilder pb = new ProcessBuilder();
-
-        Random random = new Random();
+        Random random = Utils.getRandomInstance();
         // Allocate small amounts of memory with random pseudo call stack
         while (mallocd_total < MAX_ALLOC) {
             int size = random.nextInt(31) + 1;
@@ -73,9 +70,10 @@ public class MallocTrackingVerify {
             }
         }
 
-        pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.native_memory", "summary" });
-        output = new OutputAnalyzer(pb.start());
-        output.shouldContain("Test (reserved=4KB, committed=4KB)");
+        NMTTestUtils.runJcmdSummaryReportAndCheckOutput(
+                "Test (reserved=4KB, committed=4KB)",
+                "(malloc=4KB #" + mallocd_memory.size() + ") (at peak)"
+        );
 
         // Free
         for (MallocMemory mem : mallocd_memory) {
@@ -83,10 +81,11 @@ public class MallocTrackingVerify {
         }
 
         // Run 'jcmd <pid> VM.native_memory summary', check for expected output
-        pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid,
-                "VM.native_memory", "summary" });
-        output = new OutputAnalyzer(pb.start());
-        output.shouldNotContain("Test (reserved=");
+        NMTTestUtils.runJcmdSummaryReportAndCheckOutput(
+                "Test (reserved=0KB, committed=0KB)",
+                "(malloc=0KB) (peak=4KB #" + + mallocd_memory.size() + ")"
+        );
+
     }
 
     static class MallocMemory {

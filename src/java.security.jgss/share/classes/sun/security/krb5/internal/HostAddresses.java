@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,6 @@
 
 package sun.security.krb5.internal;
 
-import org.jspecify.annotations.Nullable;
-
 import sun.security.krb5.Config;
 import sun.security.krb5.PrincipalName;
 import sun.security.krb5.KrbException;
@@ -43,6 +41,8 @@ import java.net.*;
 import java.util.*;
 import java.io.IOException;
 import sun.security.krb5.internal.ccache.CCacheOutputStream;
+
+import static sun.security.krb5.internal.Krb5.DEBUG;
 
 /**
  * Implements the ASN.1 HostAddresses type.
@@ -66,10 +66,10 @@ import sun.security.krb5.internal.ccache.CCacheOutputStream;
  */
 
 public class HostAddresses implements Cloneable {
-    private static boolean DEBUG = sun.security.krb5.internal.Krb5.DEBUG;
     private HostAddress[] addresses = null;
     private volatile int hashCode = 0;
 
+    // Warning: called by nativeccache.c
     public HostAddresses(HostAddress[] new_addresses) throws IOException {
         if (new_addresses != null) {
            addresses = new HostAddress[new_addresses.length];
@@ -131,44 +131,26 @@ public class HostAddresses implements Cloneable {
         return false;
     }
 
+    @Override
     public int hashCode() {
-        if (hashCode == 0) {
-            int result = 17;
-            if (addresses != null) {
-                for (int i=0; i < addresses.length; i++)  {
-                    result = 37*result + addresses[i].hashCode();
-                }
-            }
-            hashCode = result;
+        int h = hashCode;
+        if (h == 0) {
+            hashCode = h = Arrays.hashCode(addresses);
         }
-        return hashCode;
-
+        return h;
     }
 
-
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }
 
-        if (!(obj instanceof HostAddresses)) {
+        if (!(obj instanceof HostAddresses addrs)) {
             return false;
         }
 
-        HostAddresses addrs = (HostAddresses)obj;
-        if ((addresses == null && addrs.addresses != null) ||
-            (addresses != null && addrs.addresses == null))
-            return false;
-        if (addresses != null && addrs.addresses != null) {
-            if (addresses.length != addrs.addresses.length)
-                return false;
-            for (int i = 0; i < addresses.length; i++)
-                if (!addresses[i].equals(addrs.addresses[i]))
-                    return false;
-        }
-        return true;
+        return Arrays.equals(addresses, addrs.addresses);
     }
 
    /**
@@ -181,15 +163,14 @@ public class HostAddresses implements Cloneable {
     */
     public HostAddresses(DerValue encoding)
         throws  Asn1Exception, IOException {
-        Vector<HostAddress> tempAddresses = new Vector<>();
+        ArrayList<HostAddress> tempAddresses = new ArrayList<>();
         DerValue der = null;
         while (encoding.getData().available() > 0) {
             der = encoding.getData().getDerValue();
-            tempAddresses.addElement(new HostAddress(der));
+            tempAddresses.add(new HostAddress(der));
         }
         if (tempAddresses.size() > 0) {
-            addresses = new HostAddress[tempAddresses.size()];
-            tempAddresses.copyInto(addresses);
+            addresses = tempAddresses.toArray(new HostAddress[0]);
         }
     }
 
@@ -243,14 +224,13 @@ public class HostAddresses implements Cloneable {
     }
 
     /**
-         * Writes data field values in <code>HostAddresses</code> in FCC
-         * format to a <code>CCacheOutputStream</code>.
-         *
-         * @param cos a <code>CCacheOutputStream</code> to be written to.
-         * @exception IOException if an I/O exception occurs.
-         * @see sun.security.krb5.internal.ccache.CCacheOutputStream
-         */
-
+     * Writes data field values in <code>HostAddresses</code> in FCC
+     * format to a <code>CCacheOutputStream</code>.
+     *
+     * @param cos a <code>CCacheOutputStream</code> to be written to.
+     * @exception IOException if an I/O exception occurs.
+     * @see sun.security.krb5.internal.ccache.CCacheOutputStream
+     */
     public void writeAddrs(CCacheOutputStream cos) throws IOException {
         if (addresses == null || addresses.length == 0) {
             cos.write32(0);
@@ -297,25 +277,25 @@ public class HostAddresses implements Cloneable {
     {
         Set<InetAddress> all = new LinkedHashSet<>();
         try {
-            if (DEBUG) {
-                System.out.println(">>> KrbKdcReq local addresses are:");
+            if (DEBUG != null) {
+                DEBUG.println(">>> KrbKdcReq local addresses are:");
             }
             String extra = Config.getInstance().getAll(
                     "libdefaults", "extra_addresses");
             if (extra != null) {
                 for (String s: extra.split("\\s+")) {
                     all.add(InetAddress.getByName(s));
-                    if (DEBUG) {
-                        System.out.println("   extra_addresses: "
+                    if (DEBUG != null) {
+                        DEBUG.println("   extra_addresses: "
                                 + InetAddress.getByName(s));
                     }
                 }
             }
             for (NetworkInterface ni:
                     Collections.list(NetworkInterface.getNetworkInterfaces())) {
-                if (DEBUG) {
-                    System.out.println("   NetworkInterface " + ni + ":");
-                    System.out.println("      "
+                if (DEBUG != null) {
+                    DEBUG.println("   NetworkInterface " + ni + ":");
+                    DEBUG.println("      "
                             + Collections.list(ni.getInetAddresses()));
                 }
                 all.addAll(Collections.list(ni.getInetAddresses()));

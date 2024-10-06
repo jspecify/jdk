@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,8 +32,11 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateException;
 import java.util.*;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import sun.security.pkcs.EncryptedPrivateKeyInfo;
 import sun.security.pkcs12.PKCS12KeyStore;
+import sun.security.util.Debug;
 import sun.security.util.IOUtils;
 import sun.security.util.KeyStoreDelegator;
 
@@ -51,7 +54,7 @@ import sun.security.util.KeyStoreDelegator;
  * @since 1.2
  */
 
-public abstract class JavaKeyStore extends KeyStoreSpi {
+public abstract sealed class JavaKeyStore extends KeyStoreSpi {
 
     // regular JKS
     public static final class JKS extends JavaKeyStore {
@@ -60,7 +63,7 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
         }
     }
 
-    // special JKS that uses case sensitive aliases
+    // special JKS that uses case-sensitive aliases
     public static final class CaseExactJKS extends JavaKeyStore {
         String convertAlias(String alias) {
             return alias;
@@ -72,8 +75,25 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
         public DualFormatJKS() {
             super("JKS", JKS.class, "PKCS12", PKCS12KeyStore.class);
         }
+
+        /**
+         * Probe the first few bytes of the keystore data stream for a valid
+         * JKS keystore encoding.
+         */
+        @Override
+        public boolean engineProbe(InputStream stream) throws IOException {
+            DataInputStream dataStream;
+            if (stream instanceof DataInputStream) {
+                dataStream = (DataInputStream)stream;
+            } else {
+                dataStream = new DataInputStream(stream);
+            }
+
+            return MAGIC == dataStream.readInt();
+        }
     }
 
+    private static final Debug debug = Debug.getInstance("keystore");
     private static final int MAGIC = 0xfeedfeed;
     private static final int VERSION_1 = 0x01;
     private static final int VERSION_2 = 0x02;
@@ -83,13 +103,13 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
         Date date; // the creation date of this entry
         byte[] protectedPrivKey;
         Certificate[] chain;
-    };
+    }
 
     // Trusted certificates
     private static class TrustedCertEntry {
         Date date; // the creation date of this entry
         Certificate cert;
-    };
+    }
 
     /**
      * Private keys and certificates are stored in a hashtable.
@@ -98,7 +118,7 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
     private final Hashtable<String, Object> entries;
 
     JavaKeyStore() {
-        entries = new Hashtable<String, Object>();
+        entries = new Hashtable<>();
     }
 
     // convert an alias to internal form, overridden in subclasses:
@@ -126,25 +146,27 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
     {
         Object entry = entries.get(convertAlias(alias));
 
-        if (entry == null || !(entry instanceof KeyEntry)) {
+        if (!(entry instanceof KeyEntry keyEntry)) {
             return null;
         }
         if (password == null) {
             throw new UnrecoverableKeyException("Password must not be null");
         }
 
-        KeyProtector keyProtector = new KeyProtector(password);
-        byte[] encrBytes = ((KeyEntry)entry).protectedPrivKey;
+        byte[] passwordBytes = convertToBytes(password);
+        KeyProtector keyProtector = new KeyProtector(passwordBytes);
+        byte[] encrBytes = keyEntry.protectedPrivKey;
         EncryptedPrivateKeyInfo encrInfo;
-        byte[] plain;
         try {
             encrInfo = new EncryptedPrivateKeyInfo(encrBytes);
+            return keyProtector.recover(encrInfo);
         } catch (IOException ioe) {
             throw new UnrecoverableKeyException("Private key not stored as "
                                                 + "PKCS #8 "
                                                 + "EncryptedPrivateKeyInfo");
+        } finally {
+            Arrays.fill(passwordBytes, (byte) 0x00);
         }
-        return keyProtector.recover(encrInfo);
     }
 
     /**
@@ -161,11 +183,11 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
     public Certificate[] engineGetCertificateChain(String alias) {
         Object entry = entries.get(convertAlias(alias));
 
-        if (entry != null && entry instanceof KeyEntry) {
-            if (((KeyEntry)entry).chain == null) {
+        if (entry instanceof KeyEntry keyEntry) {
+            if (keyEntry.chain == null) {
                 return null;
             } else {
-                return ((KeyEntry)entry).chain.clone();
+                return keyEntry.chain.clone();
             }
         } else {
             return null;
@@ -253,10 +275,14 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
                                   Certificate[] chain)
         throws KeyStoreException
     {
-        KeyProtector keyProtector = null;
+        KeyProtector keyProtector;
+        byte[] passwordBytes = null;
 
         if (!(key instanceof java.security.PrivateKey)) {
             throw new KeyStoreException("Cannot store non-PrivateKeys");
+        }
+        if (password == null) {
+            throw new KeyStoreException("password can't be null");
         }
         try {
             synchronized(entries) {
@@ -264,7 +290,8 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
                 entry.date = new Date();
 
                 // Protect the encoding of the key
-                keyProtector = new KeyProtector(password);
+                passwordBytes = convertToBytes(password);
+                keyProtector = new KeyProtector(passwordBytes);
                 entry.protectedPrivKey = keyProtector.protect(key);
 
                 // clone the chain
@@ -280,7 +307,8 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
         } catch (NoSuchAlgorithmException nsae) {
             throw new KeyStoreException("Key protection algorithm not found");
         } finally {
-            keyProtector = null;
+            if (passwordBytes != null)
+                Arrays.fill(passwordBytes, (byte) 0x00);
         }
     }
 
@@ -356,7 +384,7 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
         synchronized(entries) {
 
             Object entry = entries.get(convertAlias(alias));
-            if ((entry != null) && (entry instanceof KeyEntry)) {
+            if (entry instanceof KeyEntry) {
                 throw new KeyStoreException
                     ("Cannot overwrite own certificate");
             }
@@ -421,11 +449,7 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
      */
     public boolean engineIsKeyEntry(String alias) {
         Object entry = entries.get(convertAlias(alias));
-        if ((entry != null) && (entry instanceof KeyEntry)) {
-            return true;
-        } else {
-            return false;
-        }
+        return entry instanceof KeyEntry;
     }
 
     /**
@@ -437,11 +461,7 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
      */
     public boolean engineIsCertificateEntry(String alias) {
         Object entry = entries.get(convertAlias(alias));
-        if ((entry != null) && (entry instanceof TrustedCertEntry)) {
-            return true;
-        } else {
-            return false;
-        }
+        return entry instanceof TrustedCertEntry;
     }
 
     /**
@@ -463,9 +483,9 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
     public String engineGetCertificateAlias(Certificate cert) {
         Certificate certElem;
 
-        for (Enumeration<String> e = entries.keys(); e.hasMoreElements(); ) {
-            String alias = e.nextElement();
-            Object entry = entries.get(alias);
+        for (Map.Entry<String, Object> e : entries.entrySet()) {
+            String alias = e.getKey();
+            Object entry = e.getValue();
             if (entry instanceof TrustedCertEntry) {
                 certElem = ((TrustedCertEntry)entry).cert;
             } else if (((KeyEntry)entry).chain != null) {
@@ -526,7 +546,7 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
              *     }
              *
              * ended by a keyed SHA1 hash (bytes only) of
-             *     { password + whitener + preceding body }
+             *     { password + extra data + preceding body }
              */
 
             // password is mandatory when storing
@@ -546,10 +566,9 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
 
             dos.writeInt(entries.size());
 
-            for (Enumeration<String> e = entries.keys(); e.hasMoreElements();) {
-
-                String alias = e.nextElement();
-                Object entry = entries.get(alias);
+            for (Map.Entry<String, Object> e : entries.entrySet()) {
+                String alias = e.getKey();
+                Object entry = e.getValue();
 
                 if (entry instanceof KeyEntry) {
 
@@ -636,8 +655,9 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
             MessageDigest md = null;
             CertificateFactory cf = null;
             Hashtable<String, CertificateFactory> cfs = null;
-            ByteArrayInputStream bais = null;
-            byte[] encoded = null;
+            ByteArrayInputStream bais;
+            byte[] encoded;
+            int trustedKeyCount = 0, privateKeyCount = 0;
 
             if (stream == null)
                 return;
@@ -663,7 +683,7 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
                 cf = CertificateFactory.getInstance("X509");
             } else {
                 // version 2
-                cfs = new Hashtable<String, CertificateFactory>(3);
+                cfs = new Hashtable<>(3);
             }
 
             entries.clear();
@@ -676,7 +696,7 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
                 tag = dis.readInt();
 
                 if (tag == 1) { // private key entry
-
+                    privateKeyCount++;
                     KeyEntry entry = new KeyEntry();
 
                     // Read the alias
@@ -687,13 +707,13 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
 
                     // Read the private key
                     entry.protectedPrivKey =
-                            IOUtils.readFully(dis, dis.readInt(), true);
+                            IOUtils.readExactlyNBytes(dis, dis.readInt());
 
                     // Read the certificate chain
                     int numOfCerts = dis.readInt();
                     if (numOfCerts > 0) {
                         List<Certificate> certs = new ArrayList<>(
-                                numOfCerts > 10 ? 10 : numOfCerts);
+                                Math.min(numOfCerts, 10));
                         for (int j = 0; j < numOfCerts; j++) {
                             if (xVersion == 2) {
                                 // read the certificate type, and instantiate a
@@ -712,7 +732,7 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
                                 }
                             }
                             // instantiate the certificate
-                            encoded = IOUtils.readFully(dis, dis.readInt(), true);
+                            encoded = IOUtils.readExactlyNBytes(dis, dis.readInt());
                             bais = new ByteArrayInputStream(encoded);
                             certs.add(cf.generateCertificate(bais));
                             bais.close();
@@ -725,7 +745,7 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
                     entries.put(alias, entry);
 
                 } else if (tag == 2) { // trusted certificate entry
-
+                    trustedKeyCount++;
                     TrustedCertEntry entry = new TrustedCertEntry();
 
                     // Read the alias
@@ -751,7 +771,7 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
                             cfs.put(certType, cf);
                         }
                     }
-                    encoded = IOUtils.readFully(dis, dis.readInt(), true);
+                    encoded = IOUtils.readExactlyNBytes(dis, dis.readInt());
                     bais = new ByteArrayInputStream(encoded);
                     entry.cert = cf.generateCertificate(bais);
                     bais.close();
@@ -760,8 +780,14 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
                     entries.put(alias, entry);
 
                 } else {
-                    throw new IOException("Unrecognized keystore entry");
+                    throw new IOException("Unrecognized keystore entry: " +
+                            tag);
                 }
+            }
+
+            if (debug != null) {
+                debug.println("JavaKeyStore load: private key count: " +
+                    privateKeyCount + ". trusted key count: " + trustedKeyCount);
             }
 
             /*
@@ -771,16 +797,13 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
              */
             if (password != null) {
                 byte[] computed = md.digest();
-                byte[] actual = new byte[computed.length];
-                dis.readFully(actual);
-                for (int i = 0; i < computed.length; i++) {
-                    if (computed[i] != actual[i]) {
-                        Throwable t = new UnrecoverableKeyException
+                byte[] actual = IOUtils.readExactlyNBytes(dis, computed.length);
+                if (!MessageDigest.isEqual(computed, actual)) {
+                    Throwable t = new UnrecoverableKeyException
                             ("Password verification failed");
-                        throw (IOException)new IOException
+                    throw new IOException
                             ("Keystore was tampered with, or "
-                            + "password was incorrect").initCause(t);
-                    }
+                                    + "password was incorrect", t);
                 }
             }
         }
@@ -788,39 +811,31 @@ public abstract class JavaKeyStore extends KeyStoreSpi {
 
     /**
      * To guard against tampering with the keystore, we append a keyed
-     * hash with a bit of whitener.
+     * hash with a bit of extra data.
      */
     private MessageDigest getPreKeyedHash(char[] password)
-        throws NoSuchAlgorithmException, UnsupportedEncodingException
+        throws NoSuchAlgorithmException
     {
-        int i, j;
 
         MessageDigest md = MessageDigest.getInstance("SHA");
+        byte[] passwdBytes = convertToBytes(password);
+        md.update(passwdBytes);
+        Arrays.fill(passwdBytes, (byte) 0x00);
+        md.update("Mighty Aphrodite".getBytes(UTF_8));
+        return md;
+    }
+
+    /**
+     * Helper method to convert char[] to byte[]
+     */
+
+    private byte[] convertToBytes(char[] password) {
+        int i, j;
         byte[] passwdBytes = new byte[password.length * 2];
         for (i=0, j=0; i<password.length; i++) {
             passwdBytes[j++] = (byte)(password[i] >> 8);
             passwdBytes[j++] = (byte)password[i];
         }
-        md.update(passwdBytes);
-        for (i=0; i<passwdBytes.length; i++)
-            passwdBytes[i] = 0;
-        md.update("Mighty Aphrodite".getBytes("UTF8"));
-        return md;
-    }
-
-    /**
-     * Probe the first few bytes of the keystore data stream for a valid
-     * JKS keystore encoding.
-     */
-    @Override
-    public boolean engineProbe(InputStream stream) throws IOException {
-        DataInputStream dataStream;
-        if (stream instanceof DataInputStream) {
-            dataStream = (DataInputStream)stream;
-        } else {
-            dataStream = new DataInputStream(stream);
-        }
-
-        return MAGIC == dataStream.readInt();
+        return passwdBytes;
     }
 }

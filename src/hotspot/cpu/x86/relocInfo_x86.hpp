@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_RELOCINFO_X86_HPP
-#define CPU_X86_VM_RELOCINFO_X86_HPP
+#ifndef CPU_X86_RELOCINFO_X86_HPP
+#define CPU_X86_RELOCINFO_X86_HPP
 
   // machine-dependent parts of class relocInfo
  private:
@@ -35,8 +35,8 @@
 #ifndef AMD64
     format_width       =  1
 #else
-    // vs Assembler::narrow_oop_operand.
-    format_width       =  2
+    // vs Assembler::narrow_oop_operand and ZGC barrier encodings.
+    format_width       =  3
 #endif
   };
 
@@ -46,4 +46,4 @@
   // listed in the oop section.
   static bool mustIterateImmediateOopsInCode() { return true; }
 
-#endif // CPU_X86_VM_RELOCINFO_X86_HPP
+#endif // CPU_X86_RELOCINFO_X86_HPP

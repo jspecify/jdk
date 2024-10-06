@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,21 @@
 
 package java.awt;
 
-import org.checkerframework.checker.i18n.qual.Localized;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.peer.ButtonPeer;
 import java.beans.BeanProperty;
-import java.util.EventListener;
-import java.awt.event.*;
-import java.io.ObjectOutputStream;
-import java.io.ObjectInputStream;
 import java.io.IOException;
-import javax.accessibility.*;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.util.EventListener;
+
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleAction;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleRole;
+import javax.accessibility.AccessibleValue;
 
 /**
  * This class creates a labeled button. The application can cause
@@ -43,8 +47,8 @@ import javax.accessibility.*;
  * depicts three views of a "{@code Quit}" button as it appears
  * under the Solaris operating system:
  * <p>
- * <img src="doc-files/Button-1.gif" alt="The following context describes the graphic"
- * style="float:center; margin: 7px 10px;">
+ * <img src="doc-files/Button-1.gif" alt="The following context describes the
+ * graphic" style="margin: 7px 10px;">
  * <p>
  * The first view shows the button as it appears normally.
  * The second view shows the button
@@ -88,7 +92,6 @@ import javax.accessibility.*;
  * @see         java.awt.Component#addMouseListener
  * @since       1.0
  */
-@AnnotatedFor({"i18n"})
 public class Button extends Component implements Accessible {
 
     /**
@@ -113,30 +116,16 @@ public class Button extends Component implements Accessible {
     private static final String base = "button";
     private static int nameCounter = 0;
 
-    /*
-     * JDK 1.1 serialVersionUID
-     */
-    private static final long serialVersionUID = -8774683716313001058L;
-
-
-    static {
-        /* ensure that the necessary native libraries are loaded */
-        Toolkit.loadLibraries();
-        if (!GraphicsEnvironment.isHeadless()) {
-            initIDs();
-        }
-    }
-
     /**
-     * Initialize JNI field and method IDs for fields that may be
-     * accessed from C.
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
-    private static native void initIDs();
+    @Serial
+    private static final long serialVersionUID = -8774683716313001058L;
 
     /**
      * Constructs a button with an empty string for its label.
      *
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -149,7 +138,7 @@ public class Button extends Component implements Accessible {
      *
      * @param label  a string label for the button, or
      *               {@code null} for no label
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -190,7 +179,7 @@ public class Button extends Component implements Accessible {
      *                if the button has no label.
      * @see       java.awt.Button#setLabel
      */
-    public @Localized String getLabel() {
+    public String getLabel() {
         return label;
     }
 
@@ -201,7 +190,7 @@ public class Button extends Component implements Accessible {
      *                if the button has no label.
      * @see       java.awt.Button#getLabel
      */
-    public void setLabel(@Localized String label) {
+    public void setLabel(String label) {
         boolean testvalid = false;
 
         synchronized (this) {
@@ -335,7 +324,7 @@ public class Button extends Component implements Accessible {
      *          <code><em>Foo</em>Listener</code>s on this button,
      *          or an empty array if no such
      *          listeners have been added
-     * @exception ClassCastException if {@code listenerType}
+     * @throws ClassCastException if {@code listenerType}
      *          doesn't specify a class or interface that implements
      *          {@code java.util.EventListener}
      *
@@ -432,9 +421,8 @@ public class Button extends Component implements Accessible {
 
     /* Serialization support.
      */
-
-    /*
-     * Button Serial Data Version.
+    /**
+     * Serialized data version.
      * @serial
      */
     private int buttonSerializedDataVersion = 1;
@@ -453,11 +441,13 @@ public class Button extends Component implements Accessible {
      *   {@code actionListenerK} indicating an
      *     {@code ActionListener} object
      *
-     * @param s the {@code ObjectOutputStream} to write
+     * @param  s the {@code ObjectOutputStream} to write
+     * @throws IOException if an I/O error occurs
      * @see AWTEventMulticaster#save(ObjectOutputStream, String, EventListener)
      * @see java.awt.Component#actionListenerK
      * @see #readObject(ObjectInputStream)
      */
+    @Serial
     private void writeObject(ObjectOutputStream s)
       throws IOException
     {
@@ -473,16 +463,19 @@ public class Button extends Component implements Accessible {
      * receive action events fired by the button.
      * Unrecognized keys or values will be ignored.
      *
-     * @param s the {@code ObjectInputStream} to read
-     * @exception HeadlessException if
-     *   {@code GraphicsEnvironment.isHeadless} returns
-     *   {@code true}
-     * @serial
+     * @param  s the {@code ObjectInputStream} to read
+     * @throws ClassNotFoundException if the class of a serialized object could
+     *         not be found
+     * @throws IOException if an I/O error occurs
+     * @throws HeadlessException if {@code GraphicsEnvironment.isHeadless()}
+     *         returns {@code true}
+     *
      * @see #removeActionListener(ActionListener)
      * @see #addActionListener(ActionListener)
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @see #writeObject(ObjectOutputStream)
      */
+    @Serial
     private void readObject(ObjectInputStream s)
       throws ClassNotFoundException, IOException, HeadlessException
     {
@@ -536,10 +529,16 @@ public class Button extends Component implements Accessible {
     protected class AccessibleAWTButton extends AccessibleAWTComponent
         implements AccessibleAction, AccessibleValue
     {
-        /*
-         * JDK 1.3 serialVersionUID
+        /**
+         * Use serialVersionUID from JDK 1.3 for interoperability.
          */
+        @Serial
         private static final long serialVersionUID = -5932203980244017102L;
+
+        /**
+         * Constructs an {@code AccessibleAWTButton}.
+         */
+        protected AccessibleAWTButton() {}
 
         /**
          * Get the accessible name of this object.

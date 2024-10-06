@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 package jdk.javadoc.internal.doclets.toolkit.util;
 
-import org.jspecify.annotations.Nullable;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,11 +33,6 @@ import java.util.List;
 /**
  * Abstraction for immutable relative paths.
  * Paths always use '/' as a separator, and never begin or end with '/'.
- *
- *  <p><b>This is NOT part of any supported API.
- *  If you write code that depends on this, you do so at your own risk.
- *  This code and its internal interfaces are subject to change or
- *  deletion without notice.</b>
  */
 public class DocPath {
     private final String path;
@@ -63,15 +56,11 @@ public class DocPath {
         path = (p.endsWith("/") ? p.substring(0, p.length() - 1) : p);
     }
 
-    /** {@inheritDoc} */
     @Override
-    
-    
-    public boolean equals(@Nullable Object other) {
-        return (other instanceof DocPath) && path.equals(((DocPath)other).path);
+    public boolean equals(Object other) {
+        return (other instanceof DocPath dp) && path.equals(dp.path);
     }
 
-    /** {@inheritDoc} */
     @Override
     public int hashCode() {
         return path.hashCode();
@@ -206,7 +195,6 @@ public class DocPath {
      * Return true if this path is empty.
      * @return true if this path is empty
      */
-    
     public boolean isEmpty() {
         return path.isEmpty();
     }
@@ -217,16 +205,7 @@ public class DocPath {
      * @return the link
      */
     public DocLink fragment(String fragment) {
-        return new DocLink(path, null, fragment);
-    }
-
-    /**
-     * Creates a DocLink formed from this path and a query string.
-     * @param query the query string
-     * @return the link
-     */
-    public DocLink query(String query) {
-        return new DocLink(path, query, null);
+        return new DocLink(path, fragment);
     }
 
     /**

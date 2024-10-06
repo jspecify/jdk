@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2018, SAP SE. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,13 +34,14 @@ protected:
   virtual void gen_write_ref_array_post_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                 Register addr, Register count, Register preserve);
 
-  void card_table_write(MacroAssembler* masm, jbyte* byte_map_base, Register tmp, Register obj);
+  void card_table_write(MacroAssembler* masm, CardTable::CardValue* byte_map_base, Register tmp, Register obj);
 
   void card_write_barrier_post(MacroAssembler* masm, Register store_addr, Register tmp);
 
   virtual void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                             Register base, RegisterOrConstant ind_or_offs, Register val,
-                            Register tmp1, Register tmp2, Register tmp3, bool needs_frame);
+                            Register tmp1, Register tmp2, Register tmp3,
+                            MacroAssembler::PreservationLevel preservation_level);
 };
 
 #endif // CPU_PPC_GC_SHARED_CARDTABLEBARRIERSETASSEMBLER_PPC_HPP

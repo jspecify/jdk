@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -33,7 +33,7 @@ import com.sun.org.apache.xerces.internal.util.IntStack;
  * This engine does not conform to the POSIX regular expression.
  *
  * <hr width="50%">
- * <h3>How to use</h3>
+ * <h2>How to use</h2>
  *
  * <dl>
  *   <dt>A. Standard way
@@ -475,7 +475,7 @@ import com.sun.org.apache.xerces.internal.util.IntStack;
  * <hr width="50%">
  * <h3>TODO</h3>
  * <ul>
- *   <li><a href="http://www.unicode.org/unicode/reports/tr18/">Unicode Regular Expression Guidelines</a>
+ *   <li><a href="http://www.unicode.org/reports/tr18/">Unicode Technical Standard #18: Unicode Regular Expressions</a>
  *     <ul>
  *       <li>2.4 Canonical Equivalents
  *       <li>Level 3

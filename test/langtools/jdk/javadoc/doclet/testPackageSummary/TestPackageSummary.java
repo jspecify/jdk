@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,51 +24,76 @@
 
 /*
  * @test
- * @bug 8189841
+ * @bug 8189841 8253117 8263507 8320458
  * @summary Error in alternate row coloring in package-summary files
- * @library  ../lib/
+ * @summary Improve structure of package summary pages
+ * @library  ../../lib/
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester TestPackageSummary
+ * @build    javadoc.tester.* TestPackageSummary
  * @run main TestPackageSummary
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestPackageSummary extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestPackageSummary tester = new TestPackageSummary();
+        var tester = new TestPackageSummary();
         tester.runTests();
     }
 
     @Test
-    void testStripes() {
-        javadoc("-d", "out",
+    public void testSummaryLinks() {
+        javadoc("-d", "out-links",
+                "-sourcepath", testSrc,
+                "-subpackages", "pkg:pkg1");
+        checkExit(Exit.OK);
+
+        checkOutput("pkg/package-summary.html", true,
+                """
+                    <ol class="toc-list">
+                    <li><a href="#" tabindex="0">Description</a></li>
+                    <li><a href="#class-summary" tabindex="0">Classes and Interfaces</a></li>
+                    </ol>
+                    """);
+        checkOutput("pkg1/package-summary.html", true,
+                """
+                    <ol class="toc-list">
+                    <li><a href="#" tabindex="0">Description</a></li>
+                    <li><a href="#related-package-summary" tabindex="0">Related Packages</a></li>
+                    <li><a href="#class-summary" tabindex="0">Classes and Interfaces</a></li>
+                    </ol>
+                    """);
+        checkOutput("pkg1/sub/package-summary.html", true,
+                """
+                    <ol class="toc-list">
+                    <li><a href="#" tabindex="0">Description</a></li>
+                    <li><a href="#related-package-summary" tabindex="0">Related Packages</a></li>
+                    <li><a href="#class-summary" tabindex="0">Classes and Interfaces</a></li>
+                    </ol>
+                    """);
+    }
+
+    @Test
+    public void testStripes() {
+        javadoc("-d", "out-stripes",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
 
         checkOutput("pkg/package-summary.html", true,
-                "<tbody>\n"
-                + "<tr class=\"altColor\">\n"
-                + "<th class=\"colFirst\" scope=\"row\"><a href=\"C0.html\" title=\"class in pkg\">C0</a></th>\n"
-                + "<td class=\"colLast\">&nbsp;</td>\n"
-                + "</tr>\n"
-                + "<tr class=\"rowColor\">\n"
-                + "<th class=\"colFirst\" scope=\"row\"><a href=\"C1.html\" title=\"class in pkg\">C1</a></th>\n"
-                + "<td class=\"colLast\">&nbsp;</td>\n"
-                + "</tr>\n"
-                + "<tr class=\"altColor\">\n"
-                + "<th class=\"colFirst\" scope=\"row\"><a href=\"C2.html\" title=\"class in pkg\">C2</a></th>\n"
-                + "<td class=\"colLast\">&nbsp;</td>\n"
-                + "</tr>\n"
-                + "<tr class=\"rowColor\">\n"
-                + "<th class=\"colFirst\" scope=\"row\"><a href=\"C3.html\" title=\"class in pkg\">C3</a></th>\n"
-                + "<td class=\"colLast\">&nbsp;</td>\n"
-                + "</tr>\n"
-                + "<tr class=\"altColor\">\n"
-                + "<th class=\"colFirst\" scope=\"row\"><a href=\"C4.html\" title=\"class in pkg\">C4</a></th>\n"
-                + "<td class=\"colLast\">&nbsp;</td>\n"
-                + "</tr>\n"
-                + "</tbody>\n"
+                """
+                    <div class="col-first even-row-color class-summary class-summary-tab2"><a href="C0.html" title="class in pkg">C0</a></div>
+                    <div class="col-last even-row-color class-summary class-summary-tab2">&nbsp;</div>
+                    <div class="col-first odd-row-color class-summary class-summary-tab2"><a href="C1.html" title="class in pkg">C1</a></div>
+                    <div class="col-last odd-row-color class-summary class-summary-tab2">&nbsp;</div>
+                    <div class="col-first even-row-color class-summary class-summary-tab2"><a href="C2.html" title="class in pkg">C2</a></div>
+                    <div class="col-last even-row-color class-summary class-summary-tab2">&nbsp;</div>
+                    <div class="col-first odd-row-color class-summary class-summary-tab2"><a href="C3.html" title="class in pkg">C3</a></div>
+                    <div class="col-last odd-row-color class-summary class-summary-tab2">&nbsp;</div>
+                    <div class="col-first even-row-color class-summary class-summary-tab2"><a href="C4.html" title="class in pkg">C4</a></div>
+                    <div class="col-last even-row-color class-summary class-summary-tab2">&nbsp;</div>
+                    """
         );
     }
 }

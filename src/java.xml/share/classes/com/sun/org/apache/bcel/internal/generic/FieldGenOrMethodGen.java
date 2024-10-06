@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -20,6 +20,7 @@
 package com.sun.org.apache.bcel.internal.generic;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import com.sun.org.apache.bcel.internal.Const;
@@ -27,22 +28,34 @@ import com.sun.org.apache.bcel.internal.classfile.AccessFlags;
 import com.sun.org.apache.bcel.internal.classfile.Attribute;
 
 /**
- * Super class for FieldGen and MethodGen objects, since they have some methods
- * in common!
+ * Super class for FieldGen and MethodGen objects, since they have some methods in common!
  *
- * @version $Id: FieldGenOrMethodGen.java 1749603 2016-06-21 20:50:19Z ggregory
- * $
+ * @LastModified: May 2021
  */
 public abstract class FieldGenOrMethodGen extends AccessFlags implements NamedAndTyped, Cloneable {
 
-    private String name;
-    private Type type;
-    private ConstantPoolGen cp;
+    /**
+     * @deprecated (since 6.0) will be made private; do not access directly, use getter/setter
+     */
+    @Deprecated
+    protected String name;
 
-    private final List<Attribute> attribute_vec = new ArrayList<>();
+    /**
+     * @deprecated (since 6.0) will be made private; do not access directly, use getter/setter
+     */
+    @Deprecated
+    protected Type type;
+
+    /**
+     * @deprecated (since 6.0) will be made private; do not access directly, use getter/setter
+     */
+    @Deprecated
+    protected ConstantPoolGen cp;
+
+    private final List<Attribute> attributeList = new ArrayList<>();
 
     // @since 6.0
-    private final List<AnnotationEntryGen> annotation_vec = new ArrayList<>();
+    private final List<AnnotationEntryGen> annotationList = new ArrayList<>();
 
     protected FieldGenOrMethodGen() {
     }
@@ -50,21 +63,53 @@ public abstract class FieldGenOrMethodGen extends AccessFlags implements NamedAn
     /**
      * @since 6.0
      */
-    protected FieldGenOrMethodGen(final int access_flags) { // TODO could this be package protected?
-        super(access_flags);
+    protected FieldGenOrMethodGen(final int accessFlags) { // TODO could this be package protected?
+        super(accessFlags);
+    }
+
+    protected void addAll(final Attribute[] attrs) {
+        Collections.addAll(attributeList, attrs);
+    }
+
+    /**
+     * @since 6.0
+     */
+    public void addAnnotationEntry(final AnnotationEntryGen ag) {
+        annotationList.add(ag);
+    }
+
+    /**
+     * Add an attribute to this method. Currently, the JVM knows about the 'Code', 'ConstantValue', 'Synthetic' and
+     * 'Exceptions' attributes. Other attributes will be ignored by the JVM but do no harm.
+     *
+     * @param a attribute to be added
+     */
+    public void addAttribute(final Attribute a) {
+        attributeList.add(a);
     }
 
     @Override
-    public void setType(final Type type) { // TODO could be package-protected?
-        if (type.getType() == Const.T_ADDRESS) {
-            throw new IllegalArgumentException("Type can not be " + type);
+    public Object clone() {
+        try {
+            return super.clone();
+        } catch (final CloneNotSupportedException e) {
+            throw new Error("Clone Not Supported"); // never happens
         }
-        this.type = type;
     }
 
-    @Override
-    public Type getType() {
-        return type;
+    public AnnotationEntryGen[] getAnnotationEntries() {
+        return annotationList.toArray(AnnotationEntryGen.EMPTY_ARRAY);
+    }
+
+    /**
+     * @return all attributes of this method.
+     */
+    public Attribute[] getAttributes() {
+        return attributeList.toArray(Attribute.EMPTY_ARRAY);
+    }
+
+    public ConstantPoolGen getConstantPool() {
+        return cp;
     }
 
     /**
@@ -75,94 +120,58 @@ public abstract class FieldGenOrMethodGen extends AccessFlags implements NamedAn
         return name;
     }
 
-    @Override
-    public void setName(final String name) { // TODO could be package-protected?
-        this.name = name;
-    }
-
-    public ConstantPoolGen getConstantPool() {
-        return cp;
-    }
-
-    public void setConstantPool(final ConstantPoolGen cp) { // TODO could be package-protected?
-        this.cp = cp;
-    }
-
-    /**
-     * Add an attribute to this method. Currently, the JVM knows about the
-     * `Code', `ConstantValue', `Synthetic' and `Exceptions' attributes. Other
-     * attributes will be ignored by the JVM but do no harm.
-     *
-     * @param a attribute to be added
-     */
-    public void addAttribute(final Attribute a) {
-        attribute_vec.add(a);
-    }
-
-    /**
-     * @since 6.0
-     */
-    protected void addAnnotationEntry(final AnnotationEntryGen ag) // TODO could this be package protected?
-    {
-        annotation_vec.add(ag);
-    }
-
-    /**
-     * Remove an attribute.
-     */
-    public void removeAttribute(final Attribute a) {
-        attribute_vec.remove(a);
-    }
-
-    /**
-     * @since 6.0
-     */
-    protected void removeAnnotationEntry(final AnnotationEntryGen ag) // TODO could this be package protected?
-    {
-        annotation_vec.remove(ag);
-    }
-
-    /**
-     * Remove all attributes.
-     */
-    public void removeAttributes() {
-        attribute_vec.clear();
-    }
-
-    /**
-     * @since 6.0
-     */
-    protected void removeAnnotationEntries() // TODO could this be package protected?
-    {
-        annotation_vec.clear();
-    }
-
-    /**
-     * @return all attributes of this method.
-     */
-    public Attribute[] getAttributes() {
-        final Attribute[] attributes = new Attribute[attribute_vec.size()];
-        attribute_vec.toArray(attributes);
-        return attributes;
-    }
-
-    public AnnotationEntryGen[] getAnnotationEntries() {
-        final AnnotationEntryGen[] annotations = new AnnotationEntryGen[annotation_vec.size()];
-        annotation_vec.toArray(annotations);
-        return annotations;
-    }
-
     /**
      * @return signature of method/field.
      */
     public abstract String getSignature();
 
     @Override
-    public Object clone() {
-        try {
-            return super.clone();
-        } catch (final CloneNotSupportedException e) {
-            throw new Error("Clone Not Supported"); // never happens
+    public Type getType() {
+        return type;
+    }
+
+    /**
+     * @since 6.0
+     */
+    public void removeAnnotationEntries() {
+        annotationList.clear();
+    }
+
+    /**
+     * @since 6.0
+     */
+    public void removeAnnotationEntry(final AnnotationEntryGen ag) {
+        annotationList.remove(ag);
+    }
+
+    /**
+     * Remove an attribute.
+     */
+    public void removeAttribute(final Attribute a) {
+        attributeList.remove(a);
+    }
+
+    /**
+     * Remove all attributes.
+     */
+    public void removeAttributes() {
+        attributeList.clear();
+    }
+
+    public void setConstantPool(final ConstantPoolGen cp) { // TODO could be package-protected?
+        this.cp = cp;
+    }
+
+    @Override
+    public void setName(final String name) { // TODO could be package-protected?
+        this.name = name;
+    }
+
+    @Override
+    public void setType(final Type type) { // TODO could be package-protected?
+        if (type.getType() == Const.T_ADDRESS) {
+            throw new IllegalArgumentException("Type can not be " + type);
         }
+        this.type = type;
     }
 }

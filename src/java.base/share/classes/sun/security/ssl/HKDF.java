@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,8 +43,7 @@ import java.util.Objects;
  * digest algorithm will be used by the HMAC function as part of the HKDF
  * derivation process.
  */
-final class HKDF {
-    private final String hmacAlg;
+public final class HKDF {
     private final Mac hmacObj;
     private final int hmacLen;
 
@@ -58,11 +57,11 @@ final class HKDF {
      * @throws NoSuchAlgorithmException if that message digest algorithm does
      * not have an HMAC variant supported on any available provider.
      */
-    HKDF(String hashAlg) throws NoSuchAlgorithmException {
+    public HKDF(String hashAlg) throws NoSuchAlgorithmException {
         Objects.requireNonNull(hashAlg,
                 "Must provide underlying HKDF Digest algorithm.");
-        hmacAlg = "Hmac" + hashAlg.replace("-", "");
-        hmacObj = JsseJce.getMac(hmacAlg);
+        String hmacAlg = "Hmac" + hashAlg.replace("-", "");
+        hmacObj = Mac.getInstance(hmacAlg);
         hmacLen = hmacObj.getMacLength();
     }
 
@@ -83,7 +82,7 @@ final class HKDF {
      * @throws InvalidKeyException if the {@code salt} parameter cannot be
      * used to initialize the underlying HMAC.
      */
-    SecretKey extract(SecretKey salt, SecretKey inputKey, String keyAlg)
+    public SecretKey extract(SecretKey salt, SecretKey inputKey, String keyAlg)
             throws InvalidKeyException {
         if (salt == null) {
             salt = new SecretKeySpec(new byte[hmacLen], "HKDF-Salt");
@@ -111,7 +110,7 @@ final class HKDF {
      * @throws InvalidKeyException if the {@code salt} parameter cannot be
      * used to initialize the underlying HMAC.
      */
-    SecretKey extract(byte[] salt, SecretKey inputKey, String keyAlg)
+    public SecretKey extract(byte[] salt, SecretKey inputKey, String keyAlg)
             throws InvalidKeyException {
         if (salt == null) {
             salt = new byte[hmacLen];
@@ -134,7 +133,7 @@ final class HKDF {
      * @throws InvalidKeyException if the underlying HMAC operation cannot
      * be initialized using the provided {@code pseudoRandKey} object.
      */
-    SecretKey expand(SecretKey pseudoRandKey, byte[] info, int outLen,
+    public SecretKey expand(SecretKey pseudoRandKey, byte[] info, int outLen,
             String keyAlg) throws InvalidKeyException {
         byte[] kdfOutput;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package com.sun.crypto.provider;
 
 import java.security.*;
 import java.security.spec.*;
+import java.util.Arrays;
 import javax.crypto.*;
 import javax.crypto.spec.*;
 
@@ -42,10 +43,9 @@ import javax.crypto.spec.*;
 final class PBES1Core {
 
     // the encapsulated DES cipher
-    private CipherCore cipher;
-    private MessageDigest md;
-    private int blkSize;
-    private String algo = null;
+    private final CipherCore cipher;
+    private final MessageDigest md;
+    private final String algo;
     private byte[] salt = null;
     private int iCount = 10;
 
@@ -87,11 +87,11 @@ final class PBES1Core {
         cipher.setMode(mode);
     }
 
-     /**
+    /**
      * Sets the padding mechanism of this cipher. This algorithm only uses
      * PKCS #5 padding.
      *
-     * @param padding the padding mechanism
+     * @param paddingScheme the padding mechanism
      *
      * @exception NoSuchPaddingException if the requested padding mechanism
      * is invalid
@@ -161,7 +161,7 @@ final class PBES1Core {
      * does not use any parameters.
      */
     AlgorithmParameters getParameters() {
-        AlgorithmParameters params = null;
+        AlgorithmParameters params;
         if (salt == null) {
             salt = new byte[8];
             SunJCE.getRandom().nextBytes(salt);
@@ -213,35 +213,43 @@ final class PBES1Core {
             throw new InvalidAlgorithmParameterException("Parameters "
                                                          + "missing");
         }
-        if ((key == null) ||
-            (key.getEncoded() == null) ||
-            !(key.getAlgorithm().regionMatches(true, 0, "PBE", 0, 3))) {
-            throw new InvalidKeyException("Missing password");
+        if (key == null) {
+            throw new InvalidKeyException("Null key");
         }
 
-        if (params == null) {
-            // create random salt and use default iteration count
-            salt = new byte[8];
-            random.nextBytes(salt);
-        } else {
-            if (!(params instanceof PBEParameterSpec)) {
-                throw new InvalidAlgorithmParameterException
-                    ("Wrong parameter type: PBE expected");
+        byte[] derivedKey;
+        byte[] passwdBytes = key.getEncoded();
+        try {
+            if ((passwdBytes == null) ||
+                    !(key.getAlgorithm().regionMatches(true, 0, "PBE", 0, 3))) {
+                throw new InvalidKeyException("Missing password");
             }
-            salt = ((PBEParameterSpec) params).getSalt();
-            // salt must be 8 bytes long (by definition)
-            if (salt.length != 8) {
-                throw new InvalidAlgorithmParameterException
-                    ("Salt must be 8 bytes long");
-            }
-            iCount = ((PBEParameterSpec) params).getIterationCount();
-            if (iCount <= 0) {
-                throw new InvalidAlgorithmParameterException
-                    ("IterationCount must be a positive number");
-            }
-        }
 
-        byte[] derivedKey = deriveCipherKey(key);
+            if (params == null) {
+                // create random salt and use default iteration count
+                salt = new byte[8];
+                random.nextBytes(salt);
+            } else {
+                if (!(params instanceof PBEParameterSpec)) {
+                    throw new InvalidAlgorithmParameterException
+                            ("Wrong parameter type: PBE expected");
+                }
+                salt = ((PBEParameterSpec) params).getSalt();
+                // salt must be 8 bytes long (by definition)
+                if (salt.length != 8) {
+                    throw new InvalidAlgorithmParameterException
+                            ("Salt must be 8 bytes long");
+                }
+                iCount = ((PBEParameterSpec) params).getIterationCount();
+                if (iCount <= 0) {
+                    throw new InvalidAlgorithmParameterException
+                            ("IterationCount must be a positive number");
+                }
+            }
+            derivedKey = deriveCipherKey(passwdBytes);
+        } finally {
+            if (passwdBytes != null) Arrays.fill(passwdBytes, (byte) 0x00);
+        }
         // use all but the last 8 bytes as the key value
         SecretKeySpec cipherKey = new SecretKeySpec(derivedKey, 0,
                                                     derivedKey.length-8, algo);
@@ -253,25 +261,26 @@ final class PBES1Core {
         cipher.init(opmode, cipherKey, ivSpec, random);
     }
 
-    private byte[] deriveCipherKey(Key key) {
+    private byte[] deriveCipherKey(byte[] passwdBytes) {
 
         byte[] result = null;
-        byte[] passwdBytes = key.getEncoded();
 
         if (algo.equals("DES")) {
             // P || S (password concatenated with salt)
-            byte[] concat = new byte[Math.addExact(passwdBytes.length, salt.length)];
-            System.arraycopy(passwdBytes, 0, concat, 0, passwdBytes.length);
-            java.util.Arrays.fill(passwdBytes, (byte)0x00);
-            System.arraycopy(salt, 0, concat, passwdBytes.length, salt.length);
-
-            // digest P || S with c iterations
-            byte[] toBeHashed = concat;
-            for (int i = 0; i < iCount; i++) {
+            md.update(passwdBytes);
+            md.update(salt);
+            // digest P || S with iCount iterations
+            // first iteration
+            byte[] toBeHashed = md.digest(); // this resets the digest
+            // remaining (iCount - 1) iterations
+            for (int i = 1; i < iCount; ++i) {
                 md.update(toBeHashed);
-                toBeHashed = md.digest(); // this resets the digest
+                try {
+                    md.digest(toBeHashed, 0, toBeHashed.length);
+                } catch (DigestException e) {
+                    throw new ProviderException("Internal error", e);
+                }
             }
-            java.util.Arrays.fill(concat, (byte)0x00);
             result = toBeHashed;
         } else if (algo.equals("DESede")) {
             // if the 2 salt halves are the same, invert one of them
@@ -294,24 +303,30 @@ final class PBES1Core {
             // Concatenate the output from each digest round with the
             // password, and use the result as the input to the next digest
             // operation.
-            byte[] kBytes = null;
-            IvParameterSpec iv = null;
-            byte[] toBeHashed = null;
+            byte[] toBeHashed;
             result = new byte[DESedeKeySpec.DES_EDE_KEY_LEN +
                               DESConstants.DES_BLOCK_SIZE];
             for (i = 0; i < 2; i++) {
-                toBeHashed = new byte[salt.length/2];
-                System.arraycopy(salt, i*(salt.length/2), toBeHashed, 0,
-                                 toBeHashed.length);
-                for (int j=0; j < iCount; j++) {
+                // first iteration
+                md.update(salt, i * (salt.length / 2), salt.length / 2);
+                md.update(passwdBytes);
+                toBeHashed = md.digest();
+                // remaining (iCount - 1) iterations
+                for (int j = 1; j < iCount; ++j) {
                     md.update(toBeHashed);
                     md.update(passwdBytes);
-                    toBeHashed = md.digest(); // this resets the digest
+                    try {
+                        md.digest(toBeHashed, 0, toBeHashed.length);
+                    } catch (DigestException e) {
+                        throw new ProviderException("Internal error", e);
+                    }
                 }
                 System.arraycopy(toBeHashed, 0, result, i*16,
                                  toBeHashed.length);
             }
         }
+        // clear data used in message
+        md.reset();
         return result;
     }
 
@@ -478,9 +493,9 @@ final class PBES1Core {
     byte[] wrap(Key key)
         throws IllegalBlockSizeException, InvalidKeyException {
         byte[] result = null;
-
+        byte[] encodedKey = null;
         try {
-            byte[] encodedKey = key.getEncoded();
+            encodedKey = key.getEncoded();
             if ((encodedKey == null) || (encodedKey.length == 0)) {
                 throw new InvalidKeyException("Cannot get an encoding of " +
                                               "the key to be wrapped");
@@ -489,6 +504,8 @@ final class PBES1Core {
             result = doFinal(encodedKey, 0, encodedKey.length);
         } catch (BadPaddingException e) {
             // Should never happen
+        } finally {
+            if (encodedKey != null) Arrays.fill(encodedKey, (byte)0x00);
         }
 
         return result;
@@ -519,9 +536,14 @@ final class PBES1Core {
                String wrappedKeyAlgorithm,
                int wrappedKeyType)
         throws InvalidKeyException, NoSuchAlgorithmException {
-        byte[] encodedKey;
         try {
-            encodedKey = doFinal(wrappedKey, 0, wrappedKey.length);
+            byte[] encodedKey = doFinal(wrappedKey, 0, wrappedKey.length);
+            try {
+                return ConstructKeys.constructKey(encodedKey, wrappedKeyAlgorithm,
+                        wrappedKeyType);
+            } finally {
+                Arrays.fill(encodedKey, (byte)0);
+            }
         } catch (BadPaddingException ePadding) {
             throw new InvalidKeyException("The wrapped key is not padded " +
                                           "correctly");
@@ -529,7 +551,5 @@ final class PBES1Core {
             throw new InvalidKeyException("The wrapped key does not have " +
                                           "the correct length");
         }
-        return ConstructKeys.constructKey(encodedKey, wrappedKeyAlgorithm,
-                                          wrappedKeyType);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,11 @@ package com.sun.imageio.plugins.bmp;
 
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.Transparency;
 import java.awt.color.ColorSpace;
 import java.awt.color.ICC_ColorSpace;
 import java.awt.color.ICC_Profile;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
-import java.awt.image.ComponentColorModel;
 import java.awt.image.ComponentSampleModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
@@ -47,29 +45,29 @@ import java.awt.image.Raster;
 import java.awt.image.SampleModel;
 import java.awt.image.SinglePixelPackedSampleModel;
 import java.awt.image.WritableRaster;
-
-import javax.imageio.IIOException;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.ImageReadParam;
-import javax.imageio.ImageTypeSpecifier;
-import javax.imageio.metadata.IIOMetadata;
-import javax.imageio.spi.ImageReaderSpi;
-import javax.imageio.stream.ImageInputStream;
-import javax.imageio.event.IIOReadProgressListener;
-import javax.imageio.event.IIOReadUpdateListener;
-import javax.imageio.event.IIOReadWarningListener;
-
-import java.io.*;
-import java.nio.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.ByteOrder;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.StringTokenizer;
+import java.util.List;
+import javax.imageio.IIOException;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReadParam;
+import javax.imageio.ImageReader;
+import javax.imageio.ImageTypeSpecifier;
+import javax.imageio.event.IIOReadProgressListener;
+import javax.imageio.event.IIOReadUpdateListener;
+import javax.imageio.event.IIOReadWarningListener;
+import javax.imageio.metadata.IIOMetadata;
+import javax.imageio.spi.ImageReaderSpi;
+import javax.imageio.stream.ImageInputStream;
 
-import com.sun.imageio.plugins.common.ImageUtil;
 import com.sun.imageio.plugins.common.I18N;
+import com.sun.imageio.plugins.common.ImageUtil;
+import com.sun.imageio.plugins.common.ReaderUtil;
 
 /** This class is the Java Image IO plugin reader for BMP images.
  *  It may subsample the image, clip the image, select sub-bands,
@@ -122,7 +120,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
     private long bitmapStart;
     private long compression;
     private long imageSize;
-    private byte palette[];
+    private byte[] palette;
     private int imageType;
     private int numBands;
     private boolean isBottomUp;
@@ -177,7 +175,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         super(originator);
     }
 
-    /** Overrides the method defined in the superclass. */
+    @Override
     public void setInput(Object input,
                          boolean seekForwardOnly,
                          boolean ignoreMetadata) {
@@ -188,7 +186,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         resetHeaderInfo();
     }
 
-    /** Overrides the method defined in the superclass. */
+    @Override
     public int getNumImages(boolean allowSearch) throws IOException {
         if (iis == null) {
             throw new IllegalStateException(I18N.getString("GetNumImages0"));
@@ -210,6 +208,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         return width;
     }
 
+    @Override
     public int getHeight(int imageIndex) throws IOException {
         checkIndex(imageIndex);
         try {
@@ -226,14 +225,18 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         }
     }
 
+    private void readColorPalette(int sizeOfPalette) throws IOException {
+        palette = ReaderUtil.staggeredReadByteStream(iis, sizeOfPalette);
+    }
+
     /**
      * Process the image header.
      *
-     * @exception IllegalStateException if source stream is not set.
+     * @throws IllegalStateException if source stream is not set.
      *
-     * @exception IOException if image stream is corrupted.
+     * @throws IOException if image stream is corrupted.
      *
-     * @exception IllegalArgumentException if the image stream does not contain
+     * @throws IllegalArgumentException if the image stream does not contain
      *             a BMP image, or if a sample model instance to describe the
      *             image can not be created.
      */
@@ -308,8 +311,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
             // Read in the palette
             int numberOfEntries = (int)((bitmapOffset - 14 - size) / 3);
             int sizeOfPalette = numberOfEntries*3;
-            palette = new byte[sizeOfPalette];
-            iis.readFully(palette, 0, sizeOfPalette);
+            readColorPalette(sizeOfPalette);
             metadata.palette = palette;
             metadata.paletteSize = numberOfEntries;
         } else {
@@ -346,8 +348,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
                     }
                     int numberOfEntries = (int)((bitmapOffset-14-size) / 4);
                     int sizeOfPalette = numberOfEntries * 4;
-                    palette = new byte[sizeOfPalette];
-                    iis.readFully(palette, 0, sizeOfPalette);
+                    readColorPalette(sizeOfPalette);
 
                     metadata.palette = palette;
                     metadata.paletteSize = numberOfEntries;
@@ -407,8 +408,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
                     if (colorsUsed != 0) {
                         // there is a palette
                         sizeOfPalette = (int)colorsUsed*4;
-                        palette = new byte[sizeOfPalette];
-                        iis.readFully(palette, 0, sizeOfPalette);
+                        readColorPalette(sizeOfPalette);
 
                         metadata.palette = palette;
                         metadata.paletteSize = (int)colorsUsed;
@@ -433,8 +433,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
                 // Read in the palette
                 int numberOfEntries = (int)((bitmapOffset-14-size) / 4);
                 int sizeOfPalette = numberOfEntries*4;
-                palette = new byte[sizeOfPalette];
-                iis.readFully(palette, 0, sizeOfPalette);
+                readColorPalette(sizeOfPalette);
                 metadata.palette = palette;
                 metadata.paletteSize = numberOfEntries;
 
@@ -532,8 +531,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
                 // Read in the palette
                 int numberOfEntries = (int)((bitmapOffset-14-size) / 4);
                 int sizeOfPalette = numberOfEntries*4;
-                palette = new byte[sizeOfPalette];
-                iis.readFully(palette, 0, sizeOfPalette);
+                readColorPalette(sizeOfPalette);
                 metadata.palette = palette;
                 metadata.paletteSize = numberOfEntries;
 
@@ -594,6 +592,15 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
             height = Math.abs(height);
         }
 
+        if (metadata.compression == BI_RGB &&
+            metadata.paletteSize == 0 &&
+            metadata.bitsPerPixel >= 16) {
+            long imageDataSize = (((long)width * height * bitsPerPixel) / 8);
+            if (imageDataSize > (bitmapFileSize - bitmapOffset)) {
+                throw new IIOException(I18N.getString("BMPImageReader9"));
+            }
+        }
+
         // Reset Image Layout so there's only one tile.
         //Define the color space
         ColorSpace colorSpace = ColorSpace.getInstance(ColorSpace.CS_sRGB);
@@ -602,32 +609,27 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
 
             iis.mark();
             iis.skipBytes(profileData - size);
-            byte[] profile = new byte[profileSize];
-            iis.readFully(profile, 0, profileSize);
+            byte[] profile = ReaderUtil.
+                    staggeredReadByteStream(iis, profileSize);
             iis.reset();
 
-            try {
-                if (metadata.colorSpace == PROFILE_LINKED &&
-                    isLinkedProfileAllowed() &&
-                    !isUncOrDevicePath(profile))
-                {
-                    String path = new String(profile, "windows-1252");
+            if (metadata.colorSpace == PROFILE_LINKED &&
+                isLinkedProfileAllowed())
+            {
+                String path = new String(profile, "windows-1252");
 
-                    colorSpace =
-                        new ICC_ColorSpace(ICC_Profile.getInstance(path));
-                } else {
-                    colorSpace =
-                        new ICC_ColorSpace(ICC_Profile.getInstance(profile));
-                }
-            } catch (Exception e) {
-                colorSpace = ColorSpace.getInstance(ColorSpace.CS_sRGB);
+                colorSpace =
+                    new ICC_ColorSpace(ICC_Profile.getInstance(path));
+            } else if (metadata.colorSpace == PROFILE_EMBEDDED) {
+                colorSpace =
+                    new ICC_ColorSpace(ICC_Profile.getInstance(profile));
             }
         }
 
         if (bitsPerPixel == 0 ||
             compression == BI_JPEG || compression == BI_PNG )
         {
-            // the colorModel and sampleModel will be initialzed
+            // the colorModel and sampleModel will be initialized
             // by the  reader of embedded image
             colorModel = null;
             sampleModel = null;
@@ -655,7 +657,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
             }
 
             // Create IndexColorModel from the palette.
-            byte r[], g[], b[];
+            byte[] r, g, b;
             if (imageType == VERSION_2_1_BIT ||
                 imageType == VERSION_2_4_BIT ||
                 imageType == VERSION_2_8_BIT) {
@@ -762,6 +764,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         gotHeader = true;
     }
 
+    @Override
     public Iterator<ImageTypeSpecifier> getImageTypes(int imageIndex)
       throws IOException {
         checkIndex(imageIndex);
@@ -776,10 +779,12 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         return list.iterator();
     }
 
+    @Override
     public ImageReadParam getDefaultReadParam() {
         return new ImageReadParam();
     }
 
+    @Override
     public IIOMetadata getImageMetadata(int imageIndex)
       throws IOException {
         checkIndex(imageIndex);
@@ -793,10 +798,12 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         return metadata;
     }
 
+    @Override
     public IIOMetadata getStreamMetadata() throws IOException {
         return null;
     }
 
+    @Override
     public boolean isRandomAccessEasy(int imageIndex) throws IOException {
         checkIndex(imageIndex);
         try {
@@ -807,6 +814,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         return metadata.compression == BI_RGB;
     }
 
+    @Override
     public BufferedImage read(int imageIndex, ImageReadParam param)
         throws IOException {
 
@@ -885,9 +893,9 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
             noTransform &=  destinationRegion.equals(raster.getBounds());
         }
 
-        byte bdata[] = null; // buffer for byte data
-        short sdata[] = null; // buffer for short data
-        int idata[] = null; // buffer for int data
+        byte[] bdata = null; // buffer for byte data
+        short[] sdata = null; // buffer for short data
+        int[] idata = null; // buffer for int data
 
         // the sampleModel can be null in case of embedded image
         if (sampleModel != null) {
@@ -1047,10 +1055,12 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         return bi;
     }
 
+    @Override
     public boolean canReadRaster() {
         return true;
     }
 
+    @Override
     public Raster readRaster(int imageIndex,
                              ImageReadParam param) throws IOException {
         BufferedImage bi = read(imageIndex, param);
@@ -1064,6 +1074,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         colorModel = originalColorModel = null;
     }
 
+    @Override
     public void reset() {
         super.reset();
         iis = null;
@@ -1368,7 +1379,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         }
     }
 
-    private void read16Bit(short sdata[]) throws IOException {
+    private void read16Bit(short[] sdata) throws IOException {
         // Padding bytes at the end of each scanline
         // width * bitsPerPixel should be divisible by 32
         int padding = width * 2 % 4;
@@ -1434,7 +1445,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         }
     }
 
-    private void read32Bit(int idata[]) throws IOException {
+    private void read32Bit(int[] idata) throws IOException {
         if (noTransform) {
             int j = isBottomUp ? (height -1) * width : 0;
 
@@ -1490,7 +1501,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         }
     }
 
-    private void readRLE8(byte bdata[]) throws IOException {
+    private void readRLE8(byte[] bdata) throws IOException {
         // If imageSize field is not provided, calculate it.
         int imSize = (int)imageSize;
         if (imSize == 0) {
@@ -1506,9 +1517,8 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         }
 
         // Read till we have the whole image
-        byte values[] = new byte[imSize];
-        int bytesRead = 0;
-        iis.readFully(values, 0, imSize);
+        byte[] values = ReaderUtil.
+            staggeredReadByteStream(iis, imSize);
 
         // Since data is compressed, decompress it
         decodeRLE8(imSize, padding, values, bdata);
@@ -1562,7 +1572,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
                             byte[] values,
                             byte[] bdata) throws IOException {
 
-        byte val[] = new byte[width];
+        byte[] val = new byte[width];
         int count = 0, l = 0;
         int value;
         boolean flag = false;
@@ -1690,8 +1700,8 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         }
 
         // Read till we have the whole image
-        byte[] values = new byte[imSize];
-        iis.readFully(values, 0, imSize);
+        byte[] values = ReaderUtil.
+            staggeredReadByteStream(iis, imSize);
 
         // Decompress the RLE4 compressed data.
         decodeRLE4(imSize, padding, values, bdata);
@@ -1864,7 +1874,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
                 // Ensure to check if the source index-count, does not
                 // exceed the source image size
                 if (count < imSize) {
-                    int alternate[] = { (values[count] & 0xf0) >> 4,
+                    int[] alternate = { (values[count] & 0xf0) >> 4,
                                         values[count] & 0x0f };
                     for (int i=0; (i < value) && (l < width); i++) {
                         val[l++] = (byte)alternate[i & 1];
@@ -1924,6 +1934,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         }
 
         reader.addIIOReadProgressListener(new EmbeddedProgressAdapter() {
+                @Override
                 public void imageProgress(ImageReader source,
                                           float percentageDone)
                 {
@@ -1932,6 +1943,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
             });
 
         reader.addIIOReadUpdateListener(new IIOReadUpdateListener() {
+                @Override
                 public void imageUpdate(ImageReader source,
                                         BufferedImage theImage,
                                         int minX, int minY,
@@ -1943,11 +1955,13 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
                                        width, height,
                                        periodX, periodY, bands);
                 }
+                @Override
                 public void passComplete(ImageReader source,
                                          BufferedImage theImage)
                 {
                     processPassComplete(theImage);
                 }
+                @Override
                 public void passStarted(ImageReader source,
                                         BufferedImage theImage,
                                         int pass,
@@ -1960,8 +1974,10 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
                                        minX, minY, periodX, periodY,
                                        bands);
                 }
+                @Override
                 public void thumbnailPassComplete(ImageReader source,
                                                   BufferedImage thumb) {}
+                @Override
                 public void thumbnailPassStarted(ImageReader source,
                                                  BufferedImage thumb,
                                                  int pass,
@@ -1969,6 +1985,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
                                                  int minX, int minY,
                                                  int periodX, int periodY,
                                                  int[] bands) {}
+                @Override
                 public void thumbnailUpdate(ImageReader source,
                                             BufferedImage theThumbnail,
                                             int minX, int minY,
@@ -1978,6 +1995,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
             });
 
         reader.addIIOReadWarningListener(new IIOReadWarningListener() {
+                @Override
                 public void warningOccurred(ImageReader source, String warning)
                 {
                     processWarningOccurred(warning);
@@ -1998,81 +2016,41 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         return bi;
     }
 
-    private class EmbeddedProgressAdapter implements IIOReadProgressListener {
+    private static class EmbeddedProgressAdapter implements IIOReadProgressListener {
+        @Override
         public void imageComplete(ImageReader src) {}
+        @Override
         public void imageProgress(ImageReader src, float percentageDone) {}
+        @Override
         public void imageStarted(ImageReader src, int imageIndex) {}
+        @Override
         public void thumbnailComplete(ImageReader src) {}
+        @Override
         public void thumbnailProgress(ImageReader src, float percentageDone) {}
+        @Override
         public void thumbnailStarted(ImageReader src, int iIdx, int tIdx) {}
+        @Override
         public void sequenceComplete(ImageReader src) {}
+        @Override
         public void sequenceStarted(ImageReader src, int minIndex) {}
+        @Override
         public void readAborted(ImageReader src) {}
     }
 
-    private static Boolean isLinkedProfileDisabled = null;
+    private static Boolean isLinkedProfileAllowed = null;
 
+    @SuppressWarnings("removal")
     private static boolean isLinkedProfileAllowed() {
-        if (isLinkedProfileDisabled == null) {
+        if (isLinkedProfileAllowed == null) {
             PrivilegedAction<Boolean> a = new PrivilegedAction<Boolean>() {
+                @Override
                 public Boolean run() {
-                    return Boolean.getBoolean("sun.imageio.plugins.bmp.disableLinkedProfiles");
+                    return Boolean.
+                        getBoolean("sun.imageio.bmp.enableLinkedProfiles");
                 }
             };
-            isLinkedProfileDisabled = AccessController.doPrivileged(a);
+            isLinkedProfileAllowed = AccessController.doPrivileged(a);
         }
-        return !isLinkedProfileDisabled;
-    }
-
-    private static Boolean isWindowsPlatform = null;
-
-    /**
-     * Verifies whether the byte array contans a unc path.
-     * Non-UNC path examples:
-     *  c:\path\to\file  - simple notation
-     *  \\?\c:\path\to\file - long notation
-     *
-     * UNC path examples:
-     *  \\server\share - a UNC path in simple notation
-     *  \\?\UNC\server\share - a UNC path in long notation
-     *  \\.\some\device - a path to device.
-     */
-    private static boolean isUncOrDevicePath(byte[] p) {
-        if (isWindowsPlatform == null) {
-            PrivilegedAction<Boolean> a = new PrivilegedAction<Boolean>() {
-                public Boolean run() {
-                    String osname = System.getProperty("os.name");
-                    return (osname != null &&
-                            osname.toLowerCase().startsWith("win"));
-                }
-            };
-            isWindowsPlatform = AccessController.doPrivileged(a);
-        }
-
-        if (!isWindowsPlatform) {
-            /* no need for the check on platforms except windows */
-            return false;
-        }
-
-        /* normalize prefix of the path */
-        if (p[0] == '/') p[0] = '\\';
-        if (p[1] == '/') p[1] = '\\';
-        if (p[3] == '/') p[3] = '\\';
-
-
-        if ((p[0] == '\\') && (p[1] == '\\')) {
-            if ((p[2] == '?') && (p[3] == '\\')) {
-                // long path: whether unc or local
-                return ((p[4] == 'U' || p[4] == 'u') &&
-                        (p[5] == 'N' || p[5] == 'n') &&
-                        (p[6] == 'C' || p[6] == 'c'));
-            } else {
-                // device path or short unc notation
-                return true;
-            }
-        } else {
-            return false;
-        }
+        return isLinkedProfileAllowed;
     }
 }
-

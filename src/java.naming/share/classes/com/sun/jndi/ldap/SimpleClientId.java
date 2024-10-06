@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 package com.sun.jndi.ldap;
 
-import org.jspecify.annotations.Nullable;
-
 import java.util.Arrays;  // JDK1.2
 import java.io.OutputStream;
 import javax.naming.ldap.Control;
@@ -39,9 +37,9 @@ import javax.naming.ldap.Control;
  * @author Rosanna Lee
  */
 class SimpleClientId extends ClientId {
-    final private String username;
-    final private Object passwd;
-    final private int myHash;
+    private final String username;
+    private final Object passwd;
+    private final int myHash;
 
     SimpleClientId(int version, String hostname, int port,
         String protocol, Control[] bindCtls, OutputStream trace,
@@ -70,14 +68,10 @@ class SimpleClientId extends ClientId {
             ^ pwdHashCode;
     }
 
-    
-    
-    public boolean equals(@Nullable Object obj) {
-        if (obj == null || !(obj instanceof SimpleClientId)) {
+    public boolean equals(Object obj) {
+        if (!(obj instanceof SimpleClientId other)) {
             return false;
         }
-
-        SimpleClientId other = (SimpleClientId)obj;
 
         return super.equals(obj)
             && (username == other.username // null OK

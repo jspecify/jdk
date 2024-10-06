@@ -42,7 +42,7 @@ import java.io.Serializable;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -60,6 +60,11 @@ public class BasicIconFactory implements Serializable
     private static Icon menuItemCheckIcon;
     private static Icon menuItemArrowIcon;
     private static Icon menuArrowIcon;
+
+    /**
+     * Constructs a {@code BasicIconFactory}.
+     */
+    public BasicIconFactory() {}
 
     /**
      * Returns a menu item check icon.
@@ -163,7 +168,7 @@ public class BasicIconFactory implements Serializable
         }
         public int getIconWidth() { return width; }
         public int getIconHeight() { return height; }
-    };
+    }
 
     private static class CheckBoxIcon implements Icon, Serializable
     {

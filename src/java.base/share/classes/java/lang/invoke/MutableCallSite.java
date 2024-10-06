@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,8 @@
 package java.lang.invoke;
 
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
+
+import static java.lang.invoke.MethodHandleStatics.UNSAFE;
 
 /**
  * A {@code MutableCallSite} is a {@link CallSite} whose target variable
@@ -83,7 +84,7 @@ assertEquals("Wilma, dear?", (String) worker2.invokeExact());
  * @author John Rose, JSR 292 EG
  * @since 1.7
  */
-public class MutableCallSite extends CallSite {
+public non-sealed class MutableCallSite extends CallSite {
     /**
      * Creates a blank call site object with the given method type.
      * The initial target is set to a method handle of the given type
@@ -152,7 +153,6 @@ public class MutableCallSite extends CallSite {
      * @see #getTarget
      */
     @Override public void setTarget(MethodHandle newTarget) {
-        checkTargetChange(this.target, newTarget);
         setTargetNormal(newTarget);
     }
 
@@ -197,7 +197,7 @@ public class MutableCallSite extends CallSite {
      * processed before the method returns abnormally.
      * Which elements these are (if any) is implementation-dependent.
      *
-     * <h1>Java Memory Model details</h1>
+     * <h4>Java Memory Model details</h4>
      * In terms of the Java Memory Model, this operation performs a synchronization
      * action which is comparable in effect to the writing of a volatile variable
      * by the current thread, and an eventual volatile read by every other thread
@@ -275,11 +275,10 @@ public class MutableCallSite extends CallSite {
      */
     public static void syncAll(MutableCallSite[] sites) {
         if (sites.length == 0)  return;
-        STORE_BARRIER.lazySet(0);
+        UNSAFE.storeFence();
         for (MutableCallSite site : sites) {
             Objects.requireNonNull(site); // trigger NPE on first null
         }
         // FIXME: NYI
     }
-    private static final AtomicInteger STORE_BARRIER = new AtomicInteger();
 }

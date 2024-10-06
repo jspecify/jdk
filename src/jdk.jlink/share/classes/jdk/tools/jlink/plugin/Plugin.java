@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,10 +24,10 @@
  */
 package jdk.tools.jlink.plugin;
 
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
+
 import jdk.tools.jlink.internal.plugins.PluginsResourceBundle;
 
 /**
@@ -39,12 +39,13 @@ public interface Plugin {
      * Order of categories matches the plugin sort order.
      * <ol>
      * <li>FILTER: Filter in/out resources or files.</li>
+     * <li>ADDER: Add resources or files.</li>
      * <li>TRANSFORMER: Transform resources or files(eg: refactoring, bytecode
      * manipulation).</li>
      * <li>MODULEINFO_TRANSFORMER: Transform only module-info.class</li>
      * <li>SORTER: Sort resources within the resource container.</li>
      * <li>METAINFO_ADDER: Added meta info (like release, copyright etc.)</li>
-     * <li>COMPRESSOR: Compress resource within the resouce containers.</li>
+     * <li>COMPRESSOR: Compress resource within the resource containers.</li>
      * <li>VERIFIER: Does some image verification.</li>
      * <li>PROCESSOR: Does some post processing on image.</li>
      * <li>PACKAGER: Final processing</li>
@@ -52,6 +53,7 @@ public interface Plugin {
      */
     public enum Category {
         FILTER("FILTER"),
+        ADDER("ADDER"),
         TRANSFORMER("TRANSFORMER"),
         MODULEINFO_TRANSFORMER("MODULEINFO_TRANSFORMER"),
         SORTER("SORTER"),
@@ -123,6 +125,14 @@ public interface Plugin {
     }
 
     /**
+     * The plugin usage for printing to console.
+     * @return The usage.
+     */
+    public default String getUsage() {
+        return "";
+    }
+
+    /**
      * The option that identifies this plugin. This may be null.
      * "--" is prefixed to the String (when non-null) when invoking
      * this plugin from jlink command line.
@@ -149,6 +159,10 @@ public interface Plugin {
      * @return true if arguments are needed.
      */
     public default boolean hasArguments() {
+        return false;
+    }
+
+    public default boolean hasRawArgument() {
         return false;
     }
 

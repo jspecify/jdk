@@ -20,12 +20,15 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+import java.io.File;
+import javax.imageio.ImageIO;
 
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
+import java.awt.RenderingHints;
 import java.awt.font.FontRenderContext;
 import java.awt.font.NumericShaper;
 import java.awt.font.TextAttribute;
@@ -41,7 +44,7 @@ import javax.swing.plaf.metal.MetalLookAndFeel;
 
 /**
  * @test
- * @bug 8132119 8168992 8169897
+ * @bug 8132119 8168992 8169897 8207941
  * @author Alexandr Scherbatiy
  * @summary Provide public API for text related methods in SwingBasicGraphicsUtils2
  */
@@ -145,21 +148,28 @@ public class bug8132119 {
 
         g2.setColor(DRAW_COLOR);
         g2.setFont(comp.getFont());
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                            RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
 
         FontMetrics fontMetrices = comp.getFontMetrics(comp.getFont());
         float width = BasicGraphicsUtils.getStringWidth(comp, fontMetrices, str);
-        float x = (WIDTH - width) / 2;
         int y = 3 * HEIGHT / 4;
 
         if (underlined) {
-            BasicGraphicsUtils.drawStringUnderlineCharAt(comp, g2, str, 1, x, y);
+            BasicGraphicsUtils.drawStringUnderlineCharAt(comp, g2, str, 1, 0, y);
         } else {
-            BasicGraphicsUtils.drawString(comp, g2, str, x, y);
+            BasicGraphicsUtils.drawString(comp, g2, str, 0, y);
         }
         g2.dispose();
 
-        float xx = BasicGraphicsUtils.getStringWidth(comp, fontMetrices, "A") +
+        float xx = 0;
+        if (underlined) {
+            xx = BasicGraphicsUtils.getStringWidth(comp, fontMetrices, "A") +
+                BasicGraphicsUtils.getStringWidth(comp, fontMetrices, "O")/2  - 5;
+        } else {
+            xx = BasicGraphicsUtils.getStringWidth(comp, fontMetrices, "A") +
                 BasicGraphicsUtils.getStringWidth(comp, fontMetrices, "O")/2;
+        }
 
         checkImageContainsSymbol(buffImage, (int) xx, underlined ? 3 : 2);
     }
@@ -277,14 +287,33 @@ public class bug8132119 {
         return comp;
     }
 
+    private static String getFontName(String fn, String[] fontNames) {
+        String fontName = null;
+        for (String name : fontNames) {
+            if (fn.equals(name)) {
+                fontName = name;
+                break;
+            }
+        }
+        return fontName;
+    }
+
     private static Font getFont() {
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
         String[] fontNames = ge.getAvailableFontFamilyNames();
-        String fontName = fontNames[0];
-        for (String name : fontNames) {
-            if ("Arial".equals(name)) {
-                fontName = name;
-                break;
+
+        // We do not have Arial on all systems so provide some reasonable fallbacks.
+        // In case the fallbacks are not available as well, choose as last fallback
+        // the first font - however this might be a problematic choice.
+        String fontName = getFontName("Arial", fontNames);
+        if (fontName == null) {
+            fontName = getFontName("Bitstream Charter", fontNames);
+            if (fontName == null) {
+                fontName = getFontName("Dialog", fontNames);
+                if (fontName == null) {
+                    fontName = fontNames[0];
+                    System.out.println("warning - preferred fonts not on the system, fall back to first font " + fontName);
+                }
             }
         }
         return new Font(fontName, Font.PLAIN, 30);
@@ -325,7 +354,11 @@ public class bug8132119 {
             }
         }
 
+
         if (backgroundChangesCount != intersections * 2) {
+            try {
+                ImageIO.write(buffImage, "png", new File("image.png"));
+            } catch (Exception e) {}
             throw new RuntimeException("String is not properly drawn!");
         }
     }

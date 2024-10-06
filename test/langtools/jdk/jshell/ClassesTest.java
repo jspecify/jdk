@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8145239 8129559 8080354 8189248 8010319
+ * @bug 8145239 8129559 8080354 8189248 8010319 8246353 8247456 8282160 8292755 8319532
  * @summary Tests for EvaluationState.classes
  * @build KullaTesting TestingInputStream ExpectedDiagnostic
  * @run testng ClassesTest
@@ -249,29 +249,23 @@ public class ClassesTest extends KullaTesting {
 
     public void classesIgnoredModifiers() {
         assertEval("public interface A { }");
-        assertDeclareWarn1("static class B implements A { }",
-                new ExpectedDiagnostic("jdk.eval.warn.illegal.modifiers", 0, 6, 0, -1, -1, Diagnostic.Kind.WARNING));
-        assertDeclareWarn1("final interface C extends A { }",
-                new ExpectedDiagnostic("jdk.eval.warn.illegal.modifiers", 0, 5, 0, -1, -1, Diagnostic.Kind.WARNING));
+        assertEval("static class B implements A { }");
+        assertEval("static interface C extends A { }");
         assertActiveKeys();
     }
 
     public void classesIgnoredModifiersAnnotation() {
         assertEval("public @interface X { }");
         assertEval("@X public interface A { }");
-        assertDeclareWarn1("@X static class B implements A { }",
-                new ExpectedDiagnostic("jdk.eval.warn.illegal.modifiers", 0, 9, 0, -1, -1, Diagnostic.Kind.WARNING));
-        assertDeclareWarn1("@X final interface C extends A { }",
-                new ExpectedDiagnostic("jdk.eval.warn.illegal.modifiers", 0, 8, 0, -1, -1, Diagnostic.Kind.WARNING));
+        assertEval("@X static class B implements A { }");
+        assertEval("@X static interface C extends A { }");
         assertActiveKeys();
     }
 
     public void classesIgnoredModifiersOtherModifiers() {
         assertEval("strictfp public interface A { }");
-        assertDeclareWarn1("strictfp static class B implements A { }",
-                new ExpectedDiagnostic("jdk.eval.warn.illegal.modifiers", 0, 15, 0, -1, -1, Diagnostic.Kind.WARNING));
-        assertDeclareWarn1("strictfp final interface C extends A { }",
-                new ExpectedDiagnostic("jdk.eval.warn.illegal.modifiers", 0, 14, 0, -1, -1, Diagnostic.Kind.WARNING));
+        assertEval("strictfp static class B implements A { }");
+        assertEval("strictfp static interface C extends A { }");
         assertActiveKeys();
     }
 
@@ -344,8 +338,47 @@ public class ClassesTest extends KullaTesting {
                    "  public T get() {return null;}\n" +
                    "}",
                    added(VALID),
-                   ste(aClass, Status.RECOVERABLE_DEFINED, Status.VALID, true, null));
+                   ste(aClass, Status.RECOVERABLE_DEFINED, Status.VALID, false, null));
         assertEval("new A()");
+    }
+
+    public void testCircular8282160() {
+        TypeDeclSnippet classKey = classKey(assertEval("""
+                                                       class B {
+                                                           C c;
+                                                           public void run() {}
+                                                       }
+                                                       """,
+                                                       added(RECOVERABLE_NOT_DEFINED)));
+        assertEval("""
+                   class C extends B {
+                       @Override
+                       public void run() {}
+                   }
+                   """,
+                   added(VALID),
+                   ste(classKey, Status.RECOVERABLE_NOT_DEFINED, Status.VALID, true, null));
+    }
+
+    public void testDefaultMethodInInterface() {
+        assertEvalFail("""
+                       interface C {
+                           public void run() {
+                               try {
+                                   throw IllegalStateException();
+                               } catch (Throwable t) {
+                                   throw new RuntimeException(t);
+                               }
+                           }
+                       }
+                       """);
+    }
+
+    public void testNonSealed() {
+        assertAnalyze("non-sealed class C extends B {}int i;",
+                      "non-sealed class C extends B {}",
+                      "int i;",
+                      true);
     }
 
 }

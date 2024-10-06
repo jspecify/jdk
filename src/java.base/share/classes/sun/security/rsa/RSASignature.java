@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package sun.security.rsa;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import java.security.*;
@@ -40,13 +39,14 @@ import sun.security.x509.AlgorithmId;
  * PKCS#1 v1.5 RSA signatures with the various message digest algorithms.
  * This file contains an abstract base class with all the logic plus
  * a nested static class for each of the message digest algorithms
- * (see end of the file). We support MD2, MD5, SHA-1, SHA-224, SHA-256,
- * SHA-384, SHA-512, SHA-512/224, and SHA-512/256.
+ * (see end of the file). We support MD2, MD5, SHA-1, SHA2 family (
+ * SHA-224, SHA-256, SHA-384, SHA-512, SHA-512/224, and SHA-512/256),
+ * and SHA3 family (SHA3-224, SHA3-256, SHA3-384, SHA3-512) of digests.
  *
  * @since   1.5
  * @author  Andreas Sterbenz
  */
-public abstract class RSASignature extends SignatureSpi {
+abstract class RSASignature extends SignatureSpi {
 
     // we sign an ASN.1 SEQUENCE of AlgorithmId and digest
     // it has the form 30:xx:30:xx:[digestOID]:05:00:04:xx:[digest]
@@ -143,7 +143,7 @@ public abstract class RSASignature extends SignatureSpi {
      * Reset the message digest if it is not already reset.
      */
     private void resetDigest() {
-        if (digestReset == false) {
+        if (!digestReset) {
             md.reset();
             digestReset = true;
         }
@@ -187,15 +187,15 @@ public abstract class RSASignature extends SignatureSpi {
         }
         byte[] digest = getDigestValue();
         try {
-            byte[] encoded = encodeSignature(digestOID, digest);
+            byte[] encoded = RSAUtil.encodeSignature(digestOID, digest);
             byte[] padded = padding.pad(encoded);
-            byte[] encrypted = RSACore.rsa(padded, privateKey, true);
-            return encrypted;
+            if (padded != null) {
+                return RSACore.rsa(padded, privateKey, true);
+            }
         } catch (GeneralSecurityException e) {
             throw new SignatureException("Could not sign data", e);
-        } catch (IOException e) {
-            throw new SignatureException("Could not encode data", e);
         }
+        throw new SignatureException("Could not sign data");
     }
 
     // verify the data and return the result. See JCA doc
@@ -207,64 +207,33 @@ public abstract class RSASignature extends SignatureSpi {
         }
         try {
             if (sigBytes.length != RSACore.getByteLength(publicKey)) {
-                throw new SignatureException("Signature length not correct: got " +
+                throw new SignatureException("Bad signature length: got " +
                     sigBytes.length + " but was expecting " +
                     RSACore.getByteLength(publicKey));
             }
-            byte[] digest = getDigestValue();
+
+            // https://www.rfc-editor.org/rfc/rfc8017.html#section-8.2.2
+            // Step 4 suggests comparing the encoded message
             byte[] decrypted = RSACore.rsa(sigBytes, publicKey);
-            byte[] unpadded = padding.unpad(decrypted);
-            byte[] decodedDigest = decodeSignature(digestOID, unpadded);
-            return MessageDigest.isEqual(digest, decodedDigest);
+
+            byte[] digest = getDigestValue();
+
+            byte[] encoded = RSAUtil.encodeSignature(digestOID, digest);
+            byte[] padded = padding.pad(encoded);
+            if (MessageDigest.isEqual(padded, decrypted)) {
+                return true;
+            }
+
+            // Some vendors might omit the NULL params in digest algorithm
+            // identifier. Try again.
+            encoded = RSAUtil.encodeSignatureWithoutNULL(digestOID, digest);
+            padded = padding.pad(encoded);
+            return MessageDigest.isEqual(padded, decrypted);
         } catch (javax.crypto.BadPaddingException e) {
-            // occurs if the app has used the wrong RSA public key
-            // or if sigBytes is invalid
-            // return false rather than propagating the exception for
-            // compatibility/ease of use
             return false;
-        } catch (IOException e) {
-            throw new SignatureException("Signature encoding error", e);
         } finally {
             resetDigest();
         }
-    }
-
-    /**
-     * Encode the digest, return the to-be-signed data.
-     * Also used by the PKCS#11 provider.
-     */
-    public static byte[] encodeSignature(ObjectIdentifier oid, byte[] digest)
-            throws IOException {
-        DerOutputStream out = new DerOutputStream();
-        new AlgorithmId(oid).encode(out);
-        out.putOctetString(digest);
-        DerValue result =
-            new DerValue(DerValue.tag_Sequence, out.toByteArray());
-        return result.toByteArray();
-    }
-
-    /**
-     * Decode the signature data. Verify that the object identifier matches
-     * and return the message digest.
-     */
-    public static byte[] decodeSignature(ObjectIdentifier oid, byte[] sig)
-            throws IOException {
-        // Enforce strict DER checking for signatures
-        DerInputStream in = new DerInputStream(sig, 0, sig.length, false);
-        DerValue[] values = in.getSequence(2);
-        if ((values.length != 2) || (in.available() != 0)) {
-            throw new IOException("SEQUENCE length error");
-        }
-        AlgorithmId algId = AlgorithmId.parse(values[0]);
-        if (algId.getOID().equals(oid) == false) {
-            throw new IOException("ObjectIdentifier mismatch: "
-                + algId.getOID());
-        }
-        if (algId.getEncodedParams() != null) {
-            throw new IOException("Unexpected AlgorithmId parameters");
-        }
-        byte[] digest = values[1].getOctetString();
-        return digest;
     }
 
     // set parameter, not supported. See JCA doc
@@ -358,6 +327,34 @@ public abstract class RSASignature extends SignatureSpi {
     public static final class SHA512_256withRSA extends RSASignature {
         public SHA512_256withRSA() {
             super("SHA-512/256", AlgorithmId.SHA512_256_oid, 11);
+        }
+    }
+
+    // Nested class for SHA3-224withRSA signatures
+    public static final class SHA3_224withRSA extends RSASignature {
+        public SHA3_224withRSA() {
+            super("SHA3-224", AlgorithmId.SHA3_224_oid, 11);
+        }
+    }
+
+    // Nested class for SHA3-256withRSA signatures
+    public static final class SHA3_256withRSA extends RSASignature {
+        public SHA3_256withRSA() {
+            super("SHA3-256", AlgorithmId.SHA3_256_oid, 11);
+        }
+    }
+
+    // Nested class for SHA3-384withRSA signatures
+    public static final class SHA3_384withRSA extends RSASignature {
+        public SHA3_384withRSA() {
+            super("SHA3-384", AlgorithmId.SHA3_384_oid, 11);
+        }
+    }
+
+    // Nested class for SHA3-512withRSA signatures
+    public static final class SHA3_512withRSA extends RSASignature {
+        public SHA3_512withRSA() {
+            super("SHA3-512", AlgorithmId.SHA3_512_oid, 11);
         }
     }
 }

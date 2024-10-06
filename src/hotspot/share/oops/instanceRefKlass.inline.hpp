@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,18 +22,20 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_INSTANCEREFKLASS_INLINE_HPP
-#define SHARE_VM_OOPS_INSTANCEREFKLASS_INLINE_HPP
+#ifndef SHARE_OOPS_INSTANCEREFKLASS_INLINE_HPP
+#define SHARE_OOPS_INSTANCEREFKLASS_INLINE_HPP
+
+#include "oops/instanceRefKlass.hpp"
 
 #include "classfile/javaClasses.inline.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "oops/access.inline.hpp"
-#include "oops/compressedOops.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
-#include "oops/instanceRefKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/debug.hpp"
+#include "utilities/devirtualizer.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
@@ -64,9 +66,9 @@ static inline oop load_referent(oop obj, ReferenceType type) {
 template <typename T, class OopClosureType>
 bool InstanceRefKlass::try_discover(oop obj, ReferenceType type, OopClosureType* closure) {
   ReferenceDiscoverer* rd = closure->ref_discoverer();
-  if (rd != NULL) {
+  if (rd != nullptr) {
     oop referent = load_referent(obj, type);
-    if (referent != NULL) {
+    if (referent != nullptr) {
       if (!referent->is_gc_marked()) {
         // Only try to discover if not yet marked.
         return rd->discover_reference(obj, type);
@@ -89,21 +91,15 @@ void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, Oo
 }
 
 template <typename T, class OopClosureType, class Contains>
-void InstanceRefKlass::oop_oop_iterate_discovered_and_discovery(oop obj, ReferenceType type, OopClosureType* closure, Contains& contains) {
-  // Explicitly apply closure to the discovered field.
-  do_discovered<T>(obj, closure, contains);
-  // Then do normal reference processing with discovery.
-  oop_oop_iterate_discovery<T>(obj, type, closure, contains);
-}
-
-template <typename T, class OopClosureType, class Contains>
 void InstanceRefKlass::oop_oop_iterate_fields(oop obj, OopClosureType* closure, Contains& contains) {
+  assert(closure->ref_discoverer() == nullptr, "ReferenceDiscoverer should not be set");
   do_referent<T>(obj, closure, contains);
   do_discovered<T>(obj, closure, contains);
 }
 
 template <typename T, class OopClosureType, class Contains>
 void InstanceRefKlass::oop_oop_iterate_fields_except_referent(oop obj, OopClosureType* closure, Contains& contains) {
+  assert(closure->ref_discoverer() == nullptr, "ReferenceDiscoverer should not be set");
   do_discovered<T>(obj, closure, contains);
 }
 
@@ -113,10 +109,6 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing(oop obj, OopClosureType* c
     case OopIterateClosure::DO_DISCOVERY:
       trace_reference_gc<T>("do_discovery", obj);
       oop_oop_iterate_discovery<T>(obj, reference_type(), closure, contains);
-      break;
-    case OopIterateClosure::DO_DISCOVERED_AND_DISCOVERY:
-      trace_reference_gc<T>("do_discovered_and_discovery", obj);
-      oop_oop_iterate_discovered_and_discovery<T>(obj, reference_type(), closure, contains);
       break;
     case OopIterateClosure::DO_FIELDS:
       trace_reference_gc<T>("do_fields", obj);
@@ -179,15 +171,23 @@ void InstanceRefKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closure,
 #ifdef ASSERT
 template <typename T>
 void InstanceRefKlass::trace_reference_gc(const char *s, oop obj) {
-  T* referent_addr   = (T*) java_lang_ref_Reference::referent_addr_raw(obj);
-  T* discovered_addr = (T*) java_lang_ref_Reference::discovered_addr_raw(obj);
+  struct Stream : public LogStream {
+    Stream() : LogStream(LogTarget(Trace, gc, ref)()) {}
+    void print_contents_cr(oop* addr)       { print_cr(PTR_FORMAT,   *(uintptr_t*)addr); }
+    void print_contents_cr(narrowOop* addr) { print_cr(UINT32_FORMAT_X_0, *(uint32_t*)addr); }
+  } stream;
 
-  log_develop_trace(gc, ref)("InstanceRefKlass %s for obj " PTR_FORMAT, s, p2i(obj));
-  log_develop_trace(gc, ref)("     referent_addr/* " PTR_FORMAT " / " PTR_FORMAT,
-      p2i(referent_addr), p2i((oop)HeapAccess<ON_UNKNOWN_OOP_REF | AS_NO_KEEPALIVE>::oop_load_at(obj, java_lang_ref_Reference::referent_offset)));
-  log_develop_trace(gc, ref)("     discovered_addr/* " PTR_FORMAT " / " PTR_FORMAT,
-      p2i(discovered_addr), p2i((oop)HeapAccess<AS_NO_KEEPALIVE>::oop_load(discovered_addr)));
+  if (stream.is_enabled()) {
+    T* referent_addr   = (T*) java_lang_ref_Reference::referent_addr_raw(obj);
+    T* discovered_addr = (T*) java_lang_ref_Reference::discovered_addr_raw(obj);
+
+    stream.print_cr("InstanceRefKlass %s for obj " PTR_FORMAT, s, p2i(obj));
+    stream.print("     referent_addr/* " PTR_FORMAT " / ", p2i(referent_addr));
+    stream.print_contents_cr(referent_addr);
+    stream.print("     discovered_addr/* " PTR_FORMAT " / ", p2i(discovered_addr));
+    stream.print_contents_cr(discovered_addr);
+  }
 }
 #endif
 
-#endif // SHARE_VM_OOPS_INSTANCEREFKLASS_INLINE_HPP
+#endif // SHARE_OOPS_INSTANCEREFKLASS_INLINE_HPP

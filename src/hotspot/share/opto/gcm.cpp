@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,7 +61,7 @@ void PhaseCFG::schedule_node_into_block( Node *n, Block *b ) {
     if (use->is_Proj()) {
       Block* buse = get_block_for_node(use);
       if (buse != b) {              // In wrong block?
-        if (buse != NULL) {
+        if (buse != nullptr) {
           buse->find_remove(use);   // Remove from wrong block
         }
         map_node_to_block(use, b);
@@ -77,9 +77,9 @@ void PhaseCFG::schedule_node_into_block( Node *n, Block *b ) {
 // the projection will be in a predecessor block.
 void PhaseCFG::replace_block_proj_ctrl( Node *n ) {
   const Node *in0 = n->in(0);
-  assert(in0 != NULL, "Only control-dependent");
+  assert(in0 != nullptr, "Only control-dependent");
   const Node *p = in0->is_block_proj();
-  if (p != NULL && p != n) {    // Control from a block projection?
+  if (p != nullptr && p != n) {    // Control from a block projection?
     assert(!n->pinned() || n->is_MachConstantBase(), "only pinned MachConstantBase node is expected here");
     // Find trailing Region
     Block *pb = get_block_for_node(in0); // Block-projection already has basic block
@@ -103,11 +103,14 @@ void PhaseCFG::replace_block_proj_ctrl( Node *n ) {
 }
 
 bool PhaseCFG::is_dominator(Node* dom_node, Node* node) {
+  assert(is_CFG(node) && is_CFG(dom_node), "node and dom_node must be CFG nodes");
   if (dom_node == node) {
     return true;
   }
-  Block* d = get_block_for_node(dom_node);
-  Block* n = get_block_for_node(node);
+  Block* d = find_block_for_node(dom_node);
+  Block* n = find_block_for_node(node);
+  assert(n != nullptr && d != nullptr, "blocks must exist");
+
   if (d == n) {
     if (dom_node->is_block_start()) {
       return true;
@@ -121,21 +124,74 @@ bool PhaseCFG::is_dominator(Node* dom_node, Node* node) {
     if (node->is_block_proj()) {
       return true;
     }
+
+    assert(is_control_proj_or_safepoint(node), "node must be control projection or safepoint");
+    assert(is_control_proj_or_safepoint(dom_node), "dom_node must be control projection or safepoint");
+
+    // Neither 'node' nor 'dom_node' is a block start or block projection.
+    // Check if 'dom_node' is above 'node' in the control graph.
+    if (is_dominating_control(dom_node, node)) {
+      return true;
+    }
+
 #ifdef ASSERT
-    node->dump();
-    dom_node->dump();
+    // If 'dom_node' does not dominate 'node' then 'node' has to dominate 'dom_node'
+    if (!is_dominating_control(node, dom_node)) {
+      node->dump();
+      dom_node->dump();
+      assert(false, "neither dom_node nor node dominates the other");
+    }
 #endif
-    fatal("unhandled");
+
     return false;
   }
   return d->dom_lca(n) == d;
 }
 
+bool PhaseCFG::is_CFG(Node* n) {
+  return n->is_block_proj() || n->is_block_start() || is_control_proj_or_safepoint(n);
+}
+
+bool PhaseCFG::is_control_proj_or_safepoint(Node* n) const {
+  bool result = (n->is_Mach() && n->as_Mach()->ideal_Opcode() == Op_SafePoint) || (n->is_Proj() && n->as_Proj()->bottom_type() == Type::CONTROL);
+  assert(!result || (n->is_Mach() && n->as_Mach()->ideal_Opcode() == Op_SafePoint)
+          || (n->is_Proj() && n->as_Proj()->_con == 0), "If control projection, it must be projection 0");
+  return result;
+}
+
+Block* PhaseCFG::find_block_for_node(Node* n) const {
+  if (n->is_block_start() || n->is_block_proj()) {
+    return get_block_for_node(n);
+  } else {
+    // Walk the control graph up if 'n' is not a block start nor a block projection. In this case 'n' must be
+    // an unmatched control projection or a not yet matched safepoint precedence edge in the middle of a block.
+    assert(is_control_proj_or_safepoint(n), "must be control projection or safepoint");
+    Node* ctrl = n->in(0);
+    while (!ctrl->is_block_start()) {
+      ctrl = ctrl->in(0);
+    }
+    return get_block_for_node(ctrl);
+  }
+}
+
+// Walk up the control graph from 'n' and check if 'dom_ctrl' is found.
+bool PhaseCFG::is_dominating_control(Node* dom_ctrl, Node* n) {
+  Node* ctrl = n->in(0);
+  while (!ctrl->is_block_start()) {
+    if (ctrl == dom_ctrl) {
+      return true;
+    }
+    ctrl = ctrl->in(0);
+  }
+  return false;
+}
+
+
 //------------------------------schedule_pinned_nodes--------------------------
 // Set the basic block for Nodes pinned into blocks
 void PhaseCFG::schedule_pinned_nodes(VectorSet &visited) {
   // Allocate node stack of size C->live_nodes()+8 to avoid frequent realloc
-  GrowableArray <Node *> spstack(C->live_nodes() + 8);
+  GrowableArray <Node*> spstack(C->live_nodes() + 8);
   spstack.push(_root);
   while (spstack.is_nonempty()) {
     Node* node = spstack.pop();
@@ -156,27 +212,26 @@ void PhaseCFG::schedule_pinned_nodes(VectorSet &visited) {
       // removed in final_graph_reshaping), fix the control of the
       // node to cover the precedence edges and remove the
       // dependencies.
-      Node* n = NULL;
+      Node* n = nullptr;
       for (uint i = node->len()-1; i >= node->req(); i--) {
         Node* m = node->in(i);
-        if (m == NULL) continue;
-        // Skip the precedence edge if the test that guarded a CastPP:
-        // - was optimized out during escape analysis
-        // (OptimizePtrCompare): the CastPP's control isn't an end of
-        // block.
-        // - is moved in the branch of a dominating If: the control of
-        // the CastPP is then a Region.
-        if (m->is_block_proj() || m->is_block_start()) {
+        if (m == nullptr) continue;
+
+        // Only process precedence edges that are CFG nodes. Safepoints and control projections can be in the middle of a block
+        if (is_CFG(m)) {
           node->rm_prec(i);
-          if (n == NULL) {
+          if (n == nullptr) {
             n = m;
           } else {
             assert(is_dominator(n, m) || is_dominator(m, n), "one must dominate the other");
             n = is_dominator(n, m) ? m : n;
           }
+        } else {
+          assert(node->is_Mach(), "sanity");
+          assert(node->as_Mach()->ideal_Opcode() == Op_StoreCM, "must be StoreCM node");
         }
       }
-      if (n != NULL) {
+      if (n != nullptr) {
         assert(node->in(0), "control should have been set");
         assert(is_dominator(n, node->in(0)) || is_dominator(node->in(0), n), "one must dominate the other");
         if (!is_dominator(n, node->in(0))) {
@@ -184,9 +239,9 @@ void PhaseCFG::schedule_pinned_nodes(VectorSet &visited) {
         }
       }
 
-      // process all inputs that are non NULL
-      for (int i = node->req() - 1; i >= 0; --i) {
-        if (node->in(i) != NULL) {
+      // process all inputs that are non null
+      for (int i = node->req()-1; i >= 0; --i) {
+        if (node->in(i) != nullptr) {
           spstack.push(node->in(i));
         }
       }
@@ -199,10 +254,10 @@ void PhaseCFG::schedule_pinned_nodes(VectorSet &visited) {
 // Check this by by seeing that it is dominated by b1, the deepest
 // input observed until b2.
 static void assert_dom(Block* b1, Block* b2, Node* n, const PhaseCFG* cfg) {
-  if (b1 == NULL)  return;
+  if (b1 == nullptr)  return;
   assert(b1->_dom_depth < b2->_dom_depth, "sanity");
   Block* tmp = b2;
-  while (tmp != b1 && tmp != NULL) {
+  while (tmp != b1 && tmp != nullptr) {
     tmp = tmp->_idom;
   }
   if (tmp != b1) {
@@ -210,7 +265,7 @@ static void assert_dom(Block* b1, Block* b2, Node* n, const PhaseCFG* cfg) {
     tty->print_cr("!!! Unschedulable graph !!!");
     for (uint j=0; j<n->len(); j++) { // For all inputs
       Node* inn = n->in(j); // Get input
-      if (inn == NULL)  continue;  // Ignore NULL, missing inputs
+      if (inn == nullptr)  continue;  // Ignore null, missing inputs
       Block* inb = cfg->get_block_for_node(inn);
       tty->print("B%d idom=B%d depth=%2d ",inb->_pre_order,
                  inb->_idom ? inb->_idom->_pre_order : 0, inb->_dom_depth);
@@ -225,13 +280,13 @@ static void assert_dom(Block* b1, Block* b2, Node* n, const PhaseCFG* cfg) {
 
 static Block* find_deepest_input(Node* n, const PhaseCFG* cfg) {
   // Find the last input dominated by all other inputs.
-  Block* deepb           = NULL;        // Deepest block so far
+  Block* deepb           = nullptr;     // Deepest block so far
   int    deepb_dom_depth = 0;
   for (uint k = 0; k < n->len(); k++) { // For all inputs
     Node* inn = n->in(k);               // Get input
-    if (inn == NULL)  continue;         // Ignore NULL, missing inputs
+    if (inn == nullptr)  continue;      // Ignore null, missing inputs
     Block* inb = cfg->get_block_for_node(inn);
-    assert(inb != NULL, "must already have scheduled this input");
+    assert(inb != nullptr, "must already have scheduled this input");
     if (deepb_dom_depth < (int) inb->_dom_depth) {
       // The new inb must be dominated by the previous deepb.
       // The various inputs must be linearly ordered in the dom
@@ -241,7 +296,7 @@ static Block* find_deepest_input(Node* n, const PhaseCFG* cfg) {
       deepb_dom_depth = deepb->_dom_depth;
     }
   }
-  assert(deepb != NULL, "must be at least one input to n");
+  assert(deepb != nullptr, "must be at least one input to n");
   return deepb;
 }
 
@@ -270,7 +325,7 @@ bool PhaseCFG::schedule_early(VectorSet &visited, Node_Stack &roots) {
         // to root and nodes that use is_block_proj() nodes should be attached
         // to the region that starts their block.
         const Node* control_input = parent_node->in(0);
-        if (control_input != NULL) {
+        if (control_input != nullptr) {
           replace_block_proj_ctrl(parent_node);
         } else {
           // Is a constant with NO inputs?
@@ -290,7 +345,7 @@ bool PhaseCFG::schedule_early(VectorSet &visited, Node_Stack &roots) {
 
       while (input_index < parent_node->len()) {
         Node* in = parent_node->in(input_index++);
-        if (in == NULL) {
+        if (in == nullptr) {
           continue;
         }
 
@@ -346,10 +401,10 @@ bool PhaseCFG::schedule_early(VectorSet &visited, Node_Stack &roots) {
 //------------------------------dom_lca----------------------------------------
 // Find least common ancestor in dominator tree
 // LCA is a current notion of LCA, to be raised above 'this'.
-// As a convenient boundary condition, return 'this' if LCA is NULL.
+// As a convenient boundary condition, return 'this' if LCA is null.
 // Find the LCA of those two nodes.
 Block* Block::dom_lca(Block* LCA) {
-  if (LCA == NULL || LCA == this)  return this;
+  if (LCA == nullptr || LCA == this)  return this;
 
   Block* anc = this;
   while (anc->_dom_depth > LCA->_dom_depth)
@@ -373,7 +428,7 @@ Block* Block::dom_lca(Block* LCA) {
 // the LCA only with the phi input paths which actually use this def.
 static Block* raise_LCA_above_use(Block* LCA, Node* use, Node* def, const PhaseCFG* cfg) {
   Block* buse = cfg->get_block_for_node(use);
-  if (buse == NULL)    return LCA;   // Unused killing Projs have no use block
+  if (buse == nullptr) return LCA;   // Unused killing Projs have no use block
   if (!use->is_Phi())  return buse->dom_lca(LCA);
   uint pmax = use->req();       // Number of Phi inputs
   // Why does not this loop just break after finding the matching input to
@@ -452,11 +507,11 @@ static Block* memory_early_block(Node* load, Block* early, const PhaseCFG* cfg) 
 
   Node* mem_inputs[4];
   int mem_inputs_length = 0;
-  if (base != NULL)  mem_inputs[mem_inputs_length++] = base;
-  if (index != NULL) mem_inputs[mem_inputs_length++] = index;
-  if (store != NULL) mem_inputs[mem_inputs_length++] = store;
+  if (base != nullptr)  mem_inputs[mem_inputs_length++] = base;
+  if (index != nullptr) mem_inputs[mem_inputs_length++] = index;
+  if (store != nullptr) mem_inputs[mem_inputs_length++] = store;
 
-  // In the comparision below, add one to account for the control input,
+  // In the comparison below, add one to account for the control input,
   // which may be null, but always takes up a spot in the in array.
   if (mem_inputs_length + 1 < (int) load->req()) {
     // This "load" has more inputs than just the memory, base and index inputs.
@@ -464,9 +519,9 @@ static Block* memory_early_block(Node* load, Block* early, const PhaseCFG* cfg) 
     // from the early block of only the address portion of the instruction,
     // and ignore other blocks that may have factored into the wider
     // schedule_early calculation.
-    if (load->in(0) != NULL) mem_inputs[mem_inputs_length++] = load->in(0);
+    if (load->in(0) != nullptr) mem_inputs[mem_inputs_length++] = load->in(0);
 
-    Block* deepb           = NULL;        // Deepest block so far
+    Block* deepb           = nullptr;        // Deepest block so far
     int    deepb_dom_depth = 0;
     for (int i = 0; i < mem_inputs_length; i++) {
       Block* inb = cfg->get_block_for_node(mem_inputs[i]);
@@ -485,6 +540,125 @@ static Block* memory_early_block(Node* load, Block* early, const PhaseCFG* cfg) 
   return early;
 }
 
+// This function is used by insert_anti_dependences to find unrelated loads for stores in implicit null checks.
+bool PhaseCFG::unrelated_load_in_store_null_block(Node* store, Node* load) {
+  // We expect an anti-dependence edge from 'load' to 'store', except when
+  // implicit_null_check() has hoisted 'store' above its early block to
+  // perform an implicit null check, and 'load' is placed in the null
+  // block. In this case it is safe to ignore the anti-dependence, as the
+  // null block is only reached if 'store' tries to write to null object and
+  // 'load' read from non-null object (there is preceding check for that)
+  // These objects can't be the same.
+  Block* store_block = get_block_for_node(store);
+  Block* load_block = get_block_for_node(load);
+  Node* end = store_block->end();
+  if (end->is_MachNullCheck() && (end->in(1) == store) && store_block->dominates(load_block)) {
+    Node* if_true = end->find_out_with(Op_IfTrue);
+    assert(if_true != nullptr, "null check without null projection");
+    Node* null_block_region = if_true->find_out_with(Op_Region);
+    assert(null_block_region != nullptr, "null check without null region");
+    return get_block_for_node(null_block_region) == load_block;
+  }
+  return false;
+}
+
+class DefUseMemStatesQueue : public StackObj {
+private:
+  class DefUsePair : public StackObj {
+  private:
+    Node* _def; // memory state
+    Node* _use; // use of the memory state that also modifies the memory state
+
+  public:
+    DefUsePair(Node* def, Node* use) :
+      _def(def), _use(use) {
+    }
+
+    DefUsePair() :
+      _def(nullptr), _use(nullptr) {
+    }
+
+    Node* def() const {
+      return _def;
+    }
+
+    Node* use() const {
+      return _use;
+    }
+  };
+
+  GrowableArray<DefUsePair> _queue;
+  GrowableArray<MergeMemNode*> _worklist_visited; // visited mergemem nodes
+
+  bool already_enqueued(Node* def_mem, PhiNode* use_phi) const {
+    // def_mem is one of the inputs of use_phi and at least one input of use_phi is
+    // not def_mem. It's however possible that use_phi has def_mem as input multiple
+    // times. If that happens, use_phi is recorded as a use of def_mem multiple
+    // times as well. When PhaseCFG::insert_anti_dependences() goes over
+    // uses of def_mem and enqueues them for processing, use_phi would then be
+    // enqueued for processing multiple times when it only needs to be
+    // processed once. The code below checks if use_phi as a use of def_mem was
+    // already enqueued to avoid redundant processing of use_phi.
+    int j = _queue.length()-1;
+    // If there are any use of def_mem already enqueued, they were enqueued
+    // last (all use of def_mem are processed in one go).
+    for (; j >= 0; j--) {
+      const DefUsePair& def_use_pair = _queue.at(j);
+      if (def_use_pair.def() != def_mem) {
+        // We're done with the uses of def_mem
+        break;
+      }
+      if (def_use_pair.use() == use_phi) {
+        return true;
+      }
+    }
+#ifdef ASSERT
+    for (; j >= 0; j--) {
+      const DefUsePair& def_use_pair = _queue.at(j);
+      assert(def_use_pair.def() != def_mem, "Should be done with the uses of def_mem");
+    }
+#endif
+    return false;
+  }
+
+public:
+  DefUseMemStatesQueue(ResourceArea* area) {
+  }
+
+  void push(Node* def_mem_state, Node* use_mem_state) {
+    if (use_mem_state->is_MergeMem()) {
+      // Be sure we don't get into combinatorial problems.
+      if (!_worklist_visited.append_if_missing(use_mem_state->as_MergeMem())) {
+        return; // already on work list; do not repeat
+      }
+    } else if (use_mem_state->is_Phi()) {
+      // A Phi could have the same mem as input multiple times. If that's the case, we don't need to enqueue it
+      // more than once. We otherwise allow phis to be repeated; they can merge two relevant states.
+      if (already_enqueued(def_mem_state, use_mem_state->as_Phi())) {
+        return;
+      }
+    }
+
+    _queue.push(DefUsePair(def_mem_state, use_mem_state));
+  }
+
+  bool is_nonempty() const {
+    return _queue.is_nonempty();
+  }
+
+  Node* top_def() const {
+    return _queue.top().def();
+  }
+
+  Node* top_use() const {
+    return _queue.top().use();
+  }
+
+  void pop() {
+    _queue.pop();
+  }
+};
+
 //--------------------------insert_anti_dependences---------------------------
 // A load may need to witness memory that nearby stores can overwrite.
 // For each nearby store, either insert an "anti-dependence" edge
@@ -502,15 +676,17 @@ static Block* memory_early_block(Node* load, Block* early, const PhaseCFG* cfg) 
 // preserve anti-dependences.  The caller may also hoist the load
 // above the LCA, if it is not the early block.
 Block* PhaseCFG::insert_anti_dependences(Block* LCA, Node* load, bool verify) {
+  ResourceMark rm;
   assert(load->needs_anti_dependence_check(), "must be a load of some sort");
-  assert(LCA != NULL, "");
+  assert(LCA != nullptr, "");
   DEBUG_ONLY(Block* LCA_orig = LCA);
 
   // Compute the alias index.  Loads and stores with different alias indices
   // do not need anti-dependence edges.
   int load_alias_idx = C->get_alias_index(load->adr_type());
 #ifdef ASSERT
-  if (load_alias_idx == Compile::AliasIdxBot && C->AliasLevel() > 0 &&
+  assert(Compile::AliasIdxTop <= load_alias_idx && load_alias_idx < C->num_alias_types(), "Invalid alias index");
+  if (load_alias_idx == Compile::AliasIdxBot && C->do_aliasing() &&
       (PrintOpto || VerifyAliases ||
        (PrintMiscellaneous && (WizardMode || Verbose)))) {
     // Load nodes should not consume all of memory.
@@ -522,18 +698,6 @@ Block* PhaseCFG::insert_anti_dependences(Block* LCA, Node* load, bool verify) {
     if (VerifyAliases)  assert(load_alias_idx != Compile::AliasIdxBot, "");
   }
 #endif
-  assert(load_alias_idx || (load->is_Mach() && load->as_Mach()->ideal_Opcode() == Op_StrComp),
-         "String compare is only known 'load' that does not conflict with any stores");
-  assert(load_alias_idx || (load->is_Mach() && load->as_Mach()->ideal_Opcode() == Op_StrEquals),
-         "String equals is a 'load' that does not conflict with any stores");
-  assert(load_alias_idx || (load->is_Mach() && load->as_Mach()->ideal_Opcode() == Op_StrIndexOf),
-         "String indexOf is a 'load' that does not conflict with any stores");
-  assert(load_alias_idx || (load->is_Mach() && load->as_Mach()->ideal_Opcode() == Op_StrIndexOfChar),
-         "String indexOfChar is a 'load' that does not conflict with any stores");
-  assert(load_alias_idx || (load->is_Mach() && load->as_Mach()->ideal_Opcode() == Op_AryEq),
-         "Arrays equals is a 'load' that does not conflict with any stores");
-  assert(load_alias_idx || (load->is_Mach() && load->as_Mach()->ideal_Opcode() == Op_HasNegatives),
-         "HasNegatives is a 'load' that does not conflict with any stores");
 
   if (!C->alias_type(load_alias_idx)->is_rewritable()) {
     // It is impossible to spoil this load by putting stores before it,
@@ -559,22 +723,10 @@ Block* PhaseCFG::insert_anti_dependences(Block* LCA, Node* load, bool verify) {
     early = memory_early_block(load, early, this);
   }
 
-  ResourceArea *area = Thread::current()->resource_area();
-  Node_List worklist_mem(area);     // prior memory state to store
-  Node_List worklist_store(area);   // possible-def to explore
-  Node_List worklist_visited(area); // visited mergemem nodes
+  ResourceArea* area = Thread::current()->resource_area();
+  DefUseMemStatesQueue worklist_def_use_mem_states(area); // prior memory state to store and possible-def to explore
   Node_List non_early_stores(area); // all relevant stores outside of early
   bool must_raise_LCA = false;
-
-#ifdef TRACK_PHI_INPUTS
-  // %%% This extra checking fails because MergeMem nodes are not GVNed.
-  // Provide "phi_inputs" to check if every input to a PhiNode is from the
-  // original memory state.  This indicates a PhiNode for which should not
-  // prevent the load from sinking.  For such a block, set_raise_LCA_mark
-  // may be overly conservative.
-  // Mechanism: count inputs seen for each Phi encountered in worklist_store.
-  DEBUG_ONLY(GrowableArray<uint> phi_inputs(area, C->unique(),0,0));
-#endif
 
   // 'load' uses some memory state; look for users of the same state.
   // Recurse through MergeMem nodes to the stores that use them.
@@ -588,60 +740,56 @@ Block* PhaseCFG::insert_anti_dependences(Block* LCA, Node* load, bool verify) {
   // The relevant stores "nearby" the load consist of a tree rooted
   // at initial_mem, with internal nodes of type MergeMem.
   // Therefore, the branches visited by the worklist are of this form:
-  //    initial_mem -> (MergeMem ->)* store
+  //    initial_mem -> (MergeMem ->)* Memory state modifying node
+  // Memory state modifying nodes include Store and Phi nodes and any node for which needs_anti_dependence_check()
+  // returns false.
   // The anti-dependence constraints apply only to the fringe of this tree.
 
   Node* initial_mem = load->in(MemNode::Memory);
-  worklist_store.push(initial_mem);
-  worklist_visited.push(initial_mem);
-  worklist_mem.push(NULL);
-  while (worklist_store.size() > 0) {
+  worklist_def_use_mem_states.push(nullptr, initial_mem);
+  while (worklist_def_use_mem_states.is_nonempty()) {
     // Examine a nearby store to see if it might interfere with our load.
-    Node* mem   = worklist_mem.pop();
-    Node* store = worklist_store.pop();
-    uint op = store->Opcode();
+    Node* def_mem_state = worklist_def_use_mem_states.top_def();
+    Node* use_mem_state = worklist_def_use_mem_states.top_use();
+    worklist_def_use_mem_states.pop();
+
+    uint op = use_mem_state->Opcode();
+    assert(!use_mem_state->needs_anti_dependence_check(), "no loads");
 
     // MergeMems do not directly have anti-deps.
     // Treat them as internal nodes in a forward tree of memory states,
     // the leaves of which are each a 'possible-def'.
-    if (store == initial_mem    // root (exclusive) of tree we are searching
+    if (use_mem_state == initial_mem    // root (exclusive) of tree we are searching
         || op == Op_MergeMem    // internal node of tree we are searching
         ) {
-      mem = store;   // It's not a possibly interfering store.
-      if (store == initial_mem)
-        initial_mem = NULL;  // only process initial memory once
+      def_mem_state = use_mem_state;   // It's not a possibly interfering store.
+      if (use_mem_state == initial_mem)
+        initial_mem = nullptr;  // only process initial memory once
 
-      for (DUIterator_Fast imax, i = mem->fast_outs(imax); i < imax; i++) {
-        store = mem->fast_out(i);
-        if (store->is_MergeMem()) {
-          // Be sure we don't get into combinatorial problems.
-          // (Allow phis to be repeated; they can merge two relevant states.)
-          uint j = worklist_visited.size();
-          for (; j > 0; j--) {
-            if (worklist_visited.at(j-1) == store)  break;
-          }
-          if (j > 0)  continue; // already on work list; do not repeat
-          worklist_visited.push(store);
+      for (DUIterator_Fast imax, i = def_mem_state->fast_outs(imax); i < imax; i++) {
+        use_mem_state = def_mem_state->fast_out(i);
+        if (use_mem_state->needs_anti_dependence_check()) {
+          // use_mem_state is also a kind of load (i.e. needs_anti_dependence_check), and it is not a memory state
+          // modifying node (store, Phi or MergeMem). Hence, load can't be anti dependent on this node.
+          continue;
         }
-        worklist_mem.push(mem);
-        worklist_store.push(store);
+        worklist_def_use_mem_states.push(def_mem_state, use_mem_state);
       }
       continue;
     }
 
     if (op == Op_MachProj || op == Op_Catch)   continue;
-    if (store->needs_anti_dependence_check())  continue;  // not really a store
 
     // Compute the alias index.  Loads and stores with different alias
     // indices do not need anti-dependence edges.  Wide MemBar's are
     // anti-dependent on everything (except immutable memories).
-    const TypePtr* adr_type = store->adr_type();
+    const TypePtr* adr_type = use_mem_state->adr_type();
     if (!C->can_alias(adr_type, load_alias_idx))  continue;
 
     // Most slow-path runtime calls do NOT modify Java memory, but
     // they can block and so write Raw memory.
-    if (store->is_Mach()) {
-      MachNode* mstore = store->as_Mach();
+    if (use_mem_state->is_Mach()) {
+      MachNode* mstore = use_mem_state->as_Mach();
       if (load_alias_idx != Compile::AliasIdxRaw) {
         // Check for call into the runtime using the Java calling
         // convention (and from there into a wrapper); it has no
@@ -652,7 +800,7 @@ Block* PhaseCFG::insert_anti_dependences(Block* LCA, Node* load, bool verify) {
           MachSafePointNode* ms = (MachSafePointNode*) mstore;
           assert(ms->is_MachCallJava(), "");
           MachCallJavaNode* mcj = (MachCallJavaNode*) ms;
-          if (mcj->_method == NULL) {
+          if (mcj->_method == nullptr) {
             // These runtime calls do not write to Java visible memory
             // (other than Raw) and so do not require anti-dependence edges.
             continue;
@@ -680,10 +828,10 @@ Block* PhaseCFG::insert_anti_dependences(Block* LCA, Node* load, bool verify) {
     // or else observe that 'store' is all the way up in the
     // earliest legal block for 'load'.  In the latter case,
     // immediately insert an anti-dependence edge.
-    Block* store_block = get_block_for_node(store);
-    assert(store_block != NULL, "unused killing projections skipped above");
+    Block* store_block = get_block_for_node(use_mem_state);
+    assert(store_block != nullptr, "unused killing projections skipped above");
 
-    if (store->is_Phi()) {
+    if (use_mem_state->is_Phi()) {
       // Loop-phis need to raise load before input. (Other phis are treated
       // as store below.)
       //
@@ -698,8 +846,8 @@ Block* PhaseCFG::insert_anti_dependences(Block* LCA, Node* load, bool verify) {
       // Do not assert(store_block != early, "Phi merging memory after access")
       // PhiNode may be at start of block 'early' with backedge to 'early'
       DEBUG_ONLY(bool found_match = false);
-      for (uint j = PhiNode::Input, jmax = store->req(); j < jmax; j++) {
-        if (store->in(j) == mem) {   // Found matching input?
+      for (uint j = PhiNode::Input, jmax = use_mem_state->req(); j < jmax; j++) {
+        if (use_mem_state->in(j) == def_mem_state) {   // Found matching input?
           DEBUG_ONLY(found_match = true);
           Block* pred_block = get_block_for_node(store_block->pred(j));
           if (pred_block != early) {
@@ -717,19 +865,6 @@ Block* PhaseCFG::insert_anti_dependences(Block* LCA, Node* load, bool verify) {
         }
       }
       assert(found_match, "no worklist bug");
-#ifdef TRACK_PHI_INPUTS
-#ifdef ASSERT
-        // This assert asks about correct handling of PhiNodes, which may not
-        // have all input edges directly from 'mem'. See BugId 4621264
-        int num_mem_inputs = phi_inputs.at_grow(store->_idx,0) + 1;
-        // Increment by exactly one even if there are multiple copies of 'mem'
-        // coming into the phi, because we will run this block several times
-        // if there are several copies of 'mem'.  (That's how DU iterators work.)
-        phi_inputs.at_put(store->_idx, num_mem_inputs);
-        assert(PhiNode::Input + num_mem_inputs < store->req(),
-               "Expect at least one phi input will not be from original memory state");
-#endif //ASSERT
-#endif //TRACK_PHI_INPUTS
     } else if (store_block != early) {
       // 'store' is between the current LCA and earliest possible block.
       // Label its block, and decide later on how to raise the LCA
@@ -738,20 +873,21 @@ Block* PhaseCFG::insert_anti_dependences(Block* LCA, Node* load, bool verify) {
       // will find him on the non_early_stores list and stick him
       // with a precedence edge.
       // (But, don't bother if LCA is already raised all the way.)
-      if (LCA != early) {
+      if (LCA != early && !unrelated_load_in_store_null_block(use_mem_state, load)) {
         store_block->set_raise_LCA_mark(load_index);
         must_raise_LCA = true;
-        non_early_stores.push(store);
+        non_early_stores.push(use_mem_state);
       }
     } else {
       // Found a possibly-interfering store in the load's 'early' block.
       // This means 'load' cannot sink at all in the dominator tree.
       // Add an anti-dep edge, and squeeze 'load' into the highest block.
-      assert(store != load->in(0), "dependence cycle found");
+      assert(use_mem_state != load->find_exact_control(load->in(0)), "dependence cycle found");
       if (verify) {
-        assert(store->find_edge(load) != -1, "missing precedence edge");
+        assert(use_mem_state->find_edge(load) != -1 || unrelated_load_in_store_null_block(use_mem_state, load),
+               "missing precedence edge");
       } else {
-        store->add_prec(load);
+        use_mem_state->add_prec(load);
       }
       LCA = early;
       // This turns off the process of gathering non_early_stores.
@@ -787,7 +923,7 @@ Block* PhaseCFG::insert_anti_dependences(Block* LCA, Node* load, bool verify) {
       Block* store_block = get_block_for_node(store);
       if (store_block == LCA) {
         // add anti_dependence from store to load in its own block
-        assert(store != load->in(0), "dependence cycle found");
+        assert(store != load->find_exact_control(load->in(0)), "dependence cycle found");
         if (verify) {
           assert(store->find_edge(load) != -1, "missing precedence edge");
         } else {
@@ -837,15 +973,15 @@ Node_Backward_Iterator::Node_Backward_Iterator( Node *root, VectorSet &visited, 
   stack.push(root, root->outcnt());
 
   // Clear the visited bits
-  visited.Clear();
+  visited.clear();
 }
 
 // Iterator for the Node_Backward_Iterator
 Node *Node_Backward_Iterator::next() {
 
-  // If the _stack is empty, then just return NULL: finished.
+  // If the _stack is empty, then just return null: finished.
   if ( !_stack.size() )
-    return NULL;
+    return nullptr;
 
   // I visit unvisited not-anti-dependence users first, then anti-dependent
   // children next. I iterate backwards to support removal of nodes.
@@ -867,7 +1003,7 @@ Node *Node_Backward_Iterator::next() {
     uint src_rpo = _cfg.get_block_for_node(src)->_rpo;
 
     // Schedule all nodes in a post-order visit
-    Node *unvisited = NULL;  // Unvisited anti-dependent Node, if any
+    Node *unvisited = nullptr;  // Unvisited anti-dependent Node, if any
 
     // Scan for unvisited nodes
     while (idx > 0) {
@@ -1086,11 +1222,41 @@ void PhaseCFG::latency_from_uses(Node *n) {
   set_latency_for_node(n, latency);
 }
 
+//------------------------------is_cheaper_block-------------------------
+// Check if a block between early and LCA block of uses is cheaper by
+// frequency-based policy, latency-based policy and random-based policy
+bool PhaseCFG::is_cheaper_block(Block* LCA, Node* self, uint target_latency,
+                                uint end_latency, double least_freq,
+                                int cand_cnt, bool in_latency) {
+  if (StressGCM) {
+    // Should be randomly accepted in stress mode
+    return C->randomized_select(cand_cnt);
+  }
+
+  // Better Frequency
+  if (LCA->_freq < least_freq) {
+    return true;
+  }
+
+  // Otherwise, choose with latency
+  const double delta = 1 + PROB_UNLIKELY_MAG(4);
+  if (!in_latency                     &&  // No block containing latency
+      LCA->_freq < least_freq * delta &&  // No worse frequency
+      target_latency >= end_latency   &&  // within latency range
+      !self->is_iteratively_computed()    // But don't hoist IV increments
+            // because they may end up above other uses of their phi forcing
+            // their result register to be different from their input.
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 //------------------------------hoist_to_cheaper_block-------------------------
-// Pick a block for node self, between early and LCA, that is a cheaper
-// alternative to LCA.
+// Pick a block for node self, between early and LCA block of uses, that is a
+// cheaper alternative to LCA.
 Block* PhaseCFG::hoist_to_cheaper_block(Block* LCA, Block* early, Node* self) {
-  const double delta = 1+PROB_UNLIKELY_MAG(4);
   Block* least       = LCA;
   double least_freq  = least->_freq;
   uint target        = get_latency_for_node(self);
@@ -1106,7 +1272,7 @@ Block* PhaseCFG::hoist_to_cheaper_block(Block* LCA, Block* early, Node* self) {
   // Do not hoist (to cover latency) instructions which target a
   // single register.  Hoisting stretches the live range of the
   // single register and may force spilling.
-  MachNode* mach = self->is_Mach() ? self->as_Mach() : NULL;
+  MachNode* mach = self->is_Mach() ? self->as_Mach() : nullptr;
   if (mach && mach->out_RegMask().is_bound1() && mach->out_RegMask().is_NotEmpty())
     in_latency = true;
 
@@ -1127,20 +1293,29 @@ Block* PhaseCFG::hoist_to_cheaper_block(Block* LCA, Block* early, Node* self) {
   int cand_cnt = 0;  // number of candidates tried
 
   // Walk up the dominator tree from LCA (Lowest common ancestor) to
-  // the earliest legal location.  Capture the least execution frequency.
+  // the earliest legal location. Capture the least execution frequency,
+  // or choose a random block if -XX:+StressGCM, or using latency-based policy
   while (LCA != early) {
     LCA = LCA->_idom;         // Follow up the dominator tree
 
-    if (LCA == NULL) {
+    if (LCA == nullptr) {
       // Bailout without retry
       assert(false, "graph should be schedulable");
-      C->record_method_not_compilable("late schedule failed: LCA == NULL");
+      C->record_method_not_compilable("late schedule failed: LCA is null");
       return least;
     }
 
     // Don't hoist machine instructions to the root basic block
     if (mach && LCA == root_block)
       break;
+
+    if (self->is_memory_writer() &&
+        (LCA->_loop->depth() > early->_loop->depth())) {
+      // LCA is an invalid placement for a memory writer: choosing it would
+      // cause memory interference, as illustrated in schedule_late().
+      continue;
+    }
+    verify_memory_writer_placement(LCA, self);
 
     uint start_lat = get_latency_for_node(LCA->head());
     uint end_idx   = LCA->end_idx();
@@ -1153,16 +1328,7 @@ Block* PhaseCFG::hoist_to_cheaper_block(Block* LCA, Block* early, Node* self) {
     }
 #endif
     cand_cnt++;
-    if (LCA_freq < least_freq              || // Better Frequency
-        (StressGCM && Compile::randomized_select(cand_cnt)) || // Should be randomly accepted in stress mode
-         (!StressGCM                    &&    // Otherwise, choose with latency
-          !in_latency                   &&    // No block containing latency
-          LCA_freq < least_freq * delta &&    // No worse frequency
-          target >= end_lat             &&    // within latency range
-          !self->is_iteratively_computed() )  // But don't hoist IV increments
-             // because they may end up above other uses of their phi forcing
-             // their result register to be different from their input.
-       ) {
+    if (is_cheaper_block(LCA, self, target, end_lat, least_freq, cand_cnt, in_latency)) {
       least = LCA;            // Found cheaper block
       least_freq = LCA_freq;
       start_latency = start_lat;
@@ -1229,7 +1395,18 @@ void PhaseCFG::schedule_late(VectorSet &visited, Node_Stack &stack) {
     if( self->pinned() )          // Pinned in block?
       continue;
 
-    MachNode* mach = self->is_Mach() ? self->as_Mach() : NULL;
+#ifdef ASSERT
+    // Assert that memory writers (e.g. stores) have a "home" block (the block
+    // given by their control input), and that this block corresponds to their
+    // earliest possible placement. This guarantees that
+    // hoist_to_cheaper_block() will always have at least one valid choice.
+    if (self->is_memory_writer()) {
+      assert(find_block_for_node(self->in(0)) == early,
+             "The home of a memory writer must also be its earliest placement");
+    }
+#endif
+
+    MachNode* mach = self->is_Mach() ? self->as_Mach() : nullptr;
     if (mach) {
       switch (mach->ideal_Opcode()) {
       case Op_CreateEx:
@@ -1241,7 +1418,7 @@ void PhaseCFG::schedule_late(VectorSet &visited, Node_Stack &stack) {
         // Don't move CheckCastPP nodes away from their input, if the input
         // is a rawptr (5071820).
         Node *def = self->in(1);
-        if (def != NULL && def->bottom_type()->base() == Type::RawPtr) {
+        if (def != nullptr && def->bottom_type()->base() == Type::RawPtr) {
           early->add_inst(self);
 #ifdef ASSERT
           _raw_oops.push(def);
@@ -1253,23 +1430,66 @@ void PhaseCFG::schedule_late(VectorSet &visited, Node_Stack &stack) {
       default:
         break;
       }
+      if (C->has_irreducible_loop() && self->is_memory_writer()) {
+        // If the CFG is irreducible, place memory writers in their home block.
+        // This prevents hoist_to_cheaper_block() from accidentally placing such
+        // nodes into deeper loops, as in the following example:
+        //
+        // Home placement of store in B1 (loop L1):
+        //
+        // B1 (L1):
+        //   m1 <- ..
+        //   m2 <- store m1, ..
+        // B2 (L2):
+        //   jump B2
+        // B3 (L1):
+        //   .. <- .. m2, ..
+        //
+        // Wrong "hoisting" of store to B2 (in loop L2, child of L1):
+        //
+        // B1 (L1):
+        //   m1 <- ..
+        // B2 (L2):
+        //   m2 <- store m1, ..
+        //   # Wrong: m1 and m2 interfere at this point.
+        //   jump B2
+        // B3 (L1):
+        //   .. <- .. m2, ..
+        //
+        // This "hoist inversion" can happen due to different factors such as
+        // inaccurate estimation of frequencies for irreducible CFGs, and loops
+        // with always-taken exits in reducible CFGs. In the reducible case,
+        // hoist inversion is prevented by discarding invalid blocks (those in
+        // deeper loops than the home block). In the irreducible case, the
+        // invalid blocks cannot be identified due to incomplete loop nesting
+        // information, hence a conservative solution is taken.
+#ifndef PRODUCT
+        if (trace_opto_pipelining()) {
+          tty->print_cr("# Irreducible loops: schedule in home block B%d:",
+                        early->_pre_order);
+          self->dump();
+        }
+#endif
+        schedule_node_into_block(self, early);
+        continue;
+      }
     }
 
     // Gather LCA of all uses
-    Block *LCA = NULL;
+    Block *LCA = nullptr;
     {
       for (DUIterator_Fast imax, i = self->fast_outs(imax); i < imax; i++) {
         // For all uses, find LCA
         Node* use = self->fast_out(i);
         LCA = raise_LCA_above_use(LCA, use, self, this);
       }
-      guarantee(LCA != NULL, "There must be a LCA");
+      guarantee(LCA != nullptr, "There must be a LCA");
     }  // (Hide defs of imax, i from rest of block.)
 
     // Place temps in the block of their use.  This isn't a
     // requirement for correctness but it reduces useless
     // interference between temps and other nodes.
-    if (mach != NULL && mach->is_MachTemp()) {
+    if (mach != nullptr && mach->is_MachTemp()) {
       map_node_to_block(self, LCA);
       LCA->add_inst(self);
       continue;
@@ -1298,6 +1518,16 @@ void PhaseCFG::schedule_late(VectorSet &visited, Node_Stack &stack) {
       return;
     }
 
+    if (self->is_memory_writer()) {
+      // If the LCA of a memory writer is a descendant of its home loop, hoist
+      // it into a valid placement.
+      while (LCA->_loop->depth() > early->_loop->depth()) {
+        LCA = LCA->_idom;
+      }
+      assert(LCA != nullptr, "a valid LCA must exist");
+      verify_memory_writer_placement(LCA, self);
+    }
+
     // If there is no opportunity to hoist, then we're done.
     // In stress mode, try to hoist even the single operations.
     bool try_to_hoist = StressGCM || (LCA != early);
@@ -1307,10 +1537,10 @@ void PhaseCFG::schedule_late(VectorSet &visited, Node_Stack &stack) {
     // allocatable (hoisting can make a value live longer, leading to
     // anti and output dependency problems which are normally resolved
     // by the register allocator giving everyone a different register).
-    if (mach != NULL && must_clone[mach->ideal_Opcode()])
+    if (mach != nullptr && must_clone[mach->ideal_Opcode()])
       try_to_hoist = false;
 
-    Block* late = NULL;
+    Block* late = nullptr;
     if (try_to_hoist) {
       // Now find the block with the least execution frequency.
       // Start at the latest schedule and work up to the earliest schedule
@@ -1352,17 +1582,17 @@ void PhaseCFG::global_code_motion() {
   }
 
   // Set the basic block for Nodes pinned into blocks
-  Arena* arena = Thread::current()->resource_area();
-  VectorSet visited(arena);
+  VectorSet visited;
   schedule_pinned_nodes(visited);
 
   // Find the earliest Block any instruction can be placed in.  Some
   // instructions are pinned into Blocks.  Unpinned instructions can
   // appear in last block in which all their inputs occur.
-  visited.Clear();
-  Node_Stack stack(arena, (C->live_nodes() >> 2) + 16); // pre-grow
+  visited.clear();
+  Node_Stack stack((C->live_nodes() >> 2) + 16); // pre-grow
   if (!schedule_early(visited, stack)) {
     // Bailout without retry
+    assert(false, "early schedule failed");
     C->record_method_not_compilable("early schedule failed");
     return;
   }
@@ -1379,11 +1609,9 @@ void PhaseCFG::global_code_motion() {
   // Now schedule all codes as LATE as possible.  This is the LCA in the
   // dominator tree of all USES of a value.  Pick the block with the least
   // loop nesting depth that is lowest in the dominator tree.
-  // ( visited.Clear() called in schedule_late()->Node_Backward_Iterator() )
+  // ( visited.clear() called in schedule_late()->Node_Backward_Iterator() )
   schedule_late(visited, stack);
   if (C->failing()) {
-    // schedule_late fails only when graph is incorrect.
-    assert(!VerifyGraphEdges, "verification should have failed");
     return;
   }
 
@@ -1393,8 +1621,8 @@ void PhaseCFG::global_code_motion() {
   }
 #endif
 
-  // Detect implicit-null-check opportunities.  Basically, find NULL checks
-  // with suitable memory ops nearby.  Use the memory op to do the NULL check.
+  // Detect implicit-null-check opportunities.  Basically, find null checks
+  // with suitable memory ops nearby.  Use the memory op to do the null check.
   // I can generate a memory op if there is not one nearby.
   if (C->is_method_compilation()) {
     // By reversing the loop direction we get a very minor gain on mpegaudio.
@@ -1414,7 +1642,7 @@ void PhaseCFG::global_code_motion() {
   }
 
   bool block_size_threshold_ok = false;
-  intptr_t *recalc_pressure_nodes = NULL;
+  intptr_t *recalc_pressure_nodes = nullptr;
   if (OptoRegScheduling) {
     for (uint i = 0; i < number_of_blocks(); i++) {
       Block* block = get_block(i);
@@ -1460,18 +1688,19 @@ void PhaseCFG::global_code_motion() {
   // Schedule locally.  Right now a simple topological sort.
   // Later, do a real latency aware scheduler.
   GrowableArray<int> ready_cnt(C->unique(), C->unique(), -1);
-  visited.Clear();
+  visited.reset();
   for (uint i = 0; i < number_of_blocks(); i++) {
     Block* block = get_block(i);
     if (!schedule_local(block, ready_cnt, visited, recalc_pressure_nodes)) {
       if (!C->failure_reason_is(C2Compiler::retry_no_subsuming_loads())) {
+        assert(false, "local schedule failed");
         C->record_method_not_compilable("local schedule failed");
       }
-      _regalloc = NULL;
+      _regalloc = nullptr;
       return;
     }
   }
-  _regalloc = NULL;
+  _regalloc = nullptr;
 
   // If we inserted any instructions between a Call and his CatchNode,
   // clone the instructions on all paths below the Catch.
@@ -1612,7 +1841,7 @@ CFGLoop* PhaseCFG::create_loop_tree() {
   for (uint i = 0; i < number_of_blocks(); i++) {
     Block* block = get_block(i);
     // Check that _loop field are clear...we could clear them if not.
-    assert(block->_loop == NULL, "clear _loop expected");
+    assert(block->_loop == nullptr, "clear _loop expected");
     // Sanity check that the RPO numbering is reflected in the _blocks array.
     // It doesn't have to be for the loop tree to be built, but if it is not,
     // then the blocks have been reordered since dom graph building...which
@@ -1645,7 +1874,7 @@ CFGLoop* PhaseCFG::create_loop_tree() {
 
         assert(worklist.size() == 0, "nonempty worklist");
         CFGLoop* nloop = new CFGLoop(idct++);
-        assert(loop_head->_loop == NULL, "just checking");
+        assert(loop_head->_loop == nullptr, "just checking");
         loop_head->_loop = nloop;
         // Add to nloop so push_pred() will skip over inner loops
         nloop->add_member(loop_head);
@@ -1668,7 +1897,7 @@ CFGLoop* PhaseCFG::create_loop_tree() {
   for (uint i = 0; i < number_of_blocks(); i++) {
     Block* block = get_block(i);
     CFGLoop* lp = block->_loop;
-    if (lp == NULL) {
+    if (lp == nullptr) {
       // Not assigned to a loop. Add it to the method's pseudo loop.
       block->_loop = root_loop;
       lp = root_loop;
@@ -1677,7 +1906,7 @@ CFGLoop* PhaseCFG::create_loop_tree() {
       lp->add_member(block);
     }
     if (lp != root_loop) {
-      if (lp->parent() == NULL) {
+      if (lp->parent() == nullptr) {
         // Not a nested loop. Make it a child of the method's pseudo loop.
         root_loop->add_nested_loop(lp);
       }
@@ -1696,7 +1925,7 @@ void CFGLoop::push_pred(Block* blk, int i, Block_List& worklist, PhaseCFG* cfg) 
   Node* pred_n = blk->pred(i);
   Block* pred = cfg->get_block_for_node(pred_n);
   CFGLoop *pred_loop = pred->_loop;
-  if (pred_loop == NULL) {
+  if (pred_loop == nullptr) {
     // Filter out blocks for non-single-entry loops.
     // For all reasonable loops, the head occurs before the tail in RPO.
     if (pred->_rpo > head()->_rpo) {
@@ -1705,11 +1934,11 @@ void CFGLoop::push_pred(Block* blk, int i, Block_List& worklist, PhaseCFG* cfg) 
     }
   } else if (pred_loop != this) {
     // Nested loop.
-    while (pred_loop->_parent != NULL && pred_loop->_parent != this) {
+    while (pred_loop->_parent != nullptr && pred_loop->_parent != this) {
       pred_loop = pred_loop->_parent;
     }
     // Make pred's loop be a child
-    if (pred_loop->_parent == NULL) {
+    if (pred_loop->_parent == nullptr) {
       add_nested_loop(pred_loop);
       // Continue with loop entry predecessor.
       Block* pred_head = pred_loop->head();
@@ -1717,7 +1946,7 @@ void CFGLoop::push_pred(Block* blk, int i, Block_List& worklist, PhaseCFG* cfg) 
       assert(pred_head != head(), "loop head in only one loop");
       push_pred(pred_head, LoopNode::EntryControl, worklist, cfg);
     } else {
-      assert(pred_loop->_parent == this && _parent == NULL, "just checking");
+      assert(pred_loop->_parent == this && _parent == nullptr, "just checking");
     }
   }
 }
@@ -1725,14 +1954,14 @@ void CFGLoop::push_pred(Block* blk, int i, Block_List& worklist, PhaseCFG* cfg) 
 //------------------------------add_nested_loop--------------------------------
 // Make cl a child of the current loop in the loop tree.
 void CFGLoop::add_nested_loop(CFGLoop* cl) {
-  assert(_parent == NULL, "no parent yet");
+  assert(_parent == nullptr, "no parent yet");
   assert(cl != this, "not my own parent");
   cl->_parent = this;
   CFGLoop* ch = _child;
-  if (ch == NULL) {
+  if (ch == nullptr) {
     _child = cl;
   } else {
-    while (ch->_sibling != NULL) { ch = ch->_sibling; }
+    while (ch->_sibling != nullptr) { ch = ch->_sibling; }
     ch->_sibling = cl;
   }
 }
@@ -1743,7 +1972,7 @@ void CFGLoop::add_nested_loop(CFGLoop* cl) {
 void CFGLoop::compute_loop_depth(int depth) {
   _depth = depth;
   CFGLoop* ch = _child;
-  while (ch != NULL) {
+  while (ch != nullptr) {
     ch->compute_loop_depth(depth + 1);
     ch = ch->_sibling;
   }
@@ -1762,7 +1991,7 @@ void CFGLoop::compute_freq() {
 
   // Nested loops first
   CFGLoop* ch = _child;
-  while (ch != NULL) {
+  while (ch != nullptr) {
     ch->compute_freq();
     ch = ch->_sibling;
   }
@@ -1894,6 +2123,7 @@ float Block::succ_prob(uint i) {
 
   case Op_TailCall:
   case Op_TailJump:
+  case Op_ForwardException:
   case Op_Return:
   case Op_Halt:
   case Op_Rethrow:
@@ -1947,6 +2177,7 @@ int Block::num_fall_throughs() {
   case Op_NeverBranch:
   case Op_TailCall:
   case Op_TailJump:
+  case Op_ForwardException:
   case Op_Return:
   case Op_Halt:
   case Op_Rethrow:
@@ -1992,6 +2223,7 @@ bool Block::succ_fall_through(uint i) {
   case Op_NeverBranch:
   case Op_TailCall:
   case Op_TailJump:
+  case Op_ForwardException:
   case Op_Return:
   case Op_Halt:
   case Op_Rethrow:
@@ -2092,7 +2324,7 @@ void CFGLoop::scale_freq() {
     s->_freq = block_freq;
   }
   CFGLoop* ch = _child;
-  while (ch != NULL) {
+  while (ch != nullptr) {
     ch->scale_freq();
     ch = ch->_sibling;
   }
@@ -2100,7 +2332,7 @@ void CFGLoop::scale_freq() {
 
 // Frequency of outer loop
 double CFGLoop::outer_loop_freq() const {
-  if (_child != NULL) {
+  if (_child != nullptr) {
     return _child->_freq;
   }
   return _freq;
@@ -2110,8 +2342,8 @@ double CFGLoop::outer_loop_freq() const {
 //------------------------------dump_tree--------------------------------------
 void CFGLoop::dump_tree() const {
   dump();
-  if (_child != NULL)   _child->dump_tree();
-  if (_sibling != NULL) _sibling->dump_tree();
+  if (_child != nullptr)   _child->dump_tree();
+  if (_sibling != nullptr) _sibling->dump_tree();
 }
 
 //------------------------------dump-------------------------------------------

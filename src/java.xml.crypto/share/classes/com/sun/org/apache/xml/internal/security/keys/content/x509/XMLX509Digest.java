@@ -117,21 +117,22 @@ public class XMLX509Digest extends Signature11ElementProxy implements XMLX509Dat
     public static byte[] getDigestBytesFromCert(X509Certificate cert, String algorithmURI) throws XMLSecurityException {
         String jcaDigestAlgorithm = JCEMapper.translateURItoJCEID(algorithmURI);
         if (jcaDigestAlgorithm == null) {
-                Object exArgs[] = { algorithmURI };
-                throw new XMLSecurityException("XMLX509Digest.UnknownDigestAlgorithm", exArgs);
+            Object[] exArgs = {algorithmURI};
+            throw new XMLSecurityException("XMLX509Digest.UnknownDigestAlgorithm", exArgs);
         }
 
         try {
-                        MessageDigest md = MessageDigest.getInstance(jcaDigestAlgorithm);
-                        return md.digest(cert.getEncoded());
-                } catch (Exception e) {
-                Object exArgs[] = { jcaDigestAlgorithm };
-                        throw new XMLSecurityException("XMLX509Digest.FailedDigest", exArgs);
-                }
+            MessageDigest md = MessageDigest.getInstance(jcaDigestAlgorithm);
+            return md.digest(cert.getEncoded());
+        } catch (Exception e) {
+            Object[] exArgs = {jcaDigestAlgorithm};
+            throw new XMLSecurityException("XMLX509Digest.FailedDigest", exArgs);
+        }
 
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getBaseLocalName() {
         return Constants._TAG_X509DIGEST;
     }

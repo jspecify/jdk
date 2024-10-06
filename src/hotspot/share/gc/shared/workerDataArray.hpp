@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_WORKERDATAARRAY_HPP
-#define SHARE_VM_GC_SHARED_WORKERDATAARRAY_HPP
+#ifndef SHARE_GC_SHARED_WORKERDATAARRAY_HPP
+#define SHARE_GC_SHARED_WORKERDATAARRAY_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/debug.hpp"
@@ -34,21 +34,31 @@ template <class T>
 class WorkerDataArray  : public CHeapObj<mtGC> {
   friend class WDAPrinter;
 public:
-  static const uint MaxThreadWorkItems = 3;
+  static const uint MaxThreadWorkItems = 9;
 private:
   T*          _data;
   uint        _length;
-  const char* _title;
+  const char* _short_name; // Short name for JFR
+  const char* _title; // Title for logging.
+
+  bool _is_serial;
 
   WorkerDataArray<size_t>* _thread_work_items[MaxThreadWorkItems];
 
  public:
-  WorkerDataArray(uint length, const char* title);
+  WorkerDataArray(const char* short_name, const char* title, uint length);
   ~WorkerDataArray();
 
-  void link_thread_work_items(WorkerDataArray<size_t>* thread_work_items, uint index = 0);
+  // Create an integer sub-item at the given index to this WorkerDataArray. If length_override
+  // is zero, use the same number of elements as this array, otherwise use the given
+  // number.
+  void create_thread_work_items(const char* title, uint index = 0, uint length_override = 0);
+
   void set_thread_work_item(uint worker_i, size_t value, uint index = 0);
   void add_thread_work_item(uint worker_i, size_t value, uint index = 0);
+  void set_or_add_thread_work_item(uint worker_i, size_t value, uint index = 0);
+  size_t get_thread_work_item(uint worker_i, uint index = 0);
+
   WorkerDataArray<size_t>* thread_work_items(uint index = 0) const {
     assert(index < MaxThreadWorkItems, "Tried to access thread work item %u max %u", index, MaxThreadWorkItems);
     return _thread_work_items[index];
@@ -57,6 +67,7 @@ private:
   static T uninitialized();
 
   void set(uint worker_i, T value);
+  void set_or_add(uint worker_i, T value);
   T get(uint worker_i) const;
 
   void add(uint worker_i, T value);
@@ -67,6 +78,10 @@ private:
 
   const char* title() const {
     return _title;
+  }
+
+  const char* short_name() const {
+    return _short_name;
   }
 
   void reset();
@@ -88,4 +103,4 @@ private:
   void print_details_on(outputStream* out) const;
 };
 
-#endif // SHARE_VM_GC_SHARED_WORKERDATAARRAY_HPP
+#endif // SHARE_GC_SHARED_WORKERDATAARRAY_HPP

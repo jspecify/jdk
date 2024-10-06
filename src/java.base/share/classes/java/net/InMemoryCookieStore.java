@@ -58,7 +58,7 @@ import java.util.concurrent.locks.ReentrantLock;
     private Map<String, List<HttpCookie>> domainIndex = null;
     private Map<URI, List<HttpCookie>> uriIndex = null;
 
-    // use ReentrantLock instead of syncronized for scalability
+    // use ReentrantLock instead of synchronized for scalability
     private ReentrantLock lock = null;
 
 
@@ -264,7 +264,7 @@ import java.util.concurrent.locks.ReentrantLock;
         int domainLength = domain.length();
         int lengthDiff = host.length() - domainLength;
         if (lengthDiff == 0) {
-            // if the host name and the domain name are just string-compare euqal
+            // if the host name and the domain name are just string-compare equal
             return host.equalsIgnoreCase(domain);
         } else if (lengthDiff > 0) {
             // need to check H & D component
@@ -305,7 +305,7 @@ import java.util.concurrent.locks.ReentrantLock;
                             toRemove.add(c);
                         }
                     } else {
-                        // the cookie has beed removed from main store,
+                        // the cookie has been removed from main store,
                         // so also remove it from domain indexed store
                         toRemove.add(c);
                     }
@@ -349,7 +349,7 @@ import java.util.concurrent.locks.ReentrantLock;
                                 cookieJar.remove(ck);
                             }
                         } else {
-                            // the cookie has beed removed from main store,
+                            // the cookie has been removed from main store,
                             // so also remove it from domain indexed store
                             it.remove();
                         }

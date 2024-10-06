@@ -35,8 +35,7 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import jdk.internal.invoke.MhUtil;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -100,7 +99,7 @@ import java.util.concurrent.locks.LockSupport;
  *       associated recovery within handlers of those exceptions,
  *       often after invoking {@code forceTermination}.  Phasers may
  *       also be used by tasks executing in a {@link ForkJoinPool}.
- *       Progress is ensured if the pool's parallelismLevel can
+ *       Progress is ensured if the pool's parallelism level can
  *       accommodate the maximum number of simultaneously blocked
  *       parties.
  *
@@ -150,6 +149,12 @@ import java.util.concurrent.locks.LockSupport;
  * useful for synchronization control.  Method {@link #toString}
  * returns snapshots of these state queries in a form convenient for
  * informal monitoring.
+ *
+ * <p>Memory consistency effects: Actions prior to any form of arrive
+ * method <a href="package-summary.html#MemoryVisibility">
+ * <i>happen-before</i></a> a corresponding phase advance and
+ * onAdvance actions (if present), which in turn <i>happen-before</i>
+ * actions following the phase advance.
  *
  * <p><b>Sample usages:</b>
  *
@@ -248,7 +253,7 @@ import java.util.concurrent.locks.LockSupport;
  * be appropriate for extremely small per-phase task bodies (thus
  * high rates), or up to hundreds for extremely large ones.
  *
- * <p><b>Implementation notes</b>: This implementation restricts the
+ * <p><b>Implementation notes:</b> This implementation restricts the
  * maximum number of parties to 65535. Attempts to register additional
  * parties result in {@code IllegalStateException}. However, you can and
  * should create tiered phasers to accommodate arbitrarily large sets
@@ -257,8 +262,7 @@ import java.util.concurrent.locks.LockSupport;
  * @since 1.7
  * @author Doug Lea
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class Phaser {
+public class Phaser {
     /*
      * This class implements an extension of X10 "clocks".  Thanks to
      * Vijay Saraswat for the idea, and to Vivek Sarkar for
@@ -923,7 +927,7 @@ public @UsesObjectEquals class Phaser {
      * <pre> {@code
      * Phaser phaser = new Phaser() {
      *   protected boolean onAdvance(int phase, int parties) { return false; }
-     * }}</pre>
+     * };}</pre>
      *
      * @param phase the current phase number on entry to this method,
      * before this phaser is advanced
@@ -1135,17 +1139,11 @@ public @UsesObjectEquals class Phaser {
     }
 
     // VarHandle mechanics
-    private static final VarHandle STATE;
+    private static final VarHandle STATE = MhUtil.findVarHandle(
+            MethodHandles.lookup(), "state", long.class);
     static {
-        try {
-            MethodHandles.Lookup l = MethodHandles.lookup();
-            STATE = l.findVarHandle(Phaser.class, "state", long.class);
-        } catch (ReflectiveOperationException e) {
-            throw new ExceptionInInitializerError(e);
-        }
-
         // Reduce the risk of rare disastrous classloading in first call to
-        // LockSupport.park: https://bugs.openjdk.java.net/browse/JDK-8074773
+        // LockSupport.park: https://bugs.openjdk.org/browse/JDK-8074773
         Class<?> ensureLoaded = LockSupport.class;
     }
 }

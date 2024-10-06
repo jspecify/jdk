@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,18 +25,13 @@
 
 package java.security;
 
-import java.security.*;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.StringTokenizer;
-
 /**
  * This class is for security permissions. A {@code SecurityPermission}
  * contains a name (also referred to as a "target name") but no actions list;
  * you either have the named permission or you don't.
  * <p>
  * The target name is the name of a security configuration parameter
- * (see below). Currently the {@code SecurityPermission} object is used to
+ * (see below). Currently, the {@code SecurityPermission} object is used to
  * guard access to the {@link AccessControlContext}, {@link Policy},
  * {@link Provider}, {@link Security}, {@link Signer}, and {@link Identity}
  * objects.
@@ -112,7 +107,7 @@ import java.util.StringTokenizer;
  *   <td>Getting an instance of a Policy implementation from a provider</td>
  *   <td>Granting this permission enables code to obtain a Policy object.
  * Malicious code may query the Policy object to determine what permissions
- * have been granted to code other than itself. </td>
+ * have been granted to code other than itself.</td>
  * </tr>
  *
  * <tr>
@@ -124,8 +119,7 @@ import java.util.StringTokenizer;
  * security policies.  while revealing this information does not
  * compromise the security of the system, it does provide malicious
  * code with additional information which it may use to better aim
- * an attack.
-</td>
+ * an attack.</td>
  * </tr>
  *
  * <tr>
@@ -139,8 +133,7 @@ import java.util.StringTokenizer;
  * permission to set the location of the system-wide security policy
  * may point it to a security policy that grants the attacker
  * all the necessary permissions it requires to successfully mount
- * an attack on the system.
-</td>
+ * an attack on the system.</td>
  * </tr>
  *
  * <tr>
@@ -153,8 +146,7 @@ import java.util.StringTokenizer;
  * currently does not check the integrity or authenticity of a provider
  * before attaching it. The "insertProvider" permission subsumes the
  * "insertProvider.{provider name}" permission (see the section below for
- * more information).
- * </td>
+ * more information).</td>
  * </tr>
  *
  * <tr>
@@ -338,15 +330,16 @@ import java.util.StringTokenizer;
 
 public final class SecurityPermission extends BasicPermission {
 
+    @java.io.Serial
     private static final long serialVersionUID = 5236109936224050470L;
 
     /**
-     * Creates a new SecurityPermission with the specified name.
-     * The name is the symbolic name of the SecurityPermission. An asterisk
-     * may appear at the end of the name, following a ".", or by itself, to
-     * signify a wildcard match.
+     * Creates a new {@code SecurityPermission} with the specified name.
+     * The name is the symbolic name of the {@code SecurityPermission}.
+     * An asterisk may appear at the end of the name, following a ".",
+     * or by itself, to signify a wildcard match.
      *
-     * @param name the name of the SecurityPermission
+     * @param name the name of the {@code SecurityPermission}
      *
      * @throws NullPointerException if {@code name} is {@code null}.
      * @throws IllegalArgumentException if {@code name} is empty.
@@ -357,12 +350,12 @@ public final class SecurityPermission extends BasicPermission {
     }
 
     /**
-     * Creates a new SecurityPermission object with the specified name.
-     * The name is the symbolic name of the SecurityPermission, and the
-     * actions String is currently unused and should be null.
+     * Creates a new {@code SecurityPermission} object with the specified name.
+     * The name is the symbolic name of the {@code SecurityPermission}, and the
+     * actions {@code String} is currently unused and should be {@code null}.
      *
-     * @param name the name of the SecurityPermission
-     * @param actions should be null.
+     * @param name the name of the {@code SecurityPermission}
+     * @param actions should be {@code null}.
      *
      * @throws NullPointerException if {@code name} is {@code null}.
      * @throws IllegalArgumentException if {@code name} is empty.

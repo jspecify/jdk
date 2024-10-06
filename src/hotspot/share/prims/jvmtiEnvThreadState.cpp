@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,21 +23,20 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "interpreter/interpreter.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
 #include "memory/resourceArea.hpp"
 #include "prims/jvmtiEnvThreadState.hpp"
 #include "prims/jvmtiEventController.inline.hpp"
 #include "prims/jvmtiImpl.hpp"
-#include "runtime/handles.hpp"
+#include "prims/jvmtiThreadState.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/javaThread.inline.hpp"
 #include "runtime/signature.hpp"
-#include "runtime/thread.inline.hpp"
 #include "runtime/vframe.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 
 
 ///////////////////////////////////////////////////////////////
@@ -96,7 +95,7 @@ JvmtiFramePops::clear_to(JvmtiFramePop& fp) {
 //
 
 JvmtiFramePops::JvmtiFramePops() {
-  _pops = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<int> (2, true);
+  _pops = new (mtServiceability) GrowableArray<int> (2, mtServiceability);
 }
 
 JvmtiFramePops::~JvmtiFramePops() {
@@ -127,23 +126,45 @@ void JvmtiFramePops::print() {
 // one per JvmtiEnv.
 //
 
-JvmtiEnvThreadState::JvmtiEnvThreadState(JavaThread *thread, JvmtiEnvBase *env) :
+JvmtiEnvThreadState::JvmtiEnvThreadState(JvmtiThreadState* state, JvmtiEnvBase *env) :
   _event_enable() {
-  _thread                 = thread;
+  _state                  = state;
   _env                    = (JvmtiEnv*)env;
-  _next                   = NULL;
-  _frame_pops             = NULL;
+  _next                   = nullptr;
+  _frame_pops             = nullptr;
   _current_bci            = 0;
-  _current_method_id      = NULL;
+  _current_method_id      = nullptr;
   _breakpoint_posted      = false;
   _single_stepping_posted = false;
-  _agent_thread_local_storage_data = NULL;
+  _agent_thread_local_storage_data = nullptr;
 }
 
 JvmtiEnvThreadState::~JvmtiEnvThreadState()   {
   delete _frame_pops;
-  _frame_pops = NULL;
+  _frame_pops = nullptr;
 }
+
+bool JvmtiEnvThreadState::is_virtual() {
+  return _state->is_virtual();
+}
+
+// Use _thread_saved if cthread is detached from JavaThread (_thread == nullptr).
+JavaThread* JvmtiEnvThreadState::get_thread_or_saved() {
+  return _state->get_thread_or_saved();
+}
+
+JavaThread* JvmtiEnvThreadState::get_thread() {
+  return _state->get_thread();
+}
+
+void* JvmtiEnvThreadState::get_agent_thread_local_storage_data() {
+  return _agent_thread_local_storage_data;
+}
+
+void JvmtiEnvThreadState::set_agent_thread_local_storage_data (void *data) {
+  _agent_thread_local_storage_data = data;
+}
+
 
 // Given that a new (potential) event has come in,
 // maintain the current JVMTI location on a per-thread per-env basis
@@ -154,7 +175,7 @@ JvmtiEnvThreadState::~JvmtiEnvThreadState()   {
 void JvmtiEnvThreadState::compare_and_set_current_location(Method* new_method,
                                                            address new_location, jvmtiEvent event) {
 
-  int new_bci = new_location - new_method->code_base();
+  int new_bci = pointer_delta_as_int(new_location, new_method->code_base());
 
   // The method is identified and stored as a jmethodID which is safe in this
   // case because the class cannot be unloaded while a method is executing.
@@ -191,87 +212,111 @@ void JvmtiEnvThreadState::compare_and_set_current_location(Method* new_method,
 
 
 JvmtiFramePops* JvmtiEnvThreadState::get_frame_pops() {
-  assert(get_thread() == Thread::current() || SafepointSynchronize::is_at_safepoint(),
-         "frame pop data only accessible from same thread or at safepoint");
-  if (_frame_pops == NULL) {
+#ifdef ASSERT
+  Thread *current = Thread::current();
+#endif
+  assert(get_thread() == nullptr || get_thread()->is_handshake_safe_for(current),
+         "frame pop data only accessible from same or detached thread or direct handshake");
+  if (_frame_pops == nullptr) {
     _frame_pops = new JvmtiFramePops();
-    assert(_frame_pops != NULL, "_frame_pops != NULL");
+    assert(_frame_pops != nullptr, "_frame_pops != null");
   }
   return _frame_pops;
 }
 
 
 bool JvmtiEnvThreadState::has_frame_pops() {
-  return _frame_pops == NULL? false : (_frame_pops->length() > 0);
+  return _frame_pops == nullptr? false : (_frame_pops->length() > 0);
 }
 
 void JvmtiEnvThreadState::set_frame_pop(int frame_number) {
-  assert(get_thread() == Thread::current() || SafepointSynchronize::is_at_safepoint(),
-         "frame pop data only accessible from same thread or at safepoint");
+#ifdef ASSERT
+  Thread *current = Thread::current();
+#endif
+  assert(get_thread() == nullptr || get_thread()->is_handshake_safe_for(current),
+         "frame pop data only accessible from same or detached thread or direct handshake");
   JvmtiFramePop fpop(frame_number);
   JvmtiEventController::set_frame_pop(this, fpop);
 }
 
 
 void JvmtiEnvThreadState::clear_frame_pop(int frame_number) {
-  assert(get_thread() == Thread::current() || SafepointSynchronize::is_at_safepoint(),
-         "frame pop data only accessible from same thread or at safepoint");
+#ifdef ASSERT
+  Thread *current = Thread::current();
+#endif
+  assert(get_thread() == nullptr || get_thread()->is_handshake_safe_for(current),
+         "frame pop data only accessible from same or detached thread or direct handshake");
   JvmtiFramePop fpop(frame_number);
   JvmtiEventController::clear_frame_pop(this, fpop);
 }
 
 
-void JvmtiEnvThreadState::clear_to_frame_pop(int frame_number)  {
-  assert(get_thread() == Thread::current() || SafepointSynchronize::is_at_safepoint(),
-         "frame pop data only accessible from same thread or at safepoint");
-  JvmtiFramePop fpop(frame_number);
-  JvmtiEventController::clear_to_frame_pop(this, fpop);
-}
-
-
 bool JvmtiEnvThreadState::is_frame_pop(int cur_frame_number) {
-  assert(get_thread() == Thread::current() || SafepointSynchronize::is_at_safepoint(),
-         "frame pop data only accessible from same thread or at safepoint");
-  if (!get_thread()->is_interp_only_mode() || _frame_pops == NULL) {
+#ifdef ASSERT
+  Thread *current = Thread::current();
+#endif
+  assert(get_thread() == nullptr || get_thread()->is_handshake_safe_for(current),
+         "frame pop data only accessible from same or detached thread or direct handshake");
+  if (!jvmti_thread_state()->is_interp_only_mode() || _frame_pops == nullptr) {
     return false;
   }
   JvmtiFramePop fp(cur_frame_number);
   return get_frame_pops()->contains(fp);
 }
 
-
-class VM_GetCurrentLocation : public VM_Operation {
+class GetCurrentLocationClosure : public JvmtiUnitedHandshakeClosure {
  private:
-   JavaThread *_thread;
    jmethodID _method_id;
    int _bci;
-
+   bool _completed;
  public:
-  VM_GetCurrentLocation(JavaThread *thread) {
-     _thread = thread;
-   }
-  VMOp_Type type() const { return VMOp_GetCurrentLocation; }
-  void doit() {
-    ResourceMark rmark; // _thread != Thread::current()
-    RegisterMap rm(_thread, false);
-    // There can be a race condition between a VM_Operation reaching a safepoint
+  GetCurrentLocationClosure()
+    : JvmtiUnitedHandshakeClosure("GetCurrentLocation"),
+      _method_id(nullptr),
+      _bci(0),
+      _completed(false) {}
+
+  void do_thread(Thread *target) {
+    JavaThread *jt = JavaThread::cast(target);
+    ResourceMark rmark; // jt != Thread::current()
+    RegisterMap rm(jt,
+                   RegisterMap::UpdateMap::skip,
+                   RegisterMap::ProcessFrames::include,
+                   RegisterMap::WalkContinuation::skip);
+    // There can be a race condition between a handshake
     // and the target thread exiting from Java execution.
-    // We must recheck the last Java frame still exists.
-    if (!_thread->is_exiting() && _thread->has_last_Java_frame()) {
-      javaVFrame* vf = _thread->last_java_vframe(&rm);
-      assert(vf != NULL, "must have last java frame");
-      Method* method = vf->method();
-      _method_id = method->jmethod_id();
-      _bci = vf->bci();
-    } else {
-      // Clear current location as the target thread has no Java frames anymore.
-      _method_id = (jmethodID)NULL;
-      _bci = 0;
+    // We must recheck that the last Java frame still exists.
+    if (!jt->is_exiting() && jt->has_last_Java_frame()) {
+      javaVFrame* vf = jt->last_java_vframe(&rm);
+      if (vf != nullptr) {
+        Method* method = vf->method();
+        _method_id = method->jmethod_id();
+        _bci = vf->bci();
+      }
     }
+    _completed = true;
+  }
+  void do_vthread(Handle target_h) {
+    assert(_target_jt == nullptr || !_target_jt->is_exiting(), "sanity check");
+    // Use jvmti_vthread() instead of vthread() as target could have temporarily changed
+    // identity to carrier thread (see VirtualThread.switchToCarrierThread).
+    assert(_target_jt == nullptr || _target_jt->jvmti_vthread() == target_h(), "sanity check");
+    ResourceMark rm;
+    javaVFrame *jvf = JvmtiEnvBase::get_vthread_jvf(target_h());
+
+    if (jvf != nullptr) {
+      Method* method = jvf->method();
+      _method_id = method->jmethod_id();
+      _bci = jvf->bci();
+    }
+    _completed = true;
   }
   void get_current_location(jmethodID *method_id, int *bci) {
     *method_id = _method_id;
     *bci = _bci;
+  }
+  bool completed() {
+    return _completed;
   }
 };
 
@@ -293,7 +338,7 @@ void JvmtiEnvThreadState::reset_current_location(jvmtiEvent event_type, bool ena
   // e.g., the debugger stepi command:
   // - bytecode single stepped
   // - SINGLE_STEP event posted and SINGLE_STEP event disabled
-  // - SINGLE_STEP event reenabled
+  // - SINGLE_STEP event re-enabled
   // - bytecode rewritten to fast version
 
   // If breakpoint event is disabled, clear current location only if
@@ -303,15 +348,25 @@ void JvmtiEnvThreadState::reset_current_location(jvmtiEvent event_type, bool ena
   if (enabled) {
     // If enabling breakpoint, no need to reset.
     // Can't do anything if empty stack.
-    if (event_type == JVMTI_EVENT_SINGLE_STEP && _thread->has_last_Java_frame()) {
-      jmethodID method_id;
-      int bci;
-      // The java thread stack may not be walkable for a running thread
-      // so get current location at safepoint.
-      VM_GetCurrentLocation op(_thread);
-      VMThread::execute(&op);
-      op.get_current_location(&method_id, &bci);
-      set_current_location(method_id, bci);
+    JavaThread* thread = get_thread_or_saved();
+
+    if (event_type == JVMTI_EVENT_SINGLE_STEP &&
+        ((thread == nullptr && is_virtual()) || thread->has_last_Java_frame())) {
+      JavaThread* current = JavaThread::current();
+      HandleMark hm(current);
+      oop thread_oop = jvmti_thread_state()->get_thread_oop();
+      Handle thread_h(current, thread_oop);
+      ThreadsListHandle tlh(current);
+
+      GetCurrentLocationClosure op;
+      JvmtiHandshake::execute(&op, &tlh, thread, thread_h);
+
+      if (op.completed()) {
+        jmethodID method_id;
+        int bci;
+        op.get_current_location(&method_id, &bci);
+        set_current_location(method_id, bci);
+      }
     }
   } else if (event_type == JVMTI_EVENT_SINGLE_STEP || !is_enabled(JVMTI_EVENT_SINGLE_STEP)) {
     // If this is to disable breakpoint, also check if single-step is not enabled

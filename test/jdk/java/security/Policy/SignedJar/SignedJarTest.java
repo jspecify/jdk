@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,13 +28,13 @@ import java.security.AccessControlException;
 import java.security.AccessController;
 import java.security.Permission;
 import java.security.PrivilegedAction;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.ProcessTools;
 
 /**
  * @test
- * @bug 8048360
+ * @bug 8048360 8242565
  * @summary test policy entry with signedBy alias
- * @library /lib/testlibrary
+ * @library /test/lib
  * @run main/othervm SignedJarTest
  */
 public class SignedJarTest {
@@ -52,6 +52,7 @@ public class SignedJarTest {
     private static final String POLICY2 = "SignedJarTest_2.policy";
     private static final String KEYSTORE1 = "both.jks";
     private static final String KEYSTORE2 = "first.jks";
+    private static final String SECPROPS = TESTSRC + FS + "java.security";
 
     public static void main(String args[]) throws Throwable {
         //copy PrivilegeTest.class, policy files and keystore password file into current direcotry
@@ -66,6 +67,7 @@ public class SignedJarTest {
         //Creating first key , keystore both.jks
         ProcessTools.executeCommand(KEYTOOL,
                 "-genkey",
+                "-keyalg", "DSA",
                 "-alias", "first",
                 "-keystore", KEYSTORE1,
                 "-keypass", PASSWORD,
@@ -76,6 +78,7 @@ public class SignedJarTest {
         //Creating Second key, keystore both.jks
         ProcessTools.executeCommand(KEYTOOL,
                 "-genkey",
+                "-keyalg", "DSA",
                 // "-storetype","JKS",
                 "-alias", "second",
                 "-keystore", KEYSTORE1,
@@ -118,7 +121,7 @@ public class SignedJarTest {
         System.out.println("Test Case 1");
         //copy policy file into current directory
         String[] cmd = constructCMD("first.jar", POLICY1, "false", "true");
-        ProcessTools.executeTestJvm(cmd).shouldHaveExitValue(0);
+        ProcessTools.executeTestJava(cmd).shouldHaveExitValue(0);
 
         //test case 2, test with both.jar
         //setIO permission granted to code that was signed by first signer
@@ -128,7 +131,7 @@ public class SignedJarTest {
         //Expect no AccessControlException
         System.out.println("Test Case 2");
         cmd = constructCMD("both.jar", POLICY1, "false", "false");
-        ProcessTools.executeTestJvm(cmd).shouldHaveExitValue(0);
+        ProcessTools.executeTestJava(cmd).shouldHaveExitValue(0);
 
         //test case 3
         //setIO permission granted to code that was signed by first signer
@@ -138,7 +141,7 @@ public class SignedJarTest {
         //Expect AccessControlException for setFactory permission
         System.out.println("Test Case 3");
         cmd = constructCMD("both.jar", POLICY2, "false", "true");
-        ProcessTools.executeTestJvm(cmd).shouldHaveExitValue(0);
+        ProcessTools.executeTestJava(cmd).shouldHaveExitValue(0);
 
     }
 
@@ -147,6 +150,7 @@ public class SignedJarTest {
             "-classpath", classpath,
             "-Djava.security.manager",
             "-Djava.security.policy=" + policy,
+            "-Djava.security.properties=" + SECPROPS,
             "PrivilegeTest",
             arg1, arg2};
         return cmd;

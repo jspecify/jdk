@@ -1,7 +1,7 @@
 #!/bin/bash -f
 
 #
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -23,17 +23,27 @@
 # questions.
 #
 
-# Script to update the Copyright YEAR range in Mercurial sources.
+# Script to update the Copyright YEAR range in Mercurial & Git sources.
 #  (Originally from xdono, Thanks!)
 
-if [ "`uname -s`" = "SunOS" ] ; then
-  awk=nawk
-else
-  awk=awk
-fi
+#------------------------------------------------------------
+copyright="Copyright"
+copyright_symbol="(c)"
+company="Oracle"
+year=`date +%Y`
+#------------------------------------------------------------
+
+awk="awk"
 
 # Stop on any error
 set -e
+
+# To allow total changes counting
+shopt -s lastpipe
+
+# Get an absolute path to this script, since that determines the top-level directory.
+this_script_dir=`dirname $0`
+this_script_dir=`cd $this_script_dir > /dev/null && pwd`
 
 # Temp area
 tmp=/tmp/`basename $0`.${USER}.$$
@@ -41,18 +51,75 @@ rm -f -r ${tmp}
 mkdir -p ${tmp}
 total=0
 
-# This year or supplied year
-if [ "$1" != "" ] ; then
-  year="$1"
+usage="Usage: `basename "$0"` [-c company] [-y year] [-h|f]"
+Help()
+{
+  # Display Help
+  echo "Updates the Copyright year range in Git sources."
+  echo
+  echo "By default, the tool limits the processed changesets "
+  echo "to those in the current branch and the current year."
+  echo
+  echo "Note, cancelling the script will skip cleanup in /tmp."
+  echo
+  echo $usage
+  echo "options:"
+  echo "-c     Specifies the company. Set to Oracle by default."
+  echo "-y     Specifies the copyright year. Set to current year by default."
+  echo "-f     Updates the copyright for all change sets in a given year,"
+  echo "       as specified by -y."
+  echo "-h     Print this help."
+  echo
+}
+
+full_year=false
+
+# Process options
+while getopts "c:fhy:" option; do
+  case $option in
+    c) # supplied company year
+      company=${OPTARG}
+      ;;
+    f) # update all change sets in a full year
+      full_year=true
+      ;;
+    h) # display help
+      Help
+      exit 0
+      ;;
+    y) # supplied company year
+      year=${OPTARG}
+      ;;
+    \?) # illegal option
+      echo "$usage"
+      exit 1
+      ;;
+  esac
+done
+
+# VCS check
+git_found=false
+[ -d "${this_script_dir}/../../.git" ] && git_found=true
+if [ "$git_found" != "true" ]; then
+  echo "Error: Please execute script from within make/scripts."
+  exit 1
 else
-  year=`date +%Y`
+  echo "Using Git version control system"
+  vcs_status=(git ls-files -m)
+  if [ "$full_year" = "true" ]; then
+    vcs_list_changesets=(git log --no-merges --since="${year}-01-01T00:00:00Z" --until="${year}-12-31T23:59:59Z" --pretty=tformat:"%H")
+  else
+    vcs_list_changesets=(git log --no-merges 'master..HEAD' --since="${year}-01-01T00:00:00Z" --until="${year}-12-31T23:59:59Z" --pretty=tformat:"%H")
+  fi
+  vcs_changeset_message=(git log -1 --pretty=tformat:"%B") # followed by ${changeset}
+  vcs_changeset_files=(git diff-tree --no-commit-id --name-only -r) # followed by ${changeset}
 fi
 
 # Return true if it makes sense to edit this file
 saneFileToCheck()
 {
   if [ "$1" != "" -a -f $1 ] ; then
-    isText=`file "$1" | egrep -i '(text|source)' | cat`
+    isText=`file "$1" | grep -i -E '(text|source)' | cat`
     hasCopyright=`grep 'Copyright' "$1" | cat`
     lastLineCount=`tail -1 "$1" | wc -l`
     if [ "${isText}" != ""  \
@@ -72,14 +139,16 @@ updateFile() # file
 {
   changed="false"
   if [ `saneFileToCheck "$1"` = "true" ] ; then
-    copyright="Copyright (c)"
-    company="Oracle"
     rm -f $1.OLD
     mv $1 $1.OLD
     cat $1.OLD | \
-      sed -e "s@\(${copyright} [12][0-9][0-9][0-9],\) [12][0-9][0-9][0-9], ${company}@\1 ${year}, ${company}@" | \
-      sed -e "s@\(${copyright} [12][0-9][0-9][0-9],\) ${company}@\1 ${year}, ${company}@" | \
-      sed -e "s@${copyright} ${year}, ${year}, ${company}@${copyright} ${year}, ${company}@"  \
+      sed -e "s@\(${copyright} \(${copyright_symbol} \)\{0,1\}[12][0-9][0-9][0-9],\) [12][0-9][0-9][0-9], ${company}@\1 ${year}, ${company}@" | \
+      sed -e "s@\(${copyright} \(${copyright_symbol} \)\{0,1\}[12][0-9][0-9][0-9],\) [12][0-9][0-9][0-9] ${company}@\1 ${year} ${company}@" | \
+      sed -e "s@\(${copyright} \(${copyright_symbol} \)\{0,1\}[12][0-9][0-9][0-9],\) ${company}@\1 ${year}, ${company}@" | \
+      sed -e "s@\(${copyright} \(${copyright_symbol} \)\{0,1\}[12][0-9][0-9][0-9],\) ${company}@\1, ${year}, ${company}@" | \
+      sed -e "s@\(${copyright} \(${copyright_symbol} \)\{0,1\}[12][0-9][0-9][0-9]\) ${company}@\1, ${year} ${company}@" | \
+      sed -e "s@${copyright} ${year}, ${year}, ${company}@${copyright} ${year}, ${company}@" | \
+      sed -e "s@${copyright} ${copyright_symbol} ${year}, ${year}, ${company}@${copyright} ${copyright_symbol} ${year}, ${company}@"  \
       > $1
     if ! diff -b -w $1.OLD $1 > /dev/null ; then \
       changed="true"
@@ -98,12 +167,10 @@ updateChangesetFiles() # changeset
   count=0
   files=${tmp}/files.$1
   rm -f ${files}
-  hg log --rev $1 -v --template '{files}\n' | expand \
+  "${vcs_changeset_files[@]}" "$1" | expand \
     | ${awk} -F' ' '{for(i=1;i<=NF;i++)print $i}' \
     > ${files}
   if [ -f "${files}" -a -s "${files}" ] ; then
-    copyright="Copyright (c)"
-    company="Oracle"
     fcount=`cat ${files}| wc -l`
     for i in `cat ${files}` ; do
       if [ `updateFile "${i}"` = "true" ] ; then
@@ -120,8 +187,8 @@ updateChangesetFiles() # changeset
     printf "  ERROR: No files changed in the changeset? Must be a mistake.\n"
     set -x
     ls -al ${files}
-    hg log --rev $1 -v --template '{files}\n'
-    hg log --rev $1 -v --template '{files}\n' | expand \
+    "${vcs_changeset_files[@]}" "$1"
+    "${vcs_changeset_files[@]}" "$1" | expand \
       | ${awk} -F' ' '{for(i=1;i<=NF;i++)print $i}'
     set +x
     exit 1
@@ -130,16 +197,16 @@ updateChangesetFiles() # changeset
 }
 
 # Check if repository is clean
-previous=`hg status|wc -l`
+previous=`"${vcs_status[@]}"|wc -l`
 if [ ${previous} -ne 0 ] ; then
   echo "WARNING: This repository contains previously edited working set files."
-  echo "  hg status | wc -l = `hg status | wc -l`"
+  echo "  ${vcs_status[*]} | wc -l = `"${vcs_status[@]}" | wc -l`"
 fi
 
 # Get all changesets this year
 all_changesets=${tmp}/all_changesets
 rm -f ${all_changesets}
-hg log --no-merges -v -d "${year}-01-01 to ${year}-12-31" --template '{node}\n' > ${all_changesets}
+"${vcs_list_changesets[@]}" > ${all_changesets}
 
 # Check changeset to see if it is Copyright only changes, filter changesets
 if [ -s ${all_changesets} ] ; then
@@ -150,22 +217,22 @@ if [ -s ${all_changesets} ] ; then
     desc=${tmp}/desc.${changeset}
     rm -f ${desc}
     echo "------------------------------------------------"
-    hg log --rev ${changeset} --template '{desc}\n' > ${desc}
+    "${vcs_changeset_message[@]}" "${changeset}" > ${desc}
     printf "%d: %s\n%s\n" ${index} "${changeset}" "`cat ${desc}|head -1`"
     if [ "${year}" = "2010" ] ; then
-      if cat ${desc} | fgrep -i "Added tag" > /dev/null ; then
+      if cat ${desc} | grep -i -F "Added tag" > /dev/null ; then
         printf "  EXCLUDED tag changeset.\n"
-      elif cat ${desc} | fgrep -i rebrand > /dev/null ; then
+      elif cat ${desc} | grep -i -F rebrand > /dev/null ; then
         printf "  EXCLUDED rebrand changeset.\n"
-      elif cat ${desc} | fgrep -i copyright > /dev/null ; then
+      elif cat ${desc} | grep -i -F copyright > /dev/null ; then
         printf "  EXCLUDED copyright changeset.\n"
       else
         updateChangesetFiles ${changeset}
       fi
     else
-      if cat ${desc} | fgrep -i "Added tag" > /dev/null ; then
+      if cat ${desc} | grep -i -F "Added tag" > /dev/null ; then
         printf "  EXCLUDED tag changeset.\n"
-      elif cat ${desc} | fgrep -i "copyright year" > /dev/null ; then
+      elif cat ${desc} | grep -i -F "copyright year" > /dev/null ; then
         printf "  EXCLUDED copyright year changeset.\n"
       else
         updateChangesetFiles ${changeset}
@@ -179,18 +246,18 @@ if [ ${total} -gt 0 ] ; then
    echo "---------------------------------------------"
    echo "Updated the copyright year on a total of ${total} files."
    if [ ${previous} -eq 0 ] ; then
-     echo "This count should match the count of modified files in the repository: hg status -m"
+     echo "This count should match the count of modified files in the repository: ${vcs_status[*]}"
    else
      echo "WARNING: This repository contained previously edited working set files."
    fi
-   echo "  hg status -m | wc -l = `hg status -m | wc -l`"
+   echo "  ${vcs_status[*]} | wc -l = `"${vcs_status[@]}" | wc -l`"
 else
    echo "---------------------------------------------"
    echo "No files were changed"
    if [ ${previous} -ne 0 ] ; then
      echo "WARNING: This repository contained previously edited working set files."
    fi
-   echo "  hg status -m | wc -l = `hg status -m | wc -l`"
+   echo "  ${vcs_status[*]} | wc -l = `"${vcs_status[@]}" | wc -l`"
 fi
 
 # Cleanup

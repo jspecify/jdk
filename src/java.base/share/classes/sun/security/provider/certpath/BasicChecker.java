@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,7 +72,7 @@ class BasicChecker extends PKIXCertPathChecker {
      * Constructor that initializes the input parameters.
      *
      * @param anchor the anchor selected to validate the target certificate
-     * @param testDate the time for which the validity of the certificate
+     * @param date the time for which the validity of the certificate
      *        should be determined
      * @param sigProvider the name of the signature provider
      * @param sigOnly true if only signature checking is to be done;
@@ -244,7 +244,7 @@ class BasicChecker extends PKIXCertPathChecker {
             debug.println("BasicChecker.updateState issuer: " +
                 currCert.getIssuerX500Principal().toString() + "; subject: " +
                 currCert.getSubjectX500Principal() + "; serial#: " +
-                currCert.getSerialNumber().toString());
+                Debug.toString(currCert.getSerialNumber()));
         }
         if (PKIX.isDSAPublicKeyWithoutParams(cKey)) {
             // cKey needs to inherit DSA parameters from prev key

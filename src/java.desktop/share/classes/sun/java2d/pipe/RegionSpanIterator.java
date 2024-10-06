@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,17 +47,6 @@ public class RegionSpanIterator implements SpanIterator {
     // Is the associated Region rectangular?
     boolean isrect;
 
-/*
-    REMIND: For native implementation
-    long pData;     // Private storage of rect info
-
-    static {
-        initIDs();
-    }
-
-    public static native void initIDs();
-*/
-
     /**
      * Constructs an instance based on the given Region
      */
@@ -77,7 +66,7 @@ public class RegionSpanIterator implements SpanIterator {
     /**
      * Gets the bbox of the available region spans.
      */
-    public void getPathBox(int pathbox[]) {
+    public void getPathBox(int[] pathbox) {
         pathbox[0] = lox;
         pathbox[1] = loy;
         pathbox[2] = hix;
@@ -108,7 +97,7 @@ public class RegionSpanIterator implements SpanIterator {
      * Fetches the next span that needs to be operated on.
      * If the return value is false then there are no more spans.
      */
-    public boolean nextSpan(int spanbox[]) {
+    public boolean nextSpan(int[] spanbox) {
 
         // Quick test for end conditions
         if (done) {
@@ -197,14 +186,4 @@ public class RegionSpanIterator implements SpanIterator {
     public long getNativeIterator() {
         return 0;
     }
-
-    /*
-     * Cleans out all internal data structures.
-     * REMIND: Native implementation
-    public native void dispose();
-
-    protected void finalize() {
-        dispose();
-    }
-     */
 }

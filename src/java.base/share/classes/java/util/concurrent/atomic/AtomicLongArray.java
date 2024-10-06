@@ -370,8 +370,7 @@ public @UsesObjectEquals class AtomicLongArray implements java.io.Serializable {
     }
 
     /**
-     * Returns the String representation of the current values of array.
-     * @return the String representation of the current values of array
+     * {@return the String representation of the current values of array}
      */
     public String toString() {
         int iMax = array.length - 1;
@@ -474,7 +473,7 @@ public @UsesObjectEquals class AtomicLongArray implements java.io.Serializable {
      * @param i the index
      * @param expectedValue the expected value
      * @param newValue the new value
-     * @return the witness value, which will be the same as the
+     * @return the <em>witness value</em>, which will be the same as the
      * expected value if successful
      * @since 9
      */
@@ -492,7 +491,7 @@ public @UsesObjectEquals class AtomicLongArray implements java.io.Serializable {
      * @param i the index
      * @param expectedValue the expected value
      * @param newValue the new value
-     * @return the witness value, which will be the same as the
+     * @return the <em>witness value</em>, which will be the same as the
      * expected value if successful
      * @since 9
      */
@@ -510,7 +509,7 @@ public @UsesObjectEquals class AtomicLongArray implements java.io.Serializable {
      * @param i the index
      * @param expectedValue the expected value
      * @param newValue the new value
-     * @return the witness value, which will be the same as the
+     * @return the <em>witness value</em>, which will be the same as the
      * expected value if successful
      * @since 9
      */

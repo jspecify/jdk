@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2018, SAP SE. All rights reserved.
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,10 +30,14 @@
 #include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1BarrierSetAssembler.hpp"
 #include "gc/g1/g1BarrierSetRuntime.hpp"
+#include "gc/g1/g1DirtyCardQueue.hpp"
+#include "gc/g1/g1HeapRegion.hpp"
+#include "gc/g1/g1SATBMarkQueueSet.hpp"
 #include "gc/g1/g1ThreadLocalData.hpp"
-#include "gc/g1/heapRegion.hpp"
 #include "interpreter/interp_masm.hpp"
+#include "runtime/jniHandles.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "utilities/macros.hpp"
 #ifdef COMPILER1
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
@@ -98,18 +102,18 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
 
 void G1BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                     const Address& src, Register dst, Register tmp1, Register tmp2, Label *L_handle_null) {
-  bool on_oop = type == T_OBJECT || type == T_ARRAY;
+  bool on_oop = is_reference_type(type);
   bool on_weak = (decorators & ON_WEAK_OOP_REF) != 0;
   bool on_phantom = (decorators & ON_PHANTOM_OOP_REF) != 0;
   bool on_reference = on_weak || on_phantom;
   Label done;
-  if (on_oop && on_reference && L_handle_null == NULL) { L_handle_null = &done; }
+  if (on_oop && on_reference && L_handle_null == nullptr) { L_handle_null = &done; }
   ModRefBarrierSetAssembler::load_at(masm, decorators, type, src, dst, tmp1, tmp2, L_handle_null);
   if (on_oop && on_reference) {
     // Generate the G1 pre-barrier code to log the value of
     // the referent field in an SATB buffer.
     g1_write_barrier_pre(masm, decorators | IS_NOT_NULL,
-                         NULL /* obj */,
+                         nullptr /* obj */,
                          dst  /* pre_val */,
                          noreg/* preserve */ ,
                          tmp1, tmp2 /* tmp */,
@@ -128,7 +132,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm, Decorator
                                                  ) {
 
   bool not_null  = (decorators & IS_NOT_NULL) != 0,
-       preloaded = obj == NULL;
+       preloaded = obj == nullptr;
 
   const Register Robj = obj ? obj->base() : noreg,
                  Roff = obj ? obj->index() : noreg;
@@ -166,23 +170,23 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm, Decorator
     }
   }
 
-  // Is the previous value NULL?
+  // Is the previous value null?
   // If so, we don't need to record it and we're done.
   // Note: pre_val is loaded, decompressed and stored (directly or via runtime call).
   //       Register contents is preserved across runtime call if caller requests to do so.
   if (preloaded && not_null) {
 #ifdef ASSERT
     __ z_ltgr(Rpre_val, Rpre_val);
-    __ asm_assert_ne("null oop not allowed (G1 pre)", 0x321); // Checked by caller.
+    __ asm_assert(Assembler::bcondNotZero, "null oop not allowed (G1 pre)", 0x321); // Checked by caller.
 #endif
   } else {
     __ z_ltgr(Rpre_val, Rpre_val);
-    __ z_bre(filtered); // previous value is NULL, so we don't need to record it.
+    __ z_bre(filtered); // previous value is null, so we don't need to record it.
   }
 
-  // Decode the oop now. We know it's not NULL.
+  // Decode the oop now. We know it's not null.
   if (Robj != noreg && UseCompressedOops) {
-    __ oop_decoder(Rpre_val, Rpre_val, /*maybeNULL=*/false);
+    __ oop_decoder(Rpre_val, Rpre_val, /*maybenullptr=*/false);
   }
 
   // OK, it's not filtered, so we'll need to call enqueue.
@@ -267,7 +271,6 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm, Decorato
   Label callRuntime, filtered;
 
   CardTableBarrierSet* ct = barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
-  assert(sizeof(*ct->card_table()->byte_map_base()) == sizeof(jbyte), "adjust this code");
 
   BLOCK_COMMENT("g1_write_barrier_post {");
 
@@ -279,14 +282,14 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm, Decorato
     __ z_lgr(Rtmp1, Rstore_addr);
     __ z_xgr(Rtmp1, Rnew_val);
   }
-  __ z_srag(Rtmp1, Rtmp1, HeapRegion::LogOfHRGrainBytes);
+  __ z_srag(Rtmp1, Rtmp1, G1HeapRegion::LogOfHRGrainBytes);
   __ z_bre(filtered);
 
-  // Crosses regions, storing NULL?
+  // Crosses regions, storing null?
   if (not_null) {
 #ifdef ASSERT
     __ z_ltgr(Rnew_val, Rnew_val);
-    __ asm_assert_ne("null oop not allowed (G1 post)", 0x322); // Checked by caller.
+    __ asm_assert(Assembler::bcondNotZero, "null oop not allowed (G1 post)", 0x322); // Checked by caller.
 #endif
   } else {
     __ z_ltgr(Rnew_val, Rnew_val);
@@ -295,8 +298,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm, Decorato
 
   Rnew_val = noreg; // end of lifetime
 
-  // Storing region crossing non-NULL, is card already dirty?
-  assert(sizeof(*ct->card_table()->byte_map_base()) == sizeof(jbyte), "adjust this code");
+  // Storing region crossing non-null, is card already dirty?
   assert_different_registers(Rtmp1, Rtmp2, Rtmp3);
   // Make sure not to use Z_R0 for any of these registers.
   Register Rcard_addr = (Rtmp1 != Z_R0_scratch) ? Rtmp1 : Rtmp3;
@@ -304,23 +306,21 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm, Decorato
 
   // calculate address of card
   __ load_const_optimized(Rbase, (address)ct->card_table()->byte_map_base());      // Card table base.
-  __ z_srlg(Rcard_addr, Rstore_addr, CardTable::card_shift);         // Index into card table.
+  __ z_srlg(Rcard_addr, Rstore_addr, CardTable::card_shift());         // Index into card table.
   __ z_algr(Rcard_addr, Rbase);                                      // Explicit calculation needed for cli.
   Rbase = noreg; // end of lifetime
 
   // Filter young.
-  assert((unsigned int)G1CardTable::g1_young_card_val() <= 255, "otherwise check this code");
   __ z_cli(0, Rcard_addr, G1CardTable::g1_young_card_val());
   __ z_bre(filtered);
 
   // Check the card value. If dirty, we're done.
   // This also avoids false sharing of the (already dirty) card.
   __ z_sync(); // Required to support concurrent cleaning.
-  assert((unsigned int)G1CardTable::dirty_card_val() <= 255, "otherwise check this code");
   __ z_cli(0, Rcard_addr, G1CardTable::dirty_card_val()); // Reload after membar.
   __ z_bre(filtered);
 
-  // Storing a region crossing, non-NULL oop, card is clean.
+  // Storing a region crossing, non-null oop, card is clean.
   // Dirty card and log.
   __ z_mvi(0, Rcard_addr, G1CardTable::dirty_card_val());
 
@@ -380,7 +380,7 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
 
   BarrierSetAssembler::store_at(masm, decorators, type, dst, val, tmp1, tmp2, tmp3);
 
-  // No need for post barrier if storing NULL
+  // No need for post barrier if storing null
   if (val != noreg) {
     const Register base = dst.base(),
                    idx  = dst.index();
@@ -395,18 +395,18 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
 void G1BarrierSetAssembler::resolve_jobject(MacroAssembler* masm, Register value, Register tmp1, Register tmp2) {
   NearLabel Ldone, Lnot_weak;
   __ z_ltgr(tmp1, value);
-  __ z_bre(Ldone);          // Use NULL result as-is.
+  __ z_bre(Ldone);          // Use null result as-is.
 
-  __ z_nill(value, ~JNIHandles::weak_tag_mask);
+  __ z_nill(value, ~JNIHandles::tag_mask);
   __ z_lg(value, 0, value); // Resolve (untagged) jobject.
 
-  __ z_tmll(tmp1, JNIHandles::weak_tag_mask); // Test for jweak tag.
+  __ z_tmll(tmp1, JNIHandles::TypeTag::weak_global); // Test for jweak tag.
   __ z_braz(Lnot_weak);
-  __ verify_oop(value);
+  __ verify_oop(value, FILE_AND_LINE);
   DecoratorSet decorators = IN_NATIVE | ON_PHANTOM_OOP_REF;
-  g1_write_barrier_pre(masm, decorators, (const Address*)NULL, value, noreg, tmp1, tmp2, true);
+  g1_write_barrier_pre(masm, decorators, (const Address*)nullptr, value, noreg, tmp1, tmp2, true);
   __ bind(Lnot_weak);
-  __ verify_oop(value);
+  __ verify_oop(value, FILE_AND_LINE);
   __ bind(Ldone);
 }
 
@@ -428,7 +428,7 @@ void G1BarrierSetAssembler::gen_pre_barrier_stub(LIR_Assembler* ce, G1PreBarrier
   Register pre_val_reg = stub->pre_val()->as_register();
 
   if (stub->do_load()) {
-    ce->mem2reg(stub->addr(), stub->pre_val(), T_OBJECT, stub->patch_code(), stub->info(), false /*wide*/, false /*unaligned*/);
+    ce->mem2reg(stub->addr(), stub->pre_val(), T_OBJECT, stub->patch_code(), stub->info(), false /*wide*/);
   }
 
   __ z_ltgr(Z_R1_scratch, pre_val_reg); // Pass oop in Z_R1_scratch to Runtime1::g1_pre_barrier_slow_id.
@@ -520,7 +520,7 @@ void G1BarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAssembler* 
   __ bind(refill);
   save_volatile_registers(sasm);
   __ z_lgr(tmp, pre_val); // save pre_val
-  __ call_VM_leaf(CAST_FROM_FN_PTR(address, SATBMarkQueueSet::handle_zero_index_for_thread),
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1SATBMarkQueueSet::handle_zero_index_for_thread),
                   Z_thread);
   __ z_lgr(pre_val, tmp); // restore pre_val
   restore_volatile_registers(sasm);
@@ -540,7 +540,7 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
   Register cardtable = r1;   // Must be non-volatile, because it is used to save addr_card.
   CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
   CardTable* ct = ctbs->card_table();
-  jbyte* byte_map_base = ct->byte_map_base();
+  CardTable::CardValue* byte_map_base = ct->byte_map_base();
 
   // Save registers used below (see assertion in G1PreBarrierStub::emit_code()).
   __ z_stg(r1, 0*BytesPerWord + FrameMap::first_available_sp_in_frame, Z_SP);
@@ -549,7 +549,7 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
 
   // Calculate address of card corresponding to the updated oop slot.
   AddressLiteral rs(byte_map_base);
-  __ z_srlg(addr_card, addr_oop, CardTable::card_shift);
+  __ z_srlg(addr_card, addr_oop, CardTable::card_shift());
   addr_oop = noreg; // dead now
   __ load_const_optimized(cardtable, rs); // cardtable := <card table base>
   __ z_agr(addr_card, cardtable); // addr_card := addr_oop>>card_shift + cardtable
@@ -586,7 +586,7 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
 
   __ bind(restart);
 
-  // Get the index into the update buffer. DirtyCardQueue::_index is
+  // Get the index into the update buffer. G1DirtyCardQueue::_index is
   // a size_t so z_ltg is appropriate here.
   __ z_ltg(idx, Address(Z_thread, dirty_card_q_index_byte_offset));
 
@@ -606,7 +606,7 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
   __ bind(refill);
   save_volatile_registers(sasm);
   __ z_lgr(idx, addr_card); // Save addr_card, tmp3 must be non-volatile.
-  __ call_VM_leaf(CAST_FROM_FN_PTR(address, DirtyCardQueueSet::handle_zero_index_for_thread),
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1DirtyCardQueueSet::handle_zero_index_for_thread),
                                    Z_thread);
   __ z_lgr(addr_card, idx);
   restore_volatile_registers(sasm); // Restore addr_card.

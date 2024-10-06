@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,14 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1REGIONTOSPACEMAPPER_HPP
-#define SHARE_VM_GC_G1_G1REGIONTOSPACEMAPPER_HPP
+#ifndef SHARE_GC_G1_G1REGIONTOSPACEMAPPER_HPP
+#define SHARE_GC_G1_G1REGIONTOSPACEMAPPER_HPP
 
 #include "gc/g1/g1PageBasedVirtualSpace.hpp"
 #include "memory/allocation.hpp"
 #include "utilities/debug.hpp"
 
-class WorkGang;
+class WorkerThreads;
 
 class G1MappingChangedListener {
  public:
@@ -49,11 +49,12 @@ class G1RegionToSpaceMapper : public CHeapObj<mtGC> {
   // Backing storage.
   G1PageBasedVirtualSpace _storage;
 
-  size_t _region_granularity;
   // Mapping management
-  CHeapBitMap _commit_map;
+  CHeapBitMap _region_commit_map;
 
-  G1RegionToSpaceMapper(ReservedSpace rs, size_t used_size, size_t page_size, size_t region_granularity, size_t commit_factor, MemoryType type);
+  MemTag _memory_tag;
+
+  G1RegionToSpaceMapper(ReservedSpace rs, size_t used_size, size_t page_size, size_t region_granularity, size_t commit_factor, MemTag mem_tag);
 
   void fire_on_commit(uint start_idx, size_t num_regions, bool zero_filled);
  public:
@@ -64,13 +65,11 @@ class G1RegionToSpaceMapper : public CHeapObj<mtGC> {
 
   void set_mapping_changed_listener(G1MappingChangedListener* listener) { _listener = listener; }
 
+  void signal_mapping_changed(uint start_idx, size_t num_regions);
+
   virtual ~G1RegionToSpaceMapper() {}
 
-  bool is_committed(uintptr_t idx) const {
-    return _commit_map.at(idx);
-  }
-
-  virtual void commit_regions(uint start_idx, size_t num_regions = 1, WorkGang* pretouch_workers = NULL) = 0;
+  virtual void commit_regions(uint start_idx, size_t num_regions = 1, WorkerThreads* pretouch_workers = nullptr) = 0;
   virtual void uncommit_regions(uint start_idx, size_t num_regions = 1) = 0;
 
   // Creates an appropriate G1RegionToSpaceMapper for the given parameters.
@@ -86,7 +85,7 @@ class G1RegionToSpaceMapper : public CHeapObj<mtGC> {
                                               size_t page_size,
                                               size_t region_granularity,
                                               size_t byte_translation_factor,
-                                              MemoryType type);
+                                              MemTag mem_tag);
 };
 
-#endif // SHARE_VM_GC_G1_G1REGIONTOSPACEMAPPER_HPP
+#endif // SHARE_GC_G1_G1REGIONTOSPACEMAPPER_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_MOVENODE_HPP
-#define SHARE_VM_OPTO_MOVENODE_HPP
+#ifndef SHARE_OPTO_MOVENODE_HPP
+#define SHARE_OPTO_MOVENODE_HPP
 
 #include "opto/node.hpp"
 
@@ -39,7 +39,7 @@ class CMoveNode : public TypeNode {
   {
     init_class_id(Class_CMove);
     // all inputs are nullified in Node::Node(int)
-    // init_req(Control,NULL);
+    // init_req(Control,nullptr);
     init_req(Condition,bol);
     init_req(IfFalse,left);
     init_req(IfTrue,right);
@@ -49,7 +49,8 @@ class CMoveNode : public TypeNode {
   virtual Node* Identity(PhaseGVN* phase);
   static CMoveNode *make(Node *c, Node *bol, Node *left, Node *right, const Type *t);
   // Helper function to spot cmove graph shapes
-  static Node *is_cmove_id( PhaseTransform *phase, Node *cmp, Node *t, Node *f, BoolNode *b );
+  static Node* is_cmove_id(PhaseTransform* phase, Node* cmp, Node* t, Node* f, BoolNode* b);
+  static Node* Ideal_minmax(PhaseGVN* phase, CMoveNode* cmov);
 };
 
 //------------------------------CMoveDNode-------------------------------------
@@ -98,40 +99,55 @@ class CMoveNNode : public CMoveNode {
 };
 
 //
-class MoveI2FNode : public Node {
+class MoveNode : public Node {
+  protected:
+  MoveNode(Node* value) : Node(nullptr, value) {
+    init_class_id(Class_Move);
+  }
+
   public:
-  MoveI2FNode( Node *value ) : Node(0,value) {}
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
+  virtual Node* Identity(PhaseGVN* phase);
+};
+
+class MoveI2FNode : public MoveNode {
+  public:
+  MoveI2FNode(Node* value) : MoveNode(value) {}
   virtual int Opcode() const;
-  virtual const Type *bottom_type() const { return Type::FLOAT; }
+  virtual const Type* bottom_type() const { return Type::FLOAT; }
   virtual uint ideal_reg() const { return Op_RegF; }
   virtual const Type* Value(PhaseGVN* phase) const;
+  virtual Node* Identity(PhaseGVN* phase);
 };
 
-class MoveL2DNode : public Node {
+class MoveL2DNode : public MoveNode {
   public:
-  MoveL2DNode( Node *value ) : Node(0,value) {}
+  MoveL2DNode(Node* value) : MoveNode(value) {}
   virtual int Opcode() const;
-  virtual const Type *bottom_type() const { return Type::DOUBLE; }
+  virtual const Type* bottom_type() const { return Type::DOUBLE; }
   virtual uint ideal_reg() const { return Op_RegD; }
   virtual const Type* Value(PhaseGVN* phase) const;
+  virtual Node* Identity(PhaseGVN* phase);
 };
 
-class MoveF2INode : public Node {
+class MoveF2INode : public MoveNode {
   public:
-  MoveF2INode( Node *value ) : Node(0,value) {}
+  MoveF2INode(Node* value) : MoveNode(value) {}
   virtual int Opcode() const;
-  virtual const Type *bottom_type() const { return TypeInt::INT; }
+  virtual const Type* bottom_type() const { return TypeInt::INT; }
   virtual uint ideal_reg() const { return Op_RegI; }
   virtual const Type* Value(PhaseGVN* phase) const;
+  virtual Node* Identity(PhaseGVN* phase);
 };
 
-class MoveD2LNode : public Node {
+class MoveD2LNode : public MoveNode {
   public:
-  MoveD2LNode( Node *value ) : Node(0,value) {}
+  MoveD2LNode(Node* value) : MoveNode(value) {}
   virtual int Opcode() const;
-  virtual const Type *bottom_type() const { return TypeLong::LONG; }
+  virtual const Type* bottom_type() const { return TypeLong::LONG; }
   virtual uint ideal_reg() const { return Op_RegL; }
   virtual const Type* Value(PhaseGVN* phase) const;
+  virtual Node* Identity(PhaseGVN* phase);
 };
 
 //------------------------------BinaryNode-------------------------------------
@@ -142,15 +158,10 @@ class MoveD2LNode : public Node {
 //     (CMove (Binary bol cmp) (Binary src1 src2))
 class BinaryNode : public Node {
   public:
-  BinaryNode( Node *n1, Node *n2 ) : Node(0,n1,n2) { }
+  BinaryNode( Node *n1, Node *n2 ) : Node(nullptr,n1,n2) { }
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return 0; }
-
-#ifndef PRODUCT
-  virtual void related(GrowableArray<Node*> *in_rel, GrowableArray<Node*> *out_rel, bool compact) const;
-#endif
 };
 
 
-#endif // SHARE_VM_OPTO_MOVENODE_HPP
-
+#endif // SHARE_OPTO_MOVENODE_HPP

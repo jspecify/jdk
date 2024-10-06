@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,21 +23,20 @@
 
 /*
  * @test
- * @key stress gc
+ * @key stress
  *
  * @summary converted from VM Testbase gc/gctests/LoadUnloadGC.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent, monitoring]
  * VM Testbase readme:
- * In this test a 1000 classes are loaded and unloaded in a loop.
+ * In this test 1000 classes are loaded and unloaded in a loop.
  * Class0 gets loaded which results in Class1 getting loaded and so on all
- * the way uptill class1000.  The classes should be unloaded whenever a
+ * the way up to class1000.  The classes should be unloaded whenever a
  * garbage collection takes place because their classloader is made unreachable
- * at the end of the each loop iteration. The loop is repeated 1000 times.
+ * at the end of each loop iteration. The loop is repeated 1000 times.
  *
  * @requires vm.opt.final.ClassUnloading
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @build nsk.share.gc.ClassChain
  * @run main/othervm
  *      -XX:MaxMetaspaceSize=64M
@@ -46,14 +45,34 @@
  *      gc.gctests.LoadUnloadGC.LoadUnloadGC
  */
 
+/*
+ * @test
+ * @key stress
+ *
+ * @summary converted from VM Testbase gc/gctests/LoadUnloadGC.
+ * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent, monitoring]
+ * VM Testbase readme:
+ * In this test 1000 classes are loaded and unloaded in a loop.
+ * Class0 gets loaded which results in Class1 getting loaded and so on all
+ * the way up to class1000.  The classes should be unloaded whenever a
+ * garbage collection takes place because their classloader is made unreachable
+ * at the end of each loop iteration. The loop is repeated 1000 times.
+ *
+ * @requires vm.opt.final.ClassUnloading
+ * @library /vmTestbase
+ *          /test/lib
+ * @build nsk.share.gc.ClassChain
+ * @run main/othervm
+ *      -XX:MaxMetaspaceSize=64M
+ *      -XX:MetaspaceSize=64M
+ *      -XX:CompressedClassSpaceSize=32M
+ *      gc.gctests.LoadUnloadGC.LoadUnloadGC
+ */
+
 package gc.gctests.LoadUnloadGC;
 
-import nsk.share.test.*;
 import nsk.share.gc.*;
 import nsk.share.classload.ClassPathNonDelegatingClassLoader;
-import vm.share.monitoring.MemoryPoolFinder;
-
-import java.io.*;
 import java.util.*;
 import java.lang.management.MemoryPoolMXBean;
 

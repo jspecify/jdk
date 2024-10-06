@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,24 +21,39 @@
  * questions.
  */
 
+/*
+ * @test
+ * @bug 8000983 8008577 8247781 8262108 8174269
+ * @summary Unit test for narrow names support. This test is locale data-dependent
+ *          and assumes that both COMPAT and CLDR have the same narrow names if not
+ *          explicitly specified.
+ * @modules jdk.localedata
+ * @comment Locale providers: CLDR,SPI
+ * @run main/othervm -Djava.locale.providers=CLDR,SPI NarrowNamesTest CLDR,SPI
+ * @comment Locale providers: CLDR
+ * @run main/othervm -Djava.locale.providers=CLDR NarrowNamesTest CLDR
+ */
+
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.Calendar;
+import java.util.Comparator;
+import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
 import static java.util.GregorianCalendar.*;
 
 public class NarrowNamesTest {
     private static final Locale US = Locale.US;
-    private static final Locale JAJPJP = new Locale("ja", "JP", "JP");
-    private static final Locale THTH = new Locale("th", "TH");
+    private static final Locale JAJPJP = Locale.of("ja", "JP", "JP");
+    private static final Locale THTH = Locale.of("th", "TH");
 
     private static final String RESET_INDEX = "RESET_INDEX";
 
     private static int errors = 0;
 
-    private static String providers;
-
     // This test is locale data-dependent.
     public static void main(String[] args) {
-        providers = args[0];
+        String providers = args[0];
 
         test(US, ERA, "B",
              ERA, BC, YEAR, 1);
@@ -52,7 +67,7 @@ public class NarrowNamesTest {
              HOUR_OF_DAY, 23);
         test(JAJPJP, DAY_OF_WEEK,
              LocalDateTime.now().isBefore(LocalDateTime.of(2019, 5, 1, 0, 0)) ?
-                "\u65e5" : "\u706b", // "Sun" for HEISEI, "Tue" for NEWERA
+                "\u65e5" : "\u706b", // "Sun" for HEISEI, "Tue" for REIWA
              YEAR, 24, MONTH, DECEMBER, DAY_OF_MONTH, 23);
         test(THTH, MONTH, NARROW_STANDALONE, "\u0e18.\u0e04.",
              YEAR, 2555, MONTH, DECEMBER, DAY_OF_MONTH, 5);
@@ -160,16 +175,16 @@ public class NarrowNamesTest {
         if (expected.length > 0) {
             expectedMap = new TreeMap<>(LengthBasedComparator.INSTANCE);
             int index = 0;
-            for (int i = 0; i < expected.length; i++) {
-                if (expected[i].isEmpty()) {
+            for (String s : expected) {
+                if (s.isEmpty()) {
                     index++;
                     continue;
                 }
-                if (expected[i] == RESET_INDEX) {
+                if (s == RESET_INDEX) {
                     index = 0;
                     continue;
                 }
-                expectedMap.put(expected[i], index++);
+                expectedMap.put(s, index++);
             }
         }
         Calendar cal = Calendar.getInstance(locale);

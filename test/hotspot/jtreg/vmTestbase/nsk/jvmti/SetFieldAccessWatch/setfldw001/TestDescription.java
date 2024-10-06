@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,13 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm/native -agentlib:setfldw001 nsk.jvmti.SetFieldAccessWatch.setfldw001
  */
 
+/*
+ * @test id=logging
+ *
+ * @library /vmTestbase
+ *          /test/lib
+ * @run main/othervm/native -agentlib:setfldw001 -XX:TraceJVMTI=ec+,+ioe,+s -Xlog:jvmti=trace:file=vm.%p.log nsk.jvmti.SetFieldAccessWatch.setfldw001
+ */

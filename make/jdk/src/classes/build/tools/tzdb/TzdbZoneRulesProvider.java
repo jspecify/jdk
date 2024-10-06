@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,26 +31,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.NavigableMap;
-import java.util.Objects;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.time.*;
 import java.time.Year;
 import java.time.chrono.IsoChronology;
 import java.time.temporal.TemporalAdjusters;
-import java.time.zone.ZoneOffsetTransition;
-import java.time.zone.ZoneOffsetTransitionRule;
-import java.time.zone.ZoneOffsetTransitionRule.TimeDefinition;
+import build.tools.tzdb.ZoneOffsetTransitionRule.TimeDefinition;
 import java.time.zone.ZoneRulesException;
 
 /**
@@ -79,7 +67,7 @@ class TzdbZoneRulesProvider {
     }
 
     public Set<String> getZoneIds() {
-        return new TreeSet(regionIds);
+        return new TreeSet<String>(regionIds);
     }
 
     public Map<String, String> getAliasMap() {
@@ -112,6 +100,7 @@ class TzdbZoneRulesProvider {
             return (ZoneRules)obj;
         }
         try {
+            @SuppressWarnings("unchecked")
             ZoneRules zrules = buildRules(zoneId, (List<ZoneLine>)obj);
             zones.put(zoneId, zrules);
             return zrules;
@@ -131,18 +120,18 @@ class TzdbZoneRulesProvider {
     /**
      * Zone region to rules mapping
      */
-    private final Map<String, Object> zones = new ConcurrentHashMap<>();
+    private final Map<String, Object> zones = new ConcurrentSkipListMap<>();
 
     /**
      * compatibility list
      */
-    private static HashSet<String> excludedZones;
+    private static Set<String> excludedZones;
     static {
         // (1) exclude EST, HST and MST. They are supported
         //     via the short-id mapping
         // (2) remove UTC and GMT
         // (3) remove ROC, which is not supported in j.u.tz
-        excludedZones = new HashSet<>(10);
+        excludedZones = new TreeSet<>();
         excludedZones.add("EST");
         excludedZones.add("HST");
         excludedZones.add("MST");
@@ -151,8 +140,8 @@ class TzdbZoneRulesProvider {
         excludedZones.add("ROC");
     }
 
-    private Map<String, String> links = new HashMap<>(150);
-    private Map<String, List<RuleLine>> rules = new HashMap<>(500);
+    private Map<String, String> links = new TreeMap<>();
+    private Map<String, List<RuleLine>> rules = new TreeMap<>();
 
     private void load(List<Path> files) throws IOException {
 
@@ -175,7 +164,8 @@ class TzdbZoneRulesProvider {
                         }
                         continue;
                     }
-                    if (line.startsWith("Zone")) {        // parse Zone line
+                    int token0len = tokens.length > 0 ? tokens[0].length() : line.length();
+                    if (line.regionMatches(true, 0, "Zone", 0, token0len)) {        // parse Zone line
                         String name = tokens[1];
                         if (excludedZones.contains(name)){
                             continue;
@@ -193,13 +183,13 @@ class TzdbZoneRulesProvider {
                         if (zLine.parse(tokens, 2)) {
                             openZone = null;
                         }
-                    } else if (line.startsWith("Rule")) { // parse Rule line
+                    } else if (line.regionMatches(true, 0, "Rule", 0, token0len)) { // parse Rule line
                         String name = tokens[1];
                         if (!rules.containsKey(name)) {
                             rules.put(name, new ArrayList<RuleLine>(10));
                         }
                         rules.get(name).add(new RuleLine().parse(tokens));
-                    } else if (line.startsWith("Link")) { // parse link line
+                    } else if (line.regionMatches(true, 0, "Link", 0, token0len)) { // parse link line
                         if (tokens.length >= 3) {
                             String realId = tokens[1];
                             String aliasId = tokens[2];
@@ -274,8 +264,8 @@ class TzdbZoneRulesProvider {
 
         /** Whether this is midnight end of day. */
         boolean endOfDay;
-        /** The time of the cutover. */
 
+        /** The time definition of the cutover. */
         TimeDefinition timeDefinition = TimeDefinition.WALL;
 
         void adjustToForwards(int year) {
@@ -315,7 +305,7 @@ class TzdbZoneRulesProvider {
             month = parseMonth(tokens[off++]);
             if (off < tokens.length) {
                 String dayRule = tokens[off++];
-                if (dayRule.startsWith("last")) {
+                if (dayRule.regionMatches(true, 0, "last", 0, 4)) {
                     dayOfMonth = -1;
                     dayOfWeek = parseDayOfWeek(dayRule.substring(4));
                     adjustForwards = false;
@@ -345,6 +335,20 @@ class TzdbZoneRulesProvider {
                         // time must be midnight when end of day flag is true
                         endOfDay = true;
                         secsOfDay = 0;
+                    } else if (secsOfDay < 0 || secsOfDay > 86400) {
+                        // beyond 0:00-24:00 range. Adjust the cutover date.
+                        int beyondDays = secsOfDay / 86400;
+                        secsOfDay %= 86400;
+                        if (secsOfDay < 0) {
+                            secsOfDay = 86400 + secsOfDay;
+                            beyondDays -= 1;
+                        }
+                        LocalDate date = LocalDate.of(2004, month, dayOfMonth).plusDays(beyondDays);  // leap-year
+                        month = date.getMonth();
+                        dayOfMonth = date.getDayOfMonth();
+                        if (dayOfWeek != null) {
+                            dayOfWeek = dayOfWeek.plus(beyondDays);
+                        }
                     }
                     timeDefinition = parseTimeDefinition(timeStr.charAt(timeStr.length() - 1));
                 }
@@ -352,42 +356,45 @@ class TzdbZoneRulesProvider {
         }
 
         int parseYear(String year, int defaultYear) {
-            switch (year.toLowerCase()) {
-            case "min":  return 1900;
-            case "max":  return Year.MAX_VALUE;
-            case "only": return defaultYear;
-            }
+            int len = year.length();
+
+            if (year.regionMatches(true, 0, "minimum", 0, len)) return 1900;
+            if (year.regionMatches(true, 0, "maximum", 0, len)) return Year.MAX_VALUE;
+            if (year.regionMatches(true, 0, "only", 0, len)) return defaultYear;
+
             return Integer.parseInt(year);
         }
 
         Month parseMonth(String mon) {
-            switch (mon) {
-            case "Jan": return Month.JANUARY;
-            case "Feb": return Month.FEBRUARY;
-            case "Mar": return Month.MARCH;
-            case "Apr": return Month.APRIL;
-            case "May": return Month.MAY;
-            case "Jun": return Month.JUNE;
-            case "Jul": return Month.JULY;
-            case "Aug": return Month.AUGUST;
-            case "Sep": return Month.SEPTEMBER;
-            case "Oct": return Month.OCTOBER;
-            case "Nov": return Month.NOVEMBER;
-            case "Dec": return Month.DECEMBER;
-            }
+            int len = mon.length();
+
+            if (mon.regionMatches(true, 0, "January", 0, len)) return Month.JANUARY;
+            if (mon.regionMatches(true, 0, "February", 0, len)) return Month.FEBRUARY;
+            if (mon.regionMatches(true, 0, "March", 0, len)) return Month.MARCH;
+            if (mon.regionMatches(true, 0, "April", 0, len)) return Month.APRIL;
+            if (mon.regionMatches(true, 0, "May", 0, len)) return Month.MAY;
+            if (mon.regionMatches(true, 0, "June", 0, len)) return Month.JUNE;
+            if (mon.regionMatches(true, 0, "July", 0, len)) return Month.JULY;
+            if (mon.regionMatches(true, 0, "August", 0, len)) return Month.AUGUST;
+            if (mon.regionMatches(true, 0, "September", 0, len)) return Month.SEPTEMBER;
+            if (mon.regionMatches(true, 0, "October", 0, len)) return Month.OCTOBER;
+            if (mon.regionMatches(true, 0, "November", 0, len)) return Month.NOVEMBER;
+            if (mon.regionMatches(true, 0, "December", 0, len)) return Month.DECEMBER;
+
             throw new IllegalArgumentException("Unknown month: " + mon);
         }
 
         DayOfWeek parseDayOfWeek(String dow) {
-            switch (dow) {
-            case "Mon": return DayOfWeek.MONDAY;
-            case "Tue": return DayOfWeek.TUESDAY;
-            case "Wed": return DayOfWeek.WEDNESDAY;
-            case "Thu": return DayOfWeek.THURSDAY;
-            case "Fri": return DayOfWeek.FRIDAY;
-            case "Sat": return DayOfWeek.SATURDAY;
-            case "Sun": return DayOfWeek.SUNDAY;
-            }
+            int len = dow.length();
+
+            if (dow.regionMatches(true, 0, "Monday", 0, len)) return DayOfWeek.MONDAY;
+            if (dow.regionMatches(true, 0, "Tuesday", 0, len)) return DayOfWeek.TUESDAY;
+            if (dow.regionMatches(true, 0, "Wednesday", 0, len)) return DayOfWeek.WEDNESDAY;
+            if (dow.regionMatches(true, 0, "Thursday", 0, len)) return DayOfWeek.THURSDAY;
+            if (dow.regionMatches(true, 0, "Friday", 0, len)) return DayOfWeek.FRIDAY;
+            if (dow.regionMatches(true, 0, "Saturday", 0, len)) return DayOfWeek.SATURDAY;
+            if (dow.regionMatches(true, 0, "Sunday", 0, len)) return DayOfWeek.SUNDAY;
+
             throw new IllegalArgumentException("Unknown day-of-week: " + dow);
         }
 
@@ -499,9 +506,11 @@ class TzdbZoneRulesProvider {
          *
          * @param standardOffset  the active standard offset, not null
          * @param savingsBeforeSecs  the active savings before the transition in seconds
+         * @param negativeSavings minimum savings in the rule, usually zero, but negative if negative DST is
+         *                   in effect.
          * @return the transition, not null
         */
-        ZoneOffsetTransitionRule toTransitionRule(ZoneOffset stdOffset, int savingsBefore) {
+        ZoneOffsetTransitionRule toTransitionRule(ZoneOffset stdOffset, int savingsBefore, int negativeSavings) {
             // rule shared by different zones, so don't change it
             Month month = this.month;
             int dayOfMonth = this.dayOfMonth;
@@ -524,6 +533,7 @@ class TzdbZoneRulesProvider {
                 }
                 endOfDay = false;
             }
+
             // build rule
             return ZoneOffsetTransitionRule.of(
                     //month, dayOfMonth, dayOfWeek, time, endOfDay, timeDefinition,
@@ -531,7 +541,7 @@ class TzdbZoneRulesProvider {
                     LocalTime.ofSecondOfDay(secsOfDay), endOfDay, timeDefinition,
                     stdOffset,
                     ZoneOffset.ofTotalSeconds(stdOffset.getTotalSeconds() + savingsBefore),
-                    ZoneOffset.ofTotalSeconds(stdOffset.getTotalSeconds() + savingsAmount));
+                    ZoneOffset.ofTotalSeconds(stdOffset.getTotalSeconds() + savingsAmount - negativeSavings));
         }
 
         RuleLine parse(String[] tokens) {
@@ -645,12 +655,12 @@ class TzdbZoneRulesProvider {
             this.ldtSecs = ldt.toEpochSecond(ZoneOffset.UTC);
         }
 
-        ZoneOffsetTransition toTransition(ZoneOffset standardOffset, int savingsBeforeSecs) {
+        ZoneOffsetTransition toTransition(ZoneOffset standardOffset, int savingsBeforeSecs, int negativeSavings) {
             // copy of code in ZoneOffsetTransitionRule to avoid infinite loop
             ZoneOffset wallOffset = ZoneOffset.ofTotalSeconds(
                 standardOffset.getTotalSeconds() + savingsBeforeSecs);
             ZoneOffset offsetAfter = ZoneOffset.ofTotalSeconds(
-                standardOffset.getTotalSeconds() + rule.savingsAmount);
+                standardOffset.getTotalSeconds() + rule.savingsAmount - negativeSavings);
             LocalDateTime dt = rule.timeDefinition
                                    .createDateTime(ldt, standardOffset, wallOffset);
             return ZoneOffsetTransition.of(dt, wallOffset, offsetAfter);
@@ -668,10 +678,12 @@ class TzdbZoneRulesProvider {
          * Tests if this a real transition with the active savings in seconds
          *
          * @param savingsBefore the active savings in seconds
+         * @param negativeSavings minimum savings in the rule, usually zero, but negative if negative DST is
+         *                   in effect.
          * @return true, if savings changes
          */
-        boolean isTransition(int savingsBefore) {
-            return rule.savingsAmount != savingsBefore;
+        boolean isTransition(int savingsBefore, int negativeSavings) {
+            return rule.savingsAmount - negativeSavings != savingsBefore;
         }
 
         public int compareTo(TransRule other) {
@@ -699,12 +711,22 @@ class TzdbZoneRulesProvider {
         // start ldt of each zone window
         LocalDateTime zoneStart = LocalDateTime.MIN;
 
-        // first stanard offset
+        // first standard offset
         ZoneOffset firstStdOffset = stdOffset;
         // first wall offset
         ZoneOffset firstWallOffset = wallOffset;
 
         for (ZoneLine zone : zones) {
+            // Adjust stdOffset, if negative DST is observed. It should be either
+            // fixed amount, or expressed in the named Rules.
+            int negativeSavings = Math.min(zone.fixedSavingsSecs, findNegativeSavings(zoneStart, zone));
+            if (negativeSavings < 0) {
+                zone.stdOffsetSecs += negativeSavings;
+                if (zone.fixedSavingsSecs < 0) {
+                    zone.fixedSavingsSecs = 0;
+                }
+            }
+
             // check if standard offset changed, update it if yes
             ZoneOffset stdOffsetPrev = stdOffset;  // for effectiveSavings check
             if (zone.stdOffsetSecs != stdOffset.getTotalSeconds()) {
@@ -793,7 +815,7 @@ class TzdbZoneRulesProvider {
                 // sort the merged rules
                 Collections.sort(trules);
 
-                effectiveSavings = 0;
+                effectiveSavings = -negativeSavings;
                 for (TransRule rule : trules) {
                     if (rule.toEpochSecond(stdOffsetPrev, savings) >
                         zoneStart.toEpochSecond(wallOffset)) {
@@ -802,7 +824,7 @@ class TzdbZoneRulesProvider {
                         // (hence isAfter)
                         break;
                     }
-                    effectiveSavings = rule.rule.savingsAmount;
+                    effectiveSavings = rule.rule.savingsAmount - negativeSavings;
                 }
             }
             // check if the start of the window represents a transition
@@ -819,21 +841,21 @@ class TzdbZoneRulesProvider {
             if (trules != null) {
                 long zoneStartEpochSecs = zoneStart.toEpochSecond(wallOffset);
                 for (TransRule trule : trules) {
-                    if (trule.isTransition(savings)) {
+                    if (trule.isTransition(savings, negativeSavings)) {
                         long epochSecs = trule.toEpochSecond(stdOffset, savings);
                         if (epochSecs < zoneStartEpochSecs ||
                             epochSecs >= zone.toDateTimeEpochSecond(savings)) {
                             continue;
                         }
-                        transitionList.add(trule.toTransition(stdOffset, savings));
-                        savings = trule.rule.savingsAmount;
+                        transitionList.add(trule.toTransition(stdOffset, savings, negativeSavings));
+                        savings = trule.rule.savingsAmount - negativeSavings;
                     }
                 }
             }
             if (lastRules != null) {
                 for (TransRule trule : lastRules) {
-                    lastTransitionRuleList.add(trule.rule.toTransitionRule(stdOffset, savings));
-                    savings = trule.rule.savingsAmount;
+                    lastTransitionRuleList.add(trule.rule.toTransitionRule(stdOffset, savings, negativeSavings));
+                    savings = trule.rule.savingsAmount - negativeSavings;
                 }
             }
 
@@ -850,4 +872,38 @@ class TzdbZoneRulesProvider {
                              lastTransitionRuleList);
     }
 
+    /**
+     * Find the minimum negative savings in named Rules for a Zone. Savings are only
+     * looked at for the period of the subject Zone.
+     *
+     * @param zoneStart start LDT of the zone
+     * @param zl ZoneLine to look at
+     */
+    private int findNegativeSavings(LocalDateTime zoneStart, ZoneLine zl) {
+        int negativeSavings = 0;
+        LocalDateTime zoneEnd = zl.toDateTime();
+
+        if (zl.savingsRule != null) {
+            List<RuleLine> rlines = rules.get(zl.savingsRule);
+            if (rlines == null) {
+                throw new IllegalArgumentException("<Rule> not found: " +
+                        zl.savingsRule);
+            }
+
+            negativeSavings = Math.min(0, rlines.stream()
+                    .filter(l -> windowOverlap(l, zoneStart.getYear(), zoneEnd.getYear()))
+                    .map(l -> l.savingsAmount)
+                    .min(Comparator.naturalOrder())
+                    .orElse(0));
+        }
+
+        return negativeSavings;
+    }
+
+    private boolean windowOverlap(RuleLine ruleLine, int zoneStartYear, int zoneEndYear) {
+        boolean overlap = zoneStartYear <= ruleLine.startYear && zoneEndYear >= ruleLine.startYear ||
+                          zoneStartYear <= ruleLine.endYear && zoneEndYear >= ruleLine.endYear;
+
+        return overlap;
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,32 +34,34 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-
+import java.util.Objects;
+import java.util.function.Predicate;
 import jdk.jfr.EventType;
 import jdk.jfr.internal.MetadataDescriptor;
+import jdk.jfr.internal.Type;
+import jdk.jfr.internal.consumer.ChunkParser.ParserConfiguration;
+import jdk.jfr.internal.consumer.ParserFilter;
 import jdk.jfr.internal.consumer.ChunkHeader;
+import jdk.jfr.internal.consumer.ChunkParser;
+import jdk.jfr.internal.consumer.FileAccess;
+import jdk.jfr.internal.consumer.ParserState;
 import jdk.jfr.internal.consumer.RecordingInput;
+import jdk.jfr.internal.consumer.filter.ChunkWriter;
 
 /**
  * A recording file.
  * <p>
  * The following example shows how read and print all events in a recording file.
  *
- * <pre>
- * <code>
- * try (RecordingFile recordingFile = new RecordingFile(Paths.get("recording.jfr"))) {
- *   while (recordingFile.hasMoreEvents()) {
- *     RecordedEvent event = recordingFile.readEvent();
- *     System.out.println(event);
- *   }
- * }
- * </code>
- * </pre>
+ * {@snippet class="Snippets" region="RecordingFileOverview"}
  *
  * @since 9
  */
 public final class RecordingFile implements Closeable {
 
+    private final ParserState parserState = new ParserState();
+    private final ChunkWriter chunkWriter;
+    private boolean isLastEventInChunk;
     private final File file;
     private RecordingInput input;
     private ChunkParser chunkParser;
@@ -68,6 +70,8 @@ public final class RecordingFile implements Closeable {
 
     /**
      * Creates a recording file.
+     * <p>
+     * Only recording files from trusted sources should be used.
      *
      * @param file the path of the file to open, not {@code null}
      * @throws IOException if it's not a valid recording file, or an I/O error
@@ -78,8 +82,18 @@ public final class RecordingFile implements Closeable {
      *         {@code checkRead} method denies read access to the file.
      */
     public RecordingFile(Path file) throws IOException {
+        Objects.requireNonNull(file, "file");
         this.file = file.toFile();
-        this.input = new RecordingInput(this.file);
+        this.input = new RecordingInput(this.file, FileAccess.UNPRIVILEGED);
+        this.chunkWriter = null;
+        findNext();
+    }
+
+    // Only used by RecordingFile::write(Path, Predicate<RecordedEvent>)
+    private RecordingFile(ChunkWriter chunkWriter) throws IOException {
+        this.file = null; // not used
+        this.input = chunkWriter.getInput();
+        this.chunkWriter = chunkWriter;
         findNext();
     }
 
@@ -89,7 +103,7 @@ public final class RecordingFile implements Closeable {
      * @return the next event, not {@code null}
      *
      * @throws EOFException if no more events exist in the recording file
-     * @throws IOException if an I/O error occurs.
+     * @throws IOException if an I/O error occurs
      *
      * @see #hasMoreEvents()
      */
@@ -98,9 +112,14 @@ public final class RecordingFile implements Closeable {
             ensureOpen();
             throw new EOFException();
         }
+        isLastEventInChunk = false;
         RecordedEvent event = nextEvent;
         nextEvent = chunkParser.readEvent();
+        while (nextEvent == ChunkParser.FLUSH_MARKER) {
+            nextEvent = chunkParser.readEvent();
+        }
         if (nextEvent == null) {
+            isLastEventInChunk = true;
             findNext();
         }
         return event;
@@ -127,27 +146,57 @@ public final class RecordingFile implements Closeable {
      */
     public List<EventType> readEventTypes() throws IOException {
         ensureOpen();
+        MetadataDescriptor previous = null;
         List<EventType> types = new ArrayList<>();
         HashSet<Long> foundIds = new HashSet<>();
-        try (RecordingInput ri = new RecordingInput(file)) {
+        try (RecordingInput ri = new RecordingInput(file, FileAccess.UNPRIVILEGED)) {
             ChunkHeader ch = new ChunkHeader(ri);
-            aggregateTypeForChunk(ch, types, foundIds);
+            aggregateEventTypeForChunk(ch, null, types, foundIds);
             while (!ch.isLastChunk()) {
                 ch = ch.nextHeader();
-                aggregateTypeForChunk(ch, types, foundIds);
+                previous = aggregateEventTypeForChunk(ch, previous, types, foundIds);
             }
         }
         return types;
     }
 
-    private static void aggregateTypeForChunk(ChunkHeader ch, List<EventType> types, HashSet<Long> foundIds) throws IOException {
-        MetadataDescriptor m = ch.readMetadata();
+    List<Type> readTypes() throws IOException  {
+        ensureOpen();
+        MetadataDescriptor previous = null;
+        List<Type> types = new ArrayList<>(200);
+        HashSet<Long> foundIds = HashSet.newHashSet(types.size());
+        try (RecordingInput ri = new RecordingInput(file, FileAccess.UNPRIVILEGED)) {
+            ChunkHeader ch = new ChunkHeader(ri);
+            ch.awaitFinished();
+            aggregateTypeForChunk(ch, null, types, foundIds);
+            while (!ch.isLastChunk()) {
+                ch = ch.nextHeader();
+                previous = aggregateTypeForChunk(ch, previous, types, foundIds);
+            }
+        }
+        return types;
+    }
+
+    private MetadataDescriptor aggregateTypeForChunk(ChunkHeader ch, MetadataDescriptor previous, List<Type> types, HashSet<Long> foundIds) throws IOException {
+        MetadataDescriptor m = ch.readMetadata(previous);
+        for (Type t : m.getTypes()) {
+            if (!foundIds.contains(t.getId())) {
+                types.add(t);
+                foundIds.add(t.getId());
+            }
+        }
+        return m;
+    }
+
+    private static MetadataDescriptor aggregateEventTypeForChunk(ChunkHeader ch,  MetadataDescriptor previous, List<EventType> types, HashSet<Long> foundIds) throws IOException {
+        MetadataDescriptor m = ch.readMetadata(previous);
         for (EventType t : m.getEventTypes()) {
             if (!foundIds.contains(t.getId())) {
                 types.add(t);
                 foundIds.add(t.getId());
             }
         }
+        return m;
     }
 
     /**
@@ -156,6 +205,7 @@ public final class RecordingFile implements Closeable {
      *
      * @throws IOException if an I/O error occurred
      */
+    @Override
     public void close() throws IOException {
         if (input != null) {
             eof = true;
@@ -167,10 +217,42 @@ public final class RecordingFile implements Closeable {
     }
 
     /**
+     * Filter out events and write them to a new file.
+     *
+     * @param destination path where the new file should be written, not
+     *                    {@code null}
+     *
+     * @param filter      filter that determines if an event should be included, not
+     *                    {@code null}
+     * @throws IOException       if an I/O error occurred, it's not a Flight
+     *                           Recorder file or a version of a JFR file that can't
+     *                           be parsed
+     *
+     * @throws SecurityException if a security manager exists and its
+     *                           {@code checkWrite} method denies write access to the
+     *                           file
+     *
+     * @since 19
+     */
+    public void write(Path destination, Predicate<RecordedEvent> filter) throws IOException {
+        Objects.requireNonNull(destination, "destination");
+        Objects.requireNonNull(filter, "filter");
+        try (ChunkWriter cw = new ChunkWriter(file.toPath(), destination, filter)) {
+            try (RecordingFile rf = new RecordingFile(cw)) {
+                while (rf.hasMoreEvents()) {
+                    rf.readEvent();
+                }
+            }
+        }
+    }
+
+    /**
      * Returns a list of all events in a file.
      * <p>
      * This method is intended for simple cases where it's convenient to read all
      * events in a single operation. It isn't intended for reading large files.
+     * <p>
+     * Only recording files from trusted sources should be used.
      *
      * @param path the path to the file, not {@code null}
      *
@@ -185,6 +267,7 @@ public final class RecordingFile implements Closeable {
      *         {@code checkRead} method denies read access to the file.
      */
     public static List<RecordedEvent> readAllEvents(Path path) throws IOException {
+        Objects.requireNonNull(path, "path");
         try (RecordingFile r = new RecordingFile(path)) {
             List<RecordedEvent> list = new ArrayList<>();
             while (r.hasMoreEvents()) {
@@ -194,19 +277,63 @@ public final class RecordingFile implements Closeable {
         }
     }
 
+    // package protected
+    File getFile() {
+        return file;
+    }
+
+    // package protected
+    boolean isLastEventInChunk() {
+        return isLastEventInChunk;
+    }
+
     // either sets next to an event or sets eof to true
     private void findNext() throws IOException {
         while (nextEvent == null) {
             if (chunkParser == null) {
-                chunkParser = new ChunkParser(input);
+                chunkParser = createChunkParser();
             } else if (!chunkParser.isLastChunk()) {
-                chunkParser = chunkParser.nextChunkParser();
+                chunkParser = nextChunkParser();
             } else {
+                endChunkParser();
                 eof = true;
                 return;
             }
             nextEvent = chunkParser.readEvent();
+            while (nextEvent == ChunkParser.FLUSH_MARKER) {
+                nextEvent = chunkParser.readEvent();
+            }
         }
+    }
+
+    private ChunkParser createChunkParser() throws IOException {
+        if (chunkWriter != null) {
+            boolean reuse = true;
+            boolean ordered = false;
+            ParserConfiguration pc = new ParserConfiguration(0, Long.MAX_VALUE, reuse, ordered, ParserFilter.ACCEPT_ALL, chunkWriter);
+            ChunkParser chunkParser = new ChunkParser(chunkWriter.getInput(), pc, new ParserState());
+            chunkWriter.beginChunk(chunkParser.getHeader());
+            return chunkParser;
+        } else {
+            return new ChunkParser(input, parserState);
+        }
+    }
+
+    private void endChunkParser() throws IOException {
+        if (chunkWriter != null) {
+            chunkWriter.endChunk(chunkParser.getHeader());
+        }
+    }
+
+    private ChunkParser nextChunkParser() throws IOException {
+        if (chunkWriter != null) {
+            chunkWriter.endChunk(chunkParser.getHeader());
+        }
+        ChunkParser next = chunkParser.nextChunkParser();
+        if (chunkWriter != null) {
+            chunkWriter.beginChunk(next.getHeader());
+        }
+        return next;
     }
 
     private void ensureOpen() throws IOException {

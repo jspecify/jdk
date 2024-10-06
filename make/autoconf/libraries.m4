@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -28,10 +28,12 @@ m4_include([lib-alsa.m4])
 m4_include([lib-bundled.m4])
 m4_include([lib-cups.m4])
 m4_include([lib-ffi.m4])
+m4_include([lib-fontconfig.m4])
 m4_include([lib-freetype.m4])
+m4_include([lib-hsdis.m4])
 m4_include([lib-std.m4])
 m4_include([lib-x11.m4])
-m4_include([lib-fontconfig.m4])
+
 m4_include([lib-tests.m4])
 
 ################################################################################
@@ -80,10 +82,31 @@ AC_DEFUN_ONCE([LIB_DETERMINE_DEPENDENCIES],
   fi
 
   # Check if ffi is needed
-  if HOTSPOT_CHECK_JVM_VARIANT(zero); then
+  if HOTSPOT_CHECK_JVM_VARIANT(zero) || test "x$ENABLE_FALLBACK_LINKER" = "xtrue"; then
     NEEDS_LIB_FFI=true
   else
     NEEDS_LIB_FFI=false
+  fi
+])
+
+################################################################################
+# Setup BASIC_JVM_LIBS that can be different depending on build/target platform
+################################################################################
+AC_DEFUN([LIB_SETUP_JVM_LIBS],
+[
+  # Atomic library
+  # 32-bit platforms needs fallback library for 8-byte atomic ops on Zero
+  if HOTSPOT_CHECK_JVM_VARIANT(zero); then
+    if test "x$OPENJDK_$1_OS" = xlinux &&
+        (test "x$OPENJDK_$1_CPU" = xarm ||
+        test "x$OPENJDK_$1_CPU" = xm68k ||
+        test "x$OPENJDK_$1_CPU" = xmips ||
+        test "x$OPENJDK_$1_CPU" = xmipsel ||
+        test "x$OPENJDK_$1_CPU" = xppc ||
+        test "x$OPENJDK_$1_CPU" = xsh ||
+        test "x$OPENJDK_$1_CPU" = xriscv32); then
+      BASIC_JVM_LIBS_$1="$BASIC_JVM_LIBS_$1 -latomic"
+    fi
   fi
 ])
 
@@ -93,67 +116,61 @@ AC_DEFUN_ONCE([LIB_DETERMINE_DEPENDENCIES],
 AC_DEFUN_ONCE([LIB_SETUP_LIBRARIES],
 [
   LIB_SETUP_STD_LIBS
-  LIB_SETUP_X11
+
+  LIB_SETUP_ALSA
+  LIB_SETUP_BUNDLED_LIBS
   LIB_SETUP_CUPS
   LIB_SETUP_FONTCONFIG
   LIB_SETUP_FREETYPE
-  LIB_SETUP_ALSA
+  LIB_SETUP_HSDIS
   LIB_SETUP_LIBFFI
-  LIB_SETUP_BUNDLED_LIBS
   LIB_SETUP_MISC_LIBS
-  LIB_SETUP_SOLARIS_STLPORT
-  LIB_TESTS_SETUP_GRAALUNIT
+  LIB_SETUP_X11
 
-  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    GLOBAL_LIBS="-lc"
-  else
-    GLOBAL_LIBS=""
-  fi
-
-  BASIC_JDKLIB_LIBS=""
-  if test "x$TOOLCHAIN_TYPE" != xmicrosoft; then
-    BASIC_JDKLIB_LIBS="-ljava -ljvm"
-  fi
+  LIB_TESTS_SETUP_GTEST
 
   # Math library
   BASIC_JVM_LIBS="$LIBM"
 
   # Dynamic loading library
-  if test "x$OPENJDK_TARGET_OS" = xlinux || test "x$OPENJDK_TARGET_OS" = xsolaris || test "x$OPENJDK_TARGET_OS" = xaix; then
+  if test "x$OPENJDK_TARGET_OS" = xlinux || test "x$OPENJDK_TARGET_OS" = xaix; then
     BASIC_JVM_LIBS="$BASIC_JVM_LIBS $LIBDL"
   fi
 
   # Threading library
   if test "x$OPENJDK_TARGET_OS" = xlinux || test "x$OPENJDK_TARGET_OS" = xaix; then
     BASIC_JVM_LIBS="$BASIC_JVM_LIBS -lpthread"
-  elif test "x$OPENJDK_TARGET_OS" = xsolaris; then
-    BASIC_JVM_LIBS="$BASIC_JVM_LIBS -lthread"
   fi
 
-  if test "x$OPENJDK_TARGET_OS" = xsolaris; then
-    BASIC_JVM_LIBS="$BASIC_JVM_LIBS -lsocket -lsched -ldoor -ldemangle -lnsl \
-        -lrt -lkstat"
-    BASIC_JVM_LIBS="$BASIC_JVM_LIBS $LIBCXX_JVM"
+  # librt for legacy clock_gettime
+  if test "x$OPENJDK_TARGET_OS" = xlinux; then
+    # Hotspot needs to link librt to get the clock_* functions.
+    # But once our supported minimum build and runtime platform
+    # has glibc 2.17, this can be removed as the functions are
+    # in libc.
+    BASIC_JVM_LIBS="$BASIC_JVM_LIBS -lrt"
+  fi
+
+  # perfstat lib
+  if test "x$OPENJDK_TARGET_OS" = xaix; then
+    BASIC_JVM_LIBS="$BASIC_JVM_LIBS -lperfstat"
   fi
 
   if test "x$OPENJDK_TARGET_OS" = xwindows; then
     BASIC_JVM_LIBS="$BASIC_JVM_LIBS kernel32.lib user32.lib gdi32.lib winspool.lib \
-        comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib \
-        wsock32.lib winmm.lib version.lib psapi.lib"
+        comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib powrprof.lib uuid.lib \
+        ws2_32.lib winmm.lib version.lib psapi.lib"
   fi
+  LIB_SETUP_JVM_LIBS(BUILD)
+  LIB_SETUP_JVM_LIBS(TARGET)
 
-  JDKLIB_LIBS="$BASIC_JDKLIB_LIBS"
-  JDKEXE_LIBS=""
-  JVM_LIBS="$BASIC_JVM_LIBS"
-  OPENJDK_BUILD_JDKLIB_LIBS="$BASIC_JDKLIB_LIBS"
-  OPENJDK_BUILD_JVM_LIBS="$BASIC_JVM_LIBS"
+  JVM_LIBS="$BASIC_JVM_LIBS $BASIC_JVM_LIBS_TARGET"
+  OPENJDK_BUILD_JDKLIB_LIBS=""
+  OPENJDK_BUILD_JVM_LIBS="$BASIC_JVM_LIBS $BASIC_JVM_LIBS_BUILD"
 
-  AC_SUBST(JDKLIB_LIBS)
-  AC_SUBST(JDKEXE_LIBS)
   AC_SUBST(JVM_LIBS)
   AC_SUBST(OPENJDK_BUILD_JDKLIB_LIBS)
   AC_SUBST(OPENJDK_BUILD_JVM_LIBS)
-  AC_SUBST(GLOBAL_LIBS)
 ])
 
 ################################################################################
@@ -180,41 +197,7 @@ AC_DEFUN_ONCE([LIB_SETUP_MISC_LIBS],
   AC_SUBST(LIBDL)
   LIBS="$save_LIBS"
 
-  # Deprecated libraries, keep the flags for backwards compatibility
-  if test "x$OPENJDK_TARGET_OS" = "xwindows"; then
-    BASIC_DEPRECATED_ARG_WITH([dxsdk])
-    BASIC_DEPRECATED_ARG_WITH([dxsdk-lib])
-    BASIC_DEPRECATED_ARG_WITH([dxsdk-include])
-  fi
-
   # Control if libzip can use mmap. Available for purposes of overriding.
   LIBZIP_CAN_USE_MMAP=true
   AC_SUBST(LIBZIP_CAN_USE_MMAP)
 ])
-
-################################################################################
-# libstlport.so.1 is needed for running gtest on Solaris. Find it to
-# redistribute it in the test image.
-################################################################################
-AC_DEFUN_ONCE([LIB_SETUP_SOLARIS_STLPORT],
-[
-  if test "$OPENJDK_TARGET_OS" = "solaris" && test "x$BUILD_GTEST" = "xtrue"; then
-    # Find the root of the Solaris Studio installation from the compiler path
-    SOLARIS_STUDIO_DIR="$(dirname $CC)/.."
-    STLPORT_LIB="$SOLARIS_STUDIO_DIR/lib/stlport4$OPENJDK_TARGET_CPU_ISADIR/libstlport.so.1"
-    AC_MSG_CHECKING([for libstlport.so.1])
-    if ! test -f "$STLPORT_LIB" && test "x$OPENJDK_TARGET_CPU_ISADIR" = "x/sparcv9"; then
-      # SS12u3 has libstlport under 'stlport4/v9' instead of 'stlport4/sparcv9'
-      STLPORT_LIB="$SOLARIS_STUDIO_DIR/lib/stlport4/v9/libstlport.so.1"
-    fi
-    if test -f "$STLPORT_LIB"; then
-      AC_MSG_RESULT([yes, $STLPORT_LIB])
-      BASIC_FIXUP_PATH([STLPORT_LIB])
-    else
-      AC_MSG_RESULT([no, not found at $STLPORT_LIB])
-      AC_MSG_ERROR([Failed to find libstlport.so.1, cannot build Hotspot gtests])
-    fi
-    AC_SUBST(STLPORT_LIB)
-  fi
-])
-

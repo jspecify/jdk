@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,30 +24,23 @@
  */
 package jdk.javadoc.internal.tool;
 
-import org.checkerframework.dataflow.qual.Pure;
+import javax.tools.JavaFileManager;
+import javax.tools.StandardJavaFileManager;
 import java.io.PrintWriter;
+import java.util.Objects;
+
+import com.sun.tools.javac.util.Context;
 
 /**
  * Provides external entry points (tool and programmatic) for the javadoc program.
- *
- *  <p><b>This is NOT part of any supported API.
- *  If you write code that depends on this, you do so at your own risk.
- *  This code and its internal interfaces are subject to change or
- *  deletion without notice.</b>
  */
-
 public class Main {
-
-    /**
-     * Constructor should never be called.
-     */
-    private Main() {}
 
     /**
      * The main entry point called by the launcher. This will call
      * System.exit with an appropriate return value.
      *
-     * @param args The command line parameters.
+     * @param args the command-line parameters
      */
     public static void main(String... args) {
         System.exit(execute(args));
@@ -56,7 +49,7 @@ public class Main {
     /**
      * Programmatic interface.
      *
-     * @param args The command line parameters.
+     * @param args the command-line parameters
      * @return The return code.
      */
     public static int execute(String... args) {
@@ -68,7 +61,7 @@ public class Main {
      * Programmatic interface.
      *
      * @param writer a stream for all output
-     * @param args The command line parameters.
+     * @param args the command-line parameters
      * @return The return code.
      */
     public static int execute(String[] args, PrintWriter writer) {
@@ -81,7 +74,7 @@ public class Main {
      *
      * @param outWriter a stream for expected output
      * @param errWriter a stream for diagnostic output
-     * @param args The command line parameters.
+     * @param args the command-line parameters
      * @return The return code.
      */
     public static int execute(String[] args, PrintWriter outWriter, PrintWriter errWriter) {
@@ -89,7 +82,66 @@ public class Main {
         return jdoc.begin(args).exitCode;
     }
 
-    public static enum Result {
+
+    // builder-style API to run javadoc
+
+    private PrintWriter outWriter;
+    private PrintWriter errWriter;
+    private StandardJavaFileManager fileManager;
+
+    /**
+     * Creates a default builder to run javadoc.
+     */
+    public Main() { }
+
+    /**
+     * Sets the output and error streams to be used when running javadoc.
+     * The streams may be the same; they must not be {@code null}.
+     *
+     * @param outWriter the output stream
+     * @param errWriter the error stream
+     *
+     * @return this object
+     */
+    public Main setStreams(PrintWriter outWriter, PrintWriter errWriter) {
+        this.outWriter = Objects.requireNonNull(outWriter);
+        this.errWriter = Objects.requireNonNull(errWriter);
+        return this;
+    }
+
+    /**
+     * Sets the file manager to be used when running javadoc.
+     * A value of {@code null} means to use the default file manager.
+     *
+     * @param fileManager the file manager to use
+     *
+     * @return this object
+     */
+    public Main setFileManager(StandardJavaFileManager fileManager) {
+        this.fileManager = fileManager;
+        return this;
+    }
+
+    /**
+     * Runs javadoc with preconfigured values and a given set of arguments.
+     * Any errors will be reported to the error stream, or to {@link System#err}
+     * if no error stream has been specified with {@code setStreams}.
+     *
+     * @param args the arguments
+     *
+     * @return a value indicating the success or otherwise of the run
+     */
+    public Result run(String... args) {
+        Context context = null;
+        if (fileManager != null) {
+            context = new Context();
+            context.put(JavaFileManager.class, fileManager);
+        }
+        Start jdoc = new Start(context, null, outWriter, errWriter, null, null);
+        return jdoc.begin(args);
+    }
+
+    public enum Result {
         /** completed with no errors */
         OK(0),
         /** Completed with reported errors */
@@ -101,13 +153,10 @@ public class Main {
         /** Terminated abnormally */
         ABNORMAL(4);
 
-        private static final long serialVersionUID = 1L;
-
         Result(int exitCode) {
             this.exitCode = exitCode;
         }
 
-        @Pure
         public boolean isOK() {
             return (exitCode == 0);
         }

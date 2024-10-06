@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,9 @@
 package sun.security.jgss;
 
 import org.ietf.jgss.*;
+import sun.security.action.GetBooleanAction;
 import sun.security.jgss.spi.*;
 import java.security.Provider;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 
 /**
  * This class provides the default implementation of the GSSManager
@@ -38,22 +37,10 @@ import java.security.PrivilegedAction;
 public class GSSManagerImpl extends GSSManager {
 
     // Undocumented property
-    private static final String USE_NATIVE_PROP =
-        "sun.security.jgss.native";
-    private static final Boolean USE_NATIVE;
+    private static final Boolean USE_NATIVE = GetBooleanAction
+            .privilegedGetProperty("sun.security.jgss.native");
 
-    static {
-        USE_NATIVE =
-            AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-                    public Boolean run() {
-                        return Boolean.valueOf(System.getProperty
-                                (USE_NATIVE_PROP));
-                    }
-            });
-
-    }
-
-    private ProviderList list;
+    private final ProviderList list;
 
     // Used by java SPNEGO impl to make sure native is disabled
     public GSSManagerImpl(GSSCaller caller, boolean useNative) {
@@ -89,7 +76,7 @@ public class GSSManagerImpl extends GSSManager {
             nameType = GSSName.NT_HOSTBASED_SERVICE;
         }
 
-        // Iterate thru all mechs in GSS
+        // Iterate through all mechs in GSS
         for (int i = 0; i < mechs.length; i++) {
             // what nametypes does this mech support?
             Oid mech = mechs[i];
@@ -101,16 +88,17 @@ public class GSSManagerImpl extends GSSManager {
                 }
             } catch (GSSException e) {
                 // Squelch it and just skip over this mechanism
-                GSSUtil.debug("Skip " + mech +
-                              ": error retrieving supported name types");
+                if (GSSUtil.DEBUG != null) {
+                    GSSUtil.debug("Skip " + mech +
+                            ": error retrieving supported name types");
+                }
             }
         }
 
         // Trim the list if needed
         if (pos < retVal.length) {
             Oid[] temp = new Oid[pos];
-            for (int i = 0; i < pos; i++)
-                temp[i] = retVal[i];
+            System.arraycopy(retVal, 0, temp, 0, pos);
             retVal = temp;
         }
 

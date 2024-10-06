@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_SOFTREFPOLICY_HPP
-#define SHARE_VM_GC_SHARED_SOFTREFPOLICY_HPP
+#ifndef SHARE_GC_SHARED_SOFTREFPOLICY_HPP
+#define SHARE_GC_SHARED_SOFTREFPOLICY_HPP
 
 #include "memory/allocation.hpp"
 
@@ -41,19 +41,21 @@ class SoftRefPolicy {
   bool _all_soft_refs_clear;
 
  public:
-  SoftRefPolicy();
+  SoftRefPolicy() :
+    _should_clear_all_soft_refs(false),
+    _all_soft_refs_clear(false) {}
 
   bool should_clear_all_soft_refs() { return _should_clear_all_soft_refs; }
   void set_should_clear_all_soft_refs(bool v) { _should_clear_all_soft_refs = v; }
-  // Returns the current value of _should_clear_all_soft_refs.
-  // _should_clear_all_soft_refs is set to false as a side effect.
-  bool use_should_clear_all_soft_refs(bool v);
+
   bool all_soft_refs_clear() { return _all_soft_refs_clear; }
   void set_all_soft_refs_clear(bool v) { _all_soft_refs_clear = v; }
 
   // Called by the GC after Soft Refs have been cleared to indicate
   // that the request in _should_clear_all_soft_refs has been fulfilled.
-  virtual void cleared_all_soft_refs();
+  void cleared_all_soft_refs() {
+    _all_soft_refs_clear = true;
+  }
 };
 
 class ClearedAllSoftRefs : public StackObj {
@@ -73,4 +75,4 @@ class ClearedAllSoftRefs : public StackObj {
   bool should_clear() { return _clear_all_soft_refs; }
 };
 
-#endif // SHARE_VM_GC_SHARED_SOFTREFPOLICY_HPP
+#endif // SHARE_GC_SHARED_SOFTREFPOLICY_HPP

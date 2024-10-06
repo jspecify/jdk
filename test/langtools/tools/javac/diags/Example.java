@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -234,7 +234,7 @@ class Example implements Comparable<Example> {
                 //automatic modules:
                 Map<String, List<Path>> module2Files =
                         modulePathFiles.stream()
-                                       .map(f -> f.toPath())
+                                       .map(f -> f.toPath().toAbsolutePath())
                                        .collect(Collectors.groupingBy(p -> modulePath.relativize(p)
                                                                             .getName(0)
                                                                             .toString()));
@@ -288,7 +288,7 @@ class Example implements Comparable<Example> {
         opts.add("-d");
         opts.add(classesDir.getPath());
         if (options != null)
-            opts.addAll(options);
+            opts.addAll(evalProperties(options));
 
         if (procFiles.size() > 0) {
             List<String> pOpts = new ArrayList<>(Arrays.asList("-d", classesDir.getPath()));
@@ -297,8 +297,10 @@ class Example implements Comparable<Example> {
             // source for import statements or a magic comment
             for (File pf: procFiles) {
                 if (pf.getName().equals("CreateBadClassFile.java")) {
-                    pOpts.add("--add-modules=jdk.jdeps");
-                    pOpts.add("--add-exports=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED");
+                    pOpts.add("--enable-preview");
+                    pOpts.add("--source");
+                    pOpts.add(String.valueOf(Runtime.version().feature()));
+                    pOpts.add("--add-exports=java.base/jdk.internal.classfile.impl=ALL-UNNAMED");
                 }
             }
 
@@ -355,6 +357,51 @@ class Example implements Comparable<Example> {
         }
     }
 
+    private static List<String> evalProperties(List<String> args) {
+        boolean fast = true;
+        for (String arg : args) {
+            fast = fast && (arg.indexOf("${") == -1);
+        }
+        if (fast) {
+            return args;
+        }
+        List<String> newArgs = new ArrayList<>();
+        for (String arg : args) {
+            newArgs.add(evalProperties(arg));
+        }
+        return newArgs;
+    }
+
+    private static final Pattern namePattern = Pattern.compile("\\$\\{([A-Za-z0-9._]+)\\}");
+    private static final String jdkVersion = Integer.toString(Runtime.version().feature());
+
+    private static String evalProperties(String arg) {
+        Matcher m = namePattern.matcher(arg);
+        StringBuilder sb = null;
+        while (m.find()) {
+            if (sb == null) {
+                sb = new StringBuilder();
+            }
+            String propName = m.group(1);
+            String propValue;
+            switch (propName) {
+                case "jdk.version":
+                    propValue = jdkVersion;
+                    break;
+                default:
+                    propValue = System.getProperty(propName);
+                    break;
+            }
+            m.appendReplacement(sb, propValue != null ? propValue : m.group(0).replace("$", "\\$"));
+        }
+        if (sb == null) {
+            return arg;
+        } else {
+            m.appendTail(sb);
+            return sb.toString();
+        }
+    }
+
     void createAnnotationServicesFile(File dir, List<File> procFiles) throws IOException {
         File servicesDir = new File(new File(dir, "META-INF"), "services");
         servicesDir.mkdirs();
@@ -384,11 +431,8 @@ class Example implements Comparable<Example> {
      */
     private String read(File f) throws IOException {
         byte[] bytes = new byte[(int) f.length()];
-        DataInputStream in = new DataInputStream(new FileInputStream(f));
-        try {
+        try (DataInputStream in = new DataInputStream(new FileInputStream(f))) {
             in.readFully(bytes);
-        } finally {
-            in.close();
         }
         return new String(bytes);
     }

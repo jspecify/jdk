@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,30 +23,23 @@
 
 /**
  * @test
- * @bug 8056174
+ * @bug 8056174 8242260
  * @summary Make sure the jarsigner tool still works after it's modified to
  *          be based on JarSigner API
  * @library /test/lib
- * @modules java.base/sun.security.tools.keytool
- *          jdk.jartool/sun.security.tools.jarsigner
- *          java.base/sun.security.pkcs
+ * @modules java.base/sun.security.pkcs
  *          java.base/sun.security.x509
- * @build jdk.test.lib.util.JarUtils
- * @run main Options
  */
 
-import com.sun.jarsigner.ContentSigner;
-import com.sun.jarsigner.ContentSignerParameters;
+import jdk.test.lib.Asserts;
+import jdk.test.lib.SecurityTools;
 import jdk.test.lib.util.JarUtils;
 import sun.security.pkcs.PKCS7;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
@@ -58,35 +51,24 @@ public class Options {
     public static void main(String[] args) throws Exception {
 
         // Prepares raw file
-        Files.write(Paths.get("a"), "a".getBytes());
+        Files.write(Path.of("a"), List.of("a"));
 
         // Pack
-        JarUtils.createJar("a.jar", "a");
+        JarUtils.createJarFile(Path.of("a.jar"), Path.of("."), Path.of("a"));
 
         // Prepare a keystore
-        sun.security.tools.keytool.Main.main(
-                ("-keystore jks -storepass changeit -keypass changeit -dname" +
-                        " CN=A -alias a -genkeypair -keyalg rsa").split(" "));
-
-        // -altsign
-        sun.security.tools.jarsigner.Main.main(
-                ("-debug -signedjar altsign.jar -keystore jks -storepass changeit" +
-                        " -altsigner Options$X a.jar a").split(" "));
-
-        try (JarFile jf = new JarFile("altsign.jar")) {
-            JarEntry je = jf.getJarEntry("META-INF/A.RSA");
-            try (InputStream is = jf.getInputStream(je)) {
-                if (!Arrays.equals(is.readAllBytes(), "1234".getBytes())) {
-                    throw new Exception("altsign go wrong");
-                }
-            }
-        }
+        SecurityTools.keytool(
+                "-keystore jks -storepass changeit -keypass changeit -dname" +
+                        " CN=A -alias a -genkeypair -keyalg rsa")
+                .shouldHaveExitValue(0);
 
         // -sigfile, -digestalg, -sigalg, -internalsf, -sectionsonly
-        sun.security.tools.jarsigner.Main.main(
-                ("-debug -signedjar new.jar -keystore jks -storepass changeit" +
+        SecurityTools.jarsigner(
+                "-debug -signedjar new.jar -keystore jks -storepass changeit" +
                 " -sigfile olala -digestalg SHA1 -sigalg SHA224withRSA" +
-                " -internalsf -sectionsonly a.jar a").split(" "));
+                " -internalsf -sectionsonly a.jar a")
+                .shouldHaveExitValue(0)
+                .shouldNotContain("Exception");     // a real success
 
         try (JarFile jf = new JarFile("new.jar")) {
             JarEntry je = jf.getJarEntry("META-INF/OLALA.SF");
@@ -125,15 +107,5 @@ public class Options {
         }
 
         // TSA-related ones are checked in ts.sh
-    }
-
-    public static class X extends ContentSigner {
-        @Override
-        public byte[] generateSignedData(ContentSignerParameters parameters,
-                boolean omitContent, boolean applyTimestamp)
-                throws NoSuchAlgorithmException, CertificateException,
-                        IOException {
-            return "1234".getBytes();
-        }
     }
 }

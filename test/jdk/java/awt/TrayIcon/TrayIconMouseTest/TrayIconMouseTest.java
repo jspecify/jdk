@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,7 @@ import java.awt.image.BufferedImage;
  *          or single clicked with button 1 on rest.
  * @modules java.desktop/java.awt:open
  * @library /java/awt/patchlib
- * @library ../../../../lib/testlibrary ../
+ * @library /lib/client ../
  * @build java.desktop/java.awt.Helper
  * @build ExtendedRobot SystemTrayIconHelper
  * @run main TrayIconMouseTest
@@ -76,7 +76,7 @@ public class TrayIconMouseTest {
             } else if (osName.startsWith("win")) {
                 isWinOS = true;
             } else {
-                isOelOS = SystemTrayIconHelper.isOel7();
+                isOelOS = SystemTrayIconHelper.isOel7orLater();
             }
             new TrayIconMouseTest().doTest();
         }

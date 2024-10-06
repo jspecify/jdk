@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,7 @@
  */
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -115,7 +116,7 @@ public class ReplToolTesting {
     private Map<String, ClassInfo> classes;
     private Map<String, ImportInfo> imports;
     private boolean isDefaultStartUp = true;
-    private Map<String, String> prefsMap;
+    protected Map<String, String> prefsMap;
     private Map<String, String> envvars;
 
     public interface ReplTest {
@@ -124,6 +125,14 @@ public class ReplToolTesting {
 
     public void setCommandInput(String s) {
         cmdin.setInput(s);
+    }
+
+    public void closeCommandInput() {
+        try {
+            cmdin.close();
+        } catch (IOException ex) {
+            throw new IllegalStateException(ex);
+        }
     }
 
     public final static Pattern idPattern = Pattern.compile("^\\s+(\\d+)");
@@ -212,12 +221,23 @@ public class ReplToolTesting {
         return s;
     }
 
+    public String getTerminalOutput() {
+        String s = normalizeLineEndings("\r\n", console.data.toString());
+        console.data.reset();
+        return s;
+    }
+
     public void test(ReplTest... tests) {
         test(new String[0], tests);
     }
 
     public void test(String[] args, ReplTest... tests) {
         test(true, args, tests);
+    }
+
+    public void test(String[] args, String expectedErrorOutput,
+                     ReplTest... tests) {
+        test(Locale.ROOT, true, args, expectedErrorOutput, DEFAULT_STARTUP_MESSAGE, tests);
     }
 
     public void test(boolean isDefaultStartUp, String[] args, ReplTest... tests) {
@@ -229,6 +249,11 @@ public class ReplToolTesting {
     }
 
     public void test(Locale locale, boolean isDefaultStartUp, String[] args, String startUpMessage, ReplTest... tests) {
+        test(locale, isDefaultStartUp, args, "", startUpMessage, tests);
+    }
+
+    public void test(Locale locale, boolean isDefaultStartUp, String[] args,
+                     String expectedErrorOutput, String startUpMessage, ReplTest... tests) {
         this.isDefaultStartUp = isDefaultStartUp;
         initSnippets();
         ReplTest[] wtests = new ReplTest[tests.length + 3];
@@ -237,7 +262,7 @@ public class ReplToolTesting {
         wtests[1] = a -> assertCommand(a, "/debug 0", null);
         System.arraycopy(tests, 0, wtests, 2, tests.length);
         wtests[tests.length + 2] = a -> assertCommand(a, "/exit", null);
-        testRaw(locale, args, wtests);
+        testRaw(locale, args, expectedErrorOutput, wtests);
     }
 
     private void initSnippets() {
@@ -259,7 +284,9 @@ public class ReplToolTesting {
     @BeforeMethod
     public void setUp() {
         prefsMap = new HashMap<>();
+        prefsMap.put("INDENT", "0");
         envvars = new HashMap<>();
+        System.setProperty("jshell.test.allow.incomplete.inputs", "true");
     }
 
     protected void setEnvVar(String name, String value) {
@@ -280,10 +307,11 @@ public class ReplToolTesting {
                     .promptCapture(true);
     }
 
-    private void testRaw(Locale locale, String[] args, ReplTest... tests) {
+    private void testRaw(Locale locale, String[] args,
+                         String expectedErrorOutput, ReplTest... tests) {
         testRawInit(tests);
-        testRawRun(locale, args);
-        testRawCheck(locale);
+        testRawRun(locale, Presets.addExecutionIfMissing(args));
+        testRawCheck(locale, expectedErrorOutput);
     }
 
     private void testRawInit(ReplTest... tests) {
@@ -305,7 +333,7 @@ public class ReplToolTesting {
         }
     }
 
-    private void testRawCheck(Locale locale) {
+    private void testRawCheck(Locale locale, String expectedErrorOutput) {
         // perform internal consistency checks on state, if desired
         String cos = getCommandOutput();
         String ceos = getCommandErrorOutput();
@@ -313,7 +341,10 @@ public class ReplToolTesting {
         String ueos = getUserErrorOutput();
         assertTrue((cos.isEmpty() || cos.startsWith("|  Goodbye") || !locale.equals(Locale.ROOT)),
                 "Expected a goodbye, but got: " + cos);
-        assertTrue(ceos.isEmpty(), "Expected empty command error output, got: " + ceos);
+        assertEquals(ceos,
+                     expectedErrorOutput,
+                     "Expected \"" + expectedErrorOutput +
+                     "\" command error output, got: \"" + ceos + "\"");
         assertTrue(uos.isEmpty(), "Expected empty user output, got: " + uos);
         assertTrue(ueos.isEmpty(), "Expected empty user error output, got: " + ueos);
     }
@@ -451,6 +482,7 @@ public class ReplToolTesting {
 
     public void dropClass(boolean after, String cmd, String name, String output) {
         dropKey(after, cmd, name, classes, output);
+
     }
 
     public void dropImport(boolean after, String cmd, String name, String output) {
@@ -485,23 +517,58 @@ public class ReplToolTesting {
         }
     }
 
+    public void assertCommandUserOutputContains(boolean after, String cmd, String... hasThese) {
+        assertCommandCheckUserOutput(after, cmd, (s)
+                -> assertTrue(Arrays.stream(hasThese)
+                        .allMatch(has -> s.contains(has)),
+                "User output: \'" + s + "' does not contain: "
+                        + Arrays.stream(hasThese)
+                        .filter(has -> !s.contains(has))
+                        .collect(Collectors.joining(", "))));
+    }
+
+    public void assertCommandCheckUserOutput(boolean after, String cmd, Consumer<String> check) {
+        if (!after) {
+            assertCommand(false, cmd, null);
+        } else {
+            String got = getUserOutput();
+            check.accept(got);
+            assertCommand(true, cmd, null);
+        }
+    }
+
     public void assertCommand(boolean after, String cmd, String out, String err,
             String userinput, String print, String usererr) {
+        assertCommand(after, cmd, out, err, userinput, print, usererr, null);
+    }
+
+    public void assertCommand(boolean after, String cmd, String out, String err,
+            String userinput, String print, String usererr, String terminalOut) {
         if (!after) {
             if (userinput != null) {
                 setUserInput(userinput);
             }
-            setCommandInput(cmd + "\n");
+            if (cmd.endsWith("\u0003")) {
+                setCommandInput(cmd);
+            } else {
+                setCommandInput(cmd + "\n");
+            }
         } else {
             assertOutput(getCommandOutput().trim(), out==null? out : out.trim(), "command output: " + cmd);
             assertOutput(getCommandErrorOutput(), err, "command error: " + cmd);
             assertOutput(getUserOutput(), print, "user output: " + cmd);
             assertOutput(getUserErrorOutput(), usererr, "user error: " + cmd);
+            assertOutput(getTerminalOutput(), terminalOut, "terminal output: " + cmd);
         }
     }
 
     public Consumer<String> assertStartsWith(String prefix) {
-        return (output) -> assertTrue(output.trim().startsWith(prefix), "Output: \'" + output + "' does not start with: " + prefix);
+        return (output) -> {
+                            if (!output.trim().startsWith(prefix)) {
+                                int i = 0;
+        }
+            assertTrue(output.trim().startsWith(prefix), "Output: \'" + output + "' does not start with: " + prefix);
+        };
     }
 
     public void assertOutput(String got, String expected, String display) {
@@ -511,8 +578,13 @@ public class ReplToolTesting {
     }
 
     private String normalizeLineEndings(String text) {
-        return text.replace(System.getProperty("line.separator"), "\n");
+        return normalizeLineEndings(System.getProperty("line.separator"), text);
     }
+
+    private String normalizeLineEndings(String lineSeparator, String text) {
+        return ANSI_CODE_PATTERN.matcher(text.replace(lineSeparator, "\n")).replaceAll("");
+    }
+        private static final Pattern ANSI_CODE_PATTERN = Pattern.compile("\033\\[[\060-\077]*[\040-\057]*[\100-\176]");
 
     public static abstract class MemberInfo {
         public final String source;
@@ -744,6 +816,8 @@ public class ReplToolTesting {
 
     class WaitingTestingInputStream extends TestingInputStream {
 
+        private boolean closed;
+
         @Override
         synchronized void setInput(String s) {
             super.setInput(s);
@@ -753,7 +827,7 @@ public class ReplToolTesting {
         synchronized void waitForInput() {
             boolean interrupted = false;
             try {
-                while (available() == 0) {
+                while (available() == 0 && !closed) {
                     try {
                         wait();
                     } catch (InterruptedException e) {
@@ -779,10 +853,17 @@ public class ReplToolTesting {
             waitForInput();
             return super.read(b, off, len);
         }
+
+        @Override
+        public synchronized void close() throws IOException {
+            closed = true;
+            notify();
+        }
     }
 
     class PromptedCommandOutputStream extends OutputStream {
         private final ReplTest[] tests;
+        private final ByteArrayOutputStream data = new ByteArrayOutputStream();
         private int index = 0;
         PromptedCommandOutputStream(ReplTest[] tests) {
             this.tests = tests;
@@ -798,7 +879,8 @@ public class ReplToolTesting {
                     fail("Did not exit Repl tool after test");
                 }
                 ++index;
-            } // For now, anything else is thrown away
+            }
+            data.write(b);
         }
 
         @Override

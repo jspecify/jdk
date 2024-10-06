@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,20 +26,20 @@
 /**
  * Defines the foundational APIs of the Java SE Platform.
  *
- * <dl>
- * <dt class="simpleTagLabel" style="font-family:'DejaVu Sans', Arial, Helvetica, sans serif">Providers:</dt>
+ * <dl class="notes">
+ * <dt>Providers:</dt>
  * <dd> The JDK implementation of this module provides an implementation of
  *      the {@index jrt jrt} {@linkplain java.nio.file.spi.FileSystemProvider
  *      file system provider} to enumerate and read the class and resource
  *      files in a run-time image.
  *      The jrt file system can be created by calling
- *      {@link java.nio.file.FileSystems#newFileSystem
- *      FileSystems.newFileSystem(URI.create("jrt:/"))}.
+ *      {@link java.nio.file.FileSystems#getFileSystem
+ *      FileSystems.getFileSystem(URI.create("jrt:/"))}.
  *      </dd>
- * <dt class="simpleTagLabel" style="font-family:'DejaVu Sans', Arial, Helvetica, sans serif">Tool Guides:</dt>
- * <dd style="font-family:'DejaVu Sans', Arial, Helvetica, sans serif"> {@extLink java_tool_reference java launcher},
- *      {@extLink keytool_tool_reference keytool}</dd>
  * </dl>
+ *
+ * @toolGuide java java launcher
+ * @toolGuide keytool
  *
  * @provides java.nio.file.spi.FileSystemProvider
  *
@@ -76,47 +76,21 @@
  */
 module java.base {
 
-    exports org.checkerframework.checker.compilermsgs.qual;
-    exports org.checkerframework.checker.fenum.qual;
-    exports org.checkerframework.checker.formatter;
-    exports org.checkerframework.checker.formatter.qual;
-    exports org.checkerframework.checker.guieffect.qual;
-    exports org.checkerframework.checker.i18nformatter;
-    exports org.checkerframework.checker.i18nformatter.qual;
-    exports org.checkerframework.checker.i18n.qual;
-    exports org.checkerframework.checker.index.qual;
-    exports org.checkerframework.checker.initialization.qual;
-    exports org.checkerframework.checker.interning.qual;
-    exports org.checkerframework.checker.lock.qual;
-    exports org.checkerframework.checker.nullness;
-    exports org.checkerframework.checker.nullness.qual;
-    exports org.checkerframework.checker.optional.qual;
-    exports org.checkerframework.checker.propkey.qual;
-    exports org.checkerframework.checker.regex;
-    exports org.checkerframework.checker.regex.qual;
-    exports org.checkerframework.checker.signature.qual;
-    exports org.checkerframework.checker.signedness;
-    exports org.checkerframework.checker.signedness.qual;
-    exports org.checkerframework.checker.tainting.qual;
-    exports org.checkerframework.checker.units;
-    exports org.checkerframework.checker.units.qual;
-    exports org.checkerframework.common.aliasing.qual;
-    exports org.checkerframework.common.reflection.qual;
-    exports org.checkerframework.common.returnsreceiver.qual;
-    exports org.checkerframework.common.subtyping.qual;
-    exports org.checkerframework.common.util.report.qual;
-    exports org.checkerframework.common.value.qual;
-    exports org.checkerframework.dataflow.qual;
-    exports org.checkerframework.framework.qual;
-    exports org.checkerframework.framework.util;
-
     exports java.io;
     exports java.lang;
     exports java.lang.annotation;
+    exports java.lang.classfile;
+    exports java.lang.classfile.attribute;
+    exports java.lang.classfile.components;
+    exports java.lang.classfile.constantpool;
+    exports java.lang.classfile.instruction;
+    exports java.lang.constant;
+    exports java.lang.foreign;
     exports java.lang.invoke;
     exports java.lang.module;
     exports java.lang.ref;
     exports java.lang.reflect;
+    exports java.lang.runtime;
     exports java.math;
     exports java.net;
     exports java.net.spi;
@@ -129,7 +103,6 @@ module java.base {
     exports java.nio.file.attribute;
     exports java.nio.file.spi;
     exports java.security;
-    exports java.security.acl;
     exports java.security.cert;
     exports java.security.interfaces;
     exports java.security.spec;
@@ -146,6 +119,7 @@ module java.base {
     exports java.util.concurrent.locks;
     exports java.util.function;
     exports java.util.jar;
+    exports java.util.random;
     exports java.util.regex;
     exports java.util.spi;
     exports java.util.stream;
@@ -166,38 +140,70 @@ module java.base {
     // additional qualified exports may be inserted at build time
     // see make/gensrc/GenModuleInfo.gmk
 
+    exports com.sun.crypto.provider to
+        jdk.crypto.cryptoki;
+    exports sun.invoke.util to
+        jdk.compiler;
     exports com.sun.security.ntlm to
         java.security.sasl;
-    exports jdk.internal to
+    // Note: all modules in the exported list participate in preview  features
+    // and therefore if they use preview features they do not need to be
+    // compiled with "--enable-preview".
+    // It is recommended for any modules that do participate that their
+    // module declaration be annotated with jdk.internal.javac.ParticipatesInPreview
+    exports jdk.internal.javac to
+        java.compiler,
+        java.desktop, // for ScopedValue
+        jdk.compiler,
+        jdk.incubator.vector, // participates in preview features
+        jdk.jartool, // participates in preview features
+        jdk.jdeps, // participates in preview features
+        jdk.jfr, // participates in preview features
+        jdk.jlink,   // participates in preview features
+        jdk.jshell; // participates in preview features
+    exports jdk.internal.access to
+        java.desktop,
+        java.logging,
+        java.management,
+        java.management.rmi,
+        java.naming,
+        java.rmi,
+        jdk.charsets,
+        jdk.jartool,
+        jdk.jlink,
+        jdk.jfr,
+        jdk.management,
+        jdk.net,
+        jdk.sctp,
+        jdk.crypto.cryptoki;
+    exports jdk.internal.foreign to
+        jdk.incubator.vector;
+    exports jdk.internal.event to
         jdk.jfr;
+    exports jdk.internal.io to
+        jdk.internal.le,
+        jdk.jshell;
     exports jdk.internal.jimage to
         jdk.jlink;
     exports jdk.internal.jimage.decompressor to
         jdk.jlink;
     exports jdk.internal.loader to
         java.instrument,
-        java.logging;
+        java.logging,
+        java.naming;
     exports jdk.internal.jmod to
         jdk.compiler,
         jdk.jlink;
     exports jdk.internal.logger to
         java.logging;
     exports jdk.internal.org.objectweb.asm to
-        jdk.jartool,
-        jdk.jfr,
-        jdk.jlink,
-        jdk.scripting.nashorn;
+        jdk.jfr;
     exports jdk.internal.org.objectweb.asm.tree to
-        jdk.jfr,
-        jdk.jlink;
+        jdk.jfr;
     exports jdk.internal.org.objectweb.asm.util to
-        jdk.jfr,
-        jdk.scripting.nashorn;
+        jdk.jfr;
     exports jdk.internal.org.objectweb.asm.commons to
-        jdk.jfr,
-        jdk.scripting.nashorn;
-    exports jdk.internal.org.objectweb.asm.signature to
-        jdk.scripting.nashorn;
+        jdk.jfr;
     exports jdk.internal.org.xml.sax to
         jdk.jfr;
     exports jdk.internal.org.xml.sax.helpers to
@@ -207,54 +213,74 @@ module java.base {
         java.logging,
         java.management,
         java.naming,
+        java.net.http,
         java.rmi,
         java.security.jgss,
-        java.sql,
-        java.xml,
         jdk.attach,
         jdk.charsets,
         jdk.compiler,
-        java.net.http,
+        jdk.crypto.cryptoki,
+        jdk.incubator.vector,
         jdk.jfr,
-        jdk.jlink,
         jdk.jshell,
-        jdk.net,
-        jdk.scripting.nashorn,
-        jdk.scripting.nashorn.shell,
+        jdk.nio.mapmode,
         jdk.unsupported,
         jdk.internal.vm.ci;
     exports jdk.internal.module to
         java.instrument,
         java.management.rmi,
         jdk.jartool,
+        jdk.compiler,
         jdk.jfr,
-        jdk.jlink;
+        jdk.jlink,
+        jdk.jpackage;
     exports jdk.internal.perf to
         java.management,
         jdk.management.agent,
         jdk.internal.jvmstat;
+    exports jdk.internal.platform to
+        jdk.management,
+        jdk.jfr;
     exports jdk.internal.ref to
         java.desktop,
-        jdk.unsupported;
+        java.net.http,
+        jdk.naming.dns;
     exports jdk.internal.reflect to
         java.logging,
         java.sql,
         java.sql.rowset,
         jdk.dynalink,
-        jdk.scripting.nashorn,
-        jdk.unsupported;
-    exports jdk.internal.vm to
-        jdk.internal.jvmstat,
-        jdk.management.agent;
-    exports jdk.internal.vm.annotation to
         jdk.internal.vm.ci,
         jdk.unsupported;
-    exports jdk.internal.util.jar to
-        jdk.jartool;
+    exports jdk.internal.vm to
+        java.management,
+        jdk.internal.jvmstat,
+        jdk.management,
+        jdk.management.agent,
+        jdk.internal.vm.ci,
+        jdk.jfr;
+    exports jdk.internal.vm.annotation to
+        java.instrument,
+        jdk.internal.vm.ci,
+        jdk.incubator.vector,
+        jdk.jfr,
+        jdk.unsupported;
+    exports jdk.internal.vm.vector to
+        jdk.incubator.vector;
     exports jdk.internal.util.xml to
         jdk.jfr;
     exports jdk.internal.util.xml.impl to
         jdk.jfr;
+    exports jdk.internal.util to
+        java.desktop,
+        java.prefs,
+        java.security.jgss,
+        java.smartcardio,
+        jdk.charsets,
+        jdk.internal.vm.ci,
+        jdk.jlink,
+        jdk.jpackage,
+        jdk.net;
     exports sun.net to
         java.net.http,
         jdk.naming.dns;
@@ -265,10 +291,10 @@ module java.base {
         jdk.naming.dns;
     exports sun.net.util to
         java.desktop,
+        java.net.http,
         jdk.jconsole,
-        java.net.http;
+        jdk.sctp;
     exports sun.net.www to
-        java.desktop,
         java.net.http,
         jdk.jartool;
     exports sun.net.www.protocol.http to
@@ -277,12 +303,11 @@ module java.base {
         java.management,
         jdk.crypto.cryptoki,
         jdk.net,
-        jdk.sctp,
-        jdk.unsupported;
+        jdk.sctp;
     exports sun.nio.cs to
         jdk.charsets;
     exports sun.nio.fs to
-        jdk.unsupported;
+        jdk.net;
     exports sun.reflect.annotation to
         jdk.compiler;
     exports sun.reflect.generics.reflectiveObjects to
@@ -303,11 +328,9 @@ module java.base {
         jdk.crypto.cryptoki;
     exports sun.security.jca to
         java.smartcardio,
-        jdk.crypto.ec,
         jdk.crypto.cryptoki,
         jdk.naming.dns;
     exports sun.security.pkcs to
-        jdk.crypto.ec,
         jdk.jartool;
     exports sun.security.provider to
         java.rmi,
@@ -315,11 +338,10 @@ module java.base {
         jdk.crypto.cryptoki,
         jdk.security.auth;
     exports sun.security.provider.certpath to
-        java.naming;
+        java.naming,
+        jdk.jartool;
     exports sun.security.rsa to
         jdk.crypto.cryptoki;
-    exports sun.security.ssl to
-        java.security.jgss;
     exports sun.security.timestamp to
         jdk.jartool;
     exports sun.security.tools to
@@ -332,17 +354,11 @@ module java.base {
         java.security.sasl,
         java.smartcardio,
         java.xml.crypto,
-        jdk.crypto.ec,
         jdk.crypto.cryptoki,
         jdk.jartool,
         jdk.security.auth,
         jdk.security.jgss;
-    exports sun.security.util.math to
-        jdk.crypto.ec;
-    exports sun.security.util.math.intpoly to
-        jdk.crypto.ec;
     exports sun.security.x509 to
-        jdk.crypto.ec,
         jdk.crypto.cryptoki,
         jdk.jartool;
     exports sun.security.validator to
@@ -360,11 +376,11 @@ module java.base {
     exports sun.util.resources to
         jdk.localedata;
 
-
     // the service types defined by the APIs in this module
 
     uses java.lang.System.LoggerFinder;
     uses java.net.ContentHandlerFactory;
+    uses java.net.spi.InetAddressResolverProvider;
     uses java.net.spi.URLStreamHandlerProvider;
     uses java.nio.channels.spi.AsynchronousChannelProvider;
     uses java.nio.channels.spi.SelectorProvider;
@@ -393,6 +409,7 @@ module java.base {
 
     // JDK-internal service types
 
+    uses jdk.internal.io.JdkConsoleProvider;
     uses jdk.internal.logger.DefaultLoggerFinder;
     uses sun.text.spi.JavaTimeDateTimePatternProvider;
     uses sun.util.spi.CalendarProvider;
@@ -404,4 +421,5 @@ module java.base {
 
     provides java.nio.file.spi.FileSystemProvider with
         jdk.internal.jrtfs.JrtFileSystemProvider;
+
 }

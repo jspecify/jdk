@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 /*
  * @test
  * @bug 4507501
+ * @library /test/lib
  * @summary Test various methods that should throw IAE when passed improper
  *          SocketAddress
  * @run main AddressTest
@@ -31,6 +32,7 @@
  */
 
 import java.net.*;
+import jdk.test.lib.net.IPSupport;
 
 public class AddressTest {
     class MySocketAddress extends SocketAddress {
@@ -153,6 +155,7 @@ public class AddressTest {
     }
 
     public static void main(String[] args) throws Exception {
+        IPSupport.throwSkippedExceptionIfNonOperational();
         new AddressTest();
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,22 +26,23 @@
  * @bug 4483401 4483407 4483409 4483413 4494343
  * @summary Test to make sure that Javadoc behaves properly when
  * run on a completely empty class (no comments or members).
- * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestEmptyClass
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestEmptyClass extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestEmptyClass tester = new TestEmptyClass();
+        var tester = new TestEmptyClass();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-classpath", testSrc("src"),
                 "-d", "out",
                 "-sourcepath", testSrc("src"),

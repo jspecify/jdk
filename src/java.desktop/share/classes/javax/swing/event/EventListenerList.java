@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,17 +22,23 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package javax.swing.event;
 
-import java.io.*;
-import java.util.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.io.Serializable;
 import java.lang.reflect.Array;
+import java.util.EventListener;
+
 import sun.reflect.misc.ReflectUtil;
 
 /**
  * A class that holds a list of EventListeners.  A single instance
  * can be used to hold all listeners (of all types) for the instance
- * using the list.  It is the responsiblity of the class using the
+ * using the list.  It is the responsibility of the class using the
  * EventListenerList to provide type-safe API (preferably conforming
  * to the JavaBeans spec) and methods which dispatch event notification
  * methods to appropriate Event Listeners on the list.
@@ -89,7 +95,7 @@ import sun.reflect.misc.ReflectUtil;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -103,6 +109,11 @@ public class EventListenerList implements Serializable {
     private static final Object[] NULL_ARRAY = new Object[0];
     /** The list of ListenerType - Listener pairs */
     protected transient volatile Object[] listenerList = NULL_ARRAY;
+
+    /**
+     * Constructs a {@code EventListenerList}.
+     */
+    public EventListenerList() {}
 
     /**
      * Passes back the event listener list as an array
@@ -133,7 +144,7 @@ public class EventListenerList implements Serializable {
      * @param <T> the type of {@code EventListener} to search for
      * @param t the type of {@code EventListener} classes to be returned
      * @return all of the listeners of the specified type.
-     * @exception  ClassCastException if the supplied class
+     * @throws  ClassCastException if the supplied class
      *          is not assignable to EventListener
      *
      * @since 1.3
@@ -263,6 +274,7 @@ public class EventListenerList implements Serializable {
     }
 
     // Serialization support.
+    @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         Object[] lList = listenerList;
         s.defaultWriteObject();
@@ -271,7 +283,7 @@ public class EventListenerList implements Serializable {
         for (int i = 0; i < lList.length; i+=2) {
             Class<?> t = (Class)lList[i];
             EventListener l = (EventListener)lList[i+1];
-            if ((l!=null) && (l instanceof Serializable)) {
+            if (l instanceof Serializable) {
                 s.writeObject(t.getName());
                 s.writeObject(l);
             }
@@ -280,6 +292,7 @@ public class EventListenerList implements Serializable {
         s.writeObject(null);
     }
 
+    @Serial
     private void readObject(ObjectInputStream s)
         throws IOException, ClassNotFoundException {
         listenerList = NULL_ARRAY;

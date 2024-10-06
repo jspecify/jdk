@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,25 +22,24 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_CHAITIN_HPP
-#define SHARE_VM_OPTO_CHAITIN_HPP
+#ifndef SHARE_OPTO_CHAITIN_HPP
+#define SHARE_OPTO_CHAITIN_HPP
 
 #include "code/vmreg.hpp"
 #include "memory/resourceArea.hpp"
 #include "opto/connode.hpp"
 #include "opto/live.hpp"
+#include "opto/machnode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/phase.hpp"
 #include "opto/regalloc.hpp"
 #include "opto/regmask.hpp"
-#include "opto/machnode.hpp"
 
-class LoopTree;
 class Matcher;
 class PhaseCFG;
 class PhaseLive;
 class PhaseRegAlloc;
-class   PhaseChaitin;
+class PhaseChaitin;
 
 #define OPTO_DEBUG_SPLIT_FREQ  BLOCK_FREQUENCY(0.001)
 #define OPTO_LRG_HIGH_FREQ     BLOCK_FREQUENCY(0.25)
@@ -115,9 +114,11 @@ public:
     _msize_valid=1;
     if (_is_vector) {
       assert(!_fat_proj, "sanity");
-      _mask.verify_sets(_num_regs);
+      if (!(_is_scalable && OptoReg::is_stack(_reg))) {
+        assert(_mask.is_aligned_sets(_num_regs), "mask is not aligned, adjacent sets");
+      }
     } else if (_num_regs == 2 && !_fat_proj) {
-      _mask.verify_pairs();
+      assert(_mask.is_aligned_pairs(), "mask is not aligned, adjacent pairs");
     }
 #endif
   }
@@ -136,16 +137,38 @@ public:
 
   void Insert( OptoReg::Name reg ) { _mask.Insert(reg);  debug_only(_msize_valid=0;) }
   void Remove( OptoReg::Name reg ) { _mask.Remove(reg);  debug_only(_msize_valid=0;) }
-  void clear_to_pairs() { _mask.clear_to_pairs(); debug_only(_msize_valid=0;) }
   void clear_to_sets()  { _mask.clear_to_sets(_num_regs); debug_only(_msize_valid=0;) }
 
-  // Number of registers this live range uses when it colors
 private:
+  // Number of registers this live range uses when it colors
   uint16_t _num_regs;           // 2 for Longs and Doubles, 1 for all else
                                 // except _num_regs is kill count for fat_proj
+
+  // For scalable register, num_regs may not be the actual physical register size.
+  // We need to get the actual physical length of scalable register when scalable
+  // register is spilled. The size of one slot is 32-bit.
+  uint _scalable_reg_slots;     // Actual scalable register length of slots.
+                                // Meaningful only when _is_scalable is true.
 public:
   int num_regs() const { return _num_regs; }
   void set_num_regs( int reg ) { assert( _num_regs == reg || !_num_regs, "" ); _num_regs = reg; }
+
+  uint scalable_reg_slots() { return _scalable_reg_slots; }
+  void set_scalable_reg_slots(uint slots) {
+    assert(_is_scalable, "scalable register");
+    assert(slots > 0, "slots of scalable register is not valid");
+    _scalable_reg_slots = slots;
+  }
+
+  bool is_scalable() {
+#ifdef ASSERT
+    if (_is_scalable) {
+      assert((_is_vector && (_num_regs == RegMask::SlotsPerVecA)) ||
+             (_is_predicate && (_num_regs == RegMask::SlotsPerRegVectMask)), "unexpected scalable reg");
+    }
+#endif
+    return Matcher::implements_scalable_vector && _is_scalable;
+  }
 
 private:
   // Number of physical registers this live range uses when it colors
@@ -172,6 +195,9 @@ public:
   uint   _is_oop:1,             // Live-range holds an oop
          _is_float:1,           // True if in float registers
          _is_vector:1,          // True if in vector registers
+         _is_predicate:1,       // True if in mask/predicate registers
+         _is_scalable:1,        // True if register size is scalable
+                                //      e.g. Arm SVE vector/predicate registers.
          _was_spilled1:1,       // True if prior spilling on def
          _was_spilled2:1,       // True if twice prior spilling on def
          _is_bound:1,           // live range starts life with no
@@ -191,7 +217,7 @@ public:
 
 
   // Alive if non-zero, dead if zero
-  bool alive() const { return _def != NULL; }
+  bool alive() const { return _def != nullptr; }
   bool is_multidef() const { return _def == NodeSentinel; }
   bool is_singledef() const { return _def != NodeSentinel; }
 
@@ -234,13 +260,10 @@ public:
   PhaseIFG( Arena *arena );
   void init( uint maxlrg );
 
-  // Add edge between a and b.  Returns true if actually addded.
+  // Add edge between a and b.  Returns true if actually added.
   int add_edge( uint a, uint b );
 
-  // Add edge between a and everything in the vector
-  void add_vector( uint a, IndexSet *vec );
-
-  // Test for edge existance
+  // Test for edge existence
   int test_edge( uint a, uint b ) const;
 
   // Square-up matrix for faster Union
@@ -269,7 +292,7 @@ public:
 #endif
 
   //--------------- Live Range Accessors
-  LRG &lrgs(uint idx) const { assert(idx < _maxlrg, "oob"); return _lrgs[idx]; }
+  LRG &lrgs(uint idx) const { assert(idx < _maxlrg, "oob: index %u not smaller than %u", idx, _maxlrg); return _lrgs[idx]; }
 
   // Compute and set effective degree.  Might be folded into SquareUp().
   void Compute_Effective_Degree();
@@ -350,9 +373,9 @@ public:
   }
 
   LiveRangeMap(Arena* arena, uint unique)
-  : _names(arena, unique, unique, 0)
+  :  _max_lrg_id(0)
   , _uf_map(arena, unique, unique, 0)
-  , _max_lrg_id(0) {}
+  , _names(arena, unique, unique, 0) {}
 
   uint find_id( const Node *n ) {
     uint retval = live_range_id(n);
@@ -401,7 +424,6 @@ class PhaseChaitin : public PhaseRegAlloc {
 
   PhaseLive *_live;             // Liveness, used in the interference graph
   PhaseIFG *_ifg;               // Interference graph (for original chunk)
-  Node_List **_lrg_nodes;       // Array of node; lists for lrgs which spill
   VectorSet _spilled_once;      // Nodes that have been spilled
   VectorSet _spilled_twice;     // Nodes that have been spilled twice
 
@@ -422,7 +444,7 @@ class PhaseChaitin : public PhaseRegAlloc {
 
   // Helper functions for Split()
   uint split_DEF(Node *def, Block *b, int loc, uint max, Node **Reachblock, Node **debug_defs, GrowableArray<uint> splits, int slidx );
-  uint split_USE(MachSpillCopyNode::SpillType spill_type, Node *def, Block *b, Node *use, uint useidx, uint max, bool def_down, bool cisc_sp, GrowableArray<uint> splits, int slidx );
+  int split_USE(MachSpillCopyNode::SpillType spill_type, Node *def, Block *b, Node *use, uint useidx, uint max, bool def_down, bool cisc_sp, GrowableArray<uint> splits, int slidx );
 
   //------------------------------clone_projs------------------------------------
   // After cloning some rematerialized instruction, clone any MachProj's that
@@ -456,7 +478,7 @@ class PhaseChaitin : public PhaseRegAlloc {
 
   Block **_blks;                // Array of blocks sorted by frequency for coalescing
 
-  float _high_frequency_lrg;    // Frequency at which LRG will be spilled for debug info
+  double _high_frequency_lrg;   // Frequency at which LRG will be spilled for debug info
 
 #ifndef PRODUCT
   bool _trace_spilling;
@@ -473,7 +495,7 @@ public:
   // Do all the real work of allocate
   void Register_Allocate();
 
-  float high_frequency_lrg() const { return _high_frequency_lrg; }
+  double high_frequency_lrg() const { return _high_frequency_lrg; }
 
   // Used when scheduling info generated, not in general register allocation
   bool _scheduling_info_generated;
@@ -496,8 +518,7 @@ private:
   void de_ssa();
 
   // Add edge between reg and everything in the vector.
-  // Same as _ifg->add_vector(reg,live) EXCEPT use the RegMask
-  // information to trim the set of interferences.  Return the
+  // Use the RegMask information to trim the set of interferences.  Return the
   // count of edges added.
   void interfere_with_live(uint lid, IndexSet* liveout);
 #ifdef ASSERT
@@ -666,16 +687,8 @@ private:
   // coalescing, it should Simplify.  This call sets the was-lo-degree bit.
   void set_was_low();
 
-  // Split live-ranges that must spill due to register conflicts (as opposed
-  // to capacity spills).  Typically these are things def'd in a register
-  // and used on the stack or vice-versa.
-  void pre_spill();
-
   // Init LRG caching of degree, numregs.  Init lo_degree list.
   void cache_lrg_info( );
-
-  // Simplify the IFG by removing LRGs of low degree with no copies
-  void Pre_Simplify();
 
   // Simplify the IFG by removing LRGs of low degree
   void Simplify();
@@ -692,8 +705,6 @@ private:
   // Return new number of live ranges
   uint Split(uint maxlrg, ResourceArea* split_arena);
 
-  // Copy 'was_spilled'-edness from one Node to another.
-  void copy_was_spilled( Node *src, Node *dst );
   // Set the 'spilled_once' or 'spilled_twice' flag on a node.
   void set_was_spilled( Node *n );
 
@@ -720,8 +731,8 @@ private:
   int yank_if_dead_recurse(Node *old, Node *orig_old, Block *current_block,
       Node_List *value, Node_List *regnd);
   int yank( Node *old, Block *current_block, Node_List *value, Node_List *regnd );
-  int elide_copy( Node *n, int k, Block *current_block, Node_List &value, Node_List &regnd, bool can_change_regs );
-  int use_prior_register( Node *copy, uint idx, Node *def, Block *current_block, Node_List &value, Node_List &regnd );
+  int elide_copy( Node *n, int k, Block *current_block, Node_List *value, Node_List *regnd, bool can_change_regs );
+  int use_prior_register( Node *copy, uint idx, Node *def, Block *current_block, Node_List *value, Node_List *regnd );
   bool may_be_copy_of_callee( Node *def ) const;
 
   // If nreg already contains the same constant as val then eliminate it
@@ -736,7 +747,7 @@ private:
     Node* _def;
     Node* _first_use;
   public:
-    RegDefUse() : _def(NULL), _first_use(NULL) { }
+    RegDefUse() : _def(nullptr), _first_use(nullptr) { }
     Node* def() const       { return _def;       }
     Node* first_use() const { return _first_use; }
 
@@ -747,8 +758,8 @@ private:
       }
     }
     void clear() {
-      _def = NULL;
-      _first_use = NULL;
+      _def = nullptr;
+      _first_use = nullptr;
     }
   };
   typedef GrowableArray<RegDefUse> RegToDefUseMap;
@@ -768,37 +779,37 @@ private:
   static int _used_cisc_instructions, _unused_cisc_instructions;
   static int _allocator_attempts, _allocator_successes;
 
+#ifdef ASSERT
+  // Verify that base pointers and derived pointers are still sane
+  void verify_base_ptrs(ResourceArea* a) const;
+  void verify(ResourceArea* a, bool verify_ifg = false) const;
+#endif // ASSERT
+
 #ifndef PRODUCT
   static uint _high_pressure, _low_pressure;
 
   void dump() const;
-  void dump( const Node *n ) const;
-  void dump( const Block * b ) const;
+  void dump(const Node* n) const;
+  void dump(const Block* b) const;
   void dump_degree_lists() const;
   void dump_simplified() const;
-  void dump_lrg( uint lidx, bool defs_only) const;
-  void dump_lrg( uint lidx) const {
+  void dump_lrg(uint lidx, bool defs_only) const;
+  void dump_lrg(uint lidx) const {
     // dump defs and uses by default
     dump_lrg(lidx, false);
   }
-  void dump_bb( uint pre_order ) const;
-
-  // Verify that base pointers and derived pointers are still sane
-  void verify_base_ptrs( ResourceArea *a ) const;
-
-  void verify( ResourceArea *a, bool verify_ifg = false ) const;
-
+  void dump_bb(uint pre_order) const;
   void dump_for_spill_split_recycle() const;
 
 public:
   void dump_frame() const;
-  char *dump_register( const Node *n, char *buf  ) const;
+  char *dump_register(const Node* n, char* buf, size_t buf_size) const;
 private:
   static void print_chaitin_statistics();
-#endif
+#endif // not PRODUCT
   friend class PhaseCoalesce;
   friend class PhaseAggressiveCoalesce;
   friend class PhaseConservativeCoalesce;
 };
 
-#endif // SHARE_VM_OPTO_CHAITIN_HPP
+#endif // SHARE_OPTO_CHAITIN_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,12 @@
 
 package jdk.jfr.internal.settings;
 
-import java.util.Objects;
-import java.util.Set;
-
-import jdk.jfr.Description;
 import jdk.jfr.BooleanFlag;
+import jdk.jfr.Description;
 import jdk.jfr.Label;
 import jdk.jfr.MetadataDefinition;
 import jdk.jfr.Name;
 import jdk.jfr.internal.PlatformEventType;
-import jdk.jfr.internal.Control;
 import jdk.jfr.internal.Type;
 
 @MetadataDefinition
@@ -42,31 +38,16 @@ import jdk.jfr.internal.Type;
 @Name(Type.SETTINGS_PREFIX + "StackTrace")
 @Description("Record stack traces")
 @BooleanFlag
-public final class StackTraceSetting extends Control {
-    private final static long typeId =  Type.getTypeId(StackTraceSetting.class);
-    private final BooleanValue booleanValue;
-    private final PlatformEventType eventType;
+public final class StackTraceSetting extends BooleanSetting {
+    private static final long typeId = Type.getTypeId(StackTraceSetting.class);
 
     public StackTraceSetting(PlatformEventType eventType, String defaultValue) {
-        super(defaultValue);
-        this.booleanValue = BooleanValue.valueOf(defaultValue);
-        this.eventType = Objects.requireNonNull(eventType);
+        super(eventType, defaultValue);
     }
 
     @Override
-    public String combine(Set<String> values) {
-        return booleanValue.union(values);
-    }
-
-    @Override
-    public void setValue(String value) {
-        booleanValue.setValue(value);
-        eventType.setStackTraceEnabled(booleanValue.getBoolean());
-    }
-
-    @Override
-    public String getValue() {
-        return booleanValue.getValue();
+    protected void apply(PlatformEventType eventType, boolean value) {
+        eventType.setStackTraceEnabled(value);
     }
 
     public static boolean isType(long typeId) {

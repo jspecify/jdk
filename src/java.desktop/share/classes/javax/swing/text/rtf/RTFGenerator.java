@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ package javax.swing.text.rtf;
 import java.lang.*;
 import java.util.*;
 import java.awt.Color;
-import java.awt.Font;
 import java.io.OutputStream;
 import java.io.IOException;
 
@@ -94,15 +93,14 @@ class RTFGenerator extends Object
 
         Dictionary<String, String> textKeywordDictionary = RTFReader.textKeywords;
         Enumeration<String> keys = textKeywordDictionary.keys();
-        Vector<CharacterKeywordPair> tempPairs = new Vector<CharacterKeywordPair>();
+        ArrayList<CharacterKeywordPair> tempPairs = new ArrayList<CharacterKeywordPair>();
         while(keys.hasMoreElements()) {
             CharacterKeywordPair pair = new CharacterKeywordPair();
             pair.keyword = keys.nextElement();
             pair.character = textKeywordDictionary.get(pair.keyword).charAt(0);
-            tempPairs.addElement(pair);
+            tempPairs.add(pair);
         }
-        textKeywords = new CharacterKeywordPair[tempPairs.size()];
-        tempPairs.copyInto(textKeywords);
+        textKeywords = tempPairs.toArray(new CharacterKeywordPair[0]);
     }
 
     static final char[] hexdigits = { '0', '1', '2', '3', '4', '5', '6', '7',
@@ -393,7 +391,7 @@ public void writeRTFHeader()
             updateCharacterAttributes(goat, style, false);
 
             basis = style.getResolveParent();
-            if (basis != null && basis instanceof Style) {
+            if (basis instanceof Style) {
                 Integer basedOn = styleTable.get(basis);
                 if (basedOn != null) {
                     writeControlWord("sbasedon", basedOn.intValue());
@@ -496,7 +494,7 @@ protected void checkControlWord(MutableAttributeSet currentAttributes,
 
 protected void checkControlWords(MutableAttributeSet currentAttributes,
                                  AttributeSet newAttributes,
-                                 RTFAttribute words[],
+                                 RTFAttribute[] words,
                                  int domain)
     throws IOException
 {
@@ -516,13 +514,13 @@ void updateSectionAttributes(MutableAttributeSet current,
 {
     if (emitStyleChanges) {
         Object oldStyle = current.getAttribute("sectionStyle");
-        Object newStyle = findStyleNumber(newAttributes, Constants.STSection);
+        Integer newStyle = findStyleNumber(newAttributes, Constants.STSection);
         if (oldStyle != newStyle) {
             if (oldStyle != null) {
                 resetSectionAttributes(current);
             }
             if (newStyle != null) {
-                writeControlWord("ds", ((Integer)newStyle).intValue());
+                writeControlWord("ds", newStyle);
                 current.addAttribute("sectionStyle", newStyle);
             } else {
                 current.removeAttribute("sectionStyle");
@@ -555,8 +553,8 @@ void updateParagraphAttributes(MutableAttributeSet current,
                                boolean emitStyleChanges)
     throws IOException
 {
-    Object parm;
-    Object oldStyle, newStyle;
+    Object oldStyle;
+    Integer newStyle;
 
     /* The only way to get rid of tabs or styles is with the \pard keyword,
        emitted by resetParagraphAttributes(). Ideally we should avoid
@@ -588,7 +586,7 @@ void updateParagraphAttributes(MutableAttributeSet current,
     }
 
     if (oldStyle != newStyle && newStyle != null) {
-        writeControlWord("s", ((Integer)newStyle).intValue());
+        writeControlWord("s", newStyle);
         current.addAttribute("paragraphStyle", newStyle);
     }
 
@@ -596,7 +594,7 @@ void updateParagraphAttributes(MutableAttributeSet current,
                       RTFAttributes.attributes, RTFAttribute.D_PARAGRAPH);
 
     if (oldTabs != newTabs && newTabs != null) {
-        TabStop tabs[] = (TabStop[])newTabs;
+        TabStop[] tabs = (TabStop[])newTabs;
         int index;
         for(index = 0; index < tabs.length; index ++) {
             TabStop tab = tabs[index];
@@ -707,14 +705,14 @@ void updateCharacterAttributes(MutableAttributeSet current,
 
     if (updateStyleChanges) {
         Object oldStyle = current.getAttribute("characterStyle");
-        Object newStyle = findStyleNumber(newAttributes,
+        Integer newStyle = findStyleNumber(newAttributes,
                                           Constants.STCharacter);
         if (oldStyle != newStyle) {
             if (oldStyle != null) {
                 resetCharacterAttributes(current);
             }
             if (newStyle != null) {
-                writeControlWord("cs", ((Integer)newStyle).intValue());
+                writeControlWord("cs", newStyle.intValue());
                 current.addAttribute("characterStyle", newStyle);
             } else {
                 current.removeAttribute("characterStyle");

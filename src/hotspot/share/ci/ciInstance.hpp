@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CIINSTANCE_HPP
-#define SHARE_VM_CI_CIINSTANCE_HPP
+#ifndef SHARE_CI_CIINSTANCE_HPP
+#define SHARE_CI_CIINSTANCE_HPP
 
 #include "ci/ciObject.hpp"
 #include "oops/instanceOop.hpp"
@@ -45,8 +45,6 @@ protected:
 
   ciInstance(ciKlass* klass) : ciObject(klass) {}
 
-  instanceOop get_instanceOop() { return (instanceOop)get_oop(); }
-
   const char* type_string() { return "ciInstance"; }
 
   void print_impl(outputStream* st);
@@ -55,13 +53,12 @@ protected:
 
 public:
   // If this object is a java mirror, return the corresponding type.
-  // Otherwise, return NULL.
+  // Otherwise, return null.
   // (Remember that a java mirror is an instance of java.lang.Class.)
   ciType* java_mirror_type();
 
   // What kind of ciObject is this?
   bool is_instance()     { return true; }
-  bool is_java_object()  { return true; }
 
   // Constant value of a field.
   ciConstant field_value(ciField* field);
@@ -72,4 +69,4 @@ public:
   ciKlass* java_lang_Class_klass();
 };
 
-#endif // SHARE_VM_CI_CIINSTANCE_HPP
+#endif // SHARE_CI_CIINSTANCE_HPP

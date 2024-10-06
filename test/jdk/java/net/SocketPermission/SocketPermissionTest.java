@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,14 @@
 /*
  * @test
  * @bug 8047031
- * @summary SocketPermission tests for legacy socket types
+ * @key intermittent
+ * @summary SocketPermission tests for legacy socket types.
+ *          This test needs to bind its servers to the wildcard
+ *          address and as such may fail intermittently.
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
  *        jdk.test.lib.Platform
- * @run testng/othervm SocketPermissionTest
+ * @run testng/othervm -Djava.security.manager=allow SocketPermissionTest
  */
 
 import java.io.IOException;

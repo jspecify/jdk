@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -28,39 +28,45 @@ default: all
 include $(SPEC)
 include MakeBase.gmk
 
+include CopyFiles.gmk
+
 $(foreach v, $(JVM_VARIANTS), \
   $(eval $(call SetupCopyFiles, COPY_GTEST_$v, \
       SRC := $(HOTSPOT_OUTPUTDIR)/variant-$v/libjvm/gtest, \
       DEST := $(TEST_IMAGE_DIR)/hotspot/gtest/$v, \
-      FILES := $(call SHARED_LIBRARY,jvm) gtestLauncher$(EXE_SUFFIX), \
+      FILES := $(LIBRARY_PREFIX)jvm$(SHARED_LIBRARY_SUFFIX) gtestLauncher$(EXECUTABLE_SUFFIX), \
   )) \
   $(eval TARGETS += $$(COPY_GTEST_$v)) \
 )
 
-ifeq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), true)
   $(foreach v, $(JVM_VARIANTS), \
     $(eval $(call SetupCopyFiles, COPY_GTEST_MSVCR_$v, \
         DEST := $(TEST_IMAGE_DIR)/hotspot/gtest/$v, \
-        FILES := $(MSVCR_DLL) $(MSVCP_DLL), \
+        FILES := $(MSVCR_DLL), \
         FLATTEN := true, \
     )) \
     $(eval TARGETS += $$(COPY_GTEST_MSVCR_$v)) \
-    $(eval $(call SetupCopyFiles, COPY_GTEST_PDB_$v, \
-        SRC := $(HOTSPOT_OUTPUTDIR)/variant-$v/libjvm/gtest, \
+    $(eval $(call SetupCopyFiles, COPY_GTEST_VCRUNTIME_1_$v, \
         DEST := $(TEST_IMAGE_DIR)/hotspot/gtest/$v, \
-        FILES := jvm.pdb gtestLauncher.pdb, \
+        FILES := $(VCRUNTIME_1_DLL), \
+        FLATTEN := true, \
     )) \
-    $(eval TARGETS += $$(COPY_GTEST_PDB_$v)) \
-  )
-endif
-
-ifeq ($(OPENJDK_TARGET_OS), solaris)
-  $(foreach v, $(JVM_VARIANTS), \
-    $(eval $(call SetupCopyFiles, COPY_GTEST_STLPORT_$v, \
+    $(eval TARGETS += $$(COPY_GTEST_VCRUNTIME_1_$v)) \
+    $(eval $(call SetupCopyFiles, COPY_GTEST_MSVCP_$v, \
         DEST := $(TEST_IMAGE_DIR)/hotspot/gtest/$v, \
-        FILES := $(STLPORT_LIB), \
+        FILES := $(MSVCP_DLL), \
+        FLATTEN := true, \
     )) \
-    $(eval TARGETS += $$(COPY_GTEST_STLPORT_$v)) \
+    $(eval TARGETS += $$(COPY_GTEST_MSVCP_$v)) \
+    $(if $(call equals, $(COPY_DEBUG_SYMBOLS), true), \
+      $(eval $(call SetupCopyFiles, COPY_GTEST_PDB_$v, \
+          SRC := $(HOTSPOT_OUTPUTDIR)/variant-$v/libjvm/gtest, \
+          DEST := $(TEST_IMAGE_DIR)/hotspot/gtest/$v, \
+          FILES := jvm.dll.pdb gtestLauncher.exe.pdb, \
+      )) \
+      $(eval TARGETS += $$(COPY_GTEST_PDB_$v)) \
+    ) \
   )
 endif
 

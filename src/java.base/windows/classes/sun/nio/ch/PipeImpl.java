@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,13 @@ package sun.nio.ch;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.net.StandardSocketOptions;
+import java.net.UnixDomainSocketAddress;
 import java.nio.*;
 import java.nio.channels.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.channels.spi.*;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
@@ -40,6 +45,7 @@ import java.security.PrivilegedActionException;
 import java.security.SecureRandom;
 import java.util.Random;
 
+import static java.net.StandardProtocolFamily.UNIX;
 
 /**
  * A simple Pipe implementation based on a socket connection.
@@ -55,19 +61,22 @@ class PipeImpl
     private static final Random RANDOM_NUMBER_GENERATOR = new SecureRandom();
 
     // Source and sink channels
-    private SourceChannel source;
-    private SinkChannel sink;
+    private final SourceChannelImpl source;
+    private final SinkChannelImpl sink;
 
-    private class Initializer
+    private static class Initializer
         implements PrivilegedExceptionAction<Void>
     {
 
         private final SelectorProvider sp;
+        private final boolean preferUnixDomain;
+        private IOException ioe;
+        SourceChannelImpl source;
+        SinkChannelImpl sink;
 
-        private IOException ioe = null;
-
-        private Initializer(SelectorProvider sp) {
+        private Initializer(SelectorProvider sp, boolean preferUnixDomain) {
             this.sp = sp;
+            this.preferUnixDomain = preferUnixDomain;
         }
 
         @Override
@@ -103,27 +112,23 @@ class PipeImpl
                 ServerSocketChannel ssc = null;
                 SocketChannel sc1 = null;
                 SocketChannel sc2 = null;
+                // Loopback address
+                SocketAddress sa = null;
 
                 try {
                     // Create secret with a backing array.
                     ByteBuffer secret = ByteBuffer.allocate(NUM_SECRET_BYTES);
                     ByteBuffer bb = ByteBuffer.allocate(NUM_SECRET_BYTES);
 
-                    // Loopback address
-                    InetAddress lb = InetAddress.getLoopbackAddress();
-                    assert(lb.isLoopbackAddress());
-                    InetSocketAddress sa = null;
                     for(;;) {
                         // Bind ServerSocketChannel to a port on the loopback
                         // address
                         if (ssc == null || !ssc.isOpen()) {
-                            ssc = ServerSocketChannel.open();
-                            ssc.socket().bind(new InetSocketAddress(lb, 0));
-                            sa = new InetSocketAddress(lb, ssc.socket().getLocalPort());
+                            ssc = createListener(preferUnixDomain);
+                            sa = ssc.getLocalAddress();
                         }
 
-                        // Establish connection (assume connections are eagerly
-                        // accepted)
+                        // Establish connection (assume connection is eagerly accepted)
                         sc1 = SocketChannel.open(sa);
                         RANDOM_NUMBER_GENERATOR.nextBytes(secret.array());
                         do {
@@ -160,26 +165,70 @@ class PipeImpl
                     try {
                         if (ssc != null)
                             ssc.close();
+                        if (sa instanceof UnixDomainSocketAddress uaddr) {
+                            Files.deleteIfExists(uaddr.getPath());
+                        }
                     } catch (IOException e2) {}
                 }
             }
         }
     }
 
-    PipeImpl(final SelectorProvider sp) throws IOException {
-        try {
-            AccessController.doPrivileged(new Initializer(sp));
-        } catch (PrivilegedActionException x) {
-            throw (IOException)x.getCause();
-        }
+    /**
+     * Creates a (TCP) Pipe implementation that supports buffering.
+     */
+    PipeImpl(SelectorProvider sp) throws IOException {
+        this(sp, false, true);
     }
 
-    public SourceChannel source() {
+    /**
+     * Creates Pipe implementation that supports optionally buffering
+     * and is TCP by default, but if Unix domain is supported and
+     * preferAfUnix is true, then Unix domain sockets are used.
+     *
+     * @param preferAfUnix use Unix domain sockets if supported
+     *
+     * @param buffering if false set TCP_NODELAY on TCP sockets
+     */
+    @SuppressWarnings("removal")
+    PipeImpl(SelectorProvider sp, boolean preferAfUnix, boolean buffering) throws IOException {
+        Initializer initializer = new Initializer(sp, preferAfUnix);
+        try {
+            AccessController.doPrivileged(initializer);
+            SinkChannelImpl sink = initializer.sink;
+            if (sink.isNetSocket() && !buffering) {
+                sink.setOption(StandardSocketOptions.TCP_NODELAY, true);
+            }
+        } catch (PrivilegedActionException pae) {
+            throw (IOException) pae.getCause();
+        }
+        this.source = initializer.source;
+        this.sink = initializer.sink;
+    }
+
+    public SourceChannelImpl source() {
         return source;
     }
 
-    public SinkChannel sink() {
+    public SinkChannelImpl sink() {
         return sink;
     }
 
+    private static ServerSocketChannel createListener(boolean preferUnixDomain) throws IOException {
+        ServerSocketChannel listener = null;
+        if (preferUnixDomain && UnixDomainSockets.isSupported()) {
+            try {
+                listener = ServerSocketChannel.open(UNIX);
+                listener.bind(null);
+                return listener;
+            } catch (IOException | UnsupportedOperationException e) {
+                if (listener != null)
+                    listener.close();
+            }
+        }
+        listener = ServerSocketChannel.open();
+        InetAddress lb = InetAddress.getLoopbackAddress();
+        listener.bind(new InetSocketAddress(lb, 0));
+        return listener;
+    }
 }

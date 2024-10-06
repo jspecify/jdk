@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,53 +35,39 @@ import sun.security.util.*;
  * @author Benjamin Renaud
  */
 
-public class ContentInfo {
+public class ContentInfo implements DerEncoder {
 
     // pkcs7 pre-defined content types
-    private static int[]  pkcs7 = {1, 2, 840, 113549, 1, 7};
-    private static int[]   data = {1, 2, 840, 113549, 1, 7, 1};
-    private static int[]  sdata = {1, 2, 840, 113549, 1, 7, 2};
-    private static int[]  edata = {1, 2, 840, 113549, 1, 7, 3};
-    private static int[] sedata = {1, 2, 840, 113549, 1, 7, 4};
-    private static int[]  ddata = {1, 2, 840, 113549, 1, 7, 5};
-    private static int[] crdata = {1, 2, 840, 113549, 1, 7, 6};
-    private static int[] nsdata = {2, 16, 840, 1, 113730, 2, 5};
-    // timestamp token (id-ct-TSTInfo) from RFC 3161
-    private static int[] tstInfo = {1, 2, 840, 113549, 1, 9, 16, 1, 4};
-    // this is for backwards-compatibility with JDK 1.1.x
-    private static final int[] OLD_SDATA = {1, 2, 840, 1113549, 1, 7, 2};
-    private static final int[] OLD_DATA = {1, 2, 840, 1113549, 1, 7, 1};
-    public static ObjectIdentifier PKCS7_OID;
-    public static ObjectIdentifier DATA_OID;
-    public static ObjectIdentifier SIGNED_DATA_OID;
-    public static ObjectIdentifier ENVELOPED_DATA_OID;
-    public static ObjectIdentifier SIGNED_AND_ENVELOPED_DATA_OID;
-    public static ObjectIdentifier DIGESTED_DATA_OID;
-    public static ObjectIdentifier ENCRYPTED_DATA_OID;
-    public static ObjectIdentifier OLD_SIGNED_DATA_OID;
-    public static ObjectIdentifier OLD_DATA_OID;
-    public static ObjectIdentifier NETSCAPE_CERT_SEQUENCE_OID;
-    public static ObjectIdentifier TIMESTAMP_TOKEN_INFO_OID;
+    public static ObjectIdentifier PKCS7_OID =
+            ObjectIdentifier.of(KnownOIDs.PKCS7);
+    public static ObjectIdentifier DATA_OID =
+            ObjectIdentifier.of(KnownOIDs.Data);
+    public static ObjectIdentifier SIGNED_DATA_OID =
+            ObjectIdentifier.of(KnownOIDs.SignedData);
+    public static ObjectIdentifier ENVELOPED_DATA_OID =
+            ObjectIdentifier.of(KnownOIDs.EnvelopedData);
+    public static ObjectIdentifier SIGNED_AND_ENVELOPED_DATA_OID =
+            ObjectIdentifier.of(KnownOIDs.SignedAndEnvelopedData);
+    public static ObjectIdentifier DIGESTED_DATA_OID =
+            ObjectIdentifier.of(KnownOIDs.DigestedData);
+    public static ObjectIdentifier ENCRYPTED_DATA_OID =
+            ObjectIdentifier.of(KnownOIDs.EncryptedData);
 
-    static {
-        PKCS7_OID =  ObjectIdentifier.newInternal(pkcs7);
-        DATA_OID = ObjectIdentifier.newInternal(data);
-        SIGNED_DATA_OID = ObjectIdentifier.newInternal(sdata);
-        ENVELOPED_DATA_OID = ObjectIdentifier.newInternal(edata);
-        SIGNED_AND_ENVELOPED_DATA_OID = ObjectIdentifier.newInternal(sedata);
-        DIGESTED_DATA_OID = ObjectIdentifier.newInternal(ddata);
-        ENCRYPTED_DATA_OID = ObjectIdentifier.newInternal(crdata);
-        OLD_SIGNED_DATA_OID = ObjectIdentifier.newInternal(OLD_SDATA);
-        OLD_DATA_OID = ObjectIdentifier.newInternal(OLD_DATA);
-        /**
-         * The ASN.1 systax for the Netscape Certificate Sequence
-         * data type is defined
-         * <a href=http://wp.netscape.com/eng/security/comm4-cert-download.html>
-         * here.</a>
-         */
-        NETSCAPE_CERT_SEQUENCE_OID = ObjectIdentifier.newInternal(nsdata);
-        TIMESTAMP_TOKEN_INFO_OID = ObjectIdentifier.newInternal(tstInfo);
-    }
+    // this is for backwards-compatibility with JDK 1.1.x
+    public static ObjectIdentifier OLD_SIGNED_DATA_OID =
+            ObjectIdentifier.of(KnownOIDs.JDK_OLD_SignedData);
+    public static ObjectIdentifier OLD_DATA_OID =
+            ObjectIdentifier.of(KnownOIDs.JDK_OLD_Data);
+
+    // The ASN.1 syntax for the Netscape Certificate Sequence data type is
+    // defined at:
+    //      http://wp.netscape.com/eng/security/comm4-cert-download.html
+    public static ObjectIdentifier NETSCAPE_CERT_SEQUENCE_OID =
+            ObjectIdentifier.of(KnownOIDs.NETSCAPE_CertSequence);
+
+    // timestamp token (id-ct-TSTInfo) from RFC 3161
+    public static ObjectIdentifier TIMESTAMP_TOKEN_INFO_OID =
+            ObjectIdentifier.of(KnownOIDs.TimeStampTokenInfo);
 
     ObjectIdentifier contentType;
     DerValue content; // OPTIONAL
@@ -104,8 +90,7 @@ public class ContentInfo {
      * Parses a PKCS#7 content info.
      */
     public ContentInfo(DerInputStream derin)
-        throws IOException, ParsingException
-    {
+        throws IOException {
         this(derin, false);
     }
 
@@ -116,12 +101,11 @@ public class ContentInfo {
      * PKCS#7 blocks that were generated using JDK1.1.x.
      *
      * @param derin the ASN.1 encoding of the content info.
-     * @param oldStyle flag indicating whether or not the given content info
+     * @param oldStyle flag indicating whether the given content info
      * is encoded according to JDK1.1.x.
      */
     public ContentInfo(DerInputStream derin, boolean oldStyle)
-        throws IOException, ParsingException
-    {
+        throws IOException {
         DerInputStream disType;
         DerInputStream disTaggedContent;
         DerValue type;
@@ -130,6 +114,9 @@ public class ContentInfo {
         DerValue[] contents;
 
         typeAndContent = derin.getSequence(2);
+        if (typeAndContent.length < 1 || typeAndContent.length > 2) {
+            throw new ParsingException("Invalid length for ContentInfo");
+        }
 
         // Parse the content type
         type = typeAndContent[0];
@@ -138,7 +125,9 @@ public class ContentInfo {
 
         if (oldStyle) {
             // JDK1.1.x-style encoding
-            content = typeAndContent[1];
+            if (typeAndContent.length > 1) { // content is OPTIONAL
+                content = typeAndContent[1];
+            }
         } else {
             // This is the correct, standards-compliant encoding.
             // Parse the content (OPTIONAL field).
@@ -149,6 +138,9 @@ public class ContentInfo {
                 disTaggedContent
                     = new DerInputStream(taggedContent.toByteArray());
                 contents = disTaggedContent.getSet(1, true);
+                if (contents.length != 1) {
+                    throw new ParsingException("ContentInfo encoding error");
+                }
                 content = contents[0];
             }
         }
@@ -174,7 +166,8 @@ public class ContentInfo {
         throw new IOException("content type is not DATA: " + contentType);
     }
 
-    public void encode(DerOutputStream out) throws IOException {
+    @Override
+    public void encode(DerOutputStream out) {
         DerOutputStream contentDerCode;
         DerOutputStream seq;
 
@@ -183,7 +176,7 @@ public class ContentInfo {
 
         // content is optional, it could be external
         if (content != null) {
-            DerValue taggedContent = null;
+            DerValue taggedContent;
             contentDerCode = new DerOutputStream();
             content.encode(contentDerCode);
 
@@ -204,8 +197,8 @@ public class ContentInfo {
         if (content == null)
             return null;
 
-        DerInputStream dis = new DerInputStream(content.toByteArray());
-        return dis.getOctetString();
+        DerValue v = new DerValue(content.toByteArray());
+        return v.getOctetString();
     }
 
     public String toString() {

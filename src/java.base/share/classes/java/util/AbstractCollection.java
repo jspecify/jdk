@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package java.util;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import jdk.internal.util.ArraysSupport;
 
 /**
  * This class provides a skeletal implementation of the {@code Collection}
@@ -54,6 +55,8 @@ import org.jspecify.annotations.Nullable;
  * This class is a member of the
  * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">
  * Java Collections Framework</a>.
+ *
+ * @param <E> the type of elements in this collection
  *
  * @author  Josh Bloch
  * @author  Neal Gafter
@@ -221,14 +224,6 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
     }
 
     /**
-     * The maximum size of array to allocate.
-     * Some VMs reserve some header words in an array.
-     * Attempts to allocate larger arrays may result in
-     * OutOfMemoryError: Requested array size exceeds VM limit
-     */
-    private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
-
-    /**
      * Reallocates the array being used within toArray when the iterator
      * returned more elements than expected, and finishes filling it from
      * the iterator.
@@ -239,30 +234,20 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
      *         further elements returned by the iterator, trimmed to size
      */
     @SuppressWarnings("unchecked")
-    private static <T extends @Nullable Object> T[] finishToArray(T[] r, Iterator<?> it) {
-        int i = r.length;
+    private static <T> T[] finishToArray(T[] r, Iterator<?> it) {
+        int len = r.length;
+        int i = len;
         while (it.hasNext()) {
-            int cap = r.length;
-            if (i == cap) {
-                int newCap = cap + (cap >> 1) + 1;
-                // overflow-conscious code
-                if (newCap - MAX_ARRAY_SIZE > 0)
-                    newCap = hugeCapacity(cap + 1);
-                r = Arrays.copyOf(r, newCap);
+            if (i == len) {
+                len = ArraysSupport.newLength(len,
+                        1,             /* minimum growth */
+                        (len >> 1) + 1 /* preferred growth */);
+                r = Arrays.copyOf(r, len);
             }
             r[i++] = (T)it.next();
         }
         // trim if overallocated
-        return (i == r.length) ? r : Arrays.copyOf(r, i);
-    }
-
-    private static int hugeCapacity(int minCapacity) {
-        if (minCapacity < 0) // overflow
-            throw new OutOfMemoryError
-                ("Required array size too large");
-        return (minCapacity > MAX_ARRAY_SIZE) ?
-            Integer.MAX_VALUE :
-            MAX_ARRAY_SIZE;
+        return (i == len) ? r : Arrays.copyOf(r, i);
     }
 
     // Modification Operations

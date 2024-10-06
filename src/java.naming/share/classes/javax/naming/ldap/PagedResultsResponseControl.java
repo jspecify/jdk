@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,6 @@
  */
 
 package javax.naming.ldap;
-
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.io.IOException;
 import com.sun.jndi.ldap.Ber;
@@ -61,14 +58,13 @@ import com.sun.jndi.ldap.BerDecoder;
  * @see PagedResultsControl
  * @author Vincent Ryan
  */
-@AnnotatedFor({"interning"})
-final public class PagedResultsResponseControl extends BasicControl {
+public final class PagedResultsResponseControl extends BasicControl {
 
     /**
      * The paged-results response control's assigned object identifier
      * is 1.2.840.113556.1.4.319.
      */
-    public static final @Interned String OID = "1.2.840.113556.1.4.319";
+    public static final String OID = "1.2.840.113556.1.4.319";
 
     private static final long serialVersionUID = -8819778744844514666L;
 
@@ -94,7 +90,7 @@ final public class PagedResultsResponseControl extends BasicControl {
      * @param   value           The control's ASN.1 BER encoded value.
      *                          It is not cloned - any changes to value
      *                          will affect the contents of the control.
-     * @exception IOException   If an error was encountered while decoding
+     * @throws IOException      If an error was encountered while decoding
      *                          the control's value.
      */
     public PagedResultsResponseControl(String id, boolean criticality,

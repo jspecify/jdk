@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,17 +28,21 @@ package java.awt.desktop;
 import java.awt.Desktop;
 import java.awt.GraphicsEnvironment;
 import java.awt.HeadlessException;
+import java.io.Serial;
 
 /**
  * Event sent when the application has been hidden or shown.
  *
  * @see AppHiddenListener#appHidden(AppHiddenEvent)
  * @see AppHiddenListener#appUnhidden(AppHiddenEvent)
- *
  * @since 9
  */
 public final class AppHiddenEvent extends AppEvent {
 
+    /**
+     * Use serialVersionUID from JDK 9 for interoperability.
+     */
+    @Serial
     private static final long serialVersionUID = 2637465279476429224L;
 
     /**

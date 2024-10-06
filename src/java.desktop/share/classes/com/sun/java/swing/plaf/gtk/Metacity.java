@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,29 +22,76 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package com.sun.java.swing.plaf.gtk;
 
-import sun.swing.SwingUtilities2;
-import com.sun.java.swing.plaf.gtk.GTKConstants.ArrowType;
-import com.sun.java.swing.plaf.gtk.GTKConstants.ShadowType;
+import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Composite;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.GradientPaint;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.Insets;
+import java.awt.LayoutManager;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.Shape;
+import java.awt.Stroke;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.PathIterator;
+import java.awt.geom.Rectangle2D;
+import java.awt.geom.RectangularShape;
+import java.awt.image.FilteredImageSource;
+import java.awt.image.ImageProducer;
+import java.awt.image.RGBImageFilter;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.StringTokenizer;
 
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JInternalFrame;
 import javax.swing.plaf.ColorUIResource;
 import javax.swing.plaf.basic.BasicInternalFrameTitlePane;
-import javax.swing.plaf.synth.*;
+import javax.swing.plaf.synth.ColorType;
+import javax.swing.plaf.synth.SynthConstants;
+import javax.swing.plaf.synth.SynthContext;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
-import java.awt.*;
-import java.awt.geom.*;
-import java.awt.image.*;
-import java.io.*;
-import java.net.*;
-import java.security.*;
-import java.util.*;
-
-import javax.swing.*;
-
-import javax.xml.parsers.*;
+import com.sun.java.swing.plaf.gtk.GTKConstants.ArrowType;
+import com.sun.java.swing.plaf.gtk.GTKConstants.ShadowType;
+import org.w3c.dom.Document;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
-import org.w3c.dom.*;
+import sun.swing.SwingUtilities2;
+
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 /**
  */
@@ -71,11 +118,7 @@ class Metacity implements SynthConstants {
             try {
                 INSTANCE = new Metacity(themeName);
             } catch (FileNotFoundException ex) {
-            } catch (IOException ex) {
-                logError(themeName, ex);
-            } catch (ParserConfigurationException ex) {
-                logError(themeName, ex);
-            } catch (SAXException ex) {
+            } catch (IOException | ParserConfigurationException | SAXException ex) {
                 logError(themeName, ex);
             }
             }
@@ -114,6 +157,7 @@ class Metacity implements SynthConstants {
         this.themeName = themeName;
         themeDir = getThemeDir(themeName);
         if (themeDir != null) {
+            @SuppressWarnings("deprecation")
             URL themeURL = new URL(themeDir, "metacity-theme-1.xml");
             xmlDoc = getXMLDoc(themeURL);
             if (xmlDoc == null) {
@@ -469,6 +513,7 @@ class Metacity implements SynthConstants {
         private int type;
         private Object arg;
 
+        @SuppressWarnings("removal")
         public Object doPrivileged(int type, Object arg) {
             this.type = type;
             this.arg = arg;
@@ -514,7 +559,8 @@ class Metacity implements SynthConstants {
                     if (url != null) {
                         String str = url.toString();
                         try {
-                            themeDir = new URL(str.substring(0, str.lastIndexOf('/'))+"/");
+                            @SuppressWarnings("deprecation")
+                            var _unused = themeDir = new URL(str.substring(0, str.lastIndexOf('/'))+"/");
                         } catch (MalformedURLException ex) {
                             themeDir = null;
                         }
@@ -532,17 +578,20 @@ class Metacity implements SynthConstants {
                     }
                     // Note: this is a small file (< 1024 bytes) so it's not worth
                     // starting an XML parser or even to use a buffered reader.
+                    @SuppressWarnings("deprecation")
                     URL url = new URL(new File(userHome).toURI().toURL(),
                                       ".gconf/apps/metacity/general/%25gconf.xml");
                     // Pending: verify character encoding spec for gconf
-                    Reader reader = new InputStreamReader(url.openStream(), "ISO-8859-1");
-                    char[] buf = new char[1024];
                     StringBuilder sb = new StringBuilder();
-                    int n;
-                    while ((n = reader.read(buf)) >= 0) {
-                        sb.append(buf, 0, n);
+                    try (InputStream in = url.openStream();
+                         Reader reader = new InputStreamReader(in, ISO_8859_1))
+                    {
+                        char[] buf = new char[1024];
+                        int n;
+                        while ((n = reader.read(buf)) >= 0) {
+                            sb.append(buf, 0, n);
+                        }
                     }
-                    reader.close();
                     String str = sb.toString();
                     if (str != null) {
                         String strLowerCase = str.toLowerCase();
@@ -556,8 +605,6 @@ class Metacity implements SynthConstants {
                             }
                         }
                     }
-                } catch (MalformedURLException ex) {
-                    // OK to just ignore. We'll use a fallback theme.
                 } catch (IOException ex) {
                     // OK to just ignore. We'll use a fallback theme.
                 }
@@ -624,6 +671,7 @@ class Metacity implements SynthConstants {
         if (image == null) {
             if (themeDir != null) {
                 try {
+                    @SuppressWarnings("deprecation")
                     URL url = new URL(themeDir, key);
                     image = (Image)new Privileged().doPrivileged(Privileged.GET_IMAGE, url);
                 } catch (MalformedURLException ex) {
@@ -1471,7 +1519,14 @@ class Metacity implements SynthConstants {
         JComponent comp = context.getComponent();
         JComponent titlePane = findChild(comp, "InternalFrame.northPane");
 
-        JInternalFrame jif = findInternalFrame(comp);
+        JInternalFrame jif;
+        if (comp instanceof JButton) {
+            JComponent bTitlePane = (JComponent)comp.getParent();
+            Container titlePaneParent = bTitlePane.getParent();
+            jif = findInternalFrame(titlePaneParent);
+        } else {
+            jif = findInternalFrame(comp);
+        }
         if (jif == null) {
             return;
         }
@@ -1532,6 +1587,7 @@ class Metacity implements SynthConstants {
             documentBuilder =
                 DocumentBuilderFactory.newInstance().newDocumentBuilder();
         }
+        @SuppressWarnings("removal")
         InputStream inputStream =
             AccessController.doPrivileged(new PrivilegedAction<InputStream>() {
                 public InputStream run() {
@@ -1651,7 +1707,7 @@ class Metacity implements SynthConstants {
     protected boolean getBooleanAttr(Node node, String name, boolean fallback) {
         String str = getStringAttr(node, name);
         if (str != null) {
-            return Boolean.valueOf(str).booleanValue();
+            return Boolean.parseBoolean(str);
         }
         return fallback;
     }
@@ -2028,8 +2084,8 @@ class Metacity implements SynthConstants {
             AffineTransform affine;
             int index;
 
-            double ctrlpts[][];
-            int types[];
+            double[][] ctrlpts;
+            int[] types;
 
             private static final double angle = Math.PI / 4.0;
             private static final double a = 1.0 - Math.cos(angle);
@@ -2042,7 +2098,7 @@ class Metacity implements SynthConstants {
             //     4 values for each point {v0, v1, v2, v3}:
             //         point = (x + v0 * w + v1 * arcWidth,
             //                  y + v2 * h + v3 * arcHeight);
-            private static final double CtrlPtTemplate[][] = {
+            private static final double[][] CtrlPtTemplate = {
                 {  0.0,  0.0,  1.0,  0.0 },     /* BOTTOM LEFT corner */
                 {  0.0,  0.0,  1.0, -0.5 },     /* BOTTOM LEFT arc start */
                 {  0.0,  0.0,  1.0, -acv,       /* BOTTOM LEFT arc curve */
@@ -2065,7 +2121,7 @@ class Metacity implements SynthConstants {
                    0.0,  0.0,  0.0,  0.5 },
                 {},                             /* Closing path element */
             };
-            private static final int CornerFlags[] = {
+            private static final int[] CornerFlags = {
                 RoundRectClipShape.BOTTOM_LEFT,
                 RoundRectClipShape.BOTTOM_RIGHT,
                 RoundRectClipShape.TOP_RIGHT,
@@ -2126,7 +2182,7 @@ class Metacity implements SynthConstants {
                 if (isDone()) {
                     throw new NoSuchElementException("roundrect iterator out of bounds");
                 }
-                double ctrls[] = ctrlpts[index];
+                double[] ctrls = ctrlpts[index];
                 int nc = 0;
                 for (int i = 0; i < ctrls.length; i += 4) {
                     coords[nc++] = (float) (x + ctrls[i + 0] * w + ctrls[i + 1] * aw);
@@ -2142,7 +2198,7 @@ class Metacity implements SynthConstants {
                 if (isDone()) {
                     throw new NoSuchElementException("roundrect iterator out of bounds");
                 }
-                double ctrls[] = ctrlpts[index];
+                double[] ctrls = ctrlpts[index];
                 int nc = 0;
                 for (int i = 0; i < ctrls.length; i += 4) {
                     coords[nc++] = x + ctrls[i + 0] * w + ctrls[i + 1] * aw;

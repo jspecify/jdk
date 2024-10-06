@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,9 @@
 
 package com.sun.security.auth;
 
-import org.jspecify.annotations.Nullable;
-
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
 import java.security.Principal;
 
 /**
@@ -42,9 +43,12 @@ import java.security.Principal;
  *
  * @see java.security.Principal
  * @see javax.security.auth.Subject
+ *
+ * @since 1.4
  */
 public class UnixPrincipal implements Principal, java.io.Serializable {
 
+    @java.io.Serial
     private static final long serialVersionUID = -2951667807323493631L;
 
     /**
@@ -106,9 +110,7 @@ public class UnixPrincipal implements Principal, java.io.Serializable {
      * @return true if the specified Object is equal to this
      *          {@code UnixPrincipal}.
      */
-    
-    
-    public boolean equals(@Nullable Object o) {
+    public boolean equals(Object o) {
         if (o == null)
             return false;
 
@@ -119,9 +121,7 @@ public class UnixPrincipal implements Principal, java.io.Serializable {
             return false;
         UnixPrincipal that = (UnixPrincipal)o;
 
-        if (this.getName().equals(that.getName()))
-            return true;
-        return false;
+        return this.getName().equals(that.getName());
     }
 
     /**
@@ -131,5 +131,25 @@ public class UnixPrincipal implements Principal, java.io.Serializable {
      */
     public int hashCode() {
         return name.hashCode();
+    }
+
+    /**
+     * Restores the state of this object from the stream.
+     *
+     * @param  stream the {@code ObjectInputStream} from which data is read
+     * @throws IOException if an I/O error occurs
+     * @throws ClassNotFoundException if a serialized class cannot be loaded
+     */
+    @java.io.Serial
+    private void readObject(ObjectInputStream stream)
+            throws IOException, ClassNotFoundException {
+        stream.defaultReadObject();
+        if (name == null) {
+            java.text.MessageFormat form = new java.text.MessageFormat
+                    (sun.security.util.ResourcesMgr.getAuthResourceString
+                            ("invalid.null.input.value"));
+            Object[] source = {"name"};
+            throw new InvalidObjectException(form.format(source));
+        }
     }
 }

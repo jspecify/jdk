@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_GCTIMER_HPP
-#define SHARE_VM_GC_SHARED_GCTIMER_HPP
+#ifndef SHARE_GC_SHARED_GCTIMER_HPP
+#define SHARE_GC_SHARED_GCTIMER_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/macros.hpp"
@@ -91,9 +91,12 @@ class PhasesStack {
   void push(int phase_index);
   int pop();
   int count() const;
+  int phase_index(int level) const;
 };
 
 class TimePartitions {
+  friend class TimePartitionsTest;
+
   static const int INITIAL_CAPACITY = 10;
 
   GrowableArray<GCPhase>* _phases;
@@ -102,13 +105,18 @@ class TimePartitions {
   Tickspan _sum_of_pauses;
   Tickspan _longest_pause;
 
+  GCPhase::PhaseType current_phase_type() const;
+
+  void report_gc_phase_start(const char* name, const Ticks& time, GCPhase::PhaseType type);
+
  public:
   TimePartitions();
   ~TimePartitions();
   void clear();
 
-  void report_gc_phase_start(const char* name, const Ticks& time, GCPhase::PhaseType type=GCPhase::PausePhaseType);
-  void report_gc_phase_end(const Ticks& time, GCPhase::PhaseType type=GCPhase::PausePhaseType);
+  void report_gc_phase_start_top_level(const char* name, const Ticks& time, GCPhase::PhaseType type);
+  void report_gc_phase_start_sub_phase(const char* name, const Ticks& time);
+  void report_gc_phase_end(const Ticks& time);
 
   int num_phases() const;
   GCPhase* phase_at(int index) const;
@@ -128,8 +136,8 @@ class PhasesIterator {
   virtual GCPhase* next() = 0;
 };
 
-class GCTimer : public ResourceObj {
-  NOT_PRODUCT(friend class GCTimerTest;)
+class GCTimer {
+  friend class GCTimerTest;
  protected:
   Ticks _gc_start;
   Ticks _gc_end;
@@ -139,6 +147,9 @@ class GCTimer : public ResourceObj {
   virtual void register_gc_start(const Ticks& time = Ticks::now());
   virtual void register_gc_end(const Ticks& time = Ticks::now());
 
+  void register_gc_pause_start(const char* name, const Ticks& time = Ticks::now());
+  void register_gc_pause_end(const Ticks& time = Ticks::now());
+
   void register_gc_phase_start(const char* name, const Ticks& time);
   void register_gc_phase_end(const Ticks& time);
 
@@ -146,29 +157,16 @@ class GCTimer : public ResourceObj {
   const Ticks gc_end() const { return _gc_end; }
 
   TimePartitions* time_partitions() { return &_time_partitions; }
-
- protected:
-  void register_gc_pause_start(const char* name, const Ticks& time = Ticks::now());
-  void register_gc_pause_end(const Ticks& time = Ticks::now());
 };
 
-class STWGCTimer : public GCTimer {
+class STWGCTimer : public GCTimer, public CHeapObj<mtGC> {
  public:
   virtual void register_gc_start(const Ticks& time = Ticks::now());
   virtual void register_gc_end(const Ticks& time = Ticks::now());
 };
 
-class ConcurrentGCTimer : public GCTimer {
-  // ConcurrentGCTimer can't be used if there is an overlap between a pause phase and a concurrent phase.
-  // _is_concurrent_phase_active is used to find above case.
-  bool _is_concurrent_phase_active;
-
+class ConcurrentGCTimer : public GCTimer, public CHeapObj<mtGC> {
  public:
-  ConcurrentGCTimer(): GCTimer(), _is_concurrent_phase_active(false) {};
-
-  void register_gc_pause_start(const char* name, const Ticks& time = Ticks::now());
-  void register_gc_pause_end(const Ticks& time = Ticks::now());
-
   void register_gc_concurrent_start(const char* name, const Ticks& time = Ticks::now());
   void register_gc_concurrent_end(const Ticks& time = Ticks::now());
 };
@@ -184,4 +182,4 @@ class TimePartitionPhasesIterator {
   virtual GCPhase* next();
 };
 
-#endif // SHARE_VM_GC_SHARED_GCTIMER_HPP
+#endif // SHARE_GC_SHARED_GCTIMER_HPP

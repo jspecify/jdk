@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,44 +27,8 @@
  * This package contains classes for consuming Flight Recorder data.
  * <p>
  * In the following example, the program prints a histogram of all method samples in a recording.
- * <pre>
- * <code>
- *   public static void main(String[] args) {
- *     if (args.length != 0) {
- *       System.out.println("Must specify recording file.");
- *       return;
- *     }
- *     try (RecordingFile f = new RecordingFile(Paths.get(args[0]))) {
- *       Map{@literal <}String, SimpleEntry{@literal <}String, Integer{@literal >}{@literal >} histogram = new HashMap{@literal <}{@literal >}();
- *       int total = 0;
- *       while (f.hasMoreEvents()) {
- *         RecordedEvent event = f.readEvent();
- *         if (event.getEventType().getName().equals("jdk.ExecutionSample")) {
- *           RecordedStackTrace s = event.getStackTrace();
- *           if (s != null) {
- *             RecordedFrame topFrame= s.getFrames().get(0);
- *             if (topFrame.isJavaFrame())  {
- *               RecordedMethod method = topFrame.getMethod();
- *               String methodName = method.getType().getName() + "#" + method.getName() + " " + method.getDescriptor();
- *               Entry entry = histogram.computeIfAbsent(methodName, u -{@literal >} new SimpleEntry{@literal <}String, Integer{@literal >}(methodName, 0));
- *               entry.setValue(entry.getValue() + 1);
- *               total++;
- *             }
- *           }
- *         }
- *       }
- *       List{@literal <}SimpleEntry{@literal <}String, Integer{@literal >}{@literal >} entries = new ArrayList{@literal <}{@literal >}(histogram.values());
- *       entries.sort((u, v) -{@literal >} v.getValue().compareTo(u.getValue()));
- *       for (SimpleEntry{@literal <}String, Integer{@literal >} c : entries) {
- *         System.out.printf("%2.0f%% %s\n", 100 * (float) c.getValue() / total, c.getKey());
- *       }
- *       System.out.println("\nSample count: " + total);
- *     } catch (IOException ioe) {
- *       System.out.println("Error reading file " + args[0] + ". " + ioe.getMessage());
- *     }
- *   }
- * </code>
- * </pre>
+ *
+ * {@snippet class="Snippets" region="PackageOverview"}
  * <p>
  * <b>Null-handling</b>
  * <p>

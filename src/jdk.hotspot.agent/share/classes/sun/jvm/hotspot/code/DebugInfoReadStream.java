@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import sun.jvm.hotspot.oops.Method;
 public class DebugInfoReadStream extends CompressedReadStream {
   private NMethod code;
   private int InvocationEntryBCI;
-  private List objectPool; // ArrayList<ObjectValue>
+  private List<ObjectValue> objectPool;
 
   public DebugInfoReadStream(NMethod code, int offset) {
     super(code.scopesDataBegin(), offset);
@@ -43,7 +43,7 @@ public class DebugInfoReadStream extends CompressedReadStream {
     this.objectPool = null;
   }
 
-  public DebugInfoReadStream(NMethod code, int offset, List objectPool) {
+  public DebugInfoReadStream(NMethod code, int offset, List<ObjectValue> objectPool) {
     super(code.scopesDataBegin(), offset);
     InvocationEntryBCI = VM.getVM().getInvocationEntryBCI();
     this.code = code;
@@ -68,6 +68,22 @@ public class DebugInfoReadStream extends CompressedReadStream {
       }
     }
     ObjectValue result = new ObjectValue(id);
+    // Cache the object since an object field could reference it.
+    objectPool.add(result);
+    result.readObject(this);
+    return result;
+  }
+
+  ScopeValue readObjectMergeValue() {
+    int id = readInt();
+    if (Assert.ASSERTS_ENABLED) {
+      Assert.that(objectPool != null, "object pool does not exist");
+      for (Iterator itr = objectPool.iterator(); itr.hasNext();) {
+        ObjectValue ov = (ObjectValue) itr.next();
+        Assert.that(ov.id() != id, "should not be read twice");
+      }
+    }
+    ObjectValue result = new ObjectMergeValue(id);
     // Cache the object since an object field could reference it.
     objectPool.add(result);
     result.readObject(this);

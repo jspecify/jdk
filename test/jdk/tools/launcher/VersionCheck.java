@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 6545058 6611182 8016209 8139986 8162746
+ * @bug 6545058 6611182 8016209 8139986 8162746 8278967
  * @summary validate and test -version, -fullversion, and internal, as well as
  *          sanity checks if a tool can be launched.
  * @modules jdk.compiler
@@ -33,12 +33,11 @@
  */
 
 import java.io.File;
-import java.io.FileFilter;
-import java.util.Map;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class VersionCheck extends TestHelper {
@@ -55,16 +54,15 @@ public class VersionCheck extends TestHelper {
         "jaccessinspector-32",
         "jaccesswalker",
         "jaccesswalker-32",
-        "jaotc",
         "javaw",
         "javaws",
         "jcontrol",
         "jmc",
         "jmc.ini",
         "jweblauncher",
-        "packager",
+        "jpackage",
         "ssvagent",
-        "unpack200",
+        "jwebserver"
     };
 
     // tools that do not accept -version
@@ -75,7 +73,6 @@ public class VersionCheck extends TestHelper {
         "jaccessinspector-32",
         "jaccesswalker",
         "jaccesswalker-32",
-        "jaotc",
         "jar",
         "jarsigner",
         "java-rmi",
@@ -88,6 +85,7 @@ public class VersionCheck extends TestHelper {
         "jcontrol",
         "jdeprscan",
         "jdeps",
+        "jfr",
         "jimage",
         "jinfo",
         "jlink",
@@ -106,15 +104,11 @@ public class VersionCheck extends TestHelper {
         "kinit",
         "klist",
         "ktab",
-        "pack200",
-        "packager",
-        "rmic",
-        "rmid",
+        "jpackage",
         "rmiregistry",
         "serialver",
         "servertool",
-        "ssvagent",
-        "unpack200"
+        "ssvagent"
     };
 
     // expected reference strings
@@ -132,9 +126,12 @@ public class VersionCheck extends TestHelper {
     static String getVersion0(boolean allLines, String... argv) {
         TestHelper.TestResult tr = doExec(argv);
         StringBuilder out = new StringBuilder();
-        // remove the HotSpot line
+        // remove the HotSpot line and security manager deprecation warnings
         for (String x : tr.testOutput) {
-            if (allLines || !x.matches(".*Client.*VM.*|.*Server.*VM.*")) {
+            if (allLines || !x.matches(".*Client.*VM.*|" +
+                                       ".*Server.*VM.*|" +
+                                       "WARNING:.*terminally.*deprecated.*|" +
+                                       "WARNING:.*System::setSecurityManager.*")) {
                 out = out.append(x + "\n");
             }
         }
@@ -278,34 +275,6 @@ public class VersionCheck extends TestHelper {
             System.out.println("All Version string comparisons: PASS");
         } else {
             throw new AssertionError("VersionCheck failed: " + errorMessage);
-        }
-    }
-
-    static class ToolFilter implements FileFilter {
-        final Iterable<String> exclude;
-        protected ToolFilter(String... exclude) {
-            List<String> tlist = new ArrayList<>();
-            this.exclude = tlist;
-            for (String x : exclude) {
-                String str = x + ((isWindows) ? EXE_FILE_EXT : "");
-                tlist.add(str.toLowerCase());
-            }
-        }
-        @Override
-        public boolean accept(File pathname) {
-            if (!pathname.isFile() || !pathname.canExecute()) {
-                return false;
-            }
-            String name = pathname.getName().toLowerCase();
-            if (isWindows && !name.endsWith(EXE_FILE_EXT)) {
-                return false;
-            }
-            for (String x : exclude) {
-                if (name.endsWith(x)) {
-                    return false;
-                }
-            }
-            return true;
         }
     }
 }

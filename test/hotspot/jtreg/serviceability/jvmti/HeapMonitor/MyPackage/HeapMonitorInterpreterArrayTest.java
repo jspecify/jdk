@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Google and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -26,6 +27,7 @@ package MyPackage;
 /**
  * @test
  * @summary Verifies the JVMTI Heap Monitor using the interpreter.
+ * @requires vm.jvmti
  * @build Frame HeapMonitor
  * @compile HeapMonitorTest.java
  * @run main/othervm/native -agentlib:HeapMonitorTest -Xint MyPackage.HeapMonitorTest 10

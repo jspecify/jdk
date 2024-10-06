@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_PERFDATA_INLINE_HPP
-#define SHARE_VM_RUNTIME_PERFDATA_INLINE_HPP
+#ifndef SHARE_RUNTIME_PERFDATA_INLINE_HPP
+#define SHARE_RUNTIME_PERFDATA_INLINE_HPP
 
 #include "runtime/perfData.hpp"
+
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/growableArray.hpp"
 
@@ -37,28 +38,16 @@ inline void PerfDataList::append(PerfData *p) {
   _set->append(p);
 }
 
-inline void PerfDataList::remove(PerfData *p) {
-  _set->remove(p);
-}
-
 inline PerfData* PerfDataList::at(int index) {
   return _set->at(index);
 }
 
-inline int PerfDataManager::count() {
-  return _all->length();
-}
-
-inline int PerfDataManager::sampled_count() {
-  return _sampled->length();
-}
-
-inline int PerfDataManager::constants_count() {
-  return _constants->length();
-}
-
 inline bool PerfDataManager::exists(const char* name) {
-  return _all->contains(name);
+  if (_all != nullptr) {
+    return _all->contains(name);
+  } else {
+    return false;
+  }
 }
 
-#endif // SHARE_VM_RUNTIME_PERFDATA_INLINE_HPP
+#endif // SHARE_RUNTIME_PERFDATA_INLINE_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,20 +21,21 @@
  * questions.
  */
 
+package gc.logging;
+
 /*
  * @test TestPrintReferences
  * @bug 8136991 8186402 8186465 8188245
  * @summary Validate the reference processing logging
- * @key gc
+ * @requires vm.gc.G1
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
+ * @run driver gc.logging.TestPrintReferences
  */
 
 import java.lang.ref.SoftReference;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 import java.util.regex.Pattern;
@@ -49,14 +50,10 @@ public class TestPrintReferences {
     static final String finalReference = "FinalReference";
     static final String phantomReference = "PhantomReference";
 
-    static final String phaseReconsiderSoftReferences = "Reconsider SoftReferences";
     static final String phaseNotifySoftWeakReferences = "Notify Soft/WeakReferences";
     static final String phaseNotifyKeepAliveFinalizer = "Notify and keep alive finalizable";
     static final String phaseNotifyPhantomReferences  = "Notify PhantomReferences";
 
-    static final String phase1 = "Phase1";
-    static final String phase2 = "Phase2";
-    static final String phase3 = "Phase3";
     static final String gcLogTimeRegex = ".* GC\\([0-9]+\\) ";
 
     public static void main(String[] args) throws Exception {
@@ -70,11 +67,10 @@ public class TestPrintReferences {
     }
 
     public static void testRefs() throws Exception {
-        ProcessBuilder pb_enabled = ProcessTools.createJavaProcessBuilder("-Xlog:gc+ref+phases=debug",
-                                                                          "-XX:+UseG1GC",
-                                                                          "-Xmx32M",
-                                                                          GCTest.class.getName());
-        OutputAnalyzer output = new OutputAnalyzer(pb_enabled.start());
+        OutputAnalyzer output = ProcessTools.executeLimitedTestJava("-Xlog:gc+ref+phases=debug",
+                                                                    "-XX:+UseG1GC",
+                                                                    "-Xmx32M",
+                                                                    GCTest.class.getName());
 
         checkRefsLogFormat(output);
 
@@ -83,9 +79,11 @@ public class TestPrintReferences {
 
     private static String refRegex(String reftype) {
         String countRegex = "[0-9]+";
-        return gcLogTimeRegex + indent(6) + reftype + ":\n" +
-               gcLogTimeRegex + indent(8) + "Discovered: " + countRegex + "\n" +
-               gcLogTimeRegex + indent(8) + "Cleared: " + countRegex + "\n";
+        return gcLogTimeRegex + indent(6) + reftype + " " +
+               "Discovered: " + countRegex + ", " +
+               "Dropped: "    + countRegex + ", " +
+               "Processed: "  + countRegex + "\n"
+               ;
     }
 
     private static void checkRefsLogFormat(OutputAnalyzer output) {
@@ -96,14 +94,13 @@ public class TestPrintReferences {
     }
 
     public static void testPhases(boolean parallelRefProcEnabled) throws Exception {
-        ProcessBuilder pb_enabled = ProcessTools.createJavaProcessBuilder("-Xlog:gc+phases+ref=debug",
-                                                                          "-XX:+UseG1GC",
-                                                                          "-Xmx32M",
-                                                                          "-XX:" + (parallelRefProcEnabled ? "+" : "-") + "ParallelRefProcEnabled",
-                                                                          "-XX:-UseDynamicNumberOfGCThreads",
-                                                                          "-XX:ParallelGCThreads=2",
-                                                                          GCTest.class.getName());
-        OutputAnalyzer output = new OutputAnalyzer(pb_enabled.start());
+        OutputAnalyzer output = ProcessTools.executeLimitedTestJava("-Xlog:gc+phases+ref=debug",
+                                                                    "-XX:+UseG1GC",
+                                                                    "-Xmx32M",
+                                                                    "-XX:" + (parallelRefProcEnabled ? "+" : "-") + "ParallelRefProcEnabled",
+                                                                    "-XX:-UseDynamicNumberOfGCThreads",
+                                                                    "-XX:ParallelGCThreads=2",
+                                                                    GCTest.class.getName());
 
         checkLogFormat(output, parallelRefProcEnabled);
         checkLogValue(output);
@@ -130,7 +127,6 @@ public class TestPrintReferences {
 
     // Find the first Reference Processing log and check its format.
     private static void checkLogFormat(OutputAnalyzer output, boolean parallelRefProcEnabled) {
-        String countRegex = "[0-9]+";
         String timeRegex = doubleRegex + "ms";
 
         /* Total Reference processing time */
@@ -140,7 +136,6 @@ public class TestPrintReferences {
 
         final boolean p = parallelRefProcEnabled;
 
-        String phase1Regex = gcLogTimeRegex + phaseRegex(phaseReconsiderSoftReferences) + balanceRegex + subphaseRegex("SoftRef", p);
         String phase2Regex = gcLogTimeRegex + phaseRegex(phaseNotifySoftWeakReferences) +
                              balanceRegex +
                              subphaseRegex("SoftRef", p) +
@@ -151,7 +146,6 @@ public class TestPrintReferences {
         String phase4Regex = gcLogTimeRegex + phaseRegex(phaseNotifyPhantomReferences) + balanceRegex + subphaseRegex("PhantomRef", p);
 
         output.shouldMatch(totalRegex +
-                           phase1Regex +
                            phase2Regex +
                            phase3Regex +
                            phase4Regex);
@@ -223,14 +217,14 @@ public class TestPrintReferences {
     private static void checkTrimmedLogValue() {
         BigDecimal refProcTime = getTimeValue(referenceProcessing, 0);
 
-        BigDecimal sumOfSubPhasesTime = getTimeValue(phaseReconsiderSoftReferences, 2);
+        BigDecimal sumOfSubPhasesTime = BigDecimal.ZERO;
         sumOfSubPhasesTime = sumOfSubPhasesTime.add(getTimeValue(phaseNotifySoftWeakReferences, 2));
         sumOfSubPhasesTime = sumOfSubPhasesTime.add(getTimeValue(phaseNotifyKeepAliveFinalizer, 2));
         sumOfSubPhasesTime = sumOfSubPhasesTime.add(getTimeValue(phaseNotifyPhantomReferences, 2));
 
-        // If there are 4 phases, we should allow 0.2 tolerance.
-        final BigDecimal toleranceFor4SubPhases = BigDecimal.valueOf(0.2);
-        if (!greaterThanOrApproximatelyEqual(refProcTime, sumOfSubPhasesTime, toleranceFor4SubPhases)) {
+        // If there are 3 phases, we should allow 0.2 tolerance.
+        final BigDecimal toleranceFor3SubPhases = BigDecimal.valueOf(0.2);
+        if (!greaterThanOrApproximatelyEqual(refProcTime, sumOfSubPhasesTime, toleranceFor3SubPhases)) {
             throw new RuntimeException("Reference Processing time(" + refProcTime + "ms) is less than the sum("
                                        + sumOfSubPhasesTime + "ms) of each phases");
         }

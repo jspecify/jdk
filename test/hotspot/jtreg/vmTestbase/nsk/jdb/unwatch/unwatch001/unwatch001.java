@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,10 +49,9 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
- * @build nsk.jdb.unwatch.unwatch001.unwatch001
- *        nsk.jdb.unwatch.unwatch001.unwatch001a
- * @run main/othervm PropertyResolvingWrapper nsk.jdb.unwatch.unwatch001.unwatch001
+ * @build nsk.jdb.unwatch.unwatch001.unwatch001a
+ * @run driver
+ *      nsk.jdb.unwatch.unwatch001.unwatch001
  *      -arch=${os.family}-${os.simpleArch}
  *      -waittime=5
  *      -debugee.vmkind=java
@@ -74,14 +73,10 @@ import java.util.*;
 public class unwatch001 extends JdbTest {
 
     public static void main (String argv[]) {
-        System.exit(run(argv, System.out) + JCK_STATUS_BASE);
-    }
-
-    public static int run(String argv[], PrintStream out) {
         debuggeeClass =  DEBUGGEE_CLASS;
         firstBreak = FIRST_BREAK;
         lastBreak = LAST_BREAK;
-        return new unwatch001().runTest(argv, out);
+        new unwatch001().runTest(argv);
     }
 
     static final String PACKAGE_NAME       = "nsk.jdb.unwatch.unwatch001";

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,23 +22,26 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_ARRAY_HPP
-#define SHARE_VM_OOPS_ARRAY_HPP
+#ifndef SHARE_OOPS_ARRAY_HPP
+#define SHARE_OOPS_ARRAY_HPP
 
-#include "memory/allocation.hpp"
-#include "memory/metaspace.hpp"
+#include "runtime/atomic.hpp"
 #include "utilities/align.hpp"
+#include "utilities/exceptions.hpp"
+#include "utilities/globalDefinitions.hpp"
+#include "utilities/ostream.hpp"
 
 // Array for metadata allocation
 
 template <typename T>
 class Array: public MetaspaceObj {
+  friend class ArchiveBuilder;
   friend class MetadataFactory;
-  friend class MetaspaceShared;
   friend class VMStructs;
   friend class JVMCIVMStructs;
   friend class MethodHandleCompiler;           // special case
   friend class WhiteBox;
+  friend class FieldInfoStream;
 protected:
   int _length;                                 // the number of array elements
   T   _data[1];                                // the array memory
@@ -48,15 +51,9 @@ protected:
   }
 
  private:
-  // Turn off copy constructor and assignment operator.
-  Array(const Array<T>&);
-  void operator=(const Array<T>&);
+  NONCOPYABLE(Array);
 
-  void* operator new(size_t size, ClassLoaderData* loader_data, int length, TRAPS) throw() {
-    size_t word_size = Array::size(length);
-    return (void*) Metaspace::allocate(loader_data, word_size,
-                                       MetaspaceObj::array_type(sizeof(T)), THREAD);
-  }
+  inline void* operator new(size_t size, ClassLoaderData* loader_data, int length, TRAPS) throw();
 
   static size_t byte_sizeof(int length, size_t elm_byte_size) {
     return sizeof(Array<T>) + MAX2(length - 1, 0) * elm_byte_size;
@@ -95,7 +92,7 @@ protected:
   Array(int length, T init) : _length(length) {
     assert(length >= 0, "illegal length");
     for (int i = 0; i < length; i++) {
-      _data[i] = init;
+      data()[i] = init;
     }
   }
 
@@ -103,12 +100,22 @@ protected:
 
   // standard operations
   int  length() const                 { return _length; }
-  T* data()                           { return _data; }
+
+  T* data() {
+    return reinterpret_cast<T*>(
+      reinterpret_cast<char*>(this) + base_offset_in_bytes());
+  }
+
+  const T* data() const {
+    return reinterpret_cast<const T*>(
+      reinterpret_cast<const char*>(this) + base_offset_in_bytes());
+  }
+
   bool is_empty() const               { return length() == 0; }
 
   int index_of(const T& x) const {
     int i = length();
-    while (i-- > 0 && _data[i] != x) ;
+    while (i-- > 0 && data()[i] != x) ;
 
     return i;
   }
@@ -116,13 +123,13 @@ protected:
   // sort the array.
   bool contains(const T& x) const      { return index_of(x) >= 0; }
 
-  T    at(int i) const                 { assert(i >= 0 && i< _length, "oob: 0 <= %d < %d", i, _length); return _data[i]; }
-  void at_put(const int i, const T& x) { assert(i >= 0 && i< _length, "oob: 0 <= %d < %d", i, _length); _data[i] = x; }
-  T*   adr_at(const int i)             { assert(i >= 0 && i< _length, "oob: 0 <= %d < %d", i, _length); return &_data[i]; }
+  T    at(int i) const                 { assert(i >= 0 && i< _length, "oob: 0 <= %d < %d", i, _length); return data()[i]; }
+  void at_put(const int i, const T& x) { assert(i >= 0 && i< _length, "oob: 0 <= %d < %d", i, _length); data()[i] = x; }
+  T*   adr_at(const int i)             { assert(i >= 0 && i< _length, "oob: 0 <= %d < %d", i, _length); return &data()[i]; }
   int  find(const T& x)                { return index_of(x); }
 
-  T at_acquire(const int which);
-  void release_at_put(int which, T contents);
+  T at_acquire(const int i)            { return Atomic::load_acquire(adr_at(i)); }
+  void release_at_put(int i, T x)      { Atomic::release_store(adr_at(i), x); }
 
   static int size(int length) {
     size_t bytes = align_up(byte_sizeof(length), BytesPerWord);
@@ -142,7 +149,7 @@ protected:
 
   // FIXME: How to handle this?
   void print_value_on(outputStream* st) const {
-    st->print("Array<T>(" INTPTR_FORMAT ")", p2i(this));
+    st->print("Array<T>(" PTR_FORMAT ")", p2i(this));
   }
 
 #ifndef PRODUCT
@@ -156,4 +163,4 @@ protected:
 };
 
 
-#endif // SHARE_VM_OOPS_ARRAY_HPP
+#endif // SHARE_OOPS_ARRAY_HPP

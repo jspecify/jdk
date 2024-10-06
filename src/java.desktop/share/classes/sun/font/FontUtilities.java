@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,6 @@
 package sun.font;
 
 import java.awt.Font;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
 import java.lang.ref.SoftReference;
 import java.util.concurrent.ConcurrentHashMap;
 import java.security.AccessController;
@@ -37,6 +33,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import javax.swing.plaf.FontUIResource;
 
+import sun.awt.OSInfo;
 import sun.util.logging.PlatformLogger;
 
 /**
@@ -44,11 +41,10 @@ import sun.util.logging.PlatformLogger;
  */
 public final class FontUtilities {
 
-    public static boolean isSolaris;
-
     public static boolean isLinux;
 
     public static boolean isMacOSX;
+    public static boolean isMacOSX14;
 
     public static boolean useJDKScaler;
 
@@ -60,18 +56,38 @@ public final class FontUtilities {
 
     // This static initializer block figures out the OS constants.
     static {
+        initStatic();
+    }
 
+    @SuppressWarnings("removal")
+    private static void initStatic() {
         AccessController.doPrivileged(new PrivilegedAction<Object>() {
             @SuppressWarnings("deprecation") // PlatformLogger.setLevel is deprecated.
             @Override
             public Object run() {
-                String osName = System.getProperty("os.name", "unknownOS");
-                isSolaris = osName.startsWith("SunOS");
 
-                isLinux = osName.startsWith("Linux");
+                isLinux = OSInfo.getOSType() == OSInfo.OSType.LINUX;
 
-                isMacOSX = osName.contains("OS X"); // TODO: MacOSX
-
+                isMacOSX = OSInfo.getOSType() == OSInfo.OSType.MACOSX;
+                if (isMacOSX) {
+                    // os.version has values like 10.13.6, 10.14.6
+                    // If it is not positively recognised as 10.13 or less,
+                    // assume it means 10.14 or some later version.
+                    isMacOSX14 = true;
+                    String version = System.getProperty("os.version", "");
+                    if (version.startsWith("10.")) {
+                        version = version.substring(3);
+                        int periodIndex = version.indexOf('.');
+                        if (periodIndex != -1) {
+                            version = version.substring(0, periodIndex);
+                        }
+                        try {
+                            int v = Integer.parseInt(version);
+                            isMacOSX14 = (v >= 14);
+                        } catch (NumberFormatException e) {
+                        }
+                     }
+                 }
                 /* If set to "jdk", use the JDK's scaler rather than
                  * the platform one. This may be a no-op on platforms where
                  * JDK has been configured so that it always relies on the
@@ -84,7 +100,7 @@ public final class FontUtilities {
                 } else {
                     useJDKScaler = false;
                 }
-                isWindows = osName.startsWith("Windows");
+                isWindows = OSInfo.getOSType() == OSInfo.OSType.WINDOWS;
                 String debugLevel =
                     System.getProperty("sun.java2d.debugfonts");
 
@@ -96,10 +112,6 @@ public final class FontUtilities {
                     } else if (debugLevel.equals("severe")) {
                         logger.setLevel(PlatformLogger.Level.SEVERE);
                     }
-                }
-
-                if (debugFonts) {
-                    logger = PlatformLogger.getLogger("sun.java2d");
                     logging = logger.isEnabled();
                 }
 
@@ -218,7 +230,7 @@ public final class FontUtilities {
      * which would mean all ranges would need to be checked so be sure
      * CTL is not needed, the method returns as soon as it recognises
      * the code point is outside of a CTL ranges.
-     * NOTE: Since this method accepts an 'int' it is asssumed to properly
+     * NOTE: Since this method accepts an 'int' it is assumed to properly
      * represent a CHARACTER. ie it assumes the caller has already
      * converted surrogate pairs into supplementary characters, and so
      * can handle this case and doesn't need to be told such a case is
@@ -266,6 +278,9 @@ public final class FontUtilities {
         else if (code <= 0x0fff) { // U+0F00 - U+0FFF Tibetan
             return true;
         }
+        else if (code < 0x10A0) {  // U+1000 - U+109F Myanmar
+            return true;
+        }
         else if (code < 0x1100) {
             return false;
         }
@@ -305,6 +320,17 @@ public final class FontUtilities {
         return debugFonts;
     }
 
+    public static void logWarning(String s) {
+        getLogger().warning(s);
+    }
+
+    public static void logInfo(String s) {
+        getLogger().info(s);
+    }
+
+    public static void logSevere(String s) {
+        getLogger().severe(s);
+    }
 
     // The following methods are used by Swing.
 
@@ -387,10 +413,9 @@ public final class FontUtilities {
         FontManager fm = FontManagerFactory.getInstance();
         Font2D dialog = fm.findFont2D("dialog", font.getStyle(), FontManager.NO_FALLBACK);
         // Should never be null, but MACOSX fonts are not CompositeFonts
-        if (dialog == null || !(dialog instanceof CompositeFont)) {
+        if (!(dialog instanceof CompositeFont dialog2D)) {
             return fuir;
         }
-        CompositeFont dialog2D = (CompositeFont)dialog;
         PhysicalFont physicalFont = (PhysicalFont)font2D;
         ConcurrentHashMap<PhysicalFont, CompositeFont> compMap = compMapRef.get();
         if (compMap == null) { // Its been collected.

@@ -57,6 +57,8 @@ import org.jspecify.annotations.Nullable;
  * the following, the term 16-bit units is used whenever necessary to
  * indicate that indexing on CharacterData is done in 16-bit units.
  * <p>See also the <a href='http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407'>Document Object Model (DOM) Level 3 Core Specification</a>.
+ *
+ * @since 1.4, DOM Level 2
  */
 @NullMarked
 public interface CharacterData extends Node {

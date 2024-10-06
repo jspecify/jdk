@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_WRITERS_JFRSTREAMWRITERHOST_INLINE_HPP
-#define SHARE_VM_JFR_WRITERS_JFRSTREAMWRITERHOST_INLINE_HPP
+#ifndef SHARE_JFR_WRITERS_JFRSTREAMWRITERHOST_INLINE_HPP
+#define SHARE_JFR_WRITERS_JFRSTREAMWRITERHOST_INLINE_HPP
 
+#include "jfr/jni/jfrJavaSupport.hpp"
 #include "jfr/writers/jfrStreamWriterHost.hpp"
 #include "runtime/os.hpp"
 
@@ -44,7 +45,7 @@ StreamWriterHost<Adapter, AP>::StreamWriterHost(Thread* thread) :
 }
 
 template <typename Adapter, typename AP>
-inline intptr_t StreamWriterHost<Adapter, AP>::current_stream_position() const {
+inline int64_t StreamWriterHost<Adapter, AP>::current_stream_position() const {
   return this->used_offset() + _stream_pos;
 }
 
@@ -61,19 +62,36 @@ inline bool StreamWriterHost<Adapter, AP>::accommodate(size_t used, size_t reque
 }
 
 template <typename Adapter, typename AP>
-inline void StreamWriterHost<Adapter, AP>::bytes(void* dest, const void* buf, size_t len) {
-  if (len > this->available_size()) {
+inline void StreamWriterHost<Adapter, AP>::write_bytes(void* dest, const void* buf, intptr_t len) {
+  assert(len >= 0, "invariant");
+  if (len > (intptr_t)this->available_size()) {
     this->write_unbuffered(buf, len);
     return;
   }
-  MemoryWriterHost<Adapter, AP>::bytes(dest, buf, len);
+  MemoryWriterHost<Adapter, AP>::write_bytes(dest, buf, len);
+}
+
+template <typename Adapter, typename AP>
+inline void StreamWriterHost<Adapter, AP>::write_bytes(const u1* buf, intptr_t len) {
+  assert(len >= 0, "invariant");
+  while (len > 0) {
+    const unsigned int nBytes = len > INT_MAX ? INT_MAX : (unsigned int)len;
+    const bool successful_write = os::write(_fd, buf, nBytes);
+    if (!successful_write && errno == ENOSPC) {
+      JfrJavaSupport::abort("Failed to write to jfr stream because no space left on device", false);
+    }
+    guarantee(successful_write, "Not all the bytes got written, or os::write() failed");
+    _stream_pos += nBytes;
+    len -= nBytes;
+    buf += nBytes;
+  }
 }
 
 template <typename Adapter, typename AP>
 inline void StreamWriterHost<Adapter, AP>::flush(size_t size) {
   assert(size > 0, "invariant");
   assert(this->is_valid(), "invariant");
-  _stream_pos += os::write(_fd, this->start_pos(), (int)size);
+  this->write_bytes(this->start_pos(), (intptr_t)size);
   StorageHost<Adapter, AP>::reset();
   assert(0 == this->used_offset(), "invariant");
 }
@@ -84,12 +102,12 @@ inline bool StreamWriterHost<Adapter, AP>::has_valid_fd() const {
 }
 
 template <typename Adapter, typename AP>
-inline intptr_t StreamWriterHost<Adapter, AP>::current_offset() const {
+inline int64_t StreamWriterHost<Adapter, AP>::current_offset() const {
   return current_stream_position();
 }
 
 template <typename Adapter, typename AP>
-void StreamWriterHost<Adapter, AP>::seek(intptr_t offset) {
+void StreamWriterHost<Adapter, AP>::seek(int64_t offset) {
   this->flush();
   assert(0 == this->used_offset(), "can only seek from beginning");
   _stream_pos = os::seek_to_file_offset(_fd, offset);
@@ -106,14 +124,15 @@ void StreamWriterHost<Adapter, AP>::flush() {
 }
 
 template <typename Adapter, typename AP>
-void StreamWriterHost<Adapter, AP>::write_unbuffered(const void* buf, size_t len) {
+void StreamWriterHost<Adapter, AP>::write_buffered(const void* buf, intptr_t len) {
+  this->write_bytes(this->current_pos(), (const u1*)buf, len);
+}
+
+template <typename Adapter, typename AP>
+void StreamWriterHost<Adapter, AP>::write_unbuffered(const void* buf, intptr_t len) {
   this->flush();
   assert(0 == this->used_offset(), "can only seek from beginning");
-  while (len > 0) {
-    const int n = MIN2<int>((int)len, INT_MAX);
-    _stream_pos += os::write(_fd, buf, n);
-    len -= n;
-  }
+  this->write_bytes((const u1*)buf, len);
 }
 
 template <typename Adapter, typename AP>
@@ -124,7 +143,7 @@ inline bool StreamWriterHost<Adapter, AP>::is_valid() const {
 template <typename Adapter, typename AP>
 inline void StreamWriterHost<Adapter, AP>::close_fd() {
   assert(this->has_valid_fd(), "closing invalid fd!");
-  os::close(_fd);
+  ::close(_fd);
   _fd = invalid_fd;
 }
 
@@ -136,4 +155,4 @@ inline void StreamWriterHost<Adapter, AP>::reset(fio_fd fd) {
   this->hard_reset();
 }
 
-#endif // SHARE_VM_JFR_WRITERS_JFRSTREAMWRITERHOST_INLINE_HPP
+#endif // SHARE_JFR_WRITERS_JFRSTREAMWRITERHOST_INLINE_HPP

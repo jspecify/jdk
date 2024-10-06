@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package sun.print;
 
-import org.jspecify.annotations.Nullable;
-
-import java.util.Objects;
 import java.io.ByteArrayInputStream;
+import java.util.Objects;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class AttributeClass {
     private String myName;
@@ -189,10 +190,7 @@ public class AttributeClass {
 
             byte[] strBytes = new byte[valLength];
             bufStream.read(strBytes, 0, valLength);
-            try {
-                strVal = new String(strBytes, "UTF-8");
-            } catch (java.io.UnsupportedEncodingException uee) {
-            }
+            strVal = new String(strBytes, UTF_8);
         }
         return strVal;
     }
@@ -221,10 +219,7 @@ public class AttributeClass {
                 int valLength = bufStream.read();
                 byte[] bufBytes = new byte[valLength];
                 bufStream.read(bufBytes, 0, valLength);
-                try {
-                    valueArray[i] = new String(bufBytes, "UTF-8");
-                } catch (java.io.UnsupportedEncodingException uee) {
-                }
+                valueArray[i] = new String(bufBytes, UTF_8);
             }
             return valueArray;
         }
@@ -252,9 +247,7 @@ public class AttributeClass {
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (!(obj instanceof AttributeClass)) {
             return false;
         }

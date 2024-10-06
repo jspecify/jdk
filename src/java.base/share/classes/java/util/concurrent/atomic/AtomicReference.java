@@ -37,8 +37,7 @@ package java.util.concurrent.atomic;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import jdk.internal.invoke.MhUtil;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -53,20 +52,13 @@ import java.util.function.UnaryOperator;
  * @author Doug Lea
  * @param <V> The type of object referred to by this reference
  */
-@AnnotatedFor({"interning"})
 @NullMarked
-public @UsesObjectEquals class AtomicReference<V extends @Nullable Object> implements java.io.Serializable {
+public class AtomicReference<V extends @Nullable Object> implements java.io.Serializable {
     private static final long serialVersionUID = -1848883965231344442L;
-    private static final VarHandle VALUE;
-    static {
-        try {
-            MethodHandles.Lookup l = MethodHandles.lookup();
-            VALUE = l.findVarHandle(AtomicReference.class, "value", Object.class);
-        } catch (ReflectiveOperationException e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
+    private static final VarHandle VALUE = MhUtil.findVarHandle(
+            MethodHandles.lookup(), "value", Object.class);
 
+    @SuppressWarnings("serial") // Conditionally serializable
     private volatile V value;
 
     /**
@@ -275,8 +267,7 @@ public @UsesObjectEquals class AtomicReference<V extends @Nullable Object> imple
     }
 
     /**
-     * Returns the String representation of the current value.
-     * @return the String representation of the current value
+     * {@return the String representation of the current value}
      */
     public String toString() {
         return String.valueOf(get());
@@ -359,7 +350,7 @@ public @UsesObjectEquals class AtomicReference<V extends @Nullable Object> imple
      *
      * @param expectedValue the expected value
      * @param newValue the new value
-     * @return the witness value, which will be the same as the
+     * @return the <em>witness value</em>, which will be the same as the
      * expected value if successful
      * @since 9
      */
@@ -375,7 +366,7 @@ public @UsesObjectEquals class AtomicReference<V extends @Nullable Object> imple
      *
      * @param expectedValue the expected value
      * @param newValue the new value
-     * @return the witness value, which will be the same as the
+     * @return the <em>witness value</em>, which will be the same as the
      * expected value if successful
      * @since 9
      */
@@ -391,7 +382,7 @@ public @UsesObjectEquals class AtomicReference<V extends @Nullable Object> imple
      *
      * @param expectedValue the expected value
      * @param newValue the new value
-     * @return the witness value, which will be the same as the
+     * @return the <em>witness value</em>, which will be the same as the
      * expected value if successful
      * @since 9
      */

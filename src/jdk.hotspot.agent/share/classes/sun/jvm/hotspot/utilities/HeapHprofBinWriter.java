@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,18 @@
 package sun.jvm.hotspot.utilities;
 
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.*;
 import java.util.*;
+import java.util.zip.*;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.memory.*;
 import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.classfile.*;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /*
  * This class writes Java heap in hprof binary format. This format is
@@ -309,6 +314,9 @@ import sun.jvm.hotspot.classfile.*;
 
 public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
 
+    // Record which Symbol names have been dumped already.
+    private HashSet<Symbol> names;
+
     private static final long HPROF_SEGMENTED_HEAP_DUMP_THRESHOLD = 2L * 0x40000000;
 
     // The approximate size of a heap segment. Used to calculate when to create
@@ -381,17 +389,38 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
 
     public HeapHprofBinWriter() {
         this.KlassMap = new ArrayList<Klass>();
+        this.names = new HashSet<Symbol>();
+        this.gzLevel = 0;
+    }
+
+    public HeapHprofBinWriter(int gzLevel) {
+        this.KlassMap = new ArrayList<Klass>();
+        this.names = new HashSet<Symbol>();
+        this.gzLevel = gzLevel;
     }
 
     public synchronized void write(String fileName) throws IOException {
+        VM vm = VM.getVM();
+
+        // Check whether we should dump the heap as segments
+        useSegmentedHeapDump = isCompression() ||
+                (vm.getUniverse().heap().used() > HPROF_SEGMENTED_HEAP_DUMP_THRESHOLD);
+
         // open file stream and create buffered data output stream
         fos = new FileOutputStream(fileName);
-        out = new DataOutputStream(new BufferedOutputStream(fos));
-
-        VM vm = VM.getVM();
+        hprofBufferedOut = new BufferedOutputStream(fos);
+        if (useSegmentedHeapDump) {
+            if (isCompression()) {
+                hprofBufferedOut = new GZIPOutputStream(hprofBufferedOut) {
+                    {
+                        this.def.setLevel(gzLevel);
+                    }
+                };
+            }
+        }
+        out = new DataOutputStream(hprofBufferedOut);
         dbg = vm.getDebugger();
         objectHeap = vm.getObjectHeap();
-        symTbl = vm.getSymbolTable();
 
         OBJ_ID_SIZE = (int) vm.getOopSize();
 
@@ -413,9 +442,6 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         LONG_SIZE = objectHeap.getLongSize();
         FLOAT_SIZE = objectHeap.getFloatSize();
         DOUBLE_SIZE = objectHeap.getDoubleSize();
-
-        // Check weather we should dump the heap as segments
-        useSegmentedHeapDump = vm.getUniverse().heap().used() > HPROF_SEGMENTED_HEAP_DUMP_THRESHOLD;
 
         // hprof bin format header
         writeFileHeader();
@@ -441,55 +467,164 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
 
         // flush buffer stream.
         out.flush();
-
-        // Fill in final length
-        fillInHeapRecordLength();
-
-        if (useSegmentedHeapDump) {
+        if (!useSegmentedHeapDump) {
+            fillInHeapRecordLength();
+        } else {
             // Write heap segment-end record
             out.writeByte((byte) HPROF_HEAP_DUMP_END);
             out.writeInt(0);
             out.writeInt(0);
         }
-
         // flush buffer stream and throw it.
         out.flush();
+        out.close();
         out = null;
-
-        // close the file stream
-        fos.close();
+        hprofBufferedOut = null;
+        currentSegmentStart = 0;
     }
 
-    @Override
-    protected void writeHeapRecordPrologue() throws IOException {
-        if (currentSegmentStart == 0) {
-            // write heap data header, depending on heap size use segmented heap
-            // format
-            out.writeByte((byte) (useSegmentedHeapDump ? HPROF_HEAP_DUMP_SEGMENT
-                    : HPROF_HEAP_DUMP));
-            out.writeInt(0);
-
-            // remember position of dump length, we will fixup
-            // length later - hprof format requires length.
-            out.flush();
-            currentSegmentStart = fos.getChannel().position();
-            // write dummy length of 0 and we'll fix it later.
-            out.writeInt(0);
+    protected int calculateOopDumpRecordSize(Oop oop) throws IOException {
+        if (oop instanceof TypeArray taOop) {
+            return calculatePrimitiveArrayDumpRecordSize(taOop);
+        } else if (oop instanceof ObjArray oaOop) {
+            Klass klass = oop.getKlass();
+            ObjArrayKlass oak = (ObjArrayKlass) klass;
+            Klass bottomType = oak.getBottomKlass();
+            if (bottomType instanceof InstanceKlass ||
+                bottomType instanceof TypeArrayKlass) {
+                return calculateObjectArrayDumpRecordSize(oaOop);
+            } else {
+                // Internal object, nothing to write.
+                return 0;
+            }
+        } else if (oop instanceof Instance instance) {
+            Klass klass = instance.getKlass();
+            Symbol name = klass.getName();
+            if (name.equals(javaLangClass)) {
+                return calculateClassInstanceDumpRecordSize(instance);
+            }
+            return calculateInstanceDumpRecordSize(instance);
+        } else {
+            // not-a-Java-visible oop
+            return 0;
         }
     }
 
-    @Override
-    protected void writeHeapRecordEpilogue() throws IOException {
-        if (useSegmentedHeapDump) {
-            out.flush();
-            if ((fos.getChannel().position() - currentSegmentStart - 4L) >= HPROF_SEGMENTED_HEAP_DUMP_SEGMENT_SIZE) {
-                fillInHeapRecordLength();
-                currentSegmentStart = 0;
+    private int calculateInstanceDumpRecordSize(Instance instance) {
+        Klass klass = instance.getKlass();
+        if (klass.getClassLoaderData() == null) {
+            // Ignoring this object since the corresponding Klass is not loaded.
+            // Might be a dormant archive object.
+            return 0;
+        }
+
+        ClassData cd = classDataCache.get(klass);
+        if (Assert.ASSERTS_ENABLED) {
+            Assert.that(cd != null, "can not get class data for " + klass.getName().asString() + klass.getAddress());
+        }
+        List<Field> fields = cd.fields;
+        return BYTE_SIZE + OBJ_ID_SIZE * 2 + INT_SIZE * 2 + getSizeForFields(fields);
+    }
+
+    private int calculateClassDumpRecordSize(Klass k) {
+        // tag + javaMirror + DUMMY_STACK_TRACE_ID + super
+        int size = BYTE_SIZE + INT_SIZE + OBJ_ID_SIZE * 2;
+        if (k instanceof InstanceKlass ik) {
+            List<Field> fields = getInstanceFields(ik);
+            List<Field> declaredFields = ik.getImmediateFields();
+            List<Field> staticFields = new ArrayList<>();
+            List<Field> instanceFields = new ArrayList<>();
+            Iterator<Field> itr = null;
+            // loader + signer + protectionDomain + 2 reserved + fieldSize + cpool entris number
+            size += OBJ_ID_SIZE * 5 + INT_SIZE + SHORT_SIZE;
+            for (itr = declaredFields.iterator(); itr.hasNext();) {
+                Field field = itr.next();
+                if (field.isStatic()) {
+                    staticFields.add(field);
+                } else {
+                    instanceFields.add(field);
+                }
             }
+            // size of static field descriptors
+            size += calculateFieldDescriptorsDumpRecordSize(staticFields, ik);
+            // size of instance field descriptors
+            size += calculateFieldDescriptorsDumpRecordSize(instanceFields, null);
+        } else {
+            size += OBJ_ID_SIZE * 5  + INT_SIZE + SHORT_SIZE * 3;
+        }
+        return size;
+    }
+
+    private int calculateFieldDescriptorsDumpRecordSize(List<Field> fields, InstanceKlass ik) {
+        int size = 0;
+        size += SHORT_SIZE;
+        for (Field field : fields) {
+            size += OBJ_ID_SIZE + BYTE_SIZE;
+            // ik == null for instance fields
+            if (ik != null) {
+                // static field
+                size += getSizeForField(field);
+            }
+        }
+        return size;
+    }
+
+    private int calculateClassInstanceDumpRecordSize(Instance instance) {
+        Klass reflectedKlass = java_lang_Class.asKlass(instance);
+        // Dump instance record only for primitive type Class objects.
+        // All other Class objects are covered by writeClassDumpRecords.
+        if (reflectedKlass == null) {
+            return calculateInstanceDumpRecordSize(instance);
+        }
+        return 0;
+    }
+
+    private int calculateObjectArrayDumpRecordSize(ObjArray array) {
+        int headerSize = getArrayHeaderSize(true);
+        final int length = calculateArrayMaxLength(array.getLength(),
+                headerSize,
+                OBJ_ID_SIZE,
+                "Object");
+        return headerSize + length * OBJ_ID_SIZE;
+    }
+
+    private int calculatePrimitiveArrayDumpRecordSize(TypeArray array) throws IOException {
+        int headerSize = getArrayHeaderSize(false);
+        TypeArrayKlass tak = (TypeArrayKlass) array.getKlass();
+        final int type = tak.getElementType();
+        final String typeName = tak.getElementTypeName();
+        final long typeSize = getSizeForType(type);
+        final int length = calculateArrayMaxLength(array.getLength(),
+                                                   headerSize,
+                                                   typeSize,
+                                                   typeName);
+        return headerSize + (int)typeSize * length;
+    }
+
+    @Override
+    protected void writeHeapRecordPrologue(int size) throws IOException {
+        if (size == 0 || currentSegmentStart > 0) {
+            return;
+        }
+        // write heap data header
+        if (useSegmentedHeapDump) {
+            out.writeByte((byte)HPROF_HEAP_DUMP_SEGMENT);
+            out.writeInt(0);
+            out.writeInt(size);
+        } else {
+            out.writeByte((byte)HPROF_HEAP_DUMP);
+            out.writeInt(0);
+            // We must flush all data to the file before reading the current file position.
+            out.flush();
+            // record the current position in file, it will be use for calculating the size of written data
+            currentSegmentStart = fos.getChannel().position();
+            // write dummy zero for length
+            out.writeInt(0);
         }
     }
 
     private void fillInHeapRecordLength() throws IOException {
+        assert !useSegmentedHeapDump : "fillInHeapRecordLength is not supported for segmented heap dump";
 
         // now get the current position to calculate length
         long dumpEnd = fos.getChannel().position();
@@ -508,20 +643,17 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         // seek the position to write length
         fos.getChannel().position(currentSegmentStart);
 
+        // write length
         int dumpLen = (int) dumpLenLong;
-
-        // write length as integer
-        fos.write((dumpLen >>> 24) & 0xFF);
-        fos.write((dumpLen >>> 16) & 0xFF);
-        fos.write((dumpLen >>> 8) & 0xFF);
-        fos.write((dumpLen >>> 0) & 0xFF);
+        byte[] lenBytes = genByteArrayFromInt(dumpLen);
+        fos.write(lenBytes);
 
         //Reset to previous current position
         fos.getChannel().position(currentPosition);
     }
 
     // get the size in bytes for the requested type
-    private long getSizeForType(int type) throws IOException {
+    private int getSizeForType(int type) throws IOException {
         switch (type) {
             case TypeArrayKlass.T_BOOLEAN:
                 return BOOLEAN_SIZE;
@@ -547,34 +679,23 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
 
     private int getArrayHeaderSize(boolean isObjectAarray) {
         return isObjectAarray?
-            ((int) BYTE_SIZE + 2 * (int) INT_SIZE + 2 * (int) OBJ_ID_SIZE):
-            (2 * (int) BYTE_SIZE + 2 * (int) INT_SIZE + (int) OBJ_ID_SIZE);
+            (BYTE_SIZE + 2 * INT_SIZE + 2 * OBJ_ID_SIZE):
+            (2 * BYTE_SIZE + 2 * INT_SIZE + OBJ_ID_SIZE);
     }
 
-    // Check if we need to truncate an array
+    // Check if we need to truncate an array.
+    // The limitation is that the size of "heap dump" or "heap dump segment" must be <= MAX_U4_VALUE.
     private int calculateArrayMaxLength(long originalArrayLength,
                                         int headerSize,
                                         long typeSize,
-                                        String typeName) throws IOException {
+                                        String typeName) {
 
         long length = originalArrayLength;
 
-        // now get the current position to calculate length
-        long dumpEnd = fos.getChannel().position();
         long originalLengthInBytes = originalArrayLength * typeSize;
 
-        // calculate the length of heap data
-        long currentRecordLength = (dumpEnd - currentSegmentStart - 4L);
-        if (currentRecordLength > 0 &&
-            (currentRecordLength + headerSize + originalLengthInBytes) > MAX_U4_VALUE) {
-            fillInHeapRecordLength();
-            currentSegmentStart = 0;
-            writeHeapRecordPrologue();
-            currentRecordLength = 0;
-        }
-
         // Calculate the max bytes we can use.
-        long maxBytes = (MAX_U4_VALUE - (headerSize + currentRecordLength));
+        long maxBytes = MAX_U4_VALUE - headerSize;
 
         if (originalLengthInBytes > maxBytes) {
             length = maxBytes/typeSize;
@@ -591,7 +712,7 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
              cldGraph.classesDo(new ClassLoaderDataGraph.ClassVisitor() {
                             public void visit(Klass k) {
                                 try {
-                                    writeHeapRecordPrologue();
+                                    writeHeapRecordPrologue(calculateClassDumpRecordSize(k));
                                     writeClassDumpRecord(k);
                                     writeHeapRecordEpilogue();
                                 } catch (IOException e) {
@@ -632,7 +753,7 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
             // two reserved id fields
             writeObjectID(null);
             writeObjectID(null);
-            List fields = getInstanceFields(ik);
+            List<Field> fields = getInstanceFields(ik);
             int instSize = getSizeForFields(fields);
             classDataCache.put(ik, new ClassData(instSize, fields));
             out.writeInt(instSize);
@@ -641,12 +762,12 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
             // output number of cp entries as zero.
             out.writeShort((short) 0);
 
-            List declaredFields = ik.getImmediateFields();
-            List staticFields = new ArrayList();
-            List instanceFields = new ArrayList();
-            Iterator itr = null;
+            List<Field> declaredFields = ik.getImmediateFields();
+            List<Field> staticFields = new ArrayList<>();
+            List<Field> instanceFields = new ArrayList<>();
+            Iterator<Field> itr = null;
             for (itr = declaredFields.iterator(); itr.hasNext();) {
-                Field field = (Field) itr.next();
+                Field field = itr.next();
                 if (field.isStatic()) {
                     staticFields.add(field);
                 } else {
@@ -695,7 +816,7 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
 
     private void dumpStackTraces() throws IOException {
         // write a HPROF_TRACE record without any frames to be referenced as object alloc sites
-        writeHeader(HPROF_TRACE, 3 * (int)INT_SIZE );
+        writeHeader(HPROF_TRACE, 3 * INT_SIZE );
         out.writeInt(DUMMY_STACK_TRACE_ID);
         out.writeInt(0);                    // thread number
         out.writeInt(0);                    // frame count
@@ -703,8 +824,8 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         int frameSerialNum = 0;
         int numThreads = 0;
         Threads threads = VM.getVM().getThreads();
-
-        for (JavaThread thread = threads.first(); thread != null; thread = thread.next()) {
+        for (int i = 0; i < threads.getNumberOfThreads(); i++) {
+            JavaThread thread = threads.getJavaThreadAt(i);
             Oop threadObj = thread.getThreadObj();
             if (threadObj != null && !thread.isExiting() && !thread.isHiddenFromExternalView()) {
 
@@ -726,7 +847,7 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
                 }
 
                 // write HPROF_TRACE record for one thread
-                writeHeader(HPROF_TRACE, 3 * (int)INT_SIZE + depth * (int)VM.getVM().getOopSize());
+                writeHeader(HPROF_TRACE, 3 * INT_SIZE + depth * OBJ_ID_SIZE);
                 int stackSerialNum = numThreads + DUMMY_STACK_TRACE_ID;
                 out.writeInt(stackSerialNum);      // stack trace serial number
                 out.writeInt(numThreads);          // thread serial number
@@ -745,7 +866,12 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         } else {
             lineNumber = m.getLineNumberFromBCI(bci);
         }
-        writeHeader(HPROF_FRAME, 4 * (int)VM.getVM().getOopSize() + 2 * (int)INT_SIZE);
+        // First dump UTF8 if needed
+        writeSymbol(m.getName());                              // method's name
+        writeSymbol(m.getSignature());                         // method's signature
+        writeSymbol(m.getMethodHolder().getSourceFileName());  // source file name
+        // Then write FRAME descriptor
+        writeHeader(HPROF_FRAME, 4 * OBJ_ID_SIZE + 2 * INT_SIZE);
         writeObjectID(frameSN);                                  // frame serial number
         writeSymbolID(m.getName());                              // method's name
         writeSymbolID(m.getSignature());                         // method's signature
@@ -755,6 +881,8 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
     }
 
     protected void writeJavaThread(JavaThread jt, int index) throws IOException {
+        int size = BYTE_SIZE + OBJ_ID_SIZE + INT_SIZE * 2;
+        writeHeapRecordPrologue(size);
         out.writeByte((byte) HPROF_GC_ROOT_THREAD_OBJ);
         writeObjectID(jt.getThreadObj());
         out.writeInt(index);
@@ -775,6 +903,8 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
                                        Oop oop = objectHeap.newOop(oopHandle);
                                        // exclude JNI handles hotspot internal objects
                                        if (oop != null && isJavaVisible(oop)) {
+                                           int size = BYTE_SIZE + OBJ_ID_SIZE + INT_SIZE * 2;
+                                           writeHeapRecordPrologue(size);
                                            out.writeByte((byte) HPROF_GC_ROOT_JNI_LOCAL);
                                            writeObjectID(oop);
                                            out.writeInt(threadIndex);
@@ -801,6 +931,8 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         Oop oop = objectHeap.newOop(oopHandle);
         // exclude JNI handles of hotspot internal objects
         if (oop != null && isJavaVisible(oop)) {
+            int size = BYTE_SIZE + OBJ_ID_SIZE * 2;
+            writeHeapRecordPrologue(size);
             out.writeByte((byte) HPROF_GC_ROOT_JNI_GLOBAL);
             writeObjectID(oop);
             // use JNIHandle address as ID
@@ -828,7 +960,7 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
     protected void writePrimitiveArray(TypeArray array) throws IOException {
         int headerSize = getArrayHeaderSize(false);
         TypeArrayKlass tak = (TypeArrayKlass) array.getKlass();
-        final int type = (int) tak.getElementType();
+        final int type = tak.getElementType();
         final String typeName = tak.getElementTypeName();
         final long typeSize = getSizeForType(type);
         final int length = calculateArrayMaxLength(array.getLength(),
@@ -928,34 +1060,40 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
     }
 
     protected void writeInstance(Instance instance) throws IOException {
+        Klass klass = instance.getKlass();
+        if (klass.getClassLoaderData() == null) {
+            // Ignoring this object since the corresponding Klass is not loaded.
+            // Might be a dormant archive object.
+            return;
+        }
+
         out.writeByte((byte) HPROF_GC_INSTANCE_DUMP);
         writeObjectID(instance);
         out.writeInt(DUMMY_STACK_TRACE_ID);
-        Klass klass = instance.getKlass();
         writeObjectID(klass.getJavaMirror());
 
-        ClassData cd = (ClassData) classDataCache.get(klass);
+        ClassData cd = classDataCache.get(klass);
 
         if (Assert.ASSERTS_ENABLED) {
             Assert.that(cd != null, "can not get class data for " + klass.getName().asString() + klass.getAddress());
         }
-        List fields = cd.fields;
+        List<Field> fields = cd.fields;
         int size = cd.instSize;
         out.writeInt(size);
-        for (Iterator itr = fields.iterator(); itr.hasNext();) {
-            writeField((Field) itr.next(), instance);
+        for (Iterator<Field> itr = fields.iterator(); itr.hasNext();) {
+            writeField(itr.next(), instance);
         }
     }
 
     //-- Internals only below this point
 
-    private void writeFieldDescriptors(List fields, InstanceKlass ik)
+    private void writeFieldDescriptors(List<Field> fields, InstanceKlass ik)
         throws IOException {
         // ik == null for instance fields.
         out.writeShort((short) fields.size());
-        for (Iterator itr = fields.iterator(); itr.hasNext();) {
-            Field field = (Field) itr.next();
-            Symbol name = symTbl.probe(field.getID().getName());
+        for (Iterator<Field> itr = fields.iterator(); itr.hasNext();) {
+            Field field = itr.next();
+            Symbol name = field.getName();
             writeSymbolID(name);
             char typeCode = (char) field.getSignature().getByteAt(0);
             int kind = signatureToHprofKind(typeCode);
@@ -1049,27 +1187,49 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         out.writeInt(0);
     }
 
+    private void writeClassSymbols(Klass k) throws IOException {
+        writeSymbol(k.getName());
+        if (k instanceof InstanceKlass) {
+            InstanceKlass ik = (InstanceKlass) k;
+            List<Field> declaredFields = ik.getImmediateFields();
+            for (Iterator<Field> itr = declaredFields.iterator(); itr.hasNext();) {
+                Field field = itr.next();
+                writeSymbol(field.getName());
+            }
+        }
+    }
+
     private void writeSymbols() throws IOException {
+        // Write all the symbols that are used by the classes
+        ClassLoaderDataGraph cldGraph = VM.getVM().getClassLoaderDataGraph();
         try {
-            symTbl.symbolsDo(new SymbolTable.SymbolVisitor() {
-                    public void visit(Symbol sym) {
-                        try {
-                            writeSymbol(sym);
-                        } catch (IOException exp) {
-                            throw new RuntimeException(exp);
-                        }
-                    }
-                });
+             cldGraph.classesDo(new ClassLoaderDataGraph.ClassVisitor() {
+                            public void visit(Klass k) {
+                                try {
+                                    writeClassSymbols(k);
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                        });
         } catch (RuntimeException re) {
             handleRuntimeException(re);
         }
     }
 
     private void writeSymbol(Symbol sym) throws IOException {
-        byte[] buf = sym.asString().getBytes("UTF-8");
-        writeHeader(HPROF_UTF8, buf.length + OBJ_ID_SIZE);
-        writeSymbolID(sym);
-        out.write(buf);
+        // If name is already written don't write it again.
+        if (names.add(sym)) {
+            if(sym != null) {
+              byte[] buf = sym.asString().getBytes(UTF_8);
+              writeHeader(HPROF_UTF8, buf.length + OBJ_ID_SIZE);
+              writeSymbolID(sym);
+              out.write(buf);
+           } else {
+              writeHeader(HPROF_UTF8, 0 + OBJ_ID_SIZE);
+              writeSymbolID(null);
+           }
+        }
     }
 
     private void writeClasses() throws IOException {
@@ -1118,7 +1278,9 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
     }
 
     private void writeSymbolID(Symbol sym) throws IOException {
-        writeObjectID(getAddressValue(sym.getAddress()));
+        assert names.contains(sym);
+        long address = (sym != null) ? getAddressValue(sym.getAddress()) : getAddressValue(null);
+        writeObjectID(address);
     }
 
     private void writeObjectID(long address) throws IOException {
@@ -1134,13 +1296,13 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
     }
 
     // get all declared as well as inherited (directly/indirectly) fields
-    private static List/*<Field>*/ getInstanceFields(InstanceKlass ik) {
+    private static List<Field> getInstanceFields(InstanceKlass ik) {
         InstanceKlass klass = ik;
-        List res = new ArrayList();
+        List<Field> res = new ArrayList<>();
         while (klass != null) {
-            List curFields = klass.getImmediateFields();
-            for (Iterator itr = curFields.iterator(); itr.hasNext();) {
-                Field f = (Field) itr.next();
+            List<Field> curFields = klass.getImmediateFields();
+            for (Iterator<Field> itr = curFields.iterator(); itr.hasNext();) {
+                Field f = itr.next();
                 if (! f.isStatic()) {
                     res.add(f);
                 }
@@ -1150,40 +1312,51 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         return res;
     }
 
+    // get size in bytes (in stream) required for given field.
+    private int getSizeForField(Field field) {
+        char typeCode = (char)field.getSignature().getByteAt(0);
+        switch (typeCode) {
+        case JVM_SIGNATURE_BOOLEAN:
+        case JVM_SIGNATURE_BYTE:
+            return 1;
+        case JVM_SIGNATURE_CHAR:
+        case JVM_SIGNATURE_SHORT:
+            return 2;
+        case JVM_SIGNATURE_INT:
+        case JVM_SIGNATURE_FLOAT:
+            return 4;
+        case JVM_SIGNATURE_CLASS:
+        case JVM_SIGNATURE_ARRAY:
+            return OBJ_ID_SIZE;
+        case JVM_SIGNATURE_LONG:
+        case JVM_SIGNATURE_DOUBLE:
+            return 8;
+        default:
+            throw new RuntimeException("should not reach here");
+        }
+    }
+
     // get size in bytes (in stream) required for given fields.  Note
     // that this is not the same as object size in heap. The size in
     // heap will include size of padding/alignment bytes as well.
-    private int getSizeForFields(List fields) {
+    private int getSizeForFields(List<Field> fields) {
         int size = 0;
-        for (Iterator itr = fields.iterator(); itr.hasNext();) {
-            Field field = (Field) itr.next();
-            char typeCode = (char) field.getSignature().getByteAt(0);
-            switch (typeCode) {
-            case JVM_SIGNATURE_BOOLEAN:
-            case JVM_SIGNATURE_BYTE:
-                size++;
-                break;
-            case JVM_SIGNATURE_CHAR:
-            case JVM_SIGNATURE_SHORT:
-                size += 2;
-                break;
-            case JVM_SIGNATURE_INT:
-            case JVM_SIGNATURE_FLOAT:
-                size += 4;
-                break;
-            case JVM_SIGNATURE_CLASS:
-            case JVM_SIGNATURE_ARRAY:
-                size += OBJ_ID_SIZE;
-                break;
-            case JVM_SIGNATURE_LONG:
-            case JVM_SIGNATURE_DOUBLE:
-                size += 8;
-                break;
-            default:
-                throw new RuntimeException("should not reach here");
-            }
+        for (Field field : fields) {
+            size += getSizeForField(field);
         }
         return size;
+    }
+
+    private boolean isCompression() {
+        return (gzLevel >= 1 && gzLevel <= 9);
+    }
+
+    // Convert integer to byte array with BIG_ENDIAN byte order.
+    private static byte[] genByteArrayFromInt(int value) {
+        ByteBuffer intBuffer = ByteBuffer.allocate(4);
+        intBuffer.order(ByteOrder.BIG_ENDIAN);
+        intBuffer.putInt(value);
+        return intBuffer.array();
     }
 
     // We don't have allocation site info. We write a dummy
@@ -1193,10 +1366,11 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
 
     private DataOutputStream out;
     private FileOutputStream fos;
+    private OutputStream hprofBufferedOut;
     private Debugger dbg;
     private ObjectHeap objectHeap;
-    private SymbolTable symTbl;
     private ArrayList<Klass> KlassMap;
+    private int gzLevel;
 
     // oopSize of the debuggee
     private int OBJ_ID_SIZE;
@@ -1215,24 +1389,24 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
     private long DOUBLE_BASE_OFFSET;
     private long OBJECT_BASE_OFFSET;
 
-    private long BOOLEAN_SIZE;
-    private long BYTE_SIZE;
-    private long CHAR_SIZE;
-    private long SHORT_SIZE;
-    private long INT_SIZE;
-    private long LONG_SIZE;
-    private long FLOAT_SIZE;
-    private long DOUBLE_SIZE;
+    private int BOOLEAN_SIZE;
+    private int BYTE_SIZE;
+    private int CHAR_SIZE;
+    private int SHORT_SIZE;
+    private int INT_SIZE;
+    private int LONG_SIZE;
+    private int FLOAT_SIZE;
+    private int DOUBLE_SIZE;
 
     private static class ClassData {
         int instSize;
-        List fields;
+        List<Field> fields;
 
-        ClassData(int instSize, List fields) {
+        ClassData(int instSize, List<Field> fields) {
             this.instSize = instSize;
             this.fields = fields;
         }
     }
 
-    private Map classDataCache = new HashMap(); // <InstanceKlass, ClassData>
+    private Map<InstanceKlass, ClassData> classDataCache = new HashMap<>();
 }

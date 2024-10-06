@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,18 +48,22 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
+import java.text.DateFormat;
 import java.text.MessageFormat;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.spi.LocaleNameProvider;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import sun.security.action.GetPropertyAction;
+import jdk.internal.util.ReferencedKeyMap;
+import jdk.internal.util.StaticProperty;
+import jdk.internal.vm.annotation.Stable;
+
 import sun.util.locale.BaseLocale;
 import sun.util.locale.InternalLocaleBuilder;
 import sun.util.locale.LanguageTag;
 import sun.util.locale.LocaleExtensions;
 import sun.util.locale.LocaleMatcher;
-import sun.util.locale.LocaleObjectCache;
 import sun.util.locale.LocaleSyntaxException;
 import sun.util.locale.LocaleUtils;
 import sun.util.locale.ParseStatus;
@@ -69,22 +73,22 @@ import sun.util.locale.provider.LocaleServiceProviderPool;
 import sun.util.locale.provider.TimeZoneNameUtility;
 
 /**
- * A <code>Locale</code> object represents a specific geographical, political,
- * or cultural region. An operation that requires a <code>Locale</code> to perform
- * its task is called <em>locale-sensitive</em> and uses the <code>Locale</code>
+ * A {@code Locale} object represents a specific geographical, political,
+ * or cultural region. An operation that requires a {@code Locale} to perform
+ * its task is called <em>locale-sensitive</em> and uses the {@code Locale}
  * to tailor information for the user. For example, displaying a number
  * is a locale-sensitive operation&mdash; the number should be formatted
  * according to the customs and conventions of the user's native country,
  * region, or culture.
  *
  * <p> The {@code Locale} class implements IETF BCP 47 which is composed of
- * <a href="http://tools.ietf.org/html/rfc4647">RFC 4647 "Matching of Language
- * Tags"</a> and <a href="http://tools.ietf.org/html/rfc5646">RFC 5646 "Tags
+ * <a href="https://tools.ietf.org/html/rfc4647">RFC 4647 "Matching of Language
+ * Tags"</a> and <a href="https://tools.ietf.org/html/rfc5646">RFC 5646 "Tags
  * for Identifying Languages"</a> with support for the LDML (UTS#35, "Unicode
  * Locale Data Markup Language") BCP 47-compatible extensions for locale data
  * exchange.
  *
- * <p> A <code>Locale</code> object logically consists of the fields
+ * <p> A {@code Locale} object logically consists of the fields
  * described below.
  *
  * <dl>
@@ -96,7 +100,7 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  *   alpha-2 code must be used.  You can find a full list of valid
  *   language codes in the IANA Language Subtag Registry (search for
  *   "Type: language").  The language field is case insensitive, but
- *   <code>Locale</code> always canonicalizes to lower case.</dd>
+ *   {@code Locale} always canonicalizes to lower case.</dd>
  *
  *   <dd>Well-formed language values have the form
  *   <code>[a-zA-Z]{2,8}</code>.  Note that this is not the full
@@ -111,7 +115,7 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  *   <dd>ISO 15924 alpha-4 script code.  You can find a full list of
  *   valid script codes in the IANA Language Subtag Registry (search
  *   for "Type: script").  The script field is case insensitive, but
- *   <code>Locale</code> always canonicalizes to title case (the first
+ *   {@code Locale} always canonicalizes to title case (the first
  *   letter is upper case and the rest of the letters are lower
  *   case).</dd>
  *
@@ -126,7 +130,7 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  *   You can find a full list of valid country and region codes in the
  *   IANA Language Subtag Registry (search for "Type: region").  The
  *   country (region) field is case insensitive, but
- *   <code>Locale</code> always canonicalizes to upper case.</dd>
+ *   {@code Locale} always canonicalizes to upper case.</dd>
  *
  *   <dd>Well-formed country/region values have
  *   the form <code>[a-zA-Z]{2} | [0-9]{3}</code></dd>
@@ -137,7 +141,7 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  *   <dt><a id="def_variant"><b>variant</b></a></dt>
  *
  *   <dd>Any arbitrary value used to indicate a variation of a
- *   <code>Locale</code>.  Where there are two or more variant values
+ *   {@code Locale}.  Where there are two or more variant values
  *   each indicating its own semantics, these values should be ordered
  *   by importance, with most important first, separated by
  *   underscore('_').  The variant field is case sensitive.</dd>
@@ -149,7 +153,7 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  *   region subtags.  You can find a full list of valid variant codes
  *   in the IANA Language Subtag Registry (search for "Type: variant").
  *
- *   <p>However, the variant field in <code>Locale</code> has
+ *   <p>However, the variant field in {@code Locale} has
  *   historically been used for any kind of variation, not just
  *   language variations.  For example, some supported variants
  *   available in Java SE Runtime Environments indicate alternative
@@ -169,15 +173,15 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  *
  *   <dd>A map from single character keys to string values, indicating
  *   extensions apart from language identification.  The extensions in
- *   <code>Locale</code> implement the semantics and syntax of BCP 47
+ *   {@code Locale} implement the semantics and syntax of BCP 47
  *   extension subtags and private use subtags. The extensions are
- *   case insensitive, but <code>Locale</code> canonicalizes all
+ *   case insensitive, but {@code Locale} canonicalizes all
  *   extension keys and values to lower case. Note that extensions
  *   cannot have empty values.</dd>
  *
  *   <dd>Well-formed keys are single characters from the set
- *   <code>[0-9a-zA-Z]</code>.  Well-formed values have the form
- *   <code>SUBTAG ('-' SUBTAG)*</code> where for the key 'x'
+ *   {@code [0-9a-zA-Z]}.  Well-formed values have the form
+ *   {@code SUBTAG ('-' SUBTAG)*} where for the key 'x'
  *   <code>SUBTAG = [0-9a-zA-Z]{1,8}</code> and for other keys
  *   <code>SUBTAG = [0-9a-zA-Z]{2,8}</code> (that is, 'x' allows
  *   single-character subtags).</dd>
@@ -187,13 +191,13 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * </dl>
  *
  * <b>Note:</b> Although BCP 47 requires field values to be registered
- * in the IANA Language Subtag Registry, the <code>Locale</code> class
- * does not provide any validation features.  The <code>Builder</code>
+ * in the IANA Language Subtag Registry, the {@code Locale} class
+ * does not provide any validation features.  The {@code Builder}
  * only checks if an individual field satisfies the syntactic
  * requirement (is well-formed), but does not validate the value
  * itself.  See {@link Builder} for details.
  *
- * <h3><a id="def_locale_extension">Unicode locale/language extension</a></h3>
+ * <h2><a id="def_locale_extension">Unicode locale/language extension</a></h2>
  *
  * <p>UTS#35, "Unicode Locale Data Markup Language" defines optional
  * attributes and keywords to override or refine the default behavior
@@ -206,11 +210,11 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * extension key 'u' ({@link #UNICODE_LOCALE_EXTENSION}).  The above
  * example, "nu-thai", becomes the extension "u-nu-thai".
  *
- * <p>Thus, when a <code>Locale</code> object contains Unicode locale
+ * <p>Thus, when a {@code Locale} object contains Unicode locale
  * attributes and keywords,
- * <code>getExtension(UNICODE_LOCALE_EXTENSION)</code> will return a
+ * {@code getExtension(UNICODE_LOCALE_EXTENSION)} will return a
  * String representing this information, for example, "nu-thai".  The
- * <code>Locale</code> class also provides {@link
+ * {@code Locale} class also provides {@link
  * #getUnicodeLocaleAttributes}, {@link #getUnicodeLocaleKeys}, and
  * {@link #getUnicodeLocaleType} which allow you to access Unicode
  * locale attributes and key/type pairs directly.  When represented as
@@ -233,48 +237,100 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * implementations in a Java Runtime Environment might not support any
  * particular Unicode locale attributes or key/type pairs.
  *
- * <h4>Creating a Locale</h4>
+ * <h3><a id="ObtainingLocale">Obtaining a Locale</a></h3>
  *
- * <p>There are several different ways to create a <code>Locale</code>
+ * <p>There are several ways to obtain a {@code Locale}
  * object.
  *
- * <h5>Builder</h5>
+ * <h4>Builder</h4>
  *
- * <p>Using {@link Builder} you can construct a <code>Locale</code> object
+ * <p>Using {@link Builder} you can construct a {@code Locale} object
  * that conforms to BCP 47 syntax.
  *
- * <h5>Constructors</h5>
+ * <h4>Factory Methods</h4>
  *
- * <p>The <code>Locale</code> class provides three constructors:
- * <blockquote>
- * <pre>
- *     {@link #Locale(String language)}
- *     {@link #Locale(String language, String country)}
- *     {@link #Locale(String language, String country, String variant)}
- * </pre>
- * </blockquote>
- * These constructors allow you to create a <code>Locale</code> object
- * with language, country and variant, but you cannot specify
- * script or extensions.
+ * <p>The method {@link #forLanguageTag} obtains a {@code Locale}
+ * object for a well-formed BCP 47 language tag. The method
+ * {@link #of(String, String, String)} and its overloads obtain a
+ * {@code Locale} object from given {@code language}, {@code country},
+ * and/or {@code variant} defined above.
  *
- * <h5>Factory Methods</h5>
+ * <h4>Locale Constants</h4>
  *
- * <p>The method {@link #forLanguageTag} creates a <code>Locale</code>
- * object for a well-formed BCP 47 language tag.
+ * <p>The {@code Locale} class provides a number of convenient constants
+ * that you can use to obtain {@code Locale} objects for commonly used
+ * locales. For example, {@code Locale.US} is the {@code Locale} object
+ * for the United States.
  *
- * <h5>Locale Constants</h5>
+ * <h3><a id="default_locale">Default Locale</a></h3>
  *
- * <p>The <code>Locale</code> class provides a number of convenient constants
- * that you can use to create <code>Locale</code> objects for commonly used
- * locales. For example, the following creates a <code>Locale</code> object
- * for the United States:
- * <blockquote>
- * <pre>
- *     Locale.US
- * </pre>
- * </blockquote>
+ * <p>The default Locale is provided for any locale-sensitive methods if no
+ * {@code Locale} is explicitly specified as an argument, such as
+ * {@link DateFormat#getInstance()}. The default Locale is determined at startup
+ * of the Java runtime and established in the following three phases:
+ * <ol>
+ * <li>The locale-related system properties listed below are established from the
+ * host environment. Some system properties (except for {@code user.language}) may
+ * not have values from the host environment.
+ * <table class="striped">
+ * <caption style="display:none">Shows property keys and associated values</caption>
+ * <thead>
+ * <tr><th scope="col">Locale-related System Properties Key</th>
+ *     <th scope="col">Description</th></tr>
+ * </thead>
+ * <tbody>
+ * <tr><th scope="row">{@systemProperty user.language}</th>
+ *     <td>{@link ##def_language language} for the default Locale,
+ *     such as "en" (English)</td></tr>
+ * <tr><th scope="row">{@systemProperty user.script}</th>
+ *     <td>{@link ##def_script script} for the default Locale,
+ *     such as "Latn" (Latin)</td></tr>
+ * <tr><th scope="row">{@systemProperty user.country}</th>
+ *     <td>{@link ##def_region country} for the default Locale,
+ *     such as "US" (United States)</td></tr>
+ * <tr><th scope="row">{@systemProperty user.variant}</th>
+ *     <td>{@link ##def_variant variant} for the default Locale,
+ *     such as "POSIX"</td></tr>
+ * <tr><th scope="row">{@systemProperty user.extensions}</th>
+ *     <td>{@link ##def_extensions extensions} for the default Locale,
+ *     such as "u-ca-japanese" (Japanese Calendar)</td></tr>
+ * </tbody>
+ * </table>
+ * </li>
+ * <li>The values of these system properties can be overridden by values designated
+ * at startup time. If the overriding value of the {@code user.extensions} property
+ * is unparsable, it is ignored. The overriding values of other properties are not
+ * checked for syntax or validity and are used directly in the default Locale.
+ * (Typically, system property values can be provided using the {@code -D} command-line
+ * option of a launcher. For example, specifying {@code -Duser.extensions=foobarbaz}
+ * results in a default Locale with no extensions, while specifying
+ * {@code -Duser.language=foobarbaz} results in a default Locale whose language is
+ * "foobarbaz".)
+ * </li>
+ * <li>The default {@code Locale} instance is constructed from the values of these
+ * system properties.
+ * </li>
+ * </ol>
+ * <p>Altering the system property values with {@link System#setProperties(Properties)}/
+ * {@link System#setProperty(String, String)} has no effect on the default Locale.
+ * <p>Once the default Locale is established, applications can query the default
+ * Locale with {@link #getDefault()} and change it with {@link #setDefault(Locale)}.
+ * If the default Locale is changed with {@link #setDefault(Locale)}, the corresponding
+ * system properties are not altered. It is not recommended that applications read
+ * these system properties and parse or interpret them as their values may be out of date.
  *
- * <h4><a id="LocaleMatching">Locale Matching</a></h4>
+ * <p>There are finer-grained default Locales specific for each {@link Locale.Category}.
+ * These category specific default Locales can be queried by {@link #getDefault(Category)},
+ * and set by {@link #setDefault(Category, Locale)}. Construction of these category
+ * specific default Locales are determined by the corresponding system properties,
+ * which consist of the base system properties as listed above, suffixed by either
+ * {@code ".display"} or {@code ".format"} depending on the category. For example,
+ * the value of the {@code user.language.display} system property will be used in the
+ * {@code language} part of the default Locale for the {@link Locale.Category#DISPLAY}
+ * category. In the absence of category specific system properties, the "category-less"
+ * system properties are used, such as {@code user.language} in the previous example.
+ *
+ * <h3><a id="LocaleMatching">Locale Matching</a></h3>
  *
  * <p>If an application or a system is internationalized and provides localized
  * resources for multiple locales, it sometimes needs to find one or more
@@ -283,7 +339,7 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * locale matching documentation.
  *
  * <p>In order to do matching a user's preferred locales to a set of language
- * tags, <a href="http://tools.ietf.org/html/rfc4647">RFC 4647 Matching of
+ * tags, <a href="https://tools.ietf.org/html/rfc4647">RFC 4647 Matching of
  * Language Tags</a> defines two mechanisms: filtering and lookup.
  * <em>Filtering</em> is used to get all matching locales, whereas
  * <em>lookup</em> is to choose the best matching locale.
@@ -295,7 +351,7 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * language ranges: basic and extended. See
  * {@link Locale.LanguageRange Locale.LanguageRange} for details.
  *
- * <h5>Filtering</h5>
+ * <h4>Filtering</h4>
  *
  * <p>The filtering operation returns all matching language tags. It is defined
  * in RFC 4647 as follows:
@@ -313,7 +369,7 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * {@link Locale.FilteringMode} is a parameter to specify how filtering should
  * be done.
  *
- * <h5>Lookup</h5>
+ * <h4>Lookup</h4>
  *
  * <p>The lookup operation returns the best matching language tags. It is
  * defined in RFC 4647 as follows:
@@ -345,55 +401,51 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * an {@link Iterator} over a {@link Collection} of language tags is treated as
  * the best matching one.
  *
- * <h4>Use of Locale</h4>
+ * <h3>Use of Locale</h3>
  *
- * <p>Once you've created a <code>Locale</code> you can query it for information
- * about itself. Use <code>getCountry</code> to get the country (or region)
- * code and <code>getLanguage</code> to get the language code.
- * You can use <code>getDisplayCountry</code> to get the
+ * <p>Once you've obtained a {@code Locale} you can query it for information
+ * about itself. Use {@code getCountry} to get the country (or region)
+ * code and {@code getLanguage} to get the language code.
+ * You can use {@code getDisplayCountry} to get the
  * name of the country suitable for displaying to the user. Similarly,
- * you can use <code>getDisplayLanguage</code> to get the name of
+ * you can use {@code getDisplayLanguage} to get the name of
  * the language suitable for displaying to the user. Interestingly,
- * the <code>getDisplayXXX</code> methods are themselves locale-sensitive
+ * the {@code getDisplayXXX} methods are themselves locale-sensitive
  * and have two versions: one that uses the default
  * {@link Locale.Category#DISPLAY DISPLAY} locale and one
  * that uses the locale specified as an argument.
  *
  * <p>The Java Platform provides a number of classes that perform locale-sensitive
- * operations. For example, the <code>NumberFormat</code> class formats
+ * operations. For example, the {@code NumberFormat} class formats
  * numbers, currency, and percentages in a locale-sensitive manner. Classes
- * such as <code>NumberFormat</code> have several convenience methods
+ * such as {@code NumberFormat} have several convenience methods
  * for creating a default object of that type. For example, the
- * <code>NumberFormat</code> class provides these three convenience methods
- * for creating a default <code>NumberFormat</code> object:
- * <blockquote>
- * <pre>
- *     NumberFormat.getInstance()
- *     NumberFormat.getCurrencyInstance()
- *     NumberFormat.getPercentInstance()
- * </pre>
- * </blockquote>
+ * {@code NumberFormat} class provides these three convenience methods
+ * for creating a default {@code NumberFormat} object:
+ * {@snippet lang=java :
+ *     NumberFormat.getInstance();
+ *     NumberFormat.getCurrencyInstance();
+ *     NumberFormat.getPercentInstance();
+ * }
  * Each of these methods has two variants; one with an explicit locale
  * and one without; the latter uses the default
  * {@link Locale.Category#FORMAT FORMAT} locale:
- * <blockquote>
- * <pre>
- *     NumberFormat.getInstance(myLocale)
- *     NumberFormat.getCurrencyInstance(myLocale)
- *     NumberFormat.getPercentInstance(myLocale)
- * </pre>
- * </blockquote>
- * A <code>Locale</code> is the mechanism for identifying the kind of object
- * (<code>NumberFormat</code>) that you would like to get. The locale is
+ * {@snippet lang=java :
+ *     NumberFormat.getInstance(myLocale);
+ *     NumberFormat.getCurrencyInstance(myLocale);
+ *     NumberFormat.getPercentInstance(myLocale);
+ * }
+ * A {@code Locale} is the mechanism for identifying the kind of object
+ * ({@code NumberFormat}) that you would like to get. The locale is
  * <STRONG>just</STRONG> a mechanism for identifying objects,
  * <STRONG>not</STRONG> a container for the objects themselves.
  *
- * <h4>Compatibility</h4>
+ * <h3>Compatibility</h3>
  *
- * <p>In order to maintain compatibility with existing usage, Locale's
+ * <p>In order to maintain compatibility, Locale's
  * constructors retain their behavior prior to the Java Runtime
  * Environment version 1.7.  The same is largely true for the
- * <code>toString</code> method. Thus Locale objects can continue to
+ * {@code toString} method. Thus Locale objects can continue to
  * be used as they were. In particular, clients who parse the output
  * of toString into language, country, and variant fields can continue
  * to do so (although this is strongly discouraged), although the
@@ -403,17 +455,17 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * <p>In addition, BCP 47 imposes syntax restrictions that are not
  * imposed by Locale's constructors. This means that conversions
  * between some Locales and BCP 47 language tags cannot be made without
- * losing information. Thus <code>toLanguageTag</code> cannot
+ * losing information. Thus {@code toLanguageTag} cannot
  * represent the state of locales whose language, country, or variant
  * do not conform to BCP 47.
  *
  * <p>Because of these issues, it is recommended that clients migrate
  * away from constructing non-conforming locales and use the
- * <code>forLanguageTag</code> and <code>Locale.Builder</code> APIs instead.
+ * {@code forLanguageTag} and {@code Locale.Builder} APIs instead.
  * Clients desiring a string representation of the complete locale can
- * then always rely on <code>toLanguageTag</code> for this purpose.
+ * then always rely on {@code toLanguageTag} for this purpose.
  *
- * <h5><a id="special_cases_constructor">Special cases</a></h5>
+ * <h4><a id="special_cases_constructor">Special cases</a></h4>
  *
  * <p>For compatibility reasons, two
  * non-conforming locales are treated as special cases.  These are
@@ -438,34 +490,44 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * constructor is called with the arguments "th", "TH", "TH", the
  * extension "u-nu-thai" is automatically added.
  *
- * <h5>Serialization</h5>
+ * <h4>Serialization</h4>
  *
  * <p>During serialization, writeObject writes all fields to the output
  * stream, including extensions.
  *
  * <p>During deserialization, readResolve adds extensions as described
- * in <a href="#special_cases_constructor">Special Cases</a>, only
+ * in {@linkplain ##special_cases_constructor Special Cases}, only
  * for the two cases th_TH_TH and ja_JP_JP.
  *
- * <h5>Legacy language codes</h5>
+ * <h4><a id="legacy_language_codes">Legacy language codes</a></h4>
  *
  * <p>Locale's constructor has always converted three language codes to
  * their earlier, obsoleted forms: {@code he} maps to {@code iw},
  * {@code yi} maps to {@code ji}, and {@code id} maps to
- * {@code in}.  This continues to be the case, in order to not break
- * backwards compatibility.
+ * {@code in}. Since Java SE 17, this is no longer the case. Each
+ * language maps to its new form; {@code iw} maps to {@code he}, {@code ji}
+ * maps to {@code yi}, and {@code in} maps to {@code id}.
+ *
+ * <p>For the backward compatible behavior, the system property
+ * {@systemProperty java.locale.useOldISOCodes} reverts the behavior
+ * back to that of before Java SE 17. If the system property is set to
+ * {@code true}, those three current language codes are mapped to their
+ * backward compatible forms. The property is only read at Java runtime
+ * startup and subsequent calls to {@code System.setProperty()} will
+ * have no effect.
  *
  * <p>The APIs added in 1.7 map between the old and new language codes,
- * maintaining the old codes internal to Locale (so that
- * <code>getLanguage</code> and <code>toString</code> reflect the old
- * code), but using the new codes in the BCP 47 language tag APIs (so
- * that <code>toLanguageTag</code> reflects the new one). This
+ * maintaining the mapped codes internal to Locale (so that
+ * {@code getLanguage} and {@code toString} reflect the mapped
+ * code, which depends on the {@code java.locale.useOldISOCodes} system
+ * property), but using the new codes in the BCP 47 language tag APIs (so
+ * that {@code toLanguageTag} reflects the new one). This
  * preserves the equivalence between Locales no matter which code or
  * API is used to construct them. Java's default resource bundle
  * lookup mechanism also implements this mapping, so that resources
  * can be named using either convention, see {@link ResourceBundle.Control}.
  *
- * <h5>Three-letter language/country(region) codes</h5>
+ * <h4>Three-letter language/country(region) codes</h4>
  *
  * <p>The Locale constructors have always specified that the language
  * and the country param be two characters in length, although in
@@ -477,6 +539,10 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * compatibility, the implementation still does not impose a length
  * constraint.
  *
+ * @spec https://www.rfc-editor.org/info/rfc4647
+ *      RFC 4647: Matching of Language Tags
+ * @spec https://www.rfc-editor.org/info/rfc5646
+ *      RFC 5646: Tags for Identifying Languages
  * @see Builder
  * @see ResourceBundle
  * @see java.text.Format
@@ -488,63 +554,111 @@ import sun.util.locale.provider.TimeZoneNameUtility;
 @NullMarked
 public final class Locale implements Cloneable, Serializable {
 
-    private static final  Cache LOCALECACHE = new Cache();
+    /** Useful constant for language.
+     */
+    public static final Locale ENGLISH;
 
     /** Useful constant for language.
      */
-    public static final Locale ENGLISH = createConstant("en", "");
+    public static final Locale FRENCH;
 
     /** Useful constant for language.
      */
-    public static final Locale FRENCH = createConstant("fr", "");
+    public static final Locale GERMAN;
 
     /** Useful constant for language.
      */
-    public static final Locale GERMAN = createConstant("de", "");
+    public static final Locale ITALIAN;
 
     /** Useful constant for language.
      */
-    public static final Locale ITALIAN = createConstant("it", "");
+    public static final Locale JAPANESE;
 
     /** Useful constant for language.
      */
-    public static final Locale JAPANESE = createConstant("ja", "");
+    public static final Locale KOREAN;
 
     /** Useful constant for language.
      */
-    public static final Locale KOREAN = createConstant("ko", "");
+    public static final Locale CHINESE;
 
     /** Useful constant for language.
      */
-    public static final Locale CHINESE = createConstant("zh", "");
+    public static final Locale SIMPLIFIED_CHINESE;
 
     /** Useful constant for language.
      */
-    public static final Locale SIMPLIFIED_CHINESE = createConstant("zh", "CN");
-
-    /** Useful constant for language.
-     */
-    public static final Locale TRADITIONAL_CHINESE = createConstant("zh", "TW");
+    public static final Locale TRADITIONAL_CHINESE;
 
     /** Useful constant for country.
      */
-    public static final Locale FRANCE = createConstant("fr", "FR");
+    public static final Locale FRANCE;
 
     /** Useful constant for country.
      */
-    public static final Locale GERMANY = createConstant("de", "DE");
+    public static final Locale GERMANY;
 
     /** Useful constant for country.
      */
-    public static final Locale ITALY = createConstant("it", "IT");
+    public static final Locale ITALY;
 
     /** Useful constant for country.
      */
-    public static final Locale JAPAN = createConstant("ja", "JP");
+    public static final Locale JAPAN;
 
     /** Useful constant for country.
      */
-    public static final Locale KOREA = createConstant("ko", "KR");
+    public static final Locale KOREA;
+
+    /** Useful constant for country.
+     */
+    public static final Locale UK;
+
+    /** Useful constant for country.
+     */
+    public static final Locale US;
+
+    /** Useful constant for country.
+     */
+    public static final Locale CANADA;
+
+    /** Useful constant for country.
+     */
+    public static final Locale CANADA_FRENCH;
+
+    /**
+     * Useful constant for the root locale.  The root locale is the locale whose
+     * language, country, and variant are empty ("") strings.  This is regarded
+     * as the base locale of all locales, and is used as the language/country
+     * neutral locale for the locale sensitive operations.
+     *
+     * @since 1.6
+     */
+    public static final Locale ROOT;
+
+    private static final Map<BaseLocale, Locale> CONSTANT_LOCALES = new HashMap<>();
+
+    static {
+        ENGLISH = createConstant(BaseLocale.ENGLISH);
+        FRENCH = createConstant(BaseLocale.FRENCH);
+        GERMAN = createConstant(BaseLocale.GERMAN);
+        ITALIAN = createConstant(BaseLocale.ITALIAN);
+        JAPANESE = createConstant(BaseLocale.JAPANESE);
+        KOREAN = createConstant(BaseLocale.KOREAN);
+        CHINESE = createConstant(BaseLocale.CHINESE);
+        SIMPLIFIED_CHINESE = createConstant(BaseLocale.SIMPLIFIED_CHINESE);
+        TRADITIONAL_CHINESE = createConstant(BaseLocale.TRADITIONAL_CHINESE);
+        FRANCE = createConstant(BaseLocale.FRANCE);
+        GERMANY = createConstant(BaseLocale.GERMANY);
+        ITALY = createConstant(BaseLocale.ITALY);
+        JAPAN = createConstant(BaseLocale.JAPAN);
+        KOREA = createConstant(BaseLocale.KOREA);
+        UK = createConstant(BaseLocale.UK);
+        US = createConstant(BaseLocale.US);
+        CANADA = createConstant(BaseLocale.CANADA);
+        CANADA_FRENCH = createConstant(BaseLocale.CANADA_FRENCH);
+        ROOT = createConstant(BaseLocale.ROOT);
+    }
 
     /** Useful constant for country.
      */
@@ -558,31 +672,16 @@ public final class Locale implements Cloneable, Serializable {
      */
     public static final Locale TAIWAN = TRADITIONAL_CHINESE;
 
-    /** Useful constant for country.
-     */
-    public static final Locale UK = createConstant("en", "GB");
-
-    /** Useful constant for country.
-     */
-    public static final Locale US = createConstant("en", "US");
-
-    /** Useful constant for country.
-     */
-    public static final Locale CANADA = createConstant("en", "CA");
-
-    /** Useful constant for country.
-     */
-    public static final Locale CANADA_FRENCH = createConstant("fr", "CA");
-
     /**
-     * Useful constant for the root locale.  The root locale is the locale whose
-     * language, country, and variant are empty ("") strings.  This is regarded
-     * as the base locale of all locales, and is used as the language/country
-     * neutral locale for the locale sensitive operations.
-     *
-     * @since 1.6
+     * This method must be called only for creating the Locale.*
+     * constants due to making shortcuts.
      */
-    public static final Locale ROOT = createConstant("", "");
+    private static Locale createConstant(byte baseType) {
+        BaseLocale base = BaseLocale.constantBaseLocales[baseType];
+        Locale locale = new Locale(base, null);
+        CONSTANT_LOCALES.put(base, locale);
+        return locale;
+    }
 
     /**
      * The key for the private use extension ('x').
@@ -604,6 +703,7 @@ public final class Locale implements Cloneable, Serializable {
 
     /** serialization ID
      */
+    @java.io.Serial
     static final long serialVersionUID = 9149081749638150636L;
 
     /**
@@ -657,7 +757,7 @@ public final class Locale implements Cloneable, Serializable {
         /**
          * Map to hold country codes for each ISO3166 part.
          */
-        private static Map<IsoCountryCode, Set<String>> iso3166CodesMap = new ConcurrentHashMap<>();
+        private static final Map<IsoCountryCode, Set<String>> iso3166CodesMap = new ConcurrentHashMap<>();
 
         /**
          * This method is called from Locale class to retrieve country code set
@@ -690,30 +790,32 @@ public final class Locale implements Cloneable, Serializable {
      * Construct a locale from language, country and variant.
      * This constructor normalizes the language value to lowercase and
      * the country value to uppercase.
-     * <p>
-     * <b>Note:</b>
+     * @implNote
      * <ul>
-     * <li>ISO 639 is not a stable standard; some of the language codes it defines
-     * (specifically "iw", "ji", and "in") have changed.  This constructor accepts both the
-     * old codes ("iw", "ji", and "in") and the new codes ("he", "yi", and "id"), but all other
-     * API on Locale will return only the OLD codes.
+     * <li>Obsolete ISO 639 codes ("iw", "ji", and "in") are mapped to
+     * their current forms. See {@linkplain ##legacy_language_codes Legacy language
+     * codes} for more information.
      * <li>For backward compatibility reasons, this constructor does not make
      * any syntactic checks on the input.
      * <li>The two cases ("ja", "JP", "JP") and ("th", "TH", "TH") are handled specially,
-     * see <a href="#special_cases_constructor">Special Cases</a> for more information.
+     * see {@linkplain ##special_cases_constructor Special Cases} for more information.
      * </ul>
      *
+     * @deprecated Locale constructors have been deprecated. See {@linkplain ##ObtainingLocale
+     * Obtaining a Locale} for other options.
+     *
      * @param language An ISO 639 alpha-2 or alpha-3 language code, or a language subtag
-     * up to 8 characters in length.  See the <code>Locale</code> class description about
+     * up to 8 characters in length.  See the {@code Locale} class description about
      * valid language values.
      * @param country An ISO 3166 alpha-2 country code or a UN M.49 numeric-3 area code.
-     * See the <code>Locale</code> class description about valid country values.
-     * @param variant Any arbitrary value used to indicate a variation of a <code>Locale</code>.
-     * See the <code>Locale</code> class description for the details.
-     * @exception NullPointerException thrown if any argument is null.
+     * See the {@code Locale} class description about valid country values.
+     * @param variant Any arbitrary value used to indicate a variation of a {@code Locale}.
+     * See the {@code Locale} class description for the details.
+     * @throws    NullPointerException thrown if any argument is null.
      */
+    @Deprecated(since="19")
     public Locale(String language, String country, String variant) {
-        if (language== null || country == null || variant == null) {
+        if (language == null || country == null || variant == null) {
             throw new NullPointerException();
         }
         baseLocale = BaseLocale.getInstance(convertOldISOCodes(language), "", country, variant);
@@ -724,24 +826,26 @@ public final class Locale implements Cloneable, Serializable {
      * Construct a locale from language and country.
      * This constructor normalizes the language value to lowercase and
      * the country value to uppercase.
-     * <p>
-     * <b>Note:</b>
+     * @implNote
      * <ul>
-     * <li>ISO 639 is not a stable standard; some of the language codes it defines
-     * (specifically "iw", "ji", and "in") have changed.  This constructor accepts both the
-     * old codes ("iw", "ji", and "in") and the new codes ("he", "yi", and "id"), but all other
-     * API on Locale will return only the OLD codes.
+     * <li>Obsolete ISO 639 codes ("iw", "ji", and "in") are mapped to
+     * their current forms. See {@linkplain ##legacy_language_codes Legacy language
+     * codes} for more information.
      * <li>For backward compatibility reasons, this constructor does not make
      * any syntactic checks on the input.
      * </ul>
      *
+     * @deprecated Locale constructors have been deprecated. See {@linkplain
+     * ##ObtainingLocale Obtaining a Locale} for other options.
+     *
      * @param language An ISO 639 alpha-2 or alpha-3 language code, or a language subtag
-     * up to 8 characters in length.  See the <code>Locale</code> class description about
+     * up to 8 characters in length.  See the {@code Locale} class description about
      * valid language values.
      * @param country An ISO 3166 alpha-2 country code or a UN M.49 numeric-3 area code.
-     * See the <code>Locale</code> class description about valid country values.
-     * @exception NullPointerException thrown if either argument is null.
+     * See the {@code Locale} class description about valid country values.
+     * @throws    NullPointerException thrown if either argument is null.
      */
+    @Deprecated(since="19")
     public Locale(String language, String country) {
         this(language, country, "");
     }
@@ -749,49 +853,119 @@ public final class Locale implements Cloneable, Serializable {
     /**
      * Construct a locale from a language code.
      * This constructor normalizes the language value to lowercase.
-     * <p>
-     * <b>Note:</b>
+     * @implNote
      * <ul>
-     * <li>ISO 639 is not a stable standard; some of the language codes it defines
-     * (specifically "iw", "ji", and "in") have changed.  This constructor accepts both the
-     * old codes ("iw", "ji", and "in") and the new codes ("he", "yi", and "id"), but all other
-     * API on Locale will return only the OLD codes.
+     * <li>Obsolete ISO 639 codes ("iw", "ji", and "in") are mapped to
+     * their current forms. See {@linkplain ##legacy_language_codes Legacy language
+     * codes} for more information.
      * <li>For backward compatibility reasons, this constructor does not make
      * any syntactic checks on the input.
      * </ul>
      *
+     * @deprecated Locale constructors have been deprecated. See {@linkplain
+     * ##ObtainingLocale Obtaining a Locale} for other options.
+     *
      * @param language An ISO 639 alpha-2 or alpha-3 language code, or a language subtag
-     * up to 8 characters in length.  See the <code>Locale</code> class description about
+     * up to 8 characters in length.  See the {@code Locale} class description about
      * valid language values.
-     * @exception NullPointerException thrown if argument is null.
+     * @throws    NullPointerException thrown if argument is null.
      * @since 1.4
      */
+    @Deprecated(since="19")
     public Locale(String language) {
         this(language, "", "");
     }
 
     /**
-     * This method must be called only for creating the Locale.*
-     * constants due to making shortcuts.
+     * Obtains a locale from language, country and variant.
+     * This method normalizes the language value to lowercase and
+     * the country value to uppercase.
+     * @implNote
+     * <ul>
+     * <li>This method does not make any syntactic checks on the input.
+     * Use {@link Locale.Builder} for full syntactic checks with BCP47.
+     * <li>The two cases ("ja", "JP", "JP") and ("th", "TH", "TH") are handled specially,
+     * see {@linkplain ##special_cases_constructor Special Cases} for more information.
+     * <li>Obsolete ISO 639 codes ("iw", "ji", and "in") are mapped to
+     * their current forms. See {@linkplain ##legacy_language_codes Legacy language
+     * codes} for more information.
+     * </ul>
+     *
+     * @param language A language code. See the {@code Locale} class description of
+     * {@linkplain ##def_language language} values.
+     * @param country A country code. See the {@code Locale} class description of
+     * {@linkplain ##def_region country} values.
+     * @param variant Any arbitrary value used to indicate a variation of a {@code Locale}.
+     * See the {@code Locale} class description of {@linkplain ##def_variant
+     * variant} values.
+     * @throws    NullPointerException thrown if any argument is null.
+     * @return A {@code Locale} object
+     * @since 19
      */
-    private static Locale createConstant(String lang, String country) {
-        BaseLocale base = BaseLocale.createInstance(lang, country);
-        return getInstance(base, null);
+    public static Locale of(String language, String country, String variant) {
+        return getInstance(language, "", country, variant, null);
     }
 
     /**
-     * Returns a <code>Locale</code> constructed from the given
-     * <code>language</code>, <code>country</code> and
-     * <code>variant</code>. If the same <code>Locale</code> instance
+     * Obtains a locale from language and country.
+     * This method normalizes the language value to lowercase and
+     * the country value to uppercase.
+     * @implNote
+     * <ul>
+     * <li>This method does not make any syntactic checks on the input.
+     * Use {@link Locale.Builder} for full syntactic checks with BCP47.
+     * <li>Obsolete ISO 639 codes ("iw", "ji", and "in") are mapped to
+     * their current forms. See {@linkplain ##legacy_language_codes Legacy language
+     * codes} for more information.
+     * </ul>
+     *
+     * @param language A language code. See the {@code Locale} class description of
+     * {@linkplain ##def_language language} values.
+     * @param country A country code. See the {@code Locale} class description of
+     * {@linkplain ##def_region country} values.
+     * @throws    NullPointerException thrown if either argument is null.
+     * @return A {@code Locale} object
+     * @since 19
+     */
+    public static Locale of(String language, String country) {
+        return getInstance(language, "", country, "", null);
+    }
+
+    /**
+     * Obtains a locale from a language code.
+     * This method normalizes the language value to lowercase.
+     * @implNote
+     * <ul>
+     * <li>This method does not make any syntactic checks on the input.
+     * Use {@link Locale.Builder} for full syntactic checks with BCP47.
+     * <li>Obsolete ISO 639 codes ("iw", "ji", and "in") are mapped to
+     * their current forms. See {@linkplain ##legacy_language_codes Legacy language
+     * codes} for more information.
+     * </ul>
+     *
+     * @param language A language code. See the {@code Locale} class description of
+     * {@linkplain ##def_language language} values.
+     * @throws    NullPointerException thrown if argument is null.
+     * @return A {@code Locale} object
+     * @since 19
+     */
+    public static Locale of(String language) {
+        return getInstance(language, "", "", "", null);
+    }
+
+    /**
+     * Returns a {@code Locale} constructed from the given
+     * {@code language}, {@code country} and
+     * {@code variant}. If the same {@code Locale} instance
      * is available in the cache, then that instance is
-     * returned. Otherwise, a new <code>Locale</code> instance is
+     * returned. Otherwise, a new {@code Locale} instance is
      * created and cached.
      *
      * @param language lowercase 2 to 8 language code.
      * @param country uppercase two-letter ISO-3166 code and numeric-3 UN M.49 area code.
      * @param variant vendor and browser specific code. See class description.
-     * @return the <code>Locale</code> instance requested
-     * @exception NullPointerException if any argument is null.
+     * @return the {@code Locale} instance requested
+     * @throws    NullPointerException if any argument is null.
      */
     static Locale getInstance(String language, String country, String variant) {
         return getInstance(language, "", country, variant, null);
@@ -807,35 +981,46 @@ public final class Locale implements Cloneable, Serializable {
             extensions = getCompatibilityExtensions(language, script, country, variant);
         }
 
-        BaseLocale baseloc = BaseLocale.getInstance(language, script, country, variant);
+        BaseLocale baseloc = BaseLocale.getInstance(convertOldISOCodes(language), script, country, variant);
         return getInstance(baseloc, extensions);
     }
 
-    static Locale getInstance(BaseLocale baseloc, @Nullable LocaleExtensions extensions) {
+
+    static Locale getInstance(BaseLocale baseloc, LocaleExtensions extensions) {
         if (extensions == null) {
-            return LOCALECACHE.get(baseloc);
+            Locale locale = CONSTANT_LOCALES.get(baseloc);
+            if (locale != null) {
+                return locale;
+            }
+            return LocaleCache.cache(baseloc);
         } else {
             LocaleKey key = new LocaleKey(baseloc, extensions);
-            return LOCALECACHE.get(key);
+            return LocaleCache.cache(key);
         }
     }
 
-    private static class Cache extends LocaleObjectCache<Object, Locale> {
-        private Cache() {
+    private static final class LocaleCache implements Function<Object, Locale> {
+        private static final ReferencedKeyMap<Object, Locale> LOCALE_CACHE
+                = ReferencedKeyMap.create(true, ReferencedKeyMap.concurrentHashMapSupplier());
+
+        private static final Function<Object, Locale> LOCALE_CREATOR = new LocaleCache();
+
+        public static Locale cache(Object key) {
+            return LOCALE_CACHE.computeIfAbsent(key, LOCALE_CREATOR);
         }
 
         @Override
-        protected Locale createObject(Object key) {
-            if (key instanceof BaseLocale) {
-                return new Locale((BaseLocale)key, null);
-            } else {
-                LocaleKey lk = (LocaleKey)key;
-                return new Locale(lk.base, lk.exts);
+        public Locale apply(Object key) {
+            if (key instanceof BaseLocale base) {
+                return new Locale(base, null);
             }
+            LocaleKey lk = (LocaleKey)key;
+            return new Locale(lk.base, lk.exts);
         }
     }
 
     private static final class LocaleKey {
+
         private final BaseLocale base;
         private final @Nullable LocaleExtensions exts;
         private final int hash;
@@ -857,10 +1042,9 @@ public final class Locale implements Cloneable, Serializable {
             if (this == obj) {
                 return true;
             }
-            if (!(obj instanceof LocaleKey)) {
+            if (!(obj instanceof LocaleKey other)) {
                 return false;
             }
-            LocaleKey other = (LocaleKey)obj;
             if (hash != other.hash || !base.equals(other.base)) {
                 return false;
             }
@@ -877,14 +1061,14 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Gets the current value of the default locale for this instance
-     * of the Java Virtual Machine.
+     * Gets the current value of the {@link ##default_locale default locale} for
+     * this instance of the Java Virtual Machine.
      * <p>
      * The Java Virtual Machine sets the default locale during startup
      * based on the host environment. It is used by many locale-sensitive
      * methods if no locale is explicitly specified.
      * It can be changed using the
-     * {@link #setDefault(java.util.Locale) setDefault} method.
+     * {@link #setDefault(Locale)} method.
      *
      * @return the default locale for this instance of the Java Virtual Machine
      */
@@ -894,15 +1078,15 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Gets the current value of the default locale for the specified Category
-     * for this instance of the Java Virtual Machine.
+     * Gets the current value of the {@link ##default_locale default locale} for
+     * the specified Category for this instance of the Java Virtual Machine.
      * <p>
      * The Java Virtual Machine sets the default locale during startup based
      * on the host environment. It is used by many locale-sensitive methods
      * if no locale is explicitly specified. It can be changed using the
-     * setDefault(Locale.Category, Locale) method.
+     * {@link #setDefault(Locale.Category, Locale)} method.
      *
-     * @param category - the specified category to get the default locale
+     * @param category the specified category to get the default locale
      * @throws NullPointerException if category is null
      * @return the default locale for the specified Category for this instance
      *     of the Java Virtual Machine
@@ -911,38 +1095,46 @@ public final class Locale implements Cloneable, Serializable {
      */
     public static Locale getDefault(Locale.Category category) {
         // do not synchronize this method - see 4071298
-        switch (category) {
-        case DISPLAY:
-            if (defaultDisplayLocale == null) {
-                synchronized(Locale.class) {
-                    if (defaultDisplayLocale == null) {
-                        defaultDisplayLocale = initDefault(category);
-                    }
-                }
+        Objects.requireNonNull(category);
+        if (category == Category.DISPLAY) {
+            Locale loc = defaultDisplayLocale; // volatile read
+            if (loc == null) {
+                loc = getDisplayLocale();
             }
-            return defaultDisplayLocale;
-        case FORMAT:
-            if (defaultFormatLocale == null) {
-                synchronized(Locale.class) {
-                    if (defaultFormatLocale == null) {
-                        defaultFormatLocale = initDefault(category);
-                    }
-                }
+            return loc;
+        } else {
+            assert category == Category.FORMAT : "Unknown category";
+            Locale loc = defaultFormatLocale; // volatile read
+            if (loc == null) {
+                loc = getFormatLocale();
             }
-            return defaultFormatLocale;
-        default:
-            assert false: "Unknown Category";
+            return loc;
         }
-        return getDefault();
+    }
+
+    private static synchronized Locale getDisplayLocale() {
+        Locale loc = defaultDisplayLocale;
+        if (loc == null) {
+            loc = defaultDisplayLocale = initDefault(Category.DISPLAY);
+        }
+        return loc;
+    }
+
+
+    private static synchronized Locale getFormatLocale() {
+        Locale loc = defaultFormatLocale;
+        if (loc == null) {
+            loc = defaultFormatLocale = initDefault(Category.FORMAT);
+        }
+        return loc;
     }
 
     private static Locale initDefault() {
         String language, region, script, country, variant;
-        Properties props = GetPropertyAction.privilegedGetProperties();
-        language = props.getProperty("user.language", "en");
+        language = StaticProperty.USER_LANGUAGE;
         // for compatibility, check for old user.region property
-        region = props.getProperty("user.region");
-        if (region != null) {
+        region = StaticProperty.USER_REGION;
+        if (!region.isEmpty()) {
             // region can be of form country, country_variant, or _variant
             int i = region.indexOf('_');
             if (i >= 0) {
@@ -954,35 +1146,33 @@ public final class Locale implements Cloneable, Serializable {
             }
             script = "";
         } else {
-            script = props.getProperty("user.script", "");
-            country = props.getProperty("user.country", "");
-            variant = props.getProperty("user.variant", "");
+            script = StaticProperty.USER_SCRIPT;
+            country = StaticProperty.USER_COUNTRY;
+            variant = StaticProperty.USER_VARIANT;
         }
 
         return getInstance(language, script, country, variant,
-                getDefaultExtensions(props.getProperty("user.extensions", ""))
+                getDefaultExtensions(StaticProperty.USER_EXTENSIONS)
                     .orElse(null));
     }
 
     private static Locale initDefault(Locale.Category category) {
-        Properties props = GetPropertyAction.privilegedGetProperties();
-
+        Locale locale = Locale.defaultLocale;
         return getInstance(
-            props.getProperty(category.languageKey,
-                    defaultLocale.getLanguage()),
-            props.getProperty(category.scriptKey,
-                    defaultLocale.getScript()),
-            props.getProperty(category.countryKey,
-                    defaultLocale.getCountry()),
-            props.getProperty(category.variantKey,
-                    defaultLocale.getVariant()),
-            getDefaultExtensions(props.getProperty(category.extensionsKey, ""))
-                .orElse(defaultLocale.getLocaleExtensions()));
+            category == Category.DISPLAY ? StaticProperty.USER_LANGUAGE_DISPLAY : StaticProperty.USER_LANGUAGE_FORMAT,
+            category == Category.DISPLAY ? StaticProperty.USER_SCRIPT_DISPLAY : StaticProperty.USER_SCRIPT_FORMAT,
+            category == Category.DISPLAY ? StaticProperty.USER_COUNTRY_DISPLAY : StaticProperty.USER_COUNTRY_FORMAT,
+            category == Category.DISPLAY ? StaticProperty.USER_VARIANT_DISPLAY : StaticProperty.USER_VARIANT_FORMAT,
+            getDefaultExtensions(category == Category.DISPLAY ? StaticProperty.USER_EXTENSIONS_DISPLAY : StaticProperty.USER_EXTENSIONS_FORMAT)
+                .orElse(locale.getLocaleExtensions()));
     }
 
     private static Optional<LocaleExtensions> getDefaultExtensions(String extensionsProp) {
-        LocaleExtensions exts = null;
+        if (LocaleUtils.isEmpty(extensionsProp)) {
+            return Optional.empty();
+        }
 
+        LocaleExtensions exts = null;
         try {
             exts = new InternalLocaleBuilder()
                 .setExtensions(extensionsProp)
@@ -995,11 +1185,12 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Sets the default locale for this instance of the Java Virtual Machine.
-     * This does not affect the host locale.
+     * Sets the {@link ##default_locale default locale} for
+     * this instance of the Java Virtual Machine. This does not affect the
+     * host locale.
      * <p>
-     * If there is a security manager, its <code>checkPermission</code>
-     * method is called with a <code>PropertyPermission("user.language", "write")</code>
+     * If there is a security manager, its {@code checkPermission}
+     * method is called with a {@code PropertyPermission("user.language", "write")}
      * permission before the default locale is changed.
      * <p>
      * The Java Virtual Machine sets the default locale during startup
@@ -1016,8 +1207,8 @@ public final class Locale implements Cloneable, Serializable {
      *
      * @throws SecurityException
      *        if a security manager exists and its
-     *        <code>checkPermission</code> method doesn't allow the operation.
-     * @throws NullPointerException if <code>newLocale</code> is null
+     *        {@code checkPermission} method doesn't allow the operation.
+     * @throws NullPointerException if {@code newLocale} is null
      * @param newLocale the new default locale
      * @see SecurityManager#checkPermission
      * @see java.util.PropertyPermission
@@ -1029,8 +1220,9 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Sets the default locale for the specified Category for this instance
-     * of the Java Virtual Machine. This does not affect the host locale.
+     * Sets the {@link ##default_locale default locale} for the specified
+     * Category for this instance of the Java Virtual Machine. This does
+     * not affect the host locale.
      * <p>
      * If there is a security manager, its checkPermission method is called
      * with a PropertyPermission("user.language", "write") permission before
@@ -1045,8 +1237,8 @@ public final class Locale implements Cloneable, Serializable {
      * prepared to reinitialize locale-sensitive code running within the
      * same Java Virtual Machine.
      *
-     * @param category - the specified category to set the default locale
-     * @param newLocale - the new default locale
+     * @param category the specified category to set the default locale
+     * @param newLocale the new default locale
      * @throws SecurityException if a security manager exists and its
      *     checkPermission method doesn't allow the operation.
      * @throws NullPointerException if category and/or newLocale is null
@@ -1062,6 +1254,7 @@ public final class Locale implements Cloneable, Serializable {
         if (newLocale == null)
             throw new NullPointerException("Can't set default locale to NULL");
 
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) sm.checkPermission(new PropertyPermission
                         ("user.language", "write"));
@@ -1078,29 +1271,47 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Returns an array of all installed locales.
+     * {@return an array of installed locales}
+     *
      * The returned array represents the union of locales supported
      * by the Java runtime environment and by installed
      * {@link java.util.spi.LocaleServiceProvider LocaleServiceProvider}
-     * implementations.  It must contain at least a <code>Locale</code>
-     * instance equal to {@link java.util.Locale#US Locale.US}.
-     *
-     * @return An array of installed locales.
+     * implementations. At a minimum, the returned array must contain a
+     * {@code Locale} instance equal to {@link Locale#ROOT Locale.ROOT} and
+     * a {@code Locale} instance equal to {@link Locale#US Locale.US}.
      */
     public static Locale[] getAvailableLocales() {
         return LocaleServiceProviderPool.getAllAvailableLocales();
     }
 
     /**
+     * {@return a stream of installed locales}
+     *
+     * The returned stream represents the union of locales supported
+     * by the Java runtime environment and by installed
+     * {@link java.util.spi.LocaleServiceProvider LocaleServiceProvider}
+     * implementations. At a minimum, the returned stream must contain a
+     * {@code Locale} instance equal to {@link Locale#ROOT Locale.ROOT} and
+     * a {@code Locale} instance equal to {@link Locale#US Locale.US}.
+     *
+     * @implNote Unlike {@code getAvailableLocales()}, this method does
+     * not create a defensive copy of the Locale array.
+     * @since 21
+     */
+    public static Stream<Locale> availableLocales() {
+        return LocaleServiceProviderPool.streamAllAvailableLocales();
+    }
+
+    /**
      * Returns a list of all 2-letter country codes defined in ISO 3166.
-     * Can be used to create Locales.
+     * Can be used to obtain Locales.
      * This method is equivalent to {@link #getISOCountries(Locale.IsoCountryCode type)}
      * with {@code type}  {@link IsoCountryCode#PART1_ALPHA2}.
      * <p>
-     * <b>Note:</b> The <code>Locale</code> class also supports other codes for
+     * <b>Note:</b> The {@code Locale} class also supports other codes for
      * country (region), such as 3-letter numeric UN M.49 area codes.
      * Therefore, the list returned by this method does not contain ALL valid
-     * codes that can be used to create Locales.
+     * codes that can be used to obtain Locales.
      * <p>
      * Note that this method does not return obsolete 2-letter country codes.
      * ISO3166-3 codes which designate country codes for those obsolete codes,
@@ -1118,12 +1329,11 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Returns a {@code Set} of ISO3166 country codes for the specified type.
+     * {@return a {@code Set} of ISO3166 country codes for the specified type}
      *
      * @param type {@link Locale.IsoCountryCode} specified ISO code type.
      * @see java.util.Locale.IsoCountryCode
      * @throws NullPointerException if type is null
-     * @return a {@code Set} of ISO country codes for the specified type.
      * @since 9
      */
     public static Set<String> getISOCountries(IsoCountryCode type) {
@@ -1133,26 +1343,27 @@ public final class Locale implements Cloneable, Serializable {
 
     /**
      * Returns a list of all 2-letter language codes defined in ISO 639.
-     * Can be used to create Locales.
+     * Can be used to obtain Locales.
      * <p>
      * <b>Note:</b>
      * <ul>
      * <li>ISO 639 is not a stable standard&mdash; some languages' codes have changed.
      * The list this function returns includes both the new and the old codes for the
      * languages whose codes have changed.
-     * <li>The <code>Locale</code> class also supports language codes up to
+     * <li>The {@code Locale} class also supports language codes up to
      * 8 characters in length.  Therefore, the list returned by this method does
-     * not contain ALL valid codes that can be used to create Locales.
+     * not contain ALL valid codes that can be used to obtain Locales.
      * </ul>
      *
      * @return An array of ISO 639 two-letter language codes.
      */
     public static String[] getISOLanguages() {
-        if (isoLanguages == null) {
-            isoLanguages = getISO2Table(LocaleISOData.isoLanguageTable);
+        String[] languages = Locale.isoLanguages;
+        if (languages == null) {
+            Locale.isoLanguages = languages = getISO2Table(LocaleISOData.isoLanguageTable);
         }
-        String[] result = new String[isoLanguages.length];
-        System.arraycopy(isoLanguages, 0, result, 0, isoLanguages.length);
+        String[] result = new String[languages.length];
+        System.arraycopy(languages, 0, result, 0, languages.length);
         return result;
     }
 
@@ -1168,19 +1379,10 @@ public final class Locale implements Cloneable, Serializable {
     /**
      * Returns the language code of this Locale.
      *
-     * <p><b>Note:</b> ISO 639 is not a stable standard&mdash; some languages' codes have changed.
-     * Locale's constructor recognizes both the new and the old codes for the languages
-     * whose codes have changed, but this function always returns the old code.  If you
-     * want to check for a specific language whose code has changed, don't do
-     * <pre>
-     * if (locale.getLanguage().equals("he")) // BAD!
-     *    ...
-     * </pre>
-     * Instead, do
-     * <pre>
-     * if (locale.getLanguage().equals(new Locale("he").getLanguage()))
-     *    ...
-     * </pre>
+     * @implNote This method returns the new forms for the obsolete ISO 639
+     * codes ("iw", "ji", and "in"). See {@linkplain ##legacy_language_codes
+     * Legacy language codes} for more information.
+     *
      * @return The language code, or the empty string if none is defined.
      * @see #getDisplayLanguage
      */
@@ -1225,8 +1427,8 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Returns {@code true} if this {@code Locale} has any <a href="#def_extensions">
-     * extensions</a>.
+     * Returns {@code true} if this {@code Locale} has any {@linkplain ##def_extensions
+     * extensions}.
      *
      * @return {@code true} if this {@code Locale} has any extensions
      * @since 1.8
@@ -1236,8 +1438,8 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Returns a copy of this {@code Locale} with no <a href="#def_extensions">
-     * extensions</a>. If this {@code Locale} has no extensions, this {@code Locale}
+     * Returns a copy of this {@code Locale} with no {@linkplain ##def_extensions
+     * extensions}. If this {@code Locale} has no extensions, this {@code Locale}
      * is returned.
      *
      * @return a copy of this {@code Locale} with no extensions, or {@code this}
@@ -1252,7 +1454,7 @@ public final class Locale implements Cloneable, Serializable {
      * Returns the extension (or private use) value associated with
      * the specified key, or null if there is no extension
      * associated with the key. To be well-formed, the key must be one
-     * of <code>[0-9A-Za-z]</code>. Keys are case-insensitive, so
+     * of {@code [0-9A-Za-z]}. Keys are case-insensitive, so
      * for example 'z' and 'Z' represent the same extension.
      *
      * @param key the extension key
@@ -1312,7 +1514,7 @@ public final class Locale implements Cloneable, Serializable {
      * @return The Unicode locale type associated with the key, or null if the
      * locale does not define the key.
      * @throws IllegalArgumentException if the key is not well-formed
-     * @throws NullPointerException if <code>key</code> is null
+     * @throws NullPointerException if {@code key} is null
      * @since 1.7
      */
     public String getUnicodeLocaleType(String key) {
@@ -1357,7 +1559,7 @@ public final class Locale implements Cloneable, Serializable {
      }
 
     /**
-     * Returns a string representation of this <code>Locale</code>
+     * Returns a string representation of this {@code Locale}
      * object, consisting of language, country, variant, script,
      * and extensions as below:
      * <blockquote>
@@ -1380,7 +1582,7 @@ public final class Locale implements Cloneable, Serializable {
      * added before the "#".
      *
      * <p>This behavior is designed to support debugging and to be compatible with
-     * previous uses of <code>toString</code> that expected language, country, and variant
+     * previous uses of {@code toString} that expected language, country, and variant
      * fields only.  To represent a Locale as a String for interchange purposes, use
      * {@link #toLanguageTag}.
      *
@@ -1401,11 +1603,11 @@ public final class Locale implements Cloneable, Serializable {
     
     @Override
     public final String toString() {
-        boolean l = (baseLocale.getLanguage().length() != 0);
-        boolean s = (baseLocale.getScript().length() != 0);
-        boolean r = (baseLocale.getRegion().length() != 0);
-        boolean v = (baseLocale.getVariant().length() != 0);
-        boolean e = (localeExtensions != null && localeExtensions.getID().length() != 0);
+        boolean l = !baseLocale.getLanguage().isEmpty();
+        boolean s = !baseLocale.getScript().isEmpty();
+        boolean r = !baseLocale.getRegion().isEmpty();
+        boolean v = !baseLocale.getVariant().isEmpty();
+        boolean e = localeExtensions != null && !localeExtensions.getID().isEmpty();
 
         StringBuilder result = new StringBuilder(baseLocale.getLanguage());
         if (r || (l && (v || s || e))) {
@@ -1437,21 +1639,20 @@ public final class Locale implements Cloneable, Serializable {
      * Returns a well-formed IETF BCP 47 language tag representing
      * this locale.
      *
-     * <p>If this <code>Locale</code> has a language, country, or
+     * <p>If this {@code Locale} has a language, country, or
      * variant that does not satisfy the IETF BCP 47 language tag
      * syntax requirements, this method handles these fields as
      * described below:
      *
-     * <p><b>Language:</b> If language is empty, or not <a
-     * href="#def_language" >well-formed</a> (for example "a" or
+     * <p><b>Language:</b> If language is empty, or not
+     * {@linkplain ##def_language well-formed} (for example "a" or
      * "e2"), it will be emitted as "und" (Undetermined).
      *
-     * <p><b>Country:</b> If country is not <a
-     * href="#def_region">well-formed</a> (for example "12" or "USA"),
-     * it will be omitted.
+     * <p><b>Country:</b> If country is not {@linkplain ##def_region well-formed}
+     * (for example "12" or "USA"), it will be omitted.
      *
-     * <p><b>Variant:</b> If variant <b>is</b> <a
-     * href="#def_variant">well-formed</a>, each sub-segment
+     * <p><b>Variant:</b> If variant <b>is</b> {@linkplain ##def_variant
+     * well-formed}, each sub-segment
      * (delimited by '-' or '_') is emitted as a subtag.  Otherwise:
      * <ul>
      *
@@ -1485,12 +1686,13 @@ public final class Locale implements Cloneable, Serializable {
      * "NY", representing Norwegian Nynorsk (Norway), is converted
      * to a language tag "nn-NO".</li></ul>
      *
-     * <p><b>Note:</b> Although the language tag created by this
+     * <p><b>Note:</b> Although the language tag obtained by this
      * method is well-formed (satisfies the syntax requirements
      * defined by the IETF BCP 47 specification), it is not
      * necessarily a valid BCP 47 language tag.  For example,
-     * <pre>
-     *   new Locale("xx", "YY").toLanguageTag();</pre>
+     * {@snippet lang=java :
+     *   Locale.forLanguageTag("xx-YY").toLanguageTag();
+     * }
      *
      * will return "xx-YY", but the language subtag "xx" and the
      * region subtag "YY" are invalid because they are not registered
@@ -1501,26 +1703,27 @@ public final class Locale implements Cloneable, Serializable {
      * @since 1.7
      */
     public String toLanguageTag() {
-        if (languageTag != null) {
-            return languageTag;
+        String lTag = this.languageTag;
+        if (lTag != null) {
+            return lTag;
         }
 
         LanguageTag tag = LanguageTag.parseLocale(baseLocale, localeExtensions);
         StringBuilder buf = new StringBuilder();
 
         String subtag = tag.getLanguage();
-        if (subtag.length() > 0) {
+        if (!subtag.isEmpty()) {
             buf.append(LanguageTag.canonicalizeLanguage(subtag));
         }
 
         subtag = tag.getScript();
-        if (subtag.length() > 0) {
+        if (!subtag.isEmpty()) {
             buf.append(LanguageTag.SEP);
             buf.append(LanguageTag.canonicalizeScript(subtag));
         }
 
         subtag = tag.getRegion();
-        if (subtag.length() > 0) {
+        if (!subtag.isEmpty()) {
             buf.append(LanguageTag.SEP);
             buf.append(LanguageTag.canonicalizeRegion(subtag));
         }
@@ -1539,7 +1742,7 @@ public final class Locale implements Cloneable, Serializable {
         }
 
         subtag = tag.getPrivateuse();
-        if (subtag.length() > 0) {
+        if (!subtag.isEmpty()) {
             if (buf.length() > 0) {
                 buf.append(LanguageTag.SEP);
             }
@@ -1550,11 +1753,63 @@ public final class Locale implements Cloneable, Serializable {
 
         String langTag = buf.toString();
         synchronized (this) {
-            if (languageTag == null) {
-                languageTag = langTag;
+            if (this.languageTag == null) {
+                this.languageTag = langTag;
             }
         }
-        return languageTag;
+        return langTag;
+    }
+
+    /**
+     * {@return a case folded IETF BCP 47 language tag}
+     *
+     * <p>This method formats a language tag into one with case convention
+     * that adheres to section 2.1.1. Formatting of Language Tags of RFC5646.
+     * This format is defined as: <i>All subtags, including extension and private
+     * use subtags, use lowercase letters with two exceptions: two-letter
+     * and four-letter subtags that neither appear at the start of the tag
+     * nor occur after singletons. Such two-letter subtags are all
+     * uppercase (as in the tags "en-CA-x-ca" or "sgn-BE-FR") and four-
+     * letter subtags are titlecase (as in the tag "az-Latn-x-latn").</i> As
+     * legacy tags, (defined as "grandfathered" in RFC5646) are not always well-formed, this method
+     * will simply case fold a legacy tag to match the exact case convention
+     * for the particular tag specified in the respective
+     * {@link ##legacy_tags Legacy tags} table.
+     *
+     * <p><b>Special Exceptions</b>
+     * <p>To maintain consistency with {@link ##def_variant variant}
+     * which is case-sensitive, this method will neither case fold variant
+     * subtags nor case fold private use subtags prefixed by {@code lvariant}.
+     *
+     * <p>For example,
+     * {@snippet lang=java :
+     * String tag = "ja-kana-jp-x-lvariant-Oracle-JDK-Standard-Edition";
+     * Locale.caseFoldLanguageTag(tag); // returns "ja-Kana-JP-x-lvariant-Oracle-JDK-Standard-Edition"
+     * String tag2 = "ja-kana-jp-x-Oracle-JDK-Standard-Edition";
+     * Locale.caseFoldLanguageTag(tag2); // returns "ja-Kana-JP-x-oracle-jdk-standard-edition"
+     * }
+     *
+     * <p>Excluding case folding, this method makes no modifications to the tag itself.
+     * Case convention of language tags does not carry meaning, and is simply
+     * recommended as it corresponds with various ISO standards, including:
+     * ISO639-1, ISO15924, and ISO3166-1.
+     *
+     * <p>As the formatting of the case convention is dependent on the
+     * positioning of certain subtags, callers of this method should ensure
+     * that the language tag is well-formed, (conforming to section 2.1. Syntax
+     * of RFC5646).
+     *
+     * @param languageTag the IETF BCP 47 language tag.
+     * @throws IllformedLocaleException if {@code languageTag} is not well-formed
+     * @throws NullPointerException if {@code languageTag} is {@code null}
+     * @spec https://www.rfc-editor.org/rfc/rfc5646.html#section-2.1
+     *       RFC5646 2.1. Syntax
+     * @spec https://www.rfc-editor.org/rfc/rfc5646#section-2.1.1
+     *       RFC5646 2.1.1. Formatting of Language Tags
+     * @since 21
+     */
+    public static String caseFoldLanguageTag(String languageTag) {
+        return LanguageTag.caseFoldTag(languageTag);
     }
 
     /**
@@ -1569,16 +1824,18 @@ public final class Locale implements Cloneable, Serializable {
      *
      * <li>The language code "und" is mapped to language "".
      *
-     * <li>The language codes "he", "yi", and "id" are mapped to "iw",
-     * "ji", and "in" respectively. (This is the same canonicalization
-     * that's done in Locale's constructors.)
+     * <li>The language codes "iw", "ji", and "in" are mapped to "he",
+     * "yi", and "id" respectively. (This is the same canonicalization
+     * that's done in Locale's constructors.) See
+     * {@linkplain ##legacy_language_codes Legacy language codes}
+     * for more information.
      *
      * <li>The portion of a private use subtag prefixed by "lvariant",
      * if any, is removed and appended to the variant field in the
      * result locale (without case normalization).  If it is then
      * empty, the private use subtag is discarded:
      *
-     * <pre>
+     * {@snippet lang=java :
      *     Locale loc;
      *     loc = Locale.forLanguageTag("en-US-x-lvariant-POSIX");
      *     loc.getVariant(); // returns "POSIX"
@@ -1587,16 +1844,16 @@ public final class Locale implements Cloneable, Serializable {
      *     loc = Locale.forLanguageTag("de-POSIX-x-URP-lvariant-Abc-Def");
      *     loc.getVariant(); // returns "POSIX_Abc_Def"
      *     loc.getExtension('x'); // returns "urp"
-     * </pre>
+     * }
      *
      * <li>When the languageTag argument contains an extlang subtag,
      * the first such subtag is used as the language, and the primary
      * language subtag and other extlang subtags are ignored:
      *
-     * <pre>
+     * {@snippet lang=java :
      *     Locale.forLanguageTag("ar-aao").getLanguage(); // returns "aao"
      *     Locale.forLanguageTag("en-abc-def-us").toString(); // returns "abc_US"
-     * </pre>
+     * }
      *
      * <li>Case is normalized except for variant tags, which are left
      * unchanged.  Language is normalized to lower case, script to
@@ -1607,26 +1864,27 @@ public final class Locale implements Cloneable, Serializable {
      * ja_JP_JP or th_TH_TH with no extensions, the appropriate
      * extensions are added as though the constructor had been called:
      *
-     * <pre>
+     * {@snippet lang=java :
      *    Locale.forLanguageTag("ja-JP-x-lvariant-JP").toLanguageTag();
      *    // returns "ja-JP-u-ca-japanese-x-lvariant-JP"
      *    Locale.forLanguageTag("th-TH-x-lvariant-TH").toLanguageTag();
      *    // returns "th-TH-u-nu-thai-x-lvariant-TH"
-     * </pre></ul>
+     * }</ul>
      *
-     * <p>This implements the 'Language-Tag' production of BCP47, and
-     * so supports grandfathered (regular and irregular) as well as
+     * <p id="legacy_tags">This implements the 'Language-Tag' production of BCP47, and
+     * so supports legacy (regular and irregular, referred to as
+     * "Type: grandfathered" in BCP47) as well as
      * private use language tags.  Stand alone private use tags are
      * represented as empty language and extension 'x-whatever',
-     * and grandfathered tags are converted to their canonical replacements
+     * and legacy tags are converted to their canonical replacements
      * where they exist.
      *
-     * <p>Grandfathered tags with canonical replacements are as follows:
+     * <p>Legacy tags with canonical replacements are as follows:
      *
      * <table class="striped">
-     * <caption style="display:none">Grandfathered tags with canonical replacements</caption>
+     * <caption style="display:none">Legacy tags with canonical replacements</caption>
      * <thead style="text-align:center">
-     * <tr><th scope="col" style="padding: 0 2px">grandfathered tag</th><th scope="col" style="padding: 0 2px">modern replacement</th></tr>
+     * <tr><th scope="col" style="padding: 0 2px">legacy tag</th><th scope="col" style="padding: 0 2px">modern replacement</th></tr>
      * </thead>
      * <tbody style="text-align:center">
      * <tr><th scope="row">art-lojban</th><td>jbo</td></tr>
@@ -1652,13 +1910,13 @@ public final class Locale implements Cloneable, Serializable {
      * </tbody>
      * </table>
      *
-     * <p>Grandfathered tags with no modern replacement will be
+     * <p>Legacy tags with no modern replacement will be
      * converted as follows:
      *
      * <table class="striped">
-     * <caption style="display:none">Grandfathered tags with no modern replacement</caption>
+     * <caption style="display:none">Legacy tags with no modern replacement</caption>
      * <thead style="text-align:center">
-     * <tr><th scope="col" style="padding: 0 2px">grandfathered tag</th><th scope="col" style="padding: 0 2px">converts to</th></tr>
+     * <tr><th scope="col" style="padding: 0 2px">legacy tag</th><th scope="col" style="padding: 0 2px">converts to</th></tr>
      * </thead>
      * <tbody style="text-align:center">
      * <tr><th scope="row">cel-gaulish</th><td>xtg-x-cel-gaulish</td></tr>
@@ -1670,15 +1928,15 @@ public final class Locale implements Cloneable, Serializable {
      * </tbody>
      * </table>
      *
-     * <p>For a list of all grandfathered tags, see the
+     * <p>For a list of all legacy tags, see the
      * IANA Language Subtag Registry (search for "Type: grandfathered").
      *
-     * <p><b>Note</b>: there is no guarantee that <code>toLanguageTag</code>
-     * and <code>forLanguageTag</code> will round-trip.
+     * <p><b>Note</b>: there is no guarantee that {@code toLanguageTag}
+     * and {@code forLanguageTag} will round-trip.
      *
      * @param languageTag the language tag
      * @return The locale that best represents the language tag.
-     * @throws NullPointerException if <code>languageTag</code> is <code>null</code>
+     * @throws NullPointerException if {@code languageTag} is {@code null}
      * @see #toLanguageTag()
      * @see java.util.Locale.Builder#setLanguageTag(String)
      * @since 1.7
@@ -1689,7 +1947,7 @@ public final class Locale implements Cloneable, Serializable {
         bldr.setLanguageTag(tag);
         BaseLocale base = bldr.getBaseLocale();
         LocaleExtensions exts = bldr.getLocaleExtensions();
-        if (exts == null && base.getVariant().length() > 0) {
+        if (exts == null && !base.getVariant().isEmpty()) {
             exts = getCompatibilityExtensions(base.getLanguage(), base.getScript(),
                                               base.getRegion(), base.getVariant());
         }
@@ -1697,7 +1955,8 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Returns a three-letter abbreviation of this locale's language.
+     * {@return a three-letter abbreviation of this locale's language}
+     *
      * If the language matches an ISO 639-1 two-letter code, the
      * corresponding ISO 639-2/T three-letter lowercase code is
      * returned.  The ISO 639-2 language codes can be found on-line,
@@ -1706,8 +1965,7 @@ public final class Locale implements Cloneable, Serializable {
      * language, the language is returned as is.  If the locale does
      * not specify a language the empty string is returned.
      *
-     * @return A three-letter abbreviation of this locale's language.
-     * @exception MissingResourceException Throws MissingResourceException if
+     * @throws    MissingResourceException Throws MissingResourceException if
      * three-letter language abbreviation is not available for this locale.
      */
     public String getISO3Language() throws MissingResourceException {
@@ -1725,7 +1983,8 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Returns a three-letter abbreviation for this locale's country.
+     * {@return a three-letter abbreviation of this locale's country}
+     *
      * If the country matches an ISO 3166-1 alpha-2 code, the
      * corresponding ISO 3166-1 alpha-3 uppercase code is returned.
      * If the locale doesn't specify a country, this will be the empty
@@ -1733,8 +1992,7 @@ public final class Locale implements Cloneable, Serializable {
      *
      * <p>The ISO 3166-1 codes can be found on-line.
      *
-     * @return A three-letter abbreviation of this locale's country.
-     * @exception MissingResourceException Throws MissingResourceException if the
+     * @throws    MissingResourceException Throws MissingResourceException if the
      * three-letter country abbreviation is not available for this locale.
      */
     public String getISO3Country() throws MissingResourceException {
@@ -1804,7 +2062,7 @@ public final class Locale implements Cloneable, Serializable {
      *
      * @param inLocale The locale for which to retrieve the display language.
      * @return The name of the display language appropriate to the given locale.
-     * @exception NullPointerException if <code>inLocale</code> is <code>null</code>
+     * @throws    NullPointerException if {@code inLocale} is {@code null}
      */
     public String getDisplayLanguage(Locale inLocale) {
         return getDisplayString(baseLocale.getLanguage(), null, inLocale, DISPLAY_LANGUAGE);
@@ -1833,7 +2091,7 @@ public final class Locale implements Cloneable, Serializable {
      * @param inLocale The locale for which to retrieve the display script.
      * @return the display name of the script code for the current default
      * {@link Locale.Category#DISPLAY DISPLAY} locale
-     * @throws NullPointerException if <code>inLocale</code> is <code>null</code>
+     * @throws NullPointerException if {@code inLocale} is {@code null}
      * @since 1.7
      */
     public String getDisplayScript(Locale inLocale) {
@@ -1877,7 +2135,7 @@ public final class Locale implements Cloneable, Serializable {
      *
      * @param inLocale The locale for which to retrieve the display country.
      * @return The name of the country appropriate to the given locale.
-     * @exception NullPointerException if <code>inLocale</code> is <code>null</code>
+     * @throws    NullPointerException if {@code inLocale} is {@code null}
      */
     public String getDisplayCountry(Locale inLocale) {
         return getDisplayString(baseLocale.getRegion(), null, inLocale, DISPLAY_COUNTRY);
@@ -1919,10 +2177,10 @@ public final class Locale implements Cloneable, Serializable {
      *
      * @param inLocale The locale for which to retrieve the display variant code.
      * @return The name of the display variant code appropriate to the given locale.
-     * @exception NullPointerException if <code>inLocale</code> is <code>null</code>
+     * @throws    NullPointerException if {@code inLocale} is {@code null}
      */
     public String getDisplayVariant(Locale inLocale) {
-        if (baseLocale.getVariant().length() == 0)
+        if (baseLocale.getVariant().isEmpty())
             return "";
 
         LocaleResources lr = LocaleProviderAdapter
@@ -1941,7 +2199,7 @@ public final class Locale implements Cloneable, Serializable {
      * Returns a name for the locale that is appropriate for display to the
      * user. This will be the values returned by getDisplayLanguage(),
      * getDisplayScript(), getDisplayCountry(), getDisplayVariant() and
-     * optional <a href="./Locale.html#def_locale_extension">Unicode extensions</a>
+     * optional {@linkplain ##def_locale_extension Unicode extensions}
      * assembled into a single string. The non-empty values are used in order, with
      * the second and subsequent names in parentheses.  For example:
      * <blockquote>
@@ -1965,9 +2223,9 @@ public final class Locale implements Cloneable, Serializable {
     /**
      * Returns a name for the locale that is appropriate for display
      * to the user.  This will be the values returned by
-     * getDisplayLanguage(), getDisplayScript(),getDisplayCountry()
-     * getDisplayVariant(), and optional <a href="./Locale.html#def_locale_extension">
-     * Unicode extensions</a> assembled into a single string. The non-empty
+     * getDisplayLanguage(), getDisplayScript(), getDisplayCountry(),
+     * getDisplayVariant(), and optional {@linkplain ##def_locale_extension
+     * Unicode extensions} assembled into a single string. The non-empty
      * values are used in order, with the second and subsequent names in
      * parentheses.  For example:
      * <blockquote>
@@ -1984,7 +2242,7 @@ public final class Locale implements Cloneable, Serializable {
      *
      * @param inLocale The locale for which to retrieve the display name.
      * @return The name of the locale appropriate to display.
-     * @throws NullPointerException if <code>inLocale</code> is <code>null</code>
+     * @throws NullPointerException if {@code inLocale} is {@code null}
      */
     public String getDisplayName(Locale inLocale) {
         LocaleResources lr =  LocaleProviderAdapter
@@ -2003,14 +2261,14 @@ public final class Locale implements Cloneable, Serializable {
         // The display name consists of a main name, followed by qualifiers.
         // Typically, the format is "MainName (Qualifier, Qualifier)" but this
         // depends on what pattern is stored in the display locale.
-        String   mainName       = null;
-        String[] qualifierNames = null;
+        String   mainName;
+        String[] qualifierNames;
 
         // The main name is the language, or if there is no language, the script,
         // then if no script, the country. If there is no language/script/country
         // (an anomalous situation) then the display name is simply the variant's
         // display name.
-        if (languageName.length() == 0 && scriptName.length() == 0 && countryName.length() == 0) {
+        if (languageName.isEmpty() && scriptName.isEmpty() && countryName.isEmpty()) {
             if (variantNames.length == 0) {
                 return "";
             } else {
@@ -2018,13 +2276,13 @@ public final class Locale implements Cloneable, Serializable {
             }
         }
         ArrayList<String> names = new ArrayList<>(4);
-        if (languageName.length() != 0) {
+        if (!languageName.isEmpty()) {
             names.add(languageName);
         }
-        if (scriptName.length() != 0) {
+        if (!scriptName.isEmpty()) {
             names.add(scriptName);
         }
-        if (countryName.length() != 0) {
+        if (!countryName.isEmpty()) {
             names.add(countryName);
         }
         if (variantNames.length != 0) {
@@ -2150,7 +2408,7 @@ public final class Locale implements Cloneable, Serializable {
     /**
      * Calculated hashcode
      */
-    private transient volatile int hashCodeValue;
+    private transient @Stable int hashCodeValue;
 
     private static volatile Locale defaultLocale = initDefault();
     private static volatile  Locale defaultDisplayLocale;
@@ -2160,7 +2418,7 @@ public final class Locale implements Cloneable, Serializable {
 
     /**
      * Return an array of the display names of the variant.
-     * @param bundle the ResourceBundle to use to get the display names
+     * @param inLocale The locale for which to retrieve the display variant.
      * @return an array of display names, possible of zero length.
      */
     private String[] getDisplayVariantArray(Locale inLocale) {
@@ -2212,7 +2470,7 @@ public final class Locale implements Cloneable, Serializable {
 
     /**
      * Format a list using given pattern strings.
-     * If either of the patterns is null, then a the list is
+     * If either of the patterns is null, then the list is
      * formatted by concatenation with the delimiter ','.
      * @param stringList the list of strings to be formatted.
      * and formatting them into a list.
@@ -2223,26 +2481,23 @@ public final class Locale implements Cloneable, Serializable {
         // If we have no list patterns, compose the list in a simple,
         // non-localized way.
         if (pattern == null) {
-            return Arrays.stream(stringList).collect(Collectors.joining(","));
+            return String.join(",", stringList);
         }
 
-        switch (stringList.length) {
-            case 0:
-                return "";
-            case 1:
-                return stringList[0];
-            default:
-                return Arrays.stream(stringList).reduce("",
-                    (s1, s2) -> {
-                        if (s1.equals("")) {
-                            return s2;
-                        }
-                        if (s2.equals("")) {
-                            return s1;
-                        }
-                        return MessageFormat.format(pattern, s1, s2);
-                    });
-        }
+        return switch (stringList.length) {
+            case 0 -> "";
+            case 1 -> stringList[0];
+            default -> Arrays.stream(stringList).reduce("",
+                (s1, s2) -> {
+                    if (s1.isEmpty()) {
+                        return s2;
+                    }
+                    if (s2.isEmpty()) {
+                        return s1;
+                    }
+                    return MessageFormat.format(pattern, s1, s2);
+                });
+        };
     }
 
     // Duplicate of sun.util.locale.UnicodeLocaleExtension.isKey in order to
@@ -2254,23 +2509,27 @@ public final class Locale implements Cloneable, Serializable {
 
     /**
      * @serialField language    String
-     *      language subtag in lower case. (See <a href="java/util/Locale.html#getLanguage()">getLanguage()</a>)
+     *      language subtag in lower case.
+     *      (See {@link #getLanguage()})
      * @serialField country     String
-     *      country subtag in upper case. (See <a href="java/util/Locale.html#getCountry()">getCountry()</a>)
+     *      country subtag in upper case.
+     *      (See {@link #getCountry()})
      * @serialField variant     String
-     *      variant subtags separated by LOWLINE characters. (See <a href="java/util/Locale.html#getVariant()">getVariant()</a>)
+     *      variant subtags separated by LOWLINE characters.
+     *      (See {@link #getVariant()})
      * @serialField hashcode    int
      *      deprecated, for forward compatibility only
      * @serialField script      String
-     *      script subtag in title case (See <a href="java/util/Locale.html#getScript()">getScript()</a>)
+     *      script subtag in title case
+     *      (See {@link #getScript()})
      * @serialField extensions  String
      *      canonical representation of extensions, that is,
      *      BCP47 extensions in alphabetical order followed by
      *      BCP47 private use subtags, all in lower case letters
      *      separated by HYPHEN-MINUS characters.
-     *      (See <a href="java/util/Locale.html#getExtensionKeys()">getExtensionKeys()</a>,
-     *      <a href="java/util/Locale.html#getExtension(char)">getExtension(char)</a>)
+     *      (See {@link #getExtensionKeys()}, {@link #getExtension(char)})
      */
+    @java.io.Serial
     private static final ObjectStreamField[] serialPersistentFields = {
         new ObjectStreamField("language", String.class),
         new ObjectStreamField("country", String.class),
@@ -2281,11 +2540,12 @@ public final class Locale implements Cloneable, Serializable {
     };
 
     /**
-     * Serializes this <code>Locale</code> to the specified <code>ObjectOutputStream</code>.
-     * @param out the <code>ObjectOutputStream</code> to write
+     * Serializes this {@code Locale} to the specified {@code ObjectOutputStream}.
+     * @param out the {@code ObjectOutputStream} to write
      * @throws IOException
      * @since 1.7
      */
+    @java.io.Serial
     private void writeObject(ObjectOutputStream out) throws IOException {
         ObjectOutputStream.PutField fields = out.putFields();
         fields.put("language", baseLocale.getLanguage());
@@ -2298,13 +2558,14 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Deserializes this <code>Locale</code>.
-     * @param in the <code>ObjectInputStream</code> to read
+     * Deserializes this {@code Locale}.
+     * @param in the {@code ObjectInputStream} to read
      * @throws IOException
      * @throws ClassNotFoundException
      * @throws IllformedLocaleException
      * @since 1.7
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         ObjectInputStream.GetField fields = in.readFields();
         String language = (String)fields.get("language", "");
@@ -2312,8 +2573,9 @@ public final class Locale implements Cloneable, Serializable {
         String country = (String)fields.get("country", "");
         String variant = (String)fields.get("variant", "");
         String extStr = (String)fields.get("extensions", "");
+
         baseLocale = BaseLocale.getInstance(convertOldISOCodes(language), script, country, variant);
-        if (extStr.length() > 0) {
+        if (!extStr.isEmpty()) {
             try {
                 InternalLocaleBuilder bldr = new InternalLocaleBuilder();
                 bldr.setExtensions(extStr);
@@ -2327,19 +2589,20 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Returns a cached <code>Locale</code> instance equivalent to
-     * the deserialized <code>Locale</code>. When serialized
+     * Returns a cached {@code Locale} instance equivalent to
+     * the deserialized {@code Locale}. When serialized
      * language, country and variant fields read from the object data stream
      * are exactly "ja", "JP", "JP" or "th", "TH", "TH" and script/extensions
-     * fields are empty, this method supplies <code>UNICODE_LOCALE_EXTENSION</code>
+     * fields are empty, this method supplies {@code UNICODE_LOCALE_EXTENSION}
      * "ca"/"japanese" (calendar type is "japanese") or "nu"/"thai" (number script
-     * type is "thai"). See <a href="Locale.html#special_cases_constructor">Special Cases</a>
+     * type is "thai"). See {@linkplain ##special_cases_constructor Special Cases}
      * for more information.
      *
-     * @return an instance of <code>Locale</code> equivalent to
-     * the deserialized <code>Locale</code>.
+     * @return an instance of {@code Locale} equivalent to
+     * the deserialized {@code Locale}.
      * @throws java.io.ObjectStreamException
      */
+    @java.io.Serial
     private Object readResolve() throws java.io.ObjectStreamException {
         return getInstance(baseLocale.getLanguage(), baseLocale.getScript(),
                 baseLocale.getRegion(), baseLocale.getVariant(), localeExtensions);
@@ -2351,17 +2614,9 @@ public final class Locale implements Cloneable, Serializable {
 
     private static String convertOldISOCodes(String language) {
         // we accept both the old and the new ISO codes for the languages whose ISO
-        // codes have changed, but we always store the OLD code, for backward compatibility
-        language = LocaleUtils.toLowerString(language).intern();
-        if (language == "he") {
-            return "iw";
-        } else if (language == "yi") {
-            return "ji";
-        } else if (language == "id") {
-            return "in";
-        } else {
-            return language;
-        }
+        // codes have changed, but we always store the NEW code, unless the property
+        // java.locale.useOldISOCodes is set to "true"
+        return BaseLocale.convertOldISOCodes(LocaleUtils.toLowerString(language).intern());
     }
 
     private static LocaleExtensions getCompatibilityExtensions(String language,
@@ -2371,13 +2626,13 @@ public final class Locale implements Cloneable, Serializable {
         LocaleExtensions extensions = null;
         // Special cases for backward compatibility support
         if (LocaleUtils.caseIgnoreMatch(language, "ja")
-                && script.length() == 0
+                && script.isEmpty()
                 && LocaleUtils.caseIgnoreMatch(country, "jp")
                 && "JP".equals(variant)) {
             // ja_JP_JP -> u-ca-japanese (calendar = japanese)
             extensions = LocaleExtensions.CALENDAR_JAPANESE;
         } else if (LocaleUtils.caseIgnoreMatch(language, "th")
-                && script.length() == 0
+                && script.isEmpty()
                 && LocaleUtils.caseIgnoreMatch(country, "th")
                 && "TH".equals(variant)) {
             // th_TH_TH -> u-nu-thai (numbersystem = thai)
@@ -2473,36 +2728,37 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * <code>Builder</code> is used to build instances of <code>Locale</code>
-     * from values configured by the setters.  Unlike the <code>Locale</code>
-     * constructors, the <code>Builder</code> checks if a value configured by a
-     * setter satisfies the syntax requirements defined by the <code>Locale</code>
-     * class.  A <code>Locale</code> object created by a <code>Builder</code> is
+     * {@code Builder} is used to build instances of {@code Locale}
+     * from values configured by the setters.  Unlike the {@code Locale}
+     * constructors or {@code Locale.of()} factory methods,
+     * the {@code Builder} checks if a value configured by a
+     * setter satisfies the syntax requirements defined by the {@code Locale}
+     * class.  A {@code Locale} object obtained from a {@code Builder} is
      * well-formed and can be transformed to a well-formed IETF BCP 47 language tag
      * without losing information.
      *
-     * <p><b>Note:</b> The <code>Locale</code> class does not provide any
+     * @implNote
+     * The {@code Locale} class does not provide any
      * syntactic restrictions on variant, while BCP 47 requires each variant
      * subtag to be 5 to 8 alphanumerics or a single numeric followed by 3
-     * alphanumerics.  The method <code>setVariant</code> throws
-     * <code>IllformedLocaleException</code> for a variant that does not satisfy
-     * this restriction. If it is necessary to support such a variant, use a
-     * Locale constructor.  However, keep in mind that a <code>Locale</code>
-     * object created this way might lose the variant information when
+     * alphanumerics.  The method {@code setVariant} throws
+     * {@code IllformedLocaleException} for a variant that does not satisfy
+     * this restriction. If it is necessary to support such a variant, use
+     * {@link Locale#of(String, String, String)}.  However, keep in mind that a {@code Locale}
+     * object obtained this way might lose the variant information when
      * transformed to a BCP 47 language tag.
      *
-     * <p>The following example shows how to create a <code>Locale</code> object
-     * with the <code>Builder</code>.
-     * <blockquote>
-     * <pre>
-     *     Locale aLocale = new Builder().setLanguage("sr").setScript("Latn").setRegion("RS").build();
-     * </pre>
-     * </blockquote>
+     * <p>The following example shows how to obtain a {@code Locale} object
+     * using a {@code Builder}.
+     * {@snippet lang=java :
+     * Locale aLocale = new Locale.Builder().setLanguage("sr").setScript("Latn").setRegion("RS").build();
+     * }
      *
-     * <p>Builders can be reused; <code>clear()</code> resets all
+     * <p>Builders can be reused; {@code clear()} resets all
      * fields to their default values.
      *
      * @see Locale#forLanguageTag
+     * @see Locale#of(String, String, String)
      * @since 1.7
      */
     public static final class Builder {
@@ -2518,13 +2774,13 @@ public final class Locale implements Cloneable, Serializable {
         }
 
         /**
-         * Resets the <code>Builder</code> to match the provided
-         * <code>locale</code>.  Existing state is discarded.
+         * Resets the {@code Builder} to match the provided
+         * {@code locale}.  Existing state is discarded.
          *
          * <p>All fields of the locale must be well-formed, see {@link Locale}.
          *
          * <p>Locales with any ill-formed fields cause
-         * <code>IllformedLocaleException</code> to be thrown, except for the
+         * {@code IllformedLocaleException} to be thrown, except for the
          * following three cases which are accepted for compatibility
          * reasons:<ul>
          * <li>Locale("ja", "JP", "JP") is treated as "ja-JP-u-ca-japanese"
@@ -2533,9 +2789,9 @@ public final class Locale implements Cloneable, Serializable {
          *
          * @param locale the locale
          * @return This builder.
-         * @throws IllformedLocaleException if <code>locale</code> has
+         * @throws IllformedLocaleException if {@code locale} has
          * any ill-formed fields.
-         * @throws NullPointerException if <code>locale</code> is null.
+         * @throws NullPointerException if {@code locale} is null.
          */
         public Builder setLocale(Locale locale) {
             try {
@@ -2550,17 +2806,17 @@ public final class Locale implements Cloneable, Serializable {
          * Resets the Builder to match the provided IETF BCP 47
          * language tag.  Discards the existing state.  Null and the
          * empty string cause the builder to be reset, like {@link
-         * #clear}.  Grandfathered tags (see {@link
+         * #clear}.  Legacy tags (see {@link
          * Locale#forLanguageTag}) are converted to their canonical
          * form before being processed.  Otherwise, the language tag
          * must be well-formed (see {@link Locale}) or an exception is
-         * thrown (unlike <code>Locale.forLanguageTag</code>, which
+         * thrown (unlike {@code Locale.forLanguageTag}, which
          * just discards ill-formed and following portions of the
          * tag).
          *
          * @param languageTag the language tag
          * @return This builder.
-         * @throws IllformedLocaleException if <code>languageTag</code> is ill-formed
+         * @throws IllformedLocaleException if {@code languageTag} is ill-formed
          * @see Locale#forLanguageTag(String)
          */
         public Builder setLanguageTag(@Nullable String languageTag) {
@@ -2574,9 +2830,9 @@ public final class Locale implements Cloneable, Serializable {
         }
 
         /**
-         * Sets the language.  If <code>language</code> is the empty string or
-         * null, the language in this <code>Builder</code> is removed.  Otherwise,
-         * the language must be <a href="./Locale.html#def_language">well-formed</a>
+         * Sets the language.  If {@code language} is the empty string or
+         * null, the language in this {@code Builder} is removed.  Otherwise,
+         * the language must be {@linkplain Locale##def_language well-formed}
          * or an exception is thrown.
          *
          * <p>The typical language value is a two or three-letter language
@@ -2584,7 +2840,7 @@ public final class Locale implements Cloneable, Serializable {
          *
          * @param language the language
          * @return This builder.
-         * @throws IllformedLocaleException if <code>language</code> is ill-formed
+         * @throws IllformedLocaleException if {@code language} is ill-formed
          */
         public Builder setLanguage(@Nullable String language) {
             try {
@@ -2596,16 +2852,16 @@ public final class Locale implements Cloneable, Serializable {
         }
 
         /**
-         * Sets the script. If <code>script</code> is null or the empty string,
-         * the script in this <code>Builder</code> is removed.
-         * Otherwise, the script must be <a href="./Locale.html#def_script">well-formed</a> or an
+         * Sets the script. If {@code script} is null or the empty string,
+         * the script in this {@code Builder} is removed.
+         * Otherwise, the script must be {@linkplain Locale##def_script well-formed} or an
          * exception is thrown.
          *
          * <p>The typical script value is a four-letter script code as defined by ISO 15924.
          *
          * @param script the script
          * @return This builder.
-         * @throws IllformedLocaleException if <code>script</code> is ill-formed
+         * @throws IllformedLocaleException if {@code script} is ill-formed
          */
         public Builder setScript(@Nullable String script) {
             try {
@@ -2618,19 +2874,19 @@ public final class Locale implements Cloneable, Serializable {
 
         /**
          * Sets the region.  If region is null or the empty string, the region
-         * in this <code>Builder</code> is removed.  Otherwise,
-         * the region must be <a href="./Locale.html#def_region">well-formed</a> or an
+         * in this {@code Builder} is removed.  Otherwise,
+         * the region must be {@linkplain Locale##def_region well-formed} or an
          * exception is thrown.
          *
          * <p>The typical region value is a two-letter ISO 3166 code or a
          * three-digit UN M.49 area code.
          *
-         * <p>The country value in the <code>Locale</code> created by the
-         * <code>Builder</code> is always normalized to upper case.
+         * <p>The country value in the {@code Locale} obtained from a
+         * {@code Builder} is always normalized to upper case.
          *
          * @param region the region
          * @return This builder.
-         * @throws IllformedLocaleException if <code>region</code> is ill-formed
+         * @throws IllformedLocaleException if {@code region} is ill-formed
          */
         public Builder setRegion(@Nullable String region) {
             try {
@@ -2643,21 +2899,22 @@ public final class Locale implements Cloneable, Serializable {
 
         /**
          * Sets the variant.  If variant is null or the empty string, the
-         * variant in this <code>Builder</code> is removed.  Otherwise, it
-         * must consist of one or more <a href="./Locale.html#def_variant">well-formed</a>
+         * variant in this {@code Builder} is removed.  Otherwise, it
+         * must consist of one or more {@linkplain Locale##def_variant well-formed}
          * subtags, or an exception is thrown.
          *
-         * <p><b>Note:</b> This method checks if <code>variant</code>
+         * <p><b>Note:</b> This method checks if {@code variant}
          * satisfies the IETF BCP 47 variant subtag's syntax requirements,
          * and normalizes the value to lowercase letters.  However,
-         * the <code>Locale</code> class does not impose any syntactic
+         * the {@code Locale} class does not impose any syntactic
          * restriction on variant, and the variant value in
-         * <code>Locale</code> is case sensitive.  To set such a variant,
-         * use a Locale constructor.
+         * {@code Locale} is case sensitive.  To set such a variant,
+         * use {@link Locale#of(String, String, String)}.
          *
          * @param variant the variant
          * @return This builder.
-         * @throws IllformedLocaleException if <code>variant</code> is ill-formed
+         * @throws IllformedLocaleException if {@code variant} is ill-formed
+         * @see Locale#of(String, String, String)
          */
         public Builder setVariant(@Nullable String variant) {
             try {
@@ -2671,7 +2928,7 @@ public final class Locale implements Cloneable, Serializable {
         /**
          * Sets the extension for the given key. If the value is null or the
          * empty string, the extension is removed.  Otherwise, the extension
-         * must be <a href="./Locale.html#def_extensions">well-formed</a> or an exception
+         * must be {@linkplain Locale##def_extensions well-formed} or an exception
          * is thrown.
          *
          * <p><b>Note:</b> The key {@link Locale#UNICODE_LOCALE_EXTENSION
@@ -2687,8 +2944,8 @@ public final class Locale implements Cloneable, Serializable {
          * @param key the extension key
          * @param value the extension value
          * @return This builder.
-         * @throws IllformedLocaleException if <code>key</code> is illegal
-         * or <code>value</code> is ill-formed
+         * @throws IllformedLocaleException if {@code key} is illegal
+         * or {@code value} is ill-formed
          * @see #setUnicodeLocaleKeyword(String, String)
          */
         public Builder setExtension(char key, @Nullable String value) {
@@ -2703,9 +2960,8 @@ public final class Locale implements Cloneable, Serializable {
         /**
          * Sets the Unicode locale keyword type for the given key.  If the type
          * is null, the Unicode keyword is removed.  Otherwise, the key must be
-         * non-null and both key and type must be <a
-         * href="./Locale.html#def_locale_extension">well-formed</a> or an exception
-         * is thrown.
+         * non-null and both key and type must be {@linkplain
+         * Locale##def_locale_extension well-formed} or an exception is thrown.
          *
          * <p>Keys and types are converted to lower case.
          *
@@ -2716,9 +2972,9 @@ public final class Locale implements Cloneable, Serializable {
          * @param key the Unicode locale key
          * @param type the Unicode locale type
          * @return This builder.
-         * @throws IllformedLocaleException if <code>key</code> or <code>type</code>
+         * @throws IllformedLocaleException if {@code key} or {@code type}
          * is ill-formed
-         * @throws NullPointerException if <code>key</code> is null
+         * @throws NullPointerException if {@code key} is null
          * @see #setExtension(char, String)
          */
         public Builder setUnicodeLocaleKeyword(String key, @Nullable String type) {
@@ -2732,14 +2988,14 @@ public final class Locale implements Cloneable, Serializable {
 
         /**
          * Adds a unicode locale attribute, if not already present, otherwise
-         * has no effect.  The attribute must not be null and must be <a
-         * href="./Locale.html#def_locale_extension">well-formed</a> or an exception
+         * has no effect. The attribute must not be null and must be
+         * {@linkplain Locale##def_locale_extension well-formed} or an exception
          * is thrown.
          *
          * @param attribute the attribute
          * @return This builder.
-         * @throws NullPointerException if <code>attribute</code> is null
-         * @throws IllformedLocaleException if <code>attribute</code> is ill-formed
+         * @throws NullPointerException if {@code attribute} is null
+         * @throws IllformedLocaleException if {@code attribute} is ill-formed
          * @see #setExtension(char, String)
          */
         public Builder addUnicodeLocaleAttribute(String attribute) {
@@ -2753,16 +3009,16 @@ public final class Locale implements Cloneable, Serializable {
 
         /**
          * Removes a unicode locale attribute, if present, otherwise has no
-         * effect.  The attribute must not be null and must be <a
-         * href="./Locale.html#def_locale_extension">well-formed</a> or an exception
+         * effect.  The attribute must not be null and must be
+         * {@linkplain Locale##def_locale_extension well-formed} or an exception
          * is thrown.
          *
          * <p>Attribute comparison for removal is case-insensitive.
          *
          * @param attribute the attribute
          * @return This builder.
-         * @throws NullPointerException if <code>attribute</code> is null
-         * @throws IllformedLocaleException if <code>attribute</code> is ill-formed
+         * @throws NullPointerException if {@code attribute} is null
+         * @throws IllformedLocaleException if {@code attribute} is ill-formed
          * @see #setExtension(char, String)
          */
         public Builder removeUnicodeLocaleAttribute(String attribute) {
@@ -2798,11 +3054,11 @@ public final class Locale implements Cloneable, Serializable {
         }
 
         /**
-         * Returns an instance of <code>Locale</code> created from the fields set
+         * Returns an instance of {@code Locale} obtained from the fields set
          * on this builder.
          *
          * <p>This applies the conversions listed in {@link Locale#forLanguageTag}
-         * when constructing a Locale. (Grandfathered tags are handled in
+         * when constructing a Locale. (Legacy tags are handled in
          * {@link #setLanguageTag}.)
          *
          * @return A Locale.
@@ -2810,7 +3066,7 @@ public final class Locale implements Cloneable, Serializable {
         public Locale build() {
             BaseLocale baseloc = localeBuilder.getBaseLocale();
             LocaleExtensions extensions = localeBuilder.getLocaleExtensions();
-            if (extensions == null && baseloc.getVariant().length() > 0) {
+            if (extensions == null && !baseloc.getVariant().isEmpty()) {
                 extensions = getCompatibilityExtensions(baseloc.getLanguage(), baseloc.getScript(),
                         baseloc.getRegion(), baseloc.getVariant());
             }
@@ -2820,7 +3076,7 @@ public final class Locale implements Cloneable, Serializable {
 
     /**
      * This enum provides constants to select a filtering mode for locale
-     * matching. Refer to <a href="http://tools.ietf.org/html/rfc4647">RFC 4647
+     * matching. Refer to <a href="https://tools.ietf.org/html/rfc4647">RFC 4647
      * Matching of Language Tags</a> for details.
      *
      * <p>As an example, think of two Language Priority Lists each of which
@@ -2910,6 +3166,7 @@ public final class Locale implements Cloneable, Serializable {
      * </tbody>
      * </table>
      *
+     * @spec https://www.rfc-editor.org/info/rfc4647 RFC 4647: Matching of Language Tags
      * @see #filter(List, Collection, FilteringMode)
      * @see #filterTags(List, Collection, FilteringMode)
      *
@@ -2956,16 +3213,16 @@ public final class Locale implements Cloneable, Serializable {
 
     /**
      * This class expresses a <em>Language Range</em> defined in
-     * <a href="http://tools.ietf.org/html/rfc4647">RFC 4647 Matching of
+     * <a href="https://tools.ietf.org/html/rfc4647">RFC 4647 Matching of
      * Language Tags</a>. A language range is an identifier which is used to
      * select language tag(s) meeting specific requirements by using the
-     * mechanisms described in <a href="Locale.html#LocaleMatching">Locale
-     * Matching</a>. A list which represents a user's preferences and consists
+     * mechanisms described in {@linkplain Locale##LocaleMatching Locale
+     * Matching}. A list which represents a user's preferences and consists
      * of language ranges is called a <em>Language Priority List</em>.
      *
      * <p>There are two types of language ranges: basic and extended. In RFC
      * 4647, the syntax of language ranges is expressed in
-     * <a href="http://tools.ietf.org/html/rfc4234">ABNF</a> as follows:
+     * <a href="https://tools.ietf.org/html/rfc4234">ABNF</a> as follows:
      * <blockquote>
      * <pre>
      *     basic-language-range    = (1*8ALPHA *("-" 1*8alphanum)) / "*"
@@ -2981,6 +3238,8 @@ public final class Locale implements Cloneable, Serializable {
      * {@code "zh-Hant-*"} (Traditional Chinese, any regions) are extended
      * language ranges.
      *
+     * @spec https://www.rfc-editor.org/info/rfc4234 RFC 4234: Augmented BNF for Syntax Specifications: ABNF
+     * @spec https://www.rfc-editor.org/info/rfc4647 RFC 4647: Matching of Language Tags
      * @see #filter
      * @see #filterTags
      * @see #lookup
@@ -3005,7 +3264,7 @@ public final class Locale implements Cloneable, Serializable {
         private final String range;
         private final double weight;
 
-        private volatile int hash;
+        private @Stable int hash;
 
         /**
          * Constructs a {@code LanguageRange} using the given {@code range}.
@@ -3073,7 +3332,7 @@ public final class Locale implements Cloneable, Serializable {
 
         private static boolean isSubtagIllFormed(String subtag,
                                                  boolean isFirstSubtag) {
-            if (subtag.equals("") || subtag.length() > 8) {
+            if (subtag.isEmpty() || subtag.length() > 8) {
                 return true;
             } else if (subtag.equals("*")) {
                 return false;
@@ -3131,7 +3390,7 @@ public final class Locale implements Cloneable, Serializable {
          *
          * In a weighted list, each language range is given a weight value.
          * The weight value is identical to the "quality value" in
-         * <a href="http://tools.ietf.org/html/rfc2616">RFC 2616</a>, and it
+         * <a href="https://tools.ietf.org/html/rfc2616">RFC 2616</a>, and it
          * expresses how much the user prefers  the language. A weight value is
          * specified after a corresponding language range followed by
          * {@code ";q="}, and the default weight value is {@code MAX_WEIGHT}
@@ -3169,7 +3428,7 @@ public final class Locale implements Cloneable, Serializable {
          *
          * @param ranges a list of comma-separated language ranges or a list of
          *     language ranges in the form of the "Accept-Language" header
-         *     defined in <a href="http://tools.ietf.org/html/rfc2616">RFC
+         *     defined in <a href="https://tools.ietf.org/html/rfc2616">RFC
          *     2616</a>
          * @return a Language Priority List consisting of language ranges
          *     included in the given {@code ranges} and their equivalent
@@ -3177,6 +3436,7 @@ public final class Locale implements Cloneable, Serializable {
          * @throws NullPointerException if {@code ranges} is null
          * @throws IllegalArgumentException if a language range or a weight
          *     found in the given {@code ranges} is ill-formed
+         * @spec https://www.rfc-editor.org/info/rfc2616 RFC 2616: Hypertext Transfer Protocol -- HTTP/1.1
          */
         public static List<LanguageRange> parse(String ranges) {
             return LocaleMatcher.parse(ranges);
@@ -3190,7 +3450,7 @@ public final class Locale implements Cloneable, Serializable {
          *
          * @param ranges a list of comma-separated language ranges or a list
          *     of language ranges in the form of the "Accept-Language" header
-         *     defined in <a href="http://tools.ietf.org/html/rfc2616">RFC
+         *     defined in <a href="https://tools.ietf.org/html/rfc2616">RFC
          *     2616</a>
          * @param map a map containing information to customize language ranges
          * @return a Language Priority List with customization. The list is
@@ -3198,6 +3458,7 @@ public final class Locale implements Cloneable, Serializable {
          * @throws NullPointerException if {@code ranges} is null
          * @throws IllegalArgumentException if a language range or a weight
          *     found in the given {@code ranges} is ill-formed
+         * @spec https://www.rfc-editor.org/info/rfc2616 RFC 2616: Hypertext Transfer Protocol -- HTTP/1.1
          * @see #parse(String)
          * @see #mapEquivalents
          */
@@ -3260,9 +3521,7 @@ public final class Locale implements Cloneable, Serializable {
         }
 
         /**
-         * Returns a hash code value for the object.
-         *
-         * @return  a hash code value for this object.
+         * {@return a hash code value for this object}
          */
         @Override
         public int hashCode() {
@@ -3296,13 +3555,9 @@ public final class Locale implements Cloneable, Serializable {
             if (this == obj) {
                 return true;
             }
-            if (!(obj instanceof LanguageRange)) {
-                return false;
-            }
-            LanguageRange other = (LanguageRange)obj;
-            return hash == other.hash
-                   && range.equals(other.range)
-                   && weight == other.weight;
+            return obj instanceof LanguageRange other
+                    && range.equals(other.range)
+                    && weight == other.weight;
         }
 
         /**
@@ -3447,9 +3702,9 @@ public final class Locale implements Cloneable, Serializable {
      * @param priorityList user's Language Priority List in which each language
      *     tag is sorted in descending order based on priority or weight
      * @param locales {@code Locale} instances used for matching
-     * @return the best matching <code>Locale</code> instance chosen based on
+     * @return the best matching {@code Locale} instance chosen based on
      *     priority or weight, or {@code null} if nothing matches.
-     * @throws NullPointerException if {@code priorityList} or {@code tags} is
+     * @throws NullPointerException if {@code priorityList} or {@code locales} is
      *     {@code null}
      *
      * @since 1.8
@@ -3468,7 +3723,7 @@ public final class Locale implements Cloneable, Serializable {
      *
      * @param priorityList user's Language Priority List in which each language
      *     tag is sorted in descending order based on priority or weight
-     * @param tags language tangs used for matching
+     * @param tags language tags used for matching
      * @return the best matching language tag chosen based on priority or
      *     weight, or {@code null} if nothing matches.
      * @throws NullPointerException if {@code priorityList} or {@code tags} is

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -138,7 +138,7 @@ public interface FlowTube extends
      * It is not required that a {@code TubePublisher} implementation extends
      * this class.
      */
-    static abstract class AbstractTubePublisher implements TubePublisher {
+    abstract static class AbstractTubePublisher implements TubePublisher {
         static final class TubePublisherWrapper extends AbstractTubePublisher {
             final Flow.Publisher<List<ByteBuffer>> delegate;
             public TubePublisherWrapper(Flow.Publisher<List<ByteBuffer>> delegate) {
@@ -156,7 +156,7 @@ public interface FlowTube extends
      * It is not required that a {@code TubeSubscriber} implementation extends
      * this class.
      */
-    static abstract class AbstractTubeSubscriber implements TubeSubscriber {
+    abstract static class AbstractTubeSubscriber implements TubeSubscriber {
         static final class TubeSubscriberWrapper extends  AbstractTubeSubscriber {
             final Flow.Subscriber<? super List<ByteBuffer>> delegate;
             TubeSubscriberWrapper(Flow.Subscriber<? super List<ByteBuffer>> delegate) {
@@ -179,6 +179,10 @@ public interface FlowTube extends
             @Override
             public void onComplete() {
                 delegate.onComplete();
+            }
+            @Override
+            public String toString() {
+                return "TubeSubscriberWrapper("+delegate.toString()+")";
             }
         }
 

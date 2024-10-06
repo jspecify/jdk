@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,34 +36,19 @@ import static javax.lang.model.SourceVersion.*;
  * defaultAction} passing their arguments to {@code defaultAction}'s
  * corresponding parameters.
  *
- * <p> Methods in this class may be overridden subject to their
- * general contract.  Note that annotating methods in concrete
- * subclasses with {@link java.lang.Override @Override} will help
- * ensure that methods are overridden as intended.
- *
- * <p> <b>WARNING:</b> The {@code AnnotationValueVisitor} interface
- * implemented by this class may have methods added to it in the
- * future to accommodate new, currently unknown, language structures
- * added to future versions of the Java&trade; programming language.
- * Therefore, methods whose names begin with {@code "visit"} may be
- * added to this class in the future; to avoid incompatibilities,
- * classes which extend this class should not declare any instance
- * methods with names beginning with {@code "visit"}.
- *
- * <p>When such a new visit method is added, the default
- * implementation in this class will be to call the {@link
- * #visitUnknown visitUnknown} method.  A new simple annotation
- * value visitor class will also be introduced to correspond to the
- * new language level; this visitor will have different default
- * behavior for the visit method in question.  When the new visitor is
- * introduced, all or portions of this visitor may be deprecated.
+ * @apiNote
+ * Methods in this class may be overridden subject to their general
+ * contract.
  *
  * @param <R> the return type of this visitor's methods
  * @param <P> the type of the additional parameter to this visitor's methods.
  *
+ * @see SimpleAnnotationValueVisitor6##note_for_subclasses
+ * <strong>Compatibility note for subclasses</strong>
  * @see SimpleAnnotationValueVisitor6
  * @see SimpleAnnotationValueVisitor8
  * @see SimpleAnnotationValueVisitor9
+ * @see SimpleAnnotationValueVisitor14
  * @since 1.7
  */
 @SupportedSourceVersion(RELEASE_7)
@@ -71,10 +56,13 @@ public class SimpleAnnotationValueVisitor7<R, P> extends SimpleAnnotationValueVi
     /**
      * Constructor for concrete subclasses; uses {@code null} for the
      * default value.
+     *
+     * @deprecated Release 7 is obsolete; update to a visitor for a newer
+     * release level.
      */
-    @SuppressWarnings("deprecation") // Superclass constructor deprecated
+    @Deprecated(since="12")
     protected SimpleAnnotationValueVisitor7() {
-        super(null);
+        super(null); // Superclass constructor deprecated too
     }
 
     /**
@@ -82,9 +70,12 @@ public class SimpleAnnotationValueVisitor7<R, P> extends SimpleAnnotationValueVi
      * default value.
      *
      * @param defaultValue the value to assign to {@link #DEFAULT_VALUE}
+     *
+     * @deprecated Release 7 is obsolete; update to a visitor for a newer
+     * release level.
      */
-    @SuppressWarnings("deprecation") // Superclass constructor deprecated
+    @Deprecated(since="12")
     protected SimpleAnnotationValueVisitor7(R defaultValue) {
-        super(defaultValue);
+        super(defaultValue); // Superclass constructor deprecated too
     }
 }

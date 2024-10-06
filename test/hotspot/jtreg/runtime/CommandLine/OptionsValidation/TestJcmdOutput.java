@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,12 @@
  * @summary Verify jcmd error message for out-of-range value and for
  *          value which is not allowed by constraint. Also check that
  *          jcmd does not print an error message to the target process output.
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
  *          jdk.management
- * @run main TestJcmdOutput
+ * @run driver TestJcmdOutput
  */
 
 import jdk.test.lib.Asserts;
@@ -50,7 +51,7 @@ public class TestJcmdOutput {
         OutputAnalyzer output;
 
         System.out.println("Verify jcmd error message and that jcmd does not write errors to the target process output");
-        output = new OutputAnalyzer((ProcessTools.createJavaProcessBuilder(
+        output = new OutputAnalyzer((ProcessTools.createLimitedTestJavaProcessBuilder(
                 "-Dtest.jdk=" + System.getProperty("test.jdk"),
                 "-XX:MinHeapFreeRatio=20", "-XX:MaxHeapFreeRatio=80", runJcmd.class.getName())).start());
 
@@ -63,8 +64,8 @@ public class TestJcmdOutput {
     public static class runJcmd {
 
         public static void main(String[] args) throws Exception {
-            int minHeapFreeRatio = new Integer((new DynamicVMOption("MinHeapFreeRatio")).getValue());
-            int maxHeapFreeRatio = new Integer((new DynamicVMOption("MaxHeapFreeRatio")).getValue());
+            int minHeapFreeRatio = Integer.valueOf((new DynamicVMOption("MinHeapFreeRatio")).getValue());
+            int maxHeapFreeRatio = Integer.valueOf((new DynamicVMOption("MaxHeapFreeRatio")).getValue());
             PidJcmdExecutor executor = new PidJcmdExecutor();
 
             Asserts.assertGT(minHeapFreeRatio, 0, "MinHeapFreeRatio must be greater than 0");

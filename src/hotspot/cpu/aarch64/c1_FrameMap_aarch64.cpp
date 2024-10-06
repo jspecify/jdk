@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -45,10 +45,12 @@ LIR_Opr FrameMap::map_to_opr(BasicType type, VMRegPair* reg, bool) {
       Register reg2 = r_2->as_Register();
       assert(reg2 == reg, "must be same register");
       opr = as_long_opr(reg);
-    } else if (type == T_OBJECT || type == T_ARRAY) {
+    } else if (is_reference_type(type)) {
       opr = as_oop_opr(reg);
     } else if (type == T_METADATA) {
       opr = as_metadata_opr(reg);
+    } else if (type == T_ADDRESS) {
+      opr = as_address_opr(reg);
     } else {
       opr = as_opr(reg);
     }
@@ -152,8 +154,8 @@ LIR_Opr FrameMap::long1_opr;
 LIR_Opr FrameMap::fpu0_float_opr;
 LIR_Opr FrameMap::fpu0_double_opr;
 
-LIR_Opr FrameMap::_caller_save_cpu_regs[] = { 0, };
-LIR_Opr FrameMap::_caller_save_fpu_regs[] = { 0, };
+LIR_Opr FrameMap::_caller_save_cpu_regs[] = {};
+LIR_Opr FrameMap::_caller_save_fpu_regs[] = {};
 
 //--------------------------------------------------------
 //               FrameMap
@@ -179,7 +181,10 @@ void FrameMap::initialize() {
   map_register(i, r15); r15_opr = LIR_OprFact::single_cpu(i); i++;
   map_register(i, r16); r16_opr = LIR_OprFact::single_cpu(i); i++;
   map_register(i, r17); r17_opr = LIR_OprFact::single_cpu(i); i++;
-  map_register(i, r18); r18_opr = LIR_OprFact::single_cpu(i); i++;
+#ifndef R18_RESERVED
+  // See comment in register_aarch64.hpp
+  map_register(i, r18_tls); r18_opr = LIR_OprFact::single_cpu(i); i++;
+#endif
   map_register(i, r19); r19_opr = LIR_OprFact::single_cpu(i); i++;
   map_register(i, r20); r20_opr = LIR_OprFact::single_cpu(i); i++;
   map_register(i, r21); r21_opr = LIR_OprFact::single_cpu(i); i++;
@@ -196,6 +201,11 @@ void FrameMap::initialize() {
   map_register(i, r31_sp); sp_opr = LIR_OprFact::single_cpu(i); i++; // sp
   map_register(i, r8); r8_opr = LIR_OprFact::single_cpu(i); i++;   // rscratch1
   map_register(i, r9); r9_opr = LIR_OprFact::single_cpu(i); i++;   // rscratch2
+
+#ifdef R18_RESERVED
+  // See comment in register_aarch64.hpp
+  map_register(i, r18_tls); r18_opr = LIR_OprFact::single_cpu(i); i++;
+#endif
 
   rscratch1_opr = r8_opr;
   rscratch2_opr = r9_opr;
@@ -225,7 +235,10 @@ void FrameMap::initialize() {
   _caller_save_cpu_regs[13] = r15_opr;
   _caller_save_cpu_regs[14] = r16_opr;
   _caller_save_cpu_regs[15] = r17_opr;
+#ifndef R18_RESERVED
+  // See comment in register_aarch64.hpp
   _caller_save_cpu_regs[16] = r18_opr;
+#endif
 
   for (int i = 0; i < 8; i++) {
     _caller_save_fpu_regs[i] = LIR_OprFact::single_fpu(i);
@@ -251,7 +264,7 @@ void FrameMap::initialize() {
   r15_oop_opr = as_oop_opr(r15);
   r16_oop_opr = as_oop_opr(r16);
   r17_oop_opr = as_oop_opr(r17);
-  r18_oop_opr = as_oop_opr(r18);
+  r18_oop_opr = as_oop_opr(r18_tls);
   r19_oop_opr = as_oop_opr(r19);
   r20_oop_opr = as_oop_opr(r20);
   r21_oop_opr = as_oop_opr(r21);
@@ -277,7 +290,7 @@ void FrameMap::initialize() {
 
   VMRegPair regs;
   BasicType sig_bt = T_OBJECT;
-  SharedRuntime::java_calling_convention(&sig_bt, &regs, 1, true);
+  SharedRuntime::java_calling_convention(&sig_bt, &regs, 1);
   receiver_opr = as_oop_opr(regs.first()->as_Register());
 
   for (int i = 0; i < nof_caller_save_fpu_regs; i++) {
@@ -287,8 +300,6 @@ void FrameMap::initialize() {
 
 
 Address FrameMap::make_new_address(ByteSize sp_offset) const {
-  // for rbp, based address use this:
-  // return Address(rbp, in_bytes(sp_offset) - (framesize() - 2) * 4);
   return Address(sp, in_bytes(sp_offset));
 }
 

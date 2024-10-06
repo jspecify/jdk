@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,14 +33,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+
+import static java.lang.classfile.constantpool.PoolEntry.*;
 import static java.util.ResourceBundle.Control;
 import java.util.Set;
+import java.util.function.IntUnaryOperator;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import jdk.internal.org.objectweb.asm.ClassReader;
+
 import jdk.tools.jlink.internal.ResourcePrevisitor;
 import jdk.tools.jlink.internal.StringTable;
 import jdk.tools.jlink.plugin.ResourcePoolModule;
@@ -48,7 +51,6 @@ import jdk.tools.jlink.plugin.PluginException;
 import jdk.tools.jlink.plugin.ResourcePool;
 import jdk.tools.jlink.plugin.ResourcePoolBuilder;
 import jdk.tools.jlink.plugin.ResourcePoolEntry;
-import jdk.tools.jlink.plugin.Plugin;
 import sun.util.cldr.CLDRBaseLocaleDataMetaInfo;
 import sun.util.locale.provider.LocaleProviderAdapter;
 import sun.util.locale.provider.LocaleProviderAdapter.Type;
@@ -76,9 +78,8 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  *     start with at least one white space character, e.g., " ar ar-EG ..."
  *                                                           ^
  */
-public final class IncludeLocalesPlugin implements Plugin, ResourcePrevisitor {
+public final class IncludeLocalesPlugin extends AbstractPlugin implements ResourcePrevisitor {
 
-    public static final String NAME = "include-locales";
     private static final String MODULENAME = "jdk.localedata";
     private static final Set<String> LOCALEDATA_PACKAGES = Set.of(
         "sun.text.resources.cldr.ext",
@@ -100,8 +101,6 @@ public final class IncludeLocalesPlugin implements Plugin, ResourcePrevisitor {
     private Predicate<String> predicate;
     private String userParam;
     private List<Locale.LanguageRange> priorityList;
-    private List<Locale> available;
-    private List<String> filtered;
 
     private static final ResourceBundleBasedAdapter CLDR_ADAPTER =
         (ResourceBundleBasedAdapter)LocaleProviderAdapter.forType(Type.CLDR);
@@ -132,24 +131,24 @@ public final class IncludeLocalesPlugin implements Plugin, ResourcePrevisitor {
                                 Arrays.stream(CLDR_PARENT_LOCALES.getOrDefault(
                                     Locale.forLanguageTag(child), new String[0]))
                                         .filter(grandchild -> !grandchild.isEmpty()),
-                                List.of(child).stream()))
+                                Stream.of(child)))
                         .distinct()
                         .forEach(children::add);
-                    return new AbstractMap.SimpleEntry<String, List<String>>(parent, children);
+                    return new AbstractMap.SimpleEntry<>(parent, children);
                 })
-        ).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        ).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                (l1, l2) -> Stream.concat(l1.stream(), l2.stream()).distinct().toList()));
 
     // Special COMPAT provider locales
     private static final String jaJPJPTag = "ja-JP-JP";
     private static final String noNONYTag = "no-NO-NY";
     private static final String thTHTHTag = "th-TH-TH";
-    private static final Locale jaJPJP = new Locale("ja", "JP", "JP");
-    private static final Locale noNONY = new Locale("no", "NO", "NY");
-    private static final Locale thTHTH = new Locale("th", "TH", "TH");
+    private static final Locale jaJPJP = Locale.of("ja", "JP", "JP");
+    private static final Locale noNONY = Locale.of("no", "NO", "NY");
+    private static final Locale thTHTH = Locale.of("th", "TH", "TH");
 
-    @Override
-    public String getName() {
-        return NAME;
+    public IncludeLocalesPlugin() {
+        super("include-locales");
     }
 
     @Override
@@ -159,12 +158,12 @@ public final class IncludeLocalesPlugin implements Plugin, ResourcePrevisitor {
                 String path = resource.path();
                 resource = predicate.test(path) ? resource: null;
                 if (resource != null &&
-                    resource.type().equals(ResourcePoolEntry.Type.CLASS_OR_RESOURCE)) {
+                    resource.type().equals(ResourcePoolEntry.Type.CLASS_OR_RESOURCE) &&
+                    path.endsWith(".class")) {
                     byte[] bytes = resource.contentBytes();
-                    ClassReader cr = new ClassReader(bytes);
-                    if (Arrays.stream(cr.getInterfaces())
-                        .anyMatch(i -> i.contains(METAINFONAME)) &&
-                        stripUnsupportedLocales(bytes, cr)) {
+                    if (newClassReader(path, bytes).interfaces().stream()
+                        .anyMatch(i -> i.asInternalName().contains(METAINFONAME)) &&
+                        stripUnsupportedLocales(bytes)) {
                         resource = resource.copyWithContent(bytes);
                     }
                 }
@@ -181,29 +180,19 @@ public final class IncludeLocalesPlugin implements Plugin, ResourcePrevisitor {
     }
 
     @Override
-    public String getDescription() {
-        return PluginsResourceBundle.getDescription(NAME);
-    }
-
-    @Override
     public boolean hasArguments() {
         return true;
     }
 
     @Override
-    public String getArgumentsDescription() {
-       return PluginsResourceBundle.getArgument(NAME);
-    }
-
-    @Override
     public void configure(Map<String, String> config) {
-        userParam = config.get(NAME);
+        userParam = config.get(getName());
 
         try {
             priorityList = Locale.LanguageRange.parse(userParam, EQUIV_MAP);
         } catch (IllegalArgumentException iae) {
             throw new IllegalArgumentException(String.format(
-                PluginsResourceBundle.getMessage(NAME + ".invalidtag"),
+                PluginsResourceBundle.getMessage(getName() + ".invalidtag"),
                     iae.getMessage().replaceFirst("^range=", "")));
         }
     }
@@ -214,11 +203,12 @@ public final class IncludeLocalesPlugin implements Plugin, ResourcePrevisitor {
         Optional<ResourcePoolModule> optMod = resources.moduleView().findModule(MODULENAME);
 
         // jdk.localedata module validation
+        List<Locale> available;
         if (optMod.isPresent()) {
             ResourcePoolModule module = optMod.get();
             Set<String> packages = module.packages();
             if (!packages.containsAll(LOCALEDATA_PACKAGES)) {
-                throw new PluginException(PluginsResourceBundle.getMessage(NAME + ".missingpackages") +
+                throw new PluginException(PluginsResourceBundle.getMessage(getName()+ ".missingpackages") +
                     LOCALEDATA_PACKAGES.stream()
                         .filter(pn -> !packages.contains(pn))
                         .collect(Collectors.joining(",\n\t")));
@@ -226,30 +216,30 @@ public final class IncludeLocalesPlugin implements Plugin, ResourcePrevisitor {
 
             available = Stream.concat(module.entries()
                                         .map(md -> p.matcher(md.path()))
-                                        .filter(m -> m.matches())
+                                        .filter(Matcher::matches)
                                         .map(m -> m.group("tag").replaceAll("_", "-")),
-                                    Stream.concat(Stream.of(jaJPJPTag), Stream.of(thTHTHTag)))
+                                    Stream.of(jaJPJPTag, thTHTHTag, "und"))
                 .distinct()
                 .sorted()
                 .map(IncludeLocalesPlugin::tagToLocale)
-                .collect(Collectors.toList());
+                .toList();
         } else {
             // jdk.localedata is not added.
-            throw new PluginException(PluginsResourceBundle.getMessage(NAME + ".localedatanotfound"));
+            throw new PluginException(PluginsResourceBundle.getMessage(getName() + ".localedatanotfound"));
         }
 
-        filtered = filterLocales(available);
+        List<String> filtered = filterLocales(available);
 
         if (filtered.isEmpty()) {
             throw new PluginException(
-                String.format(PluginsResourceBundle.getMessage(NAME + ".nomatchinglocales"), userParam));
+                String.format(PluginsResourceBundle.getMessage(getName() + ".nomatchinglocales"), userParam));
         }
 
         List<String> value = Stream.concat(
                 META_FILES.stream(),
                 filtered.stream().flatMap(s -> includeLocaleFilePatterns(s).stream()))
             .map(s -> "regex:" + s)
-            .collect(Collectors.toList());
+            .toList();
 
         predicate = ResourceFilter.includeFilter(value);
     }
@@ -273,36 +263,64 @@ public final class IncludeLocalesPlugin implements Plugin, ResourcePrevisitor {
             files.addAll(includeLocaleFiles("zh_TW"));
         }
 
+        // Make sure to retain sun.text/util.resources.ext packages
+        if (tag.equals("und")) {
+            files.add(".+sun/text/resources/ext/FormatData.class");
+            files.add(".+sun/util/resources/ext/TimeZoneNames.class");
+        }
+
         return files;
     }
 
     private List<String> includeLocaleFiles(String localeStr) {
         return INCLUDE_LOCALE_FILES.stream()
             .map(s -> s + localeStr + ".class")
-            .collect(Collectors.toList());
+            .toList();
     }
 
-    private boolean stripUnsupportedLocales(byte[] bytes, ClassReader cr) {
-        char[] buf = new char[cr.getMaxStringLength()];
-        boolean[] modified = new boolean[1];
-
-        IntStream.range(1, cr.getItemCount())
-            .map(item -> cr.getItem(item))
-            .forEach(itemIndex -> {
-                if (bytes[itemIndex - 1] == 1 &&         // UTF-8
-                    bytes[itemIndex + 2] == (byte)' ') { // fast check for leading space
-                    int length = cr.readUnsignedShort(itemIndex);
-                    byte[] b = new byte[length];
-                    System.arraycopy(bytes, itemIndex + 2, b, 0, length);
-                    if (filterOutUnsupportedTags(b)) {
-                        // copy back
-                        System.arraycopy(b, 0, bytes, itemIndex + 2, length);
-                        modified[0] = true;
+    private boolean stripUnsupportedLocales(byte[] bytes) {
+        boolean modified = false;
+        // scan CP entries directly to read the bytes of UTF8 entries and
+        // patch in place with unsupported locale tags stripped
+        IntUnaryOperator readU2 = p -> ((bytes[p] & 0xff) << 8) + (bytes[p + 1] & 0xff);
+        int cpLength = readU2.applyAsInt(8);
+        int offset = 10;
+        for (int cpSlot=1; cpSlot<cpLength; cpSlot++) {
+            switch (bytes[offset]) { //entry tag
+                case TAG_UTF8 -> {
+                    int length = readU2.applyAsInt(offset + 1);
+                    if (bytes[offset + 3] == (byte)' ') { // fast check for leading space
+                        byte[] b = new byte[length];
+                        System.arraycopy(bytes, offset + 3, b, 0, length);
+                        if (filterOutUnsupportedTags(b)) {
+                            // copy back
+                            System.arraycopy(b, 0, bytes, offset + 3, length);
+                            modified = true;
+                        }
                     }
+                    offset += 3 + length;
                 }
-            });
-
-        return modified[0];
+                case TAG_CLASS,
+                     TAG_STRING,
+                     TAG_METHOD_TYPE,
+                     TAG_MODULE,
+                     TAG_PACKAGE -> offset += 3;
+                case TAG_METHOD_HANDLE -> offset += 4;
+                case TAG_INTEGER,
+                     TAG_FLOAT,
+                     TAG_FIELDREF,
+                     TAG_METHODREF,
+                     TAG_INTERFACE_METHODREF,
+                     TAG_NAME_AND_TYPE,
+                     TAG_DYNAMIC,
+                     TAG_INVOKE_DYNAMIC -> offset += 5;
+                case TAG_LONG,
+                     TAG_DOUBLE -> {offset += 9; cpSlot++;} //additional slot for double and long entries
+                default -> throw new IllegalArgumentException("Unknown constant pool entry: 0x"
+                        + Integer.toHexString(Byte.toUnsignedInt(bytes[offset])).toUpperCase(Locale.ROOT));
+            }
+        }
+        return modified;
     }
 
     private boolean filterOutUnsupportedTags(byte[] b) {
@@ -313,7 +331,7 @@ public final class IncludeLocalesPlugin implements Plugin, ResourcePrevisitor {
             locales = originalTags.stream()
                 .filter(tag -> !tag.isEmpty())
                 .map(IncludeLocalesPlugin::tagToLocale)
-                .collect(Collectors.toList());
+                .toList();
         } catch (IllformedLocaleException ile) {
             // Seems not an available locales string literal.
             return false;
@@ -336,13 +354,12 @@ public final class IncludeLocalesPlugin implements Plugin, ResourcePrevisitor {
     }
 
     /*
-     * Filter list of locales according to the secified priorityList. Note
+     * Filter list of locales according to the specified priorityList. Note
      * that returned list of language tags may include extra ones, such as
      * compatibility ones (e.g., "iw" -> "iw", "he").
      */
     private List<String> filterLocales(List<Locale> locales) {
-        List<String> ret =
-            Locale.filter(priorityList, locales, Locale.FilteringMode.EXTENDED_FILTERING).stream()
+        return Locale.filter(priorityList, locales, Locale.FilteringMode.EXTENDED_FILTERING).stream()
                 .flatMap(loc -> Stream.concat(Control.getNoFallbackControl(Control.FORMAT_DEFAULT)
                                      .getCandidateLocales("", loc).stream(),
                                 CLDR_ADAPTER.getCandidateLocales("", loc).stream()))
@@ -356,9 +373,7 @@ public final class IncludeLocalesPlugin implements Plugin, ResourcePrevisitor {
                 .flatMap(Optional::stream)
                 .flatMap(IncludeLocalesPlugin::localeToTags)
                 .distinct()
-                .collect(Collectors.toList());
-
-        return ret;
+                .toList();
     }
 
     private static final Locale.Builder LOCALE_BUILDER = new Locale.Builder();
@@ -418,6 +433,6 @@ public final class IncludeLocalesPlugin implements Plugin, ResourcePrevisitor {
                 break;
         }
 
-        return tags == null ? List.of(tag).stream() : tags.stream();
+        return tags == null ? Stream.of(tag) : tags.stream();
     }
 }

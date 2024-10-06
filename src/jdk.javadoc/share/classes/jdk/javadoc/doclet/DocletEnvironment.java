@@ -141,6 +141,9 @@ public interface DocletEnvironment {
      */
     Kind getFileKind(TypeElement type);
 
+    /**
+     * The mode specifying the level of detail of module documentation.
+     */
     enum ModuleMode {
         /** Indicate API level documentation is required */
         API,

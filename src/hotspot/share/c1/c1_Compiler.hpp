@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,12 @@
  *
  */
 
-#ifndef SHARE_VM_C1_C1_COMPILER_HPP
-#define SHARE_VM_C1_C1_COMPILER_HPP
+#ifndef SHARE_C1_C1_COMPILER_HPP
+#define SHARE_C1_C1_COMPILER_HPP
 
 #include "compiler/abstractCompiler.hpp"
-#include "compiler/compilerDirectives.hpp"
+
+class DirectiveSet;
 
 // There is one instance of the Compiler per CompilerThread.
 
@@ -43,15 +44,11 @@ class Compiler: public AbstractCompiler {
   // Name of this compiler
   virtual const char* name()                     { return "C1"; }
 
-  // Missing feature tests
-  virtual bool supports_native()                 { return true; }
-  virtual bool supports_osr   ()                 { return true; }
-
   // Initialization
   virtual void initialize();
 
   // Compilation entry point for methods
-  virtual void compile_method(ciEnv* env, ciMethod* target, int entry_bci, DirectiveSet* directive);
+  virtual void compile_method(ciEnv* env, ciMethod* target, int entry_bci, bool install_code, DirectiveSet* directive);
 
   // Print compilation timers and statistics
   virtual void print_timers();
@@ -59,8 +56,11 @@ class Compiler: public AbstractCompiler {
   // Check if the C1 compiler supports an intrinsic for 'method'.
   virtual bool is_intrinsic_supported(const methodHandle& method);
 
+  // Return true if the intrinsic `id` is supported by C1
+  static bool is_intrinsic_supported(vmIntrinsics::ID id);
+
   // Size of the code buffer
-  static int code_buffer_size();
+  static uint code_buffer_size();
 };
 
-#endif // SHARE_VM_C1_C1_COMPILER_HPP
+#endif // SHARE_C1_C1_COMPILER_HPP

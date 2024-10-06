@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
  /*
  * @test
- * @bug 4936763 8184359
+ * @bug 4936763 8184359 8205476 8226307
  * @summary KeyAgreement Test with all supported algorithms from JCE.
  *          Arguments order <KeyExchangeAlgorithm> <KeyGenAlgorithm> <Provider>
  *          It removes com/sun/crypto/provider/KeyAgreement/DHGenSecretKey.java
@@ -52,6 +52,7 @@ public class KeyAgreementTest {
         String kaAlgo = args[0];
         String kpgAlgo = args[1];
         String provider = args[2];
+        System.out.println("Testing " + kaAlgo);
         AlgoSpec aSpec = AlgoSpec.valueOf(AlgoSpec.class, kaAlgo);
         List<AlgorithmParameterSpec> specs = aSpec.getAlgorithmParameterSpecs();
         for (AlgorithmParameterSpec spec : specs) {
@@ -67,27 +68,9 @@ public class KeyAgreementTest {
         // EC curve supported for KeyGeneration can found between intersection
         // of curves define in
         // "java.base/share/classes/sun/security/util/CurveDB.java"
-        // and
-        // "jdk.crypto.ec/share/native/libsunec/impl/ecdecode.c"
-        ECDH(
-                // SEC2 prime curves
-                "secp112r1", "secp112r2", "secp128r1", "secp128r2", "secp160k1",
-                "secp160r1", "secp192k1", "secp192r1", "secp224k1", "secp224r1",
-                "secp256k1", "secp256r1", "secp384r1", "secp521r1",
-                // ANSI X9.62 prime curves
-                "X9.62 prime192v2", "X9.62 prime192v3", "X9.62 prime239v1",
-                "X9.62 prime239v2", "X9.62 prime239v3",
-                // SEC2 binary curves
-                "sect113r1", "sect113r2", "sect131r1", "sect131r2", "sect163k1",
-                "sect163r1", "sect163r2", "sect193r1", "sect193r2", "sect233k1",
-                "sect233r1", "sect239k1", "sect283k1", "sect283r1", "sect409k1",
-                "sect409r1", "sect571k1", "sect571r1",
-                // ANSI X9.62 binary curves
-                "X9.62 c2tnb191v1", "X9.62 c2tnb191v2", "X9.62 c2tnb191v3",
-                "X9.62 c2tnb239v1", "X9.62 c2tnb239v2", "X9.62 c2tnb239v3",
-                "X9.62 c2tnb359v1", "X9.62 c2tnb431r1"
-        ),
-        XDH("X25519", "X448"),
+
+        ECDH("secp256r1", "secp384r1", "secp521r1"),
+        XDH("X25519", "X448", "x25519"),
         // There is no curve for DiffieHellman
         DiffieHellman(new String[]{});
 
@@ -119,13 +102,20 @@ public class KeyAgreementTest {
     }
 
     /**
-     * Perform KeyAgreement operation using native as well as JCE provider.
+     * Perform KeyAgreement operation
      */
     private static void testKeyAgreement(String provider, String kaAlgo,
             String kpgAlgo, AlgorithmParameterSpec spec) throws Exception {
 
         KeyPairGenerator kpg = KeyPairGenerator.getInstance(kpgAlgo, provider);
         kpg.initialize(spec);
+        if (spec instanceof ECGenParameterSpec) {
+            System.out.println("Testing curve: " +
+                    ((ECGenParameterSpec)spec).getName());
+        } else if (spec instanceof NamedParameterSpec) {
+                System.out.println("Testing curve: " +
+                        ((NamedParameterSpec)spec).getName());
+        }
         KeyPair kp1 = kpg.generateKeyPair();
         KeyPair kp2 = kpg.generateKeyPair();
 
@@ -150,5 +140,17 @@ public class KeyAgreementTest {
         if (!Arrays.equals(secret1, secret2)) {
             throw new Exception("KeyAgreement secret mismatch.");
         }
+
+        // ensure that a new secret cannot be produced before the next doPhase
+        try {
+            ka2.generateSecret();
+            throw new RuntimeException("state not reset");
+        } catch (IllegalStateException ex) {
+            // this is expected
+        }
+
+        // calling doPhase and then generateSecret should succeed
+        ka2.doPhase(kp1.getPublic(), true);
+        ka2.generateSecret();
     }
 }

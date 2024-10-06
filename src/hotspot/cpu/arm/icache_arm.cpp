@@ -23,55 +23,18 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/assembler.inline.hpp"
 #include "asm/macroAssembler.hpp"
-#include "assembler_arm.inline.hpp"
 #include "runtime/icache.hpp"
 
 #define __ _masm->
 
-#ifdef AARCH64
-
-static int icache_flush(address addr, int lines, int magic) {
-  // TODO-AARCH64 Figure out actual cache line size (mrs Xt, CTR_EL0)
-
-  address p = addr;
-  for (int i = 0; i < lines; i++, p += ICache::line_size) {
-    __asm__ volatile(
-      " dc cvau, %[p]"
-      :
-      : [p] "r" (p)
-      : "memory");
-  }
-
-  __asm__ volatile(
-    " dsb ish"
-    : : : "memory");
-
-  p = addr;
-  for (int i = 0; i < lines; i++, p += ICache::line_size) {
-    __asm__ volatile(
-      " ic ivau, %[p]"
-      :
-      : [p] "r" (p)
-      : "memory");
-  }
-
-  __asm__ volatile(
-    " dsb ish\n\t"
-    " isb\n\t"
-    : : : "memory");
-
-  return magic;
-}
-
-#else
 
 static int icache_flush(address addr, int lines, int magic) {
   __builtin___clear_cache(addr, addr + (lines << ICache::log2_line_size));
   return magic;
 }
 
-#endif // AARCH64
 
 void ICacheStubGenerator::generate_icache_flush(ICache::flush_icache_stub_t* flush_icache_stub) {
   address start = (address)icache_flush;

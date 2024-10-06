@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,19 +29,34 @@
 #include "interpreter/templateInterpreter.hpp"
 #include "interpreter/templateInterpreterGenerator.hpp"
 #include "interpreter/templateTable.hpp"
+#include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
+#include "prims/jvmtiExport.hpp"
+#include "runtime/safepoint.hpp"
 #include "runtime/timerTrace.hpp"
-
-#ifndef CC_INTERP
+#include "utilities/checkedCast.hpp"
+#include "utilities/copy.hpp"
 
 # define __ _masm->
 
-void TemplateInterpreter::initialize() {
-  if (_code != NULL) return;
+void TemplateInterpreter::initialize_stub() {
   // assertions
+  assert(_code == nullptr, "must only initialize once");
   assert((int)Bytecodes::number_of_codes <= (int)DispatchTable::length,
          "dispatch table too small");
 
+  // allocate interpreter
+  int code_size = InterpreterCodeSize;
+  NOT_PRODUCT(code_size *= 4;)  // debug uses extra interpreter code space
+  // 270+ interpreter codelets are generated and each of them is aligned to HeapWordSize,
+  // plus their code section is aligned to CodeEntryAlignement. So we need additional size due to alignment.
+  int max_aligned_codelets = 280;
+  int max_aligned_bytes = checked_cast<int>(max_aligned_codelets * (HeapWordSize + CodeEntryAlignment));
+  _code = new StubQueue(new InterpreterCodeletInterface, code_size + max_aligned_bytes, nullptr,
+                        "Interpreter");
+}
+
+void TemplateInterpreter::initialize_code() {
   AbstractInterpreter::initialize();
 
   TemplateTable::initialize();
@@ -49,11 +64,7 @@ void TemplateInterpreter::initialize() {
   // generate interpreter
   { ResourceMark rm;
     TraceTime timer("Interpreter generation", TRACETIME_LOG(Info, startuptime));
-    int code_size = InterpreterCodeSize;
-    NOT_PRODUCT(code_size *= 4;)  // debug uses extra interpreter code space
-    _code = new StubQueue(new InterpreterCodeletInterface, code_size, NULL,
-                          "Interpreter");
-    TemplateInterpreterGenerator g(_code);
+    TemplateInterpreterGenerator g;
     // Free the unused memory not occupied by the interpreter and the stubs
     _code->deallocate_unused_tail();
   }
@@ -72,16 +83,16 @@ void TemplateInterpreter::initialize() {
 
 EntryPoint::EntryPoint() {
   assert(number_of_states == 10, "check the code below");
-  _entry[btos] = NULL;
-  _entry[ztos] = NULL;
-  _entry[ctos] = NULL;
-  _entry[stos] = NULL;
-  _entry[atos] = NULL;
-  _entry[itos] = NULL;
-  _entry[ltos] = NULL;
-  _entry[ftos] = NULL;
-  _entry[dtos] = NULL;
-  _entry[vtos] = NULL;
+  _entry[btos] = nullptr;
+  _entry[ztos] = nullptr;
+  _entry[ctos] = nullptr;
+  _entry[stos] = nullptr;
+  _entry[atos] = nullptr;
+  _entry[itos] = nullptr;
+  _entry[ltos] = nullptr;
+  _entry[ftos] = nullptr;
+  _entry[dtos] = nullptr;
+  _entry[vtos] = nullptr;
 }
 
 
@@ -99,6 +110,19 @@ EntryPoint::EntryPoint(address bentry, address zentry, address centry, address s
   _entry[vtos] = ventry;
 }
 
+EntryPoint::EntryPoint(address aentry, address ientry, address lentry, address fentry, address dentry, address ventry) {
+  assert(number_of_states == 10, "check the code below");
+  _entry[btos] = ientry;
+  _entry[ztos] = ientry;
+  _entry[ctos] = ientry;
+  _entry[stos] = ientry;
+  _entry[atos] = aentry;
+  _entry[itos] = ientry;
+  _entry[ltos] = lentry;
+  _entry[ftos] = fentry;
+  _entry[dtos] = dentry;
+  _entry[vtos] = ventry;
+}
 
 void EntryPoint::set_entry(TosState state, address entry) {
   assert(0 <= state && state < number_of_states, "state out of bounds");
@@ -177,17 +201,17 @@ bool DispatchTable::operator == (DispatchTable& y) {
   return true;
 }
 
-address    TemplateInterpreter::_remove_activation_entry                    = NULL;
-address    TemplateInterpreter::_remove_activation_preserving_args_entry    = NULL;
+address    TemplateInterpreter::_remove_activation_entry                    = nullptr;
+address    TemplateInterpreter::_remove_activation_preserving_args_entry    = nullptr;
 
 
-address    TemplateInterpreter::_throw_ArrayIndexOutOfBoundsException_entry = NULL;
-address    TemplateInterpreter::_throw_ArrayStoreException_entry            = NULL;
-address    TemplateInterpreter::_throw_ArithmeticException_entry            = NULL;
-address    TemplateInterpreter::_throw_ClassCastException_entry             = NULL;
-address    TemplateInterpreter::_throw_NullPointerException_entry           = NULL;
-address    TemplateInterpreter::_throw_StackOverflowError_entry             = NULL;
-address    TemplateInterpreter::_throw_exception_entry                      = NULL;
+address    TemplateInterpreter::_throw_ArrayIndexOutOfBoundsException_entry = nullptr;
+address    TemplateInterpreter::_throw_ArrayStoreException_entry            = nullptr;
+address    TemplateInterpreter::_throw_ArithmeticException_entry            = nullptr;
+address    TemplateInterpreter::_throw_ClassCastException_entry             = nullptr;
+address    TemplateInterpreter::_throw_NullPointerException_entry           = nullptr;
+address    TemplateInterpreter::_throw_StackOverflowError_entry             = nullptr;
+address    TemplateInterpreter::_throw_exception_entry                      = nullptr;
 
 #ifndef PRODUCT
 EntryPoint TemplateInterpreter::_trace_code;
@@ -220,6 +244,7 @@ address* TemplateInterpreter::invoke_return_entry_table_for(Bytecodes::Code code
   case Bytecodes::_invokespecial:
   case Bytecodes::_invokevirtual:
   case Bytecodes::_invokehandle:
+  case Bytecodes::_fast_invokevfinal:
     return Interpreter::invoke_return_entry_table();
   case Bytecodes::_invokeinterface:
     return Interpreter::invokeinterface_return_entry_table();
@@ -227,7 +252,7 @@ address* TemplateInterpreter::invoke_return_entry_table_for(Bytecodes::Code code
     return Interpreter::invokedynamic_return_entry_table();
   default:
     fatal("invalid bytecode: %s", Bytecodes::name(code));
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -250,7 +275,7 @@ address TemplateInterpreter::return_entry(TosState state, int length, Bytecodes:
   default:
     assert(!Bytecodes::is_invoke(code), "invoke instructions should be handled separately: %s", Bytecodes::name(code));
     address entry = _return_entry[length].entry(state);
-    vmassert(entry != NULL, "unsupported return entry requested, length=%d state=%d", length, index);
+    vmassert(entry != nullptr, "unsupported return entry requested, length=%d state=%d", length, index);
     return entry;
   }
 }
@@ -259,12 +284,12 @@ address TemplateInterpreter::return_entry(TosState state, int length, Bytecodes:
 address TemplateInterpreter::deopt_entry(TosState state, int length) {
   guarantee(0 <= length && length < Interpreter::number_of_deopt_entries, "illegal length");
   address entry = _deopt_entry[length].entry(state);
-  vmassert(entry != NULL, "unsupported deopt entry requested, length=%d state=%d", length, TosState_as_index(state));
+  vmassert(entry != nullptr, "unsupported deopt entry requested, length=%d state=%d", length, TosState_as_index(state));
   return entry;
 }
 
 //------------------------------------------------------------------------------------------------------------------------
-// Suport for invokes
+// Support for invokes
 
 int TemplateInterpreter::TosState_as_index(TosState state) {
   assert( state < number_of_states , "Invalid state in TosState_as_index");
@@ -274,18 +299,28 @@ int TemplateInterpreter::TosState_as_index(TosState state) {
 
 
 //------------------------------------------------------------------------------------------------------------------------
-// Safepoint suppport
+// Safepoint support
 
 static inline void copy_table(address* from, address* to, int size) {
-  // Copy non-overlapping tables. The copy has to occur word wise for MT safety.
-  while (size-- > 0) *to++ = *from++;
+  // Copy non-overlapping tables.
+  if (SafepointSynchronize::is_at_safepoint()) {
+    // Nothing is using the table at a safepoint so skip atomic word copy.
+    Copy::disjoint_words((HeapWord*)from, (HeapWord*)to, (size_t)size);
+  } else {
+    // Use atomic word copy when not at a safepoint for safety.
+    Copy::disjoint_words_atomic((HeapWord*)from, (HeapWord*)to, (size_t)size);
+  }
 }
 
 void TemplateInterpreter::notice_safepoints() {
   if (!_notice_safepoints) {
+    log_debug(interpreter, safepoint)("switching active_table to safept_table.");
     // switch to safepoint dispatch table
     _notice_safepoints = true;
     copy_table((address*)&_safept_table, (address*)&_active_table, sizeof(_active_table) / sizeof(address));
+  } else {
+    log_debug(interpreter, safepoint)("active_table is already safept_table; "
+                                      "notice_safepoints() call is no-op.");
   }
 }
 
@@ -297,10 +332,17 @@ void TemplateInterpreter::notice_safepoints() {
 void TemplateInterpreter::ignore_safepoints() {
   if (_notice_safepoints) {
     if (!JvmtiExport::should_post_single_step()) {
+      log_debug(interpreter, safepoint)("switching active_table to normal_table.");
       // switch to normal dispatch table
       _notice_safepoints = false;
       copy_table((address*)&_normal_table, (address*)&_active_table, sizeof(_active_table) / sizeof(address));
+    } else {
+      log_debug(interpreter, safepoint)("single stepping is still active; "
+                                        "ignoring ignore_safepoints() call.");
     }
+  } else {
+    log_debug(interpreter, safepoint)("active_table is already normal_table; "
+                                      "ignore_safepoints() call is no-op.");
   }
 }
 
@@ -345,5 +387,3 @@ bool TemplateInterpreter::bytecode_should_reexecute(Bytecodes::Code code) {
 InterpreterCodelet* TemplateInterpreter::codelet_containing(address pc) {
   return (InterpreterCodelet*)_code->stub_containing(pc);
 }
-
-#endif // !CC_INTERP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.Writer;
+import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Locale;
@@ -44,8 +46,11 @@ public class UITesting {
     protected static final String TAB = "\011";
     protected static final String INTERRUPT = "\u0003";
     protected static final String BELL = "\u0007";
-    protected static final String PROMPT = "\u0005";
-    protected static final String REDRAW_PROMPT = "\n\r" + PROMPT;
+    protected static final String PROMPT = " \u0005";
+    protected static final String CONTINUATION_PROMPT = " \u0006";
+    protected static final String REDRAW_PROMPT = "\n\r?" + PROMPT;
+    protected static final String UP = "\033[A";
+    protected static final String DOWN = "\033[B";
     private final boolean laxLineEndings;
 
     public UITesting() {
@@ -88,13 +93,14 @@ public class UITesting {
                         .promptCapture(true)
                         .persistence(new HashMap<>())
                         .locale(Locale.US)
-                        .run("--no-startup");
+                        .run("--no-startup",
+                             "--execution", Presets.TEST_DEFAULT_EXECUTION);
             } catch (Exception ex) {
                 throw new IllegalStateException(ex);
             }
         });
 
-        Writer inputSink = new OutputStreamWriter(input.createOutput()) {
+        Writer inputSink = new OutputStreamWriter(input.createOutput(), StandardCharsets.UTF_8) {
             @Override
             public void write(String str) throws IOException {
                 super.write(str);
@@ -105,15 +111,19 @@ public class UITesting {
         runner.start();
 
         try {
+            Class<?> jshellToolClass = Class.forName("jdk.internal.jshell.tool.JShellTool");
+            Field promptField = jshellToolClass.getDeclaredField("PROMPT");
+            promptField.setAccessible(true);
+            promptField.set(null, PROMPT);
+            Field continuationPromptField = jshellToolClass.getDeclaredField("CONTINUATION_PROMPT");
+            continuationPromptField.setAccessible(true);
+            continuationPromptField.set(null, CONTINUATION_PROMPT);
             waitOutput(out, PROMPT);
             test.test(inputSink, out);
         } finally {
-            inputSink.write(INTERRUPT + INTERRUPT + "/exit");
+            inputSink.write(INTERRUPT + INTERRUPT + "/exit\n");
 
-            runner.join(1000);
-            if (runner.isAlive()) {
-                runner.stop();
-            }
+            runner.join();
         }
     }
 
@@ -141,11 +151,11 @@ public class UITesting {
     // Return true if expected is found, false if secondary is found,
     // otherwise, time out with an IllegalStateException
     protected boolean waitOutput(StringBuilder out, String expected, String secondary) {
-        expected = expected.replaceAll("\n", laxLineEndings ? "\r?\n" : System.getProperty("line.separator"));
+        expected = expected.replaceAll("\n", laxLineEndings ? "\r*\n" : System.getProperty("line.separator"));
         Pattern expectedPattern = Pattern.compile(expected, Pattern.DOTALL);
         Pattern secondaryPattern = null;
         if (secondary != null) {
-            secondary = secondary.replaceAll("\n", laxLineEndings ? "\r?\n" : System.getProperty("line.separator"));
+            secondary = secondary.replaceAll("\n", laxLineEndings ? "\r*\n" : System.getProperty("line.separator"));
             secondaryPattern = Pattern.compile(secondary, Pattern.DOTALL);
         }
         synchronized (out) {
@@ -222,7 +232,12 @@ public class UITesting {
     }
 
     protected String resource(String key) {
-        return Pattern.quote(getResource(key));
+        return patternQuote(getResource(key));
+    }
+
+    protected String patternQuote(String str) {
+        //from JDK-6507804:
+        return str.replaceAll("([\\\\\\[\\].^$?*+{}()|])", "\\\\$1");
     }
 
     protected String getMessage(String key, Object... args) {

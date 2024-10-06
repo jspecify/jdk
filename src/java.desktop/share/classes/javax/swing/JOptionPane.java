@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package javax.swing;
 
 import org.jspecify.annotations.NullMarked;
@@ -32,40 +33,46 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dialog;
 import java.awt.Dimension;
-import java.awt.KeyboardFocusManager;
 import java.awt.Frame;
-import java.awt.Point;
 import java.awt.HeadlessException;
+import java.awt.KeyboardFocusManager;
+import java.awt.Point;
 import java.awt.Window;
-import java.beans.JavaBean;
-import java.beans.BeanProperty;
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
-import java.awt.event.WindowListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
+import java.beans.BeanProperty;
+import java.beans.JavaBean;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.io.IOException;
-import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serial;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Vector;
-import javax.swing.plaf.OptionPaneUI;
-import javax.swing.event.InternalFrameEvent;
+
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleRole;
 import javax.swing.event.InternalFrameAdapter;
-import javax.accessibility.*;
-import static javax.swing.ClientPropertyKey.PopupFactory_FORCE_HEAVYWEIGHT_POPUP;
+import javax.swing.event.InternalFrameEvent;
+import javax.swing.plaf.OptionPaneUI;
+
 import sun.awt.AWTAccessor;
+
+import static javax.swing.ClientPropertyKey.PopupFactory_FORCE_HEAVYWEIGHT_POPUP;
 
 /**
  * <code>JOptionPane</code> makes it easy to pop up a standard dialog box that
  * prompts users for a value or informs them of something.
  * For information about using <code>JOptionPane</code>, see
  * <a
- href="http://docs.oracle.com/javase/tutorial/uiswing/components/dialog.html">How to Make Dialogs</a>,
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/dialog.html">How to Make Dialogs</a>,
  * a section in <em>The Java Tutorial</em>.
  *
  * <p>
@@ -269,7 +276,7 @@ import sun.awt.AWTAccessor;
  *     JOptionPane pane = new JOptionPane(<i>arguments</i>);
  *     pane.set<i>.Xxxx(...); // Configure</i>
  *     JDialog dialog = pane.createDialog(<i>parentComponent, title</i>);
- *     dialog.show();
+ *     dialog.setVisible(true);
  *     Object selectedValue = pane.getValue();
  *     if(selectedValue == null)
  *       return CLOSED_OPTION;
@@ -298,7 +305,7 @@ import sun.awt.AWTAccessor;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -350,7 +357,7 @@ public class JOptionPane extends JComponent implements Accessible
     public static final int         NO_OPTION = 1;
     /** Return value from class method if CANCEL is chosen. */
     public static final int         CANCEL_OPTION = 2;
-    /** Return value form class method if OK is chosen. */
+    /** Return value from class method if OK is chosen. */
     public static final int         OK_OPTION = 0;
     /** Return value from class method if user closes window without selecting
      * anything, more than likely this should be treated as either a
@@ -432,7 +439,7 @@ public class JOptionPane extends JComponent implements Accessible
      * the screen.
      *
      * @param message the <code>Object</code> to display
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @return user's input
@@ -468,7 +475,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @param parentComponent  the parent <code>Component</code> for the
      *          dialog
      * @param message  the <code>Object</code> to display
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *    <code>GraphicsEnvironment.isHeadless</code> returns
      *    <code>true</code>
      * @return user's input
@@ -520,7 +527,7 @@ public class JOptionPane extends JComponent implements Accessible
      *                  <code>QUESTION_MESSAGE</code>,
      *                  or <code>PLAIN_MESSAGE</code>
      * @return user's input
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -563,7 +570,7 @@ public class JOptionPane extends JComponent implements Accessible
      *                 field
      * @return user's input, or <code>null</code> meaning the user
      *                  canceled the input
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -606,7 +613,7 @@ public class JOptionPane extends JComponent implements Accessible
      *          or if the <code>parentComponent</code> has no
      *          <code>Frame</code>, a default <code>Frame</code> is used
      * @param message   the <code>Object</code> to display
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -634,7 +641,7 @@ public class JOptionPane extends JComponent implements Accessible
      *                  <code>WARNING_MESSAGE</code>,
      *                  <code>QUESTION_MESSAGE</code>,
      *                  or <code>PLAIN_MESSAGE</code>
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -663,7 +670,7 @@ public class JOptionPane extends JComponent implements Accessible
      *                  or <code>PLAIN_MESSAGE</code>
      * @param icon      an icon to display in the dialog that helps the user
      *                  identify the kind of message that is being displayed
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -687,7 +694,7 @@ public class JOptionPane extends JComponent implements Accessible
      *                  default <code>Frame</code> is used
      * @param message   the <code>Object</code> to display
      * @return an integer indicating the option selected by the user
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -715,7 +722,7 @@ public class JOptionPane extends JComponent implements Accessible
      *                  <code>YES_NO_CANCEL_OPTION</code>,
      *                  or <code>OK_CANCEL_OPTION</code>
      * @return an int indicating the option selected by the user
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -754,7 +761,7 @@ public class JOptionPane extends JComponent implements Accessible
      *                  <code>QUESTION_MESSAGE</code>,
      *                  or <code>PLAIN_MESSAGE</code>
      * @return an integer indicating the option selected by the user
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -792,7 +799,7 @@ public class JOptionPane extends JComponent implements Accessible
      *                  or <code>PLAIN_MESSAGE</code>
      * @param icon      the icon to display in the dialog
      * @return an int indicating the option selected by the user
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -853,7 +860,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @return an integer indicating the option chosen by the user,
      *                  or <code>CLOSED_OPTION</code> if the user closed
      *                  the dialog
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -879,6 +886,11 @@ public class JOptionPane extends JComponent implements Accessible
         dialog.dispose();
 
         Object        selectedValue = pane.getValue();
+
+        if (parentComponent != null) {
+            parentComponent.revalidate();
+            parentComponent.repaint();
+        }
 
         if(selectedValue == null)
             return CLOSED_OPTION;
@@ -916,7 +928,7 @@ public class JOptionPane extends JComponent implements Accessible
      *          no <code>Frame</code>, a default <code>Frame</code> is used
      * @param title     the title string for the dialog
      * @return a new <code>JDialog</code> containing this instance
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -943,7 +955,7 @@ public class JOptionPane extends JComponent implements Accessible
      *
      * @param title     the title string for the dialog
      * @return a new <code>JDialog</code> containing this instance
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -1505,7 +1517,7 @@ public class JOptionPane extends JComponent implements Accessible
      *          frame's title bar
      * @return a <code>JInternalFrame</code> containing a
      *          <code>JOptionPane</code>
-     * @exception RuntimeException if <code>parentComponent</code> does
+     * @throws RuntimeException if <code>parentComponent</code> does
      *          not have a valid parent
      */
     public JInternalFrame createInternalFrame(@Nullable Component parentComponent,
@@ -1597,7 +1609,7 @@ public class JOptionPane extends JComponent implements Accessible
      *          or <code>getRootFrame</code>
      *          if the component is <code>null</code>,
      *          or does not have a valid <code>Frame</code> parent
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see #getRootFrame
@@ -1623,7 +1635,7 @@ public class JOptionPane extends JComponent implements Accessible
      *          frame if the component is <code>null</code>,
      *          or does not have a valid
      *          <code>Frame</code> or <code>Dialog</code> parent
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -1680,7 +1692,7 @@ public class JOptionPane extends JComponent implements Accessible
      * which a frame is not provided.
      *
      * @return the default <code>Frame</code> to use
-     * @exception HeadlessException if
+     * @throws HeadlessException if
      *   <code>GraphicsEnvironment.isHeadless</code> returns
      *   <code>true</code>
      * @see #setRootFrame
@@ -2047,7 +2059,7 @@ public class JOptionPane extends JComponent implements Accessible
      *                <code>ERROR_MESSAGE</code>, <code>INFORMATION_MESSAGE</code>,
      *                <code>WARNING_MESSAGE</code>,
      *                <code>QUESTION_MESSAGE</code>, or <code>PLAIN_MESSAGE</code>
-     * @exception RuntimeException if <code>newType</code> is not one of the
+     * @throws RuntimeException if <code>newType</code> is not one of the
      *          legal values listed above
 
      * @see #getMessageType
@@ -2093,7 +2105,7 @@ public class JOptionPane extends JComponent implements Accessible
      *                  <code>YES_NO_OPTION</code>,
      *                  <code>YES_NO_CANCEL_OPTION</code>,
      *                  or <code>OK_CANCEL_OPTION</code>
-     * @exception RuntimeException if <code>newType</code> is not one of
+     * @throws RuntimeException if <code>newType</code> is not one of
      *          the legal values listed above
      *
      * @see #getOptionType
@@ -2322,48 +2334,46 @@ public class JOptionPane extends JComponent implements Accessible
     }
 
     // Serialization support.
+    @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         Vector<Object> values = new Vector<Object>();
 
         s.defaultWriteObject();
-        // Save the icon, if its Serializable.
-        if(icon != null && icon instanceof Serializable) {
+        // Save the icon, if it's Serializable.
+        if (icon instanceof Serializable) {
             values.addElement("icon");
             values.addElement(icon);
         }
-        // Save the message, if its Serializable.
-        if(message != null && message instanceof Serializable) {
+        // Save the message, if it's Serializable.
+        if (message instanceof Serializable) {
             values.addElement("message");
             values.addElement(message);
         }
-        // Save the treeModel, if its Serializable.
+        // Save the treeModel, if it's Serializable.
         if(options != null) {
-            Vector<Object> serOptions = new Vector<Object>();
+            ArrayList<Object> serOptions = new ArrayList<Object>();
 
             for(int counter = 0, maxCounter = options.length;
                 counter < maxCounter; counter++)
                 if(options[counter] instanceof Serializable)
-                    serOptions.addElement(options[counter]);
+                    serOptions.add(options[counter]);
             if(serOptions.size() > 0) {
-                int             optionCount = serOptions.size();
-                Object[]        arrayOptions = new Object[optionCount];
-
-                serOptions.copyInto(arrayOptions);
+                Object[] arrayOptions = serOptions.toArray(new Object[0]);
                 values.addElement("options");
                 values.addElement(arrayOptions);
             }
         }
-        // Save the initialValue, if its Serializable.
-        if(initialValue != null && initialValue instanceof Serializable) {
+        // Save the initialValue, if it's Serializable.
+        if (initialValue instanceof Serializable) {
             values.addElement("initialValue");
             values.addElement(initialValue);
         }
-        // Save the value, if its Serializable.
-        if(value != null && value instanceof Serializable) {
+        // Save the value, if it's Serializable.
+        if (value instanceof Serializable) {
             values.addElement("value");
             values.addElement(value);
         }
-        // Save the selectionValues, if its Serializable.
+        // Save the selectionValues, if it's Serializable.
         if(selectionValues != null) {
             boolean            serialize = true;
 
@@ -2380,20 +2390,20 @@ public class JOptionPane extends JComponent implements Accessible
                 values.addElement(selectionValues);
             }
         }
-        // Save the inputValue, if its Serializable.
-        if(inputValue != null && inputValue instanceof Serializable) {
+        // Save the inputValue, if it's Serializable.
+        if (inputValue instanceof Serializable) {
             values.addElement("inputValue");
             values.addElement(inputValue);
         }
-        // Save the initialSelectionValue, if its Serializable.
-        if(initialSelectionValue != null &&
-           initialSelectionValue instanceof Serializable) {
+        // Save the initialSelectionValue, if it's Serializable.
+        if (initialSelectionValue instanceof Serializable) {
             values.addElement("initialSelectionValue");
             values.addElement(initialSelectionValue);
         }
         s.writeObject(values);
     }
 
+    @Serial
     private void readObject(ObjectInputStream s)
         throws IOException, ClassNotFoundException {
         ObjectInputStream.GetField f = s.readFields();
@@ -2544,12 +2554,17 @@ public class JOptionPane extends JComponent implements Accessible
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
     @SuppressWarnings("serial") // Same-version serialization only
     protected class AccessibleJOptionPane extends AccessibleJComponent {
+
+        /**
+         * Constructs an {@code AccessibleJOptionPane}.
+         */
+        protected AccessibleJOptionPane() {}
 
         /**
          * Get the role of this object.
